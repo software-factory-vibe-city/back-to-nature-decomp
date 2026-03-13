@@ -127,6 +127,20 @@ When `lo >= 0x8000`, GNU ld's sign extension subtracts an extra `0x10000`, causi
 
 Some library `.o` files have `.data` section bytes that don't match the original binary (e.g., initialized static variables with different default values). Fix: compare `.data` bytes against the original binary at the known ROM offset, patch non-relocated bytes that differ.
 
+#### Why build-time patching instead of fixing the `.o` files directly?
+
+The library `.o` files in `lib/` are produced by `psyq-obj-parser` (from the pcsx-redux project), which converts Sony's proprietary PSY-Q object format to standard ELF. The converted files are used as-is — patches are applied at build time rather than baked into `lib/`.
+
+This is a deliberate design choice for **reusability across games**. Each PSX game links a different subset of SDK objects, and different objects trigger different edge cases:
+
+- **BSS layout** varies per game because PSYLINK assigned BSS addresses based on the game's specific link order.
+- **HI16 carry** only triggers in objects where a relocation's LO16 addend >= `0x8000`. In SDK 4.7, this affects `libspu/s_sav.o` (4 cases), `libgte/geo_00.o` (1 case), and `libgte/geo_01.o` (2 cases). A different game using different SDK objects or a different SDK version would have different affected files.
+- **Data byte differences** occur when game developers modified SDK defaults before linking. For this game, `libcd/bios_1.o` has a single byte changed — the `CD_set_test_parmnum` default was changed from `1` to `0` (a CD subsystem test parameter). Other games would have their own modifications, or none at all.
+
+The automated detection approach means the tooling handles whatever a new game throws at it without manual per-file investigation. This contrasts with projects like the Silent Hill decomp, which manually patches each `.o` file using LIEF scripts and documents each change in `lib/versions.txt` — an approach that requires re-investigation for every new game.
+
+**psyq-obj-parser's role in the HI16 issue:** psyq-obj-parser does have some HI16 carry compensation code, but it only applies when writing `st_value` (symbol offset values extracted from PSY-Q opcodes). It does not adjust instruction-embedded addends — when the PSY-Q assembler emits `lui $reg, 0xffff` as part of a HI16 relocation, that value is copied verbatim into the ELF. This is arguably a limitation of the converter, but rather than forking psyq-obj-parser, we fix it generically at build time.
+
 After patching, updates `slus_011.ld` to reference `build/lib/` instead of `lib/`, and strips library-defined symbols from `undefined_funcs_auto.txt` / `undefined_syms_auto.txt` to prevent address conflicts.
 
 ### Linker Script Finalization
