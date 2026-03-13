@@ -82,16 +82,80 @@ function main() {
     console.error("Warning: findMissingLibDeps.ts failed, skipping dependency symbols");
   }
 
+  // Run resolveLibSections.ts to get data/rdata section positions for matched .o files.
+  // Use these to compute data symbol addresses and add them as labels.
+  // This enables detectLibFunctions (in patchSplatForLibs) to verify wrapper placements.
+  console.log("Running resolveLibSections.ts for data symbol addresses...");
+  try {
+    interface LibSections {
+      oPath: string;
+      textRom: number;
+      textSize: number;
+      rdataRom?: number;
+      rdataSize?: number;
+      dataRom?: number;
+      dataSize?: number;
+    }
+
+    const sectionsOutput = execSync("npx tsx tools/resolveLibSections.ts", {
+      encoding: "utf-8",
+      cwd: ROOT,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    const libSections: LibSections[] = JSON.parse(sectionsOutput);
+    let dataSymCount = 0;
+
+    for (const ls of libSections) {
+      // Process .data and .rdata sections
+      for (const { secName, secRom } of [
+        { secName: ".data", secRom: ls.dataRom },
+        { secName: ".rdata", secRom: ls.rdataRom },
+      ]) {
+        if (secRom === undefined || secRom <= 0) continue;
+        const secVram = secRom - 0x800 + 0x80010000;
+
+        // Get global data/rdata symbols from nm
+        try {
+          const nmOutput = execSync(`mips-linux-gnu-nm "${ls.oPath}" 2>/dev/null`, {
+            encoding: "utf-8",
+            cwd: ROOT,
+          });
+          for (const line of nmOutput.split("\n")) {
+            const m = line.match(/^([0-9a-f]+)\s+([DR])\s+(\S+)/);
+            if (!m) continue;
+            const offset = parseInt(m[1], 16);
+            const symType = m[2];
+            const name = m[3];
+            // D = global .data, R = global .rdata (uppercase only = global)
+            if ((symType === "D" && secName === ".data") ||
+                (symType === "R" && secName === ".rdata")) {
+              const vram = secVram + offset;
+              newLabels.push({ name, vram, type: "data" });
+              dataSymCount++;
+            }
+          }
+        } catch {}
+      }
+    }
+    console.log(`Found ${dataSymCount} data symbols from matched .o sections`);
+  } catch (e) {
+    console.error("Warning: resolveLibSections.ts failed, skipping data symbols");
+  }
+
   // Parse existing symbol_addrs.txt
-  const existingContent = readFileSync(SYMBOLS_PATH, "utf-8");
+  let existingContent = readFileSync(SYMBOLS_PATH, "utf-8");
   const existingNames = new Set<string>();
   const existingAddrs = new Set<number>();
+  const existingNameToAddr = new Map<string, number>();
 
   for (const line of existingContent.split("\n")) {
     const nameMatch = line.match(/^(\S+)\s*=/);
     if (nameMatch) existingNames.add(nameMatch[1]);
     const addrMatch = line.match(/=\s*0x([0-9A-Fa-f]+)/);
     if (addrMatch) existingAddrs.add(parseInt(addrMatch[1], 16));
+    if (nameMatch && addrMatch) {
+      existingNameToAddr.set(nameMatch[1], parseInt(addrMatch[1], 16));
+    }
   }
 
   // Deduplicate new labels by address (first occurrence wins — detection labels come first)
@@ -103,6 +167,140 @@ function main() {
     seenNames.add(l.name);
     return true;
   });
+
+  // Update stale library symbol addresses: if a detection label has a name that
+  // exists in symbol_addrs.txt but at a different address, correct it.
+  // Also remove entries whose address is now claimed by a different symbol.
+  if (writeMode) {
+    let updatedCount = 0;
+    const lines = existingContent.split("\n");
+
+    // Build map of correct name→addr from detection
+    const correctAddrs = new Map<string, number>();
+    for (const l of dedupedLabels) {
+      correctAddrs.set(l.name, l.vram);
+    }
+
+    // Build set of all addresses claimed by detection labels
+    const detectedAddrs = new Map<number, string>();
+    for (const l of dedupedLabels) {
+      detectedAddrs.set(l.vram, l.name);
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^(\S+)\s*=\s*0x([0-9A-Fa-f]+)/);
+      if (!m) continue;
+      const name = m[1];
+      const addr = parseInt(m[2], 16);
+
+      // Case 1: This name is in detection results but at a different address
+      const correctAddr = correctAddrs.get(name);
+      if (correctAddr !== undefined && correctAddr !== addr) {
+        const newAddrHex = `0x${correctAddr.toString(16).toUpperCase()}`;
+        const oldAddrHex = `0x${addr.toString(16).toUpperCase()}`;
+        lines[i] = lines[i].replace(new RegExp(`0x${m[2]}`, "i"), newAddrHex);
+        console.log(`  Updated ${name}: ${oldAddrHex} → ${newAddrHex}`);
+        updatedCount++;
+        // Update tracking sets
+        existingAddrs.delete(addr);
+        existingAddrs.add(correctAddr);
+        existingNameToAddr.set(name, correctAddr);
+
+        // Rename c segment and source file at old address back to generic name
+        const oldVramHex = addr.toString(16).toUpperCase();
+        const genericName = `func_${oldVramHex}`;
+        let yamlContent = readFileSync(SPLAT_YAML, "utf-8");
+        if (yamlContent.includes(`, c, ${name}]`)) {
+          yamlContent = yamlContent.replace(
+            new RegExp(`(,\\s*c,\\s*)${name}\\]`, "g"),
+            `$1${genericName}]`
+          );
+          writeFileSync(SPLAT_YAML, yamlContent);
+          console.log(`  Reverted c segment: ${name} → ${genericName} in YAML`);
+        }
+        const oldSrc = join(SRC_DIR, `${name}.c`);
+        const newSrc = join(SRC_DIR, `${genericName}.c`);
+        if (existsSync(oldSrc) && !existsSync(newSrc)) {
+          let content = readFileSync(oldSrc, "utf-8");
+          content = content.replace(new RegExp(name, "g"), genericName);
+          writeFileSync(oldSrc, content);
+          renameSync(oldSrc, newSrc);
+          console.log(`  Renamed ${name}.c → ${genericName}.c`);
+        }
+        continue;
+      }
+
+      // Case 2: This address is now claimed by a different detection label
+      const claimant = detectedAddrs.get(addr);
+      if (claimant && claimant !== name && !correctAddrs.has(name)) {
+        // This entry's address belongs to a different symbol now — remove it
+        console.log(`  Removing stale ${name} at 0x${addr.toString(16).toUpperCase()} (now ${claimant})`);
+        lines.splice(i, 1);
+        i--;
+        updatedCount++;
+        existingNames.delete(name);
+        existingAddrs.delete(addr);
+        existingNameToAddr.delete(name);
+      }
+    }
+
+    if (updatedCount > 0) {
+      existingContent = lines.join("\n");
+      writeFileSync(SYMBOLS_PATH, existingContent);
+      console.log(`Updated ${updatedCount} stale symbol entries`);
+      // Refresh tracking sets
+      existingNames.clear();
+      existingAddrs.clear();
+      for (const line of existingContent.split("\n")) {
+        const nameMatch = line.match(/^(\S+)\s*=/);
+        if (nameMatch) existingNames.add(nameMatch[1]);
+        const addrMatch = line.match(/=\s*0x([0-9A-Fa-f]+)/);
+        if (addrMatch) existingAddrs.add(parseInt(addrMatch[1], 16));
+      }
+    }
+  }
+
+  // Fix misnamed c segments in YAML: if a c segment's name is a known symbol
+  // but the symbol's address doesn't match the segment's ROM, rename it back
+  if (writeMode) {
+    // Build name→vram from current symbol_addrs.txt
+    const symNameToVram = new Map<string, number>();
+    for (const line of existingContent.split("\n")) {
+      const m = line.match(/^(\S+)\s*=\s*0x([0-9A-Fa-f]+)/);
+      if (m) symNameToVram.set(m[1], parseInt(m[2], 16));
+    }
+
+    let yamlContent = readFileSync(SPLAT_YAML, "utf-8");
+    let fixedCount = 0;
+    const cSegRe = /^(\s+- \[)(0x[0-9A-Fa-f]+)(,\s*c,\s*)(\S+?)(\].*)$/gm;
+    yamlContent = yamlContent.replace(cSegRe, (match, pre, romHex, mid, name, post) => {
+      const segRom = parseInt(romHex, 16);
+      const segVram = segRom - 0x800 + 0x80010000;
+      const symVram = symNameToVram.get(name);
+      // If name is a known symbol but at a different VRAM, revert to generic
+      if (symVram !== undefined && symVram !== segVram && !name.startsWith("func_")) {
+        const genericName = `func_${segVram.toString(16).toUpperCase()}`;
+        console.log(`  Fix c segment: ${name} at ROM ${romHex} → ${genericName} (symbol is at 0x${symVram.toString(16).toUpperCase()})`);
+        // Also rename source file
+        const oldSrc = join(SRC_DIR, `${name}.c`);
+        const newSrc = join(SRC_DIR, `${genericName}.c`);
+        if (existsSync(oldSrc) && !existsSync(newSrc)) {
+          let content = readFileSync(oldSrc, "utf-8");
+          content = content.replace(new RegExp(name, "g"), genericName);
+          writeFileSync(oldSrc, content);
+          renameSync(oldSrc, newSrc);
+          console.log(`  Renamed ${name}.c → ${genericName}.c`);
+        }
+        fixedCount++;
+        return `${pre}${romHex}${mid}${genericName}${post}`;
+      }
+      return match;
+    });
+    if (fixedCount > 0) {
+      writeFileSync(SPLAT_YAML, yamlContent);
+      console.log(`Fixed ${fixedCount} misnamed c segments in YAML`);
+    }
+  }
 
   // Filter to only new entries (don't overwrite existing)
   const toAdd = dedupedLabels.filter(

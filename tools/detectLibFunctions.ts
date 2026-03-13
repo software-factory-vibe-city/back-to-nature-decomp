@@ -421,28 +421,89 @@ function main() {
     };
   }
 
+  // Load symbol addresses for relocation verification (used in dedup + Pass 2)
+  const symbolAddrs = loadSymbolAddrs("configs/symbol_addrs.txt");
+
+  // Cache relocations per .o path
+  const relocCache = new Map<string, Relocation[]>();
+  function getRelocs(oPath: string): Relocation[] {
+    let r = relocCache.get(oPath);
+    if (r === undefined) {
+      r = getTextRelocations(oPath);
+      relocCache.set(oPath, r);
+    }
+    return r;
+  }
+
   // --- Pass 1: Place all candidates using first-match (old behavior) ---
   let matches: LibMatch[] = candidates.map((c) => candidateToMatch(c, c.offsets[0]));
   matches.sort((a, b) => a.vramStart - b.vramStart);
 
-  // Deduplicate: same address → keep largest .text
+  // Deduplicate: same address → keep largest .text, break ties with relocation verification
   const deduped: LibMatch[] = [];
   const seenAddrs = new Map<number, number>();
+  // Collect all candidates per address for tie-breaking
+  const candidatesByAddr = new Map<number, { match: LibMatch; candidate: CandidateMatch }[]>();
   for (const m of matches) {
-    const existing = seenAddrs.get(m.vramStart);
-    if (existing !== undefined) {
-      if (m.textSize > deduped[existing].textSize) {
-        if (verbose) {
-          console.error(
-            `  DEDUP: ${m.oPath} (${m.textSize}B) replaces ${deduped[existing].oPath} (${deduped[existing].textSize}B) at 0x${m.vramStart.toString(16)}`
-          );
-        }
-        deduped[existing] = m;
-      }
+    const c = candidates.find((cc) => cc.oPath === m.oPath)!;
+    if (!candidatesByAddr.has(m.vramStart)) {
+      candidatesByAddr.set(m.vramStart, []);
+    }
+    candidatesByAddr.get(m.vramStart)!.push({ match: m, candidate: c });
+  }
+
+  for (const [addr, group] of [...candidatesByAddr.entries()].sort((a, b) => a[0] - b[0])) {
+    if (group.length === 1) {
+      seenAddrs.set(addr, deduped.length);
+      deduped.push(group[0].match);
       continue;
     }
-    seenAddrs.set(m.vramStart, deduped.length);
-    deduped.push(m);
+
+    // Multiple candidates at same address — find largest textSize
+    const maxTextSize = Math.max(...group.map((g) => g.match.textSize));
+    const largest = group.filter((g) => g.match.textSize === maxTextSize);
+
+    if (largest.length === 1) {
+      // Clear winner by size
+      if (verbose) {
+        for (const g of group) {
+          if (g !== largest[0]) {
+            console.error(
+              `  DEDUP: ${largest[0].match.oPath} (${largest[0].match.textSize}B) replaces ${g.match.oPath} (${g.match.textSize}B) at 0x${addr.toString(16)}`
+            );
+          }
+        }
+      }
+      seenAddrs.set(addr, deduped.length);
+      deduped.push(largest[0].match);
+    } else {
+      // Tie in textSize — use relocation verification to break tie
+      const fileOffset = addr - LOAD_ADDR + PAYLOAD_OFFSET;
+      let bestMatch = largest[0].match;
+      let bestScore = -1;
+
+      for (const g of largest) {
+        const relocs = getRelocs(g.candidate.oPath);
+        const result = verifyRelocations(binary, fileOffset, relocs, symbolAddrs);
+        if (verbose) {
+          console.error(
+            `  DEDUP TIE: ${g.match.oPath} at 0x${addr.toString(16)} reloc score ${result.verified}/${result.checked}`
+          );
+        }
+        if (result.verified > bestScore) {
+          bestScore = result.verified;
+          bestMatch = g.match;
+        }
+      }
+
+      if (verbose) {
+        console.error(
+          `  DEDUP WINNER: ${bestMatch.oPath} at 0x${addr.toString(16)} (score ${bestScore})`
+        );
+      }
+      seenAddrs.set(addr, deduped.length);
+      deduped.push(bestMatch);
+    }
   }
 
   // Resolve overlaps: keep larger
@@ -474,21 +535,8 @@ function main() {
   }
 
   // --- Pass 2: Fix multi-match objects using relocation verification ---
-  // TEMPORARILY DISABLED for baseline diff measurement
-  if (false) {
-  const symbolAddrs = loadSymbolAddrs("configs/symbol_addrs.txt");
+  {
   const placedPaths = new Set<string>(placed.map((m) => m.oPath));
-
-  // Cache relocations per .o path
-  const relocCache = new Map<string, Relocation[]>();
-  function getRelocs(oPath: string): Relocation[] {
-    let r = relocCache.get(oPath);
-    if (r === undefined) {
-      r = getTextRelocations(oPath);
-      relocCache.set(oPath, r);
-    }
-    return r;
-  }
 
   // Check if a range overlaps any placed object (optionally excluding one path)
   function overlapsPlaced(
@@ -553,7 +601,47 @@ function main() {
     }
   }
 
-  } // end of disabled Pass 2
+  // Step 2b: Try to place multi-match candidates that lost dedup/overlap
+  // at alternative offsets verified by relocations (score > 0).
+  for (const c of candidates) {
+    if (c.offsets.length <= 1) continue;
+    if (placedPaths.has(c.oPath)) continue;
+
+    const relocs = getRelocs(c.oPath);
+    if (relocs.length === 0) continue;
+
+    let bestOffset: number | null = null;
+    let bestVerified = 0; // require at least 1 verified relocation
+
+    for (const offset of c.offsets) {
+      const vramStart = fileOffsetToVram(offset);
+      const vramEnd = vramStart + c.textSize;
+      if (overlapsPlaced(vramStart, vramEnd)) continue;
+
+      const result = verifyRelocations(binary, offset, relocs, symbolAddrs);
+      if (result.verified > bestVerified) {
+        bestVerified = result.verified;
+        bestOffset = offset;
+      }
+    }
+
+    if (bestOffset !== null) {
+      const match = candidateToMatch(c, bestOffset);
+      placed.push(match);
+      placedPaths.add(c.oPath);
+
+      if (verbose) {
+        console.error(
+          `  PLACED: ${c.oPath} at 0x${match.vramStart.toString(16)} (alt offset, reloc score ${bestVerified})`
+        );
+      }
+    }
+  }
+
+  // Re-sort placed after any relocations/additions
+  placed.sort((a, b) => a.vramStart - b.vramStart);
+
+  } // end of Pass 2
 
   // --- Final safety: overlap resolution on placed array ---
   let resolved: LibMatch[] = [];

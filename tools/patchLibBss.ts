@@ -436,6 +436,189 @@ function patchOFile(
   return { patched: true, patchCount, errors };
 }
 
+// Relocation types needed for HI16 carry fix
+const R_MIPS_26 = 4;
+
+/**
+ * Fix 3: Patch HI16/LO16 instruction addends to compensate for GNU ld carry bug.
+ *
+ * GNU ld sometimes computes R_MIPS_HI16 incorrectly when .o files have large
+ * addends that cross 64KB boundaries. This function reads the original binary's
+ * resolved instructions, computes what GNU ld will produce, and adjusts the .o
+ * file's addends to compensate.
+ */
+function patchHi16Carry(
+  elfBuf: Buffer,
+  binary: Buffer,
+  entry: LibSections,
+  verbose: boolean
+): number {
+  if (entry.textRom <= 0 || entry.textSize <= 0) return 0;
+
+  const sections = parseSectionHeaders(elfBuf);
+  const textSection = sections.find((s) => s.nameStr === ".text");
+  if (!textSection) return 0;
+
+  const relTextSection = sections.find(
+    (s) => s.nameStr === ".rel.text" && s.sh_type === SHT_REL
+  );
+  if (!relTextSection) return 0;
+
+  const symtabSection = sections.find((s) => s.sh_type === SHT_SYMTAB);
+  if (!symtabSection) return 0;
+  const strtabSection = sections[symtabSection.sh_link];
+  if (!strtabSection) return 0;
+
+  const relocs = parseRelocs(elfBuf, relTextSection);
+  const symbols = parseSymbolTable(elfBuf, symtabSection, strtabSection);
+
+  let patchCount = 0;
+
+  // Process each HI16 relocation
+  for (let i = 0; i < relocs.length; i++) {
+    const hiReloc = relocs[i];
+    if (hiReloc.type !== R_MIPS_HI16) continue;
+
+    // Find paired LO16
+    let loReloc: ElfReloc | null = null;
+    for (let j = i + 1; j < relocs.length; j++) {
+      if (relocs[j].type === R_MIPS_LO16 && relocs[j].symIndex === hiReloc.symIndex) {
+        loReloc = relocs[j];
+        break;
+      }
+    }
+    if (!loReloc) continue;
+
+    // Read original binary's resolved instructions
+    const origHiOff = entry.textRom + hiReloc.r_offset;
+    const origLoOff = entry.textRom + loReloc.r_offset;
+    if (origHiOff + 4 > binary.length || origLoOff + 4 > binary.length) continue;
+
+    const origHiInstr = binary.readUInt32LE(origHiOff);
+    const origLoInstr = binary.readUInt32LE(origLoOff);
+    const origHiImm = origHiInstr & 0xFFFF;
+    const origLoImm = origLoInstr & 0xFFFF;
+
+    // Read .o file's unresolved instructions (addends)
+    const oHiOff = textSection.sh_offset + hiReloc.r_offset;
+    const oLoOff = textSection.sh_offset + loReloc.r_offset;
+    if (oHiOff + 4 > elfBuf.length || oLoOff + 4 > elfBuf.length) continue;
+
+    const oHiInstr = elfBuf.readUInt32LE(oHiOff);
+    const oLoInstr = elfBuf.readUInt32LE(oLoOff);
+    const oHiImm = oHiInstr & 0xFFFF;
+    const oLoImm = oLoInstr & 0xFFFF;
+
+    // Get the symbol's resolved address
+    const sym = symbols[hiReloc.symIndex];
+    if (!sym) continue;
+
+    // Compute the addend: AHL = (oHiImm << 16) + signExtend(oLoImm)
+    const oLoSigned = signExtend16(oLoImm);
+    const AHL = ((oHiImm << 16) + oLoSigned) | 0;
+
+    // The symbol's value (after our BSS patching, it might be ABS)
+    // For the carry computation, we need to know what S (symbol value) the linker will use
+    // S = sym.st_value (after our patching)
+    const S = elfBuf.readUInt32LE(sym.fileOffset + 4); // re-read in case it was patched
+
+    // What GNU ld computes:
+    // result = S + AHL
+    // HI16 = (result >> 16) & 0xFFFF  (with carry from LO16 sign)
+    // LO16 = result & 0xFFFF
+    const result = (S + AHL) | 0;
+    const gnuLoImm = result & 0xFFFF;
+    const carry = gnuLoImm >= 0x8000 ? 1 : 0;
+    const gnuHiImm = ((result >>> 16) + carry) & 0xFFFF;
+
+    // Compare with original binary
+    if (gnuHiImm !== origHiImm || gnuLoImm !== origLoImm) {
+      // Need to compensate. Compute what addend would produce the correct result.
+      // We want: S + AHL_new → origHiImm/origLoImm
+      // The original resolved value:
+      const origLoSigned = signExtend16(origLoImm);
+      const origResult = ((origHiImm << 16) + origLoSigned) | 0;
+
+      // New AHL = origResult - S
+      const newAHL = (origResult - S) | 0;
+      const newLoImm = newAHL & 0xFFFF;
+      const newHiImm = ((newAHL - signExtend16(newLoImm)) >>> 16) & 0xFFFF;
+
+      // Verify: GNU ld should produce the correct result with these addends
+      const verify = (S + ((newHiImm << 16) + signExtend16(newLoImm))) | 0;
+      const vLoImm = verify & 0xFFFF;
+      const vCarry = vLoImm >= 0x8000 ? 1 : 0;
+      const vHiImm = ((verify >>> 16) + vCarry) & 0xFFFF;
+
+      if (vHiImm === origHiImm && vLoImm === origLoImm) {
+        // Patch the .o file
+        elfBuf.writeUInt16LE(newHiImm, oHiOff);
+        elfBuf.writeUInt16LE(newLoImm, oLoOff);
+        patchCount++;
+
+        if (verbose) {
+          console.error(
+            `  HI16 FIX: ${entry.oPath} offset 0x${hiReloc.r_offset.toString(16)}/0x${loReloc.r_offset.toString(16)}: ` +
+            `HI 0x${oHiImm.toString(16)}→0x${newHiImm.toString(16)} LO 0x${oLoImm.toString(16)}→0x${newLoImm.toString(16)}`
+          );
+        }
+      }
+    }
+  }
+
+  return patchCount;
+}
+
+/**
+ * Fix 4: Patch .data section bytes that don't match the original binary.
+ * Skips bytes covered by .rel.data relocations.
+ */
+function patchDataBytes(
+  elfBuf: Buffer,
+  binary: Buffer,
+  entry: LibSections,
+  verbose: boolean
+): number {
+  if (!entry.dataRom || !entry.dataSize || entry.dataSize <= 0) return 0;
+
+  const sections = parseSectionHeaders(elfBuf);
+  const dataSection = sections.find((s) => s.nameStr === ".data");
+  if (!dataSection || dataSection.sh_size !== entry.dataSize) return 0;
+
+  // Find .rel.data section to know which bytes have relocations
+  const relDataSection = sections.find(
+    (s) => s.nameStr === ".rel.data" && s.sh_type === SHT_REL
+  );
+  const relocOffsets = new Set<number>();
+  if (relDataSection) {
+    const relocs = parseRelocs(elfBuf, relDataSection);
+    for (const r of relocs) {
+      for (let b = 0; b < 4; b++) relocOffsets.add(r.r_offset + b);
+    }
+  }
+
+  let patchCount = 0;
+  for (let i = 0; i < entry.dataSize; i++) {
+    if (relocOffsets.has(i)) continue; // skip relocated bytes
+
+    const oOff = dataSection.sh_offset + i;
+    const binOff = entry.dataRom + i;
+    if (oOff >= elfBuf.length || binOff >= binary.length) continue;
+
+    if (elfBuf[oOff] !== binary[binOff]) {
+      if (verbose) {
+        console.error(
+          `  DATA FIX: ${entry.oPath} .data[0x${i.toString(16)}]: 0x${elfBuf[oOff].toString(16)}→0x${binary[binOff].toString(16)}`
+        );
+      }
+      elfBuf[oOff] = binary[binOff];
+      patchCount++;
+    }
+  }
+
+  return patchCount;
+}
+
 function main() {
   const writeMode = process.argv.includes("--write");
   const verbose = process.argv.includes("--verbose");

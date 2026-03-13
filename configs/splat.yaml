@@ -616,7 +616,7 @@ segments:
       - [0x17D84, o, ../lib/libsnd/ssend] # lib/libsnd/ssend.o
       - [0x17E34, o, ../lib/libsnd/ssinit] # lib/libsnd/ssinit.o
       - [0x17ED4, o, ../lib/libsnd/ssinit_c] # lib/libsnd/ssinit_c.o
-      - [0x17F14, o, ../lib/libsnd/ut_roff] # lib/libsnd/ut_roff.o
+      - [0x17F14, o, ../lib/libspu/s_i] # lib/libspu/s_i.o
       - [0x17F34, o, ../lib/libspu/s_crwa] # lib/libspu/s_crwa.o
       - [0x180D4, o, ../lib/libspu/s_m_util] # lib/libspu/s_m_util.o
       - [0x181E4, o, ../lib/libsnd/ssopenq] # lib/libsnd/ssopenq.o
@@ -697,7 +697,7 @@ segments:
       - [0x1E684, o, ../lib/libsnd/ut_rev] # lib/libsnd/ut_rev.o
       - [0x1E724, o, ../lib/libspu/s_sr] # lib/libspu/s_sr.o
       - [0x1E814, o, ../lib/libsnd/ut_rfb] # lib/libsnd/ut_rfb.o
-      - [0x1E854, c, func_8002E054]       # 0x8002E054 func_8002E054
+      - [0x1E854, o, ../lib/libsnd/ut_roff] # dep-obj lib/libsnd/ut_roff.o
       - [0x1E874, o, ../lib/libsnd/ut_ron] # dep-obj lib/libsnd/ut_ron.o
       - [0x1E894, o, ../lib/libsnd/ut_sva] # lib/libsnd/ut_sva.o
       - [0x1EA64, o, ../lib/libsnd/ut_vvol4] # lib/libsnd/ut_vvol4.o
@@ -754,16 +754,16 @@ segments:
       - [0x24214, o, ../lib/libcd/iso9660] # lib/libcd/iso9660.o
       - [0x24B84, o, ../lib/libcd/bios_1] # lib/libcd/bios_1.o
       - [0x26104, o, ../lib/libcd/s_002] # lib/libcd/s_002.o
-      - [0x26214, o, ../lib/libcd/s_003] # lib/libcd/s_003.o
-      - [0x26224, o, ../lib/libc2/atoi_1] # lib/libc2/atoi_1.o
-      - [0x26244, c, CdFlush]       # 0x80035A44 CdFlush
+      - [0x26214, o, ../lib/libcd/s_005] # lib/libcd/s_005.o
+      - [0x26224, o, ../lib/libcd/s_008] # lib/libcd/s_008.o
+      - [0x26244, o, ../lib/libcd/s_012] # lib/libcd/s_012.o
       - [0x26264, o, ../lib/libcd/s_016] # lib/libcd/s_016.o
       - [0x26624, o, ../lib/libcd/cdr_1] # lib/libcd/cdr_1.o
-      - [0x26FC4, c, func_800367C4]       # 0x800367C4 func_800367C4
+      - [0x26FC4, o, ../lib/libcd/s_003] # dep-obj lib/libcd/s_003.o
       - [0x26FD4, o, ../lib/libcd/s_004] # dep-obj lib/libcd/s_004.o
       - [0x26FE4, o, ../lib/libcd/s_006] # lib/libcd/s_006.o
       - [0x26FF4, o, ../lib/libcd/s_013] # dep-obj lib/libcd/s_013.o
-      - [0x27014, o, ../lib/libcd/s_009] # lib/libcd/s_009.o
+      - [0x27014, o, ../lib/libcd/s_014] # lib/libcd/s_014.o
       - [0x27034, o, ../lib/libcd/s_015] # dep-obj lib/libcd/s_015.o
       - [0x27054, o, ../lib/libcd/s_021] # lib/libcd/s_021.o
       - [0x27074, o, ../lib/libcd/bios_2] # lib/libcd/bios_2.o
@@ -800,7 +800,7 @@ segments:
       - [0x28E54, o, ../lib/libgte/reg03_14] # lib/libgte/reg03_14.o
       - [0x28E64, o, ../lib/libgte/reg03_15] # lib/libgte/reg03_15.o
       - [0x28E74, c, func_80038674]       # 0x80038674 func_80038674
-      - [0x28EC4, c, ChangeClearSIO]       # text-gap
+      - [0x28EC4, c, dmy_nothing1]       # text-gap
       - [0x28ECC, c, func_800386CC]       # text-gap
       - [0x28ED4, o, ../lib/libgte/smp_00_1] # lib/libgte/smp_00_1.o
       - [0x28EF4, o, ../lib/libgs/gs_001] # lib/libgs/gs_001.o
@@ -809,16 +809,15 @@ segments:
       - [0x295D4, o, ../lib/libgs/gs_004] # lib/libgs/gs_004.o
       - [0x296C4, o, ../lib/libgs/gs_103] # lib/libgs/gs_103.o
       - [0x29764, o, ../lib/libgs/gs_104] # lib/libgs/gs_104.o
-      - [0x297E4, c, GsSetProjection]       # 0x80038FE4 GsSetProjection
+      - [0x297E4, o, ../lib/libgs/gs_106] # lib/libgs/gs_106.o
       - [0x29804, o, ../lib/libgs/gs_107] # lib/libgs/gs_107.o
       - [0x29D74, o, ../lib/libgte/mtx_11] # lib/libgte/mtx_11.o
       - [0x29DA4, o, ../lib/libgs/gs_108] # lib/libgs/gs_108.o
       - [0x29E24, o, ../lib/libgs/gs_110] # lib/libgs/gs_110.o
       - [0x29E54, o, ../lib/libgte/reg10] # lib/libgte/reg10.o
       - [0x29E74, o, ../lib/libgs/gs_121] # lib/libgs/gs_121.o
-      - [0x29EC4, c, GsSetNearClip]       # 0x800396C4 GsSetNearClip
-      - [0x29ED0, c, func_800396D0]       # text-gap
-      - [0x29ED4, c, GsGetWorkBase]       # 0x800396D4 GsGetWorkBase
+      - [0x29EC4, o, ../lib/libgs/gs_124] # lib/libgs/gs_124.o
+      - [0x29ED4, o, ../lib/libgs/gs_125] # lib/libgs/gs_125.o
       - [0x29EE4, c, SetDumpFnt]
       - [0x29F24, c, FntLoad]
       - [0x29FC4, c, FntOpen]

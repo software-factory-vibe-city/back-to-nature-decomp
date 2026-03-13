@@ -481,7 +481,7 @@ function main() {
       }
     }
 
-    // Keep existing text o entries (unless excluded or stale)
+    // Keep existing text o entries (unless excluded, stale, or no longer in detection results)
     const textOMatch = line.match(textORe);
     if (textOMatch) {
       const pathStr = textOMatch[2].trim();
@@ -500,6 +500,13 @@ function main() {
           }
           console.log(`Replaced excluded ${oPath} with ${funcAddrs.length} c entries`);
         }
+        removedCount++;
+        continue;
+      }
+      // Remove stale o entries not in current detection results
+      const validOPaths = new Set(sortedMatches.map((m) => m.oPath));
+      if (!validOPaths.has(oPath)) {
+        console.log(`Removing stale o entry: ${oPath}`);
         removedCount++;
         continue;
       }

@@ -573,6 +573,47 @@ function main() {
     symbolDefs.push(...filtered);
   }
 
+  // Step 5b: Add symbol overrides for matched .o global function symbols
+  // When overlapping deps define symbols that are also defined by matched .o files,
+  // GNU ld may resolve them from the overlapping dep instead of the matched .o.
+  // Add explicit overrides so the correct (matched) address wins.
+  {
+    // Build set of all symbol names defined by overlapping deps
+    const depSymNames = new Set(symbolDefs.map((s) => s.name));
+
+    // Load libSections for matched .o positions
+    let libSections: LibSections[] = [];
+    if (existsSync(CACHE_PATH)) {
+      libSections = JSON.parse(readFileSync(CACHE_PATH, "utf-8"));
+    }
+
+    // For each matched .o with text, get global function/data symbols
+    let overrideCount = 0;
+    for (const ls of libSections) {
+      if (ls.textSize <= 0) continue;
+      const syms = getSymbolOffsets(ls.oPath);
+      const vramBase = romToVram(ls.textRom);
+
+      for (const sym of syms) {
+        if (sym.type !== "T") continue; // only global text symbols
+        const correctVram = vramBase + sym.offset;
+
+        // Check if any dep_syms entry defines this same symbol at a different address
+        const existingDef = symbolDefs.find((s) => s.name === sym.name);
+        if (existingDef && existingDef.vram !== correctVram) {
+          console.log(
+            `  OVERRIDE: ${sym.name} from dep ${vramHex(existingDef.vram)} → matched ${vramHex(correctVram)} (${ls.oPath})`
+          );
+          existingDef.vram = correctVram;
+          overrideCount++;
+        }
+      }
+    }
+    if (overrideCount > 0) {
+      console.log(`Overrode ${overrideCount} dep_syms with matched .o addresses`);
+    }
+  }
+
   if (overlappingDeps.length > 0 || symbolDefs.length > 0) {
     console.log(
       `\n${overlappingDeps.length} overlapping deps → ${symbolDefs.length} symbol definitions`
