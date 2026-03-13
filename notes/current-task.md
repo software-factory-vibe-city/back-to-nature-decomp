@@ -18,6 +18,9 @@ Link pre-compiled PSY-Q library `.o` files directly instead of using INCLUDE_ASM
 | `tools/patchLinkerBss.ts` | Patches generated linker script to add library `.bss` entries (idempotent) | Done |
 | `tools/addDepObjects.ts` | Links dependency `.o` files into the build — handles text deps, overlapping deps, BSS-only deps, and byte-mismatched deps | **Done (new)** |
 | `tools/splat_ext/o.py` | Splat extension enabling the `o` segment type | Done |
+| `tools/diffBinary.ts` | Byte-level binary comparison with per-section diff analysis | Done |
+| `tools/extractBssSymAddrs.ts` | Extract BSS symbol addresses from original binary via HI16/LO16 scanning | Done |
+| `tools/patchLibBss.ts` | Patch library `.o` ELFs for GNU ld BSS compatibility (SHN_ABS conversion) | Done |
 
 ### Pipeline
 
@@ -25,15 +28,20 @@ Link pre-compiled PSY-Q library `.o` files directly instead of using INCLUDE_ASM
 ```
 addLibSymbols.ts --write       # adds symbols + renames dependency func segments
 patchSplatForLibs.ts --write   # converts c → o segments + adds rdata/data/sdata o entries
+                               # scans binary for function boundaries in text gaps
+                               # creates per-function c entries, source files, and symbol_addrs.txt entries
+                               # removes orphaned source files (functions covered by o segments)
 addDepObjects.ts --write       # links dependency .o files (text/BSS/symbol defs)
 splat split                    # first pass
 fixCrossFileRefs.ts --write    # fixes cross-file label visibility
-splat split                    # second pass
+                               # also adds c entries + source files for new symbols
+splat split + fixCrossFileRefs # iterated up to 3x until no more cross-file refs found
 patchLinkerBss.ts --write      # patches linker script with library .bss entries
+patchLibBss.ts --write         # patches .o ELFs for GNU ld BSS compatibility
 append INCLUDE lines           # undefined_funcs_auto.txt + undefined_syms_auto.txt + dep_syms.txt
 ```
 
-Output: 416 `o` segments total (341 text + 2 dep text + 29 rdata + 44 data) + ~469 `c` segments
+Output: 420 `o` segments total (349 text + 2 dep text + 28 rdata + 41+ data) + ~564 `c` segments
 
 ### Build Status
 
@@ -146,24 +154,27 @@ All lines addDepObjects inserts into the YAML are tagged with `# dep-obj` marker
 
 - `make split` — **passes**
 - `make` (compile + link) — **passes with 0 linker errors**
-- `make check` (binary match) — **fails** (234 diff bytes, 0.07%)
+- `make check` (binary match) — **fails** (241 diff bytes, 0.07%)
 
 ### What Matches
 
 - **All game code** (non-library `c` segments) — 0 diffs
-- **All rodata, data, sdata sections** — 0 diffs
-- **308 of 342 library `.o` files** — 0 diffs after linking
+- **Rodata, sdata sections** — 0 diffs
+- **Data section** — 1 diff byte
+- **~302 of 342 library `.o` files** — 0 diffs after linking
 
-### What Doesn't Match: 34 Library Objects (234 diff bytes)
+### What Doesn't Match: 40 Sections (241 diff bytes)
 
-All 34 mismatched objects are **pure relocation diffs** — the `.o` code bytes are identical when relocation fields are masked out. The v4.70 SDK is correct. Zero objects have actual code differences.
+241 diff bytes across 213 blocks in 40 sections:
+- **5 game code `c` segments** (func_800145F0, func_80014854, func_80014988, func_80014BCC, func_80014CBC, func_8002194C) — 7 bytes total
+- **35 library `o` segments** — 234 bytes total, predominantly `libsnd` objects
+
+All mismatched library objects are **pure relocation diffs** — the `.o` code bytes are identical when relocation fields are masked out. The v4.70 SDK is correct. Zero objects have actual code differences.
 
 The diffs break into 3 categories:
 
-#### 1. Function address mismatches (all 34 objects)
-Every JAL (R_MIPS_26) relocation resolves to a different target. The `.o` files call the right symbol names, but those symbols land at different VRAMs because our link order differs from the original PSYLINK order. Examples:
-- `SpuSetReverb`: built `0x8002DF24`, original `0x80026D44`
-- `CdStatus`: built `0x80035A14`, original `0x800367C4`
+#### 1. Function address mismatches (all 35 objects)
+Every JAL (R_MIPS_26) relocation resolves to a different target. The `.o` files call the right symbol names, but those symbols land at different VRAMs because our link order differs from the original PSYLINK order.
 
 #### 2. BSS/data symbol placement (6 symbols across ~15 objects)
 Several BSS/data symbols are at slightly different addresses:
@@ -183,19 +194,35 @@ PSYLINK (the original PSX linker) placed library objects in a different order th
 
 The `matchSignatures.ts` heuristic IS correct. The signature format wildcards all relocation bytes (HI16/LO16 immediates, JAL targets), so it correctly matches on the actual instruction opcodes/registers. All 342 library objects have code that matches the binary when relocations are excluded.
 
-Previous misdiagnosis: we thought 34 objects were from the wrong SDK version. This was wrong — the "diffs" reported by `diffBinary.ts` were comparing fully-linked output where relocations had resolved to different addresses, not the underlying `.o` code.
+### Build Recovery (Post-Failed Session) — COMPLETE
+
+**Problem**: A previous LLM session attempted to fix 234 diff bytes by manually editing configs and source files. This broke the build (`undefined reference to func_800471D0`) and left orphaned/duplicate source files. The manual changes were not reproducible.
+
+**Root cause**: `patchSplatForLibs.ts` created only ONE `c` entry per text gap after `o` entries. Gaps can contain many functions (e.g., the pdresres.o gap at 0x374A4-0x38990 had 22 functions). Also, `fixCrossFileRefs.ts` only scanned `build/asm/*.s` (1 file) instead of `build/asm/nonmatchings/*/` (533+ files).
+
+**Fixes applied**:
+
+1. **`tools/patchSplatForLibs.ts`** — Major rework of gap-filling:
+   - Builds merged `o` coverage map to find all uncovered text ranges
+   - Scans binary for `jr $ra` (0x03E00008) patterns to detect function boundaries within gaps
+   - Creates per-function `c` entries tagged `# text-gap` for each discovered function
+   - Looks up existing symbol names from `symbol_addrs.txt`; generates `func_XXXXXXXX` for unknown addresses
+   - Adds new symbols to `symbol_addrs.txt` with `type:func`; ensures existing gap symbols get `type:func`
+   - Creates `src/<name>.c` stub files for new gap functions
+   - Removes orphaned source files (functions covered by `o` segments) — prevents Makefile from compiling stubs with no nonmatchings
+   - Also adds `c` entries for any `type:func` symbols that exist in `symbol_addrs.txt` but lack YAML entries (handles symbols between existing `c` entries)
+
+2. **`tools/fixCrossFileRefs.ts`** — Two fixes:
+   - Now scans `build/asm/nonmatchings/*/` subdirectories (was only scanning top-level `build/asm/*.s`)
+   - After adding symbols to `symbol_addrs.txt`, also adds `c` entries to `splat.yaml` and creates source files
+
+3. **`Makefile`** — fixCrossFileRefs + splat split now runs in a loop (up to 3 iterations) until no more cross-file references found, handling cascading splits
+
+**Result**: `make clean && make split && make` passes with 0 linker errors. `make check` shows 241 diff bytes (0.07%), close to the pre-failure 234.
 
 ---
 
 ## What's Been Built for Binary Matching (Task 3)
-
-### Additional Tools Created
-
-| Tool | Purpose | Status |
-|------|---------|--------|
-| `tools/diffBinary.ts` | Byte-level binary comparison with linker map integration | Done |
-| `tools/extractBssSymAddrs.ts` | Extract BSS symbol addresses from original binary via HI16/LO16 scanning | Done |
-| `tools/patchLibBss.ts` | Patch library `.o` ELFs for GNU ld BSS compatibility (SHN_ABS conversion) | Done |
 
 ### Modifications to Existing Tools
 
@@ -214,17 +241,17 @@ Previous misdiagnosis: we thought 34 objects were from the wrong SDK version. Th
 
 ALL TASKS MUST BE COMPLETED IN A PROGRAMMATIC, REPRODUCIBLE WAY.
 
-### Task 3: Fix remaining 234 diff bytes
+### Task 3: Fix remaining 241 diff bytes
 
 The root cause is link order. To fix:
 1. **Determine original link order** — extract the order PSYLINK placed library objects from the original binary (function addresses imply placement order)
 2. **Reorder linker script** — place library `.o` entries in the linker script in the same order as the original
 3. **Fix BSS symbol placement** — the 6 BSS/data symbols with small address offsets need exact placement
 4. **HI16 carry edge cases** — may need instruction-level patching for the 3 objects where GNU ld computes carry differently
+5. **Investigate 7 game code diff bytes** — 5 `c` segments + 1 data byte have small diffs (may be related to cross-file label resolution or assembly differences)
 
 ### Task 4: Cleanup
 
-- Remove orphaned `src/func_*.c` stubs for functions now covered by `o` segments
 - Update `tools/progress.ts` to account for `o` segments in progress reporting
 
 ### Known minor issues

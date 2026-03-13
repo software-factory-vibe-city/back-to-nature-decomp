@@ -549,6 +549,30 @@ function main() {
   }
 
   // Step 5: Write symbol definitions for overlapping deps
+  // Filter out symbols that already have c or o segments in the YAML —
+  // dep_syms would override the linker's resolution from those segments.
+  {
+    const yamlSegNames = new Set<string>();
+    const segNameRe = /^\s+- \[0x[0-9A-Fa-f]+,\s*(?:c|o),\s*([^\]\s,#]+)/;
+    for (const line of yamlContent.split("\n")) {
+      const m = line.match(segNameRe);
+      if (m) {
+        // For o segments like "../lib/libcd/s_008", extract all symbols from
+        // the actual .o file. For c segments, the name IS the symbol.
+        yamlSegNames.add(m[1]);
+      }
+    }
+    const before = symbolDefs.length;
+    const filtered = symbolDefs.filter((s) => !yamlSegNames.has(s.name));
+    if (filtered.length < before) {
+      console.log(
+        `\nFiltered ${before - filtered.length} symbol defs that conflict with c/o segments`
+      );
+    }
+    symbolDefs.length = 0;
+    symbolDefs.push(...filtered);
+  }
+
   if (overlappingDeps.length > 0 || symbolDefs.length > 0) {
     console.log(
       `\n${overlappingDeps.length} overlapping deps → ${symbolDefs.length} symbol definitions`

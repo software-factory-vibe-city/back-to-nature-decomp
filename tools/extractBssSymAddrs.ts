@@ -148,14 +148,23 @@ function signExtend16(value: number): number {
 }
 
 /**
- * Resolve a HI16/LO16 pair from the binary.
- * textFileOffset is the file offset of the .text section start.
+ * Resolve a HI16/LO16 pair from the binary, subtracting the addend from the .o file.
+ *
+ * MIPS HI16/LO16 relocations for global symbols use the instruction's existing
+ * immediate as an addend.  The linker computes:
+ *     result = symAddr + addend
+ * So to recover the symbol address we need:
+ *     symAddr = result - addend
+ *
+ * textFileOffset is the file offset of the .text section start in the binary.
+ * oTextBytes is the raw .text bytes from the .o file (for reading addends).
  */
 function resolveHiLoPair(
   binary: Buffer,
   textFileOffset: number,
   hiRelocOffset: number,
-  loRelocOffset: number
+  loRelocOffset: number,
+  oTextBytes?: Buffer
 ): number | null {
   const hiFileOff = textFileOffset + hiRelocOffset;
   const loFileOff = textFileOffset + loRelocOffset;
@@ -166,7 +175,21 @@ function resolveHiLoPair(
   const loInstr = readU32(binary, loFileOff);
   const hiImm = extractImm16(hiInstr);
   const loImm = signExtend16(extractImm16(loInstr));
-  return ((hiImm << 16) + loImm) >>> 0;
+  const resolved = ((hiImm << 16) + loImm) >>> 0;
+
+  // Subtract addend from .o file if available
+  if (oTextBytes && hiRelocOffset + 4 <= oTextBytes.length && loRelocOffset + 4 <= oTextBytes.length) {
+    const hiOrig = readU32(oTextBytes, hiRelocOffset);
+    const loOrig = readU32(oTextBytes, loRelocOffset);
+    const hiAddend = extractImm16(hiOrig);
+    const loAddend = signExtend16(extractImm16(loOrig));
+    const addend = (hiAddend << 16) + loAddend;
+    if (addend !== 0) {
+      return (resolved - addend) >>> 0;
+    }
+  }
+
+  return resolved;
 }
 
 /**
@@ -187,6 +210,19 @@ function findPairedLo16(
     }
   }
   return null;
+}
+
+/** Extract raw .text bytes from a .o file */
+function extractOTextBytes(oPath: string): Buffer | null {
+  try {
+    const tmpPath = "/tmp/extractBss_text.bin";
+    execSync(
+      `mips-linux-gnu-objcopy -O binary -j .text "${oPath}" "${tmpPath}" 2>/dev/null`
+    );
+    return readFileSync(tmpPath);
+  } catch {
+    return null;
+  }
 }
 
 function main() {
@@ -242,6 +278,7 @@ function main() {
 
     const symbols = parseSymbols(oPath);
     const textFileOffset = entry.textRom; // already includes PSX-EXE header offset
+    const oTextBytes = extractOTextBytes(oPath);
 
     for (let i = 0; i < relocs.length; i++) {
       const reloc = relocs[i];
@@ -251,8 +288,6 @@ function main() {
       if (!sym) continue;
 
       // For global symbols: check if the symbol name is a known BSS symbol
-      // For global symbols, the resolved address IS the symbol's final address
-      // (no addend adjustment needed)
       if (sym.name.startsWith("$")) continue; // skip section-relative
       if (!allBssSymNames.has(sym.name)) continue; // not a BSS symbol
       if (bssSymAddrs.has(sym.name)) continue; // already resolved
@@ -264,7 +299,8 @@ function main() {
         binary,
         textFileOffset,
         reloc.offset,
-        lo16.offset
+        lo16.offset,
+        oTextBytes ?? undefined
       );
       if (resolvedAddr === null) continue;
 
@@ -302,6 +338,7 @@ function main() {
     if (bssSectionIndex === -1) continue;
 
     const textFileOffset = entry.textRom;
+    const oTextBytes3 = extractOTextBytes(oPath);
 
     // Find section-relative BSS relocs and compute bssBase
     let bssBase: number | null = null;
@@ -321,7 +358,8 @@ function main() {
         binary,
         textFileOffset,
         reloc.offset,
-        lo16.offset
+        lo16.offset,
+        oTextBytes3 ?? undefined
       );
       if (resolvedAddr === null) continue;
 
@@ -391,6 +429,8 @@ function main() {
         continue;
       }
 
+      const oTextBytes4 = extractOTextBytes(oFile);
+
       for (let i = 0; i < relocs.length; i++) {
         const reloc = relocs[i];
         if (reloc.type !== "R_MIPS_HI16") continue;
@@ -406,7 +446,8 @@ function main() {
           binary,
           textRom,
           reloc.offset,
-          lo16.offset
+          lo16.offset,
+          oTextBytes4 ?? undefined
         );
         if (resolvedAddr === null) continue;
 

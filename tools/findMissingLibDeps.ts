@@ -13,7 +13,7 @@
  * Output (stdout): JSON array of resolved symbols with VRAM addresses
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -167,6 +167,17 @@ function main() {
           { encoding: "utf-8", cwd: ROOT }
         );
 
+        // Extract .text bytes from the .o file for reading addends
+        let oTextBytes: Buffer | null = null;
+        try {
+          const tmpPath = "/tmp/findMissingLibDeps_text.bin";
+          execSync(
+            `mips-linux-gnu-objcopy -O binary -j .text "${refPath}" "${tmpPath}" 2>/dev/null`,
+            { cwd: ROOT }
+          );
+          oTextBytes = readFileSync(tmpPath);
+        } catch {}
+
         for (const line of relocs.split("\n")) {
           // Match relocation entries referencing our symbol
           // Format: OFFSET  INFO  TYPE  SYM.VALUE  SYM. NAME + ADDEND
@@ -198,10 +209,6 @@ function main() {
             relocType === "R_MIPS_HI16" ||
             relocType === "R_MIPS_LO16"
           ) {
-            // For HI16/LO16 pairs, we need both to get the full address
-            // HI16: lui $reg, imm -> addr_hi = imm << 16
-            // LO16: addiu/lw $reg, $reg, imm -> addr = addr_hi + sign_ext(imm)
-            // Let's find both
             if (relocType === "R_MIPS_HI16") {
               const hiInstr = binary.readUInt32LE(binaryOffset);
               const hiImm = hiInstr & 0xffff;
@@ -218,10 +225,25 @@ function main() {
                 const loBinaryOffset =
                   vramToFileOffset(matchInfo.vramStart) + loOffset;
                 const loInstr = binary.readUInt32LE(loBinaryOffset);
-                const loImm = (loInstr & 0xffff) | 0; // sign-extend
+                const loImm = loInstr & 0xffff;
                 const signedLo = loImm > 0x7fff ? loImm - 0x10000 : loImm;
 
-                vramAddr = ((hiImm << 16) + signedLo) >>> 0;
+                let addr = ((hiImm << 16) + signedLo) >>> 0;
+
+                // Subtract addend from .o file instructions
+                if (oTextBytes && offset + 4 <= oTextBytes.length && loOffset + 4 <= oTextBytes.length) {
+                  const hiOrig = oTextBytes.readUInt32LE(offset);
+                  const loOrig = oTextBytes.readUInt32LE(loOffset);
+                  const hiAdd = hiOrig & 0xffff;
+                  const loAdd = loOrig & 0xffff;
+                  const signedLoAdd = loAdd > 0x7fff ? loAdd - 0x10000 : loAdd;
+                  const addend = (hiAdd << 16) + signedLoAdd;
+                  if (addend !== 0) {
+                    addr = (addr - addend) >>> 0;
+                  }
+                }
+
+                vramAddr = addr;
                 break;
               }
               if (vramAddr !== null) break;
