@@ -1,0 +1,124 @@
+# === PSX Matching Decompilation Build System ===
+
+# Toolchain - change GCC_VERSION to experiment (2.7.2, 2.8.1, 2.95.2)
+GCC_VERSION := 2.8.0
+CC          := tools/old-gcc/build-gcc-$(GCC_VERSION)-psx/cc1
+MASPSX      := python3 tools/maspsx/maspsx.py
+CROSS       := mips-linux-gnu-
+AS          := $(CROSS)as
+LD          := $(CROSS)ld
+OBJCOPY     := $(CROSS)objcopy
+CPP         := $(CROSS)cpp
+
+# Flags
+ASFLAGS     := -march=r3000 -mtune=r3000 -EL -no-pad-sections -Iinclude -Iinclude/psyq
+CPPFLAGS    := -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c
+CC1FLAGS    := -mips1 -mcpu=r3000 -quiet -G8 -O2
+
+# Paths
+TARGET      := extracted/iso/slus_011.15
+BUILD_DIR   := build
+BASENAME    := slus_011
+
+# Splat outputs
+LD_SCRIPT   := $(BASENAME).ld
+BUILT_BIN   := $(BUILD_DIR)/$(BASENAME).bin
+BUILT_ELF   := $(BUILD_DIR)/$(BASENAME).elf
+
+# Payload extraction from original
+PAYLOAD_OFF := 2048
+PAYLOAD_SZ  := 321536
+
+# Disassembly output (lives in build/)
+FUNCTIONS_CSV := $(BUILD_DIR)/functions.csv
+
+# Source collection — splat generates .s files into build/asm/
+C_SRCS      := $(wildcard src/*.c src/**/*.c)
+ASM_SRCS    := $(shell find $(BUILD_DIR)/asm -name '*.s' -not -path '*/nonmatchings/*' 2>/dev/null)
+C_OBJS      := $(patsubst src/%.c,$(BUILD_DIR)/src/%.c.o,$(C_SRCS))
+ASM_OBJS    := $(patsubst $(BUILD_DIR)/asm/%.s,$(BUILD_DIR)/asm/%.s.o,$(ASM_SRCS))
+ALL_OBJS    := $(C_OBJS) $(ASM_OBJS)
+
+# Default target
+all: check
+
+# ---------------------------------------------------------------------------
+# Full pipeline: disassemble → configure → split → build → verify
+# ---------------------------------------------------------------------------
+
+# Disassemble the binary with spimdisasm (generates functions.csv + per-function .s files)
+disassemble:
+	bash tools/disassemble.sh
+
+# Split the binary with splat
+split:
+	npx tsx tools/addLibSymbols.ts --write
+	npx tsx tools/patchSplatForLibs.ts --write
+	npx tsx tools/addDepObjects.ts --write
+	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml
+	npx tsx tools/fixCrossFileRefs.ts --write
+	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml
+	npx tsx tools/patchLinkerBss.ts --write
+	npx tsx tools/patchLibBss.ts --write
+	@printf 'INCLUDE "build/undefined_funcs_auto.txt"\nINCLUDE "build/undefined_syms_auto.txt"\n' >> $(LD_SCRIPT)
+	@if [ -f build/dep_syms.txt ]; then printf 'INCLUDE "build/dep_syms.txt"\n' >> $(LD_SCRIPT); fi
+	@if [ -f build/lib_bss_syms.txt ]; then printf 'INCLUDE "build/lib_bss_syms.txt"\n' >> $(LD_SCRIPT); fi
+
+# ---------------------------------------------------------------------------
+# Compile + link
+# ---------------------------------------------------------------------------
+
+# Compile C: cpp -> cc1 -> maspsx -> .o
+$(BUILD_DIR)/src/%.c.o: src/%.c
+	@mkdir -p $(dir $@)
+	$(CPP) $(CPPFLAGS) $< -o $(BUILD_DIR)/src/$*.i
+	$(CC) $(CC1FLAGS) $(BUILD_DIR)/src/$*.i -o $(BUILD_DIR)/src/$*.s
+	$(MASPSX) --expand-div --run-assembler --gnu-as-path $(AS) -o $@ $(ASFLAGS) $(BUILD_DIR)/src/$*.s
+
+# Assemble .s files (splat outputs to build/asm/)
+$(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s
+	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) $< -o $@
+
+# Link
+$(BUILT_ELF): $(ALL_OBJS) $(LD_SCRIPT)
+	$(LD) -EL -T $(LD_SCRIPT) -Map $(BUILD_DIR)/$(BASENAME).map -o $@
+
+# Extract raw binary
+$(BUILT_BIN): $(BUILT_ELF)
+	$(OBJCOPY) -O binary $< $@
+
+# Verify match against original payload
+check: $(BUILT_BIN)
+	@dd if=$(TARGET) bs=1 skip=$(PAYLOAD_OFF) count=$(PAYLOAD_SZ) 2>/dev/null | \
+		sha256sum | awk '{print $$1}' > $(BUILD_DIR)/original.sha256
+	@dd if=$(BUILT_BIN) bs=1 skip=$(PAYLOAD_OFF) count=$(PAYLOAD_SZ) 2>/dev/null | \
+		sha256sum | awk '{print $$1}' > $(BUILD_DIR)/built.sha256
+	@if diff -q $(BUILD_DIR)/original.sha256 $(BUILD_DIR)/built.sha256 > /dev/null 2>&1; then \
+		echo "OK: $(BUILT_BIN) matches original payload"; \
+	else \
+		echo "MISMATCH: $(BUILT_BIN) does not match original payload"; \
+		echo "  original: $$(cat $(BUILD_DIR)/original.sha256)"; \
+		echo "  built:    $$(cat $(BUILD_DIR)/built.sha256)"; \
+		exit 1; \
+	fi
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+
+# Setup submodules and tools
+setup:
+	git submodule update --init --recursive
+
+# Show decompilation progress
+progress:
+	@npx tsx tools/progress.ts
+
+# Clean build artifacts + splat output
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -f configs/undefined_funcs_auto.txt configs/undefined_syms_auto.txt
+	rm -f $(LD_SCRIPT)
+
+.PHONY: all disassemble split check setup progress clean

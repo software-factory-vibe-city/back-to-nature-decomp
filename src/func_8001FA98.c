@@ -1,0 +1,4 @@
+#include "common.h"
+#include "include_asm.h"
+
+INCLUDE_ASM("build/asm/nonmatchings/func_8001FA98", func_8001FA98);

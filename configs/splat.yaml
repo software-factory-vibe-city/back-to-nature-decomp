@@ -1,0 +1,947 @@
+name: slus_011.15
+sha1: 07fbcffbdd96080d39939e569f84abe76b9d1039
+options:
+  platform: psx
+  compiler: GCC
+  basename: slus_011
+  base_path: ..
+  build_path: build
+  target_path: extracted/iso/slus_011.15
+  asm_path: build/asm
+  src_path: src
+  asset_path: assets
+  symbol_addrs_path: configs/symbol_addrs.txt
+  undefined_funcs_auto_path: build/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/undefined_syms_auto.txt
+  find_file_boundaries: true
+  disasm_unknown: true
+  gp_value: 0x8005E274
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/splat_ext
+  subalign: 4
+
+segments:
+  - name: header
+    type: header
+    start: 0x0
+    align: 4
+    subalign: 4
+  - name: main
+    type: code
+    start: 0x800
+    vram: 0x80010000
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x800, rodata]
+      - [0xBB0, o, ../lib/libmath/sin00, .rdata] # lib/libmath/sin00.o
+      - [0xC00, o, ../lib/libmath/sin01, .rdata] # lib/libmath/sin01.o
+      - [0xC10, o, ../lib/libspu/spu, .rdata] # lib/libspu/spu.o
+      - [0xC60, o, ../lib/libspu/s_sca, .rdata] # lib/libspu/s_sca.o
+      - [0xCA0, o, ../lib/libsnd/ssopenq, .rdata] # lib/libsnd/ssopenq.o
+      - [0xCD0, o, ../lib/libsnd/seqinit, .rdata] # lib/libsnd/seqinit.o
+      - [0xD10, o, ../lib/libsnd/sstick, .rdata] # lib/libsnd/sstick.o
+      - [0xD30, o, ../lib/libspu/s_sva, .rdata] # lib/libspu/s_sva.o
+      - [0xD70, o, ../lib/libetc/vsync, .rdata] # lib/libetc/vsync.o
+      - [0xD80, o, ../lib/libetc/intr, .rdata] # lib/libetc/intr.o
+      - [0xDF0, o, ../lib/libetc/intr_dma, .rdata] # lib/libetc/intr_dma.o
+      - [0xE20, o, ../lib/libcd/event, .rdata] # lib/libcd/event.o
+      - [0xE40, o, ../lib/libcd/iso9660, .rdata] # lib/libcd/iso9660.o
+      - [0x1030, o, ../lib/libcd/bios_1, .rdata] # lib/libcd/bios_1.o
+      - [0x1290, o, ../lib/libcd/cdr_1, .rdata] # lib/libcd/cdr_1.o
+      - [0x12E0, o, ../lib/libgs/gs_108, .rdata] # lib/libgs/gs_108.o
+      - [0x1300, rodata]
+      - [0x13A0, o, ../lib/libgpu/kprintf, .rdata] # lib/libgpu/kprintf.o
+      - [0x1470, o, ../lib/libgpu/sys, .rdata] # lib/libgpu/sys.o
+      - [0x1690, o, ../lib/libgpu/kt01, .rdata] # lib/libgpu/kt01.o
+      - [0x16B0, o, ../lib/libgpu/kt02, .rdata] # lib/libgpu/kt02.o
+      - [0x16D0, o, ../lib/libmcrd/libmcrd, .rdata] # lib/libmcrd/libmcrd.o
+      - [0x18A0, o, ../lib/libmcrd/userfunc, .rdata] # lib/libmcrd/userfunc.o
+      - [0x18C0, o, ../lib/libmcrd/low, .rdata] # lib/libmcrd/low.o
+      - [0x18D0, o, ../lib/libmcrd/unformat, .rdata] # lib/libmcrd/unformat.o
+      - [0x18F0, o, ../lib/libc/sprintf, .rdata] # lib/libc/sprintf.o
+      - [0x19D0, o, ../lib/libmcx/mcxcmd6, .rdata] # lib/libmcx/mcxcmd6.o
+      - [0x19F0, o, ../lib/libmcx/mcxcmd8, .rdata] # lib/libmcx/mcxcmd8.o
+      - [0x1A20, o, ../lib/libmcx/mcxcmd24, .rdata] # lib/libmcx/mcxcmd24.o
+      - [0x1A70, c, func_80011270]       # 0x80011270 func_80011270
+      - [0x1A78, c, __start]       # 0x80011278 __start
+      - [0x1B70, c, func_80011370]       # 0x80011370 func_80011370
+      - [0x2424, c, func_80011C24]       # 0x80011C24 func_80011C24
+      - [0x25B0, c, func_80011DB0]       # 0x80011DB0 func_80011DB0
+      - [0x26E8, c, func_80011EE8]       # 0x80011EE8 func_80011EE8
+      - [0x26F0, c, func_80011EF0]       # 0x80011EF0 func_80011EF0
+      - [0x2708, c, func_80011F08]       # 0x80011F08 func_80011F08
+      - [0x2714, c, func_80011F14]       # 0x80011F14 func_80011F14
+      - [0x2720, c, func_80011F20]       # 0x80011F20 func_80011F20
+      - [0x272C, c, func_80011F2C]       # 0x80011F2C func_80011F2C
+      - [0x2738, c, func_80011F38]       # 0x80011F38 func_80011F38
+      - [0x2744, c, func_80011F44]       # 0x80011F44 func_80011F44
+      - [0x2750, c, func_80011F50]       # 0x80011F50 func_80011F50
+      - [0x275C, c, func_80011F5C]       # 0x80011F5C func_80011F5C
+      - [0x27D8, c, func_80011FD8]       # 0x80011FD8 func_80011FD8
+      - [0x282C, c, func_8001202C]       # 0x8001202C func_8001202C
+      - [0x285C, c, func_8001205C]       # 0x8001205C func_8001205C
+      - [0x2898, c, func_80012098]       # 0x80012098 func_80012098
+      - [0x28BC, c, func_800120BC]       # 0x800120BC func_800120BC
+      - [0x28C8, c, func_800120C8]       # 0x800120C8 func_800120C8
+      - [0x29D4, c, func_800121D4]       # 0x800121D4 func_800121D4
+      - [0x2A98, c, func_80012298]       # 0x80012298 func_80012298
+      - [0x2B1C, c, func_8001231C]       # 0x8001231C func_8001231C
+      - [0x2D98, c, func_80012598]       # 0x80012598 func_80012598
+      - [0x30DC, c, func_800128DC]       # 0x800128DC func_800128DC
+      - [0x31E8, c, func_800129E8]       # 0x800129E8 func_800129E8
+      - [0x31F4, c, func_800129F4]       # 0x800129F4 func_800129F4
+      - [0x3214, c, func_80012A14]       # 0x80012A14 func_80012A14
+      - [0x3234, c, func_80012A34]       # 0x80012A34 func_80012A34
+      - [0x3268, c, func_80012A68]       # 0x80012A68 func_80012A68
+      - [0x32B0, c, func_80012AB0]       # 0x80012AB0 func_80012AB0
+      - [0x34B4, c, func_80012CB4]       # 0x80012CB4 func_80012CB4
+      - [0x3530, c, func_80012D30]       # 0x80012D30 func_80012D30
+      - [0x396C, c, func_8001316C]       # 0x8001316C func_8001316C
+      - [0x3A8C, c, func_8001328C]       # 0x8001328C func_8001328C
+      - [0x3AB8, c, func_800132B8]       # 0x800132B8 func_800132B8
+      - [0x3AF0, c, func_800132F0]       # 0x800132F0 func_800132F0
+      - [0x3B28, c, func_80013328]       # 0x80013328 func_80013328
+      - [0x3B94, c, func_80013394]       # 0x80013394 func_80013394
+      - [0x3C00, c, func_80013400]       # 0x80013400 func_80013400
+      - [0x3C38, c, func_80013438]       # 0x80013438 func_80013438
+      - [0x3C44, c, func_80013444]       # 0x80013444 func_80013444
+      - [0x3C50, c, func_80013450]       # 0x80013450 func_80013450
+      - [0x3C88, c, func_80013488]       # 0x80013488 func_80013488
+      - [0x3CB8, c, func_800134B8]       # 0x800134B8 func_800134B8
+      - [0x3CC4, c, func_800134C4]       # 0x800134C4 func_800134C4
+      - [0x3E68, c, func_80013668]       # 0x80013668 func_80013668
+      - [0x3ED4, c, func_800136D4]       # 0x800136D4 func_800136D4
+      - [0x41FC, c, func_800139FC]       # 0x800139FC func_800139FC
+      - [0x4224, c, func_80013A24]       # 0x80013A24 func_80013A24
+      - [0x42A4, c, func_80013AA4]       # 0x80013AA4 func_80013AA4
+      - [0x42C8, c, func_80013AC8]       # 0x80013AC8 func_80013AC8
+      - [0x42EC, c, func_80013AEC]       # 0x80013AEC func_80013AEC
+      - [0x42F8, c, func_80013AF8]       # 0x80013AF8 func_80013AF8
+      - [0x4304, c, func_80013B04]       # 0x80013B04 func_80013B04
+      - [0x44D0, c, func_80013CD0]       # 0x80013CD0 func_80013CD0
+      - [0x4790, c, func_80013F90]       # 0x80013F90 func_80013F90
+      - [0x47C0, c, func_80013FC0]       # 0x80013FC0 func_80013FC0
+      - [0x4864, c, func_80014064]       # 0x80014064 func_80014064
+      - [0x48C8, c, func_800140C8]       # 0x800140C8 func_800140C8
+      - [0x493C, c, func_8001413C]       # 0x8001413C func_8001413C
+      - [0x4A50, c, func_80014250]       # 0x80014250 func_80014250
+      - [0x4AD8, c, func_800142D8]       # 0x800142D8 func_800142D8
+      - [0x4B88, c, func_80014388]       # 0x80014388 func_80014388
+      - [0x4C94, c, func_80014494]       # 0x80014494 func_80014494
+      - [0x4D54, c, func_80014554]       # 0x80014554 func_80014554
+      - [0x4DF0, c, func_800145F0]       # 0x800145F0 func_800145F0
+      - [0x4F48, c, func_80014748]       # 0x80014748 func_80014748
+      - [0x4FBC, c, func_800147BC]       # 0x800147BC func_800147BC
+      - [0x5054, c, func_80014854]       # 0x80014854 func_80014854
+      - [0x5188, c, func_80014988]       # 0x80014988 func_80014988
+      - [0x5338, c, func_80014B38]       # 0x80014B38 func_80014B38
+      - [0x5344, c, func_80014B44]       # 0x80014B44 func_80014B44
+      - [0x53CC, c, func_80014BCC]       # 0x80014BCC func_80014BCC
+      - [0x54B0, c, func_80014CB0]       # 0x80014CB0 func_80014CB0
+      - [0x54BC, c, func_80014CBC]       # 0x80014CBC func_80014CBC
+      - [0x5690, c, func_80014E90]       # 0x80014E90 func_80014E90
+      - [0x570C, c, func_80014F0C]       # 0x80014F0C func_80014F0C
+      - [0x57AC, c, func_80014FAC]       # 0x80014FAC func_80014FAC
+      - [0x5874, c, func_80015074]       # 0x80015074 func_80015074
+      - [0x5914, c, func_80015114]       # 0x80015114 func_80015114
+      - [0x59B4, c, func_800151B4]       # 0x800151B4 func_800151B4
+      - [0x5A6C, c, func_8001526C]       # 0x8001526C func_8001526C
+      - [0x5B0C, c, func_8001530C]       # 0x8001530C func_8001530C
+      - [0x5BBC, c, func_800153BC]       # 0x800153BC func_800153BC
+      - [0x5CCC, c, func_800154CC]       # 0x800154CC func_800154CC
+      - [0x5D94, c, func_80015594]       # 0x80015594 func_80015594
+      - [0x5E44, c, func_80015644]       # 0x80015644 func_80015644
+      - [0x5F04, c, func_80015704]       # 0x80015704 func_80015704
+      - [0x6014, c, func_80015814]       # 0x80015814 func_80015814
+      - [0x6028, c, func_80015828]       # 0x80015828 func_80015828
+      - [0x6040, c, func_80015840]       # 0x80015840 func_80015840
+      - [0x605C, c, func_8001585C]       # 0x8001585C func_8001585C
+      - [0x6068, c, func_80015868]       # 0x80015868 func_80015868
+      - [0x6080, c, func_80015880]       # 0x80015880 func_80015880
+      - [0x608C, c, func_8001588C]       # 0x8001588C func_8001588C
+      - [0x6094, c, func_80015894]       # 0x80015894 func_80015894
+      - [0x609C, c, func_8001589C]       # 0x8001589C func_8001589C
+      - [0x60D8, c, func_800158D8]       # 0x800158D8 func_800158D8
+      - [0x60E4, c, func_800158E4]       # 0x800158E4 func_800158E4
+      - [0x6218, c, func_80015A18]       # 0x80015A18 func_80015A18
+      - [0x6234, c, func_80015A34]       # 0x80015A34 func_80015A34
+      - [0x62AC, c, func_80015AAC]       # 0x80015AAC func_80015AAC
+      - [0x6324, c, func_80015B24]       # 0x80015B24 func_80015B24
+      - [0x63F0, c, func_80015BF0]       # 0x80015BF0 func_80015BF0
+      - [0x6450, c, func_80015C50]       # 0x80015C50 func_80015C50
+      - [0x64A0, c, func_80015CA0]       # 0x80015CA0 func_80015CA0
+      - [0x651C, c, func_80015D1C]       # 0x80015D1C func_80015D1C
+      - [0x656C, c, func_80015D6C]       # 0x80015D6C func_80015D6C
+      - [0x65D4, c, func_80015DD4]       # 0x80015DD4 func_80015DD4
+      - [0x663C, c, func_80015E3C]       # 0x80015E3C func_80015E3C
+      - [0x6678, c, func_80015E78]       # 0x80015E78 func_80015E78
+      - [0x66E8, c, func_80015EE8]       # 0x80015EE8 func_80015EE8
+      - [0x6780, c, func_80015F80]       # 0x80015F80 func_80015F80
+      - [0x6854, c, func_80016054]       # 0x80016054 func_80016054
+      - [0x68C8, c, func_800160C8]       # 0x800160C8 func_800160C8
+      - [0x69AC, c, func_800161AC]       # 0x800161AC func_800161AC
+      - [0x6A80, c, func_80016280]       # 0x80016280 func_80016280
+      - [0x6DD8, c, func_800165D8]       # 0x800165D8 func_800165D8
+      - [0x737C, c, func_80016B7C]       # 0x80016B7C func_80016B7C
+      - [0x7408, c, func_80016C08]       # 0x80016C08 func_80016C08
+      - [0x799C, c, func_8001719C]       # 0x8001719C func_8001719C
+      - [0x79CC, c, func_800171CC]       # 0x800171CC func_800171CC
+      - [0x7A00, c, func_80017200]       # 0x80017200 func_80017200
+      - [0x7A40, c, func_80017240]       # 0x80017240 func_80017240
+      - [0x7A84, c, func_80017284]       # 0x80017284 func_80017284
+      - [0x7B00, c, func_80017300]       # 0x80017300 func_80017300
+      - [0x802C, c, func_8001782C]       # 0x8001782C func_8001782C
+      - [0x81E8, c, func_800179E8]       # 0x800179E8 func_800179E8
+      - [0x8208, c, func_80017A08]       # 0x80017A08 func_80017A08
+      - [0x8238, c, func_80017A38]       # 0x80017A38 func_80017A38
+      - [0x8248, c, func_80017A48]       # 0x80017A48 func_80017A48
+      - [0x8264, c, func_80017A64]       # 0x80017A64 func_80017A64
+      - [0x8270, c, func_80017A70]       # 0x80017A70 func_80017A70
+      - [0x82A0, c, func_80017AA0]       # 0x80017AA0 func_80017AA0
+      - [0x82CC, c, func_80017ACC]       # 0x80017ACC func_80017ACC
+      - [0x82E8, c, func_80017AE8]       # 0x80017AE8 func_80017AE8
+      - [0x8318, c, func_80017B18]       # 0x80017B18 func_80017B18
+      - [0x8324, c, func_80017B24]       # 0x80017B24 func_80017B24
+      - [0x8330, c, func_80017B30]       # 0x80017B30 func_80017B30
+      - [0x833C, c, func_80017B3C]       # 0x80017B3C func_80017B3C
+      - [0x83C8, c, func_80017BC8]       # 0x80017BC8 func_80017BC8
+      - [0x8404, c, func_80017C04]       # 0x80017C04 func_80017C04
+      - [0x8424, c, func_80017C24]       # 0x80017C24 func_80017C24
+      - [0x8430, c, func_80017C30]       # 0x80017C30 func_80017C30
+      - [0x843C, c, func_80017C3C]       # 0x80017C3C func_80017C3C
+      - [0x844C, c, func_80017C4C]       # 0x80017C4C func_80017C4C
+      - [0x84F4, c, func_80017CF4]       # 0x80017CF4 func_80017CF4
+      - [0x859C, c, func_80017D9C]       # 0x80017D9C func_80017D9C
+      - [0x8634, c, func_80017E34]       # 0x80017E34 func_80017E34
+      - [0x86A0, c, func_80017EA0]       # 0x80017EA0 func_80017EA0
+      - [0x86E4, c, func_80017EE4]       # 0x80017EE4 func_80017EE4
+      - [0x8730, c, func_80017F30]       # 0x80017F30 func_80017F30
+      - [0x8788, c, func_80017F88]       # 0x80017F88 func_80017F88
+      - [0x8BB8, c, func_800183B8]       # 0x800183B8 func_800183B8
+      - [0x8BD0, c, func_800183D0]       # 0x800183D0 func_800183D0
+      - [0x8BE0, c, func_800183E0]       # 0x800183E0 func_800183E0
+      - [0x938C, c, func_80018B8C]       # 0x80018B8C func_80018B8C
+      - [0x9398, c, func_80018B98]       # 0x80018B98 func_80018B98
+      - [0x9830, c, func_80019030]       # 0x80019030 func_80019030
+      - [0x9870, c, func_80019070]       # 0x80019070 func_80019070
+      - [0x99B4, c, func_800191B4]       # 0x800191B4 func_800191B4
+      - [0x9A9C, c, func_8001929C]       # 0x8001929C func_8001929C
+      - [0x9BF0, c, func_800193F0]       # 0x800193F0 func_800193F0
+      - [0x9C5C, c, func_8001945C]       # 0x8001945C func_8001945C
+      - [0x9D64, c, func_80019564]       # 0x80019564 func_80019564
+      - [0x9DF4, c, func_800195F4]       # 0x800195F4 func_800195F4
+      - [0x9E00, c, func_80019600]       # 0x80019600 func_80019600
+      - [0x9E10, c, func_80019610]       # 0x80019610 func_80019610
+      - [0x9FFC, c, func_800197FC]       # 0x800197FC func_800197FC
+      - [0xA0E0, c, func_800198E0]       # 0x800198E0 func_800198E0
+      - [0xA1F8, c, func_800199F8]       # 0x800199F8 func_800199F8
+      - [0xA2D0, c, func_80019AD0]       # 0x80019AD0 func_80019AD0
+      - [0xA4BC, c, func_80019CBC]       # 0x80019CBC func_80019CBC
+      - [0xA614, c, func_80019E14]       # 0x80019E14 func_80019E14
+      - [0xA650, c, func_80019E50]       # 0x80019E50 func_80019E50
+      - [0xA680, c, func_80019E80]       # 0x80019E80 func_80019E80
+      - [0xA7AC, c, func_80019FAC]       # 0x80019FAC func_80019FAC
+      - [0xA7C4, c, func_80019FC4]       # 0x80019FC4 func_80019FC4
+      - [0xA818, c, func_8001A018]       # 0x8001A018 func_8001A018
+      - [0xA91C, c, func_8001A11C]       # 0x8001A11C func_8001A11C
+      - [0xA99C, c, func_8001A19C]       # 0x8001A19C func_8001A19C
+      - [0xAA84, c, func_8001A284]       # 0x8001A284 func_8001A284
+      - [0xAD74, c, func_8001A574]       # 0x8001A574 func_8001A574
+      - [0xAE68, c, func_8001A668]       # 0x8001A668 func_8001A668
+      - [0xAEFC, c, func_8001A6FC]       # 0x8001A6FC func_8001A6FC
+      - [0xAF90, c, func_8001A790]       # 0x8001A790 func_8001A790
+      - [0xB008, c, func_8001A808]       # 0x8001A808 func_8001A808
+      - [0xB070, c, func_8001A870]       # 0x8001A870 func_8001A870
+      - [0xB0D0, c, func_8001A8D0]       # 0x8001A8D0 func_8001A8D0
+      - [0xB170, c, func_8001A970]       # 0x8001A970 func_8001A970
+      - [0xB27C, c, func_8001AA7C]       # 0x8001AA7C func_8001AA7C
+      - [0xB2B8, c, func_8001AAB8]       # 0x8001AAB8 func_8001AAB8
+      - [0xB2F4, c, func_8001AAF4]       # 0x8001AAF4 func_8001AAF4
+      - [0xB3F0, c, func_8001ABF0]       # 0x8001ABF0 func_8001ABF0
+      - [0xB410, c, func_8001AC10]       # 0x8001AC10 func_8001AC10
+      - [0xB4A0, c, func_8001ACA0]       # 0x8001ACA0 func_8001ACA0
+      - [0xB4BC, c, func_8001ACBC]       # 0x8001ACBC func_8001ACBC
+      - [0xB500, c, func_8001AD00]       # 0x8001AD00 func_8001AD00
+      - [0xB56C, c, func_8001AD6C]       # 0x8001AD6C func_8001AD6C
+      - [0xB5D8, c, func_8001ADD8]       # 0x8001ADD8 func_8001ADD8
+      - [0xB634, c, func_8001AE34]       # 0x8001AE34 func_8001AE34
+      - [0xB734, c, func_8001AF34]       # 0x8001AF34 func_8001AF34
+      - [0xB744, c, func_8001AF44]       # 0x8001AF44 func_8001AF44
+      - [0xB770, c, func_8001AF70]       # 0x8001AF70 func_8001AF70
+      - [0xB7E0, c, func_8001AFE0]       # 0x8001AFE0 func_8001AFE0
+      - [0xB828, c, func_8001B028]       # 0x8001B028 func_8001B028
+      - [0xB874, c, func_8001B074]       # 0x8001B074 func_8001B074
+      - [0xB900, c, func_8001B100]       # 0x8001B100 func_8001B100
+      - [0xB90C, c, func_8001B10C]       # 0x8001B10C func_8001B10C
+      - [0xB918, c, func_8001B118]       # 0x8001B118 func_8001B118
+      - [0xBA58, c, func_8001B258]       # 0x8001B258 func_8001B258
+      - [0xBACC, c, func_8001B2CC]       # 0x8001B2CC func_8001B2CC
+      - [0xBBCC, c, func_8001B3CC]       # 0x8001B3CC func_8001B3CC
+      - [0xBBEC, c, func_8001B3EC]       # 0x8001B3EC func_8001B3EC
+      - [0xBCD0, c, func_8001B4D0]       # 0x8001B4D0 func_8001B4D0
+      - [0xBCE4, c, func_8001B4E4]       # 0x8001B4E4 func_8001B4E4
+      - [0xBD30, c, func_8001B530]       # 0x8001B530 func_8001B530
+      - [0xBDDC, c, func_8001B5DC]       # 0x8001B5DC func_8001B5DC
+      - [0xBEA0, c, func_8001B6A0]       # 0x8001B6A0 func_8001B6A0
+      - [0xC1F8, c, func_8001B9F8]       # 0x8001B9F8 func_8001B9F8
+      - [0xC218, c, func_8001BA18]       # 0x8001BA18 func_8001BA18
+      - [0xC240, c, func_8001BA40]       # 0x8001BA40 func_8001BA40
+      - [0xC25C, c, func_8001BA5C]       # 0x8001BA5C func_8001BA5C
+      - [0xC2C4, c, func_8001BAC4]       # 0x8001BAC4 func_8001BAC4
+      - [0xC328, c, func_8001BB28]       # 0x8001BB28 func_8001BB28
+      - [0xC388, c, func_8001BB88]       # 0x8001BB88 func_8001BB88
+      - [0xC3D8, c, func_8001BBD8]       # 0x8001BBD8 func_8001BBD8
+      - [0xC564, c, func_8001BD64]       # 0x8001BD64 func_8001BD64
+      - [0xC618, c, func_8001BE18]       # 0x8001BE18 func_8001BE18
+      - [0xC774, c, func_8001BF74]       # 0x8001BF74 func_8001BF74
+      - [0xC788, c, func_8001BF88]       # 0x8001BF88 func_8001BF88
+      - [0xC79C, c, func_8001BF9C]       # 0x8001BF9C func_8001BF9C
+      - [0xC7A8, c, func_8001BFA8]       # 0x8001BFA8 func_8001BFA8
+      - [0xC7E0, c, func_8001BFE0]       # 0x8001BFE0 func_8001BFE0
+      - [0xC7EC, c, func_8001BFEC]       # 0x8001BFEC func_8001BFEC
+      - [0xC8D4, c, func_8001C0D4]       # 0x8001C0D4 func_8001C0D4
+      - [0xC9C0, c, func_8001C1C0]       # 0x8001C1C0 func_8001C1C0
+      - [0xCB7C, c, func_8001C37C]       # 0x8001C37C func_8001C37C
+      - [0xDA1C, c, func_8001D21C]       # 0x8001D21C func_8001D21C
+      - [0xDAD8, c, func_8001D2D8]       # 0x8001D2D8 func_8001D2D8
+      - [0xDB48, c, func_8001D348]       # 0x8001D348 func_8001D348
+      - [0xDE48, c, func_8001D648]       # 0x8001D648 func_8001D648
+      - [0xDE78, c, func_8001D678]       # 0x8001D678 func_8001D678
+      - [0xDEAC, c, func_8001D6AC]       # 0x8001D6AC func_8001D6AC
+      - [0xDEB8, c, func_8001D6B8]       # 0x8001D6B8 func_8001D6B8
+      - [0xE06C, c, func_8001D86C]       # 0x8001D86C func_8001D86C
+      - [0xE0B8, c, func_8001D8B8]       # 0x8001D8B8 func_8001D8B8
+      - [0xE3F0, c, func_8001DBF0]       # 0x8001DBF0 func_8001DBF0
+      - [0xE4A8, c, func_8001DCA8]       # 0x8001DCA8 func_8001DCA8
+      - [0xE4B0, c, func_8001DCB0]       # 0x8001DCB0 func_8001DCB0
+      - [0xE64C, c, func_8001DE4C]       # 0x8001DE4C func_8001DE4C
+      - [0xE7C8, c, func_8001DFC8]       # 0x8001DFC8 func_8001DFC8
+      - [0xE7D4, c, func_8001DFD4]       # 0x8001DFD4 func_8001DFD4
+      - [0xE84C, c, func_8001E04C]       # 0x8001E04C func_8001E04C
+      - [0xE888, c, func_8001E088]       # 0x8001E088 func_8001E088
+      - [0xE8B8, c, func_8001E0B8]       # 0x8001E0B8 func_8001E0B8
+      - [0xE958, c, func_8001E158]       # 0x8001E158 func_8001E158
+      - [0xE960, c, func_8001E160]       # 0x8001E160 func_8001E160
+      - [0xEA6C, c, func_8001E26C]       # 0x8001E26C func_8001E26C
+      - [0xEB34, c, func_8001E334]       # 0x8001E334 func_8001E334
+      - [0xEB40, c, func_8001E340]       # 0x8001E340 func_8001E340
+      - [0xEB8C, c, func_8001E38C]       # 0x8001E38C func_8001E38C
+      - [0xECC0, c, func_8001E4C0]       # 0x8001E4C0 func_8001E4C0
+      - [0xEEFC, c, func_8001E6FC]       # 0x8001E6FC func_8001E6FC
+      - [0xEF8C, c, func_8001E78C]       # 0x8001E78C func_8001E78C
+      - [0xEFDC, c, func_8001E7DC]       # 0x8001E7DC func_8001E7DC
+      - [0xF078, c, func_8001E878]       # 0x8001E878 func_8001E878
+      - [0xF1F8, c, func_8001E9F8]       # 0x8001E9F8 func_8001E9F8
+      - [0xF2E4, c, func_8001EAE4]       # 0x8001EAE4 func_8001EAE4
+      - [0xF78C, c, func_8001EF8C]       # 0x8001EF8C func_8001EF8C
+      - [0xF798, c, func_8001EF98]       # 0x8001EF98 func_8001EF98
+      - [0xF7A4, c, func_8001EFA4]       # 0x8001EFA4 func_8001EFA4
+      - [0xF838, c, func_8001F038]       # 0x8001F038 func_8001F038
+      - [0xF884, c, func_8001F084]       # 0x8001F084 func_8001F084
+      - [0xF900, c, func_8001F100]       # 0x8001F100 func_8001F100
+      - [0xF990, c, func_8001F190]       # 0x8001F190 func_8001F190
+      - [0xF9B4, c, func_8001F1B4]       # 0x8001F1B4 func_8001F1B4
+      - [0xF9C0, c, func_8001F1C0]       # 0x8001F1C0 func_8001F1C0
+      - [0xF9E0, c, func_8001F1E0]       # 0x8001F1E0 func_8001F1E0
+      - [0xFA50, c, func_8001F250]       # 0x8001F250 func_8001F250
+      - [0xFA78, c, func_8001F278]       # 0x8001F278 func_8001F278
+      - [0xFAEC, c, func_8001F2EC]       # 0x8001F2EC func_8001F2EC
+      - [0xFB38, c, func_8001F338]       # 0x8001F338 func_8001F338
+      - [0xFB5C, c, func_8001F35C]       # 0x8001F35C func_8001F35C
+      - [0xFB9C, c, func_8001F39C]       # 0x8001F39C func_8001F39C
+      - [0xFBDC, c, func_8001F3DC]       # 0x8001F3DC func_8001F3DC
+      - [0xFC2C, c, func_8001F42C]       # 0x8001F42C func_8001F42C
+      - [0xFDB8, c, func_8001F5B8]       # 0x8001F5B8 func_8001F5B8
+      - [0xFDEC, c, func_8001F5EC]       # 0x8001F5EC func_8001F5EC
+      - [0xFE64, c, func_8001F664]       # 0x8001F664 func_8001F664
+      - [0xFF74, c, func_8001F774]       # 0x8001F774 func_8001F774
+      - [0x100A4, c, func_8001F8A4]       # 0x8001F8A4 func_8001F8A4
+      - [0x1020C, c, func_8001FA0C]       # 0x8001FA0C func_8001FA0C
+      - [0x10298, c, func_8001FA98]       # 0x8001FA98 func_8001FA98
+      - [0x102B4, c, func_8001FAB4]       # 0x8001FAB4 func_8001FAB4
+      - [0x102BC, c, func_8001FABC]       # 0x8001FABC func_8001FABC
+      - [0x102E8, c, func_8001FAE8]       # 0x8001FAE8 func_8001FAE8
+      - [0x10308, c, func_8001FB08]       # 0x8001FB08 func_8001FB08
+      - [0x10310, c, func_8001FB10]       # 0x8001FB10 func_8001FB10
+      - [0x10330, c, func_8001FB30]       # 0x8001FB30 func_8001FB30
+      - [0x103BC, c, func_8001FBBC]       # 0x8001FBBC func_8001FBBC
+      - [0x103E4, c, func_8001FBE4]       # 0x8001FBE4 func_8001FBE4
+      - [0x103F0, c, func_8001FBF0]       # 0x8001FBF0 func_8001FBF0
+      - [0x104DC, c, func_8001FCDC]       # 0x8001FCDC func_8001FCDC
+      - [0x104E4, c, func_8001FCE4]       # 0x8001FCE4 func_8001FCE4
+      - [0x10510, c, func_8001FD10]       # 0x8001FD10 func_8001FD10
+      - [0x10574, c, func_8001FD74]       # 0x8001FD74 func_8001FD74
+      - [0x10584, c, func_8001FD84]       # 0x8001FD84 func_8001FD84
+      - [0x10600, c, func_8001FE00]       # 0x8001FE00 func_8001FE00
+      - [0x10634, c, func_8001FE34]       # 0x8001FE34 func_8001FE34
+      - [0x1066C, c, func_8001FE6C]       # 0x8001FE6C func_8001FE6C
+      - [0x1067C, c, func_8001FE7C]       # 0x8001FE7C func_8001FE7C
+      - [0x106A4, c, func_8001FEA4]       # 0x8001FEA4 func_8001FEA4
+      - [0x10770, c, func_8001FF70]       # 0x8001FF70 func_8001FF70
+      - [0x10798, c, func_8001FF98]       # 0x8001FF98 func_8001FF98
+      - [0x108E4, c, func_800200E4]       # 0x800200E4 func_800200E4
+      - [0x10948, c, func_80020148]       # 0x80020148 func_80020148
+      - [0x10974, c, func_80020174]       # 0x80020174 func_80020174
+      - [0x109C4, c, func_800201C4]       # 0x800201C4 func_800201C4
+      - [0x10A9C, c, func_8002029C]       # 0x8002029C func_8002029C
+      - [0x10AF8, c, func_800202F8]       # 0x800202F8 func_800202F8
+      - [0x10B9C, c, func_8002039C]       # 0x8002039C func_8002039C
+      - [0x10C0C, c, func_8002040C]       # 0x8002040C func_8002040C
+      - [0x10C14, c, func_80020414]       # 0x80020414 func_80020414
+      - [0x10C7C, c, func_8002047C]       # 0x8002047C func_8002047C
+      - [0x10CE0, c, func_800204E0]       # 0x800204E0 func_800204E0
+      - [0x10D40, c, func_80020540]       # 0x80020540 func_80020540
+      - [0x10D70, c, func_80020570]       # 0x80020570 func_80020570
+      - [0x10E6C, c, func_8002066C]       # 0x8002066C func_8002066C
+      - [0x10F68, c, func_80020768]       # 0x80020768 func_80020768
+      - [0x10F90, c, func_80020790]       # 0x80020790 func_80020790
+      - [0x10FDC, c, func_800207DC]       # 0x800207DC func_800207DC
+      - [0x10FE4, c, func_800207E4]       # 0x800207E4 func_800207E4
+      - [0x11018, c, func_80020818]       # 0x80020818 func_80020818
+      - [0x11100, c, func_80020900]       # 0x80020900 func_80020900
+      - [0x1113C, c, func_8002093C]       # 0x8002093C func_8002093C
+      - [0x11164, c, func_80020964]       # 0x80020964 func_80020964
+      - [0x1118C, c, func_8002098C]       # 0x8002098C func_8002098C
+      - [0x111B0, c, func_800209B0]       # 0x800209B0 func_800209B0
+      - [0x111D4, c, func_800209D4]       # 0x800209D4 func_800209D4
+      - [0x111F4, c, func_800209F4]       # 0x800209F4 func_800209F4
+      - [0x11214, c, func_80020A14]       # 0x80020A14 func_80020A14
+      - [0x11240, c, func_80020A40]       # 0x80020A40 func_80020A40
+      - [0x11270, c, func_80020A70]       # 0x80020A70 func_80020A70
+      - [0x1127C, c, func_80020A7C]       # 0x80020A7C func_80020A7C
+      - [0x11288, c, func_80020A88]       # 0x80020A88 func_80020A88
+      - [0x11294, c, func_80020A94]       # 0x80020A94 func_80020A94
+      - [0x11380, c, func_80020B80]       # 0x80020B80 func_80020B80
+      - [0x11638, c, func_80020E38]       # 0x80020E38 func_80020E38
+      - [0x11658, c, func_80020E58]       # 0x80020E58 func_80020E58
+      - [0x11AA8, c, func_800212A8]       # 0x800212A8 func_800212A8
+      - [0x11C84, c, func_80021484]       # 0x80021484 func_80021484
+      - [0x11CFC, c, func_800214FC]       # 0x800214FC func_800214FC
+      - [0x11DEC, c, func_800215EC]       # 0x800215EC func_800215EC
+      - [0x11E04, c, func_80021604]       # 0x80021604 func_80021604
+      - [0x11E68, c, func_80021668]       # 0x80021668 func_80021668
+      - [0x11FB0, c, func_800217B0]       # 0x800217B0 func_800217B0
+      - [0x12020, c, func_80021820]       # 0x80021820 func_80021820
+      - [0x120BC, c, func_800218BC]       # 0x800218BC func_800218BC
+      - [0x120C4, c, func_800218C4]       # 0x800218C4 func_800218C4
+      - [0x1214C, c, func_8002194C]       # 0x8002194C func_8002194C
+      - [0x12320, c, func_80021B20]       # 0x80021B20 func_80021B20
+      - [0x12364, c, func_80021B64]       # 0x80021B64 func_80021B64
+      - [0x12390, c, func_80021B90]       # 0x80021B90 func_80021B90
+      - [0x124D8, c, func_80021CD8]       # 0x80021CD8 func_80021CD8
+      - [0x12564, c, func_80021D64]       # 0x80021D64 func_80021D64
+      - [0x12570, c, func_80021D70]       # 0x80021D70 func_80021D70
+      - [0x12578, c, func_80021D78]       # 0x80021D78 func_80021D78
+      - [0x12580, c, func_80021D80]       # 0x80021D80 func_80021D80
+      - [0x12588, c, func_80021D88]       # 0x80021D88 func_80021D88
+      - [0x12590, c, func_80021D90]       # 0x80021D90 func_80021D90
+      - [0x12598, c, func_80021D98]       # 0x80021D98 func_80021D98
+      - [0x125A0, c, func_80021DA0]       # 0x80021DA0 func_80021DA0
+      - [0x125A8, c, func_80021DA8]       # 0x80021DA8 func_80021DA8
+      - [0x12660, c, func_80021E60]       # 0x80021E60 func_80021E60
+      - [0x127D0, c, func_80021FD0]       # 0x80021FD0 func_80021FD0
+      - [0x127E4, c, func_80021FE4]       # 0x80021FE4 func_80021FE4
+      - [0x12808, c, func_80022008]       # 0x80022008 func_80022008
+      - [0x12814, c, func_80022014]       # 0x80022014 func_80022014
+      - [0x1286C, c, func_8002206C]       # 0x8002206C func_8002206C
+      - [0x12B8C, c, func_8002238C]       # 0x8002238C func_8002238C
+      - [0x12BB0, c, func_800223B0]       # 0x800223B0 func_800223B0
+      - [0x12BD4, c, func_800223D4]       # 0x800223D4 func_800223D4
+      - [0x12CF0, c, func_800224F0]       # 0x800224F0 func_800224F0
+      - [0x12D28, c, func_80022528]       # 0x80022528 func_80022528
+      - [0x12D80, c, func_80022580]       # 0x80022580 func_80022580
+      - [0x12DB8, c, func_800225B8]       # 0x800225B8 func_800225B8
+      - [0x12DC4, c, func_800225C4]       # 0x800225C4 func_800225C4
+      - [0x12E1C, c, func_8002261C]       # 0x8002261C func_8002261C
+      - [0x12EA4, c, func_800226A4]       # 0x800226A4 func_800226A4
+      - [0x12EB0, c, func_800226B0]       # 0x800226B0 func_800226B0
+      - [0x12ED8, c, func_800226D8]       # 0x800226D8 func_800226D8
+      - [0x12EE4, c, func_800226E4]       # 0x800226E4 func_800226E4
+      - [0x12EF0, c, func_800226F0]       # 0x800226F0 func_800226F0
+      - [0x12F38, c, func_80022738]       # 0x80022738 func_80022738
+      - [0x12F88, c, func_80022788]       # 0x80022788 func_80022788
+      - [0x12F94, c, func_80022794]       # 0x80022794 func_80022794
+      - [0x13164, c, func_80022964]       # 0x80022964 func_80022964
+      - [0x131F4, c, func_800229F4]       # 0x800229F4 func_800229F4
+      - [0x132F0, c, func_80022AF0]       # 0x80022AF0 func_80022AF0
+      - [0x13320, c, func_80022B20]       # 0x80022B20 func_80022B20
+      - [0x13398, c, func_80022B98]       # 0x80022B98 func_80022B98
+      - [0x13570, c, func_80022D70]       # 0x80022D70 func_80022D70
+      - [0x135F8, c, func_80022DF8]       # 0x80022DF8 func_80022DF8
+      - [0x136A4, c, func_80022EA4]       # 0x80022EA4 func_80022EA4
+      - [0x1371C, c, func_80022F1C]       # 0x80022F1C func_80022F1C
+      - [0x137E0, c, func_80022FE0]       # 0x80022FE0 func_80022FE0
+      - [0x1381C, c, func_8002301C]       # 0x8002301C func_8002301C
+      - [0x13830, c, func_80023030]       # 0x80023030 func_80023030
+      - [0x13860, c, func_80023060]       # 0x80023060 func_80023060
+      - [0x13900, c, func_80023100]       # 0x80023100 func_80023100
+      - [0x13930, c, func_80023130]       # 0x80023130 func_80023130
+      - [0x13970, c, func_80023170]       # 0x80023170 func_80023170
+      - [0x139AC, c, func_800231AC]       # 0x800231AC func_800231AC
+      - [0x139E8, c, func_800231E8]       # 0x800231E8 func_800231E8
+      - [0x13A88, c, func_80023288]       # 0x80023288 func_80023288
+      - [0x13BB4, c, func_800233B4]       # 0x800233B4 func_800233B4
+      - [0x13C8C, c, func_8002348C]       # 0x8002348C func_8002348C
+      - [0x13E00, c, func_80023600]       # 0x80023600 func_80023600
+      - [0x13EEC, c, func_800236EC]       # 0x800236EC func_800236EC
+      - [0x13F10, c, func_80023710]       # 0x80023710 func_80023710
+      - [0x13F4C, c, func_8002374C]       # 0x8002374C func_8002374C
+      - [0x13F74, c, func_80023774]       # 0x80023774 func_80023774
+      - [0x13F94, c, func_80023794]       # 0x80023794 func_80023794
+      - [0x13FFC, c, func_800237FC]       # 0x800237FC func_800237FC
+      - [0x14110, c, func_80023910]       # 0x80023910 func_80023910
+      - [0x141F8, c, func_800239F8]       # 0x800239F8 func_800239F8
+      - [0x14274, c, func_80023A74]       # 0x80023A74 func_80023A74
+      - [0x1429C, c, func_80023A9C]       # 0x80023A9C func_80023A9C
+      - [0x1435C, c, func_80023B5C]       # 0x80023B5C func_80023B5C
+      - [0x1442C, c, func_80023C2C]       # 0x80023C2C func_80023C2C
+      - [0x14508, c, func_80023D08]       # 0x80023D08 func_80023D08
+      - [0x145BC, c, func_80023DBC]       # 0x80023DBC func_80023DBC
+      - [0x14830, c, func_80024030]       # 0x80024030 func_80024030
+      - [0x14908, c, func_80024108]       # 0x80024108 func_80024108
+      - [0x149EC, c, func_800241EC]       # 0x800241EC func_800241EC
+      - [0x14B7C, c, func_8002437C]       # 0x8002437C func_8002437C
+      - [0x14BD0, c, func_800243D0]       # 0x800243D0 func_800243D0
+      - [0x14C08, c, func_80024408]       # 0x80024408 func_80024408
+      - [0x14C48, c, func_80024448]       # 0x80024448 func_80024448
+      - [0x14CFC, c, func_800244FC]       # 0x800244FC func_800244FC
+      - [0x14D78, c, func_80024578]       # 0x80024578 func_80024578
+      - [0x14DC8, c, func_800245C8]       # 0x800245C8 func_800245C8
+      - [0x14DF4, c, func_800245F4]       # 0x800245F4 func_800245F4
+      - [0x14E2C, c, func_8002462C]       # 0x8002462C func_8002462C
+      - [0x14E64, c, func_80024664]       # 0x80024664 func_80024664
+      - [0x14E9C, c, func_8002469C]       # 0x8002469C func_8002469C
+      - [0x14ED4, c, func_800246D4]       # 0x800246D4 func_800246D4
+      - [0x14F0C, c, func_8002470C]       # 0x8002470C func_8002470C
+      - [0x14F70, c, func_80024770]       # 0x80024770 func_80024770
+      - [0x14FC0, c, func_800247C0]       # 0x800247C0 func_800247C0
+      - [0x15010, c, func_80024810]       # 0x80024810 func_80024810
+      - [0x15060, c, func_80024860]       # 0x80024860 func_80024860
+      - [0x150B0, c, func_800248B0]       # 0x800248B0 func_800248B0
+      - [0x150E8, c, func_800248E8]       # 0x800248E8 func_800248E8
+      - [0x15124, c, func_80024924]       # 0x80024924 func_80024924
+      - [0x1515C, c, func_8002495C]       # 0x8002495C func_8002495C
+      - [0x151C0, c, func_800249C0]       # 0x800249C0 func_800249C0
+      - [0x15210, c, func_80024A10]       # 0x80024A10 func_80024A10
+      - [0x1524C, c, func_80024A4C]       # 0x80024A4C func_80024A4C
+      - [0x152E4, o, ../lib/libmath/adddf3] # lib/libmath/adddf3.o
+      - [0x15664, o, ../lib/libmath/addmant] # lib/libmath/addmant.o
+      - [0x15714, o, ../lib/libmath/dbshift] # lib/libmath/dbshift.o
+      - [0x157D4, o, ../lib/libmath/fixdfsi] # lib/libmath/fixdfsi.o
+      - [0x158D4, o, ../lib/libmath/fltsidf] # lib/libmath/fltsidf.o
+      - [0x159F4, o, ../lib/libmath/dbshiftu] # lib/libmath/dbshiftu.o
+      - [0x15AB4, o, ../lib/libmath/ltdf2] # lib/libmath/ltdf2.o
+      - [0x15B94, o, ../lib/libmath/mainasu] # lib/libmath/mainasu.o
+      - [0x15C04, o, ../lib/libmath/muldf3] # lib/libmath/muldf3.o
+      - [0x16004, o, ../lib/libmath/ferr] # lib/libmath/ferr.o
+      - [0x16074, o, ../lib/libmath/sin00] # lib/libmath/sin00.o
+      - [0x163D4, o, ../lib/libmath/divdf3] # lib/libmath/divdf3.o
+      - [0x16704, o, ../lib/libmath/gedf2] # lib/libmath/gedf2.o
+      - [0x167E4, o, ../lib/libmath/eqdf2] # lib/libmath/eqdf2.o
+      - [0x16834, o, ../lib/libmath/negdf2] # lib/libmath/negdf2.o
+      - [0x16874, o, ../lib/libmath/subdf3] # lib/libmath/subdf3.o
+      - [0x168F4, o, ../lib/libmath/sin01] # lib/libmath/sin01.o
+      - [0x16974, o, ../lib/libspu/s_gks] # lib/libspu/s_gks.o
+      - [0x16A04, o, ../lib/libspu/spu] # lib/libspu/spu.o
+      - [0x17544, o, ../lib/libspu/s_ini] # lib/libspu/s_ini.o
+      - [0x176A4, o, ../lib/libspu/s_dcb] # lib/libspu/s_dcb.o
+      - [0x176D4, o, ../lib/libspu/sr_gaks] # lib/libspu/sr_gaks.o
+      - [0x17834, o, ../lib/libspu/s_sca] # lib/libspu/s_sca.o
+      - [0x17BB4, o, ../lib/libsnd/ssclose] # lib/libsnd/ssclose.o
+      - [0x17D84, o, ../lib/libsnd/ssend] # lib/libsnd/ssend.o
+      - [0x17E34, o, ../lib/libsnd/ssinit] # lib/libsnd/ssinit.o
+      - [0x17ED4, o, ../lib/libsnd/ssinit_c] # lib/libsnd/ssinit_c.o
+      - [0x17F14, o, ../lib/libsnd/ut_roff] # lib/libsnd/ut_roff.o
+      - [0x17F34, o, ../lib/libspu/s_crwa] # lib/libspu/s_crwa.o
+      - [0x180D4, o, ../lib/libspu/s_m_util] # lib/libspu/s_m_util.o
+      - [0x181E4, o, ../lib/libsnd/ssopenq] # lib/libsnd/ssopenq.o
+      - [0x18474, o, ../lib/libsnd/cc_0] # lib/libsnd/cc_0.o
+      - [0x184F4, o, ../lib/libsnd/cc_6] # lib/libsnd/cc_6.o
+      - [0x18874, o, ../lib/libsnd/cc_7] # lib/libsnd/cc_7.o
+      - [0x18944, o, ../lib/libsnd/cc_10] # lib/libsnd/cc_10.o
+      - [0x18A14, o, ../lib/libsnd/cc_11] # lib/libsnd/cc_11.o
+      - [0x18B04, o, ../lib/libsnd/cc_64] # lib/libsnd/cc_64.o
+      - [0x18BB4, o, ../lib/libsnd/cc_91] # lib/libsnd/cc_91.o
+      - [0x18C44, o, ../lib/libsnd/cc_98] # lib/libsnd/cc_98.o
+      - [0x18D44, o, ../lib/libsnd/cc_99] # lib/libsnd/cc_99.o
+      - [0x18E84, o, ../lib/libsnd/cc_100] # lib/libsnd/cc_100.o
+      - [0x18EF4, o, ../lib/libsnd/cc_101] # lib/libsnd/cc_101.o
+      - [0x18F64, o, ../lib/libsnd/cc_121] # lib/libsnd/cc_121.o
+      - [0x19024, o, ../lib/libsnd/de_0] # lib/libsnd/de_0.o
+      - [0x190B4, o, ../lib/libsnd/de_1] # lib/libsnd/de_1.o
+      - [0x19174, o, ../lib/libsnd/de_2] # lib/libsnd/de_2.o
+      - [0x19204, o, ../lib/libsnd/de_3] # lib/libsnd/de_3.o
+      - [0x19294, o, ../lib/libsnd/de_4] # lib/libsnd/de_4.o
+      - [0x19344, o, ../lib/libsnd/ccadsr] # lib/libsnd/ccadsr.o
+      - [0x19444, o, ../lib/libsnd/de_5] # lib/libsnd/de_5.o
+      - [0x19504, o, ../lib/libsnd/de_6] # lib/libsnd/de_6.o
+      - [0x195B4, o, ../lib/libsnd/de_7] # lib/libsnd/de_7.o
+      - [0x19664, o, ../lib/libsnd/de_8] # lib/libsnd/de_8.o
+      - [0x19714, o, ../lib/libsnd/de_9] # lib/libsnd/de_9.o
+      - [0x197D4, o, ../lib/libsnd/de_10] # lib/libsnd/de_10.o
+      - [0x19884, o, ../lib/libsnd/de_11] # lib/libsnd/de_11.o
+      - [0x19934, o, ../lib/libsnd/de_12] # lib/libsnd/de_12.o
+      - [0x19A14, o, ../lib/libsnd/de_13] # lib/libsnd/de_13.o
+      - [0x19AB4, o, ../lib/libsnd/de_14] # lib/libsnd/de_14.o
+      - [0x19B54, o, ../lib/libsnd/de_15] # lib/libsnd/de_15.o
+      - [0x19B84, o, ../lib/libsnd/de_16] # lib/libsnd/de_16.o
+      - [0x19BB4, o, ../lib/libsnd/de_17] # dep-obj lib/libsnd/de_17.o
+      - [0x19BE4, o, ../lib/libsnd/de_18] # dep-obj lib/libsnd/de_18.o
+      - [0x19C14, o, ../lib/libsnd/de_19] # dep-obj lib/libsnd/de_19.o
+      - [0x19C44, o, ../lib/libsnd/midibend] # lib/libsnd/midibend.o
+      - [0x19CF4, o, ../lib/libsnd/midicc] # lib/libsnd/midicc.o
+      - [0x19F24, o, ../lib/libsnd/midimeta] # lib/libsnd/midimeta.o
+      - [0x1A0F4, o, ../lib/libsnd/midinote] # lib/libsnd/midinote.o
+      - [0x1A1D4, o, ../lib/libsnd/midiprog] # lib/libsnd/midiprog.o
+      - [0x1A244, o, ../lib/libsnd/miditime] # lib/libsnd/miditime.o
+      - [0x1A2F4, o, ../lib/libsnd/seqinit] # lib/libsnd/seqinit.o
+      - [0x1A644, o, ../lib/libsnd/sspause] # lib/libsnd/sspause.o
+      - [0x1A764, o, ../lib/libsnd/ssplay] # lib/libsnd/ssplay.o
+      - [0x1A7A4, o, ../lib/libsnd/ssreplay] # lib/libsnd/ssreplay.o
+      - [0x1A894, o, ../lib/libsnd/playmode] # lib/libsnd/playmode.o
+      - [0x1A9B4, o, ../lib/libsnd/sssattr] # lib/libsnd/sssattr.o
+      - [0x1AA74, o, ../lib/libsnd/sssmv] # lib/libsnd/sssmv.o
+      - [0x1AAC4, o, ../lib/libsnd/sssrv] # lib/libsnd/sssrv.o
+      - [0x1AB54, o, ../lib/libspu/s_srd] # lib/libspu/s_srd.o
+      - [0x1ABD4, o, ../lib/libsnd/ssstart] # lib/libsnd/ssstart.o
+      - [0x1AEE4, o, ../lib/libsnd/sscall] # lib/libsnd/sscall.o
+      - [0x1B154, o, ../lib/libsnd/cres] # lib/libsnd/cres.o
+      - [0x1B364, o, ../lib/libsnd/pause] # lib/libsnd/pause.o
+      - [0x1B404, o, ../lib/libsnd/play] # lib/libsnd/play.o
+      - [0x1B434, o, ../lib/libsnd/midiread] # lib/libsnd/midiread.o
+      - [0x1BB24, o, ../lib/libsnd/next] # lib/libsnd/next.o
+      - [0x1BC24, o, ../lib/libsnd/replay] # lib/libsnd/replay.o
+      - [0x1BC84, o, ../lib/libsnd/ssstop] # lib/libsnd/ssstop.o
+      - [0x1BE64, o, ../lib/libsnd/sssv] # lib/libsnd/sssv.o
+      - [0x1BF74, o, ../lib/libsnd/sstable] # lib/libsnd/sstable.o
+      - [0x1C194, o, ../lib/libsnd/sstick] # lib/libsnd/sstick.o
+      - [0x1C2E4, o, ../lib/libsnd/ssvkoff] # lib/libsnd/ssvkoff.o
+      - [0x1C324, o, ../lib/libsnd/ssvol] # lib/libsnd/ssvol.o
+      - [0x1C4B4, o, ../lib/libsnd/tempo] # lib/libsnd/tempo.o
+      - [0x1C6D4, o, ../lib/libsnd/ut_ako] # lib/libsnd/ut_ako.o
+      - [0x1C824, o, ../lib/libspu/s_sva] # lib/libspu/s_sva.o
+      - [0x1CE24, o, ../lib/libspu/s_n2p] # lib/libspu/s_n2p.o
+      - [0x1D024, o, ../lib/libsnd/ut_gpa] # lib/libsnd/ut_gpa.o
+      - [0x1D134, o, ../lib/libsnd/ut_gva] # lib/libsnd/ut_gva.o
+      - [0x1D374, o, ../lib/libsnd/ut_key] # lib/libsnd/ut_key.o
+      - [0x1D824, o, ../lib/libsnd/ut_keyv] # lib/libsnd/ut_keyv.o
+      - [0x1DC04, o, ../lib/libsnd/ut_rdel] # lib/libsnd/ut_rdel.o
+      - [0x1DC44, o, ../lib/libspu/s_srmp] # lib/libspu/s_srmp.o
+      - [0x1E124, o, ../lib/libspu/s_sra] # lib/libspu/s_sra.o
+      - [0x1E5F4, o, ../lib/libsnd/ut_rdep] # lib/libsnd/ut_rdep.o
+      - [0x1E684, o, ../lib/libsnd/ut_rev] # lib/libsnd/ut_rev.o
+      - [0x1E724, o, ../lib/libspu/s_sr] # lib/libspu/s_sr.o
+      - [0x1E814, o, ../lib/libsnd/ut_rfb] # lib/libsnd/ut_rfb.o
+      - [0x1E854, c, func_8002E054]       # 0x8002E054 func_8002E054
+      - [0x1E874, o, ../lib/libsnd/ut_ron] # dep-obj lib/libsnd/ut_ron.o
+      - [0x1E894, o, ../lib/libsnd/ut_sva] # lib/libsnd/ut_sva.o
+      - [0x1EA64, o, ../lib/libsnd/ut_vvol4] # lib/libsnd/ut_vvol4.o
+      - [0x1EAF4, o, ../lib/libsnd/vm_aloc1] # lib/libsnd/vm_aloc1.o
+      - [0x1ED64, o, ../lib/libsnd/vm_aloc2] # lib/libsnd/vm_aloc2.o
+      - [0x1EF34, o, ../lib/libsnd/vm_doff] # lib/libsnd/vm_doff.o
+      - [0x1EF44, o, ../lib/libsnd/vm_don] # lib/libsnd/vm_don.o
+      - [0x1EF54, o, ../lib/libsnd/vm_f] # lib/libsnd/vm_f.o
+      - [0x1F424, o, ../lib/libspu/s_snv] # lib/libspu/s_snv.o
+      - [0x1F454, o, ../lib/libspu/s_sav] # lib/libspu/s_sav.o
+      - [0x1F714, o, ../lib/libspu/s_gnv] # lib/libspu/s_gnv.o
+      - [0x1F744, o, ../lib/libspu/s_gav] # lib/libspu/s_gav.o
+      - [0x1F774, o, ../lib/libspu/s_srv] # lib/libspu/s_srv.o
+      - [0x1F7A4, o, ../lib/libspu/s_grv] # lib/libspu/s_grv.o
+      - [0x1F7D4, o, ../lib/libspu/s_sk] # lib/libspu/s_sk.o
+      - [0x1F994, o, ../lib/libspu/s_gvex] # lib/libspu/s_gvex.o
+      - [0x1F9B4, o, ../lib/libsnd/vm_init] # lib/libsnd/vm_init.o
+      - [0x1FD04, o, ../lib/libspu/s_m_init] # lib/libspu/s_m_init.o
+      - [0x1FD64, o, ../lib/libspu/s_it] # lib/libspu/s_it.o
+      - [0x1FDA4, o, ../lib/libsnd/vm_key] # lib/libsnd/vm_key.o
+      - [0x20544, o, ../lib/libsnd/vm_n2p] # lib/libsnd/vm_n2p.o
+      - [0x20724, o, ../lib/libsnd/vm_no1] # lib/libsnd/vm_no1.o
+      - [0x20C94, o, ../lib/libspu/s_snc] # lib/libspu/s_snc.o
+      - [0x20CE4, o, ../lib/libsnd/vm_noff] # lib/libsnd/vm_noff.o
+      - [0x20D24, o, ../lib/libsnd/vm_nowof] # lib/libsnd/vm_nowof.o
+      - [0x20DE4, o, ../lib/libsnd/vm_nowon] # lib/libsnd/vm_nowon.o
+      - [0x212B4, o, ../lib/libsnd/vm_pb] # lib/libsnd/vm_pb.o
+      - [0x21584, o, ../lib/libsnd/vm_prog2] # lib/libsnd/vm_prog2.o
+      - [0x215F4, o, ../lib/libsnd/vm_seq] # lib/libsnd/vm_seq.o
+      - [0x21C74, o, ../lib/libsnd/vm_stav] # lib/libsnd/vm_stav.o
+      - [0x21D44, o, ../lib/libsnd/vm_vol] # lib/libsnd/vm_vol.o
+      - [0x222E4, o, ../lib/libsnd/vm_vsu] # lib/libsnd/vm_vsu.o
+      - [0x223A4, o, ../lib/libsnd/vs_mono] # lib/libsnd/vs_mono.o
+      - [0x223C4, o, ../lib/libsnd/vs_srv] # lib/libsnd/vs_srv.o
+      - [0x223F4, o, ../lib/libsnd/vs_vab] # lib/libsnd/vs_vab.o
+      - [0x224A4, o, ../lib/libspu/s_m_f] # lib/libspu/s_m_f.o
+      - [0x22524, o, ../lib/libspu/s_m_int] # lib/libspu/s_m_int.o
+      - [0x22824, o, ../lib/libsnd/vs_vh2] # lib/libsnd/vs_vh2.o
+      - [0x228C4, o, ../lib/libspu/s_m_m] # lib/libspu/s_m_m.o
+      - [0x22B94, o, ../lib/libsnd/vs_vh] # lib/libsnd/vs_vh.o
+      - [0x22FF4, o, ../lib/libsnd/vs_vtbp] # lib/libsnd/vs_vtbp.o
+      - [0x23184, o, ../lib/libspu/s_stsa] # lib/libspu/s_stsa.o
+      - [0x231E4, o, ../lib/libspu/s_stm] # lib/libspu/s_stm.o
+      - [0x23214, o, ../lib/libspu/s_wp] # lib/libspu/s_wp.o
+      - [0x232A4, o, ../lib/libsnd/vs_vtc] # lib/libsnd/vs_vtc.o
+      - [0x232D4, o, ../lib/libspu/s_itc] # lib/libspu/s_itc.o
+      - [0x23384, o, ../lib/libetc/vsync] # lib/libetc/vsync.o
+      - [0x23594, o, ../lib/libetc/intr] # lib/libetc/intr.o
+      - [0x23C54, o, ../lib/libetc/intr_vb] # lib/libetc/intr_vb.o
+      - [0x23D74, o, ../lib/libetc/intr_dma] # lib/libetc/intr_dma.o
+      - [0x24014, o, ../lib/libetc/vmode] # lib/libetc/vmode.o
+      - [0x24044, o, ../lib/libcd/event] # lib/libcd/event.o
+      - [0x24194, o, ../lib/libcd/sys] # lib/libcd/sys.o
+      - [0x24214, o, ../lib/libcd/iso9660] # lib/libcd/iso9660.o
+      - [0x24B84, o, ../lib/libcd/bios_1] # lib/libcd/bios_1.o
+      - [0x26104, o, ../lib/libcd/s_002] # lib/libcd/s_002.o
+      - [0x26214, o, ../lib/libcd/s_003] # lib/libcd/s_003.o
+      - [0x26224, o, ../lib/libc2/atoi_1] # lib/libc2/atoi_1.o
+      - [0x26244, c, CdFlush]       # 0x80035A44 CdFlush
+      - [0x26264, o, ../lib/libcd/s_016] # lib/libcd/s_016.o
+      - [0x26624, o, ../lib/libcd/cdr_1] # lib/libcd/cdr_1.o
+      - [0x26FC4, c, func_800367C4]       # 0x800367C4 func_800367C4
+      - [0x26FD4, o, ../lib/libcd/s_004] # dep-obj lib/libcd/s_004.o
+      - [0x26FE4, o, ../lib/libcd/s_006] # lib/libcd/s_006.o
+      - [0x26FF4, o, ../lib/libcd/s_013] # dep-obj lib/libcd/s_013.o
+      - [0x27014, o, ../lib/libcd/s_009] # lib/libcd/s_009.o
+      - [0x27034, o, ../lib/libcd/s_015] # dep-obj lib/libcd/s_015.o
+      - [0x27054, o, ../lib/libcd/s_021] # lib/libcd/s_021.o
+      - [0x27074, o, ../lib/libcd/bios_2] # lib/libcd/bios_2.o
+      - [0x27174, o, ../lib/libcd/s_022] # dep-obj lib/libcd/s_022.o
+      - [0x27194, o, ../lib/libcd/bios_3] # lib/libcd/bios_3.o
+      - [0x27284, o, ../lib/libcd/s_023] # lib/libcd/s_023.o
+      - [0x272B4, o, ../lib/libcd/s_024] # dep-obj lib/libcd/s_024.o
+      - [0x272D4, o, ../lib/libgte/geo_00] # lib/libgte/geo_00.o
+      - [0x273A4, o, ../lib/libgte/geo_01] # lib/libgte/geo_01.o
+      - [0x27444, o, ../lib/libgte/fog_01] # lib/libgte/fog_01.o
+      - [0x274B4, o, ../lib/libgte/cor_02] # lib/libgte/cor_02.o
+      - [0x27584, o, ../lib/libgte/cor_01] # lib/libgte/cor_01.o
+      - [0x276A4, o, ../lib/libgte/cor_03] # lib/libgte/cor_03.o
+      - [0x27884, o, ../lib/libgte/cor_05] # lib/libgte/cor_05.o
+      - [0x27A74, o, ../lib/libgte/msc00] # lib/libgte/msc00.o
+      - [0x27B04, o, ../lib/libgte/msc01] # lib/libgte/msc01.o
+      - [0x27B94, o, ../lib/libgte/msc02] # lib/libgte/msc02.o
+      - [0x27E44, o, ../lib/libgte/mtx_004] # lib/libgte/mtx_004.o
+      - [0x27FA4, o, ../lib/libgte/mtx_006] # lib/libgte/mtx_006.o
+      - [0x280F4, o, ../lib/libgte/mtx_07] # lib/libgte/mtx_07.o
+      - [0x28124, o, ../lib/libgte/mtx_09] # lib/libgte/mtx_09.o
+      - [0x28154, o, ../lib/libgte/mtx_12] # lib/libgte/mtx_12.o
+      - [0x28174, o, ../lib/libgte/reg11] # lib/libgte/reg11.o
+      - [0x28194, o, ../lib/libgte/reg12] # lib/libgte/reg12.o
+      - [0x281B4, o, ../lib/libgte/reg13] # lib/libgte/reg13.o
+      - [0x281C4, o, ../lib/libgte/smp_04] # lib/libgte/smp_04.o
+      - [0x281F4, o, ../lib/libgte/fgo_01] # lib/libgte/fgo_01.o
+      - [0x28484, o, ../lib/libgte/fgo_04] # lib/libgte/fgo_04.o
+      - [0x28624, o, ../lib/libgte/fgo_05] # lib/libgte/fgo_05.o
+      - [0x287C4, o, ../lib/libgte/fgo_06] # lib/libgte/fgo_06.o
+      - [0x28964, o, ../lib/libgte/fgo_08] # lib/libgte/fgo_08.o
+      - [0x28BF4, o, ../lib/libgte/ratan] # lib/libgte/ratan.o
+      - [0x28D74, o, ../lib/libgte/patchgte] # lib/libgte/patchgte.o
+      - [0x28E54, o, ../lib/libgte/reg03_14] # lib/libgte/reg03_14.o
+      - [0x28E64, o, ../lib/libgte/reg03_15] # lib/libgte/reg03_15.o
+      - [0x28E74, c, func_80038674]       # 0x80038674 func_80038674
+      - [0x28ED4, o, ../lib/libgte/smp_00_1] # lib/libgte/smp_00_1.o
+      - [0x28EF4, o, ../lib/libgs/gs_001] # lib/libgs/gs_001.o
+      - [0x29444, o, ../lib/libgs/gs_0022] # lib/libgs/gs_0022.o
+      - [0x29554, o, ../lib/libgs/gs_003] # lib/libgs/gs_003.o
+      - [0x295D4, o, ../lib/libgs/gs_004] # lib/libgs/gs_004.o
+      - [0x296C4, o, ../lib/libgs/gs_103] # lib/libgs/gs_103.o
+      - [0x29764, o, ../lib/libgs/gs_104] # lib/libgs/gs_104.o
+      - [0x297E4, c, GsSetProjection]       # 0x80038FE4 GsSetProjection
+      - [0x29804, o, ../lib/libgs/gs_107] # lib/libgs/gs_107.o
+      - [0x29D74, o, ../lib/libgte/mtx_11] # lib/libgte/mtx_11.o
+      - [0x29DA4, o, ../lib/libgs/gs_108] # lib/libgs/gs_108.o
+      - [0x29E24, o, ../lib/libgs/gs_110] # lib/libgs/gs_110.o
+      - [0x29E54, o, ../lib/libgte/reg10] # lib/libgte/reg10.o
+      - [0x29E74, o, ../lib/libgs/gs_121] # lib/libgs/gs_121.o
+      - [0x29EC4, c, GsSetNearClip]       # 0x800396C4 GsSetNearClip
+      - [0x29ED4, c, GsGetWorkBase]       # 0x800396D4 GsGetWorkBase
+      - [0x29EE4, c, SetDumpFnt]
+      - [0x29F24, c, FntLoad]
+      - [0x29FC4, c, FntOpen]
+      - [0x2A280, c, FntFlush]
+      - [0x2A59C, c, FntPrint]
+      - [0x2A964, o, ../lib/libgpu/kprintf] # lib/libgpu/kprintf.o
+      - [0x2B864, o, ../lib/libgpu/sys] # lib/libgpu/sys.o
+      - [0x2E764, o, ../lib/libgpu/e00] # lib/libgpu/e00.o
+      - [0x2E854, o, ../lib/libgpu/e02] # lib/libgpu/e02.o
+      - [0x2E8C4, o, ../lib/libgpu/e03] # lib/libgpu/e03.o
+      - [0x2E984, o, ../lib/libgpu/e04] # lib/libgpu/e04.o
+      - [0x2E9C4, o, ../lib/libgpu/p00] # lib/libgpu/p00.o
+      - [0x2EA04, o, ../lib/libgpu/p01] # lib/libgpu/p01.o
+      - [0x2EA24, o, ../lib/libgpu/p06] # lib/libgpu/p06.o
+      - [0x2EA64, o, ../lib/libgpu/p09] # lib/libgpu/p09.o
+      - [0x2EA84, o, ../lib/libgpu/p10] # lib/libgpu/p10.o
+      - [0x2EAB4, o, ../lib/libgpu/p11] # lib/libgpu/p11.o
+      - [0x2EAE4, o, ../lib/libgpu/p16] # lib/libgpu/p16.o
+      - [0x2EB04, o, ../lib/libgpu/p17] # lib/libgpu/p17.o
+      - [0x2EB24, o, ../lib/libgpu/p20] # lib/libgpu/p20.o
+      - [0x2EB44, o, ../lib/libgpu/p26] # lib/libgpu/p26.o
+      - [0x2EB64, o, ../lib/libgpu/p35] # lib/libgpu/p35.o
+      - [0x2EBD4, o, ../lib/libgpu/p41] # lib/libgpu/p41.o
+      - [0x2EC74, o, ../lib/libgpu/kt01] # lib/libgpu/kt01.o
+      - [0x2F1A4, o, ../lib/libgpu/kt02] # lib/libgpu/kt02.o
+      - [0x2F2E4, o, ../lib/libmcrd/init] # lib/libmcrd/init.o
+      - [0x2F334, o, ../lib/libapi/c112] # lib/libapi/c112.o
+      - [0x2F344, o, ../lib/libcard/init] # lib/libcard/init.o
+      - [0x2F444, o, ../lib/libcard/a74] # lib/libcard/a74.o
+      - [0x2F454, o, ../lib/libcard/a75] # lib/libcard/a75.o
+      - [0x2F464, o, ../lib/libcard/a76] # lib/libcard/a76.o
+      - [0x2F474, o, ../lib/libcard/patch] # lib/libcard/patch.o
+      - [0x2F694, o, ../lib/libcard/end] # lib/libcard/end.o
+      - [0x2F714, o, ../lib/libmcrd/libmcrd] # lib/libmcrd/libmcrd.o
+      - [0x30FE4, o, ../lib/libcard/c171] # lib/libcard/c171.o
+      - [0x30FF4, o, ../lib/libcard/c172] # lib/libcard/c172.o
+      - [0x31004, o, ../lib/libcard/card] # lib/libcard/card.o
+      - [0x31044, o, ../lib/libcard/a78] # lib/libcard/a78.o
+      - [0x31054, o, ../lib/libcard/a80] # lib/libcard/a80.o
+      - [0x31064, o, ../lib/libmcrd/userfunc] # lib/libmcrd/userfunc.o
+      - [0x31174, o, ../lib/libmcrd/bios] # lib/libmcrd/bios.o
+      - [0x31824, o, ../lib/libmcrd/low] # lib/libmcrd/low.o
+      - [0x322B4, o, ../lib/libcard/a79] # lib/libcard/a79.o
+      - [0x322C4, o, ../lib/libmcrd/unformat] # lib/libmcrd/unformat.o
+      - [0x32374, o, ../lib/libc/a63] # lib/libc/a63.o
+      - [0x32394, o, ../lib/libc/c19] # lib/libc/c19.o
+      - [0x323A4, o, ../lib/libc/c21] # lib/libc/c21.o
+      - [0x323B4, o, ../lib/libc/c23] # lib/libc/c23.o
+      - [0x323C4, o, ../lib/libc/c24] # lib/libc/c24.o
+      - [0x323D4, o, ../lib/libc/c25] # lib/libc/c25.o
+      - [0x323E4, o, ../lib/libc/c26] # lib/libc/c26.o
+      - [0x323F4, o, ../lib/libc/c27] # lib/libc/c27.o
+      - [0x32404, o, ../lib/libc/c39] # lib/libc/c39.o
+      - [0x32414, o, ../lib/libc/c40] # lib/libc/c40.o
+      - [0x32424, o, ../lib/libc/c42] # lib/libc/c42.o
+      - [0x32434, o, ../lib/libc/c43] # lib/libc/c43.o
+      - [0x32444, o, ../lib/libc/c63] # lib/libc/c63.o
+      - [0x32454, o, ../lib/libc/sprintf] # lib/libc/sprintf.o
+      - [0x32CE4, o, ../lib/libc/c46] # lib/libc/c46.o
+      - [0x32CF4, o, ../lib/libc/memmove] # lib/libc/memmove.o
+      - [0x32D64, o, ../lib/libc/bcmp] # lib/libc/bcmp.o
+      - [0x32DA4, o, ../lib/libapi/c57] # lib/libapi/c57.o
+      - [0x32DB4, o, ../lib/libapi/c68] # lib/libapi/c68.o
+      - [0x32DC4, o, ../lib/libapi/c73] # lib/libapi/c73.o
+      - [0x32DD4, o, ../lib/libapi/c114] # lib/libapi/c114.o
+      - [0x32DF4, o, ../lib/libapi/c159] # lib/libapi/c159.o
+      - [0x32E04, o, ../lib/libapi/c161] # lib/libapi/c161.o
+      - [0x32E14, o, ../lib/libapi/a07] # lib/libapi/a07.o
+      - [0x32E24, o, ../lib/libapi/a08] # lib/libapi/a08.o
+      - [0x32E34, o, ../lib/libapi/a09] # lib/libapi/a09.o
+      - [0x32E44, o, ../lib/libapi/a10] # lib/libapi/a10.o
+      - [0x32E54, o, ../lib/libapi/a11] # lib/libapi/a11.o
+      - [0x32E64, o, ../lib/libapi/a12] # lib/libapi/a12.o
+      - [0x32E74, o, ../lib/libapi/a23] # lib/libapi/a23.o
+      - [0x32E84, o, ../lib/libapi/a24] # lib/libapi/a24.o
+      - [0x32E94, o, ../lib/libapi/a25] # lib/libapi/a25.o
+      - [0x32EA4, o, ../lib/libapi/a36] # lib/libapi/a36.o
+      - [0x32EB4, o, ../lib/libapi/a37] # lib/libapi/a37.o
+      - [0x32EC4, o, ../lib/libapi/a50] # lib/libapi/a50.o
+      - [0x32ED4, o, ../lib/libapi/a51] # lib/libapi/a51.o
+      - [0x32EE4, o, ../lib/libapi/a52] # lib/libapi/a52.o
+      - [0x32EF4, o, ../lib/libapi/a53] # lib/libapi/a53.o
+      - [0x32F04, o, ../lib/libapi/a54] # lib/libapi/a54.o
+      - [0x32F14, o, ../lib/libapi/a67] # lib/libapi/a67.o
+      - [0x32F24, o, ../lib/libapi/a68] # lib/libapi/a68.o
+      - [0x32F34, o, ../lib/libapi/a81] # lib/libapi/a81.o
+      - [0x32F44, o, ../lib/libapi/a91] # lib/libapi/a91.o
+      - [0x32F54, o, ../lib/libapi/l10] # lib/libapi/l10.o
+      - [0x32F64, o, ../lib/libapi/counter] # lib/libapi/counter.o
+      - [0x330D4, o, ../lib/libapi/first] # lib/libapi/first.o
+      - [0x33374, o, ../lib/libapi/a66] # lib/libapi/a66.o
+      - [0x33384, o, ../lib/libapi/pad] # lib/libapi/pad.o
+      - [0x33614, o, ../lib/libapi/a18] # lib/libapi/a18.o
+      - [0x33624, o, ../lib/libapi/a19] # lib/libapi/a19.o
+      - [0x33634, o, ../lib/libapi/a21] # lib/libapi/a21.o
+      - [0x33644, o, ../lib/libapi/l02] # lib/libapi/l02.o
+      - [0x33654, o, ../lib/libapi/l03] # lib/libapi/l03.o
+      - [0x33664, o, ../lib/libapi/patch] # lib/libapi/patch.o
+      - [0x33704, o, ../lib/libapi/chclrpad] # lib/libapi/chclrpad.o
+      - [0x33774, o, ../lib/libmcx/mcxcmd1] # lib/libmcx/mcxcmd1.o
+      - [0x338D4, o, ../lib/libmcx/mcxcmd2] # lib/libmcx/mcxcmd2.o
+      - [0x33A34, o, ../lib/libmcx/mcxcmd3] # lib/libmcx/mcxcmd3.o
+      - [0x33A64, o, ../lib/libmcx/mcxcmd4] # lib/libmcx/mcxcmd4.o
+      - [0x33B94, o, ../lib/libmcx/mcxcmd5] # lib/libmcx/mcxcmd5.o
+      - [0x33C74, o, ../lib/libmcx/mcxcmd6] # lib/libmcx/mcxcmd6.o
+      - [0x33E04, o, ../lib/libmcx/mcxcmd7] # lib/libmcx/mcxcmd7.o
+      - [0x33EE4, o, ../lib/libmcx/mcxcmd8] # lib/libmcx/mcxcmd8.o
+      - [0x34074, o, ../lib/libmcx/mcxcmd9] # lib/libmcx/mcxcmd9.o
+      - [0x34124, o, ../lib/libmcx/mcxcmd10] # lib/libmcx/mcxcmd10.o
+      - [0x34414, o, ../lib/libmcx/mcxcmd11] # lib/libmcx/mcxcmd11.o
+      - [0x344C4, o, ../lib/libmcx/mcxcmd12] # lib/libmcx/mcxcmd12.o
+      - [0x347C4, o, ../lib/libmcx/mcxcmd16] # lib/libmcx/mcxcmd16.o
+      - [0x34854, o, ../lib/libmcx/mcxcmd17] # lib/libmcx/mcxcmd17.o
+      - [0x348D4, o, ../lib/libmcx/mcxcmd18] # lib/libmcx/mcxcmd18.o
+      - [0x34954, o, ../lib/libmcx/mcxcmd19] # lib/libmcx/mcxcmd19.o
+      - [0x34A84, o, ../lib/libmcx/mcxcmd20] # lib/libmcx/mcxcmd20.o
+      - [0x34B44, o, ../lib/libmcx/mcxcmd21] # lib/libmcx/mcxcmd21.o
+      - [0x34BD4, o, ../lib/libmcx/mcxcmd22] # lib/libmcx/mcxcmd22.o
+      - [0x34C84, o, ../lib/libmcx/mcxcmd23] # lib/libmcx/mcxcmd23.o
+      - [0x34DE4, o, ../lib/libmcx/mcxcmd24] # lib/libmcx/mcxcmd24.o
+      - [0x34FC4, o, ../lib/libmcx/mcxcmd25] # lib/libmcx/mcxcmd25.o
+      - [0x35544, o, ../lib/libmcx/mcxcmd27] # lib/libmcx/mcxcmd27.o
+      - [0x355A4, o, ../lib/libmcx/mcxresi] # lib/libmcx/mcxresi.o
+      - [0x35A54, o, ../lib/libmcx/mcxinit] # lib/libmcx/mcxinit.o
+      - [0x35B64, o, ../lib/libmcx/mcxmain] # lib/libmcx/mcxmain.o
+      - [0x361E4, o, ../lib/libmcx/mcxdsr] # lib/libmcx/mcxdsr.o
+      - [0x36514, o, ../lib/libc/c28] # lib/libc/c28.o
+      - [0x36524, o, ../lib/libpad/pdcmd1] # lib/libpad/pdcmd1.o
+      - [0x36564, o, ../lib/libpad/pdcmd2] # lib/libpad/pdcmd2.o
+      - [0x366D4, o, ../lib/libpad/pdent2] # lib/libpad/pdent2.o
+      - [0x367A4, o, ../lib/libpad/pdent3] # lib/libpad/pdent3.o
+      - [0x368A4, o, ../lib/libpad/pdmaiini] # lib/libpad/pdmaiini.o
+      - [0x369B4, o, ../lib/libpad/pddirini] # lib/libpad/pddirini.o
+      - [0x36A64, o, ../lib/libpad/pddirres] # lib/libpad/pddirres.o
+      - [0x374A4, c, func_80046CA4]       # text-gap
+      - [0x3750C, c, func_80046D0C]
+      - [0x38990, data]
+      - [0x4620C, o, ../lib/libmath/ferr, .data] # lib/libmath/ferr.o
+      - [0x4621C, o, ../lib/libspu/spu, .data] # lib/libspu/spu.o
+      - [0x4627C, o, ../lib/libspu/s_ini, .data] # lib/libspu/s_ini.o
+      - [0x462FC, data]
+      - [0x4633C, o, ../lib/libsnd/ssinit, .data] # lib/libsnd/ssinit.o
+      - [0x4636C, data]
+      - [0x4676C, o, ../lib/libsnd/ssstart, .data] # lib/libsnd/ssstart.o
+      - [0x4678C, o, ../lib/libspu/s_n2p, .data] # lib/libspu/s_n2p.o
+      - [0x468AC, data]
+      - [0x46B5C, o, ../lib/libsnd/vm_n2p, .data] # lib/libsnd/vm_n2p.o
+      - [0x46C7C, o, ../lib/libsnd/vs_vtbp, .data] # lib/libsnd/vs_vtbp.o
+      - [0x46C8C, data]
+      - [0x46C94, o, ../lib/libetc/vsync, .data] # lib/libetc/vsync.o
+      - [0x46CB4, o, ../lib/libetc/intr, .data] # lib/libetc/intr.o
+      - [0x47DB4, o, ../lib/libetc/intr_vb, .data] # lib/libetc/intr_vb.o
+      - [0x47DE4, o, ../lib/libetc/intr_dma, .data] # lib/libetc/intr_dma.o
+      - [0x47E14, o, ../lib/libetc/vmode, .data] # lib/libetc/vmode.o
+      - [0x47E24, o, ../lib/libcd/event, .data] # lib/libcd/event.o
+      - [0x47E34, o, ../lib/libcd/iso9660, .data] # lib/libcd/iso9660.o
+      - [0x47E44, o, ../lib/libcd/bios_1, .data] # lib/libcd/bios_1.o
+      - [0x48154, o, ../lib/libcd/s_016, .data] # lib/libcd/s_016.o
+      - [0x481D4, o, ../lib/libcd/cdr_1, .data] # lib/libcd/cdr_1.o
+      - [0x48214, o, ../lib/libcd/bios_2, .data] # lib/libcd/bios_2.o
+      - [0x48234, o, ../lib/libcd/bios_3, .data] # lib/libcd/bios_3.o
+      - [0x48254, data]
+      - [0x48A64, o, ../lib/libgte/cor_01, .data] # lib/libgte/cor_01.o
+      - [0x48A84, o, ../lib/libgte/msc00, .data] # lib/libgte/msc00.o
+      - [0x48A94, data]
+      - [0x48C14, o, ../lib/libgte/msc02, .data] # lib/libgte/msc02.o
+      - [0x48DB4, o, ../lib/libgte/mtx_006, .data] # lib/libgte/mtx_006.o
+      - [0x490C4, data]
+      - [0x4D0C4, o, ../lib/libgte/ratan, .data] # lib/libgte/ratan.o
+      - [0x4D8D4, o, ../lib/libgs/gs_001, .data] # lib/libgs/gs_001.o
+      - [0x4D8E4, data]
+      - [0x4DBD8, sdata]
+      - [0x4E484, o, ../lib/libgpu/kprintf, .data] # lib/libgpu/kprintf.o
+      - [0x4E4C4, o, ../lib/libgpu/sys, .data] # lib/libgpu/sys.o
+      - [0x4E664, o, ../lib/libgpu/kt01, .data] # lib/libgpu/kt01.o
+      - [0x4E784, o, ../lib/libgpu/kt02, .data] # lib/libgpu/kt02.o
+      - [0x4E7D4, sdata]
+      - [0x4E7F4, o, ../lib/libmcrd/libmcrd, .data] # lib/libmcrd/libmcrd.o
+      - [0x4E814, o, ../lib/libmcrd/userfunc, .data] # lib/libmcrd/userfunc.o
+      - [0x4E824, sdata]
+      - [0x4E8B4, o, ../lib/libc/sprintf, .data] # lib/libc/sprintf.o
+      - [0x4E8C4, o, ../lib/libapi/counter, .data] # lib/libapi/counter.o
+      - [0x4E8E4, o, ../lib/libapi/pad, .data] # lib/libapi/pad.o
+      - [0x4E8F4, o, ../lib/libmcx/mcxcmd10, .data] # lib/libmcx/mcxcmd10.o
+      - [0x4E904, o, ../lib/libmcx/mcxcmd12, .data] # lib/libmcx/mcxcmd12.o
+      - [0x4E914, o, ../lib/libmcx/mcxresi, .data] # lib/libmcx/mcxresi.o
+      - [0x4E964, o, ../lib/libmcx/mcxinit, .data] # lib/libmcx/mcxinit.o
+      - [0x4E974, o, ../lib/libmcx/mcxmain, .data] # lib/libmcx/mcxmain.o
+      - [0x4E984, o, ../lib/libmcx/mcxdsr, .data] # lib/libmcx/mcxdsr.o
+      - [0x4E9A4, o, ../lib/libpad/pdmaiini, .data] # lib/libpad/pdmaiini.o
+      - [0x4E9B4, o, ../lib/libpad/pddirres, .data] # lib/libpad/pddirres.o
+      - [0x4E9C4, sdata]
+  - [0x4F000]  # End of file (0x800 header + 0x4E800 payload)
