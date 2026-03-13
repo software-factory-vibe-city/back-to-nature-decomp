@@ -14,10 +14,18 @@
  *   npx tsx tools/patchSplatForLibs.ts --write   # update configs/splat.yaml
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+  unlinkSync,
+} from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { Buffer } from "buffer";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -77,6 +85,47 @@ function loadFuncAddrsInRange(
     }
   }
   return funcs.sort((a, b) => a.vram - b.vram);
+}
+
+/** Load ALL symbol names by VRAM address (not just type:func) */
+function loadSymbolsByVram(): Map<number, string> {
+  const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+  const content = readFileSync(symAddrsPath, "utf-8");
+  const map = new Map<number, string>();
+  for (const line of content.split("\n")) {
+    const m = line.match(/^(\w+)\s*=\s*(0x[0-9A-Fa-f]+)\s*;/);
+    if (m) {
+      map.set(parseInt(m[2], 16), m[1]);
+    }
+  }
+  return map;
+}
+
+/**
+ * Scan a MIPS binary for function boundaries within a ROM range.
+ * Detects `jr $ra` (0x03E00008) + delay slot pattern.
+ * Returns sorted list of function-start ROM offsets.
+ */
+function scanFuncBoundaries(
+  binaryData: Buffer,
+  romStart: number,
+  romEnd: number
+): number[] {
+  const JR_RA = 0x03e00008;
+  const starts: number[] = [romStart];
+
+  for (let pos = romStart; pos < romEnd - 8; pos += 4) {
+    const instr = binaryData.readUInt32LE(pos);
+    if (instr === JR_RA) {
+      // Next function starts after delay slot (pos + 8)
+      const nextFunc = pos + 8;
+      if (nextFunc < romEnd && nextFunc % 4 === 0) {
+        starts.push(nextFunc);
+      }
+    }
+  }
+
+  return [...new Set(starts)].sort((a, b) => a - b);
 }
 
 /**
@@ -507,62 +556,158 @@ function main() {
       `${keptTextO} kept, ${insertedCount} inserted`
   );
 
-  // === Phase: Fill text-region gaps after o entries ===
-  // Build a map from textRom -> textSize for all library .o entries
-  const textSizeMap = new Map<number, number>();
-  for (const s of libSections) {
-    textSizeMap.set(s.textRom, s.textSize);
-  }
+  // === Phase: Fill text-region gaps with per-function c entries ===
+  // Strategy: keep ALL existing c entries (they have correct boundaries from
+  // the disassembler). Only ADD new c entries for addresses that fall in gaps
+  // between o entries and existing c entries. Scan binary for function
+  // boundaries within those true gaps.
+  const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
+  const binaryData = readFileSync(BINARY_PATH);
 
-  // Parse text segments from newLines to find gaps
-  const textSegRe = /^\s+- \[(0x[0-9A-Fa-f]+),\s*(c|o)/i;
+  // Load all symbols by VRAM address for name lookups
+  const symbolsByVram = loadSymbolsByVram();
+
+  const TEXT_ROM_START = 0x1a70;
+  const TEXT_ROM_END = 0x38990;
   const textGapComment = "# text-gap";
 
-  // Collect text-region entries with their line indices
-  const textSegs: { rom: number; type: string; lineIdx: number }[] = [];
-  for (let i = 0; i < newLines.length; i++) {
-    // Skip existing text-gap entries (for idempotency)
-    if (newLines[i].includes(textGapComment)) continue;
-    const m = newLines[i].match(textSegRe);
+  // Strip old text-gap entries for idempotency, collect existing segment ROMs
+  const textSegRe = /^\s+- \[(0x[0-9A-Fa-f]+),\s*(c|o)/i;
+  const cleanedLines: string[] = [];
+  const existingSegRoms = new Set<number>();
+
+  for (const line of newLines) {
+    if (line.includes(textGapComment)) continue; // remove old gap entries
+    cleanedLines.push(line);
+
+    const m = line.match(textSegRe);
     if (m) {
       const rom = parseInt(m[1], 16);
-      if (rom >= 0x1a70 && rom < 0x38990) {
-        textSegs.push({ rom, type: m[2], lineIdx: i });
+      if (rom >= TEXT_ROM_START && rom < TEXT_ROM_END) {
+        existingSegRoms.add(rom);
       }
     }
   }
-  textSegs.sort((a, b) => a.rom - b.rom);
 
-  // Find gaps: for each o entry, check if its end < next entry's start
-  const gapInserts: { afterLineIdx: number; rom: number }[] = [];
-  for (let i = 0; i < textSegs.length; i++) {
-    const seg = textSegs[i];
-    if (seg.type !== "o") continue;
+  // Build merged o coverage: merge overlapping/adjacent ranges
+  const rawORanges: { start: number; end: number }[] = [];
+  for (const s of libSections) {
+    rawORanges.push({ start: s.textRom, end: s.textRom + s.textSize });
+  }
+  rawORanges.sort((a, b) => a.start - b.start);
 
-    const textSize = textSizeMap.get(seg.rom);
-    if (textSize === undefined) continue;
-
-    const oEnd = seg.rom + textSize;
-    const nextRom = i + 1 < textSegs.length ? textSegs[i + 1].rom : 0x38990;
-
-    if (oEnd < nextRom) {
-      gapInserts.push({ afterLineIdx: seg.lineIdx, rom: oEnd });
+  const mergedORanges: { start: number; end: number }[] = [];
+  for (const r of rawORanges) {
+    if (r.start < TEXT_ROM_START || r.start >= TEXT_ROM_END) continue;
+    const last = mergedORanges[mergedORanges.length - 1];
+    if (last && r.start <= last.end) {
+      last.end = Math.max(last.end, r.end);
+    } else {
+      mergedORanges.push({ start: r.start, end: r.end });
     }
   }
 
-  // Insert gap c entries (insert from bottom up to preserve line indices)
-  gapInserts.sort((a, b) => b.afterLineIdx - a.afterLineIdx);
-  let gapCount = 0;
-  for (const gap of gapInserts) {
-    const vram = gap.rom - PAYLOAD_OFFSET + LOAD_ADDR;
-    const vramHex = vram.toString(16).toUpperCase();
-    const gapLine = `      - [${romHex(gap.rom)}, c, func_${vramHex}]       ${textGapComment}`;
-    newLines.splice(gap.afterLineIdx + 1, 0, gapLine);
-    gapCount++;
+  // Find gaps between merged o ranges and the text region boundaries
+  const trueGaps: { start: number; end: number }[] = [];
+  let gapCursor = TEXT_ROM_START;
+  for (const mr of mergedORanges) {
+    if (mr.start > gapCursor) {
+      trueGaps.push({ start: gapCursor, end: mr.start });
+    }
+    gapCursor = Math.max(gapCursor, mr.end);
+  }
+  if (gapCursor < TEXT_ROM_END) {
+    trueGaps.push({ start: gapCursor, end: TEXT_ROM_END });
   }
 
-  if (gapCount > 0) {
-    console.log(`Text gaps filled: ${gapCount} c entries inserted`);
+  // For each gap, scan binary for function boundaries
+  const gapFuncEntries: { rom: number; name: string }[] = [];
+  const newSymbols: { name: string; vram: number }[] = [];
+  const newSourceFiles: { name: string }[] = [];
+
+  // Also add c entries for type:func symbols that don't have entries yet.
+  // These can occur between consecutive c entries (e.g., labels within a
+  // function range that should be their own functions).
+  const typeFuncSymbols = loadFuncAddrsInRange(
+    TEXT_ROM_START - PAYLOAD_OFFSET + LOAD_ADDR,
+    TEXT_ROM_END - PAYLOAD_OFFSET + LOAD_ADDR
+  );
+  for (const sym of typeFuncSymbols) {
+    const rom = vramToRom(sym.vram);
+    if (!existingSegRoms.has(rom)) {
+      // Check it's not inside an o range
+      const inO = mergedORanges.some((r) => rom >= r.start && rom < r.end);
+      if (!inO) {
+        gapFuncEntries.push({ rom, name: sym.name });
+        const srcPath = join(ROOT, "src", `${sym.name}.c`);
+        if (!existsSync(srcPath)) {
+          newSourceFiles.push({ name: sym.name });
+        }
+      }
+    }
+  }
+
+  for (const gap of trueGaps) {
+    const funcRoms = scanFuncBoundaries(binaryData, gap.start, gap.end);
+    for (const fRom of funcRoms) {
+      if (existingSegRoms.has(fRom)) continue; // already has an entry
+      // Skip if already added from type:func symbols above
+      if (gapFuncEntries.some((e) => e.rom === fRom)) continue;
+
+      const vram = fRom - PAYLOAD_OFFSET + LOAD_ADDR;
+      const existingName = symbolsByVram.get(vram);
+      const name = existingName || `func_${vram.toString(16).toUpperCase()}`;
+
+      gapFuncEntries.push({ rom: fRom, name });
+
+      if (!existingName) {
+        newSymbols.push({ name, vram });
+      }
+
+      const srcPath = join(ROOT, "src", `${name}.c`);
+      if (!existsSync(srcPath)) {
+        newSourceFiles.push({ name });
+      }
+    }
+  }
+
+  // Sort gap entries by ROM for insertion
+  gapFuncEntries.sort((a, b) => a.rom - b.rom);
+
+  // Insert gap entries into cleanedLines at correct positions
+  const finalLines: string[] = [];
+  let gapIdx = 0;
+
+  for (const line of cleanedLines) {
+    // Before each segment line, insert any gap entries that come before it
+    const m = line.match(/^\s+- \[(0x[0-9A-Fa-f]+)/);
+    if (m) {
+      const lineRom = parseInt(m[1], 16);
+      while (gapIdx < gapFuncEntries.length && gapFuncEntries[gapIdx].rom < lineRom) {
+        const entry = gapFuncEntries[gapIdx++];
+        finalLines.push(
+          `      - [${romHex(entry.rom)}, c, ${entry.name}]       ${textGapComment}`
+        );
+      }
+    }
+    finalLines.push(line);
+  }
+
+  // Append any remaining gap entries
+  while (gapIdx < gapFuncEntries.length) {
+    const entry = gapFuncEntries[gapIdx++];
+    finalLines.push(
+      `      - [${romHex(entry.rom)}, c, ${entry.name}]       ${textGapComment}`
+    );
+  }
+
+  newLines.length = 0;
+  newLines.push(...finalLines);
+
+  if (gapFuncEntries.length > 0) {
+    console.log(
+      `Text gaps filled: ${gapFuncEntries.length} new c entries across ${trueGaps.length} gap(s)`
+    );
   }
 
   if (!writeMode) {
@@ -572,6 +717,137 @@ function main() {
 
   writeFileSync(SPLAT_YAML, newLines.join("\n"));
   console.log(`\nUpdated ${SPLAT_YAML}`);
+
+  // Update symbol_addrs.txt with new type:func entries
+  if (newSymbols.length > 0) {
+    const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+    let symContent = readFileSync(symAddrsPath, "utf-8");
+    const symLines = symContent.split("\n");
+
+    // Build set of existing addresses to avoid duplicates
+    const existingAddrs = new Set<number>();
+    for (const line of symLines) {
+      const m = line.match(/=\s*0x([0-9A-Fa-f]+)/);
+      if (m) existingAddrs.add(parseInt(m[1], 16));
+    }
+
+    let addedCount = 0;
+    for (const { name, vram } of newSymbols) {
+      if (existingAddrs.has(vram)) continue; // skip duplicates
+      existingAddrs.add(vram);
+
+      const addrHex = `0x${vram.toString(16).toUpperCase()}`;
+      const newLine = `${name} = ${addrHex}; // type:func`;
+
+      // Insert in sorted position by address
+      let inserted = false;
+      for (let i = 0; i < symLines.length; i++) {
+        const m = symLines[i].match(/=\s*0x([0-9A-Fa-f]+)/);
+        if (m && parseInt(m[1], 16) > vram) {
+          symLines.splice(i, 0, newLine);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) symLines.push(newLine);
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      writeFileSync(symAddrsPath, symLines.join("\n"));
+      console.log(`Added ${addedCount} new symbols to symbol_addrs.txt`);
+    }
+  }
+
+  // Also ensure existing symbols used in gaps have type:func
+  {
+    const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+    let symContent = readFileSync(symAddrsPath, "utf-8");
+    let updatedCount = 0;
+
+    for (const gap of trueGaps) {
+      const funcRoms = scanFuncBoundaries(binaryData, gap.start, gap.end);
+      for (const fRom of funcRoms) {
+        const vram = fRom - PAYLOAD_OFFSET + LOAD_ADDR;
+        const name = symbolsByVram.get(vram);
+        if (!name) continue;
+
+        const addrHex = `0x${vram.toString(16).toUpperCase()}`;
+        // Find the line and ensure it has type:func
+        const lineRe = new RegExp(
+          `^(${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=\\s*${addrHex}\\s*;)(.*)$`,
+          "m"
+        );
+        const match = symContent.match(lineRe);
+        if (match && !match[2].includes("type:func")) {
+          const existing = match[0].trimEnd();
+          if (existing.includes("//")) {
+            symContent = symContent.replace(existing, `${existing} type:func`);
+          } else {
+            symContent = symContent.replace(
+              existing,
+              `${existing} // type:func`
+            );
+          }
+          updatedCount++;
+        }
+      }
+    }
+
+    if (updatedCount > 0) {
+      writeFileSync(symAddrsPath, symContent);
+      console.log(
+        `Updated ${updatedCount} existing symbols with type:func`
+      );
+    }
+  }
+
+  // Create source files for gap functions
+  if (newSourceFiles.length > 0) {
+    const srcDir = join(ROOT, "src");
+    for (const { name } of newSourceFiles) {
+      const srcPath = join(srcDir, `${name}.c`);
+      const content = [
+        '#include "common.h"',
+        '#include "include_asm.h"',
+        "",
+        `INCLUDE_ASM("build/asm/nonmatchings/${name}", ${name});`,
+        "",
+      ].join("\n");
+      writeFileSync(srcPath, content);
+    }
+    console.log(`Created ${newSourceFiles.length} source files`);
+  }
+
+  // === Phase: Remove orphaned source files ===
+  // The Makefile compiles ALL src/*.c files. Source files for functions now
+  // covered by `o` segments will fail to compile (no nonmatchings dir).
+  // Collect all `c` segment names from the final YAML.
+  const cSegNames = new Set<string>();
+  const cSegRe = /^\s+- \[0x[0-9A-Fa-f]+,\s*c,\s*(\S+)\]/;
+  for (const line of newLines) {
+    const m = line.match(cSegRe);
+    if (m) cSegNames.add(m[1]);
+  }
+
+  const srcFiles = readdirSync(join(ROOT, "src")).filter((f) =>
+    f.endsWith(".c")
+  );
+
+  let removedSrcCount = 0;
+  for (const f of srcFiles) {
+    const name = f.replace(/\.c$/, "");
+    if (!cSegNames.has(name)) {
+      unlinkSync(join(ROOT, "src", f));
+      removedSrcCount++;
+    }
+  }
+
+  if (removedSrcCount > 0) {
+    console.log(
+      `Removed ${removedSrcCount} orphaned source files (covered by o segments)`
+    );
+  }
 
 }
 

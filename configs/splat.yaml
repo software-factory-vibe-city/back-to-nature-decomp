@@ -103,7 +103,12 @@ segments:
       - [0x3AF0, c, func_800132F0]       # 0x800132F0 func_800132F0
       - [0x3B28, c, func_80013328]       # 0x80013328 func_80013328
       - [0x3B94, c, func_80013394]       # 0x80013394 func_80013394
+      - [0x3BB0, c, func_800133B0]       # text-gap
+      - [0x3BD4, c, func_800133D4]       # text-gap
+      - [0x3BE8, c, func_800133E8]       # text-gap
       - [0x3C00, c, func_80013400]       # 0x80013400 func_80013400
+      - [0x3C28, c, func_80013428]       # text-gap
+      - [0x3C30, c, func_80013430]       # text-gap
       - [0x3C38, c, func_80013438]       # 0x80013438 func_80013438
       - [0x3C44, c, func_80013444]       # 0x80013444 func_80013444
       - [0x3C50, c, func_80013450]       # 0x80013450 func_80013450
@@ -166,7 +171,9 @@ segments:
       - [0x60E4, c, func_800158E4]       # 0x800158E4 func_800158E4
       - [0x6218, c, func_80015A18]       # 0x80015A18 func_80015A18
       - [0x6234, c, func_80015A34]       # 0x80015A34 func_80015A34
+      - [0x62A4, c, func_80015AA4]       # text-gap
       - [0x62AC, c, func_80015AAC]       # 0x80015AAC func_80015AAC
+      - [0x631C, c, func_80015B1C]       # text-gap
       - [0x6324, c, func_80015B24]       # 0x80015B24 func_80015B24
       - [0x63F0, c, func_80015BF0]       # 0x80015BF0 func_80015BF0
       - [0x6450, c, func_80015C50]       # 0x80015C50 func_80015C50
@@ -199,6 +206,8 @@ segments:
       - [0x8264, c, func_80017A64]       # 0x80017A64 func_80017A64
       - [0x8270, c, func_80017A70]       # 0x80017A70 func_80017A70
       - [0x82A0, c, func_80017AA0]       # 0x80017AA0 func_80017AA0
+      - [0x82C0, c, func_80017AC0]       # text-gap
+      - [0x82C4, c, func_80017AC4]       # text-gap
       - [0x82CC, c, func_80017ACC]       # 0x80017ACC func_80017ACC
       - [0x82E8, c, func_80017AE8]       # 0x80017AE8 func_80017AE8
       - [0x8318, c, func_80017B18]       # 0x80017B18 func_80017B18
@@ -216,6 +225,10 @@ segments:
       - [0x8634, c, func_80017E34]       # 0x80017E34 func_80017E34
       - [0x86A0, c, func_80017EA0]       # 0x80017EA0 func_80017EA0
       - [0x86E4, c, func_80017EE4]       # 0x80017EE4 func_80017EE4
+      - [0x86EC, c, func_80017EEC]       # text-gap
+      - [0x86F0, c, func_80017EF0]       # text-gap
+      - [0x8710, c, func_80017F10]       # text-gap
+      - [0x8728, c, func_80017F28]       # text-gap
       - [0x8730, c, func_80017F30]       # 0x80017F30 func_80017F30
       - [0x8788, c, func_80017F88]       # 0x80017F88 func_80017F88
       - [0x8BB8, c, func_800183B8]       # 0x800183B8 func_800183B8
@@ -254,6 +267,14 @@ segments:
       - [0xB008, c, func_8001A808]       # 0x8001A808 func_8001A808
       - [0xB070, c, func_8001A870]       # 0x8001A870 func_8001A870
       - [0xB0D0, c, func_8001A8D0]       # 0x8001A8D0 func_8001A8D0
+      - [0xB0FC, c, func_8001A8FC]       # text-gap
+      - [0xB110, c, func_8001A910]       # text-gap
+      - [0xB140, c, func_8001A940]       # text-gap
+      - [0xB148, c, func_8001A948]       # text-gap
+      - [0xB150, c, func_8001A950]       # text-gap
+      - [0xB158, c, func_8001A958]       # text-gap
+      - [0xB160, c, func_8001A960]       # text-gap
+      - [0xB168, c, func_8001A968]       # text-gap
       - [0xB170, c, func_8001A970]       # 0x8001A970 func_8001A970
       - [0xB27C, c, func_8001AA7C]       # 0x8001AA7C func_8001AA7C
       - [0xB2B8, c, func_8001AAB8]       # 0x8001AAB8 func_8001AAB8
@@ -269,6 +290,7 @@ segments:
       - [0xB734, c, func_8001AF34]       # 0x8001AF34 func_8001AF34
       - [0xB744, c, func_8001AF44]       # 0x8001AF44 func_8001AF44
       - [0xB770, c, func_8001AF70]       # 0x8001AF70 func_8001AF70
+      - [0xB7B0, c, func_8001AFB0]       # text-gap
       - [0xB7E0, c, func_8001AFE0]       # 0x8001AFE0 func_8001AFE0
       - [0xB828, c, func_8001B028]       # 0x8001B028 func_8001B028
       - [0xB874, c, func_8001B074]       # 0x8001B074 func_8001B074
@@ -298,19 +320,29 @@ segments:
       - [0xC788, c, func_8001BF88]       # 0x8001BF88 func_8001BF88
       - [0xC79C, c, func_8001BF9C]       # 0x8001BF9C func_8001BF9C
       - [0xC7A8, c, func_8001BFA8]       # 0x8001BFA8 func_8001BFA8
+      - [0xC7D8, c, func_8001BFD8]       # text-gap
       - [0xC7E0, c, func_8001BFE0]       # 0x8001BFE0 func_8001BFE0
       - [0xC7EC, c, func_8001BFEC]       # 0x8001BFEC func_8001BFEC
       - [0xC8D4, c, func_8001C0D4]       # 0x8001C0D4 func_8001C0D4
       - [0xC9C0, c, func_8001C1C0]       # 0x8001C1C0 func_8001C1C0
       - [0xCB7C, c, func_8001C37C]       # 0x8001C37C func_8001C37C
       - [0xDA1C, c, func_8001D21C]       # 0x8001D21C func_8001D21C
+      - [0xDA84, c, func_8001D284]       # text-gap
+      - [0xDA88, c, func_8001D288]       # text-gap
+      - [0xDAA4, c, func_8001D2A4]       # text-gap
+      - [0xDAD0, c, func_8001D2D0]       # text-gap
       - [0xDAD8, c, func_8001D2D8]       # 0x8001D2D8 func_8001D2D8
+      - [0xDAF4, c, func_8001D2F4]       # text-gap
+      - [0xDAFC, c, func_8001D2FC]       # text-gap
+      - [0xDB40, c, func_8001D340]       # text-gap
       - [0xDB48, c, func_8001D348]       # 0x8001D348 func_8001D348
       - [0xDE48, c, func_8001D648]       # 0x8001D648 func_8001D648
       - [0xDE78, c, func_8001D678]       # 0x8001D678 func_8001D678
       - [0xDEAC, c, func_8001D6AC]       # 0x8001D6AC func_8001D6AC
       - [0xDEB8, c, func_8001D6B8]       # 0x8001D6B8 func_8001D6B8
       - [0xE06C, c, func_8001D86C]       # 0x8001D86C func_8001D86C
+      - [0xE084, c, func_8001D884]       # text-gap
+      - [0xE0A0, c, func_8001D8A0]       # text-gap
       - [0xE0B8, c, func_8001D8B8]       # 0x8001D8B8 func_8001D8B8
       - [0xE3F0, c, func_8001DBF0]       # 0x8001DBF0 func_8001DBF0
       - [0xE4A8, c, func_8001DCA8]       # 0x8001DCA8 func_8001DCA8
@@ -330,7 +362,11 @@ segments:
       - [0xECC0, c, func_8001E4C0]       # 0x8001E4C0 func_8001E4C0
       - [0xEEFC, c, func_8001E6FC]       # 0x8001E6FC func_8001E6FC
       - [0xEF8C, c, func_8001E78C]       # 0x8001E78C func_8001E78C
+      - [0xEFB8, c, func_8001E7B8]       # text-gap
+      - [0xEFC0, c, func_8001E7C0]       # text-gap
       - [0xEFDC, c, func_8001E7DC]       # 0x8001E7DC func_8001E7DC
+      - [0xF018, c, func_8001E818]       # text-gap
+      - [0xF020, c, func_8001E820]       # text-gap
       - [0xF078, c, func_8001E878]       # 0x8001E878 func_8001E878
       - [0xF1F8, c, func_8001E9F8]       # 0x8001E9F8 func_8001E9F8
       - [0xF2E4, c, func_8001EAE4]       # 0x8001EAE4 func_8001EAE4
@@ -351,6 +387,8 @@ segments:
       - [0xFB5C, c, func_8001F35C]       # 0x8001F35C func_8001F35C
       - [0xFB9C, c, func_8001F39C]       # 0x8001F39C func_8001F39C
       - [0xFBDC, c, func_8001F3DC]       # 0x8001F3DC func_8001F3DC
+      - [0xFC1C, c, func_8001F41C]       # text-gap
+      - [0xFC24, c, func_8001F424]       # text-gap
       - [0xFC2C, c, func_8001F42C]       # 0x8001F42C func_8001F42C
       - [0xFDB8, c, func_8001F5B8]       # 0x8001F5B8 func_8001F5B8
       - [0xFDEC, c, func_8001F5EC]       # 0x8001F5EC func_8001F5EC
@@ -422,12 +460,17 @@ segments:
       - [0x11E04, c, func_80021604]       # 0x80021604 func_80021604
       - [0x11E68, c, func_80021668]       # 0x80021668 func_80021668
       - [0x11FB0, c, func_800217B0]       # 0x800217B0 func_800217B0
+      - [0x12018, c, func_80021818]       # text-gap
       - [0x12020, c, func_80021820]       # 0x80021820 func_80021820
+      - [0x12044, c, func_80021844]       # text-gap
+      - [0x120A8, c, func_800218A8]       # text-gap
       - [0x120BC, c, func_800218BC]       # 0x800218BC func_800218BC
       - [0x120C4, c, func_800218C4]       # 0x800218C4 func_800218C4
       - [0x1214C, c, func_8002194C]       # 0x8002194C func_8002194C
       - [0x12320, c, func_80021B20]       # 0x80021B20 func_80021B20
       - [0x12364, c, func_80021B64]       # 0x80021B64 func_80021B64
+      - [0x12384, c, func_80021B84]       # text-gap
+      - [0x12388, c, func_80021B88]       # text-gap
       - [0x12390, c, func_80021B90]       # 0x80021B90 func_80021B90
       - [0x124D8, c, func_80021CD8]       # 0x80021CD8 func_80021CD8
       - [0x12564, c, func_80021D64]       # 0x80021D64 func_80021D64
@@ -444,6 +487,9 @@ segments:
       - [0x127E4, c, func_80021FE4]       # 0x80021FE4 func_80021FE4
       - [0x12808, c, func_80022008]       # 0x80022008 func_80022008
       - [0x12814, c, func_80022014]       # 0x80022014 func_80022014
+      - [0x12828, c, func_80022028]       # text-gap
+      - [0x12830, c, func_80022030]       # text-gap
+      - [0x12848, c, func_80022048]       # text-gap
       - [0x1286C, c, func_8002206C]       # 0x8002206C func_8002206C
       - [0x12B8C, c, func_8002238C]       # 0x8002238C func_8002238C
       - [0x12BB0, c, func_800223B0]       # 0x800223B0 func_800223B0
@@ -471,6 +517,12 @@ segments:
       - [0x135F8, c, func_80022DF8]       # 0x80022DF8 func_80022DF8
       - [0x136A4, c, func_80022EA4]       # 0x80022EA4 func_80022EA4
       - [0x1371C, c, func_80022F1C]       # 0x80022F1C func_80022F1C
+      - [0x13780, c, func_80022F80]       # text-gap
+      - [0x13790, c, func_80022F90]       # text-gap
+      - [0x137A0, c, func_80022FA0]       # text-gap
+      - [0x137B4, c, func_80022FB4]       # text-gap
+      - [0x137D4, c, func_80022FD4]       # text-gap
+      - [0x137D8, c, func_80022FD8]       # text-gap
       - [0x137E0, c, func_80022FE0]       # 0x80022FE0 func_80022FE0
       - [0x1381C, c, func_8002301C]       # 0x8002301C func_8002301C
       - [0x13830, c, func_80023030]       # 0x80023030 func_80023030
@@ -496,14 +548,24 @@ segments:
       - [0x1429C, c, func_80023A9C]       # 0x80023A9C func_80023A9C
       - [0x1435C, c, func_80023B5C]       # 0x80023B5C func_80023B5C
       - [0x1442C, c, func_80023C2C]       # 0x80023C2C func_80023C2C
+      - [0x144A4, c, func_80023CA4]       # text-gap
+      - [0x144E8, c, func_80023CE8]       # text-gap
       - [0x14508, c, func_80023D08]       # 0x80023D08 func_80023D08
       - [0x145BC, c, func_80023DBC]       # 0x80023DBC func_80023DBC
       - [0x14830, c, func_80024030]       # 0x80024030 func_80024030
       - [0x14908, c, func_80024108]       # 0x80024108 func_80024108
       - [0x149EC, c, func_800241EC]       # 0x800241EC func_800241EC
       - [0x14B7C, c, func_8002437C]       # 0x8002437C func_8002437C
+      - [0x14BA4, c, func_800243A4]       # text-gap
+      - [0x14BC0, c, func_800243C0]       # text-gap
+      - [0x14BC8, c, func_800243C8]       # text-gap
       - [0x14BD0, c, func_800243D0]       # 0x800243D0 func_800243D0
+      - [0x14BF8, c, func_800243F8]       # text-gap
+      - [0x14C00, c, func_80024400]       # text-gap
       - [0x14C08, c, func_80024408]       # 0x80024408 func_80024408
+      - [0x14C30, c, func_80024430]       # text-gap
+      - [0x14C34, c, func_80024434]       # text-gap
+      - [0x14C40, c, func_80024440]       # text-gap
       - [0x14C48, c, func_80024448]       # 0x80024448 func_80024448
       - [0x14CFC, c, func_800244FC]       # 0x800244FC func_800244FC
       - [0x14D78, c, func_80024578]       # 0x80024578 func_80024578
@@ -514,6 +576,7 @@ segments:
       - [0x14E9C, c, func_8002469C]       # 0x8002469C func_8002469C
       - [0x14ED4, c, func_800246D4]       # 0x800246D4 func_800246D4
       - [0x14F0C, c, func_8002470C]       # 0x8002470C func_8002470C
+      - [0x14F64, c, func_80024764]       # text-gap
       - [0x14F70, c, func_80024770]       # 0x80024770 func_80024770
       - [0x14FC0, c, func_800247C0]       # 0x800247C0 func_800247C0
       - [0x15010, c, func_80024810]       # 0x80024810 func_80024810
@@ -522,6 +585,7 @@ segments:
       - [0x150E8, c, func_800248E8]       # 0x800248E8 func_800248E8
       - [0x15124, c, func_80024924]       # 0x80024924 func_80024924
       - [0x1515C, c, func_8002495C]       # 0x8002495C func_8002495C
+      - [0x151B4, c, func_800249B4]       # text-gap
       - [0x151C0, c, func_800249C0]       # 0x800249C0 func_800249C0
       - [0x15210, c, func_80024A10]       # 0x80024A10 func_80024A10
       - [0x1524C, c, func_80024A4C]       # 0x80024A4C func_80024A4C
@@ -736,6 +800,8 @@ segments:
       - [0x28E54, o, ../lib/libgte/reg03_14] # lib/libgte/reg03_14.o
       - [0x28E64, o, ../lib/libgte/reg03_15] # lib/libgte/reg03_15.o
       - [0x28E74, c, func_80038674]       # 0x80038674 func_80038674
+      - [0x28EC4, c, ChangeClearSIO]       # text-gap
+      - [0x28ECC, c, func_800386CC]       # text-gap
       - [0x28ED4, o, ../lib/libgte/smp_00_1] # lib/libgte/smp_00_1.o
       - [0x28EF4, o, ../lib/libgs/gs_001] # lib/libgs/gs_001.o
       - [0x29444, o, ../lib/libgs/gs_0022] # lib/libgs/gs_0022.o
@@ -751,12 +817,14 @@ segments:
       - [0x29E54, o, ../lib/libgte/reg10] # lib/libgte/reg10.o
       - [0x29E74, o, ../lib/libgs/gs_121] # lib/libgs/gs_121.o
       - [0x29EC4, c, GsSetNearClip]       # 0x800396C4 GsSetNearClip
+      - [0x29ED0, c, func_800396D0]       # text-gap
       - [0x29ED4, c, GsGetWorkBase]       # 0x800396D4 GsGetWorkBase
       - [0x29EE4, c, SetDumpFnt]
       - [0x29F24, c, FntLoad]
       - [0x29FC4, c, FntOpen]
       - [0x2A280, c, FntFlush]
       - [0x2A59C, c, FntPrint]
+      - [0x2A960, c, func_8003A160]       # text-gap
       - [0x2A964, o, ../lib/libgpu/kprintf] # lib/libgpu/kprintf.o
       - [0x2B864, o, ../lib/libgpu/sys] # lib/libgpu/sys.o
       - [0x2E764, o, ../lib/libgpu/e00] # lib/libgpu/e00.o
@@ -888,6 +956,26 @@ segments:
       - [0x36A64, o, ../lib/libpad/pddirres] # lib/libpad/pddirres.o
       - [0x374A4, c, func_80046CA4]       # text-gap
       - [0x3750C, c, func_80046D0C]
+      - [0x3769C, c, _padInitSioMode]       # text-gap
+      - [0x379D0, c, func_800471D0]       # text-gap
+      - [0x37AC0, c, func_800472C0]       # text-gap
+      - [0x37CE4, c, func_800474E4]       # text-gap
+      - [0x37F60, c, func_80047760]       # text-gap
+      - [0x37FF0, c, func_800477F0]       # text-gap
+      - [0x38018, c, _padSetCmd]       # text-gap
+      - [0x38028, c, _padSendAtLoadInfo]       # text-gap
+      - [0x380AC, c, _padRecvAtLoadInfo]       # text-gap
+      - [0x3831C, c, func_80047B1C]       # text-gap
+      - [0x38354, c, func_80047B54]       # text-gap
+      - [0x38428, c, func_80047C28]       # text-gap
+      - [0x384D0, c, func_80047CD0]       # text-gap
+      - [0x388C8, c, _padCmdParaMode]       # text-gap
+      - [0x388E8, c, func_800480E8]       # text-gap
+      - [0x388FC, c, func_800480FC]       # text-gap
+      - [0x3891C, c, func_8004811C]       # text-gap
+      - [0x3893C, c, func_8004813C]       # text-gap
+      - [0x3895C, c, func_8004815C]       # text-gap
+      - [0x38970, c, func_80048170]       # text-gap
       - [0x38990, data]
       - [0x4620C, o, ../lib/libmath/ferr, .data] # lib/libmath/ferr.o
       - [0x4621C, o, ../lib/libspu/spu, .data] # lib/libspu/spu.o

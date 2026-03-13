@@ -18,7 +18,7 @@
  *   make         # should link cleanly
  */
 
-import { readFileSync, writeFileSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -91,10 +91,27 @@ function scanFile(path: string): {
   return { globalDefs, localDefs, refs };
 }
 
-// Scan all .s files
-const files = readdirSync(ASM_DIR)
+// Scan all .s files (top-level + nonmatchings subdirectories)
+const topFiles = readdirSync(ASM_DIR)
   .filter((f) => f.endsWith(".s"))
   .map((f) => join(ASM_DIR, f));
+
+const nonmatchDir = join(ASM_DIR, "nonmatchings");
+let nmFiles: string[] = [];
+try {
+  const subdirs = readdirSync(nonmatchDir);
+  for (const sub of subdirs) {
+    const subPath = join(nonmatchDir, sub);
+    try {
+      const sFiles = readdirSync(subPath)
+        .filter((f) => f.endsWith(".s"))
+        .map((f) => join(subPath, f));
+      nmFiles.push(...sFiles);
+    } catch {}
+  }
+} catch {}
+
+const files = [...topFiles, ...nmFiles];
 
 console.log(`Scanning ${files.length} assembly files...`);
 
@@ -233,3 +250,64 @@ for (const entry of newEntries as any[]) {
 
 writeFileSync(SYMBOLS_PATH, content);
 console.log(`\nUpdated ${SYMBOLS_PATH}`);
+
+// Also add c entries to splat.yaml for new function symbols
+const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
+const PAYLOAD_OFFSET = 0x800;
+
+let yamlContent = readFileSync(SPLAT_YAML, "utf-8");
+const yamlLines = yamlContent.split("\n");
+const segRomRe = /^\s+- \[(0x[0-9A-Fa-f]+),\s*(?:c|o)/i;
+
+// Collect existing segment ROMs
+const existingRoms = new Set<number>();
+for (const line of yamlLines) {
+  const m = line.match(segRomRe);
+  if (m) existingRoms.add(parseInt(m[1], 16));
+}
+
+// Check which entries need c segments added
+const yamlInserts: { rom: number; name: string }[] = [];
+for (const entry of newEntries as any[]) {
+  const { name, vram } = entry;
+  const rom = vram - LOAD_ADDR + PAYLOAD_OFFSET;
+  if (!existingRoms.has(rom)) {
+    yamlInserts.push({ rom, name });
+  }
+}
+
+if (yamlInserts.length > 0) {
+  // Insert c entries in sorted position
+  yamlInserts.sort((a, b) => a.rom - b.rom);
+  for (const ins of yamlInserts) {
+    const romHex = `0x${ins.rom.toString(16).toUpperCase()}`;
+    const newLine = `      - [${romHex}, c, ${ins.name}]       # text-gap`;
+    // Find insertion point
+    for (let i = 0; i < yamlLines.length; i++) {
+      const m = yamlLines[i].match(/^\s+- \[(0x[0-9A-Fa-f]+)/);
+      if (m && parseInt(m[1], 16) > ins.rom) {
+        yamlLines.splice(i, 0, newLine);
+        break;
+      }
+    }
+  }
+
+  writeFileSync(SPLAT_YAML, yamlLines.join("\n"));
+  console.log(`Added ${yamlInserts.length} c entries to splat.yaml`);
+
+  // Create source files for new entries
+  const srcDir = join(ROOT, "src");
+  for (const ins of yamlInserts) {
+    const srcPath = join(srcDir, `${ins.name}.c`);
+    if (!existsSync(srcPath)) {
+      const srcContent = [
+        '#include "common.h"',
+        '#include "include_asm.h"',
+        "",
+        `INCLUDE_ASM("build/asm/nonmatchings/${ins.name}", ${ins.name});`,
+        "",
+      ].join("\n");
+      writeFileSync(srcPath, srcContent);
+    }
+  }
+}
