@@ -436,20 +436,18 @@ function patchOFile(
   return { patched: true, patchCount, errors };
 }
 
-// Relocation types needed for HI16 carry fix
-const R_MIPS_26 = 4;
-
 /**
- * Fix 3: Patch HI16/LO16 instruction addends to compensate for GNU ld carry bug.
+ * Fix 3: Patch HI16 addends to compensate for PSYLINK vs GNU ld AHL convention.
  *
- * GNU ld sometimes computes R_MIPS_HI16 incorrectly when .o files have large
- * addends that cross 64KB boundaries. This function reads the original binary's
- * resolved instructions, computes what GNU ld will produce, and adjusts the .o
- * file's addends to compensate.
+ * Sony's PSYQ assembler encodes HI16/LO16 addends using unsigned concatenation:
+ *   AHL = (hi << 16) | lo
+ * GNU ld uses sign extension:
+ *   AHL = (hi << 16) + sign_extend(lo)
+ *
+ * When lo >= 0x8000, these differ by 0x10000. Fix: increment hi by 1.
  */
 function patchHi16Carry(
   elfBuf: Buffer,
-  binary: Buffer,
   entry: LibSections,
   verbose: boolean
 ): number {
@@ -464,22 +462,14 @@ function patchHi16Carry(
   );
   if (!relTextSection) return 0;
 
-  const symtabSection = sections.find((s) => s.sh_type === SHT_SYMTAB);
-  if (!symtabSection) return 0;
-  const strtabSection = sections[symtabSection.sh_link];
-  if (!strtabSection) return 0;
-
   const relocs = parseRelocs(elfBuf, relTextSection);
-  const symbols = parseSymbolTable(elfBuf, symtabSection, strtabSection);
-
   let patchCount = 0;
 
-  // Process each HI16 relocation
   for (let i = 0; i < relocs.length; i++) {
     const hiReloc = relocs[i];
     if (hiReloc.type !== R_MIPS_HI16) continue;
 
-    // Find paired LO16
+    // Find paired LO16 for the same symbol
     let loReloc: ElfReloc | null = null;
     for (let j = i + 1; j < relocs.length; j++) {
       if (relocs[j].type === R_MIPS_LO16 && relocs[j].symIndex === hiReloc.symIndex) {
@@ -489,79 +479,26 @@ function patchHi16Carry(
     }
     if (!loReloc) continue;
 
-    // Read original binary's resolved instructions
-    const origHiOff = entry.textRom + hiReloc.r_offset;
-    const origLoOff = entry.textRom + loReloc.r_offset;
-    if (origHiOff + 4 > binary.length || origLoOff + 4 > binary.length) continue;
-
-    const origHiInstr = binary.readUInt32LE(origHiOff);
-    const origLoInstr = binary.readUInt32LE(origLoOff);
-    const origHiImm = origHiInstr & 0xFFFF;
-    const origLoImm = origLoInstr & 0xFFFF;
-
-    // Read .o file's unresolved instructions (addends)
-    const oHiOff = textSection.sh_offset + hiReloc.r_offset;
+    // Read .o file's LO16 addend
     const oLoOff = textSection.sh_offset + loReloc.r_offset;
-    if (oHiOff + 4 > elfBuf.length || oLoOff + 4 > elfBuf.length) continue;
+    if (oLoOff + 4 > elfBuf.length) continue;
+    const oLoImm = elfBuf.readUInt32LE(oLoOff) & 0xFFFF;
 
-    const oHiInstr = elfBuf.readUInt32LE(oHiOff);
-    const oLoInstr = elfBuf.readUInt32LE(oLoOff);
-    const oHiImm = oHiInstr & 0xFFFF;
-    const oLoImm = oLoInstr & 0xFFFF;
+    // If LO addend >= 0x8000, GNU ld sign-extends it (subtracting 0x10000),
+    // but PSYQ encoded it unsigned. Compensate by adding 1 to HI addend.
+    if (oLoImm >= 0x8000) {
+      const oHiOff = textSection.sh_offset + hiReloc.r_offset;
+      if (oHiOff + 4 > elfBuf.length) continue;
+      const oHiImm = elfBuf.readUInt32LE(oHiOff) & 0xFFFF;
+      const newHiImm = (oHiImm + 1) & 0xFFFF;
+      elfBuf.writeUInt16LE(newHiImm, oHiOff);
+      patchCount++;
 
-    // Get the symbol's resolved address
-    const sym = symbols[hiReloc.symIndex];
-    if (!sym) continue;
-
-    // Compute the addend: AHL = (oHiImm << 16) + signExtend(oLoImm)
-    const oLoSigned = signExtend16(oLoImm);
-    const AHL = ((oHiImm << 16) + oLoSigned) | 0;
-
-    // The symbol's value (after our BSS patching, it might be ABS)
-    // For the carry computation, we need to know what S (symbol value) the linker will use
-    // S = sym.st_value (after our patching)
-    const S = elfBuf.readUInt32LE(sym.fileOffset + 4); // re-read in case it was patched
-
-    // What GNU ld computes:
-    // result = S + AHL
-    // HI16 = (result >> 16) & 0xFFFF  (with carry from LO16 sign)
-    // LO16 = result & 0xFFFF
-    const result = (S + AHL) | 0;
-    const gnuLoImm = result & 0xFFFF;
-    const carry = gnuLoImm >= 0x8000 ? 1 : 0;
-    const gnuHiImm = ((result >>> 16) + carry) & 0xFFFF;
-
-    // Compare with original binary
-    if (gnuHiImm !== origHiImm || gnuLoImm !== origLoImm) {
-      // Need to compensate. Compute what addend would produce the correct result.
-      // We want: S + AHL_new → origHiImm/origLoImm
-      // The original resolved value:
-      const origLoSigned = signExtend16(origLoImm);
-      const origResult = ((origHiImm << 16) + origLoSigned) | 0;
-
-      // New AHL = origResult - S
-      const newAHL = (origResult - S) | 0;
-      const newLoImm = newAHL & 0xFFFF;
-      const newHiImm = ((newAHL - signExtend16(newLoImm)) >>> 16) & 0xFFFF;
-
-      // Verify: GNU ld should produce the correct result with these addends
-      const verify = (S + ((newHiImm << 16) + signExtend16(newLoImm))) | 0;
-      const vLoImm = verify & 0xFFFF;
-      const vCarry = vLoImm >= 0x8000 ? 1 : 0;
-      const vHiImm = ((verify >>> 16) + vCarry) & 0xFFFF;
-
-      if (vHiImm === origHiImm && vLoImm === origLoImm) {
-        // Patch the .o file
-        elfBuf.writeUInt16LE(newHiImm, oHiOff);
-        elfBuf.writeUInt16LE(newLoImm, oLoOff);
-        patchCount++;
-
-        if (verbose) {
-          console.error(
-            `  HI16 FIX: ${entry.oPath} offset 0x${hiReloc.r_offset.toString(16)}/0x${loReloc.r_offset.toString(16)}: ` +
-            `HI 0x${oHiImm.toString(16)}→0x${newHiImm.toString(16)} LO 0x${oLoImm.toString(16)}→0x${newLoImm.toString(16)}`
-          );
-        }
+      if (verbose) {
+        console.error(
+          `  HI16 FIX: ${entry.oPath} offset 0x${hiReloc.r_offset.toString(16)}: ` +
+          `HI 0x${oHiImm.toString(16)}→0x${newHiImm.toString(16)} (LO=0x${oLoImm.toString(16)})`
+        );
       }
     }
   }
@@ -647,8 +584,10 @@ function main() {
   let totalPatched = 0;
   let totalSymbols = 0;
   let totalErrors = 0;
+  let totalHi16Fixes = 0;
+  let totalDataFixes = 0;
 
-  // Process all library .o files: copy to build/lib/, patch those with BSS
+  // Process all library .o files: copy to build/lib/, apply all patches
   for (const entry of libSections) {
     const srcPath = join(ROOT, entry.oPath);
     const dstPath = join(ROOT, "build", entry.oPath);
@@ -658,41 +597,61 @@ function main() {
 
     const hasBss = entry.bssSize !== undefined && entry.bssSize > 0;
 
-    if (!hasBss) {
-      // Just copy the file
-      copyFileSync(srcPath, dstPath);
-      continue;
-    }
-
-    // Read and patch
+    // Read file for patching (all files may need HI16 carry or data fixes)
     const elfBuf = readFileSync(srcPath);
+    let modified = false;
 
-    if (verbose) {
-      console.error(`\nPatching ${entry.oPath} (bssSize=0x${entry.bssSize!.toString(16)})`);
+    // BSS patching
+    if (hasBss) {
+      if (verbose) {
+        console.error(`\nPatching ${entry.oPath} (bssSize=0x${entry.bssSize!.toString(16)})`);
+      }
+
+      const result = patchOFile(elfBuf, binary, entry, globalBssSyms, verbose);
+
+      if (result.patched) {
+        totalPatched++;
+        totalSymbols += result.patchCount;
+        modified = true;
+      }
+
+      for (const err of result.errors) {
+        console.error(`  WARN: ${entry.oPath}: ${err}`);
+        totalErrors++;
+      }
     }
 
-    const result = patchOFile(elfBuf, binary, entry, globalBssSyms, verbose);
-
-    if (result.patched) {
-      totalPatched++;
-      totalSymbols += result.patchCount;
+    // HI16 carry compensation (Fix 3)
+    const hi16Fixes = patchHi16Carry(elfBuf, entry, verbose);
+    if (hi16Fixes > 0) {
+      totalHi16Fixes += hi16Fixes;
+      modified = true;
     }
 
-    for (const err of result.errors) {
-      console.error(`  WARN: ${entry.oPath}: ${err}`);
-      totalErrors++;
+    // Data byte patching (Fix 4)
+    const dataFixes = patchDataBytes(elfBuf, binary, entry, verbose);
+    if (dataFixes > 0) {
+      totalDataFixes += dataFixes;
+      modified = true;
     }
 
     if (writeMode) {
       writeFileSync(dstPath, elfBuf);
+    } else if (modified) {
+      copyFileSync(srcPath, dstPath);
     } else {
-      // Still copy for dry run display
       copyFileSync(srcPath, dstPath);
     }
   }
 
   console.error(`\nResults:`);
   console.error(`  Patched ${totalPatched} .o files, ${totalSymbols} symbols converted to ABS`);
+  if (totalHi16Fixes > 0) {
+    console.error(`  ${totalHi16Fixes} HI16 carry compensations applied`);
+  }
+  if (totalDataFixes > 0) {
+    console.error(`  ${totalDataFixes} data byte fixes applied`);
+  }
   if (totalErrors > 0) {
     console.error(`  ${totalErrors} warnings (unresolved symbols)`);
   }
