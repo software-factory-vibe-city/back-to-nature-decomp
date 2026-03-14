@@ -28,6 +28,7 @@ interface CallGraphEntry {
   sdkCalls: string[];
   instructionCount: number;
   decompiled: boolean;
+  handwritten: false | "asm" | "gte";
 }
 
 function resolveAsmFile(funcName: string): string | null {

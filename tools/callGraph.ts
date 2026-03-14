@@ -9,7 +9,7 @@
  *   npx tsx tools/callGraph.ts --top 20     # also print top 20 priority functions
  */
 
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -71,6 +71,8 @@ interface FuncEntry {
   sdkCalls: string[];
   instructionCount: number;
   decompiled: boolean;
+  /** false = normal C, "asm" = pure handwritten asm, "gte" = C with GTE coprocessor instructions */
+  handwritten: false | "asm" | "gte";
 }
 
 const funcMap = new Map<string, FuncEntry>();
@@ -95,6 +97,7 @@ for (const seg of rawSegments) {
     sdkCalls: [],
     instructionCount: 0,
     decompiled: false,
+    handwritten: false,
   });
 }
 
@@ -105,13 +108,31 @@ const instrRegex = /^\s*\/\*\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+\*\/
 const gameFuncRegex = /^func_[0-9A-Fa-f]{8}$/;
 
 for (const [name, entry] of funcMap) {
-  const sFile = join(ASM_DIR, name, `${name}.s`);
-  if (!existsSync(sFile)) continue;
+  let sFile = join(ASM_DIR, name, `${name}.s`);
+  if (!existsSync(sFile)) {
+    // Handle named symbols (e.g. __start) where .s file has a different name
+    const dir = join(ASM_DIR, name);
+    if (existsSync(dir)) {
+      const files = readdirSync(dir).filter((f) => f.endsWith(".s"));
+      if (files.length === 1) {
+        sFile = join(dir, files[0]);
+      }
+    }
+    if (!existsSync(sFile)) continue;
+  }
 
-  const content = readFileSync(sFile, "utf-8").split("\n");
+  const rawContent = readFileSync(sFile, "utf-8");
+  const content = rawContent.split("\n");
   const gameCalls = new Set<string>();
   const sdkCalls = new Set<string>();
   let instrCount = 0;
+
+  // Detect handwritten assembly (marker from spimdisasm)
+  if (rawContent.includes("Handwritten function")) {
+    // Classify: GTE functions have COP2 instructions (cfc2, ctc2, lwc2, etc.)
+    const gtePattern = /\b(cfc2|ctc2|lwc2|swc2|mfc2|mtc2|cop2)\b/;
+    entry.handwritten = gtePattern.test(rawContent) ? "gte" : "asm";
+  }
 
   for (const line of content) {
     if (instrRegex.test(line)) instrCount++;
@@ -226,8 +247,10 @@ for (const entry of funcMap.values()) {
 const entries = [...funcMap.values()];
 
 entries.sort((a, b) => {
-  // Decompiled goes to end
-  if (a.decompiled !== b.decompiled) return a.decompiled ? 1 : -1;
+  // Decompiled and pure-asm (not GTE) go to end
+  const aSkip = a.decompiled || a.handwritten === "asm";
+  const bSkip = b.decompiled || b.handwritten === "asm";
+  if (aSkip !== bSkip) return aSkip ? 1 : -1;
 
   // Sort by tier
   if (a.tier !== b.tier) return a.tier - b.tier;
@@ -253,10 +276,13 @@ entries.forEach((e, i) => {
 
 // --- Step 8: Write JSON + print summary ---
 
-const tier1 = entries.filter((e) => e.tier === 1).length;
-const tier2 = entries.filter((e) => e.tier === 2).length;
-const tier3 = entries.filter((e) => e.tier === 3).length;
+const decomposable = entries.filter((e) => e.handwritten !== "asm");
+const tier1 = decomposable.filter((e) => e.tier === 1).length;
+const tier2 = decomposable.filter((e) => e.tier === 2).length;
+const tier3 = decomposable.filter((e) => e.tier === 3).length;
 const decompiledCount = entries.filter((e) => e.decompiled).length;
+const gteCount = entries.filter((e) => e.handwritten === "gte").length;
+const asmCount = entries.filter((e) => e.handwritten === "asm").length;
 
 const output = {
   functions: entries,
@@ -266,6 +292,8 @@ const output = {
     tier2,
     tier3,
     decompiled: decompiledCount,
+    gte: gteCount,
+    asm: asmCount,
   },
 };
 
@@ -277,6 +305,10 @@ console.log(`  Tier 1 (pure leaf):    ${String(tier1).padStart(3)} functions`);
 console.log(`  Tier 2 (SDK-only):     ${String(tier2).padStart(3)} functions`);
 console.log(`  Tier 3 (game callers): ${String(tier3).padStart(3)} functions`);
 console.log(`  Already decompiled:    ${String(decompiledCount).padStart(3)} functions`);
+console.log(`  GTE (C + coprocessor): ${String(gteCount).padStart(3)} functions`);
+if (asmCount > 0) {
+  console.log(`  Pure asm (excluded):   ${String(asmCount).padStart(3)} functions`);
+}
 console.log(`Wrote ${OUT_FILE}`);
 
 if (topN > 0) {
@@ -284,7 +316,7 @@ if (topN > 0) {
   console.log(`Top ${topN} priority functions:`);
   console.log(`${"#".padStart(4)}  ${"Tier".padEnd(4)}  ${"Instrs".padStart(6)}  ${"Callers".padStart(7)}  Name`);
   console.log("-".repeat(50));
-  const top = entries.filter((e) => !e.decompiled).slice(0, topN);
+  const top = entries.filter((e) => !e.decompiled && e.handwritten !== "asm").slice(0, topN);
   for (const e of top) {
     console.log(
       `${String(e.priority).padStart(4)}  T${e.tier}    ${String(e.instructionCount).padStart(6)}  ${String(e.callerCount).padStart(7)}  ${e.name}`

@@ -49,11 +49,12 @@ interface CallGraphEntry {
   sdkCalls: string[];
   instructionCount: number;
   decompiled: boolean;
+  handwritten: false | "asm" | "gte";
 }
 
 interface CallGraph {
   functions: CallGraphEntry[];
-  stats: { total: number; tier1: number; tier2: number; tier3: number; decompiled: number };
+  stats: { total: number; tier1: number; tier2: number; tier3: number; decompiled: number; gte: number; asm: number };
 }
 
 interface AgentResult {
@@ -248,7 +249,7 @@ async function main() {
   const graph: CallGraph = JSON.parse(readFileSync(graphPath, "utf-8"));
 
   // Filter functions to process
-  let funcs = graph.functions.filter((f) => !f.decompiled);
+  let funcs = graph.functions.filter((f) => !f.decompiled && f.handwritten !== "asm");
 
   if (targetFunc) {
     funcs = graph.functions.filter((f) => f.name === targetFunc);

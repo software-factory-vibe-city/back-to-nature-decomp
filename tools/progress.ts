@@ -12,7 +12,7 @@
  *   npx tsx tools/progress.ts --markdown  # markdown table with links to source and asm
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -20,6 +20,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const SRC_DIR = join(ROOT, "src");
+const ASM_DIR = join(ROOT, "build/asm/nonmatchings");
 
 const args = process.argv.slice(2);
 const showList = args.includes("--list");
@@ -33,6 +34,7 @@ interface FuncInfo {
   offset: number;
   size: number;
   decompiled: boolean;
+  handwritten: false | "asm" | "gte";
 }
 
 // Parse subsegments from splat.yaml
@@ -82,7 +84,26 @@ for (const seg of rawSegments) {
   const size = nextOffset - seg.offset;
 
   let decompiled = false;
-  if (seg.type === "c") {
+  let handwritten = false;
+
+  // Check if handwritten assembly (marker from spimdisasm)
+  let sFile = join(ASM_DIR, seg.name, `${seg.name}.s`);
+  if (!existsSync(sFile)) {
+    const dir = join(ASM_DIR, seg.name);
+    if (existsSync(dir)) {
+      const files = readdirSync(dir).filter((f: string) => f.endsWith(".s"));
+      if (files.length === 1) sFile = join(dir, files[0]);
+    }
+  }
+  if (existsSync(sFile)) {
+    const sContent = readFileSync(sFile, "utf-8");
+    if (sContent.includes("Handwritten function")) {
+      const gtePattern = /\b(cfc2|ctc2|lwc2|swc2|mfc2|mtc2|cop2)\b/;
+      handwritten = gtePattern.test(sContent) ? "gte" : "asm";
+    }
+  }
+
+  if (seg.type === "c" && handwritten !== "asm") {
     const cFile = join(SRC_DIR, `${seg.name}.c`);
     if (existsSync(cFile)) {
       const content = readFileSync(cFile, "utf-8");
@@ -93,26 +114,33 @@ for (const seg of rawSegments) {
     }
   }
 
-  totalFuncs++;
-  totalBytes += size;
-  if (decompiled) {
-    decompFuncs++;
-    decompBytes += size;
+  if (handwritten !== "asm") {
+    totalFuncs++;
+    totalBytes += size;
+    if (decompiled) {
+      decompFuncs++;
+      decompBytes += size;
+    }
   }
 
-  funcs.push({ name: seg.name, vram: seg.vram, offset: seg.offset, size, decompiled });
+  funcs.push({ name: seg.name, vram: seg.vram, offset: seg.offset, size, decompiled, handwritten });
 }
 
 // Summary
 const funcPct = totalFuncs > 0 ? ((decompFuncs / totalFuncs) * 100).toFixed(2) : "0.00";
 const bytePct = totalBytes > 0 ? ((decompBytes / totalBytes) * 100).toFixed(2) : "0.00";
 
+const gteCount = funcs.filter((f) => f.handwritten === "gte").length;
+const asmCount = funcs.filter((f) => f.handwritten === "asm").length;
 console.log(`Decompiled: ${decompFuncs} / ${totalFuncs} functions (${funcPct}%)`);
 console.log(`Decompiled: ${decompBytes} / ${totalBytes} bytes (${bytePct}%)`);
+if (gteCount > 0) console.log(`GTE functions (C + coprocessor): ${gteCount} (included in counts)`);
+if (asmCount > 0) console.log(`Pure asm: ${asmCount} functions (excluded from counts)`);
 
 // Detailed list
 if (showList || showRemaining || showDone || showMarkdown) {
   const filtered = funcs.filter((f) => {
+    if (f.handwritten === "asm") return false;
     if (showRemaining) return !f.decompiled;
     if (showDone) return f.decompiled;
     return true;
