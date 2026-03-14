@@ -7,7 +7,7 @@
  */
 
 import { execSync } from "child_process";
-import { watchFile, existsSync } from "fs";
+import { watchFile, existsSync, writeFileSync } from "fs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -30,7 +30,7 @@ function run(cmd: string): string {
 
 function compile(src: string): string {
   const stem = src.replace(/^src\//, "").replace(/\.c$/, "");
-  const dir = "build/src";
+  const dir = "build/diffFunc";
   const i = `${dir}/${stem}.i`;
   const s = `${dir}/${stem}.s`;
   const o = `${dir}/${stem}.c.o`;
@@ -60,7 +60,6 @@ function doDiff(src: string, target: string): void {
     const right = objdump(compiled);
 
     // Write to temp files for diff
-    const { writeFileSync } = require("fs");
     const ltmp = "/tmp/diffFunc-target.txt";
     const rtmp = "/tmp/diffFunc-compiled.txt";
     writeFileSync(ltmp, left);

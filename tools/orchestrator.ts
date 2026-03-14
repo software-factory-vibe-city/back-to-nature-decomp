@@ -5,17 +5,19 @@
  * Default is dry-run; use --write to modify src/ files.
  *
  * Usage:
- *   npx tsx tools/orchestrator.ts                        # dry-run: show what would happen
- *   npx tsx tools/orchestrator.ts --write                # actually modify src/ files
- *   npx tsx tools/orchestrator.ts --top 5                # only process top 5 priority functions
- *   npx tsx tools/orchestrator.ts --func func_80011F08   # process a specific function
- *   npx tsx tools/orchestrator.ts --stage 1              # only run stage 1 (m2c)
+ *   npx tsx --env-file=.env tools/orchestrator.ts                        # dry-run: show what would happen
+ *   npx tsx --env-file=.env tools/orchestrator.ts --write                # actually modify src/ files
+ *   npx tsx --env-file=.env tools/orchestrator.ts --top 5                # only process top 5 priority functions
+ *   npx tsx --env-file=.env tools/orchestrator.ts --func func_80011F08   # process a specific function
+ *   npx tsx --env-file=.env tools/orchestrator.ts --stage 1              # only run stage 1 (m2c)
  */
 
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { exportContext as runContextExport } from "./contextExport.js";
+import { runAgentLoop } from "./agent-loop.js";
+import { getDecompilationCleanupAgentPrompt } from "./getPrompt.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -72,10 +74,38 @@ interface PipelineContext {
 
 // --- Agent stubs ---
 
-async function runMatchingAgent(funcName: string, _ctx: PipelineContext): Promise<AgentResult> {
+async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise<AgentResult> {
   console.log(`  Stage 2: running matching agent for ${funcName}`);
-  // TODO: integrate with agent framework
-  return { success: false, attempts: 0, log: ["agent not implemented"] };
+
+  const systemPrompt = getDecompilationCleanupAgentPrompt(funcName);
+
+  const checkSuccess = (): boolean => {
+    try {
+      const output = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
+        cwd: ROOT,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      return output.includes("100.0%");
+    } catch {
+      return false;
+    }
+  };
+
+  const result = await runAgentLoop({
+    systemPrompt,
+    userMessage: `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`,
+    cwd: ROOT,
+    maxRetries: 10,
+    checkSuccess,
+  });
+
+  return {
+    success: result.success,
+    attempts: result.retries + 1,
+    matchPercent: result.success ? 100 : undefined,
+    log: [result.output.slice(-500)],
+  };
 }
 
 async function runCleanupAgent(funcName: string, _ctx: PipelineContext): Promise<AgentResult> {
