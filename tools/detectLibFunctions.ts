@@ -86,7 +86,12 @@ function findAllPatterns(
   if (sigLen === 0) return [];
   const results: number[] = [];
 
-  for (let i = searchStart; i <= searchEnd - sigLen; i += 4) {
+  // Allow signatures to start within the text section even if they extend
+  // past searchEnd — some library .o files have .text sections that span
+  // beyond the text/data boundary (e.g., large multi-function objects).
+  // The full signature must still fit within the binary buffer.
+  const scanEnd = Math.min(searchEnd, binary.length - sigLen);
+  for (let i = searchStart; i <= scanEnd; i += 4) {
     let match = true;
     for (let j = 0; j < sigLen; j++) {
       if (sigMask[j] && binary[i + j] !== sigBytes[j]) {
@@ -603,36 +608,107 @@ function main() {
 
   // Step 2b: Try to place multi-match candidates that lost dedup/overlap
   // at alternative offsets verified by relocations (score > 0).
+  // When a larger candidate overlaps smaller placed objects, it can replace them.
+
+  // Helper: check if candidate at [vramStart, vramEnd) only overlaps placed
+  // objects that are strictly smaller, returning the list of evictable indices.
+  function getEvictable(
+    vramStart: number,
+    vramEnd: number,
+    textSize: number
+  ): number[] | null {
+    const evictable: number[] = [];
+    for (let mi = 0; mi < placed.length; mi++) {
+      const m = placed[mi];
+      if (vramStart < m.vramEnd && vramEnd > m.vramStart) {
+        // Overlap — only allow if candidate is strictly larger
+        if (textSize > m.textSize) {
+          evictable.push(mi);
+        } else {
+          return null; // blocked by same-size or larger object
+        }
+      }
+    }
+    return evictable;
+  }
+
   for (const c of candidates) {
     if (c.offsets.length <= 1) continue;
     if (placedPaths.has(c.oPath)) continue;
 
     const relocs = getRelocs(c.oPath);
-    if (relocs.length === 0) continue;
 
     let bestOffset: number | null = null;
-    let bestVerified = 0; // require at least 1 verified relocation
+    let bestVerified = 0; // require at least 1 verified relocation (for reloc-based)
+    let bestEvictable: number[] = [];
 
-    for (const offset of c.offsets) {
-      const vramStart = fileOffsetToVram(offset);
-      const vramEnd = vramStart + c.textSize;
-      if (overlapsPlaced(vramStart, vramEnd)) continue;
+    if (relocs.length > 0) {
+      for (const offset of c.offsets) {
+        const vramStart = fileOffsetToVram(offset);
+        const vramEnd = vramStart + c.textSize;
+        const evictable = getEvictable(vramStart, vramEnd, c.textSize);
+        if (evictable === null) continue;
 
-      const result = verifyRelocations(binary, offset, relocs, symbolAddrs);
-      if (result.verified > bestVerified) {
-        bestVerified = result.verified;
-        bestOffset = offset;
+        const result = verifyRelocations(binary, offset, relocs, symbolAddrs);
+        if (result.verified > bestVerified) {
+          bestVerified = result.verified;
+          bestOffset = offset;
+          bestEvictable = evictable;
+        }
+      }
+    } else {
+      // No relocations — use known symbol addresses to disambiguate.
+      const funcLabels = (c.entry.labels || []).filter(
+        (l) => !l.name.startsWith("loc_") && !l.name.startsWith("text_")
+      );
+      let bestSymMatches = 0;
+
+      for (const offset of c.offsets) {
+        const vramStart = fileOffsetToVram(offset);
+        const vramEnd = vramStart + c.textSize;
+        const evictable = getEvictable(vramStart, vramEnd, c.textSize);
+        if (evictable === null) continue;
+
+        let symMatches = 0;
+        for (const label of funcLabels) {
+          const expectedAddr = symbolAddrs.get(label.name);
+          if (expectedAddr !== undefined && expectedAddr === vramStart + label.offset) {
+            symMatches++;
+          }
+        }
+        if (symMatches > bestSymMatches) {
+          bestSymMatches = symMatches;
+          bestOffset = offset;
+          bestEvictable = evictable;
+        }
+      }
+
+      if (bestSymMatches > 0) {
+        bestVerified = bestSymMatches; // for logging
       }
     }
 
     if (bestOffset !== null) {
+      // Evict smaller overlapping objects
+      if (bestEvictable.length > 0) {
+        for (const idx of bestEvictable.sort((a, b) => b - a)) {
+          if (verbose) {
+            console.error(
+              `  EVICT: ${placed[idx].oPath} (${placed[idx].textSize}B) replaced by ${c.oPath} (${c.textSize}B)`
+            );
+          }
+          placedPaths.delete(placed[idx].oPath);
+          placed.splice(idx, 1);
+        }
+      }
+
       const match = candidateToMatch(c, bestOffset);
       placed.push(match);
       placedPaths.add(c.oPath);
 
       if (verbose) {
         console.error(
-          `  PLACED: ${c.oPath} at 0x${match.vramStart.toString(16)} (alt offset, reloc score ${bestVerified})`
+          `  PLACED: ${c.oPath} at 0x${match.vramStart.toString(16)} (alt offset, ${relocs.length > 0 ? "reloc" : "symbol"} score ${bestVerified})`
         );
       }
     }

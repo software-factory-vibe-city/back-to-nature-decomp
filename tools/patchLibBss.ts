@@ -556,6 +556,56 @@ function patchDataBytes(
   return patchCount;
 }
 
+/**
+ * Fix 5: Patch .rdata section bytes that don't match the original binary.
+ * Skips bytes covered by .rel.rdata relocations.
+ */
+function patchRdataBytes(
+  elfBuf: Buffer,
+  binary: Buffer,
+  entry: LibSections,
+  verbose: boolean
+): number {
+  if (!entry.rdataRom || !entry.rdataSize || entry.rdataSize <= 0) return 0;
+
+  const sections = parseSectionHeaders(elfBuf);
+  const rdataSection = sections.find((s) => s.nameStr === ".rdata");
+  if (!rdataSection || rdataSection.sh_size !== entry.rdataSize) return 0;
+
+  // Find .rel.rdata section to know which bytes have relocations
+  const relRdataSection = sections.find(
+    (s) => s.nameStr === ".rel.rdata" && s.sh_type === SHT_REL
+  );
+  const relocOffsets = new Set<number>();
+  if (relRdataSection) {
+    const relocs = parseRelocs(elfBuf, relRdataSection);
+    for (const r of relocs) {
+      for (let b = 0; b < 4; b++) relocOffsets.add(r.r_offset + b);
+    }
+  }
+
+  let patchCount = 0;
+  for (let i = 0; i < entry.rdataSize; i++) {
+    if (relocOffsets.has(i)) continue; // skip relocated bytes
+
+    const oOff = rdataSection.sh_offset + i;
+    const binOff = entry.rdataRom + i;
+    if (oOff >= elfBuf.length || binOff >= binary.length) continue;
+
+    if (elfBuf[oOff] !== binary[binOff]) {
+      if (verbose) {
+        console.error(
+          `  RDATA FIX: ${entry.oPath} .rdata[0x${i.toString(16)}]: 0x${elfBuf[oOff].toString(16)}→0x${binary[binOff].toString(16)}`
+        );
+      }
+      elfBuf[oOff] = binary[binOff];
+      patchCount++;
+    }
+  }
+
+  return patchCount;
+}
+
 function main() {
   const writeMode = process.argv.includes("--write");
   const verbose = process.argv.includes("--verbose");
@@ -586,6 +636,7 @@ function main() {
   let totalErrors = 0;
   let totalHi16Fixes = 0;
   let totalDataFixes = 0;
+  let totalRdataFixes = 0;
 
   // Process all library .o files: copy to build/lib/, apply all patches
   for (const entry of libSections) {
@@ -635,6 +686,13 @@ function main() {
       modified = true;
     }
 
+    // Rdata byte patching (Fix 5)
+    const rdataFixes = patchRdataBytes(elfBuf, binary, entry, verbose);
+    if (rdataFixes > 0) {
+      totalRdataFixes += rdataFixes;
+      modified = true;
+    }
+
     if (writeMode) {
       writeFileSync(dstPath, elfBuf);
     } else if (modified) {
@@ -651,6 +709,9 @@ function main() {
   }
   if (totalDataFixes > 0) {
     console.error(`  ${totalDataFixes} data byte fixes applied`);
+  }
+  if (totalRdataFixes > 0) {
+    console.error(`  ${totalRdataFixes} rdata byte fixes applied`);
   }
   if (totalErrors > 0) {
     console.error(`  ${totalErrors} warnings (unresolved symbols)`);

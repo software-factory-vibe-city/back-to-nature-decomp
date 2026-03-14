@@ -32,6 +32,7 @@ const ROOT = join(__dirname, "..");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const LOAD_ADDR = 0x80010000;
 const PAYLOAD_OFFSET = 0x800;
+const DEFAULT_DATA_START = 0x38990;
 const SDATA_START = 0x4dbd8;
 const FILE_END = 0x4f000;
 
@@ -164,7 +165,7 @@ function interleaveEntries(
  * Removes rdata/data/bss `o` entries and gap segments, restoring single
  * rodata/data/sdata region lines. Preserves text `o` entries.
  */
-function stripNonTextPatches(lines: string[]): string[] {
+function stripNonTextPatches(lines: string[], dataRomStart: number, sdataRomStart: number): string[] {
   const result: string[] = [];
   const libONonTextRe =
     /^\s+- \[0x[0-9A-Fa-f]+,\s*o,\s*\.\.\/lib\/[^,]+,\s*\.\w+\]/;
@@ -196,7 +197,7 @@ function stripNonTextPatches(lines: string[]): string[] {
     if (line.match(/^(\s+)- \[0x[0-9A-Fa-f]+, data\]/i)) {
       if (!seenData) {
         const indent = line.match(/^(\s+)/)?.[1] || "      ";
-        result.push(`${indent}- [0x38990, data]`);
+        result.push(`${indent}- [${romHex(dataRomStart)}, data]`);
         seenData = true;
       }
       continue;
@@ -205,7 +206,7 @@ function stripNonTextPatches(lines: string[]): string[] {
     if (line.match(/^(\s+)- \[0x[0-9A-Fa-f]+, sdata\]/i)) {
       if (!seenSdata) {
         const indent = line.match(/^(\s+)/)?.[1] || "      ";
-        result.push(`${indent}- [${romHex(SDATA_START)}, sdata]`);
+        result.push(`${indent}- [${romHex(sdataRomStart)}, sdata]`);
         seenSdata = true;
       }
       continue;
@@ -233,7 +234,7 @@ function parseTextSegments(lines: string[]): {
     if (m) {
       const rom = parseInt(m[1], 16);
       // Only text region entries (between rodata end and data start)
-      if (rom >= 0x1a70 && rom < 0x38990) {
+      if (rom >= 0x1a70 && rom < DEFAULT_DATA_START) {
         entries.push({ rom, lineIndex: i });
       }
     }
@@ -252,13 +253,8 @@ function main() {
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,
   });
-  const libSectionsRaw: LibSections[] = JSON.parse(sectionsOutput);
-  // Exclude known false positives from library detection
-  const EXCLUDE_OFILES = new Set([
-    "lib/libgpu/font.o", // different SDK version — .data/.rdata/.text don't match binary
-  ]);
-  const libSections = libSectionsRaw.filter((s) => !EXCLUDE_OFILES.has(s.oPath));
-  console.log(`Got ${libSections.length} library matches with section info (excluded ${libSectionsRaw.length - libSections.length})`);
+  const libSections: LibSections[] = JSON.parse(sectionsOutput);
+  console.log(`Got ${libSections.length} library matches with section info`);
 
   // Cache for patchLinkerBss.ts to avoid re-running detection
   mkdirSync(join(ROOT, "build"), { recursive: true });
@@ -267,6 +263,21 @@ function main() {
     JSON.stringify(libSections, null, 2)
   );
   console.log("Cached section info to build/libSections.json");
+
+  // Compute actual data section start: if any library .o's .text extends past
+  // the default text/data boundary, push the boundary forward (aligned to 4).
+  // This handles cases where a library object's .text spans into what was
+  // originally classified as the data section.
+  let DATA_ROM_START = DEFAULT_DATA_START;
+  for (const s of libSections) {
+    const textEnd = s.textRom + s.textSize;
+    if (textEnd > DATA_ROM_START && textEnd <= SDATA_START) {
+      DATA_ROM_START = (textEnd + 3) & ~3; // align to 4
+    }
+  }
+  if (DATA_ROM_START !== DEFAULT_DATA_START) {
+    console.log(`Adjusted data section start: 0x${DEFAULT_DATA_START.toString(16)} -> ${romHex(DATA_ROM_START)} (library .text extends past boundary)`);
+  }
 
   // Build match structures
   const sortedMatches = libSections
@@ -321,6 +332,19 @@ function main() {
     }
   }
 
+  // Compute effective sdata start: if any data entry extends past SDATA_START,
+  // push the sdata start forward to avoid overlap with the data assembly.
+  let effectiveSdataStart = SDATA_START;
+  for (const entry of dataEntries) {
+    const entryEnd = entry.rom + entry.size;
+    if (entryEnd > effectiveSdataStart) {
+      effectiveSdataStart = (entryEnd + 3) & ~3; // align to 4
+    }
+  }
+  if (effectiveSdataStart !== SDATA_START) {
+    console.log(`Adjusted sdata start: 0x${SDATA_START.toString(16)} -> ${romHex(effectiveSdataStart)} (library .data extends past boundary)`);
+  }
+
   const bssCount = libSections.filter((s) => s.bssVram !== undefined).length;
   console.log(
     `Sections: ${rdataEntries.length} rdata, ${dataEntries.length} data, ` +
@@ -329,7 +353,7 @@ function main() {
 
   // Phase 1: Strip previous non-text patches
   const rawYaml = readFileSync(SPLAT_YAML, "utf-8");
-  const stripped = stripNonTextPatches(rawYaml.split("\n"));
+  const stripped = stripNonTextPatches(rawYaml.split("\n"), DATA_ROM_START, effectiveSdataStart);
   console.log(
     `Strip: ${rawYaml.split("\n").length} -> ${stripped.length} lines`
   );
@@ -338,8 +362,8 @@ function main() {
   // Strategy: walk through lines, replacing `c` entries in library ranges with `o`,
   // and inserting `o` entries for libraries that have no corresponding `c` entry.
   const rodataLineRe = /^(\s+)- \[0x800, rodata\]/;
-  const dataLineRe = /^(\s+)- \[0x38990, data\]/;
-  const sdataLineRe = /^(\s+)- \[0x4DBD8, sdata\]/i;
+  const dataLineRe = /^(\s+)- \[0x[0-9A-Fa-f]+, data\]/;
+  const sdataLineRe = /^(\s+)- \[0x[0-9A-Fa-f]+, sdata\]/i;
   const subsegRe =
     /^(\s+- \[)(0x[0-9A-Fa-f]+)(,\s*)(c|o)(,\s*)([^\]]+)\](.*)$/;
   const textORe =
@@ -421,8 +445,8 @@ function main() {
       if (dataEntries.length > 0) {
         newLines.push(
           ...interleaveEntries(
-            0x38990,
-            SDATA_START,
+            DATA_ROM_START,
+            effectiveSdataStart,
             "data",
             dataEntries,
             indent
@@ -441,7 +465,7 @@ function main() {
       if (sdataDataEntries.length > 0) {
         newLines.push(
           ...interleaveEntries(
-            SDATA_START,
+            effectiveSdataStart,
             FILE_END,
             "sdata",
             sdataDataEntries,
@@ -449,7 +473,8 @@ function main() {
           )
         );
       } else {
-        newLines.push(line);
+        // Even if no sdata entries, emit the sdata line with adjusted start
+        newLines.push(`${indent}- [${romHex(effectiveSdataStart)}, sdata]`);
       }
       sdataPatched = true;
       continue;
@@ -486,23 +511,6 @@ function main() {
     if (textOMatch) {
       const pathStr = textOMatch[2].trim();
       const oPath = pathStr.replace("../", "") + ".o";
-      if (EXCLUDE_OFILES.has(oPath)) {
-        // Replace excluded o entry with c entries using .o function boundaries
-        const entryRom = parseInt(textOMatch[1], 16);
-        const excludedMatch = libSectionsRaw.find((s) => s.oPath === oPath);
-        if (excludedMatch) {
-          const vramStart = entryRom - PAYLOAD_OFFSET + LOAD_ADDR;
-          const vramEnd = vramStart + excludedMatch.textSize;
-          const funcAddrs = loadFuncAddrsInRange(vramStart, vramEnd);
-          for (const fa of funcAddrs) {
-            const fRom = fa.vram - LOAD_ADDR + PAYLOAD_OFFSET;
-            newLines.push(`      - [0x${fRom.toString(16).toUpperCase()}, c, ${fa.name}]`);
-          }
-          console.log(`Replaced excluded ${oPath} with ${funcAddrs.length} c entries`);
-        }
-        removedCount++;
-        continue;
-      }
       // Remove stale o entries not in current detection results
       const validOPaths = new Set(sortedMatches.map((m) => m.oPath));
       if (!validOPaths.has(oPath)) {
@@ -575,13 +583,16 @@ function main() {
   const symbolsByVram = loadSymbolsByVram();
 
   const TEXT_ROM_START = 0x1a70;
-  const TEXT_ROM_END = 0x38990;
+  const TEXT_ROM_END = DATA_ROM_START;
   const textGapComment = "# text-gap";
 
   // Strip old text-gap entries for idempotency, collect existing segment ROMs
   const textSegRe = /^\s+- \[(0x[0-9A-Fa-f]+),\s*(c|o)/i;
+  const cSegNameRe = /^\s+- \[0x[0-9A-Fa-f]+,\s*c,\s*(\S+)\]/;
   const cleanedLines: string[] = [];
   const existingSegRoms = new Set<number>();
+  // Track c segment names by VRAM so we don't create conflicting func_XXXX symbols
+  const existingSegNames = new Map<number, string>();
 
   for (const line of newLines) {
     if (line.includes(textGapComment)) continue; // remove old gap entries
@@ -592,6 +603,11 @@ function main() {
       const rom = parseInt(m[1], 16);
       if (rom >= TEXT_ROM_START && rom < TEXT_ROM_END) {
         existingSegRoms.add(rom);
+        const cm = line.match(cSegNameRe);
+        if (cm) {
+          const vram = rom - PAYLOAD_OFFSET + LOAD_ADDR;
+          existingSegNames.set(vram, cm[1]);
+        }
       }
     }
   }
@@ -614,60 +630,79 @@ function main() {
     }
   }
 
-  // Find gaps between merged o ranges and the text region boundaries
+  // Find gaps BETWEEN consecutive merged o ranges only.
+  // Do NOT include the game code region before the first o range or after the
+  // last o range — splat already handles function boundaries there.
+  // Text-gap filling is only needed for unaccounted-for functions that exist
+  // between adjacent library objects (e.g., functions from undetected .o files).
   const trueGaps: { start: number; end: number }[] = [];
-  let gapCursor = TEXT_ROM_START;
-  for (const mr of mergedORanges) {
-    if (mr.start > gapCursor) {
-      trueGaps.push({ start: gapCursor, end: mr.start });
+  for (let gi = 1; gi < mergedORanges.length; gi++) {
+    const prevEnd = mergedORanges[gi - 1].end;
+    const nextStart = mergedORanges[gi].start;
+    if (nextStart > prevEnd) {
+      trueGaps.push({ start: prevEnd, end: nextStart });
     }
-    gapCursor = Math.max(gapCursor, mr.end);
-  }
-  if (gapCursor < TEXT_ROM_END) {
-    trueGaps.push({ start: gapCursor, end: TEXT_ROM_END });
   }
 
-  // For each gap, scan binary for function boundaries
-  const gapFuncEntries: { rom: number; name: string }[] = [];
+  // Scan the ENTIRE text region for function boundaries to populate symbol_addrs.txt.
+  // Splat needs symbols for all functions it discovers via disassembly, even if
+  // they're sub-functions inside a parent c segment (e.g., switch cases, helpers).
+  // Without these symbols, splat assertions fail.
   const newSymbols: { name: string; vram: number }[] = [];
-  const newSourceFiles: { name: string }[] = [];
-
-  // Also add c entries for type:func symbols that don't have entries yet.
-  // These can occur between consecutive c entries (e.g., labels within a
-  // function range that should be their own functions).
-  const typeFuncSymbols = loadFuncAddrsInRange(
-    TEXT_ROM_START - PAYLOAD_OFFSET + LOAD_ADDR,
-    TEXT_ROM_END - PAYLOAD_OFFSET + LOAD_ADDR
-  );
-  for (const sym of typeFuncSymbols) {
-    const rom = vramToRom(sym.vram);
-    if (!existingSegRoms.has(rom)) {
-      // Check it's not inside an o range
-      const inO = mergedORanges.some((r) => rom >= r.start && rom < r.end);
+  {
+    const allFuncRoms = scanFuncBoundaries(binaryData, TEXT_ROM_START, TEXT_ROM_END);
+    for (const fRom of allFuncRoms) {
+      const vram = fRom - PAYLOAD_OFFSET + LOAD_ADDR;
+      // Skip addresses already in symbol_addrs.txt
+      if (symbolsByVram.has(vram)) continue;
+      // Skip addresses inside o ranges (library objects handle their own symbols)
+      const inO = mergedORanges.some((r) => fRom >= r.start && fRom < r.end);
       if (!inO) {
-        gapFuncEntries.push({ rom, name: sym.name });
-        const srcPath = join(ROOT, "src", `${sym.name}.c`);
-        if (!existsSync(srcPath)) {
-          newSourceFiles.push({ name: sym.name });
-        }
+        const name = `func_${vram.toString(16).toUpperCase()}`;
+        newSymbols.push({ name, vram });
+        symbolsByVram.set(vram, name);
       }
     }
   }
 
+  // Create c entries and src files ONLY for gaps between library objects.
+  // Game code functions are handled by splat's normal segment splitting.
+  const gapFuncEntries: { rom: number; name: string }[] = [];
+  const newSourceFiles: { name: string }[] = [];
+
+  // Add c entries for type:func symbols across the full text region that
+  // don't have c segments yet. This handles game-code functions that were
+  // discovered by previous runs and exist in symbol_addrs.txt.
+  const allTypeFuncSymbols = loadFuncAddrsInRange(
+    TEXT_ROM_START - PAYLOAD_OFFSET + LOAD_ADDR,
+    TEXT_ROM_END - PAYLOAD_OFFSET + LOAD_ADDR
+  );
+  for (const sym of allTypeFuncSymbols) {
+    const rom = vramToRom(sym.vram);
+    if (existingSegRoms.has(rom)) continue;
+    const inO = mergedORanges.some((r) => rom >= r.start && rom < r.end);
+    if (inO) continue;
+    gapFuncEntries.push({ rom, name: sym.name });
+    const srcPath = join(ROOT, "src", `${sym.name}.c`);
+    if (!existsSync(srcPath)) {
+      newSourceFiles.push({ name: sym.name });
+    }
+  }
+
+  // In gaps between library objects, also scan for function boundaries
+  // (binary scan for jr $ra patterns) to find new functions.
   for (const gap of trueGaps) {
     const funcRoms = scanFuncBoundaries(binaryData, gap.start, gap.end);
     for (const fRom of funcRoms) {
-      if (existingSegRoms.has(fRom)) continue; // already has an entry
-      // Skip if already added from type:func symbols above
+      if (existingSegRoms.has(fRom)) continue;
       if (gapFuncEntries.some((e) => e.rom === fRom)) continue;
 
       const vram = fRom - PAYLOAD_OFFSET + LOAD_ADDR;
-      const existingName = symbolsByVram.get(vram);
-      const name = existingName || `func_${vram.toString(16).toUpperCase()}`;
+      const name = symbolsByVram.get(vram) || `func_${vram.toString(16).toUpperCase()}`;
 
       gapFuncEntries.push({ rom: fRom, name });
 
-      if (!existingName) {
+      if (!symbolsByVram.has(vram)) {
         newSymbols.push({ name, vram });
       }
 
@@ -681,6 +716,11 @@ function main() {
   // Sort gap entries by ROM for insertion
   gapFuncEntries.sort((a, b) => a.rom - b.rom);
 
+  // Build a set of ROMs that fall within true gaps (between library objects)
+  // to distinguish text-gap entries from game-code split entries
+  const inTrueGap = (rom: number): boolean =>
+    trueGaps.some((g) => rom >= g.start && rom < g.end);
+
   // Insert gap entries into cleanedLines at correct positions
   const finalLines: string[] = [];
   let gapIdx = 0;
@@ -692,8 +732,9 @@ function main() {
       const lineRom = parseInt(m[1], 16);
       while (gapIdx < gapFuncEntries.length && gapFuncEntries[gapIdx].rom < lineRom) {
         const entry = gapFuncEntries[gapIdx++];
+        const comment = inTrueGap(entry.rom) ? `       ${textGapComment}` : "";
         finalLines.push(
-          `      - [${romHex(entry.rom)}, c, ${entry.name}]       ${textGapComment}`
+          `      - [${romHex(entry.rom)}, c, ${entry.name}]${comment}`
         );
       }
     }
@@ -703,8 +744,9 @@ function main() {
   // Append any remaining gap entries
   while (gapIdx < gapFuncEntries.length) {
     const entry = gapFuncEntries[gapIdx++];
+    const comment = inTrueGap(entry.rom) ? `       ${textGapComment}` : "";
     finalLines.push(
-      `      - [${romHex(entry.rom)}, c, ${entry.name}]       ${textGapComment}`
+      `      - [${romHex(entry.rom)}, c, ${entry.name}]${comment}`
     );
   }
 
