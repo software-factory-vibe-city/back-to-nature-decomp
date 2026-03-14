@@ -81,6 +81,11 @@ tools/
   headerInfo.ts         PS-X EXE header parser
   analyzeLayout.ts      Section layout classifier
   analyzeAccess.ts      Data access pattern analyzer
+  callGraph.ts          Build call graph + priority ranking
+  m2cFunc.ts            Run m2c decompiler on a single function
+  orchestrator.ts       Drive the decompilation pipeline
+  diffFunc.ts           Compile a .c file and diff against original .o
+  progress.ts           Decompilation progress tracker
 extracted/iso/          ISO contents including the EXE (gitignored)
 build/                  All generated artifacts (gitignored)
   asm/                  Splat-generated assembly
@@ -106,6 +111,59 @@ C source → cpp (preprocessor) → cc1 (PSX GCC 2.7.2) → maspsx (assembler wr
 Assembly → mips-linux-gnu-as → .o
 All .o → mips-linux-gnu-ld → ELF → objcopy → raw binary → verify against original
 ```
+
+## Tools
+
+### `callGraph.ts` — Build call graph
+
+Analyzes all disassembled functions, builds a call graph, and outputs a priority-ranked JSON file for the decompilation pipeline.
+
+```bash
+npx tsx tools/callGraph.ts              # build graph + summary
+npx tsx tools/callGraph.ts --top 20     # also print top 20 priority functions
+```
+
+Output: `build/callGraph.json`
+
+### `m2cFunc.ts` — Run m2c on a single function
+
+Runs the m2c decompiler on a function's `.s` file and produces initial C output wrapped in standard `#include` headers.
+
+```bash
+npx tsx tools/m2cFunc.ts func_80011F08              # print C to stdout
+npx tsx tools/m2cFunc.ts func_80011F08 --write      # write to src/func_80011F08.c
+npx tsx tools/m2cFunc.ts func_80011F08 --context include/functions.h
+```
+
+Auto-detects `include/functions.h` for `--context` if it exists. Handles named symbols (like `__start`) whose `.s` files use address-based names.
+
+### `orchestrator.ts` — Decompilation pipeline driver
+
+Reads `callGraph.json` and processes functions in priority order through a multi-stage pipeline: m2c, match, cleanup, and context export (stages 2-4 are stubbed).
+
+```bash
+npx tsx tools/orchestrator.ts                        # dry-run: show what would happen
+npx tsx tools/orchestrator.ts --write                # actually modify src/ files
+npx tsx tools/orchestrator.ts --top 5                # only process top 5 functions
+npx tsx tools/orchestrator.ts --func func_80011F08   # process a specific function
+npx tsx tools/orchestrator.ts --stage 1              # only run stage 1 (m2c)
+```
+
+**Dry-run (default):** Outputs go to `build/pipeline/{funcName}/` only. `src/` files are never touched. A summary is printed showing each function's pipeline result.
+
+**Write mode (`--write`):** Same as dry-run, but also writes the final result to `src/{name}.c`.
+
+`build/pipeline/` always contains the full audit trail regardless of mode.
+
+### `diffFunc.ts` — Diff compiled output against original
+
+Compiles a `.c` file through the full PSX GCC pipeline and diffs the resulting object code against the original, showing a match percentage.
+
+```bash
+npx tsx tools/diffFunc.ts func_80011F08
+```
+
+Watches the source file for changes and re-diffs automatically.
 
 ## Binary Details
 

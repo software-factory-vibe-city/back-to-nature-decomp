@@ -2,6 +2,7 @@
  * diffFunc.ts — Compile a .c file and diff against the original .o
  *
  * Usage: npx tsx tools/diffFunc.ts func_8001FE00
+ *        npx tsx tools/diffFunc.ts func_8001FE00 --watch
  *        npx tsx tools/diffFunc.ts src/func_8001FE00.c build/src/func_8001FE00.c.o
  */
 
@@ -105,12 +106,18 @@ function resolveArgs(args: string[]): { src: string; target: string } {
 }
 
 // --- Main ---
-const { src, target } = resolveArgs(process.argv.slice(2));
+const rawArgs = process.argv.slice(2);
+const watchMode = rawArgs.includes("--watch");
+const filteredArgs = rawArgs.filter((a) => a !== "--watch");
+
+const { src, target } = resolveArgs(filteredArgs);
 if (!existsSync(src)) { console.error(`Not found: ${src}`); process.exit(1); }
 if (!existsSync(target)) { console.error(`Not found: ${target}`); process.exit(1); }
 
 doDiff(src, target);
 
-watchFile(src, { interval: 500 }, () => {
-  doDiff(src, target);
-});
+if (watchMode) {
+  watchFile(src, { interval: 500 }, () => {
+    doDiff(src, target);
+  });
+}
