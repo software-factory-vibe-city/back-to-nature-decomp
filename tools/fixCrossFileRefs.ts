@@ -21,16 +21,18 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _info = loadPsxExeInfo();
+const _layout = requireSectionLayout();
 const ASM_DIR = join(ROOT, "build/asm");
 const SYMBOLS_PATH = join(ROOT, "configs/symbol_addrs.txt");
 
-const LOAD_ADDR = 0x80010000;
-const HEADER_SIZE = 0x800;
-const TEXT_START = 0x80011270;
-const TEXT_END = 0x80048190;
+const LOAD_ADDR = _info.loadAddr;
+const HEADER_SIZE = _info.payloadOffset;
+const TEXT_START = _layout.textStart - _info.payloadOffset + _info.loadAddr;
+const TEXT_END = _layout.dataStart - _info.payloadOffset + _info.loadAddr;
 
 // Patterns for labels defined in a file
 // glabel/alabel = global, plain "  label:" or "  .Laddr:" = local
@@ -253,7 +255,7 @@ console.log(`\nUpdated ${SYMBOLS_PATH}`);
 
 // Also add c entries to splat.yaml for new function symbols
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
-const PAYLOAD_OFFSET = 0x800;
+const PAYLOAD_OFFSET = _info.payloadOffset;
 
 let yamlContent = readFileSync(SPLAT_YAML, "utf-8");
 const yamlLines = yamlContent.split("\n");

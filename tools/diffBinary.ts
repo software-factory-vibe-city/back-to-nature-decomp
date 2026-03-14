@@ -11,21 +11,24 @@
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, loadSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
 
-const ORIGINAL = join(ROOT, "extracted/iso/slus_011.15");
+const _info = loadPsxExeInfo();
+const _layout = loadSectionLayout();
+
+const ORIGINAL = _info.binaryPath;
 const BUILT = join(ROOT, "build/slus_011.bin");
 const MAP_FILE = join(ROOT, "build/slus_011.map");
 const LIB_SECTIONS = join(ROOT, "build/libSections.json");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 
-const PAYLOAD_OFFSET = 0x800;
-const PAYLOAD_SIZE = 321536; // 0x4E800
-const LOAD_ADDR = 0x80010000;
-const TEXT_START_ROM = 0x1a70;
-const TEXT_END_ROM = 0x38990;
+const PAYLOAD_OFFSET = _info.payloadOffset;
+const PAYLOAD_SIZE = _info.payloadSize;
+const LOAD_ADDR = _info.loadAddr;
+const TEXT_START_ROM = _layout?.textStart ?? 0x1a70;
+const TEXT_END_ROM = _layout?.dataStart ?? 0x38990;
 
 function hex(n: number): string {
   return "0x" + n.toString(16).toUpperCase();
@@ -329,9 +332,9 @@ function main() {
   console.log(`\n=== Non-text Region Analysis ===`);
 
   const rodataEnd = TEXT_START_ROM;
-  const dataStart = 0x38990;
-  const sdataStart = 0x4dbd8;
-  const fileEnd = 0x4f000;
+  const dataStart = TEXT_END_ROM;
+  const sdataStart = _layout?.sdataStart ?? 0x4dbd8;
+  const fileEnd = _info.fileEnd;
 
   // Compare rodata region
   let rodataDiffs = 0;

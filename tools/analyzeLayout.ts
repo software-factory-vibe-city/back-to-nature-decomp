@@ -14,9 +14,12 @@
  *
  * Usage: npx tsx tools/analyzeLayout.ts
  * Output: notes/layout_new.md
+ *
+ * Also exports classifyEntries() for programmatic use by bootstrap.ts.
  */
 
 import { readFileSync, writeFileSync } from "fs";
+import { loadPsxExeInfo, type PsxExeInfo } from "./psxExeInfo.ts";
 
 // Known code addresses that heuristics may misclassify
 // (e.g. __start has no jr $ra because it never returns, uses addi not addiu)
@@ -27,20 +30,7 @@ const KNOWN_CODE: Set<number> = new Set([
   0x800425C4, // GTE/COP0 code — handwritten, spimdisasm refuses without --disasm-unknown
 ]);
 
-const CSV_PATH = "build/without-unknown/functions.csv";
-const BINARY_PATH = "extracted/iso/slus_011.15";
-const HEADER_SIZE = 0x800;
-const LOAD_ADDR = 0x80010000;
-const GP_VALUE = 0x8005e274;
-const GP_RANGE_LOW = GP_VALUE - 0x8000;
-const GP_RANGE_HIGH = GP_VALUE + 0x7fff;
-const OUTPUT_PATH = "notes/layout_new.md";
-
-// Binary range (addresses in the payload)
-const BINARY_START = LOAD_ADDR;
-const BINARY_END = LOAD_ADDR + 0x4e800;
-
-interface CsvEntry {
+export interface CsvEntry {
   vrom: number;
   address: number;
   name: string;
@@ -48,9 +38,9 @@ interface CsvEntry {
   spimdisasmType: "code" | "data"; // what spimdisasm thinks
 }
 
-type Classification = "code" | "data";
+export type Classification = "code" | "data";
 
-interface HeuristicResult {
+export interface HeuristicResult {
   entry: CsvEntry;
   classification: Classification;
   confidence: "high" | "medium" | "low";
@@ -63,7 +53,7 @@ interface HeuristicResult {
   validBranchPct: number;
 }
 
-interface Section {
+export interface LayoutSection {
   startAddr: number;
   endAddr: number;
   type: Classification;
@@ -79,7 +69,7 @@ function hexSize(n: number): string {
   return "0x" + n.toString(16).toUpperCase();
 }
 
-function parseCSV(path: string): CsvEntry[] {
+export function parseCSV(path: string): CsvEntry[] {
   const lines = readFileSync(path, "utf-8").trim().split("\n");
   const entries: CsvEntry[] = [];
 
@@ -131,8 +121,8 @@ function buildCallInfo(csvPath: string): { callTargets: Set<number>; callers: Se
 }
 
 /** Read 32-bit little-endian words from the binary for a given entry */
-function readWords(binary: Buffer, entry: CsvEntry): Uint32Array {
-  const offset = entry.address - LOAD_ADDR + HEADER_SIZE;
+function readWords(binary: Buffer, entry: CsvEntry, loadAddr: number, headerSize: number): Uint32Array {
+  const offset = entry.address - loadAddr + headerSize;
   const wordCount = Math.floor(entry.length / 4);
   const words = new Uint32Array(wordCount);
   for (let i = 0; i < wordCount; i++) {
@@ -148,9 +138,6 @@ function isJrRa(word: number): boolean {
 
 /** Check if a word is addiu $sp, $sp, -N (function prologue) */
 function isSpPrologue(word: number): boolean {
-  // addiu $sp, $sp, imm where imm is negative
-  // Encoding: 001001 11101 11101 iiiiiiiiiiiiiiii
-  // = 0x27BD????  where upper 16 bits of imm make it negative (>= 0x8000)
   const opRsRt = word >>> 16;
   if (opRsRt !== 0x27bd) return false;
   const imm = word & 0xffff;
@@ -158,30 +145,27 @@ function isSpPrologue(word: number): boolean {
 }
 
 /** Check if a word is a JAL instruction and if its target is within the binary */
-function analyzeJal(word: number): { isJal: boolean; targetInRange: boolean } {
+function analyzeJal(word: number, binaryStart: number, binaryEnd: number): { isJal: boolean; targetInRange: boolean } {
   const op = word >>> 26;
   if (op !== 3) return { isJal: false, targetInRange: false };
-  // JAL target: lower 26 bits << 2, upper 4 bits from PC
   const target = ((word & 0x03ffffff) << 2) | 0x80000000;
-  return { isJal: true, targetInRange: target >= BINARY_START && target < BINARY_END };
+  return { isJal: true, targetInRange: target >= binaryStart && target < binaryEnd };
 }
 
-/** Check if a word is a branch instruction (BEQ, BNE, BLEZ, BGTZ, BLTZ, BGEZ, etc.) */
+/** Check if a word is a branch instruction */
 function isBranch(word: number): boolean {
   const op = word >>> 26;
-  // BEQ=4, BNE=5, BLEZ=6, BGTZ=7
   if (op >= 4 && op <= 7) return true;
-  // REGIMM (op=1): BLTZ, BGEZ, BLTZAL, BGEZAL
   if (op === 1) return true;
   return false;
 }
 
 /** Check if a word is a J (jump) instruction */
-function analyzeJ(word: number): { isJ: boolean; targetInRange: boolean } {
+function analyzeJ(word: number, binaryStart: number, binaryEnd: number): { isJ: boolean; targetInRange: boolean } {
   const op = word >>> 26;
   if (op !== 2) return { isJ: false, targetInRange: false };
   const target = ((word & 0x03ffffff) << 2) | 0x80000000;
-  return { isJ: true, targetInRange: target >= BINARY_START && target < BINARY_END };
+  return { isJ: true, targetInRange: target >= binaryStart && target < binaryEnd };
 }
 
 /** Classify a single entry by inspecting its bytes */
@@ -189,7 +173,11 @@ function classifyEntry(
   entry: CsvEntry,
   binary: Buffer,
   callTargets: Set<number>,
-  callers: Set<number>
+  callers: Set<number>,
+  loadAddr: number,
+  headerSize: number,
+  binaryStart: number,
+  binaryEnd: number
 ): HeuristicResult {
   // Override for known code
   if (KNOWN_CODE.has(entry.address)) {
@@ -206,7 +194,7 @@ function classifyEntry(
     };
   }
 
-  const words = readWords(binary, entry);
+  const words = readWords(binary, entry, loadAddr, headerSize);
   const wordCount = words.length;
 
   if (wordCount === 0) {
@@ -238,7 +226,6 @@ function classifyEntry(
 
   // Signal 3: presence of stack prologue
   let hasPrologue = false;
-  // Check first few words (prologue is typically in the first 3 instructions)
   for (let i = 0; i < Math.min(4, wordCount); i++) {
     if (isSpPrologue(words[i])) { hasPrologue = true; break; }
   }
@@ -253,12 +240,12 @@ function classifyEntry(
   let jCount = 0;
   let jValid = 0;
   for (const w of words) {
-    const jal = analyzeJal(w);
+    const jal = analyzeJal(w, binaryStart, binaryEnd);
     if (jal.isJal) {
       jalCount++;
       if (jal.targetInRange) jalValid++;
     }
-    const j = analyzeJ(w);
+    const j = analyzeJ(w, binaryStart, binaryEnd);
     if (j.isJ) {
       jCount++;
       if (j.targetInRange) jValid++;
@@ -268,7 +255,7 @@ function classifyEntry(
   const validJumps = jalValid + jValid;
   const validBranchPct = totalJumps > 0 ? (validJumps / totalJumps) * 100 : -1;
 
-  // Signal 6: branch instruction count (code tends to have branches)
+  // Signal 6: branch instruction count
   let branchCount = 0;
   for (const w of words) {
     if (isBranch(w)) branchCount++;
@@ -280,7 +267,6 @@ function classifyEntry(
   let dataScore = 0;
   let codeScore = 0;
 
-  // Zero words
   if (zeroWordPct > 80) {
     dataScore += 3;
     signals.push(`${zeroWordPct.toFixed(0)}% zero words`);
@@ -289,7 +275,6 @@ function classifyEntry(
     signals.push(`${zeroWordPct.toFixed(0)}% zero words`);
   }
 
-  // jr $ra
   if (hasJrRa) {
     codeScore += 2;
     signals.push("has jr $ra");
@@ -298,13 +283,11 @@ function classifyEntry(
     signals.push("no jr $ra");
   }
 
-  // Prologue
   if (hasPrologue) {
     codeScore += 2;
     signals.push("has stack prologue");
   }
 
-  // Called by others
   if (isCalled) {
     codeScore += 3;
     signals.push("called by other functions");
@@ -313,13 +296,11 @@ function classifyEntry(
     signals.push("not called by anything");
   }
 
-  // Calls others (very strong code signal — data doesn't make jal calls)
   if (callsOthers) {
     codeScore += 3;
     signals.push("calls other functions (from CSV)");
   }
 
-  // Jump target validity
   if (totalJumps > 0) {
     if (validBranchPct < 30) {
       dataScore += 3;
@@ -332,7 +313,6 @@ function classifyEntry(
     }
   }
 
-  // Branch density
   if (branchPct > 3) {
     codeScore += 1;
     signals.push(`${branchPct.toFixed(1)}% branch instructions`);
@@ -358,19 +338,127 @@ function classifyEntry(
   };
 }
 
-function inferSectionName(startAddr: number, endAddr: number): string {
-  // Use known landmarks
-  if (endAddr <= 0x80011270) return ".rodata";
-  if (startAddr >= 0x8005d3d8) return ".sdata";
-  if (startAddr >= GP_RANGE_LOW && endAddr <= GP_RANGE_HIGH + 0x1000) {
+/**
+ * Classify all entries from a CSV file. Importable by bootstrap.ts.
+ */
+export function classifyEntries(
+  csvPath: string,
+  binary: Buffer,
+  loadAddr: number,
+  payloadOffset: number,
+  payloadSize: number,
+): HeuristicResult[] {
+  const entries = parseCSV(csvPath);
+  const { callTargets, callers } = buildCallInfo(csvPath);
+
+  const binaryStart = loadAddr;
+  const binaryEnd = loadAddr + payloadSize;
+
+  return entries.map(e =>
+    classifyEntry(e, binary, callTargets, callers, loadAddr, payloadOffset, binaryStart, binaryEnd)
+  );
+}
+
+/**
+ * Infer section boundaries from classification results.
+ * Returns { rodataStart, textStart, dataStart, sdataStart, fileEnd } as ROM offsets.
+ */
+export function inferSectionBoundaries(
+  results: HeuristicResult[],
+  info: PsxExeInfo,
+): { rodataStart: number; textStart: number; dataStart: number; sdataStart: number; fileEnd: number } {
+  // Build contiguous sections from classification
+  const sections: { startAddr: number; endAddr: number; type: Classification }[] = [];
+
+  let cur = {
+    startAddr: results[0].entry.address,
+    endAddr: results[0].entry.address + results[0].entry.length,
+    type: results[0].classification,
+  };
+
+  for (let i = 1; i < results.length; i++) {
+    const r = results[i];
+    if (r.classification === cur.type) {
+      cur.endAddr = r.entry.address + r.entry.length;
+    } else {
+      sections.push(cur);
+      cur = {
+        startAddr: r.entry.address,
+        endAddr: r.entry.address + r.entry.length,
+        type: r.classification,
+      };
+    }
+  }
+  sections.push(cur);
+
+  // Pattern: rodata(data) → text(code) → data(data) → sdata(data)
+  // Find the first code section = .text start
+  // The data section before .text = .rodata
+  // After .text, the next data section = .data
+  // The GP range determines .sdata vs .data boundary
+  const gpRangeLow = info.gpValue - 0x8000;
+
+  const rodataStart = info.payloadOffset; // always starts at payload beginning
+  let textStart = info.payloadOffset;
+  let dataStart = info.fileEnd;
+  let sdataStart = info.fileEnd;
+
+  // Find first code section
+  for (const s of sections) {
+    if (s.type === "code") {
+      textStart = s.startAddr - info.loadAddr + info.payloadOffset;
+      break;
+    }
+  }
+
+  // Find data after text: first data section after the last code section
+  let lastCodeEnd = textStart;
+  for (const s of sections) {
+    if (s.type === "code") {
+      lastCodeEnd = s.endAddr - info.loadAddr + info.payloadOffset;
+    }
+  }
+  dataStart = lastCodeEnd;
+
+  // Find sdata: data section that starts within GP range
+  for (const s of sections) {
+    const sRom = s.startAddr - info.loadAddr + info.payloadOffset;
+    if (s.type === "data" && s.startAddr >= gpRangeLow && sRom > dataStart) {
+      sdataStart = sRom;
+      break;
+    }
+  }
+
+  return {
+    rodataStart,
+    textStart,
+    dataStart,
+    sdataStart,
+    fileEnd: info.fileEnd,
+  };
+}
+
+function inferSectionName(startAddr: number, endAddr: number, info: PsxExeInfo): string {
+  const gpRangeLow = info.gpValue - 0x8000;
+  const gpRangeHigh = info.gpValue + 0x7fff;
+
+  // Use entry point as text/rodata boundary
+  if (endAddr <= info.entryPoint) return ".rodata";
+  if (startAddr >= gpRangeLow && endAddr <= gpRangeHigh + 0x1000) {
     return ".sdata";
   }
-  return "";  // will be determined by classification
+  return "";
 }
 
 function generateReport(
   results: HeuristicResult[],
+  info: PsxExeInfo,
+  csvPath: string,
+  binaryPath: string,
 ): string {
+  const gpRangeLow = info.gpValue - 0x8000;
+  const gpRangeHigh = info.gpValue + 0x7fff;
+
   const lines: string[] = [];
 
   lines.push("# Binary Layout Analysis (Heuristic Classification)");
@@ -379,12 +467,11 @@ function generateReport(
   lines.push("Classifies each CSV entry as code or data based on byte-level heuristics,");
   lines.push("independent of spimdisasm's T_/func_ labels.");
   lines.push("");
-  lines.push(`Binary: \`${BINARY_PATH}\``);
-  lines.push(`CSV: \`${CSV_PATH}\` (without --disasm-unknown, finer entry granularity)`);
-  lines.push(`GP value: ${hex(GP_VALUE)} (range: ${hex(GP_RANGE_LOW)}–${hex(GP_RANGE_HIGH)})`);
+  lines.push(`Binary: \`${binaryPath}\``);
+  lines.push(`CSV: \`${csvPath}\` (without --disasm-unknown, finer entry granularity)`);
+  lines.push(`GP value: ${hex(info.gpValue)} (range: ${hex(gpRangeLow)}–${hex(gpRangeHigh)})`);
   lines.push("");
 
-  // Disagreements with spimdisasm (using without-unknown as reference)
   lines.push("## Disagreements with spimdisasm (without --disasm-unknown)");
   lines.push("");
   lines.push("Entries where our heuristic classification differs from spimdisasm's T_/func_ label.");
@@ -392,7 +479,7 @@ function generateReport(
   lines.push("granularity. spimdisasm's T_/func_ labels are compared against our heuristics.");
   lines.push("");
 
-  // Build contiguous sections from our classification
+  // Build contiguous sections
   const sections: {
     startAddr: number;
     endAddr: number;
@@ -428,7 +515,6 @@ function generateReport(
   }
   sections.push(cur);
 
-  // Section layout
   lines.push("## Section Layout");
   lines.push("");
   lines.push("| # | Type | Start | End | Size | Entries | Section |");
@@ -436,7 +522,7 @@ function generateReport(
 
   sections.forEach((s, i) => {
     const size = s.endAddr - s.startAddr;
-    let sectionName = inferSectionName(s.startAddr, s.endAddr);
+    let sectionName = inferSectionName(s.startAddr, s.endAddr, info);
     if (!sectionName) {
       sectionName = s.type === "code" ? ".text" : ".data";
     }
@@ -447,7 +533,6 @@ function generateReport(
 
   lines.push("");
 
-  // Per-entry detail for entries in the interesting zone (after .text)
   lines.push("## Per-Entry Classification Detail");
   lines.push("");
   lines.push("Showing all entries from 0x80048000 onward (the ambiguous zone).");
@@ -465,7 +550,6 @@ function generateReport(
 
   lines.push("");
 
-  // Summary stats
   const codeCount = results.filter(r => r.classification === "code").length;
   const dataCount = results.filter(r => r.classification === "data").length;
   const highConf = results.filter(r => r.confidence === "high").length;
@@ -485,25 +569,27 @@ function generateReport(
   return lines.join("\n");
 }
 
-// Main
-const binary = readFileSync(BINARY_PATH);
-const entries = parseCSV(CSV_PATH);
-const { callTargets, callers } = buildCallInfo(CSV_PATH);
+// CLI main — only runs when executed directly
+const isMainModule = process.argv[1]?.endsWith("analyzeLayout.ts");
+if (isMainModule) {
+  const info = loadPsxExeInfo();
+  const CSV_PATH = "build/without-unknown/functions.csv";
+  const OUTPUT_PATH = "notes/layout_new.md";
 
-console.log(`Loaded ${entries.length} entries, ${callTargets.size} call targets, ${callers.size} callers`);
+  const binary = readFileSync(info.binaryPath);
+  const results = classifyEntries(CSV_PATH, binary, info.loadAddr, info.payloadOffset, info.payloadSize);
 
-const results = entries.map(e => classifyEntry(e, binary, callTargets, callers));
+  const report = generateReport(results, info, CSV_PATH, info.binaryPath);
+  writeFileSync(OUTPUT_PATH, report);
+  console.log(`Wrote report to ${OUTPUT_PATH}`);
 
-const report = generateReport(results);
-writeFileSync(OUTPUT_PATH, report);
-console.log(`Wrote report to ${OUTPUT_PATH}`);
-
-// Quick summary
-const sections = new Map<string, number>();
-for (const r of results) {
-  const key = r.classification;
-  sections.set(key, (sections.get(key) || 0) + 1);
-}
-for (const [type, count] of sections) {
-  console.log(`  ${type}: ${count} entries`);
+  // Quick summary
+  const sectionCounts = new Map<string, number>();
+  for (const r of results) {
+    const key = r.classification;
+    sectionCounts.set(key, (sectionCounts.get(key) || 0) + 1);
+  }
+  for (const [type, count] of sectionCounts) {
+    console.log(`  ${type}: ${count} entries`);
+  }
 }

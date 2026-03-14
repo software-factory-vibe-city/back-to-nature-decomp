@@ -15,14 +15,17 @@
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { loadPsxExeInfo, requireSectionLayout } from "./psxExeInfo.ts";
 
-const BINARY_PATH = "extracted/iso/slus_011.15";
+const _info = loadPsxExeInfo();
+const _layout = requireSectionLayout();
+const BINARY_PATH = _info.binaryPath;
 const SIGS_DIR = "tools/psx_psyq_signatures";
 const VERSION = "470";
-const PAYLOAD_OFFSET = 0x800;
-const LOAD_ADDR = 0x80010000;
-const TEXT_START = 0x80011270;
-const TEXT_END = 0x80048190;
+const PAYLOAD_OFFSET = _info.payloadOffset;
+const LOAD_ADDR = _info.loadAddr;
+const TEXT_START = _layout.textStart - PAYLOAD_OFFSET + LOAD_ADDR;
+const TEXT_END = _layout.dataStart - PAYLOAD_OFFSET + LOAD_ADDR;
 
 interface SigLabel {
   name: string;

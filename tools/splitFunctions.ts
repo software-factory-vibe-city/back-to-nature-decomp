@@ -16,20 +16,22 @@
 import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _info = loadPsxExeInfo();
+const _layout = requireSectionLayout();
 const CSV_PATH = join(ROOT, "build/functions.csv");
 const SPLAT_PATH = join(ROOT, "configs/splat.yaml");
 const SYMBOLS_PATH = join(ROOT, "configs/symbol_addrs.txt");
 
 // .text section boundaries (vram)
-const TEXT_START = 0x80011270;
-const TEXT_END = 0x80048190;
+const TEXT_START = _layout.textStart - _info.payloadOffset + _info.loadAddr;
+const TEXT_END = _layout.dataStart - _info.payloadOffset + _info.loadAddr;
 
-// Convert vram address to file offset: vram - load_addr + header_size
-const LOAD_ADDR = 0x80010000;
-const HEADER_SIZE = 0x800;
+// Convert vram address to file offset
+const LOAD_ADDR = _info.loadAddr;
+const HEADER_SIZE = _info.payloadOffset;
 const vramToOffset = (vram: number) => vram - LOAD_ADDR + HEADER_SIZE;
 
 // Parse functions.csv

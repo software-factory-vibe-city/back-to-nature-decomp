@@ -19,15 +19,17 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _info = loadPsxExeInfo();
+const _layout = requireSectionLayout();
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const CACHE_PATH = join(ROOT, "build/libSections.json");
 const DEP_SYMS_PATH = join(ROOT, "build/dep_syms.txt");
-const LOAD_ADDR = 0x80010000;
-const PAYLOAD_OFFSET = 0x800;
-const DATA_REGION_START = 0x38990; // ROM offset where .data begins
+const LOAD_ADDR = _info.loadAddr;
+const PAYLOAD_OFFSET = _info.payloadOffset;
+const DATA_REGION_START = _layout.dataStart;
 
 interface ResolvedSymbol {
   name: string;
@@ -220,7 +222,7 @@ function main() {
   console.log(`\nDependency .o files: ${deps.length}`);
 
   // Read binary for verification
-  const binary = readFileSync(join(ROOT, "extracted/iso/slus_011.15"));
+  const binary = readFileSync(_info.binaryPath);
 
   // Read current YAML, strip previous addDepObjects entries (idempotent)
   let yamlContent = readFileSync(SPLAT_YAML, "utf-8");

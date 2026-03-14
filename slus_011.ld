@@ -2039,14 +2039,14 @@ SECTIONS
         build/lib/libgs/gs_001.o(.data);
         build/asm/data/4D8E4.data.s.o(.data);
         build/lib/libgpu/font.o(.data);
-        . = ALIGN(., 4);
-        main_DATA_END = .;
-        main_DATA_SIZE = ABSOLUTE(main_DATA_END - main_DATA_START);
-        main_SDATA_START = .;
         build/lib/libgpu/kprintf.o(.data);
         build/lib/libgpu/sys.o(.data);
         build/lib/libgpu/kt01.o(.data);
         build/lib/libgpu/kt02.o(.data);
+        . = ALIGN(., 4);
+        main_DATA_END = .;
+        main_DATA_SIZE = ABSOLUTE(main_DATA_END - main_DATA_START);
+        main_SDATA_START = .;
         build/asm/data/4E7D4.sdata.s.o(.sdata);
         build/lib/libmcrd/libmcrd.o(.data);
         build/lib/libmcrd/userfunc.o(.data);

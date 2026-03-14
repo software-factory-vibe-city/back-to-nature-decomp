@@ -14,9 +14,10 @@ import { readFileSync, writeFileSync, existsSync, renameSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _info = loadPsxExeInfo();
 const SYMBOLS_PATH = join(ROOT, "configs/symbol_addrs.txt");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const SRC_DIR = join(ROOT, "src");
@@ -112,7 +113,7 @@ function main() {
         { secName: ".rdata", secRom: ls.rdataRom },
       ]) {
         if (secRom === undefined || secRom <= 0) continue;
-        const secVram = secRom - 0x800 + 0x80010000;
+        const secVram = secRom - _info.payloadOffset + _info.loadAddr;
 
         // Get global data/rdata symbols from nm
         try {
@@ -275,7 +276,7 @@ function main() {
     const cSegRe = /^(\s+- \[)(0x[0-9A-Fa-f]+)(,\s*c,\s*)(\S+?)(\].*)$/gm;
     yamlContent = yamlContent.replace(cSegRe, (match, pre, romHex, mid, name, post) => {
       const segRom = parseInt(romHex, 16);
-      const segVram = segRom - 0x800 + 0x80010000;
+      const segVram = segRom - _info.payloadOffset + _info.loadAddr;
       const symVram = symNameToVram.get(name);
       // If name is a known symbol but at a different VRAM, revert to generic
       if (symVram !== undefined && symVram !== segVram && !name.startsWith("func_")) {

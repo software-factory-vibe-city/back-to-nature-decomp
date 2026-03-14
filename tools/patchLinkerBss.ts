@@ -16,9 +16,10 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { requireSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _layout = requireSectionLayout();
 const LD_SCRIPT = join(ROOT, "slus_011.ld");
 const CACHE_PATH = join(ROOT, "build/libSections.json");
 
@@ -32,7 +33,7 @@ interface LibSections {
   bssSize?: number;
 }
 
-const SDATA_ROM_START = 0x4dbd8;
+const SDATA_ROM_START = _layout.sdataStart;
 
 function main() {
   const writeMode = process.argv.includes("--write");

@@ -17,13 +17,14 @@ import { readFileSync, existsSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _info = loadPsxExeInfo();
 
-const BINARY_PATH = "extracted/iso/slus_011.15";
-const PAYLOAD_OFFSET = 0x800;
-const LOAD_ADDR = 0x80010000;
+const BINARY_PATH = _info.binaryPath;
+const PAYLOAD_OFFSET = _info.payloadOffset;
+const LOAD_ADDR = _info.loadAddr;
 
 interface LibMatch {
   vramStart: number;
@@ -142,7 +143,7 @@ function main() {
 
   // Now resolve VRAM addresses by reading relocations from matched .o files
   // and decoding the corresponding instructions in the binary
-  const binary = readFileSync(join(ROOT, BINARY_PATH));
+  const binary = readFileSync(BINARY_PATH);
   const resolved: ResolvedSymbol[] = [];
 
   for (const [sym, refs] of undefSyms) {

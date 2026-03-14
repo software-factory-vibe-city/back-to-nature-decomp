@@ -15,10 +15,11 @@ import { readFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
-const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
+const _info = loadPsxExeInfo();
+const BINARY_PATH = _info.binaryPath;
 
 interface LibSectionEntry {
   oPath: string;

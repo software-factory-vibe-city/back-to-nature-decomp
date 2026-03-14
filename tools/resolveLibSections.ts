@@ -15,12 +15,14 @@ import { readFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
-const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
-const LOAD_ADDR = 0x80010000;
-const PAYLOAD_OFFSET = 0x800;
+const _info = loadPsxExeInfo();
+const _layout = requireSectionLayout();
+const BINARY_PATH = _info.binaryPath;
+const LOAD_ADDR = _info.loadAddr;
+const PAYLOAD_OFFSET = _info.payloadOffset;
 
 interface LibMatch {
   vramStart: number;
@@ -294,8 +296,8 @@ function main() {
   const binary = readFileSync(BINARY_PATH);
 
   // Data region in binary for fuzzy matching
-  const dataRegionStart = 0x38990; // ROM offset of .data segment
-  const dataRegionEnd = 0x4dbd8;
+  const dataRegionStart = _layout.dataStart;
+  const dataRegionEnd = _layout.sdataStart;
 
   const results: LibSections[] = [];
   let resolvedData = 0,

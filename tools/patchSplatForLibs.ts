@@ -26,15 +26,17 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { Buffer } from "buffer";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
-const LOAD_ADDR = 0x80010000;
-const PAYLOAD_OFFSET = 0x800;
-const DEFAULT_DATA_START = 0x38990;
-const SDATA_START = 0x4dbd8;
-const FILE_END = 0x4f000;
+const _info = loadPsxExeInfo();
+const _layout = requireSectionLayout();
+const LOAD_ADDR = _info.loadAddr;
+const PAYLOAD_OFFSET = _info.payloadOffset;
+const DEFAULT_DATA_START = _layout.dataStart;
+const SDATA_START = _layout.sdataStart;
+const FILE_END = _info.fileEnd;
 
 interface LibSections {
   oPath: string;
@@ -180,7 +182,7 @@ function stripNonTextPatches(lines: string[], dataRomStart: number, sdataRomStar
     if (/^\s+- \[0x[0-9A-Fa-f]+, bss\]/i.test(line)) continue;
     if (/virtual BSS/.test(line)) {
       result.push(
-        `  - [0x4F000]  # End of file (0x800 header + 0x4E800 payload)`
+        `  - [${romHex(FILE_END)}]  # End of file`
       );
       continue;
     }
@@ -234,7 +236,7 @@ function parseTextSegments(lines: string[]): {
     if (m) {
       const rom = parseInt(m[1], 16);
       // Only text region entries (between rodata end and data start)
-      if (rom >= 0x1a70 && rom < DEFAULT_DATA_START) {
+      if (rom >= _layout.textStart && rom < DEFAULT_DATA_START) {
         entries.push({ rom, lineIndex: i });
       }
     }
@@ -419,7 +421,7 @@ function main() {
     // === Rodata region ===
     if (!rdataPatched && rodataLineRe.test(line)) {
       const indent = line.match(rodataLineRe)![1];
-      let rodataEnd = 0x1a70;
+      let rodataEnd = _layout.textStart;
       const lineIdx = stripped.indexOf(line);
       for (let j = lineIdx + 1; j < stripped.length; j++) {
         const rm = stripped[j].match(/- \[(0x[0-9A-Fa-f]+),\s*(?:c|o)/i);
@@ -576,13 +578,12 @@ function main() {
   // the disassembler). Only ADD new c entries for addresses that fall in gaps
   // between o entries and existing c entries. Scan binary for function
   // boundaries within those true gaps.
-  const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
-  const binaryData = readFileSync(BINARY_PATH);
+  const binaryData = readFileSync(_info.binaryPath);
 
   // Load all symbols by VRAM address for name lookups
   const symbolsByVram = loadSymbolsByVram();
 
-  const TEXT_ROM_START = 0x1a70;
+  const TEXT_ROM_START = _layout.textStart;
   const TEXT_ROM_END = DATA_ROM_START;
   const textGapComment = "# text-gap";
 

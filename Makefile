@@ -25,9 +25,9 @@ LD_SCRIPT   := $(BASENAME).ld
 BUILT_BIN   := $(BUILD_DIR)/$(BASENAME).bin
 BUILT_ELF   := $(BUILD_DIR)/$(BASENAME).elf
 
-# Payload extraction from original
-PAYLOAD_OFF := 2048
-PAYLOAD_SZ  := 321536
+# Payload parameters — read from binary header at build time
+PAYLOAD_OFF := $(shell python3 -c "print(0x800)")
+PAYLOAD_SZ  := $(shell python3 -c "import struct; f=open('$(TARGET)','rb'); f.seek(0x1c); print(struct.unpack('<I',f.read(4))[0])")
 
 # Disassembly output (lives in build/)
 FUNCTIONS_CSV := $(BUILD_DIR)/functions.csv
@@ -52,6 +52,7 @@ disassemble:
 
 # Split the binary with splat
 split:
+	npx tsx tools/bootstrap.ts --write
 	npx tsx tools/addLibSymbols.ts --write
 	npx tsx tools/patchSplatForLibs.ts --write
 	npx tsx tools/addDepObjects.ts --write
@@ -124,4 +125,18 @@ clean:
 	rm -f configs/undefined_funcs_auto.txt configs/undefined_syms_auto.txt
 	rm -f $(LD_SCRIPT)
 
-.PHONY: all disassemble split check setup progress clean
+# Wipe generated configs for bootstrap testing
+# Usage: make wipe && make split && make && make check
+wipe:
+	rm -f configs/symbol_addrs.txt
+	rm -f configs/disassembler_symbol_addrs.txt
+	@# Strip subsegments from splat.yaml, keeping header
+	@python3 -c "\
+import re; \
+lines = open('configs/splat.yaml').readlines(); \
+idx = next(i for i,l in enumerate(lines) if l.strip() == 'subsegments:'); \
+open('configs/splat.yaml','w').writelines(lines[:idx+1])"
+	rm -rf $(BUILD_DIR)
+	@echo "Configs wiped. Run 'make split && make && make check' to rebuild from scratch."
+
+.PHONY: all disassemble split check setup progress clean wipe

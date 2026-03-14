@@ -13,14 +13,15 @@
 import { readFileSync, writeFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const _info = loadPsxExeInfo();
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const SRC_DIR = join(ROOT, "src");
 
-const VRAM_BASE = 0x80010000;
-const FILE_OFFSET_BASE = 0x800; // file offset of vram base
+const VRAM_BASE = _info.loadAddr;
+const FILE_OFFSET_BASE = _info.payloadOffset;
 
 const writeMode = process.argv.includes("--write");
 
@@ -54,8 +55,7 @@ function funcNameToOffset(name: string): number | null {
 function funcNameToVram(name: string): number | null {
   const match = name.match(/^func_([0-9A-Fa-f]{8})$/);
   if (match) return parseInt(match[1], 16);
-  // __start is at 0x80011278
-  if (name === "__start") return 0x80011278;
+  if (name === "__start") return _info.entryPoint;
   return null;
 }
 
