@@ -10,14 +10,19 @@
  *   npx tsx --env-file=.env tools/orchestrator.ts --top 5                # only process top 5 priority functions
  *   npx tsx --env-file=.env tools/orchestrator.ts --func func_80011F08   # process a specific function
  *   npx tsx --env-file=.env tools/orchestrator.ts --stage 1              # only run stage 1 (m2c)
+ *   npx tsx --env-file=.env tools/orchestrator.ts --refine              # run global refinement on all candidates
+ *   npx tsx --env-file=.env tools/orchestrator.ts --refine --func X     # refine a specific function
+ *   npx tsx --env-file=.env tools/orchestrator.ts --refine --top 5      # refine top 5 candidates
+ *   npx tsx --env-file=.env tools/orchestrator.ts --project-refine     # project-wide refinement pass
  */
 
+import { createHash } from "crypto";
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 import { exportContext as runContextExport } from "./contextExport.js";
 import { runAgentLoop } from "./agent-loop.js";
-import { getDecompilationCleanupAgentPrompt } from "./getPrompt.js";
+import { getDecompilationCleanupAgentPrompt, getGlobalRefinementAgentPrompt, getProjectRefinementAgentPrompt, findRefinementCandidates } from "./getPrompt.js";
 import { runM2c } from "./m2cFunc.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -34,7 +39,9 @@ function argVal(flag: string): string | undefined {
 
 const topN = argVal("--top") ? parseInt(argVal("--top")!, 10) : 0;
 const targetFunc = argVal("--func");
-const maxStage = argVal("--stage") ? parseInt(argVal("--stage")!, 10) : 4;
+const maxStage = argVal("--stage") ? parseInt(argVal("--stage")!, 10) : 5;
+const refineMode = args.includes("--refine");
+const projectRefineMode = args.includes("--project-refine");
 
 // --- Types ---
 
@@ -124,6 +131,93 @@ async function runCleanupAgent(funcName: string, _ctx: PipelineContext): Promise
   console.log(`  Stage 3: running cleanup agent for ${funcName}`);
   // TODO: integrate with agent framework
   return { success: false, attempts: 0, log: ["agent not implemented"] };
+}
+
+async function runRefinementAgent(funcName: string): Promise<AgentResult> {
+  console.log(`  Stage 5: running refinement agent for ${funcName}`);
+
+  const systemPrompt = getGlobalRefinementAgentPrompt(funcName);
+
+  const checkSuccess = (): boolean => {
+    try {
+      const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
+        cwd: ROOT,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      if (!diffOutput.includes("100.0%")) return false;
+
+      const makeOutput = execSync("make check", {
+        cwd: ROOT,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 60000,
+      });
+      return makeOutput.includes("matches original payload");
+    } catch {
+      return false;
+    }
+  };
+
+  /* Verify match before starting — don't refine broken functions */
+  if (!checkSuccess()) {
+    console.log(`  Stage 5: skipping — function does not currently match`);
+    return { success: false, attempts: 0, log: ["pre-check failed: not matching"] };
+  }
+
+  const result = await runAgentLoop({
+    systemPrompt,
+    userMessage: `Refine ${funcName} using context from its decompiled neighbors. The function already matches — your job is to improve readability (rename variables, propagate types, add comments) while keeping the 100% match. Run \`npx tsx tools/diffFunc.ts ${funcName}\` after every change to verify. If you cannot improve it with the available context, say so.`,
+    cwd: ROOT,
+    maxRetries: 3,
+    checkSuccess,
+  });
+
+  return {
+    success: result.success,
+    attempts: result.retries + 1,
+    log: [result.output.slice(-500)],
+  };
+}
+
+async function runProjectRefinementAgent(): Promise<AgentResult> {
+  console.log(`Running project-wide refinement pass...`);
+
+  const systemPrompt = getProjectRefinementAgentPrompt();
+
+  const checkSuccess = (): boolean => {
+    try {
+      const makeOutput = execSync("make check", {
+        cwd: ROOT,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 60000,
+      });
+      return makeOutput.includes("matches original payload");
+    } catch {
+      return false;
+    }
+  };
+
+  /* Verify full binary matches before starting */
+  if (!checkSuccess()) {
+    console.log(`Project refinement: skipping — binary does not currently match`);
+    return { success: false, attempts: 0, log: ["pre-check failed: binary not matching"] };
+  }
+
+  const result = await runAgentLoop({
+    systemPrompt,
+    userMessage: `Perform a project-wide refinement pass. Walk through all decompiled source files, identify shared structs, rename variables, propagate types, and improve readability. Run \`npx tsx tools/diffFunc.ts FUNC_NAME\` after every edit and \`make check\` periodically to verify the full binary. Output rename recommendations for globals and functions at the end.`,
+    cwd: ROOT,
+    maxRetries: 3,
+    checkSuccess,
+  });
+
+  return {
+    success: result.success,
+    attempts: result.retries + 1,
+    log: [result.output.slice(-500)],
+  };
 }
 
 function exportContext(funcName: string, _ctx: PipelineContext): string {
@@ -247,6 +341,113 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
   return results;
 }
 
+// --- Refinement tracking ---
+
+/**
+ * Hash the sorted decompiled neighbor list. When a new neighbor gets
+ * decompiled the hash changes, triggering re-refinement.
+ */
+function neighborHash(neighbors: string[]): string {
+  const sorted = [...neighbors].sort().join(",");
+  return createHash("sha256").update(sorted).digest("hex").slice(0, 12);
+}
+
+/**
+ * Check if a marker file exists for this neighbor set.
+ * Marker path: build/pipeline/{funcName}/refined_{hash}.marker
+ */
+function isAlreadyRefined(funcName: string, neighbors: string[]): boolean {
+  const hash = neighborHash(neighbors);
+  const stagingDir = join(ROOT, "build/pipeline", funcName);
+  return existsSync(join(stagingDir, `refined_${hash}.marker`));
+}
+
+/**
+ * Write a marker file recording that this function was refined
+ * with the given neighbor set. Removes any old marker files first.
+ */
+function markRefined(funcName: string, neighbors: string[]): void {
+  const hash = neighborHash(neighbors);
+  const stagingDir = join(ROOT, "build/pipeline", funcName);
+  mkdirSync(stagingDir, { recursive: true });
+
+  /* Remove old markers */
+  if (existsSync(stagingDir)) {
+    for (const f of readdirSync(stagingDir)) {
+      if (f.startsWith("refined_") && f.endsWith(".marker")) {
+        unlinkSync(join(stagingDir, f));
+      }
+    }
+  }
+
+  writeFileSync(join(stagingDir, `refined_${hash}.marker`), neighbors.sort().join("\n") + "\n");
+}
+
+// --- Refinement pipeline ---
+
+interface RefinementResult {
+  name: string;
+  neighbors: string[];
+  status: string;
+}
+
+async function runRefinementPipeline(): Promise<RefinementResult[]> {
+  let candidates = findRefinementCandidates(ROOT);
+
+  if (targetFunc) {
+    candidates = candidates.filter((c) => c.name === targetFunc);
+    if (candidates.length === 0) {
+      /* Allow refining a specific function even if it has no decompiled neighbors */
+      console.log(`${targetFunc} has no decompiled neighbors — running refinement anyway`);
+      candidates = [{ name: targetFunc, decompiledNeighborCount: 0, neighbors: [] }];
+    }
+  }
+
+  if (topN > 0) {
+    candidates = candidates.slice(0, topN);
+  }
+
+  /* Filter out already-refined candidates (unless targeting a specific function) */
+  if (!targetFunc) {
+    const before = candidates.length;
+    candidates = candidates.filter((c) => !isAlreadyRefined(c.name, c.neighbors));
+    const skipped = before - candidates.length;
+    if (skipped > 0) {
+      console.log(`Skipping ${skipped} already-refined function(s) (neighbor set unchanged)`);
+    }
+  }
+
+  console.log(`Refinement: ${candidates.length} candidate(s)\n`);
+
+  if (!writeMode) {
+    for (const c of candidates) {
+      console.log(`  ${c.name} — ${c.decompiledNeighborCount} decompiled neighbor(s): ${c.neighbors.join(", ")}`);
+    }
+    console.log(`\nDry run. Run with --write to actually refine.`);
+    return candidates.map((c) => ({ name: c.name, neighbors: c.neighbors, status: "dry-run" }));
+  }
+
+  const results: RefinementResult[] = [];
+  for (const candidate of candidates) {
+    console.log(`\nRefining ${candidate.name} (${candidate.decompiledNeighborCount} decompiled neighbor(s))`);
+
+    const result = await runRefinementAgent(candidate.name);
+    const status = result.success ? "ok" : "failed";
+
+    if (result.success) {
+      markRefined(candidate.name, candidate.neighbors);
+    }
+
+    results.push({
+      name: candidate.name,
+      neighbors: candidate.neighbors,
+      status,
+    });
+  }
+
+  return results;
+}
+
 // --- Main ---
 
 async function main() {
@@ -254,6 +455,24 @@ async function main() {
   if (!existsSync(graphPath)) {
     console.error("callGraph.json not found. Run: npx tsx tools/callGraph.ts");
     process.exit(1);
+  }
+
+  if (projectRefineMode) {
+    const result = await runProjectRefinementAgent();
+    console.log(`\n${"—".repeat(60)}`);
+    console.log(`Project refinement: ${result.success ? "\u2713 done" : "\u2717 failed"}`);
+    return;
+  }
+
+  if (refineMode) {
+    const results = await runRefinementPipeline();
+    console.log(`\n${"—".repeat(60)}`);
+    console.log(`Refined ${results.length} function(s):\n`);
+    for (const r of results) {
+      const icon = r.status === "ok" ? "\u2713" : r.status === "dry-run" ? "(dry)" : "\u2717";
+      console.log(`  ${r.name} ${icon} — neighbors: ${r.neighbors.join(", ") || "(none)"}`);
+    }
+    return;
   }
 
   const graph: CallGraph = JSON.parse(readFileSync(graphPath, "utf-8"));
@@ -290,6 +509,24 @@ async function main() {
 
   if (!writeMode) {
     console.log(`\nDry run. Run with --write to modify src/ files.`);
+  }
+
+  // Stage 5: global refinement — rebuild callGraph so it reflects any
+  // functions decompiled in this run, then check for refinement candidates
+  if (maxStage >= 5) {
+    if (writeMode) {
+      console.log(`\nRebuilding call graph for refinement...`);
+      execSync("npx tsx tools/callGraph.ts", { cwd: ROOT, stdio: "ignore" });
+    }
+    const refinementResults = await runRefinementPipeline();
+    if (refinementResults.length > 0) {
+      console.log(`\n${"—".repeat(60)}`);
+      console.log(`Refined ${refinementResults.length} function(s):\n`);
+      for (const r of refinementResults) {
+        const icon = r.status === "ok" ? "\u2713" : r.status === "dry-run" ? "(dry)" : "\u2717";
+        console.log(`  ${r.name} ${icon} — neighbors: ${r.neighbors.join(", ") || "(none)"}`);
+      }
+    }
   }
 }
 

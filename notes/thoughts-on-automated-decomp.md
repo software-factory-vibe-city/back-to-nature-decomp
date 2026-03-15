@@ -174,7 +174,11 @@ Examples of what this catches:
 | m2c function wrapper | **Done** | `tools/m2cFunc.ts` — runs m2c on a single function, handles named symbols, auto-detects context header |
 | Orchestrator | **Done** | `tools/orchestrator.ts` — dry-run by default (`--write` to modify src/), supports `--top N`, `--func`, `--stage` filtering. Stages 2-4 stubbed. |
 | Stage 2 agent prompt | **Done** | `prompts/decompilation-cleanup-agent.md` — complete prompt with m2c fix catalog, GCC quirk reference, assembly reading guide, iteration workflow |
-| Prompt injection | **Done** | `tools/getPrompt.ts` — reads template, injects per-function context (assembly, m2c output, call graph entry) at `{{CONTEXT}}` marker. Exported as function + CLI. |
+| Stage 5 refinement prompt | **Done** | `prompts/global-refinement-agent.md` — per-function refinement with neighbor context |
+| Project refinement prompt | **Done** | `prompts/project-refinement-agent.md` — holistic codebase pass: structs, renames, types |
+| Prompt injection | **Done** | `tools/getPrompt.ts` — reads template, injects per-function or project-wide context at `{{CONTEXT}}` marker. Supports `--refine` and `--project` modes. |
+| Agent loop | **Done** | `tools/agent-loop.ts` — generic LLM agent loop via pi-coding-agent SDK with retry + success check |
+| Context export | **Done** | `tools/contextExport.ts` — extracts signatures from decompiled C into `include/functions.h` |
 | Function diff oracle | **Done** | `tools/diffFunc.ts` |
 | Progress tracking | **Done** | `tools/progress.ts` |
 | m2c decompiler | Available | `tools/m2c/` (submodule) |
@@ -187,12 +191,19 @@ Examples of what this catches:
 
 | Component | Description | Complexity |
 |-----------|-------------|------------|
-| Agent framework integration | Wire `orchestrator.ts` Stage 2 stub to actual LLM agent (subprocess, API, SDK) | Medium |
 | Stage 3 cleanup prompt | System prompt for local cleanup agent (rename vars, add comments while maintaining match) | Small |
-| Stage 4 context export | Extract function signatures from solved C files into `include/functions.h` | Small |
-| `include/functions.h` | Accumulated function signatures (created incrementally by Stage 4) | Grows over time |
-| Stage 5 refinement logic | Trigger policy + prompt for revisiting functions with new context | Medium |
 | Cycle handling | Strategy for mutually-recursive Tier 3 functions | Small |
+
+## What's Been Built
+
+| Component | Description | Location |
+|-----------|-------------|----------|
+| Agent framework integration | LLM agent loop via pi-coding-agent SDK | `tools/agent-loop.ts` |
+| Stage 2 matching agent | Full prompt + orchestrator integration | `prompts/decompilation-cleanup-agent.md` |
+| Stage 4 context export | Extract function signatures into `include/functions.h` | `tools/contextExport.ts` |
+| Stage 5 per-function refinement | Prompt + orchestrator integration, hash-based tracking | `prompts/global-refinement-agent.md` |
+| Project-wide refinement | Holistic pass: structs, renames, type consistency | `prompts/project-refinement-agent.md` |
+| Prompt builder | Injects context into prompt templates | `tools/getPrompt.ts` |
 
 ## Design Decisions Made
 
@@ -214,12 +225,13 @@ Examples of what this catches:
 
 ## Open Questions
 
-1. **Agent framework integration:** How does the orchestrator invoke the LLM agent? REST API? Subprocess? Claude Code subagent? This determines how the Stage 2 stub gets implemented.
+1. **Batching vs sequential:** Process one function at a time, or run multiple Stage 2 agents in parallel on independent functions? Parallelism is safe within a tier (no dependencies), but context accumulation is lost.
 
-2. **Batching vs sequential:** Process one function at a time, or run multiple Stage 2 agents in parallel on independent functions? Parallelism is safe within a tier (no dependencies), but context accumulation is lost.
+2. **GTE functions:** Functions using GTE coprocessor instructions need special handling — inline assembly macros from `gte_macros.inc`. The matching prompt teaches `asm()` blocks but GTE patterns are complex. May need a specialized prompt or manual attention.
 
-3. **Stage 5 trigger policy:** Revisit after every N new functions? After each tier is complete? On-demand only? Suggest: after completing each tier, run a refinement pass on all solved functions.
+3. **Cycle handling in Tier 3:** ~10-15 functions form call cycles. These can't be processed strictly bottom-up. Process the smallest function in the cycle first, or attempt them as a group?
 
-4. **GTE functions:** Functions using GTE coprocessor instructions need special handling — inline assembly macros from `gte_macros.inc`. The matching prompt teaches `asm()` blocks but GTE patterns are complex. May need a specialized prompt or manual attention.
+## Resolved Questions
 
-5. **Cycle handling in Tier 3:** ~10-15 functions form call cycles. These can't be processed strictly bottom-up. Process the smallest function in the cycle first, or attempt them as a group?
+- **Agent framework:** Uses pi-coding-agent SDK via `tools/agent-loop.ts`. Configured via `AGENT` env var.
+- **Stage 5 trigger policy:** Runs automatically at end of normal pipeline. Hash-based markers track which neighbor set a function was refined with — re-triggers when new neighbors are decompiled. Project-wide refinement is manual (`--project-refine`).

@@ -1,4 +1,7 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80013AEC", func_80013AEC);
+extern s32 D_8005E3EC;
+
+void func_80013AEC(s32 arg0) {
+    D_8005E3EC = arg0;
+}

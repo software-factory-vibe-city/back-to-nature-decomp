@@ -125,7 +125,18 @@ m2c uses `->unkXX` for struct field accesses at unknown offsets.
 temp_v0->unkE4
 ```
 
-**Fix:** Cast to `char *` and use pointer arithmetic: `*(s32 *)((char *)temp_v0 + 0xE4)`. If the same struct is accessed at many offsets, define a struct with padding.
+**Fix:** Define a struct with the correct layout and use field access. Use `char pad[N]` for gaps between known fields. Name fields `field_XX` (hex offset) until their purpose is known.
+
+```c
+typedef struct {
+    char pad[0xE4];
+    s32 field_E4;
+} SomeStruct;
+```
+
+Then use `temp_v0->field_E4`. If only one or two offsets are accessed, a minimal struct with padding is fine.
+
+**Do NOT use raw pointer arithmetic** like `*(s32 *)((char *)temp_v0 + 0xE4)`. Always prefer a struct — it's more readable and produces identical code.
 
 ### `M2C_BREAK(n)`
 

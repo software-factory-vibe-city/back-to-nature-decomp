@@ -69,13 +69,92 @@ function readSymbols(gpValue: number): SymbolInfo[] {
   return symbols;
 }
 
-// --- Infer types from asm access patterns ---
+// --- Infer types by scanning the original binary ---
+//
+// Scans the .text section for lui+load/store pairs to determine the C type
+// of each absolute-addressed global. This works directly on the original
+// binary so it's independent of which functions have been decompiled.
+//
+// For GP-relative symbols, scans the spimdisasm asm (which always exists
+// for non-decompiled functions) and decompiled C source.
 
-function inferTypes(symbols: SymbolInfo[]): void {
+const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
+const PAYLOAD_OFFSET = 0x800;
+const LOAD_ADDR = 0x80010000;
+const TEXT_START = 0x80011270;
+const TEXT_END = 0x80048190;
+
+function inferTypesFromBinary(symbols: SymbolInfo[]): void {
+  if (!existsSync(BINARY_PATH)) {
+    console.warn("Original binary not found, skipping binary type inference");
+    return;
+  }
+
+  const payload = readFileSync(BINARY_PATH);
+  const textOff = PAYLOAD_OFFSET + (TEXT_START - LOAD_ADDR);
+  const textSize = TEXT_END - TEXT_START;
+
+  /* Build address -> symbol lookup for absolute-addressed symbols */
+  const addrToSym = new Map<number, SymbolInfo>();
+  for (const s of symbols) {
+    if (!s.inGpRange) addrToSym.set(s.addr, s);
+  }
+
+  /* MIPS opcode -> C type */
+  const opTypeMap: Record<number, string> = {
+    0x20: "s8",  /* lb */
+    0x24: "u8",  /* lbu */
+    0x28: "s8",  /* sb */
+    0x21: "s16", /* lh */
+    0x25: "u16", /* lhu */
+    0x29: "s16", /* sh */
+    0x23: "s32", /* lw */
+    0x2B: "s32", /* sw */
+  };
+
+  /* Scan .text for lui + load/store pairs */
+  for (let i = 0; i < textSize; i += 4) {
+    const off = textOff + i;
+    const word = payload.readUInt32LE(off);
+    const op = (word >>> 26) & 0x3F;
+
+    if (op !== 0xF) continue; /* lui */
+
+    const rt = (word >>> 16) & 0x1F;
+    const hi = word & 0xFFFF;
+
+    /* Look at next 4 instructions for a load/store using rt as base */
+    for (let j = 1; j <= 4; j++) {
+      const nextOff = off + j * 4;
+      if (nextOff + 4 > payload.length) break;
+
+      const nextWord = payload.readUInt32LE(nextOff);
+      const nextOp = (nextWord >>> 26) & 0x3F;
+      const nextBase = (nextWord >>> 21) & 0x1F;
+      let nextLo = nextWord & 0xFFFF;
+      if (nextLo >= 0x8000) nextLo -= 0x10000; /* sign-extend */
+
+      if (nextBase !== rt) continue;
+      if (!(nextOp in opTypeMap)) continue;
+
+      const addr = ((hi << 16) + nextLo) >>> 0;
+      const sym = addrToSym.get(addr);
+      if (sym && sym.cType === "s32") {
+        const inferred = opTypeMap[nextOp];
+        if (inferred !== "s32") {
+          sym.cType = inferred;
+        }
+      }
+      break; /* only use first matching load/store after lui */
+    }
+  }
+}
+
+function inferTypesFromAsm(symbols: SymbolInfo[]): void {
+  /* Scan nonmatchings asm for GP-relative symbols */
   const nonmatchingsDir = join(ROOT, "build/asm/nonmatchings");
   if (!existsSync(nonmatchingsDir)) return;
 
-  // Build a quick lookup of all asm content
   const allAsm: string[] = [];
   for (const funcDir of readdirSync(nonmatchingsDir)) {
     const dirPath = join(nonmatchingsDir, funcDir);
@@ -89,8 +168,6 @@ function inferTypes(symbols: SymbolInfo[]): void {
   }
   const combined = allAsm.join("\n");
 
-  // Map load/store instructions to C types
-  // sb/lbu/lb → byte, sh/lhu/lh → short, sw/lw → word
   const typeMap: Record<string, string> = {
     sb: "s8", lb: "s8", lbu: "u8",
     sh: "s16", lh: "s16", lhu: "u16",
@@ -98,9 +175,11 @@ function inferTypes(symbols: SymbolInfo[]): void {
   };
 
   for (const sym of symbols) {
-    // Look for %lo(SYM) or offset patterns with this symbol
+    if (!sym.inGpRange) continue; /* absolute symbols handled by binary scan */
+    if (sym.cType !== "s32") continue; /* already typed */
+
     const accessPattern = new RegExp(
-      `(\\w+)\\s+\\$\\w+,\\s*%lo\\(${sym.name}\\)`, "g"
+      `(\\w+)\\s+\\$\\w+,\\s*%gp_rel\\(${sym.name}\\)`, "g"
     );
 
     let match: RegExpExecArray | null;
@@ -108,13 +187,41 @@ function inferTypes(symbols: SymbolInfo[]): void {
       const instr = match[1].toLowerCase();
       if (typeMap[instr]) {
         sym.cType = typeMap[instr];
-        break; // first access is good enough
+        break;
       }
     }
-
-    // Also check $gp-relative access patterns for in-range symbols
-    // These won't have %lo() — they'll have numeric offsets from $gp
   }
+}
+
+function inferTypesFromSource(symbols: SymbolInfo[]): void {
+  /* Scan decompiled C source for explicit extern declarations (GP-relative only) */
+  const srcDir = join(ROOT, "src");
+  if (!existsSync(srcDir)) return;
+
+  const symByName = new Map<string, SymbolInfo>();
+  for (const s of symbols) {
+    if (s.inGpRange) symByName.set(s.name, s);
+  }
+
+  const externRe = /extern\s+(s8|u8|s16|u16|s32|u32|void)\s+(\w+)\s*[\[;]/gm;
+  for (const file of readdirSync(srcDir)) {
+    if (!file.endsWith(".c")) continue;
+    const content = readFileSync(join(srcDir, file), "utf-8");
+    if (content.includes("INCLUDE_ASM(")) continue;
+    let m: RegExpExecArray | null;
+    externRe.lastIndex = 0;
+    while ((m = externRe.exec(content)) !== null) {
+      const [, cType, name] = m;
+      const sym = symByName.get(name);
+      if (sym) sym.cType = cType;
+    }
+  }
+}
+
+function inferTypes(symbols: SymbolInfo[]): void {
+  inferTypesFromBinary(symbols);  /* absolute-addressed: scan original binary */
+  inferTypesFromAsm(symbols);     /* GP-relative: scan spimdisasm output */
+  inferTypesFromSource(symbols);  /* GP-relative: scan decompiled C source */
 }
 
 // --- Generate header + linker aliases ---
