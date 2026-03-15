@@ -18,6 +18,7 @@ import { join } from "path";
 import { exportContext as runContextExport } from "./contextExport.js";
 import { runAgentLoop } from "./agent-loop.js";
 import { getDecompilationCleanupAgentPrompt } from "./getPrompt.js";
+import { runM2c } from "./m2cFunc.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -82,12 +83,22 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise
 
   const checkSuccess = (): boolean => {
     try {
-      const output = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
+      // Check per-function match via diffFunc
+      const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
         cwd: ROOT,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
       });
-      return output.includes("100.0%");
+      if (!diffOutput.includes("100.0%")) return false;
+
+      // Verify full binary still matches (catches relocation/linker issues)
+      const makeOutput = execSync("make check", {
+        cwd: ROOT,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 60000,
+      });
+      return makeOutput.includes("matches original payload");
     } catch {
       return false;
     }
@@ -171,47 +182,46 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     const stages: Record<string, string> = {};
 
     // Stage 1: m2c
-    const sBasename = ctx.sFile.split("/").pop()!.replace(/\.s$/, "");
     try {
-      const cmd = [
-        "python3", "tools/m2c/m2c.py",
-        "--target", "mipsel-gcc-c",
-        "-f", sBasename,
-      ];
-      if (ctx.contextHeader) {
-        cmd.push("--context", ctx.contextHeader);
-      }
-      cmd.push(ctx.sFile);
-
-      const m2cOutput = execSync(cmd.join(" "), { cwd: ROOT, encoding: "utf-8" });
-
-      const wrapped = [
-        '#include "common.h"',
-        "",
-        m2cOutput.trim(),
-        "",
-      ].join("\n");
+      const wrapped = runM2c(name, ROOT, {
+        contextFile: ctx.contextHeader,
+        write: writeMode,
+      });
 
       writeFileSync(join(stagingDir, "m2c_output.c"), wrapped);
-
-      if (writeMode) {
-        mkdirSync(join(ROOT, "src"), { recursive: true });
-        writeFileSync(join(ROOT, ctx.cFile), wrapped);
-      }
 
       stages["m2c"] = "ok";
       console.log(`  Stage 1: m2c ok`);
     } catch (e: any) {
       stages["m2c"] = "error";
-      console.log(`  Stage 1: m2c error — ${e.stderr?.split("\n")[0] || e.message}`);
+      console.log(`  Stage 1: m2c error — ${e.message}`);
       const logLines = [`m2c error: ${e.message}`];
       writeFileSync(join(stagingDir, "log.txt"), logLines.join("\n"));
       results.push({ name, stages });
       continue; // skip remaining stages on m2c failure
     }
 
-    // Stage 2: match agent (stubbed)
-    if (maxStage >= 2) {
+    // Pre-check: does m2c output already match?
+    let alreadyMatched = false;
+    if (writeMode && maxStage >= 2) {
+      try {
+        const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${name}`, {
+          cwd: ROOT,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+        if (diffOutput.includes("100.0%")) {
+          console.log(`  Stage 2: m2c output already matches 100% — skipping agent`);
+          stages["match"] = "ok (m2c)";
+          alreadyMatched = true;
+        }
+      } catch {
+        // compile or diff failed, proceed to agent
+      }
+    }
+
+    // Stage 2: match agent
+    if (maxStage >= 2 && !alreadyMatched) {
       const result = await runMatchingAgent(name, ctx);
       stages["match"] = result.success ? "ok" : "stubbed";
     }

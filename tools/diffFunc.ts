@@ -20,9 +20,9 @@ const AS = `${CROSS}as`;
 const CPP = `${CROSS}cpp`;
 const OBJDUMP = `${CROSS}objdump`;
 
-const CPPFLAGS = "-Iinclude -undef -D__GNUC__=2 -lang-c";
+const CPPFLAGS = "-Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c";
 const CC1FLAGS = "-mips1 -mcpu=r3000 -quiet -G8 -O2";
-const ASFLAGS = "-march=r3000 -mtune=r3000 -EL -no-pad-sections -Iinclude";
+const ASFLAGS = "-march=r3000 -mtune=r3000 -EL -no-pad-sections -Iinclude -Iinclude/psyq";
 
 function run(cmd: string): string {
   return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
@@ -37,7 +37,7 @@ function compile(src: string): string {
   run(`mkdir -p ${dir}`);
   run(`${CPP} ${CPPFLAGS} ${src} -o ${i}`);
   run(`${CC} ${CC1FLAGS} ${i} -o ${s}`);
-  run(`${MASPSX} --expand-div --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
+  run(`${MASPSX} --aspsx-version 2.67 --expand-div --dont-force-G0 --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
   return o;
 }
 
@@ -51,7 +51,6 @@ function instrLines(dump: string): string[] {
 }
 
 function doDiff(src: string, target: string): void {
-  console.clear();
   console.log(`target:  ${target}`);
   console.log(`source:  ${src}\n`);
   try {
@@ -79,16 +78,46 @@ function doDiff(src: string, target: string): void {
     // Match percentage based on instruction lines
     const targetInstrs = instrLines(left);
     const compiledInstrs = instrLines(right);
-    const total = targetInstrs.length;
+    const total = Math.max(targetInstrs.length, compiledInstrs.length);
     let matches = 0;
     for (let i = 0; i < total; i++) {
       if (targetInstrs[i]?.trim() === compiledInstrs[i]?.trim()) matches++;
     }
     const pct = total > 0 ? ((matches / total) * 100).toFixed(1) : "0.0";
-    console.log(`\nMatch: ${matches}/${total} (${pct}%)`);
+    console.log(`\nMatch: ${matches}/${total} instructions (${pct}%)`);
+    if (targetInstrs.length !== compiledInstrs.length) {
+      console.log(`  target: ${targetInstrs.length} instrs, compiled: ${compiledInstrs.length} instrs`);
+    }
   } catch (e: any) {
     console.error("Compile error:", e.stderr || e.message);
   }
+}
+
+/** Assemble a nonmatchings .s file into a .o for diffing.
+ *  The nonmatchings .s files use macros (glabel, jlabel, endlabel, etc.)
+ *  defined in include/macro.inc, so we create a wrapper that includes the
+ *  macro definitions before the actual function assembly. */
+function assembleTarget(name: string): string {
+  const asmSrc = `build/asm/nonmatchings/${name}/${name}.s`;
+  if (!existsSync(asmSrc)) {
+    console.error(`Original asm not found: ${asmSrc}`);
+    console.error(`This function may already be matched (no nonmatchings entry), or you need to run 'make split'.`);
+    process.exit(1);
+  }
+  const dir = "build/diffFunc";
+  const wrapper = `${dir}/${name}.target.s`;
+  const o = `${dir}/${name}.target.o`;
+  run(`mkdir -p ${dir}`);
+  // Create a wrapper .s that includes macros then the actual function
+  writeFileSync(
+    `${ROOT}/${wrapper}`,
+    `.include "include/macro.inc"\n` +
+    `.set noat\n` +
+    `.set noreorder\n` +
+    `.include "${asmSrc}"\n`
+  );
+  run(`${AS} ${ASFLAGS} ${wrapper} -o ${o}`);
+  return o;
 }
 
 function resolveArgs(args: string[]): { src: string; target: string } {
@@ -97,7 +126,7 @@ function resolveArgs(args: string[]): { src: string; target: string } {
   }
   if (args.length === 1) {
     const name = args[0].replace(/^src\//, "").replace(/\.c$/, "");
-    return { src: `src/${name}.c`, target: `build/src/${name}.c.o` };
+    return { src: `src/${name}.c`, target: assembleTarget(name) };
   }
   console.error("Usage: npx tsx tools/diffFunc.ts <func_name>");
   console.error("       npx tsx tools/diffFunc.ts <src.c> <target.o>");

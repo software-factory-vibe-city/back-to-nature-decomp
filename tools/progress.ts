@@ -84,7 +84,7 @@ for (const seg of rawSegments) {
   const size = nextOffset - seg.offset;
 
   let decompiled = false;
-  let handwritten = false;
+  let handwritten: false | "asm" | "gte" = false;
 
   // Check if handwritten assembly (marker from spimdisasm)
   let sFile = join(ASM_DIR, seg.name, `${seg.name}.s`);
