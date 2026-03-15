@@ -16,6 +16,10 @@ You will also receive:
 
 {{CONTEXT}}
 
+## C style guide
+
+Read `prompts/c-style-guide.md` before modifying any C. It contains idiomatic patterns that produce correct codegen with this toolchain, and common pitfalls that cause instruction reordering.
+
 ## Goal
 
 Improve readability and type accuracy of the target function using context from its neighbors, while maintaining a 100% byte match. Specifically:
@@ -92,7 +96,7 @@ A common pattern from the matching agent is raw pointer arithmetic like:
 *(s32 *)((char *)arg0 + 0x18) = arg2;
 ```
 
-This is correct but unreadable. **Always replace these with a proper struct.** Define the struct in the source file (or in a shared header if multiple functions use it), then use field access:
+This is correct but unreadable. **Always replace these with a proper struct.** Define the struct in the source file (or in a shared header if multiple functions use it), **change the parameter type to the struct pointer**, and use field access:
 
 ```c
 typedef struct {
@@ -107,11 +111,21 @@ void func(SomeStruct *arg0, s32 arg1, s32 arg2) {
 }
 ```
 
+**Do NOT** keep `void *` and cast on every access:
+```c
+/* BAD — do not do this */
+void func(void *arg0, s32 arg1, s32 arg2) {
+    ((SomeStruct *)arg0)->field_14 = arg1;
+    ((SomeStruct *)arg0)->field_18 = arg2;
+}
+```
+
 **Rules for struct creation:**
 - Use `char pad[N]` for unknown fields before the first accessed offset
 - Name fields `field_XX` (hex offset) until their purpose is known from neighbor context
 - If multiple functions access the same pointer type at overlapping offsets, unify into one struct
 - If a neighbor or SDK header reveals the real struct type, use that instead
+- **Always change the parameter/variable type** to the struct pointer — never keep `void *` with casts
 - This is a **risky transform** — the struct layout must exactly match the offsets. Verify with diffFunc after every struct change.
 
 ### `->unkXX` patterns

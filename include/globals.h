@@ -6,7 +6,7 @@
 
 /* GP-relative symbols (within $gp ± 0x7FF0) */
 extern s32 D_8005E025;
-extern s16 D_8005E2BA;
+extern u16 D_8005E2BA;
 extern u8 D_8005E2DD;
 extern u8 D_8005E2DE;
 extern u8 D_8005E2E1;
@@ -30,7 +30,6 @@ extern s16 D_8005E56A;
 extern s16 D_8005E56E;
 extern s16 D_8005E572;
 extern u8 D_8005E5D1;
-extern s32 D_8005E850;
 extern s32 D_8005E870;
 extern s32 D_8005E8E0;
 extern s32 D_8005E910;
@@ -49,194 +48,206 @@ extern s32 D_8005F0F8;
 extern s32 D_8005F2B8;
 extern s32 D_8005F2E8;
 extern s32 D_800605F0;
-extern s32 D_80061DE8;
-extern s32 D_80061E04;
-extern s32 D_80061E08;
 extern s32 D_80061E0E;
 extern s32 D_80061E14;
 extern s32 D_80061E28;
 extern s32 D_80061E48;
 extern s32 D_80061E68;
 extern s32 D_80061E88;
-extern s32 D_80061EA8;
-extern s32 D_80061EC8;
-extern s32 D_80061ED8;
-extern s32 D_80061EF8;
-extern s32 D_80061F08;
-extern s32 D_80061F0C;
-extern s32 D_80061F1C;
 extern s32 D_80061F28;
 
 /* Absolute-addressed symbols (outside $gp range) */
-/* Declared as >8-byte arrays to force lui+lo addressing with -G8 */
-/* _far_ prefix used in C; linker aliases map to real symbol names */
-extern s32 _far_D_7FFFFFE8[12];
-#define D_7FFFFFE8 (*((s32*)_far_D_7FFFFFE8))
-extern s32 _far_D_80000004[12];
-#define D_80000004 (*((s32*)_far_D_80000004))
-extern s32 _far_D_80011324[12];
-#define D_80011324 (*((s32*)_far_D_80011324))
-extern s32 _far_D_80011334[12];
-#define D_80011334 (*((s32*)_far_D_80011334))
-extern s32 _far_D_80049296[12];
-#define D_80049296 (*((s32*)_far_D_80049296))
-extern s32 _far_D_800537B2[12];
-#define D_800537B2 (*((s32*)_far_D_800537B2))
-extern s32 _far_D_8005392E[12];
-#define D_8005392E (*((s32*)_far_D_8005392E))
-extern s32 _far_D_8005393A[12];
-#define D_8005393A (*((s32*)_far_D_8005393A))
-extern s32 _far_D_80053946[12];
-#define D_80053946 (*((s32*)_far_D_80053946))
-extern s32 _far_D_8006BF28[12];
-#define D_8006BF28 (*((s32*)_far_D_8006BF28))
-extern s32 _far_D_8006BF48[12];
-#define D_8006BF48 (*((s32*)_far_D_8006BF48))
-extern s32 _far_D_8006BF68[12];
-#define D_8006BF68 (*((s32*)_far_D_8006BF68))
-extern s32 _far_D_8006BF88[12];
-#define D_8006BF88 (*((s32*)_far_D_8006BF88))
-extern s32 _far_D_8006BFA8[12];
-#define D_8006BFA8 (*((s32*)_far_D_8006BFA8))
-extern s32 _far_D_8006BFC8[12];
-#define D_8006BFC8 (*((s32*)_far_D_8006BFC8))
-extern s32 _far_D_8006BFE8[12];
-#define D_8006BFE8 (*((s32*)_far_D_8006BFE8))
-extern s32 _far_D_8006C008[12];
-#define D_8006C008 (*((s32*)_far_D_8006C008))
-extern s32 _far_D_8006C028[12];
-#define D_8006C028 (*((s32*)_far_D_8006C028))
-extern s32 _far_D_8006C048[12];
-#define D_8006C048 (*((s32*)_far_D_8006C048))
-extern s32 _far_D_8006C068[12];
-#define D_8006C068 (*((s32*)_far_D_8006C068))
-extern s32 _far_D_8006C088[12];
-#define D_8006C088 (*((s32*)_far_D_8006C088))
-extern s32 _far_D_8006C0A8[12];
-#define D_8006C0A8 (*((s32*)_far_D_8006C0A8))
-extern s32 _far_D_8006C0C8[12];
-#define D_8006C0C8 (*((s32*)_far_D_8006C0C8))
-extern s32 _far_D_8006C128[12];
-#define D_8006C128 (*((s32*)_far_D_8006C128))
-extern s32 _far_D_8006C188[12];
-#define D_8006C188 (*((s32*)_far_D_8006C188))
-extern s32 _far_D_8006C368[12];
-#define D_8006C368 (*((s32*)_far_D_8006C368))
-extern s32 _far_D_8006C398[12];
-#define D_8006C398 (*((s32*)_far_D_8006C398))
-extern s32 _far_D_8006C7B8[12];
-#define D_8006C7B8 (*((s32*)_far_D_8006C7B8))
-extern s32 _far_D_8006C7D8[12];
-#define D_8006C7D8 (*((s32*)_far_D_8006C7D8))
-extern s32 _far_D_8006C838[12];
-#define D_8006C838 (*((s32*)_far_D_8006C838))
-extern s32 _far_D_8006C844[12];
-#define D_8006C844 (*((s32*)_far_D_8006C844))
-extern s32 _far_D_8006C84C[12];
-#define D_8006C84C (*((s32*)_far_D_8006C84C))
-extern s8 _far_D_8006C904[12];
-#define D_8006C904 (*((s8*)_far_D_8006C904))
-extern s8 _far_D_8006C905[12];
-#define D_8006C905 (*((s8*)_far_D_8006C905))
-extern s32 _far_D_8006C910[12];
-#define D_8006C910 (*((s32*)_far_D_8006C910))
-extern s32 _far_D_80070CC0[12];
-#define D_80070CC0 (*((s32*)_far_D_80070CC0))
-extern s32 _far_D_80070CC4[12];
-#define D_80070CC4 (*((s32*)_far_D_80070CC4))
-extern s32 _far_D_80070D18[12];
-#define D_80070D18 (*((s32*)_far_D_80070D18))
-extern u16 _far_D_80070D38[12];
-#define D_80070D38 (*((u16*)_far_D_80070D38))
-extern u16 _far_D_80070D3A[12];
-#define D_80070D3A (*((u16*)_far_D_80070D3A))
-extern u16 _far_D_80070D3E[12];
-#define D_80070D3E (*((u16*)_far_D_80070D3E))
-extern u16 _far_D_80070D40[12];
-#define D_80070D40 (*((u16*)_far_D_80070D40))
-extern s32 _far_D_80070EC2[12];
-#define D_80070EC2 (*((s32*)_far_D_80070EC2))
-extern u16 _far_D_800712C0[12];
-#define D_800712C0 (*((u16*)_far_D_800712C0))
-extern s32 _far_D_80071A00[12];
-#define D_80071A00 (*((s32*)_far_D_80071A00))
-extern s32 _far_D_80071A84[12];
-#define D_80071A84 (*((s32*)_far_D_80071A84))
-extern s32 _far_D_80071A90[12];
-#define D_80071A90 (*((s32*)_far_D_80071A90))
-extern s32 _far_D_800742EC[12];
-#define D_800742EC (*((s32*)_far_D_800742EC))
-extern s32 _far_D_800749F4[12];
-#define D_800749F4 (*((s32*)_far_D_800749F4))
-extern s32 _far_D_800749F8[12];
-#define D_800749F8 (*((s32*)_far_D_800749F8))
-extern s32 _far_D_800759E8[12];
-#define D_800759E8 (*((s32*)_far_D_800759E8))
-extern s32 _far_D_80075AD8[12];
-#define D_80075AD8 (*((s32*)_far_D_80075AD8))
-extern s16 _far_D_8007AD4C[12];
-#define D_8007AD4C (*((s16*)_far_D_8007AD4C))
-extern s32 _far_D_8007AD4E[12];
-#define D_8007AD4E (*((s32*)_far_D_8007AD4E))
-extern s32 _far_D_8007AD50[12];
-#define D_8007AD50 (*((s32*)_far_D_8007AD50))
-extern s32 _far_D_8007AD52[12];
-#define D_8007AD52 (*((s32*)_far_D_8007AD52))
-extern s32 _far_D_8007AD54[12];
-#define D_8007AD54 (*((s32*)_far_D_8007AD54))
-extern s32 _far_D_8007AD56[12];
-#define D_8007AD56 (*((s32*)_far_D_8007AD56))
-extern s32 _far_D_8007AD58[12];
-#define D_8007AD58 (*((s32*)_far_D_8007AD58))
-extern s32 _far_D_8007AFBC[12];
-#define D_8007AFBC (*((s32*)_far_D_8007AFBC))
-extern s32 _far_D_8007AFF0[12];
-#define D_8007AFF0 (*((s32*)_far_D_8007AFF0))
-extern s32 _far_D_8007AFF4[12];
-#define D_8007AFF4 (*((s32*)_far_D_8007AFF4))
-extern s32 _far_D_800977F8[12];
-#define D_800977F8 (*((s32*)_far_D_800977F8))
-extern s32 _far_D_800A06D8[12];
-#define D_800A06D8 (*((s32*)_far_D_800A06D8))
-extern s32 _far_D_800A0708[12];
-#define D_800A0708 (*((s32*)_far_D_800A0708))
-extern s32 _far_D_800A0728[12];
-#define D_800A0728 (*((s32*)_far_D_800A0728))
-extern s16 _far_D_800A3FB0[12];
-#define D_800A3FB0 (*((s16*)_far_D_800A3FB0))
-extern s16 _far_D_800A3FB4[12];
-#define D_800A3FB4 (*((s16*)_far_D_800A3FB4))
-extern s32 _far_D_800B7E20[12];
-#define D_800B7E20 (*((s32*)_far_D_800B7E20))
-extern s32 _far_D_800B7E24[12];
-#define D_800B7E24 (*((s32*)_far_D_800B7E24))
-extern s32 _far_D_800B7E38[12];
-#define D_800B7E38 (*((s32*)_far_D_800B7E38))
-extern s32 _far_D_800B7E3C[12];
-#define D_800B7E3C (*((s32*)_far_D_800B7E3C))
-extern s32 _far_D_800B7EA4[12];
-#define D_800B7EA4 (*((s32*)_far_D_800B7EA4))
-extern s32 _far_D_800B7EB4[12];
-#define D_800B7EB4 (*((s32*)_far_D_800B7EB4))
-extern s32 _far_D_800B7ED8[12];
-#define D_800B7ED8 (*((s32*)_far_D_800B7ED8))
-extern s32 _far_D_800B7EEC[12];
-#define D_800B7EEC (*((s32*)_far_D_800B7EEC))
-extern s32 _far_D_800B7FCC[12];
-#define D_800B7FCC (*((s32*)_far_D_800B7FCC))
-extern s32 _far_D_800B8014[12];
-#define D_800B8014 (*((s32*)_far_D_800B8014))
-extern s32 _far_D_800B889C[12];
-#define D_800B889C (*((s32*)_far_D_800B889C))
-extern s32 _far_D_800BBC34[12];
-#define D_800BBC34 (*((s32*)_far_D_800BBC34))
-extern s32 _far_D_8012E2CC[12];
-#define D_8012E2CC (*((s32*)_far_D_8012E2CC))
-extern s32 _far_D_8012E520[12];
-#define D_8012E520 (*((s32*)_far_D_8012E520))
-extern s32 _far_D_8012E7C8[12];
-#define D_8012E7C8 (*((s32*)_far_D_8012E7C8))
-extern s32 _far_D_8012F084[12];
-#define D_8012F084 (*((s32*)_far_D_8012F084))
+/* Declared as >8-byte arrays with __asm__ to force lui+lo addressing with -G8 */
+/* __asm__ makes GCC emit the real symbol name in assembly output */
+extern s32 _D_7FFFFFE8[3] __asm__("D_7FFFFFE8");
+#define D_7FFFFFE8 (*((s32*)_D_7FFFFFE8))
+extern s32 _D_80000004[3] __asm__("D_80000004");
+#define D_80000004 (*((s32*)_D_80000004))
+extern s32 _D_80011324[3] __asm__("D_80011324");
+#define D_80011324 (*((s32*)_D_80011324))
+extern s32 _D_80011334[3] __asm__("D_80011334");
+#define D_80011334 (*((s32*)_D_80011334))
+extern s32 _D_80049296[3] __asm__("D_80049296");
+#define D_80049296 (*((s32*)_D_80049296))
+extern s32 _D_800537B2[3] __asm__("D_800537B2");
+#define D_800537B2 (*((s32*)_D_800537B2))
+extern s32 _D_8005392E[3] __asm__("D_8005392E");
+#define D_8005392E (*((s32*)_D_8005392E))
+extern s32 _D_8005393A[3] __asm__("D_8005393A");
+#define D_8005393A (*((s32*)_D_8005393A))
+extern s32 _D_80053946[3] __asm__("D_80053946");
+#define D_80053946 (*((s32*)_D_80053946))
+extern s32 _D_8005E850[3] __asm__("D_8005E850");
+#define D_8005E850 (*((s32*)_D_8005E850))
+extern s32 _D_80061DE8[3] __asm__("D_80061DE8");
+#define D_80061DE8 (*((s32*)_D_80061DE8))
+extern s32 _D_80061E04[3] __asm__("D_80061E04");
+#define D_80061E04 (*((s32*)_D_80061E04))
+extern u16 _D_80061E08[5] __asm__("D_80061E08");
+#define D_80061E08 (*((u16*)_D_80061E08))
+extern s16 _D_80061EA8[5] __asm__("D_80061EA8");
+#define D_80061EA8 (*((s16*)_D_80061EA8))
+extern s32 _D_80061EC8[3] __asm__("D_80061EC8");
+#define D_80061EC8 (*((s32*)_D_80061EC8))
+extern s32 _D_80061ED8[3] __asm__("D_80061ED8");
+#define D_80061ED8 (*((s32*)_D_80061ED8))
+extern s32 _D_80061EF8[3] __asm__("D_80061EF8");
+#define D_80061EF8 (*((s32*)_D_80061EF8))
+extern s32 _D_80061F08[3] __asm__("D_80061F08");
+#define D_80061F08 (*((s32*)_D_80061F08))
+extern s32 _D_80061F0C[3] __asm__("D_80061F0C");
+#define D_80061F0C (*((s32*)_D_80061F0C))
+extern s32 _D_80061F1C[3] __asm__("D_80061F1C");
+#define D_80061F1C (*((s32*)_D_80061F1C))
+extern s32 _D_8006BF28[3] __asm__("D_8006BF28");
+#define D_8006BF28 (*((s32*)_D_8006BF28))
+extern s32 _D_8006BF48[3] __asm__("D_8006BF48");
+#define D_8006BF48 (*((s32*)_D_8006BF48))
+extern s32 _D_8006BF68[3] __asm__("D_8006BF68");
+#define D_8006BF68 (*((s32*)_D_8006BF68))
+extern s32 _D_8006BF88[3] __asm__("D_8006BF88");
+#define D_8006BF88 (*((s32*)_D_8006BF88))
+extern s32 _D_8006BFA8[3] __asm__("D_8006BFA8");
+#define D_8006BFA8 (*((s32*)_D_8006BFA8))
+extern s32 _D_8006BFC8[3] __asm__("D_8006BFC8");
+#define D_8006BFC8 (*((s32*)_D_8006BFC8))
+extern s32 _D_8006BFE8[3] __asm__("D_8006BFE8");
+#define D_8006BFE8 (*((s32*)_D_8006BFE8))
+extern s32 _D_8006C008[3] __asm__("D_8006C008");
+#define D_8006C008 (*((s32*)_D_8006C008))
+extern s32 _D_8006C028[3] __asm__("D_8006C028");
+#define D_8006C028 (*((s32*)_D_8006C028))
+extern s32 _D_8006C048[3] __asm__("D_8006C048");
+#define D_8006C048 (*((s32*)_D_8006C048))
+extern s32 _D_8006C068[3] __asm__("D_8006C068");
+#define D_8006C068 (*((s32*)_D_8006C068))
+extern s32 _D_8006C088[3] __asm__("D_8006C088");
+#define D_8006C088 (*((s32*)_D_8006C088))
+extern s32 _D_8006C0A8[3] __asm__("D_8006C0A8");
+#define D_8006C0A8 (*((s32*)_D_8006C0A8))
+extern s32 _D_8006C0C8[3] __asm__("D_8006C0C8");
+#define D_8006C0C8 (*((s32*)_D_8006C0C8))
+extern s32 _D_8006C128[3] __asm__("D_8006C128");
+#define D_8006C128 (*((s32*)_D_8006C128))
+extern s32 _D_8006C188[3] __asm__("D_8006C188");
+#define D_8006C188 (*((s32*)_D_8006C188))
+extern s32 _D_8006C368[3] __asm__("D_8006C368");
+#define D_8006C368 (*((s32*)_D_8006C368))
+extern s32 _D_8006C398[3] __asm__("D_8006C398");
+#define D_8006C398 (*((s32*)_D_8006C398))
+extern s32 _D_8006C7B8[3] __asm__("D_8006C7B8");
+#define D_8006C7B8 (*((s32*)_D_8006C7B8))
+extern s32 _D_8006C7D8[3] __asm__("D_8006C7D8");
+#define D_8006C7D8 (*((s32*)_D_8006C7D8))
+extern s32 _D_8006C838[3] __asm__("D_8006C838");
+#define D_8006C838 (*((s32*)_D_8006C838))
+extern s32 _D_8006C844[3] __asm__("D_8006C844");
+#define D_8006C844 (*((s32*)_D_8006C844))
+extern s32 _D_8006C84C[3] __asm__("D_8006C84C");
+#define D_8006C84C (*((s32*)_D_8006C84C))
+extern s8 _D_8006C904[9] __asm__("D_8006C904");
+#define D_8006C904 (*((s8*)_D_8006C904))
+extern s8 _D_8006C905[9] __asm__("D_8006C905");
+#define D_8006C905 (*((s8*)_D_8006C905))
+extern s32 _D_8006C910[3] __asm__("D_8006C910");
+#define D_8006C910 (*((s32*)_D_8006C910))
+extern s32 _D_80070CC0[3] __asm__("D_80070CC0");
+#define D_80070CC0 (*((s32*)_D_80070CC0))
+extern s32 _D_80070CC4[3] __asm__("D_80070CC4");
+#define D_80070CC4 (*((s32*)_D_80070CC4))
+extern s32 _D_80070D18[3] __asm__("D_80070D18");
+#define D_80070D18 (*((s32*)_D_80070D18))
+extern u16 _D_80070D38[5] __asm__("D_80070D38");
+#define D_80070D38 (*((u16*)_D_80070D38))
+extern u16 _D_80070D3A[5] __asm__("D_80070D3A");
+#define D_80070D3A (*((u16*)_D_80070D3A))
+extern u16 _D_80070D3E[5] __asm__("D_80070D3E");
+#define D_80070D3E (*((u16*)_D_80070D3E))
+extern u16 _D_80070D40[5] __asm__("D_80070D40");
+#define D_80070D40 (*((u16*)_D_80070D40))
+extern s32 _D_80070EC2[3] __asm__("D_80070EC2");
+#define D_80070EC2 (*((s32*)_D_80070EC2))
+extern u16 _D_800712C0[5] __asm__("D_800712C0");
+#define D_800712C0 (*((u16*)_D_800712C0))
+extern s32 _D_80071A00[3] __asm__("D_80071A00");
+#define D_80071A00 (*((s32*)_D_80071A00))
+extern s32 _D_80071A84[3] __asm__("D_80071A84");
+#define D_80071A84 (*((s32*)_D_80071A84))
+extern s32 _D_80071A90[3] __asm__("D_80071A90");
+#define D_80071A90 (*((s32*)_D_80071A90))
+extern s32 _D_800742EC[3] __asm__("D_800742EC");
+#define D_800742EC (*((s32*)_D_800742EC))
+extern s32 _D_800749F4[3] __asm__("D_800749F4");
+#define D_800749F4 (*((s32*)_D_800749F4))
+extern s32 _D_800749F8[3] __asm__("D_800749F8");
+#define D_800749F8 (*((s32*)_D_800749F8))
+extern s32 _D_800759E8[3] __asm__("D_800759E8");
+#define D_800759E8 (*((s32*)_D_800759E8))
+extern s32 _D_80075AD8[3] __asm__("D_80075AD8");
+#define D_80075AD8 (*((s32*)_D_80075AD8))
+extern s16 _D_8007AD4C[5] __asm__("D_8007AD4C");
+#define D_8007AD4C (*((s16*)_D_8007AD4C))
+extern s32 _D_8007AD4E[3] __asm__("D_8007AD4E");
+#define D_8007AD4E (*((s32*)_D_8007AD4E))
+extern s32 _D_8007AD50[3] __asm__("D_8007AD50");
+#define D_8007AD50 (*((s32*)_D_8007AD50))
+extern s32 _D_8007AD52[3] __asm__("D_8007AD52");
+#define D_8007AD52 (*((s32*)_D_8007AD52))
+extern s32 _D_8007AD54[3] __asm__("D_8007AD54");
+#define D_8007AD54 (*((s32*)_D_8007AD54))
+extern s32 _D_8007AD56[3] __asm__("D_8007AD56");
+#define D_8007AD56 (*((s32*)_D_8007AD56))
+extern s32 _D_8007AD58[3] __asm__("D_8007AD58");
+#define D_8007AD58 (*((s32*)_D_8007AD58))
+extern s32 _D_8007AFBC[3] __asm__("D_8007AFBC");
+#define D_8007AFBC (*((s32*)_D_8007AFBC))
+extern s32 _D_8007AFF0[3] __asm__("D_8007AFF0");
+#define D_8007AFF0 (*((s32*)_D_8007AFF0))
+extern s32 _D_8007AFF4[3] __asm__("D_8007AFF4");
+#define D_8007AFF4 (*((s32*)_D_8007AFF4))
+extern s32 _D_800977F8[3] __asm__("D_800977F8");
+#define D_800977F8 (*((s32*)_D_800977F8))
+extern s32 _D_800A06D8[3] __asm__("D_800A06D8");
+#define D_800A06D8 (*((s32*)_D_800A06D8))
+extern s32 _D_800A0708[3] __asm__("D_800A0708");
+#define D_800A0708 (*((s32*)_D_800A0708))
+extern s32 _D_800A0728[3] __asm__("D_800A0728");
+#define D_800A0728 (*((s32*)_D_800A0728))
+extern s16 _D_800A3FB0[5] __asm__("D_800A3FB0");
+#define D_800A3FB0 (*((s16*)_D_800A3FB0))
+extern s16 _D_800A3FB4[5] __asm__("D_800A3FB4");
+#define D_800A3FB4 (*((s16*)_D_800A3FB4))
+extern s32 _D_800B7E20[3] __asm__("D_800B7E20");
+#define D_800B7E20 (*((s32*)_D_800B7E20))
+extern s32 _D_800B7E24[3] __asm__("D_800B7E24");
+#define D_800B7E24 (*((s32*)_D_800B7E24))
+extern s32 _D_800B7E38[3] __asm__("D_800B7E38");
+#define D_800B7E38 (*((s32*)_D_800B7E38))
+extern s32 _D_800B7E3C[3] __asm__("D_800B7E3C");
+#define D_800B7E3C (*((s32*)_D_800B7E3C))
+extern s32 _D_800B7EA4[3] __asm__("D_800B7EA4");
+#define D_800B7EA4 (*((s32*)_D_800B7EA4))
+extern s32 _D_800B7EB4[3] __asm__("D_800B7EB4");
+#define D_800B7EB4 (*((s32*)_D_800B7EB4))
+extern s32 _D_800B7ED8[3] __asm__("D_800B7ED8");
+#define D_800B7ED8 (*((s32*)_D_800B7ED8))
+extern s32 _D_800B7EEC[3] __asm__("D_800B7EEC");
+#define D_800B7EEC (*((s32*)_D_800B7EEC))
+extern s32 _D_800B7FCC[3] __asm__("D_800B7FCC");
+#define D_800B7FCC (*((s32*)_D_800B7FCC))
+extern s32 _D_800B8014[3] __asm__("D_800B8014");
+#define D_800B8014 (*((s32*)_D_800B8014))
+extern s32 _D_800B889C[3] __asm__("D_800B889C");
+#define D_800B889C (*((s32*)_D_800B889C))
+extern s32 _D_800BBC34[3] __asm__("D_800BBC34");
+#define D_800BBC34 (*((s32*)_D_800BBC34))
+extern s32 _D_8012E2CC[3] __asm__("D_8012E2CC");
+#define D_8012E2CC (*((s32*)_D_8012E2CC))
+extern s32 _D_8012E520[3] __asm__("D_8012E520");
+#define D_8012E520 (*((s32*)_D_8012E520))
+extern s32 _D_8012E7C8[3] __asm__("D_8012E7C8");
+#define D_8012E7C8 (*((s32*)_D_8012E7C8))
+extern s32 _D_8012F084[3] __asm__("D_8012F084");
+#define D_8012F084 (*((s32*)_D_8012F084))
 
 #endif

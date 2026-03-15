@@ -73,6 +73,8 @@ interface FuncEntry {
   decompiled: boolean;
   /** false = normal C, "asm" = pure handwritten asm, "gte" = C with GTE coprocessor instructions */
   handwritten: false | "asm" | "gte";
+  /** true if no jal or data/pointer references exist anywhere in the binary */
+  dead: boolean;
 }
 
 const funcMap = new Map<string, FuncEntry>();
@@ -98,6 +100,7 @@ for (const seg of rawSegments) {
     instructionCount: 0,
     decompiled: false,
     handwritten: false,
+    dead: false,
   });
 }
 
@@ -168,6 +171,38 @@ for (const [name, entry] of funcMap) {
 for (const entry of funcMap.values()) {
   entry.callerCount = entry.calledBy.length;
 }
+
+// --- Step 3b: Detect dead code (no callers, no pointer references) ---
+
+const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
+const PAYLOAD_OFFSET = 0x800;
+const LOAD_ADDR = 0x80010000;
+
+function detectDeadCode(): void {
+  if (!existsSync(BINARY_PATH)) {
+    console.warn("Original binary not found, skipping dead code detection");
+    return;
+  }
+
+  const payload = readFileSync(BINARY_PATH);
+
+  // Build set of function addresses that appear as 32-bit values in the binary
+  // (function pointer / data references — jal refs are already covered by calledBy)
+  const ptrReferenced = new Set<number>();
+  for (let off = PAYLOAD_OFFSET; off + 4 <= payload.length; off += 4) {
+    const word = payload.readUInt32LE(off);
+    ptrReferenced.add(word);
+  }
+
+  for (const entry of funcMap.values()) {
+    const addr = parseInt(entry.vram, 16);
+    const hasCallers = entry.calledBy.length > 0;
+    const hasPtrRef = ptrReferenced.has(addr);
+    entry.dead = !hasCallers && !hasPtrRef;
+  }
+}
+
+detectDeadCode();
 
 // --- Step 4: Classify tiers ---
 
@@ -247,9 +282,9 @@ for (const entry of funcMap.values()) {
 const entries = [...funcMap.values()];
 
 entries.sort((a, b) => {
-  // Decompiled and pure-asm (not GTE) go to end
-  const aSkip = a.decompiled || a.handwritten === "asm";
-  const bSkip = b.decompiled || b.handwritten === "asm";
+  // Decompiled, pure-asm (not GTE), and dead code go to end
+  const aSkip = a.decompiled || a.handwritten === "asm" || a.dead;
+  const bSkip = b.decompiled || b.handwritten === "asm" || b.dead;
   if (aSkip !== bSkip) return aSkip ? 1 : -1;
 
   // Sort by tier
@@ -283,6 +318,7 @@ const tier3 = decomposable.filter((e) => e.tier === 3).length;
 const decompiledCount = entries.filter((e) => e.decompiled).length;
 const gteCount = entries.filter((e) => e.handwritten === "gte").length;
 const asmCount = entries.filter((e) => e.handwritten === "asm").length;
+const deadCount = entries.filter((e) => e.dead).length;
 
 const output = {
   functions: entries,
@@ -294,6 +330,7 @@ const output = {
     decompiled: decompiledCount,
     gte: gteCount,
     asm: asmCount,
+    dead: deadCount,
   },
 };
 
@@ -309,6 +346,9 @@ console.log(`  GTE (C + coprocessor): ${String(gteCount).padStart(3)} functions`
 if (asmCount > 0) {
   console.log(`  Pure asm (excluded):   ${String(asmCount).padStart(3)} functions`);
 }
+if (deadCount > 0) {
+  console.log(`  Dead code (excluded):  ${String(deadCount).padStart(3)} functions`);
+}
 console.log(`Wrote ${OUT_FILE}`);
 
 if (topN > 0) {
@@ -316,7 +356,7 @@ if (topN > 0) {
   console.log(`Top ${topN} priority functions:`);
   console.log(`${"#".padStart(4)}  ${"Tier".padEnd(4)}  ${"Instrs".padStart(6)}  ${"Callers".padStart(7)}  Name`);
   console.log("-".repeat(50));
-  const top = entries.filter((e) => !e.decompiled && e.handwritten !== "asm").slice(0, topN);
+  const top = entries.filter((e) => !e.decompiled && e.handwritten !== "asm" && !e.dead).slice(0, topN);
   for (const e of top) {
     console.log(
       `${String(e.priority).padStart(4)}  T${e.tier}    ${String(e.instructionCount).padStart(6)}  ${String(e.callerCount).padStart(7)}  ${e.name}`

@@ -7,7 +7,8 @@
  */
 
 import { execSync } from "child_process";
-import { watchFile, existsSync, writeFileSync } from "fs";
+import { watchFile, existsSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from "fs";
+import { join } from "path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -37,7 +38,7 @@ function compile(src: string): string {
   run(`mkdir -p ${dir}`);
   run(`${CPP} ${CPPFLAGS} ${src} -o ${i}`);
   run(`${CC} ${CC1FLAGS} ${i} -o ${s}`);
-  run(`${MASPSX} --aspsx-version 2.67 --expand-div --dont-force-G0 --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
+  run(`${MASPSX} --aspsx-version 2.67 --expand-div --dont-force-G0 --reorder-la --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
   return o;
 }
 
@@ -50,15 +51,22 @@ function instrLines(dump: string): string[] {
   return dump.split("\n").filter((l) => /^\s+[0-9a-f]+:\s/.test(l));
 }
 
-function doDiff(src: string, target: string): void {
+function doDiff(src: string, target: string | null, funcName?: string): void {
+  if (!target && funcName) {
+    /* No asm available — compare linked binaries */
+    console.log(`target:  original binary (linked comparison)`);
+    console.log(`source:  ${src}\n`);
+    doDiffFromBinary(src, funcName);
+    return;
+  }
+
   console.log(`target:  ${target}`);
   console.log(`source:  ${src}\n`);
   try {
     const compiled = compile(src);
-    const left = objdump(target);
+    const left = objdump(target!);
     const right = objdump(compiled);
 
-    // Write to temp files for diff
     const ltmp = "/tmp/diffFunc-target.txt";
     const rtmp = "/tmp/diffFunc-compiled.txt";
     writeFileSync(ltmp, left);
@@ -71,11 +79,9 @@ function doDiff(src: string, target: string): void {
       });
       process.stdout.write(out);
     } catch (e: any) {
-      // diff exits 1 when files differ
       if (e.stdout) process.stdout.write(e.stdout);
     }
 
-    // Match percentage based on instruction lines
     const targetInstrs = instrLines(left);
     const compiledInstrs = instrLines(right);
     const total = Math.max(targetInstrs.length, compiledInstrs.length);
@@ -97,18 +103,147 @@ function doDiff(src: string, target: string): void {
  *  The nonmatchings .s files use macros (glabel, jlabel, endlabel, etc.)
  *  defined in include/macro.inc, so we create a wrapper that includes the
  *  macro definitions before the actual function assembly. */
-function assembleTarget(name: string): string {
-  const asmSrc = `build/asm/nonmatchings/${name}/${name}.s`;
-  if (!existsSync(asmSrc)) {
-    console.error(`Original asm not found: ${asmSrc}`);
-    console.error(`This function may already be matched (no nonmatchings entry), or you need to run 'make split'.`);
+function resolveAsmSource(name: string): string {
+  /* Try nonmatchings first (active splat output) */
+  const primary = `build/asm/nonmatchings/${name}/${name}.s`;
+  if (existsSync(primary)) return primary;
+
+  /* Handle named symbols where .s filename differs from directory name */
+  const dir = `build/asm/nonmatchings/${name}`;
+  if (existsSync(dir)) {
+    const files = readdirSync(dir).filter((f: string) => f.endsWith(".s"));
+    if (files.length === 1) return `${dir}/${files[0]}`;
+  }
+
+  return "";
+}
+
+/** Look up function address and size from splat.yaml */
+function getFuncInfo(name: string): { vram: number; size: number } | null {
+  const yamlPath = join(ROOT, "configs/splat.yaml");
+  if (!existsSync(yamlPath)) return null;
+
+  const yaml = readFileSync(yamlPath, "utf-8");
+  const lines = yaml.split("\n");
+  const segRe = /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(?:asm|c)(?:,\s*\S+)?\]\s*#\s*(0x[0-9A-Fa-f]+)\s+(\S+)/;
+  const nextRe = /^\s*-\s*\[(0x[0-9A-Fa-f]+)/;
+
+  const offsets: number[] = [];
+  let funcOffset = -1;
+  let funcVram = 0;
+
+  for (const line of lines) {
+    const m = line.match(nextRe);
+    if (m) offsets.push(parseInt(m[1], 16));
+
+    const seg = line.match(segRe);
+    if (seg && seg[3] === name) {
+      funcOffset = parseInt(seg[1], 16);
+      funcVram = parseInt(seg[2], 16);
+    }
+  }
+
+  if (funcOffset < 0) return null;
+
+  offsets.sort((a, b) => a - b);
+  const idx = offsets.indexOf(funcOffset);
+  const nextOffset = idx >= 0 && idx + 1 < offsets.length ? offsets[idx + 1] : funcOffset;
+  const size = nextOffset - funcOffset;
+
+  return { vram: funcVram, size };
+}
+
+/** Disassemble a function's range from a flat binary file */
+function disassembleRange(binFile: string, offset: number, size: number): string[] {
+  const dir = "build/diffFunc";
+  mkdirSync(join(ROOT, dir), { recursive: true });
+
+  const binary = readFileSync(join(ROOT, binFile));
+  const funcBytes = binary.subarray(offset, offset + size);
+
+  const tmpBin = join(ROOT, `${dir}/_range.bin`);
+  const tmpO = `${dir}/_range.o`;
+  writeFileSync(tmpBin, funcBytes);
+  run(`${CROSS}objcopy -I binary -O elf32-tradlittlemips -B mips ` +
+      `--rename-section .data=.text,contents,alloc,load,code ` +
+      `${tmpBin} ${tmpO}`);
+
+  const dump = run(`${OBJDUMP} -d -z --no-show-raw-insn ${tmpO}`);
+  const lines: string[] = [];
+  for (const line of dump.split("\n")) {
+    const m = line.match(/^\s*[0-9a-f]+:\s+(.+)/);
+    if (m) lines.push(m[1].trim());
+  }
+  return lines;
+}
+
+/** Compare a function using linked binaries: original EXE vs build output.
+ *  Compiles the C file, builds the full project, then extracts and compares
+ *  the same address range from both binaries. */
+function doDiffFromBinary(src: string, funcName: string): void {
+  const info = getFuncInfo(funcName);
+  if (!info) {
+    console.error(`Function ${funcName} not found in configs/splat.yaml`);
     process.exit(1);
   }
+
+  try {
+    /* Compile the C file (so build/ has the updated .o) */
+    compile(src);
+
+    /* Build the full binary */
+    run("make -j1 build/slus_011.bin");
+
+    const payloadOffset = 0x800;
+    const loadAddr = 0x80010000;
+    const funcFileOffset = payloadOffset + (info.vram - loadAddr);
+
+    /* Disassemble from original */
+    const origInstrs = disassembleRange(
+      "extracted/iso/slus_011.15", funcFileOffset, info.size
+    );
+
+    /* Disassemble from built */
+    const builtInstrs = disassembleRange(
+      "build/slus_011.bin", funcFileOffset, info.size
+    );
+
+    /* Diff */
+    const ltmp = "/tmp/diffFunc-target.txt";
+    const rtmp = "/tmp/diffFunc-compiled.txt";
+    writeFileSync(ltmp, origInstrs.join("\n"));
+    writeFileSync(rtmp, builtInstrs.join("\n"));
+
+    try {
+      const out = execSync(`diff --color=always -y -W 120 ${ltmp} ${rtmp}`, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      process.stdout.write(out);
+    } catch (e: any) {
+      if (e.stdout) process.stdout.write(e.stdout);
+    }
+
+    const total = Math.max(origInstrs.length, builtInstrs.length);
+    let matches = 0;
+    for (let i = 0; i < total; i++) {
+      if (origInstrs[i] === builtInstrs[i]) matches++;
+    }
+    const pct = total > 0 ? ((matches / total) * 100).toFixed(1) : "0.0";
+    console.log(`\nMatch: ${matches}/${total} instructions (${pct}%)`);
+  } catch (e: any) {
+    console.error("Compile error:", e.stderr || e.message);
+  }
+}
+
+function assembleTarget(name: string): string | null {
+  const asmSrc = resolveAsmSource(name);
+  if (!asmSrc) return null; /* will use binary extraction path */
+
   const dir = "build/diffFunc";
   const wrapper = `${dir}/${name}.target.s`;
   const o = `${dir}/${name}.target.o`;
   run(`mkdir -p ${dir}`);
-  // Create a wrapper .s that includes macros then the actual function
   writeFileSync(
     `${ROOT}/${wrapper}`,
     `.include "include/macro.inc"\n` +
@@ -120,13 +255,14 @@ function assembleTarget(name: string): string {
   return o;
 }
 
-function resolveArgs(args: string[]): { src: string; target: string } {
+function resolveArgs(args: string[]): { src: string; target: string | null; funcName?: string } {
   if (args.length === 2) {
     return { src: args[0], target: args[1] };
   }
   if (args.length === 1) {
     const name = args[0].replace(/^src\//, "").replace(/\.c$/, "");
-    return { src: `src/${name}.c`, target: assembleTarget(name) };
+    const targetO = assembleTarget(name);
+    return { src: `src/${name}.c`, target: targetO, funcName: name };
   }
   console.error("Usage: npx tsx tools/diffFunc.ts <func_name>");
   console.error("       npx tsx tools/diffFunc.ts <src.c> <target.o>");
@@ -138,14 +274,14 @@ const rawArgs = process.argv.slice(2);
 const watchMode = rawArgs.includes("--watch");
 const filteredArgs = rawArgs.filter((a) => a !== "--watch");
 
-const { src, target } = resolveArgs(filteredArgs);
+const { src, target, funcName } = resolveArgs(filteredArgs);
 if (!existsSync(src)) { console.error(`Not found: ${src}`); process.exit(1); }
-if (!existsSync(target)) { console.error(`Not found: ${target}`); process.exit(1); }
+if (target && !existsSync(target)) { console.error(`Not found: ${target}`); process.exit(1); }
 
-doDiff(src, target);
+doDiff(src, target, funcName);
 
 if (watchMode) {
   watchFile(src, { interval: 500 }, () => {
-    doDiff(src, target);
+    doDiff(src, target, funcName);
   });
 }

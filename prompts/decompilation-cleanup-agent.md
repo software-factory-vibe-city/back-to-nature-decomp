@@ -64,6 +64,10 @@ Output:
 
 If compilation fails, the error is printed instead of a diff.
 
+## C style guide
+
+Read `prompts/c-style-guide.md` before writing any C. It contains idiomatic patterns that produce correct codegen with this toolchain, and common pitfalls that cause instruction reordering.
+
 ## Target environment
 
 - **Compiler:** GCC 2.8.0 targeting MIPS R3000 (PlayStation 1)
@@ -125,18 +129,28 @@ m2c uses `->unkXX` for struct field accesses at unknown offsets.
 temp_v0->unkE4
 ```
 
-**Fix:** Define a struct with the correct layout and use field access. Use `char pad[N]` for gaps between known fields. Name fields `field_XX` (hex offset) until their purpose is known.
+**Fix:** Define a struct with the correct layout and use field access. Use `char pad[N]` for gaps between known fields. Name fields `field_XX` (hex offset) until their purpose is known. **Change the parameter/variable type to the struct pointer** — do NOT keep `void *` and cast on every access.
 
 ```c
 typedef struct {
     char pad[0xE4];
     s32 field_E4;
 } SomeStruct;
+
+void func(SomeStruct *obj) {
+    obj->field_E4 = 1;
+}
 ```
 
-Then use `temp_v0->field_E4`. If only one or two offsets are accessed, a minimal struct with padding is fine.
+**Do NOT** keep `void *` and cast on every access:
+```c
+/* BAD — do not do this */
+void func(void *arg0) {
+    ((SomeStruct *)arg0)->field_E4 = 1;
+}
+```
 
-**Do NOT use raw pointer arithmetic** like `*(s32 *)((char *)temp_v0 + 0xE4)`. Always prefer a struct — it's more readable and produces identical code.
+**Do NOT use raw pointer arithmetic** like `*(s32 *)((char *)arg0 + 0xE4)`. Always prefer a struct — it's more readable and produces identical code.
 
 ### `M2C_BREAK(n)`
 
@@ -234,7 +248,7 @@ __asm__(
 Check the `.s` file for these markers:
 - `/* Handwritten function */` comment — spimdisasm detected non-compiler-generated code
 - `/* handwritten instruction */` on individual lines — GTE coprocessor or unusual opcodes
-- Bare `j` (not `jal`) to another function — tail-call wrapper
+- Bare `j` (not `jal`) to **another function** — tail-call wrapper (e.g., `j func_80017EF0`)
 - `cfc2`/`ctc2`/`lwc2`/`swc2` — GTE coprocessor access
 
 If the function is mostly normal C with a few handwritten instructions, try C first with targeted `__asm__` blocks for just those instructions. Only use the full top-level `__asm__` approach if C cannot match the output.

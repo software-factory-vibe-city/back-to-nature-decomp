@@ -8,6 +8,10 @@ Your job: walk through all decompiled source files, identify patterns across the
 
 {{CONTEXT}}
 
+## C style guide
+
+Read `prompts/c-style-guide.md` before modifying any C. It contains idiomatic patterns that produce correct codegen with this toolchain, and common pitfalls that cause instruction reordering.
+
 ## What to do
 
 Survey the entire decompiled codebase, then **make changes directly**. Don't just list recommendations — actually rename files, rename symbols, define structs, update references, and verify the build after each change.
@@ -68,6 +72,20 @@ To rename a function:
 ### Replace pointer arithmetic with structs
 
 Any remaining `*(s32 *)((char *)ptr + 0xNN)` patterns should become struct field access. Define the struct locally if it's only used in one file, or in `include/game_types.h` if shared.
+
+When converting to a struct, **always change the parameter/variable type** to the struct pointer. Do NOT keep `void *` and cast on every access:
+
+```c
+/* GOOD */
+void func(SomeStruct *obj) {
+    obj->field_14 = 1;
+}
+
+/* BAD — do not do this */
+void func(void *arg0) {
+    ((SomeStruct *)arg0)->field_14 = 1;
+}
+```
 
 ### Add comments
 

@@ -68,7 +68,6 @@ split:
 	@if [ -f build/dep_syms.txt ]; then printf 'INCLUDE "build/dep_syms.txt"\n' >> $(LD_SCRIPT); fi
 	@if [ -f build/lib_bss_syms.txt ]; then printf 'INCLUDE "build/lib_bss_syms.txt"\n' >> $(LD_SCRIPT); fi
 	npx tsx tools/classifyGlobals.ts --write
-	@if [ -f build/globals_aliases.txt ]; then printf 'INCLUDE "build/globals_aliases.txt"\n' >> $(LD_SCRIPT); fi
 
 # ---------------------------------------------------------------------------
 # Compile + link
@@ -79,7 +78,7 @@ $(BUILD_DIR)/src/%.c.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(CPP) $(CPPFLAGS) $< -o $(BUILD_DIR)/src/$*.i
 	$(CC) $(CC1FLAGS) $(BUILD_DIR)/src/$*.i -o $(BUILD_DIR)/src/$*.s
-	$(MASPSX) --aspsx-version 2.67 --expand-div --dont-force-G0 --run-assembler --gnu-as-path $(AS) -o $@ $(ASFLAGS) $(BUILD_DIR)/src/$*.s
+	$(MASPSX) --aspsx-version 2.67 --expand-div --dont-force-G0 --reorder-la --run-assembler --gnu-as-path $(AS) -o $@ $(ASFLAGS) $(BUILD_DIR)/src/$*.s
 
 # Assemble .s files (splat outputs to build/asm/)
 $(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s

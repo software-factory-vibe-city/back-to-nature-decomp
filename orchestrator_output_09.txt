@@ -1,0 +1,197 @@
+Pipeline: 15 function(s)
+
+Processing func_8001B4D0 (tier 1, 5 instrs, priority #1)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_8001B4D0
+[agent-loop] Model: openrouter/minimax/minimax-m2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m current[0m[2m source[0m[2m file[0m[2m and[0m[2m the[0m[2m assembly[0m[2m to[0m[2m understand[0m[2m what[0m[2m needs[0m[2m to[0m[2m be[0m[2m fixed[0m[2m.
+[0m
+[36m[tool:read][0m {"path":"src/func_8001B4D0.c"}
+
+[36m[tool:read][0m {"path":"build/asm/nonmatchings/func_8001B4D0/func_8001B4D0.s"}
+[32m[tool:read done][0m #include "common.h"
+
+extern ? D_8005E4C8;
+
+void func_8001B4D0(s32 arg0, s32 arg1) {
+    *((arg0 * 4) + &D_8005E4C8) = arg1;
+}
+
+[32m[tool:read done][0m .set noat      /* allow manual use of $at */
+.set noreorder /* don't insert nops after branches */
+
+nonmatching func_8001B4D0, 0x14
+
+glabel func_8001B4D0
+    /* BCD0 8001B4D0 80200400 */  sll        $...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m analyze[0m[2m the[0m[2m assembly[0m[2m:
+[0m[2m1[0m[2m.[0m[2m `[0m[2ms[0m[2mll[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m [0m[2m2[0m[2m`[0m[2m -[0m[2m shifts[0m[2m arg[0m[2m0[0m[2m left[0m[2m by[0m[2m [0m[2m2[0m[2m bits[0m[2m ([0m[2mmulti[0m[2mplies[0m[2m by[0m[2m [0m[2m4[0m[2m)
+[0m[2m2[0m[2m.[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mgp[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)`[0m[2m -[0m[2m loads[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m address[0m[2m of[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m into[0m[2m $[0m[2mv[0m[2m0[0m[2m
+[0m[2m3[0m[2m.[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2mv[0m[2m0[0m[2m`[0m[2m -[0m[2m adds[0m[2m the[0m[2m offset[0m[2m to[0m[2m the[0m[2m base[0m[2m
+[0m[2m4[0m[2m.[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`[0m[2m -[0m[2m returns[0m[2m
+[0m[2m5[0m[2m.[0m[2m `[0m[2msw[0m[2m $[0m[2ma[0m[2m1[0m[2m,[0m[2m [0m[2m0[0m[2mx[0m[2m0[0m[2m($[0m[2ma[0m[2m0[0m[2m)`[0m[2m -[0m[2m stores[0m[2m arg[0m[2m1[0m[2m at[0m[2m the[0m[2m computed[0m[2m address[0m[2m
+
+[0m[2mThe[0m[2m function[0m[2m computes[0m[2m `([0m[2marg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m)[0m[2m +[0m[2m &[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m`[0m[2m and[0m[2m stores[0m[2m arg[0m[2m1[0m[2m there[0m[2m.[0m[2m This[0m[2m is[0m[2m writing[0m[2m to[0m[2m an[0m[2m element[0m[2m in[0m[2m an[0m[2m array[0m[2m at[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m,[0m[2m where[0m[2m arg[0m[2m0[0m[2m is[0m[2m the[0m[2m index[0m[2m ([0m[2mmulti[0m[2mplied[0m[2m by[0m[2m [0m[2m4[0m[2m for[0m[2m element[0m[2m size[0m[2m).
+
+[0m[2mThe[0m[2m issue[0m[2m with[0m[2m the[0m[2m current[0m[2m C[0m[2m is[0m[2m:
+[0m[2m1[0m[2m.[0m[2m The[0m[2m extern[0m[2m type[0m[2m is[0m[2m `[0m[2m?[0m[2m`[0m[2m which[0m[2m should[0m[2m be[0m[2m `[0m[2ms[0m[2m32[0m[2m`[0m[2m since[0m[2m it's[0m[2m being[0m[2m used[0m[2m as[0m[2m an[0m[2m array[0m[2m
+[0m[2m2[0m[2m.[0m[2m The[0m[2m pointer[0m[2m arithmetic[0m[2m is[0m[2m wrong[0m[2m -[0m[2m `[0m[2m*[0m[2m(([0m[2marg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m)[0m[2m +[0m[2m &[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)`[0m[2m doesn't[0m[2m make[0m[2m sense[0m[2m
+
+[0m[2mThe[0m[2m correct[0m[2m C[0m[2m should[0m[2m be[0m[2m:
+[0m[2m-[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m is[0m[2m an[0m[2m array[0m[2m of[0m[2m s[0m[2m32[0m[2m
+[0m[2m-[0m[2m arg[0m[2m0[0m[2m is[0m[2m an[0m[2m index[0m[2m ([0m[2m0[0m[2m-based[0m[2m)
+[0m[2m-[0m[2m arg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m gives[0m[2m the[0m[2m byte[0m[2m offset[0m[2m ([0m[2marray[0m[2m element[0m[2m size[0m[2m is[0m[2m [0m[2m4[0m[2m bytes[0m[2m)
+[0m[2m-[0m[2m Then[0m[2m arg[0m[2m1[0m[2m is[0m[2m stored[0m[2m at[0m[2m that[0m[2m location[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m fix[0m[2m this[0m[2m to[0m[2m use[0m[2m proper[0m[2m array[0m[2m indexing[0m[2m:
+[0m[2m```[0m[2mc[0m[2m
+[0m[2mextern[0m[2m s[0m[2m32[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m[][0m[2m;
+
+[0m[2mvoid[0m[2m func[0m[2m_[0m[2m800[0m[2m1[0m[2mB[0m[2m4[0m[2mD[0m[2m0[0m[2m(s[0m[2m32[0m[2m arg[0m[2m0[0m[2m,[0m[2m s[0m[2m32[0m[2m arg[0m[2m1[0m[2m)[0m[2m {
+[0m[2m   [0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m[[0m[2marg[0m[2m0[0m[2m][0m[2m =[0m[2m arg[0m[2m1[0m[2m;
+[0m[2m}
+[0m[2m```
+
+[0m[2mWait[0m[2m,[0m[2m let[0m[2m me[0m[2m check[0m[2m the[0m[2m assembly[0m[2m again[0m[2m to[0m[2m confirm[0m[2m the[0m[2m addressing[0m[2m mode[0m[2m.[0m[2m The[0m[2m instruction[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mgp[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)`[0m[2m is[0m[2m loading[0m[2m a[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m address[0m[2m.[0m[2m If[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m was[0m[2m a[0m[2m simple[0m[2m s[0m[2m32[0m[2m,[0m[2m it[0m[2m would[0m[2m load[0m[2m the[0m[2m value[0m[2m directly[0m[2m with[0m[2m `[0m[2mlw[0m[2m`.[0m[2m 
+
+[0m[2mSince[0m[2m it's[0m[2m loading[0m[2m an[0m[2m address[0m[2m,[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m must[0m[2m be[0m[2m an[0m[2m array[0m[2m.[0m[2m The[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m indicates[0m[2m it's[0m[2m accessing[0m[2m a[0m[2m variable[0m[2m in[0m[2m the[0m[2m small[0m[2m data[0m[2m section[0m[2m that[0m[2m fits[0m[2m within[0m[2m [0m[2m16[0m[2m-bit[0m[2m offset[0m[2m from[0m[2m GP[0m[2m,[0m[2m so[0m[2m it's[0m[2m likely[0m[2m an[0m[2m array[0m[2m of[0m[2m [0m[2m32[0m[2m-bit[0m[2m integers[0m[2m that[0m[2m can[0m[2m be[0m[2m accessed[0m[2m via[0m[2m base[0m[2m+[0m[2moffset[0m[2m addressing[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m verify[0m[2m this[0m[2m compiles[0m[2m correctly[0m[2m.
+[0mLet me compile and check the current match percentage:
+
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && npx tsx tools/diffFunc.ts func_8001B4D0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001B4D0.target.o
+source:  src/func_8001B4D0.c
+
+Compile error: src/func_8001B4D0.c:3: parse error before `?'
+src/func_8001B4D0.c: In function `func_8001B4D0':
+src/func_800...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m current[0m[2m code[0m[2m has[0m[2m syntax[0m[2m errors[0m[2m.[0m[2m The[0m[2m `[0m[2m?[0m[2m`[0m[2m type[0m[2m is[0m[2m invalid[0m[2m C[0m[2m and[0m[2m the[0m[2m extern[0m[2m declaration[0m[2m needs[0m[2m fixing[0m[2m.[0m[2m Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m assembly[0m[2m again[0m[2m:
+
+[0m[2m1[0m[2m.[0m[2m `[0m[2ms[0m[2mll[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m [0m[2m2[0m[2m`[0m[2m -[0m[2m shifts[0m[2m arg[0m[2m0[0m[2m left[0m[2m by[0m[2m [0m[2m2[0m[2m ([0m[2mmult[0m[2miply[0m[2m by[0m[2m [0m[2m4[0m[2m)
+[0m[2m2[0m[2m.[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mgp[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)`[0m[2m -[0m[2m gets[0m[2m the[0m[2m address[0m[2m of[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m ([0m[2mGP[0m[2m-[0m[2mrelative[0m[2m)
+[0m[2m3[0m[2m.[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2mv[0m[2m0[0m[2m`[0m[2m -[0m[2m adds[0m[2m arg[0m[2m0[0m[2m*[0m[2m4[0m[2m to[0m[2m the[0m[2m base[0m[2m address[0m[2m
+[0m[2m4[0m[2m.[0m[2m `[0m[2msw[0m[2m $[0m[2ma[0m[2m1[0m[2m,[0m[2m [0m[2m0[0m[2mx[0m[2m0[0m[2m($[0m[2ma[0m[2m0[0m[2m)`[0m[2m -[0m[2m stores[0m[2m arg[0m[2m1[0m[2m at[0m[2m the[0m[2m computed[0m[2m address[0m[2m
+
+[0m[2mThis[0m[2m is[0m[2m equivalent[0m[2m to[0m[2m:[0m[2m `[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m[[0m[2marg[0m[2m0[0m[2m][0m[2m =[0m[2m arg[0m[2m1[0m[2m`
+
+[0m[2mSince[0m[2m it's[0m[2m using[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m addressing[0m[2m with[0m[2m an[0m[2m address[0m[2m load[0m[2m,[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m should[0m[2m be[0m[2m declared[0m[2m as[0m[2m an[0m[2m array[0m[2m of[0m[2m s[0m[2m32[0m[2m.[0m[2m Let[0m[2m me[0m[2m fix[0m[2m it[0m[2m:
+[0mThe code doesn't compile because `?` is not a valid C type. Looking at the assembly:
+- `addiu $v0, $gp, %gp_rel(D_8005E4C8)` loads the address of D_8005E4C8 (GP-relative)
+- Then `addu` computes `arg0*4 + base_address`
+- Then `sw` stores arg1 at that address
+
+This means D_8005E4C8 is an array of s32, and the function stores arg1 at index arg0. Let me fix the code:
+
+[36m[tool:edit][0m {"path":"src/func_8001B4D0.c","oldText":"#include \"common.h\"\n\nextern ? D_8005E4C8;\n\nvoid func_8001B4D0(s32 arg0, s32 arg1) {\n    *((arg0 * 4) + &D_8005E4C8) = arg1;\n}","newText":"#include \"co
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001B4D0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m let[0m[2m me[0m[2m test[0m[2m the[0m[2m compile[0m[2m and[0m[2m diff[0m[2m.
+[0m
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && npx tsx tools/diffFunc.ts func_8001B4D0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001B4D0.target.o
+source:  src/func_8001B4D0.c
+
+
+build/diffFunc/func_8001B4D0.target.o:     file format e   |	build/diffFunc/func_8001B4D0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThere's[0m[2m an[0m[2m extra[0m[2m instruction[0m[2m (`[0m[2ml[0m[2mui[0m[2m v[0m[2m0[0m[2m,[0m[2m [0m[2m0[0m[2mx[0m[2m0[0m[2m`)[0m[2m being[0m[2m generated[0m[2m.[0m[2m This[0m[2m is[0m[2m because[0m[2m the[0m[2m compiler[0m[2m is[0m[2m treating[0m[2m `[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m[][0m[2m`[0m[2m as[0m[2m an[0m[2m absolute[0m[2m address[0m[2m instead[0m[2m of[0m[2m a[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m one[0m[2m.[0m[2m 
+
+[0m[2mLooking[0m[2m at[0m[2m the[0m[2m assembly[0m[2m:
+[0m[2m-[0m[2m Target[0m[2m uses[0m[2m `%[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)`[0m[2m which[0m[2m is[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m
+[0m[2m-[0m[2m Comp[0m[2miled[0m[2m uses[0m[2m `[0m[2ml[0m[2mui[0m[2m v[0m[2m0[0m[2m,[0m[2m [0m[2m0[0m[2mx[0m[2m0[0m[2m`[0m[2m followed[0m[2m by[0m[2m `[0m[2madd[0m[2miu[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m0[0m[2m,[0m[2m [0m[2m0[0m[2m`[0m[2m which[0m[2m is[0m[2m absolute[0m[2m addressing[0m[2m
+
+[0m[2mThe[0m[2m issue[0m[2m is[0m[2m that[0m[2m with[0m[2m `[0m[2mextern[0m[2m s[0m[2m32[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m[][0m[2m;[0m[2m`,[0m[2m the[0m[2m compiler[0m[2m doesn't[0m[2m know[0m[2m the[0m[2m size[0m[2m and[0m[2m treats[0m[2m it[0m[2m as[0m[2m >[0m[2m [0m[2m8[0m[2m bytes[0m[2m ([0m[2mabsolute[0m[2m).[0m[2m We[0m[2m need[0m[2m to[0m[2m declare[0m[2m it[0m[2m as[0m[2m a[0m[2m specific[0m[2m size[0m[2m that[0m[2m triggers[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m addressing[0m[2m.
+
+[0m[2mAccording[0m[2m to[0m[2m the[0m[2m docs[0m[2m,[0m[2m variables[0m[2m <=[0m[2m [0m[2m8[0m[2m bytes[0m[2m use[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m.[0m[2m An[0m[2m array[0m[2m of[0m[2m a[0m[2m single[0m[2m element[0m[2m ([0m[2ms[0m[2m32[0m[2m[[0m[2m1[0m[2m])[0m[2m should[0m[2m be[0m[2m [0m[2m4[0m[2m bytes[0m[2m.[0m[2m But[0m[2m declaring[0m[2m it[0m[2m as[0m[2m `[0m[2mextern[0m[2m s[0m[2m32[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m;[0m[2m`[0m[2m would[0m[2m make[0m[2m it[0m[2m a[0m[2m single[0m[2m s[0m[2m32[0m[2m,[0m[2m not[0m[2m an[0m[2m array[0m[2m.
+
+[0m[2mWait[0m[2m,[0m[2m let[0m[2m me[0m[2m re[0m[2m-read[0m[2m the[0m[2m assembly[0m[2m more[0m[2m carefully[0m[2m:
+[0m[2m-[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mgp[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)`[0m[2m loads[0m[2m the[0m[2m ADDRESS[0m[2m of[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m,[0m[2m not[0m[2m the[0m[2m value[0m[2m
+[0m[2m-[0m[2m This[0m[2m is[0m[2m a[0m[2m pointer[0m[2m to[0m[2m the[0m[2m array[0m[2m
+
+[0m[2mActually[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m think[0m[2m about[0m[2m this[0m[2m differently[0m[2m.[0m[2m The[0m[2m code[0m[2m is[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Get[0m[2m address[0m[2m of[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m ([0m[2mwhich[0m[2m is[0m[2m the[0m[2m array[0m[2m base[0m[2m)
+[0m[2m2[0m[2m.[0m[2m Add[0m[2m arg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m to[0m[2m get[0m[2m the[0m[2m element[0m[2m address[0m[2m
+[0m[2m3[0m[2m.[0m[2m Store[0m[2m arg[0m[2m1[0m[2m at[0m[2m that[0m[2m address[0m[2m
+
+[0m[2mThe[0m[2m way[0m[2m to[0m[2m make[0m[2m this[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m is[0m[2m to[0m[2m declare[0m[2m it[0m[2m as[0m[2m a[0m[2m small[0m[2m array[0m[2m.[0m[2m But[0m[2m even[0m[2m with[0m[2m a[0m[2m small[0m[2m array[0m[2m,[0m[2m I'm[0m[2m not[0m[2m sure[0m[2m if[0m[2m it[0m[2m uses[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m addressing[0m[2m for[0m[2m the[0m[2m address[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m check[0m[2m what[0m[2m happens[0m[2m if[0m[2m I[0m[2m declare[0m[2m it[0m[2m as[0m[2m `[0m[2ms[0m[2m32[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m[[0m[2m1[0m[2m];[0m[2m`[0m[2m -[0m[2m this[0m[2m is[0m[2m [0m[2m4[0m[2m bytes[0m[2m,[0m[2m which[0m[2m should[0m[2m be[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m.[0m[2m But[0m[2m the[0m[2m type[0m[2m would[0m[2m need[0m[2m to[0m[2m be[0m[2m compatible[0m[2m with[0m[2m the[0m[2m indexing[0m[2m.
+
+
+[0m[2mThe[0m[2m simplest[0m[2m approach[0m[2m might[0m[2m be[0m[2m declaring[0m[2m it[0m[2m as[0m[2m a[0m[2m single[0m[2m s[0m[2m32[0m[2m with[0m[2m the[0m[2m indexing[0m[2m baked[0m[2m in[0m[2m:[0m[2m `[0m[2mextern[0m[2m s[0m[2m32[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m;[0m[2m`[0m[2m then[0m[2m using[0m[2m pointer[0m[2m arithmetic[0m[2m like[0m[2m `([0m[2ms[0m[2m32[0m[2m *)[0m[2m(([0m[2mchar[0m[2m *)&[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m +[0m[2m arg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m)[0m[2m`.[0m[2m The[0m[2m issue[0m[2m is[0m[2m that[0m[2m the[0m[2m code[0m[2m loads[0m[2m the[0m[2m base[0m[2m address[0m[2m and[0m[2m then[0m[2m offsets[0m[2m into[0m[2m it[0m[2m,[0m[2m so[0m[2m I[0m[2m need[0m[2m the[0m[2m compiler[0m[2m to[0m[2m emit[0m[2m the[0m[2m same[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m addressing[0m[2m pattern[0m[2m.
+
+[0m[2mGP[0m[2m-[0m[2mrelative[0m[2m loading[0m[2m works[0m[2m with[0m[2m scalars[0m[2m and[0m[2m small[0m[2m arrays[0m[2m but[0m[2m doesn't[0m[2m directly[0m[2m support[0m[2m indexing[0m[2m with[0m[2m a[0m[2m computed[0m[2m offset[0m[2m.[0m[2m The[0m[2m target[0m[2m retrieves[0m[2m the[0m[2m address[0m[2m of[0m[2m the[0m[2m array[0m[2m base[0m[2m using[0m[2m `%[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)[0m[2m`,[0m[2m then[0m[2m adds[0m[2m the[0m[2m offset[0m[2m.[0m[2m To[0m[2m match[0m[2m this[0m[2m,[0m[2m I[0m[2m need[0m[2m the[0m[2m compiler[0m[2m to[0m[2m emit[0m[2m the[0m[2m same[0m[2m load[0m[2m instruction[0m[2m rather[0m[2m than[0m[2m trying[0m[2m to[0m[2m compute[0m[2m the[0m[2m full[0m[2m address[0m[2m in[0m[2m two[0m[2m steps[0m[2m.
+
+[0m[2mThe[0m[2m real[0m[2m problem[0m[2m is[0m[2m how[0m[2m to[0m[2m declare[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m so[0m[2m the[0m[2m compiler[0m[2m uses[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m addressing[0m[2m.[0m[2m Even[0m[2m a[0m[2m one[0m[2m-element[0m[2m array[0m[2m might[0m[2m not[0m[2m trigger[0m[2m the[0m[2m right[0m[2m behavior[0m[2m,[0m[2m so[0m[2m I[0m[2m should[0m[2m test[0m[2m a[0m[2m simpler[0m[2m approach[0m[2m first[0m[2m—[0m[2mdecl[0m[2maring[0m[2m it[0m[2m as[0m[2m a[0m[2m scalar[0m[2m `[0m[2ms[0m[2m32[0m[2m`[0m[2m rather[0m[2m than[0m[2m an[0m[2m array[0m[2m.
+[0mThe problem is that `extern s32 D_8005E4C8[]` causes the compiler to use absolute addressing (lui/addiu), but the target uses GP-relative addressing (single addiu with %gp_rel).
+
+Let me check what happens if I declare it as a single s32 (which is 4 bytes and should use GP-relative):
+
+[36m[tool:edit][0m {"path":"src/func_8001B4D0.c","oldText":"#include \"common.h\"\n\nextern s32 D_8005E4C8[];\n\nvoid func_8001B4D0(s32 arg0, s32 arg1) {\n    D_8005E4C8[arg0] = arg1;\n}","newText":"#include \"common.h\
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001B4D0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m let's[0m[2m see[0m[2m if[0m[2m this[0m[2m compiles[0m[2m to[0m[2m the[0m[2m right[0m[2m code[0m[2m.[0m[2m We're[0m[2m casting[0m[2m to[0m[2m u[0m[2m8[0m[2m*[0m[2m so[0m[2m we[0m[2m can[0m[2m add[0m[2m the[0m[2m byte[0m[2m offset[0m[2m,[0m[2m then[0m[2m casting[0m[2m to[0m[2m s[0m[2m32[0m[2m*[0m[2m to[0m[2m dere[0m[2mference[0m[2m.[0m[2m This[0m[2m should[0m[2m generate[0m[2m:[0m[2m load[0m[2m address[0m[2m of[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m ([0m[2mGP[0m[2m-[0m[2mrelative[0m[2m),[0m[2m add[0m[2m offset[0m[2m,[0m[2m store[0m[2m.
+[0m
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && npx tsx tools/diffFunc.ts func_8001B4D0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001B4D0.target.o
+source:  src/func_8001B4D0.c
+
+
+build/diffFunc/func_8001B4D0.target.o:     file format e   |	build/diffFunc/func_8001B4D0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mBetter[0m[2m![0m[2m Now[0m[2m we[0m[2m have[0m[2m [0m[2m3[0m[2m/[0m[2m5[0m[2m instructions[0m[2m matching[0m[2m,[0m[2m but[0m[2m the[0m[2m order[0m[2m is[0m[2m wrong[0m[2m:
+[0m[2m-[0m[2m Target[0m[2m:[0m[2m s[0m[2mll[0m[2m first[0m[2m,[0m[2m then[0m[2m add[0m[2miu[0m[2m ([0m[2mGP[0m[2m-[0m[2mrelative[0m[2m load[0m[2m)
+[0m[2m-[0m[2m Comp[0m[2miled[0m[2m:[0m[2m add[0m[2miu[0m[2m first[0m[2m,[0m[2m then[0m[2m s[0m[2mll[0m[2m
+
+[0m[2mThe[0m[2m issue[0m[2m is[0m[2m that[0m[2m the[0m[2m target[0m[2m does[0m[2m `[0m[2ms[0m[2mll[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m [0m[2m2[0m[2m`[0m[2m first[0m[2m ([0m[2mmult[0m[2miply[0m[2m arg[0m[2m0[0m[2m by[0m[2m [0m[2m4[0m[2m),[0m[2m then[0m[2m loads[0m[2m the[0m[2m GP[0m[2m-[0m[2mrelative[0m[2m address[0m[2m,[0m[2m then[0m[2m adds[0m[2m them[0m[2m.[0m[2m My[0m[2m code[0m[2m computes[0m[2m `([0m[2marg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m)`[0m[2m inside[0m[2m the[0m[2m pointer[0m[2m arithmetic[0m[2m which[0m[2m changes[0m[2m the[0m[2m order[0m[2m.
+
+[0m[2mThe[0m[2m target[0m[2m order[0m[2m:
+[0m[2m1[0m[2m.[0m[2m s[0m[2mll[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m [0m[2m2[0m[2m  [0m[2m ([0m[2marg[0m[2m0[0m[2m =[0m[2m arg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m)
+[0m[2m2[0m[2m.[0m[2m add[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mgp[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)[0m[2m [0m[2m ([0m[2mv[0m[2m0[0m[2m =[0m[2m &[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)
+[0m[2m3[0m[2m.[0m[2m ad[0m[2mdu[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2ma[0m[2m0[0m[2m,[0m[2m $[0m[2mv[0m[2m0[0m[2m [0m[2m ([0m[2ma[0m[2m0[0m[2m =[0m[2m arg[0m[2m0[0m[2m*[0m[2m4[0m[2m +[0m[2m &[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m)
+[0m[2m4[0m[2m.[0m[2m jr[0m[2m ra[0m[2m
+[0m[2m5[0m[2m.[0m[2m sw[0m[2m $[0m[2ma[0m[2m1[0m[2m,[0m[2m [0m[2m0[0m[2m($[0m[2ma[0m[2m0[0m[2m)
+
+[0m[2mSo[0m[2m I[0m[2m need[0m[2m to[0m[2m reorder[0m[2m the[0m[2m C[0m[2m to[0m[2m do[0m[2m:
+[0m[2m1[0m[2m.[0m[2m arg[0m[2m0[0m[2m =[0m[2m arg[0m[2m0[0m[2m *[0m[2m [0m[2m4[0m[2m
+[0m[2m2[0m[2m.[0m[2m v[0m[2m0[0m[2m =[0m[2m ([0m[2ms[0m[2m32[0m[2m)&[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m4[0m[2mC[0m[2m8[0m[2m
+[0m[2m3[0m[2m.[0m[2m a[0m[2m0[0m[2m =[0m[2m arg[0m[2m0[0m[2m +[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mActually[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m split[0m[2m it[0m[2m into[0m[2m separate[0m[2m statements[0m[2m to[0m[2m force[0m[2m that[0m[2m order[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m:
+
+[0m[2m```[0m[2mc[0m[2m
+[0m[2mvoid[0m[2m func[0m[2m_[0m[2m800[0m[2m1[0m

@@ -1,4 +1,7 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001AF34", func_8001AF34);
+extern s16 D_8005E468;
+
+void func_8001AF34(void) {
+    D_8005E468 = 0x3E8;
+}

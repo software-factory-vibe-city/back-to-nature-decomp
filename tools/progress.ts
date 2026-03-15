@@ -35,7 +35,37 @@ interface FuncInfo {
   size: number;
   decompiled: boolean;
   handwritten: false | "asm" | "gte";
+  dead: boolean;
 }
+
+// --- Dead code detection: scan binary for jal + data references ---
+
+const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
+const PAYLOAD_OFFSET = 0x800;
+
+function buildReferencedAddresses(): Set<number> {
+  const refs = new Set<number>();
+  if (!existsSync(BINARY_PATH)) return refs;
+
+  const payload = readFileSync(BINARY_PATH);
+
+  // Scan for jal targets (opcode 0x0C = bits 31:26)
+  for (let off = PAYLOAD_OFFSET; off + 4 <= payload.length; off += 4) {
+    const word = payload.readUInt32LE(off);
+    const op = (word >>> 26) & 0x3F;
+    if (op === 0x03) { // jal
+      // jal: target = PC[31:28] | (imm26 << 2) — all code is in KSEG0 (0x80000000)
+      const target = (0x80000000 | ((word & 0x03FFFFFF) << 2)) >>> 0;
+      refs.add(target);
+    }
+    // Also record every 32-bit value as a potential pointer reference
+    refs.add(word);
+  }
+
+  return refs;
+}
+
+const referencedAddrs = buildReferencedAddresses();
 
 // Parse subsegments from splat.yaml
 const lines = readFileSync(SPLAT_YAML, "utf-8").split("\n");
@@ -114,7 +144,10 @@ for (const seg of rawSegments) {
     }
   }
 
-  if (handwritten !== "asm") {
+  const addr = parseInt(seg.vram, 16);
+  const dead = referencedAddrs.size > 0 && !referencedAddrs.has(addr);
+
+  if (handwritten !== "asm" && !dead) {
     totalFuncs++;
     totalBytes += size;
     if (decompiled) {
@@ -123,7 +156,7 @@ for (const seg of rawSegments) {
     }
   }
 
-  funcs.push({ name: seg.name, vram: seg.vram, offset: seg.offset, size, decompiled, handwritten });
+  funcs.push({ name: seg.name, vram: seg.vram, offset: seg.offset, size, decompiled, handwritten, dead });
 }
 
 // Summary
@@ -132,10 +165,13 @@ const bytePct = totalBytes > 0 ? ((decompBytes / totalBytes) * 100).toFixed(2) :
 
 const gteCount = funcs.filter((f) => f.handwritten === "gte").length;
 const asmCount = funcs.filter((f) => f.handwritten === "asm").length;
+const deadCount = funcs.filter((f) => f.dead).length;
+const deadBytes = funcs.filter((f) => f.dead).reduce((s, f) => s + f.size, 0);
 console.log(`Decompiled: ${decompFuncs} / ${totalFuncs} functions (${funcPct}%)`);
 console.log(`Decompiled: ${decompBytes} / ${totalBytes} bytes (${bytePct}%)`);
 if (gteCount > 0) console.log(`GTE functions (C + coprocessor): ${gteCount} (included in counts)`);
 if (asmCount > 0) console.log(`Pure asm: ${asmCount} functions (excluded from counts)`);
+if (deadCount > 0) console.log(`Dead code: ${deadCount} functions, ${deadBytes} bytes (excluded from counts)`);
 
 // Detailed list
 if (showList || showRemaining || showDone || showMarkdown) {
@@ -151,7 +187,7 @@ if (showList || showRemaining || showDone || showMarkdown) {
     console.log("| Status | VRAM | Size | Source | ASM |");
     console.log("|--------|------|------|--------|-----|");
     for (const f of filtered) {
-      const status = f.decompiled ? "OK" : "";
+      const status = f.dead ? "DEAD" : f.decompiled ? "OK" : "";
       const srcPath = `src/${f.name}.c`;
       const asmPath = `build/asm/nonmatchings/${f.name}/${f.name}.s`;
       console.log(`| ${status} | ${f.vram} | ${f.size} | [${f.name}.c](${srcPath}) | [${f.name}.s](${asmPath}) |`);
@@ -167,7 +203,7 @@ if (showList || showRemaining || showDone || showMarkdown) {
     console.log("-".repeat(header.length + 10));
 
     for (const f of filtered) {
-      const status = f.decompiled ? "  OK  " : "      ";
+      const status = f.dead ? " DEAD " : f.decompiled ? "  OK  " : "      ";
       const vram = f.vram.padEnd(12);
       const size = f.size.toString().padStart(6);
       console.log(`${status} ${vram} ${size}  ${f.name}`);

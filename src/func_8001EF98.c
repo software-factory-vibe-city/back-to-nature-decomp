@@ -1,4 +1,7 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001EF98", func_8001EF98);
+extern s32 D_8005E524;
+
+s32 func_8001EF98(void) {
+    return D_8005E524;
+}
