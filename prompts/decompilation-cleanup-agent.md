@@ -312,6 +312,10 @@ The compiler flag `-G8` means any extern whose **declared type is 8 bytes or sma
 
 6. **Division and modulo expansion.** C division (`/`) and modulo (`%`) compile to multi-instruction sequences including `div`/`divu` with zero-check (`break 0, 7`) and signed overflow check (`break 0, 6`). The toolchain's `--expand-div` flag handles this automatically. Do NOT manually reproduce break sequences — just write normal C division. If the diff shows mismatches near division sequences, the cause is usually a signed/unsigned type error (`div` vs `divu`).
 
+7. **GP-relative vs absolute addressing mismatch.** If the target uses `lui`/`lw` (absolute) but your code emits `lw %gp_rel` (GP-relative), your `extern` declaration is too small. The `-G8` flag means types ≤ 8 bytes get GP-relative. Fix: declare as an array to push the size over 8 bytes (e.g., `extern T *sym[3];` then access as `sym[0]`). See the C style guide for details.
+
+8. **NEVER use `_D_XXXXXXXX`.** The underscore-prefixed name is an internal `globals.h` implementation detail. Use `&D_XXXXXXXX` to get a global's address. If you write `_D_`, you are doing it wrong.
+
 ## Workflow
 
 ### Step 1: Read the assembly and the m2c output

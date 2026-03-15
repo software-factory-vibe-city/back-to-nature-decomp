@@ -1,4 +1,7 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80017ACC", func_80017ACC);
+void func_80017ACC(void) {
+    if (D_8005E446 == 0) {
+        D_8005E446 = 1;
+    }
+}

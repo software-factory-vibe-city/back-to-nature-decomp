@@ -1,0 +1,595 @@
+Pipeline: 15 function(s)
+
+Processing func_80017ACC (tier 1, 7 instrs, priority #1)
+  Stage 1: m2c ok
+  Stage 2: m2c output already matches 100% — skipping agent
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+Processing func_8001ACA0 (tier 1, 7 instrs, priority #2)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_8001ACA0
+[agent-loop] Model: openrouter/moonshotai/kimi-k2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m current[0m[2m source[0m[2m file[0m[2m and[0m[2m the[0m[2m assembly[0m[2m to[0m[2m understand[0m[2m what[0m[2m needs[0m[2m to[0m[2m be[0m[2m done[0m[2m.[0m
+[36m[tool:read][0m {"path":"src/func_8001ACA0.c"}
+
+[36m[tool:read][0m {"path":"build/asm/nonmatchings/func_8001ACA0/func_8001ACA0.s"}
+[32m[tool:read done][0m #include "common.h"
+
+extern s16 D_8005E454;
+extern s16 D_8005E460;
+extern s16 D_8005E468;
+
+void func_8001ACA0(void) {
+    D_8005E454 = -1;
+    D_8005E460 = -1;
+    D_8005E468 = -3;
+}
+
+[32m[tool:read done][0m .set noat      /* allow manual use of $at */
+.set noreorder /* don't insert nops after branches */
+
+nonmatching func_8001ACA0, 0x1C
+
+glabel func_8001ACA0
+    /* B4A0 8001ACA0 FFFF0324 */  addiu      $...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m analyze[0m[2m the[0m[2m assembly[0m[2m:
+
+[0m[2m1[0m[2m.[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m1[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m -[0m[2m0[0m[2mx[0m[2m1[0m[2m`[0m[2m -[0m[2m sets[0m[2m $[0m[2mv[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m2[0m[2m.[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m -[0m[2m0[0m[2mx[0m[2m3[0m[2m`[0m[2m -[0m[2m sets[0m[2m $[0m[2mv[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m3[0m[2m.[0m[2m `[0m[2msh[0m[2m $[0m[2mv[0m[2m1[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m454[0m[2m)[0m[2m($[0m[2mgp[0m[2m)`[0m[2m -[0m[2m stores[0m[2m -[0m[2m1[0m[2m to[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m454[0m[2m
+[0m[2m4[0m[2m.[0m[2m `[0m[2msh[0m[2m $[0m[2mv[0m[2m1[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m460[0m[2m)[0m[2m($[0m[2mgp[0m[2m)`[0m[2m -[0m[2m stores[0m[2m -[0m[2m1[0m[2m to[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m460[0m[2m
+[0m[2m5[0m[2m.[0m[2m `[0m[2msh[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m %[0m[2mgp[0m[2m_rel[0m[2m(D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m468[0m[2m)[0m[2m($[0m[2mgp[0m[2m)`[0m[2m -[0m[2m stores[0m[2m -[0m[2m3[0m[2m to[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m468[0m[2m
+[0m[2m6[0m[2m.[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`[0m[2m -[0m[2m return[0m[2m
+[0m[2m7[0m[2m.[0m[2m `[0m[2mnop[0m[2m`[0m[2m -[0m[2m delay[0m[2m slot[0m[2m
+
+[0m[2mThe[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m looks[0m[2m reasonable[0m[2m.[0m[2m The[0m[2m assembly[0m[2m uses[0m[2m `[0m[2msh[0m[2m`[0m[2m ([0m[2mstore[0m[2m half[0m[2mword[0m[2m)[0m[2m instructions[0m[2m,[0m[2m which[0m[2m is[0m[2m consistent[0m[2m with[0m[2m the[0m[2m `[0m[2ms[0m[2m16[0m[2m`[0m[2m ([0m[2m16[0m[2m-bit[0m[2m signed[0m[2m)[0m[2m type[0m[2m.[0m[2m The[0m[2m variables[0m[2m are[0m[2m accessed[0m[2m via[0m[2m `%[0m[2mgp[0m[2m_rel[0m[2m`,[0m[2m which[0m[2m is[0m[2m correct[0m[2m for[0m[2m small[0m[2m global[0m[2m variables[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m compile[0m[2m and[0m[2m check[0m[2m if[0m[2m this[0m[2m matches[0m[2m.[0mLet me compile and check the current match:
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m issue[0m[2m is[0m[2m the[0m[2m register[0m[2m allocation[0m[2m and[0m[2m instruction[0m[2m ordering[0m[2m.[0m[2m Looking[0m[2m at[0m[2m the[0m[2m diff[0m[2m:
+
+[0m[2mOriginal[0m[2m:
+[0m[2m-[0m[2m li[0m[2m v[0m[2m1[0m[2m,-[0m[2m1[0m[2m
+[0m[2m-[0m[2m li[0m[2m v[0m[2m0[0m[2m,-[0m[2m3[0m[2m
+[0m[2m-[0m[2m sh[0m[2m v[0m[2m1[0m[2m,[0m[2m0[0m[2m(gp[0m[2m)
+[0m[2m-[0m[2m sh[0m[2m v[0m[2m1[0m[2m,[0m[2m0[0m[2m(gp[0m[2m)
+[0m[2m-[0m[2m sh[0m[2m v[0m[2m0[0m[2m,[0m[2m0[0m[2m(gp[0m[2m)
+
+[0m[2mMy[0m[2m code[0m[2m:
+[0m[2m-[0m[2m li[0m[2m v[0m[2m0[0m[2m,-[0m[2m1[0m[2m
+[0m[2m-[0m[2m sh[0m[2m v[0m[2m0[0m[2m,[0m[2m0[0m[2m(gp[0m[2m)
+[0m[2m-[0m[2m sh[0m[2m v[0m[2m0[0m[2m,[0m[2m0[0m[2m(gp[0m[2m)
+[0m[2m-[0m[2m li[0m[2m v[0m[2m0[0m[2m,-[0m[2m3[0m[2m
+[0m[2m-[0m[2m sh[0m[2m v[0m[2m0[0m[2m,[0m[2m0[0m[2m(gp[0m[2m)
+
+[0m[2mThe[0m[2m problem[0m[2m is[0m[2m that[0m[2m GCC[0m[2m [0m[2m2[0m[2m.[0m[2m8[0m[2m.[0m[2m0[0m[2m is[0m[2m reorder[0m[2ming[0m[2m the[0m[2m code[0m[2m differently[0m[2m.[0m[2m The[0m[2m original[0m[2m loads[0m[2m the[0m[2m constants[0m[2m first[0m[2m ([0m[2mv[0m[2m1[0m[2m=-[0m[2m1[0m[2m,[0m[2m v[0m[2m0[0m[2m=-[0m[2m3[0m[2m),[0m[2m then[0m[2m does[0m[2m all[0m[2m three[0m[2m stores[0m[2m.[0m[2m My[0m[2m code[0m[2m is[0m[2m doing[0m[2m the[0m[2m load[0m[2m,[0m[2m then[0m[2m stores[0m[2m,[0m[2m then[0m[2m next[0m[2m load[0m[2m,[0m[2m then[0m[2m store[0m[2m.
+
+[0m[2mI[0m[2m need[0m[2m to[0m[2m force[0m[2m the[0m[2m compiler[0m[2m to[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Load[0m[2m -[0m[2m1[0m[2m into[0m[2m a[0m[2m register[0m[2m ([0m[2mbut[0m[2m keep[0m[2m it[0m[2m for[0m[2m later[0m[2m)
+[0m[2m2[0m[2m.[0m[2m Load[0m[2m -[0m[2m3[0m[2m into[0m[2m a[0m[2m register[0m[2m
+[0m[2m3[0m[2m.[0m[2m Use[0m[2m the[0m[2m -[0m[2m1[0m[2m register[0m[2m for[0m[2m the[0m[2m first[0m[2m two[0m[2m stores[0m[2m
+[0m[2m4[0m[2m.[0m[2m Use[0m[2m the[0m[2m -[0m[2m3[0m[2m register[0m[2m for[0m[2m the[0m[2m third[0m[2m store[0m[2m
+
+[0m[2mOne[0m[2m way[0m[2m to[0m[2m force[0m[2m this[0m[2m is[0m[2m to[0m[2m use[0m[2m temporary[0m[2m variables[0m[2m declared[0m[2m in[0m[2m a[0m[2m specific[0m[2m order[0m[2m,[0m[2m or[0m[2m use[0m[2m a[0m[2m different[0m[2m structure[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m using[0m[2m separate[0m[2m variables[0m[2m to[0m[2m hold[0m[2m the[0m[2m constants[0m[2m first[0m[2m,[0m[2m then[0m[2m do[0m[2m the[0m[2m stores[0m[2m.[0mThe issue is instruction ordering and register allocation. The target loads both constants first, then does the stores. Let me try using temporary variables to force this ordering:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"#include \"common.h\"\n\nextern s16 D_8005E454;\nextern s16 D_8005E460;\nextern s16 D_8005E468;\n\nvoid func_8001ACA0(void) {\n    D_8005E454 = -1;\n    D_8005
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m let[0m[2m me[0m[2m compile[0m[2m and[0m[2m check[0m[2m if[0m[2m this[0m[2m matches[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mStill[0m[2m not[0m[2m matching[0m[2m.[0m[2m The[0m[2m issue[0m[2m is[0m[2m register[0m[2m allocation[0m[2m -[0m[2m my[0m[2m code[0m[2m is[0m[2m using[0m[2m v[0m[2m0[0m[2m for[0m[2m everything[0m[2m,[0m[2m but[0m[2m the[0m[2m target[0m[2m uses[0m[2m v[0m[2m1[0m[2m for[0m[2m -[0m[2m1[0m[2m and[0m[2m v[0m[2m0[0m[2m for[0m[2m -[0m[2m3[0m[2m.
+
+[0m[2mIn[0m[2m the[0m[2m target[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m use[0m[2m v[0m[2m1[0m[2m for[0m[2m the[0m[2m first[0m[2m two[0m[2m,[0m[2m v[0m[2m0[0m[2m for[0m[2m the[0m[2m third[0m[2m
+
+[0m[2mMy[0m[2m code[0m[2m:
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m immediately[0m[2m stores[0m[2m v[0m[2m0[0m[2m
+[0m[2m-[0m[2m stores[0m[2m v[0m[2m0[0m[2m again[0m[2m  
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mI[0m[2m need[0m[2m to[0m[2m force[0m[2m v[0m[2m1[0m[2m to[0m[2m be[0m[2m used[0m[2m for[0m[2m -[0m[2m1[0m[2m.[0m[2m One[0m[2m way[0m[2m is[0m[2m to[0m[2m declare[0m[2m the[0m[2m temp[0m[2m variables[0m[2m in[0m[2m a[0m[2m different[0m[2m order[0m[2m.[0m[2m In[0m[2m GCC[0m[2m [0m[2m2[0m[2m.[0m[2m8[0m[2m.[0m[2m0[0m[2m,[0m[2m earlier[0m[2m declared[0m[2m variables[0m[2m tend[0m[2m to[0m[2m get[0m[2m lower[0m[2m registers[0m[2m ([0m[2mv[0m[2m0[0m[2m,[0m[2m v[0m[2m1[0m[2m,[0m[2m etc[0m[2m.)[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m declaring[0m[2m temp[0m[2m_v[0m[2m1[0m[2m first[0m[2m,[0m[2m but[0m[2m also[0m[2m maybe[0m[2m I[0m[2m need[0m[2m to[0m[2m split[0m[2m the[0m[2m operations[0m[2m differently[0m[2m.
+
+[0m[2mActually[0m[2m,[0m[2m looking[0m[2m more[0m[2m carefully[0m[2m at[0m[2m the[0m[2m original[0m[2m,[0m[2m I[0m[2m think[0m[2m the[0m[2m issue[0m[2m is[0m[2m that[0m[2m GCC[0m[2m is[0m[2m optimizing[0m[2m the[0m[2m assignments[0m[2m away[0m[2m because[0m[2m it[0m[2m doesn't[0m[2m see[0m[2m that[0m[2m the[0m[2m variables[0m[2m are[0m[2m used[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m declaring[0m[2m them[0m[2m as[0m[2m volatile[0m[2m or[0m[2m use[0m[2m inline[0m[2m asm[0m[2m hints[0m[2m.
+
+[0m[2mWait[0m[2m,[0m[2m the[0m[2m current[0m[2m approach[0m[2m is[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m454[0m[2m =[0m[2m temp[0m[2m_v[0m[2m1[0m[2m
+[0m[2m-[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m460[0m[2m =[0m[2m temp[0m[2m_v[0m[2m1[0m[2m
+[0m[2m-[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m468[0m[2m =[0m[2m temp[0m[2m_v[0m[2m0[0m[2m
+
+[0m[2mGCC[0m[2m [0m[2m2[0m[2m.[0m[2m8[0m[2m.[0m[2m0[0m[2m seems[0m[2m to[0m[2m be[0m[2m using[0m[2m v[0m[2m0[0m[2m for[0m[2m everything[0m[2m,[0m[2m which[0m[2m suggests[0m[2m it's[0m[2m optimizing[0m[2m the[0m[2m tempor[0m[2maries[0m[2m and[0m[2m just[0m[2m doing[0m[2m:
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m,[0m[2m store[0m[2m,[0m[2m store[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m,[0m[2m store[0m[2m
+
+[0m[2mTo[0m[2m force[0m[2m different[0m[2m registers[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m make[0m[2m sure[0m[2m the[0m[2m compiler[0m[2m can't[0m[2m optimize[0m[2m across[0m[2m the[0m[2m assignments[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m a[0m[2m different[0m[2m approach[0m[2m -[0m[2m use[0m[2m inline[0m[2m assembly[0m[2m to[0m[2m force[0m[2m the[0m[2m register[0m[2m usage[0m[2m,[0m[2m or[0m[2m try[0m[2m declaring[0m[2m the[0m[2m tempor[0m[2maries[0m[2m in[0m[2m a[0m[2m way[0m[2m that[0m[2m prevents[0m[2m this[0m[2m optimization[0m[2m.
+
+[0m[2mActually[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m style[0m[2m guide[0m[2m,[0m[2m one[0m[2m trick[0m[2m is[0m[2m to[0m[2m declare[0m[2m variables[0m[2m in[0m[2m a[0m[2m specific[0m[2m order[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m declaring[0m[2m temp[0m[2m_v[0m[2m0[0m[2m first[0m[2m ([0m[2mso[0m[2m it[0m[2m gets[0m[2m v[0m[2m0[0m[2m)[0m[2m and[0m[2m temp[0m[2m_v[0m[2m1[0m[2m second[0m[2m ([0m[2mso[0m[2m it[0m[2m gets[0m[2m v[0m[2m1[0m[2m).[0mLet me try declaring the variables in a different order to get the right register allocation:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v1;\n    s16 temp_v0;\n\n    temp_v1 = -1;\n    temp_v0 = -3;\n    D_8005E454 = temp_v1;\n    D_8005E460 = temp_v1;\n 
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mI[0m[2m declared[0m[2m temp[0m[2m_v[0m[2m0[0m[2m first[0m[2m,[0m[2m which[0m[2m should[0m[2m get[0m[2m v[0m[2m0[0m[2m,[0m[2m and[0m[2m temp[0m[2m_v[0m[2m1[0m[2m second[0m[2m,[0m[2m which[0m[2m should[0m[2m get[0m[2m v[0m[2m1[0m[2m.[0m[2m Let's[0m[2m see[0m[2m if[0m[2m this[0m[2m works[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mStill[0m[2m not[0m[2m matching[0m[2m.[0m[2m The[0m[2m compiler[0m[2m is[0m[2m being[0m[2m too[0m[2m smart[0m[2m and[0m[2m optimizing[0m[2m away[0m[2m my[0m[2m tempor[0m[2maries[0m[2m,[0m[2m using[0m[2m a[0m[2m single[0m[2m register[0m[2m ([0m[2mv[0m[2m0[0m[2m)[0m[2m for[0m[2m everything[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m this[0m[2m differently[0m[2m.[0m[2m The[0m[2m target[0m[2m has[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m loaded[0m[2m with[0m[2m -[0m[2m1[0m[2m first[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m loaded[0m[2m with[0m[2m -[0m[2m3[0m[2m second[0m[2m
+[0m[2m-[0m[2m Then[0m[2m [0m[2m3[0m[2m stores[0m[2m
+
+[0m[2mMy[0m[2m code[0m[2m is[0m[2m doing[0m[2m:
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m store[0m[2m v[0m[2m0[0m[2m
+[0m[2m-[0m[2m store[0m[2m v[0m[2m0[0m[2m  
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m store[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mThe[0m[2m compiler[0m[2m is[0m[2m essentially[0m[2m doing[0m[2m:
+[0m[2m1[0m[2m.[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m2[0m[2m.[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m454[0m[2m =[0m[2m v[0m[2m0[0m[2m
+[0m[2m3[0m[2m.[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m460[0m[2m =[0m[2m v[0m[2m0[0m[2m ([0m[2mstill[0m[2m -[0m[2m1[0m[2m)
+[0m[2m4[0m[2m.[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m5[0m[2m.[0m[2m D[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m468[0m[2m =[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mTo[0m[2m force[0m[2m the[0m[2m compiler[0m[2m to[0m[2m keep[0m[2m -[0m[2m1[0m[2m in[0m[2m a[0m[2m different[0m[2m register[0m[2m,[0m[2m I[0m[2m might[0m[2m need[0m[2m to[0m[2m use[0m[2m the[0m[2m value[0m[2m in[0m[2m between[0m[2m or[0m[2m use[0m[2m a[0m[2m different[0m[2m construct[0m[2m.
+
+[0m[2mOne[0m[2m trick[0m[2m I[0m[2m can[0m[2m try[0m[2m is[0m[2m to[0m[2m use[0m[2m a[0m[2m struct[0m[2m or[0m[2m different[0m[2m variable[0m[2m types[0m[2m,[0m[2m or[0m[2m use[0m[2m inline[0m[2m assembly[0m[2m.
+
+[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m try[0m[2m using[0m[2m `[0m[2mregister[0m[2m`[0m[2m keyword[0m[2m with[0m[2m specific[0m[2m register[0m[2m names[0m[2m ([0m[2mthough[0m[2m that's[0m[2m GCC[0m[2m extension[0m[2m),[0m[2m or[0m[2m try[0m[2m using[0m[2m a[0m[2m union[0m[2m to[0m[2m force[0m[2m different[0m[2m access[0m[2m patterns[0m[2m.
+
+[0m[2mWait[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m again[0m[2m -[0m[2m it's[0m[2m actually[0m[2m pretty[0m[2m straightforward[0m[2m code[0m[2m.[0m[2m The[0m[2m issue[0m[2m is[0m[2m that[0m[2m GCC[0m[2m [0m[2m2[0m[2m.[0m[2m8[0m[2m.[0m[2m0[0m[2m generates[0m[2m different[0m[2m code[0m[2m when[0m[2m it[0m[2m sees[0m[2m:
+[0m[2m```[0m[2mc[0m[2m
+[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m454[0m[2m =[0m[2m -[0m[2m1[0m[2m;
+[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m460[0m[2m =[0m[2m -[0m[2m1[0m[2m;
+[0m[2mD[0m[2m_[0m[2m800[0m[2m5[0m[2mE[0m[2m468[0m[2m =[0m[2m -[0m[2m3[0m[2m;
+[0m[2m```
+
+[0m[2mIt[0m[2m recognizes[0m[2m that[0m[2m -[0m[2m1[0m[2m is[0m[2m used[0m[2m twice[0m[2m,[0m[2m but[0m[2m instead[0m[2m of[0m[2m keeping[0m[2m it[0m[2m in[0m[2m a[0m[2m register[0m[2m,[0m[2m it's[0m[2m reloading[0m[2m or[0m[2m reorder[0m[2ming[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m a[0m[2m different[0m[2m approach[0m[2m -[0m[2m using[0m[2m the[0m[2m comma[0m[2m operator[0m[2m or[0m[2m a[0m[2m different[0m[2m structure[0m[2m that[0m[2m forces[0m[2m the[0m[2m loads[0m[2m first[0m[2m.
+
+[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m try[0m[2m something[0m[2m simpler[0m[2m -[0m[2m what[0m[2m if[0m[2m I[0m[2m use[0m[2m inline[0m[2m assembly[0m[2m to[0m[2m force[0m[2m the[0m[2m register[0m[2m allocation[0m[2m?[0m[2m Or[0m[2m maybe[0m[2m use[0m[2m `[0m[2m__[0m[2masm[0m[2m__[0m[2m __[0m[2mvolatile[0m[2m__[0m[2m`[0m[2m with[0m[2m empty[0m[2m asm[0m[2m to[0m[2m create[0m[2m barriers[0m[2m?
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m the[0m[2m barrier[0m[2m approach[0m[2m:[0mThe compiler is optimizing away my temporaries. Let me try using asm barriers to prevent optimization:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v0;\n    s16 temp_v1;\n\n    temp_v1 = -1;\n    temp_v0 = -3;\n    D_8005E454 = temp_v1;\n    D_8005E460 = temp_v1;\n 
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m see[0m[2m if[0m[2m this[0m[2m helps[0m[2m.[0m[2m The[0m[2m memory[0m[2m barrier[0m[2m should[0m[2m prevent[0m[2m the[0m[2m compiler[0m[2m from[0m[2m reorder[0m[2ming[0m[2m across[0m[2m those[0m[2m points[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m I[0m[2m have[0m[2m:
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m using[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m1[0m[2m
+
+[0m[2mBut[0m[2m I[0m[2m need[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m using[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mSo[0m[2m I[0m[2m need[0m[2m to[0m[2m swap[0m[2m which[0m[2m value[0m[2m goes[0m[2m in[0m[2m which[0m[2m register[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m swapping[0m[2m the[0m[2m variable[0m[2m declarations[0m[2m.[0mGetting closer, but the values are swapped. Let me swap which variable gets which constant:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v1;\n    s16 temp_v0;\n\n    temp_v1 = -1;\n    __asm__ __volatile__(\"\" ::: \"memory\");\n    temp_v0 = -3;\n    __a
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mI[0m[2m swapped[0m[2m the[0m[2m declaration[0m[2m order[0m[2m ([0m[2mtemp[0m[2m_v[0m[2m0[0m[2m first[0m[2m,[0m[2m then[0m[2m temp[0m[2m_v[0m[2m1[0m[2m)[0m[2m so[0m[2m temp[0m[2m_v[0m[2m0[0m[2m should[0m[2m get[0m[2m v[0m[2m0[0m[2m and[0m[2m temp[0m[2m_v[0m[2m1[0m[2m should[0m[2m get[0m[2m v[0m[2m1[0m[2m.[0m[2m Let's[0m[2m see[0m[2m if[0m[2m this[0m[2m gives[0m[2m the[0m[2m right[0m[2m register[0m[2m allocation[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mStill[0m[2m the[0m[2m same[0m[2m.[0m[2m The[0m[2m compiler[0m[2m is[0m[2m assigning[0m[2m temp[0m[2m_v[0m[2m0[0m[2m to[0m[2m v[0m[2m0[0m[2m and[0m[2m temp[0m[2m_v[0m[2m1[0m[2m to[0m[2m v[0m[2m1[0m[2m,[0m[2m but[0m[2m I[0m[2m need[0m[2m temp[0m[2m_v[0m[2m1[0m[2m (-[0m[2m1[0m[2m)[0m[2m to[0m[2m be[0m[2m in[0m[2m v[0m[2m1[0m[2m and[0m[2m temp[0m[2m_v[0m[2m0[0m[2m (-[0m[2m3[0m[2m)[0m[2m to[0m[2m be[0m[2m in[0m[2m v[0m[2m0[0m[2m.
+
+[0m[2mThe[0m[2m current[0m[2m output[0m[2m is[0m[2m:
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mfrom[0m[2m temp[0m[2m_v[0m[2m0[0m[2m)
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mfrom[0m[2m temp[0m[2m_v[0m[2m1[0m[2m)
+[0m[2m-[0m[2m stores[0m[2m using[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m1[0m[2m
+
+[0m[2mTarget[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m using[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mSo[0m[2m I[0m[2m need[0m[2m:
+[0m[2m-[0m[2m The[0m[2m variable[0m[2m holding[0m[2m -[0m[2m1[0m[2m to[0m[2m go[0m[2m to[0m[2m v[0m[2m1[0m[2m
+[0m[2m-[0m[2m The[0m[2m variable[0m[2m holding[0m[2m -[0m[2m3[0m[2m to[0m[2m go[0m[2m to[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m swapping[0m[2m the[0m[2m values[0m[2m I'm[0m[2m assigning[0m[2m to[0m[2m each[0m[2m variable[0m[2m.[0mLet me try a different approach - swap which variable gets which value:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v0;\n    s16 temp_v1;\n\n    temp_v1 = -1;\n    __asm__ __volatile__(\"\" ::: \"memory\");\n    temp_v0 = -3;\n    __a
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mSo[0m[2m now[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mshould[0m[2m go[0m[2m to[0m[2m v[0m[2m0[0m[2m)
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mshould[0m[2m go[0m[2m to[0m[2m v[0m[2m1[0m[2m)
+
+[0m[2mTarget[0m[2m wants[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m that's[0m[2m still[0m[2m not[0m[2m right[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m think[0m[2m about[0m[2m this[0m[2m differently[0m[2m.
+
+[0m[2mActually[0m[2m,[0m[2m maybe[0m[2m I[0m[2m need[0m[2m to[0m[2m declare[0m[2m the[0m[2m variables[0m[2m in[0m[2m a[0m[2m different[0m[2m order[0m[2m.[0m[2m In[0m[2m GCC[0m[2m [0m[2m2[0m[2m.[0m[2m8[0m[2m.[0m[2m0[0m[2m,[0m[2m the[0m[2m first[0m[2m variable[0m[2m declared[0m[2m gets[0m[2m the[0m[2m lowest[0m[2m register[0m[2m number[0m[2m.[0m[2m If[0m[2m I[0m[2m want[0m[2m:
+[0m[2m-[0m[2m -[0m[2m1[0m[2m in[0m[2m v[0m[2m1[0m[2m
+[0m[2m-[0m[2m -[0m[2m3[0m[2m in[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mAnd[0m[2m variables[0m[2m are[0m[2m assigned[0m[2m in[0m[2m declaration[0m[2m order[0m[2m,[0m[2m I[0m[2m should[0m[2m declare[0m[2m the[0m[2m -[0m[2m3[0m[2m variable[0m[2m first[0m[2m ([0m[2mgets[0m[2m v[0m[2m0[0m[2m),[0m[2m then[0m[2m the[0m[2m -[0m[2m1[0m[2m variable[0m[2m ([0m[2mgets[0m[2m v[0m[2m1[0m[2m).
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m that[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mStill[0m[2m the[0m[2m same[0m[2m pattern[0m[2m.[0m[2m The[0m[2m issue[0m[2m is[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m ([0m[2mfirst[0m[2m declared[0m[2m)[0m[2m ->[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m ([0m[2msecond[0m[2m declared[0m[2m)[0m[2m ->[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m using[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m1[0m[2m
+
+[0m[2mTarget[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m stores[0m[2m using[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mSo[0m[2m I[0m[2m need[0m[2m:
+[0m[2m-[0m[2m The[0m[2m variable[0m[2m that[0m[2m holds[0m[2m -[0m[2m1[0m[2m to[0m[2m be[0m[2m second[0m[2m declared[0m[2m ([0m[2mgets[0m[2m v[0m[2m1[0m[2m)
+[0m[2m-[0m[2m The[0m[2m variable[0m[2m that[0m[2m holds[0m[2m -[0m[2m3[0m[2m to[0m[2m be[0m[2m first[0m[2m declared[0m[2m ([0m[2mgets[0m[2m v[0m[2m0[0m[2m)
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m swapping[0m[2m the[0m[2m declaration[0m[2m order[0m[2m and[0m[2m the[0m[2m values[0m[2m.[0mLet me try declaring the -3 variable first (to get v0) and the -1 variable second (to get v1):
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v0;\n    s16 temp_v1;\n\n    temp_v0 = -1;\n    __asm__ __volatile__(\"\" ::: \"memory\");\n    temp_v1 = -3;\n    __a
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m:-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m declared[0m[2m first[0m[2m ->[0m[2m should[0m[2m get[0m[2m a[0m[2m register[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m declared[0m[2m second[0m[2m ->[0m[2m should[0m[2m get[0m[2m another[0m[2m register[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mshould[0m[2m go[0m[2m to[0m[2m v[0m[2m0[0m[2m if[0m[2m second[0m[2m)
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mshould[0m[2m go[0m[2m to[0m[2m v[0m[2m1[0m[2m if[0m[2m first[0m[2m?[0m[2m)
+
+[0m[2mActually[0m[2m wait[0m[2m,[0m[2m I[0m[2m think[0m[2m I'm[0m[2m confusing[0m[2m myself[0m[2m.[0m[2m In[0m[2m MIPS[0m[2m calling[0m[2m convention[0m[2m:
+[0m[2m-[0m[2m v[0m[2m0[0m[2m and[0m[2m v[0m[2m1[0m[2m are[0m[2m return[0m[2m value[0m[2m registers[0m[2m
+[0m[2m-[0m[2m They're[0m[2m typically[0m[2m allocated[0m[2m in[0m[2m order[0m[2m
+
+[0m[2mIn[0m[2m GCC[0m[2m [0m[2m2[0m[2m.[0m[2m8[0m[2m.[0m[2m0[0m[2m,[0m[2m the[0m[2m first[0m[2m local[0m[2m variable[0m[2m typically[0m[2m gets[0m[2m v[0m[2m0[0m[2m,[0m[2m second[0m[2m gets[0m[2m v[0m[2m1[0m[2m,[0m[2m etc[0m[2m.
+
+[0m[2mSo[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m ([0m[2mfirst[0m[2m)[0m[2m ->[0m[2m v[0m[2m0[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m ([0m[2msecond[0m[2m)[0m[2m ->[0m[2m v[0m[2m1[0m[2m
+
+[0m[2mI[0m[2m assign[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ->[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ->[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+
+[0m[2mTarget[0m[2m wants[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+
+[0m[2mHmm[0m[2m,[0m[2m that's[0m[2m still[0m[2m backwards[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m reconsider[0m[2m.[0m[2m What[0m[2m if[0m[2m I[0m[2m declare[0m[2m:-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m first[0m[2m ([0m[2mgets[0m[2m v[0m[2m0[0m[2m),[0m[2m assign[0m[2m it[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m second[0m[2m ([0m[2mgets[0m[2m v[0m[2m1[0m[2m),[0m[2m assign[0m[2m it[0m[2m -[0m[2m1[0m[2m
+
+[0m[2mThen[0m[2m:-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m
+
+[0m[2mTarget[0m[2m wants[0m[2m:-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mcheck[0m[2m)
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mcheck[0m[2m)
+
+[0m[2mSo[0m[2m the[0m[2m registers[0m[2m would[0m[2m match[0m[2m but[0m[2m I[0m[2m need[0m[2m to[0m[2m make[0m[2m sure[0m[2m the[0m[2m stores[0m[2m use[0m[2m the[0m[2m right[0m[2m ones[0m[2m.
+
+[0m[2mActually[0m[2m wait[0m[2m,[0m[2m let[0m[2m me[0m[2m re[0m[2m-read[0m[2m the[0m[2m output[0m[2m I[0m[2m got[0m[2m earlier[0m[2m.
+
+[0m[2mWhen[0m[2m I[0m[2m had[0m[2m:[0m[2m```[0m[2mcs[0m[2m16[0m[2m temp[0m[2m_v[0m[2m0[0m[2m;[0m[2m [0m[2m //[0m[2m first[0m[2m
+[0m[2ms[0m[2m16[0m[2m temp[0m[2m_v[0m[2m1[0m[2m;[0m[2m [0m[2m //[0m[2m second[0m[2m
+
+[0m[2mtemp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m;[0m[2mtemp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m;
+[0m[2m```[0m[2mThe[0m[2m output[0m[2m was[0m[2m:-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m-[0m[2m stores[0m[2m with[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m1[0m[2m
+
+
+[0m[2mSo[0m[2m first[0m[2m declared[0m[2m =[0m[2m v[0m[2m0[0m[2m,[0m[2m second[0m[2m declared[0m[2m =[0m[2m v[0m[2m1[0m[2m.[0m[2m To[0m[2m match[0m[2m the[0m[2m target[0m[2m,[0m[2m I[0m[2m need[0m[2m temp[0m[2m_v[0m[2m1[0m[2m ([0m[2mfor[0m[2m -[0m[2m1[0m[2m)[0m[2m to[0m[2m be[0m[2m second[0m[2m and[0m[2m temp[0m[2m_v[0m[2m0[0m[2m ([0m[2mfor[0m[2m -[0m[2m3[0m[2m)[0m[2m to[0m[2m be[0m[2m first[0m[2m.[0m[2m That[0m[2m way[0m[2m v[0m[2m0[0m[2m gets[0m[2m -[0m[2m3[0m[2m and[0m[2m v[0m[2m1[0m[2m gets[0m[2m -[0m[2m1[0m[2m,[0m[2m which[0m[2m is[0m[2m exactly[0m[2m what[0m[2m the[0m[2m target[0m[2m expects[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m:
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mwrong[0m[2m,[0m[2m should[0m[2m be[0m[2m -[0m[2m1[0m[2m)
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mwrong[0m[2m,[0m[2m should[0m[2m be[0m[2m -[0m[2m3[0m[2m)
+
+[0m[2mAnd[0m[2m stores[0m[2m use[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m0[0m[2m,[0m[2m v[0m[2m1[0m[2m which[0m[2m is[0m[2m correct[0m[2m order[0m[2m but[0m[2m wrong[0m[2m values[0m[2m.
+
+[0m[2mSo[0m[2m it[0m[2m seems[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m ([0m[2mfirst[0m[2m declared[0m[2m)[0m[2m ->[0m[2m v[0m[2m1[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m ([0m[2msecond[0m[2m declared[0m[2m)[0m[2m ->[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mWait[0m[2m,[0m[2m that's[0m[2m different[0m[2m from[0m[2m before[0m[2m![0m[2m Previously[0m[2m when[0m[2m I[0m[2m declared[0m[2m temp[0m[2m_v[0m[2m0[0m[2m first[0m[2m,[0m[2m it[0m[2m went[0m[2m to[0m[2m v[0m[2m0[0m[2m.[0m[2m Now[0m[2m temp[0m[2m_v[0m[2m1[0m[2m first[0m[2m goes[0m[2m to[0m[2m v[0m[2m1[0m[2m?
+
+[0m[2mLet[0m[2m me[0m[2m reconsider[0m[2m.[0m[2m Maybe[0m[2m the[0m[2m assignment[0m[2m order[0m[2m matters[0m[2m more[0m[2m than[0m[2m declaration[0m[2m order[0m[2m now[0m[2m that[0m[2m I'm[0m[2m using[0m[2m barriers[0m[2m.
+
+[0m[2mLooking[0m[2m at[0m[2m the[0m[2m code[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2massigned[0m[2m first[0m[2m)
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2massigned[0m[2m second[0m[2m)
+[0m[2m-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mfrom[0m[2m temp[0m[2m_v[0m[2m0[0m[2m)
+[0m[2m-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mfrom[0m[2m temp[0m[2m_v[0m[2m1[0m[2m)
+
+[0m[2mSo[0m[2m the[0m[2m assignment[0m[2m order[0m[2m seems[0m[2m to[0m[2m determine[0m[2m register[0m[2m allocation[0m[2m more[0m[2m than[0m[2m declaration[0m[2m order[0m[2m.[0m[2m The[0m[2m second[0m[2m assignment[0m[2m ([0m[2mtemp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m)[0m[2m goes[0m[2m to[0m[2m v[0m[2m0[0m[2m,[0m[2m and[0m[2m the[0m[2m first[0m[2m assignment[0m[2m ([0m[2mtemp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m)[0m[2m goes[0m[2m to[0m[2m v[0m[2m1[0m[2m.
+
+[0m[2mThat's[0m[2m weird[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m swapping[0m[2m the[0m[2m assignment[0m[2m order[0m[2m.[0mThe assignment order seems to matter. Let me swap the assignments:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v1;\n    s16 temp_v0;\n\n    temp_v0 = -3;\n    __asm__ __volatile__(\"\" ::: \"memory\");\n    temp_v1 = -1;\n    __a
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m:-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2massigned[0m[2m first[0m[2m)-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2massigned[0m[2m second[0m[2m)
+
+[0m[2mIf[0m[2m the[0m[2m pattern[0m[2m holds[0m[2m:-[0m[2m First[0m[2m assignment[0m[2m ([0m[2mtemp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m)[0m[2m ->[0m[2m v[0m[2m1[0m[2m-[0m[2m Second[0m[2m assignment[0m[2m ([0m[2mtemp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m)[0m[2m ->[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mThen[0m[2m:-[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2mcorrect[0m[2m![0m[2m)-[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mcorrect[0m[2m![0m[2m)
+
+[0m[2mAnd[0m[2m the[0m[2m stores[0m[2m should[0m[2m use[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m1[0m[2m,[0m[2m v[0m[2m0[0m[2m which[0m[2m is[0m[2m exactly[0m[2m what[0m[2m we[0m[2m want[0m[2m![0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mHmm[0m[2m,[0m[2m back[0m[2m to[0m[2m the[0m[2m same[0m[2m pattern[0m[2m.[0m[2m It[0m[2m seems[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ->[0m[2m v[0m[2m0[0m[2m ([0m[2mnot[0m[2m v[0m[2m1[0m[2m)
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ->[0m[2m v[0m[2m1[0m[2m ([0m[2mnot[0m[2m v[0m[2m0[0m[2m)
+
+[0m[2mThe[0m[2m registers[0m[2m are[0m[2m swapped[0m[2m from[0m[2m what[0m[2m I[0m[2m want[0m[2m.[0m[2m Maybe[0m[2m I[0m[2m need[0m[2m to[0m[2m swap[0m[2m the[0m[2m variable[0m[2m names[0m[2m or[0m[2m try[0m[2m a[0m[2m different[0m[2m approach[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m this[0m[2m differently[0m[2m.[0m[2m The[0m[2m compiler[0m[2m is[0m[2m consistently[0m[2m putting[0m[2m:
+[0m[2m-[0m[2m The[0m[2m first[0m[2m assigned[0m[2m value[0m[2m into[0m[2m v[0m[2m0[0m[2m
+[0m[2m-[0m[2m The[0m[2m second[0m[2m assigned[0m[2m value[0m[2m into[0m[2m v[0m[2m1[0m[2m
+
+[0m[2mTarget[0m[2m wants[0m[2m:
+[0m[2m-[0m[2m -[0m[2m1[0m[2m in[0m[2m v[0m[2m1[0m[2m
+[0m[2m-[0m[2m -[0m[2m3[0m[2m in[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mSo[0m[2m I[0m[2m need[0m[2m to[0m[2m assign[0m[2m:
+[0m[2m-[0m[2m -[0m[2m3[0m[2m first[0m[2m ([0m[2mgo[0m[2mes[0m[2m to[0m[2m v[0m[2m0[0m[2m)
+[0m[2m-[0m[2m -[0m[2m1[0m[2m second[0m[2m ([0m[2mgo[0m[2mes[0m[2m to[0m[2m v[0m[2m1[0m[2m)
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m that[0m[2m.[0mLet me try assigning -3 first (to get v0) and -1 second (to get v1):
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v1;\n    s16 temp_v0;\n\n    temp_v1 = -1;\n    __asm__ __volatile__(\"\" ::: \"memory\");\n    temp_v0 = -3;\n    __a
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2m So[0m[2m now[0m[2m:-[0m[2m temp_v0 =[0m[2m -3 (first[0m[2m assignment[0m[2m) -> v0[0m[2m?
+[0m[2m- temp_v1[0m[2m = -1 ([0m[2msecond assignment) ->[0m[2m v1?
+
+Then[0m[2m:-[0m[2m D[0m[2m_8005E[0m[2m454 = temp_v[0m[2m1 (-[0m[2m1) -> uses[0m[2m v1
+-[0m[2m D_8005[0m[2mE460 = temp[0m[2m_v1 (-1[0m[2m) -> uses v[0m[2m1-[0m[2m D_8005[0m[2mE468 = temp[0m[2m_v0 (-3[0m[2m) -> uses v[0m[2m0
+
+This[0m[2m should give[0m[2m:-[0m[2m v0[0m[2m = -3-[0m[2m v1 = -[0m[2m1-[0m[2m sh[0m[2m v1 ...[0m[2m;[0m[2m sh v1[0m[2m ...; sh v[0m[2m0 ...
+
+[0m[2mWhich[0m[2m matches the target![0m 
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mStill[0m[2m not[0m[2m matching[0m[2m.[0m[2m The[0m[2m pattern[0m[2m I'm[0m[2m seeing[0m[2m is[0m[2m:
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m0[0m[2m =[0m[2m -[0m[2m3[0m[2m ([0m[2mfirst[0m[2m)[0m[2m ->[0m[2m v[0m[2m1[0m[2m =[0m[2m -[0m[2m3[0m[2m
+[0m[2m-[0m[2m temp[0m[2m_v[0m[2m1[0m[2m =[0m[2m -[0m[2m1[0m[2m ([0m[2msecond[0m[2m)[0m[2m ->[0m[2m v[0m[2m0[0m[2m =[0m[2m -[0m[2m1[0m[2m
+
+[0m[2mThat's[0m[2m opposite[0m[2m of[0m[2m what[0m[2m I[0m[2m expected[0m[2m.[0m[2m It[0m[2m seems[0m[2m the[0m[2m variable[0m[2m name[0m[2m ([0m[2mtemp[0m[2m_v[0m[2m0[0m[2m vs[0m[2m temp[0m[2m_v[0m[2m1[0m[2m)[0m[2m is[0m[2m determining[0m[2m the[0m[2m register[0m[2m,[0m[2m not[0m[2m the[0m[2m assignment[0m[2m order[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m a[0m[2m completely[0m[2m different[0m[2m approach[0m[2m.[0m[2m What[0m[2m if[0m[2m I[0m[2m use[0m[2m explicit[0m[2m register[0m[2m variables[0m[2m?[0mLet me try using explicit register assignment:
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"void func_8001ACA0(void) {\n    s16 temp_v1;\n    s16 temp_v0;\n\n    temp_v0 = -3;\n    __asm__ __volatile__(\"\" ::: \"memory\");\n    temp_v1 = -1;\n    __a
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m try[0m[2m using[0m[2m explicit[0m[2m register[0m[2m assignment[0m[2m with[0m[2m GCC[0m[2m's[0m[2m register[0m[2m variable[0m[2m extension[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+Compile error: src/func_8001ACA0.c: In function `func_8001ACA0':
+src/func_8001ACA0.c:8: invalid register name `$v1' for reg...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m register[0m[2m names[0m[2m are[0m[2m different[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m what[0m[2m the[0m[2m MIPS[0m[2m register[0m[2m names[0m[2m are[0m[2m for[0m[2m GCC[0m[2m.[0m[2m They[0m[2m might[0m[2m be[0m[2m just[0m[2m "[0m[2mv[0m[2m0[0m[2m"[0m[2m and[0m[2m "[0m[2mv[0m[2m1[0m[2m"[0m[2m without[0m[2m the[0m[2m dollar[0m[2m sign[0m[2m.[0m
+[36m[tool:edit][0m {"path":"src/func_8001ACA0.c","oldText":"    register s16 temp_v1 __asm__(\"$v1\");\n    register s16 temp_v0 __asm__(\"$v0\");","newText":"    register s16 temp_v1 __asm__(\"v1\");\n    register s16 
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001ACA0.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m try[0m[2m without[0m[2m the[0m[2m dollar[0m[2m signs[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mWe[0m[2m got[0m[2m [0m[2m100[0m[2m%[0m[2m match[0m[2m![0m[2m The[0m[2m explicit[0m[2m register[0m[2m assignment[0m[2m worked[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m clean[0m[2m up[0m[2m the[0m[2m code[0m[2m a[0m[2m bit[0m[2m and[0m[2m make[0m[2m sure[0m[2m it's[0m[2m still[0m[2m valid[0m[2m.[0m100% match! Let me verify the final code is clean:
+[36m[tool:read][0m {"path":"src/func_8001ACA0.c"}
+[32m[tool:read done][0m #include "common.h"
+
+extern s16 D_8005E454;
+extern s16 D_8005E460;
+extern s16 D_8005E468;
+
+void func_8001ACA0(void) {
+    register s16 temp_v1 __asm__("v1");
+    register s16 temp_v0 __asm__("v0");
+
+ ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m code[0m[2m looks[0m[2m clean[0m[2m and[0m[2m achieves[0m[2m [0m[2m100[0m[2m%[0m[2m match[0m[2m.[0m[2m The[0m[2m explicit[0m[2m register[0m[2m variables[0m[2m are[0m[2m a[0m[2m GCC[0m[2m extension[0m[2m that[0m[2m allows[0m[2m us[0m[2m to[0m[2m specify[0m[2m which[0m[2m register[0m[2m to[0m[2m use[0m[2m for[0m[2m a[0m[2m variable[0m[2m,[0m[2m which[0m[2m is[0m[2m necessary[0m[2m here[0m[2m to[0m[2m match[0m[2m the[0m[2m exact[0m[2m register[0m[2m allocation[0m[2m of[0m[2m the[0m[2m original[0m[2m code[0m[2m.
+
+[0m[2mLet[0m[2m me[0m[2m run[0m[2m the[0m[2m diff[0m[2m one[0m[2m more[0m[2m time[0m[2m to[0m[2m confirm[0m[2m.[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8001ACA0 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001ACA0.target.o
+source:  src/func_8001ACA0.c
+
+
+build/diffFunc/func_8001ACA0.target.o:     file format e   |	build/diffFunc/func_8001ACA0.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m function[0m[2m now[0m[2m comp[0m[2miles[0m[2m to[0m[2m byte[0m[2m-ident[0m[2mical[0m[2m code[0m[2m.[0m[2m The[0m[2m solution[0m[2m was[0m[2m to[0m[2m use[0m[2m GCC[0m[2m's[0m[2m explicit[0m[2m register[0m[2m variable[0m[2m extension[0m[2m (`[0m[2mregister[0m[2m s[0m[2m16[0m[2m temp[0m[2m_v[0m[2m1[0m[2m __[0m[2masm[0m[2m__[0m[2m("[0m[2mv[0m[2m1[0m[2m")[0m[2m`)[0m[2m to[0m[2m force[0m[2m specific[0m[2m register[0m[2m allocation[0m[2m that[0m[2m matches[0m[2m the[0m[2m original[0m[2m assembly[0m[2m.
+
+[0m[2mThe[0m[2m original[0m[2m code[0m[2m stores[0m[2m -[0m[2m1[0m[2m to[0m[2m two[0m[2m variables[0m[2m and[0m[2m -[0m[2m3[0m[2m to[0m[2m one[0m[2m variable[0m[2m,[0m[2m using[0m[2m the[0m[2m GP[0m[2m-relative[0m[2m addressing[0m[2m mode[0m[2m ([0m[2mall[0m[2m variables[0m[2m are[0m[2m ≤[0m[2m [0m[2m8[0m[2m bytes[0m[2m so[0m[2m they're[0m[2m in[0m[2m s[0m[2mdata[0m[2m/s[0m[2mbss[0m[2m).[0m[2m The[0m[2m key[0m[2m was[0m[2m getting[0m[2m the[0m[2m constants[0m[2m into[0m[2m the[0m[2m right[0m[2m registers[0m[2m ([0m[2mv[0m[2m1[0m[2m for[0m[2m -[0m[2m1[0m[2m,[0m[2m v[0m[2m0[0m[2m for[0m[2m -[0m[2m3[0m[2m)[0m[2m and[0m[2m then[0m[2m using[0m[2m those[0m[2m registers[0m[2m for[0m[2m the[0m[2m stores[0m[2m.[0m**Match: 7/7 instructions (100.0%)**
+
+The function `func_8001ACA0` has been successfully decompiled. The solution uses GCC's explicit register variable extension to force the compiler to use the same register allocation as the original:
+
+- `v1` register holds the constant `-1` (used for two stores)
+- `v0` register holds the constant `-3` (used for one store)
+
+The function initializes three global `s16` variables using GP-relative addressing (all variables are ≤ 8 bytes, so they reside in sdata/sbss section).[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 283938 total (32665 in, 9609 out)
+[agent-loop] Cost: $0.0501
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+Processing func_8001BA40 (tier 1, 7 instrs, priority #3)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_8001BA40

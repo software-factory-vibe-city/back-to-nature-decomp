@@ -116,7 +116,7 @@ D_80061F08 = value;
 
 However, some symbols (e.g., `.sdata` symbols defined by splat) are NOT in `globals.h`. For those, you DO need a local extern. Check whether the symbol compiles without a declaration before adding one.
 
-### Use `&D_XXXX` to get a global's address, never `_D_XXXX`
+### NEVER use `_D_XXXX` — use `&D_XXXX` instead
 
 `globals.h` macros expand `D_XXXX` to a dereference: `(*((s32*)_D_XXXX))`. To get the address, use `&D_XXXX` — it naturally cancels the dereference:
 
@@ -128,7 +128,7 @@ s32 *base = &D_8006C838;
 s32 *base = (s32 *)_D_8006C838;
 ```
 
-Never reference `_D_XXXX` (the underscore-prefixed internal name) in source files.
+**NEVER reference `_D_XXXX`** (the underscore-prefixed internal name) in source files. This is an internal implementation detail of `globals.h`. If you find yourself writing `_D_`, you are doing it wrong — use `&D_` to get the address.
 
 ### Match the extern type to the access pattern
 
@@ -141,6 +141,36 @@ extern s16 D_80062004;
 
 /* Assembly: lw → word (s32 or pointer) */
 extern s32 D_80062008;
+```
+
+### GP-relative vs absolute: match the addressing mode
+
+The `-G8` flag means externs declared as **8 bytes or smaller** get GP-relative addressing (single `lw %gp_rel(sym)($gp)` instruction). Externs **larger than 8 bytes** get absolute addressing (`lui` + `lw %lo(sym)($reg)` two-instruction pair).
+
+**If the assembly shows `lui`/`lw` but your code emits `lw %gp_rel`, your extern declaration is too small.** This is the most common cause of addressing mode mismatches.
+
+Fix: declare the extern as something > 8 bytes. Common patterns:
+
+```c
+/* 4-byte pointer → GP-relative (WRONG if asm shows lui/lw) */
+extern SomeStruct *D_8005E3AC;
+
+/* Array of 3 pointers → 12 bytes → absolute (CORRECT if asm shows lui/lw) */
+extern SomeStruct *D_8005E3AC[3];
+/* Then access as: D_8005E3AC[0]->field */
+```
+
+This happens when the original source file declared multiple variables together (e.g., as part of the same array or struct), making the total declaration > 8 bytes, even though each individual access only uses one element.
+
+### Register allocation: accept rare quirks
+
+In rare cases (~3% of functions), the target binary uses two registers where the compiler insists on reusing one. For example, the target loads two constants into `$v0` and `$v1` before any stores, but every C pattern produces single-register code that reuses `$v0`.
+
+When this happens, `register s16 temp __asm__("v1")` can force the register assignment. This is a last resort — try all natural C patterns first (temp variables, reordering declarations, reordering statements). If nothing works after exhausting natural approaches, `register __asm__` is acceptable. Always add a comment explaining why:
+
+```c
+/* register __asm__ required: compiler reuses $v0, target uses $v0 and $v1 */
+register s16 temp_v1 __asm__("v1");
 ```
 
 ### Declare locals at the top of the block (C89)
