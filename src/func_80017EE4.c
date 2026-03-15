@@ -1,4 +1,12 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80017EE4", func_80017EE4);
+__asm__(
+"\n.set\tnoreorder\n"
+".globl\tfunc_80017EE4\n"
+".ent\tfunc_80017EE4\n"
+"func_80017EE4:\n"
+"\tj\tfunc_80017EF0\n"
+"\tori\t$a3,$zero,0xFFFF\n"
+".end\tfunc_80017EE4\n"
+".set\treorder"
+);

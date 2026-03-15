@@ -1,4 +1,7 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80011F38", func_80011F38);
+extern u8 D_8005E274;
+
+u8 func_80011F38(void) {
+    return D_8005E274;
+}

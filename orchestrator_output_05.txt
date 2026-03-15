@@ -1,0 +1,435 @@
+Pipeline: 5 function(s)
+
+Processing func_8001FB08 (tier 1, 2 instrs, priority #1)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_8001FB08
+[agent-loop] Model: openrouter/minimax/minimax-m2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m user[0m[2m wants[0m[2m me[0m[2m to[0m[2m de[0m[2mcompile[0m[2m and[0m[2m match[0m[2m func[0m[2m_[0m[2m800[0m[2m1[0m[2mFB[0m[2m08[0m[2m.[0m[2m Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m current[0m[2m source[0m[2m file[0m[2m and[0m[2m checking[0m[2m the[0m[2m match[0m[2m.
+[0m
+[36m[tool:read][0m {"path":"src/func_8001FB08.c"}
+[32m[tool:read done][0m #include "common.h"
+
+s32 func_8001FB08(void) {
+    return 0x17;
+}
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m current[0m[2m source[0m[2m looks[0m[2m pretty[0m[2m good[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m the[0m[2m diff[0m[2m to[0m[2m see[0m[2m if[0m[2m it[0m[2m matches[0m[2m.
+[0mLet me compile and check the match:
+
+[36m[tool:bash][0m $ timeout 10 npx tsx tools/diffFunc.ts func_8001FB08 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8001FB08.target.o
+source:  src/func_8001FB08.c
+
+
+build/diffFunc/func_8001FB08.target.o:     file format e   |	build/diffFunc/func_8001FB08.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m match[0m[2m is[0m[2m already[0m[2m [0m[2m100[0m[2m%.[0m[2m The[0m[2m function[0m[2m is[0m[2m:
+[0m[2m-[0m[2m `[0m[2mjr[0m[2m ra[0m[2m`[0m[2m -[0m[2m return[0m[2m to[0m[2m caller[0m[2m
+[0m[2m-[0m[2m `[0m[2mli[0m[2m v[0m[2m0[0m[2m,[0m[2m23[0m[2m`[0m[2m -[0m[2m load[0m[2m [0m[2m0[0m[2mx[0m[2m17[0m[2m ([0m[2mwhich[0m[2m is[0m[2m [0m[2m23[0m[2m in[0m[2m decimal[0m[2m)[0m[2m into[0m[2m v[0m[2m0[0m[2m
+
+[0m[2mThis[0m[2m matches[0m[2m perfectly[0m[2m.[0m[2m The[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m was[0m[2m correct[0m[2m as[0m[2m-is[0m[2m:[0m[2m it[0m[2m returns[0m[2m [0m[2m0[0m[2mx[0m[2m17[0m[2m.
+
+[0m[2mWait[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m the[0m[2m match[0m[2m is[0m[2m already[0m[2m [0m[2m100[0m[2m%,[0m[2m but[0m[2m the[0m[2m file[0m[2m seems[0m[2m correct[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m by[0m[2m looking[0m[2m at[0m[2m the[0m[2m original[0m[2m assembly[0m[2m:
+[0m[2m-[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`[0m[2m -[0m[2m jump[0m[2m to[0m[2m return[0m[2m address[0m[2m
+[0m[2m-[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m [0m[2m0[0m[2mx[0m[2m17[0m[2m`[0m[2m -[0m[2m add[0m[2m immediate[0m[2m unsigned[0m[2m:[0m[2m v[0m[2m0[0m[2m =[0m[2m [0m[2m0[0m[2m +[0m[2m [0m[2m0[0m[2mx[0m[2m17[0m[2m =[0m[2m [0m[2m0[0m[2mx[0m[2m17[0m[2m
+
+[0m[2mSo[0m[2m [0m[2m0[0m[2mx[0m[2m17[0m[2m =[0m[2m [0m[2m23[0m[2m in[0m[2m decimal[0m[2m.[0m[2m The[0m[2m dis[0m[2massembly[0m[2m shows[0m[2m `[0m[2mli[0m[2m v[0m[2m0[0m[2m,[0m[2m23[0m[2m`[0m[2m which[0m[2m is[0m[2m the[0m[2m same[0m[2m as[0m[2m `[0m[2madd[0m[2miu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m [0m[2m23[0m[2m`.[0m[2m 
+
+[0m[2mThe[0m[2m match[0m[2m is[0m[2m [0m[2m2[0m[2m/[0m[2m2[0m[2m ([0m[2m100[0m[2m.[0m[2m0[0m[2m%)[0m[2m![0m[2m We're[0m[2m done[0m[2m.
+[0mThe function already matches 100%! 
+
+Looking at the assembly:
+- `jr $ra` - return to caller
+- `addiu $v0, $zero, 0x17` - load 0x17 (23 decimal) into $v0
+
+The current C code returns `0x17` which equals 23, and the compiled output shows `li v0,23` (the assembly optimizer converted `addiu $v0, $zero, 0x17` to the equivalent `li v0,23`).
+
+**Match: 2/2 instructions (100.0%)** ✓
+
+The function is correctly decompiled. It's a simple leaf function that returns the constant value `0x17` (23 in decimal).[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 14587 total (13591 in, 708 out)
+[agent-loop] Cost: $0.0044
+  Stage 3: running cleanup agent for func_8001FB08
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+Processing func_8002040C (tier 1, 2 instrs, priority #2)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_8002040C
+[agent-loop] Model: openrouter/minimax/minimax-m2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m understanding[0m[2m the[0m[2m task[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m de[0m[2mcompile[0m[2m and[0m[2m match[0m[2m `[0m[2mfunc[0m[2m_[0m[2m800[0m[2m204[0m[2m0[0m[2mC[0m[2m`.[0m[2m The[0m[2m current[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m shows[0m[2m:
+
+[0m[2m```[0m[2mc[0m[2m
+[0m[2m#include[0m[2m "[0m[2mcommon[0m[2m.h[0m[2m"
+
+[0m[2ms[0m[2m32[0m[2m func[0m[2m_[0m[2m800[0m[2m204[0m[2m0[0m[2mC[0m[2m(void[0m[2m)[0m[2m {
+[0m[2m   [0m[2m return[0m[2m [0m[2m0[0m[2m;
+[0m[2m}
+[0m[2m```
+
+[0m[2mAnd[0m[2m the[0m[2m assembly[0m[2m shows[0m[2m:
+[0m[2m```[0m[2masm[0m[2m
+[0m[2mjr[0m[2m        [0m[2m $[0m[2mra[0m[2m
+[0m[2mad[0m[2mdu[0m[2m     [0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m
+[0m[2m```
+
+[0m[2mThis[0m[2m is[0m[2m a[0m[2m simple[0m[2m function[0m[2m that[0m[2m returns[0m[2m [0m[2m0[0m[2m.[0m[2m The[0m[2m assembly[0m[2m does[0m[2m:
+[0m[2m1[0m[2m.[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`[0m[2m -[0m[2m return[0m[2m to[0m[2m caller[0m[2m
+[0m[2m2[0m[2m.[0m[2m In[0m[2m the[0m[2m delay[0m[2m slot[0m[2m:[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m`[0m[2m -[0m[2m sets[0m[2m $[0m[2mv[0m[2m0[0m[2m to [0m[2m0[0m[2m
+
+[0m[2mThis[0m[2m is[0m[2m exactly[0m[2m what[0m[2m the[0m[2m current[0m[2m C[0m[2m code[0m[2m does[0m[2m:[0m[2m `[0m[2mreturn[0m[2m [0m[2m0[0m[2m;[0m[2m`
+
+[0m[2mLet[0m[2m me[0m[2m compile[0m[2m and[0m[2m check[0m[2m the[0m[2m match[0m[2m percentage[0m[2m to[0m[2m see[0m[2m if[0m[2m it's[0m[2m already[0m[2m matching[0m[2m.
+[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_8002040C 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_8002040C.target.o
+source:  src/func_8002040C.c
+
+
+build/diffFunc/func_8002040C.target.o:     file format e   |	build/diffFunc/func_8002040C.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m match[0m[2m is[0m[2m already[0m[2m [0m[2m100[0m[2m%[0m[2m![0m[2m The[0m[2m current[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m compiles[0m[2m to[0m[2m:
+[0m[2m-[0m[2m `[0m[2mjr[0m[2m ra[0m[2m`[0m[2m ([0m[2mreturn[0m[2m)
+[0m[2m-[0m[2m `[0m[2mmove[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m`[0m[2m ([0m[2min[0m[2m delay[0m[2m slot[0m[2m,[0m[2m sets[0m[2m return[0m[2m value[0m[2m to[0m[2m [0m[2m0[0m[2m)
+
+[0m[2mThis[0m[2m exactly[0m[2m matches[0m[2m the[0m[2m original[0m[2m assembly[0m[2m:
+[0m[2m-[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`
+[0m[2m-[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m`[0m[2m ([0m[2mwhich[0m[2m is[0m[2m equivalent[0m[2m to[0m[2m `[0m[2mmove[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m`[0m[2m)
+
+[0m[2mThe[0m[2m function[0m[2m is[0m[2m already[0m[2m matching[0m[2m at[0m[2m [0m[2m100[0m[2m%.[0m[2m The[0m[2m task[0m[2m is[0m[2m complete[0m[2m!
+[0mThe function is already matching at 100%! 
+
+The current C code:
+```c
+#include "common.h"
+
+s32 func_8002040C(void) {
+    return 0;
+}
+```
+
+Compiles to:
+- `jr ra` - return to caller
+- `move v0, zero` - set return value to 0 (in delay slot)
+
+This exactly matches the original assembly which does `jr $ra` with `addu $v0, $zero, $zero` in the delay slot (equivalent to `move v0, zero`).
+
+**Match: 2/2 instructions (100.0%)** ✓[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 10032 total (4517 in, 699 out)
+[agent-loop] Cost: $0.0020
+  Stage 3: running cleanup agent for func_8002040C
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+Processing func_800207DC (tier 1, 2 instrs, priority #3)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_800207DC
+[agent-loop] Model: openrouter/minimax/minimax-m2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m current[0m[2m source[0m[2m file[0m[2m and[0m[2m understanding[0m[2m what's[0m[2m happening[0m[2m with[0m[2m this[0m[2m function[0m[2m.
+[0m
+[36m[tool:read][0m {"path":"src/func_800207DC.c"}
+[32m[tool:read done][0m #include "common.h"
+
+s32 func_800207DC(void) {
+    return 0;
+}
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mNow[0m[2m let[0m[2m me[0m[2m run[0m[2m the[0m[2m diff[0m[2m to[0m[2m see[0m[2m what[0m[2m the[0m[2m current[0m[2m match[0m[2m percentage[0m[2m is[0m[2m.
+[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_800207DC 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_800207DC.target.o
+source:  src/func_800207DC.c
+
+
+build/diffFunc/func_800207DC.target.o:     file format e   |	build/diffFunc/func_800207DC.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mInteresting[0m[2m![0m[2m The[0m[2m match[0m[2m is[0m[2m already[0m[2m [0m[2m100[0m[2m%.[0m[2m The[0m[2m current[0m[2m code[0m[2m is[0m[2m already[0m[2m compiling[0m[2m to[0m[2m byte[0m[2m-ident[0m[2mical[0m[2m assembly[0m[2m:
+
+[0m[2m```
+[0m[2mjr[0m[2m        [0m[2m $[0m[2mra[0m[2m
+[0m[2mad[0m[2mdu[0m[2m     [0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m
+[0m[2m```
+
+[0m[2mThis[0m[2m is[0m[2m exactly[0m[2m what[0m[2m the[0m[2m original[0m[2m assembly[0m[2m shows[0m[2m:
+[0m[2m```[0m[2masm[0m[2m
+[0m[2mjr[0m[2m        [0m[2m $[0m[2mra[0m[2m
+[0m[2mad[0m[2mdu[0m[2m     [0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m
+[0m[2m```
+
+[0m[2mThe[0m[2m function[0m[2m simply[0m[2m returns[0m[2m [0m[2m0[0m[2m,[0m[2m which[0m[2m is[0m[2m exactly[0m[2m what[0m[2m the[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m shows[0m[2m.[0m[2m The[0m[2m task[0m[2m is[0m[2m complete[0m[2m!
+
+[0m[2mWait[0m[2m,[0m[2m let[0m[2m me[0m[2m check[0m[2m the[0m[2m function[0m[2m again[0m[2m.[0m[2m The[0m[2m function[0m[2m returns[0m[2m [0m[2m0[0m[2m,[0m[2m and[0m[2m the[0m[2m current[0m[2m code[0m[2m returns[0m[2m [0m[2m0[0m[2m.[0m[2m The[0m[2m assembly[0m[2m shows[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`[0m[2m ([0m[2mreturn[0m[2m)[0m[2m followed[0m[2m by[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m`[0m[2m in[0m[2m the[0m[2m delay[0m[2m slot[0m[2m.[0m[2m This[0m[2m is[0m[2m the[0m[2m typical[0m[2m pattern[0m[2m for[0m[2m a[0m[2m function[0m[2m returning[0m[2m [0m[2m0[0m[2m.
+
+[0m[2mThe[0m[2m current[0m[2m source[0m[2m matches[0m[2m perfectly[0m[2m at[0m[2m [0m[2m100[0m[2m%.[0m[2m There's[0m[2m nothing[0m[2m more[0m[2m to[0m[2m do[0m[2m here[0m[2m.
+[0mThe function is already matching at 100%! The current C code compiles to the exact same assembly:
+
+- `jr $ra` (return)
+- `move v0, zero` (return value 0)
+
+The m2c output was already correct for this simple leaf function that just returns 0.
+
+**Match: 2/2 (100.0%)** ✅[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 14373 total (8993 in, 596 out)
+[agent-loop] Cost: $0.0031
+  Stage 3: running cleanup agent for func_800207DC
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+Processing func_80021D78 (tier 1, 2 instrs, priority #4)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_80021D78
+[agent-loop] Model: openrouter/minimax/minimax-m2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m understanding[0m[2m what's[0m[2m needed[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m de[0m[2mcompile[0m[2m and[0m[2m match[0m[2m func[0m[2m_[0m[2m800[0m[2m21[0m[2mD[0m[2m78[0m[2m.[0m[2m Let[0m[2m me[0m[2m first[0m[2m look[0m[2m at[0m[2m the[0m[2m current[0m[2m state[0m[2m of[0m[2m the[0m[2m file[0m[2m and[0m[2m the[0m[2m assembly[0m[2m.
+
+[0m[2mFirst[0m[2m,[0m[2m I'll[0m[2m read[0m[2m the[0m[2m current[0m[2m source[0m[2m file[0m[2m and[0m[2m the[0m[2m assembly[0m[2m to[0m[2m understand[0m[2m what's[0m[2m going[0m[2m on[0m[2m.
+[0m
+[36m[tool:read][0m {"path":"src/func_80021D78.c"}
+
+[36m[tool:read][0m {"path":"build/asm/nonmatchings/func_80021D78/func_80021D78.s"}
+[32m[tool:read done][0m #include "common.h"
+
+s32 func_80021D78(void) {
+    return 0;
+}
+
+[32m[tool:read done][0m .set noat      /* allow manual use of $at */
+.set noreorder /* don't insert nops after branches */
+
+nonmatching func_80021D78, 0x8
+
+glabel func_80021D78
+    /* 12578 80021D78 0800E003 */  jr         $...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mInteresting[0m[2m.[0m[2m The[0m[2m assembly[0m[2m is[0m[2m:
+[0m[2m```
+[0m[2mjr[0m[2m        [0m[2m $[0m[2mra[0m[2m
+[0m[2mad[0m[2mdu[0m[2m     [0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m
+[0m[2m```
+
+[0m[2mThis[0m[2m is[0m[2m a[0m[2m leaf[0m[2m function[0m[2m ([0m[2mreturns[0m[2m to[0m[2m caller[0m[2m via[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`).[0m[2m The[0m[2m delay[0m[2m slot[0m[2m is[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m`,[0m[2m which[0m[2m sets[0m[2m `$[0m[2mv[0m[2m0[0m[2m =[0m[2m $[0m[2mzero[0m[2m +[0m[2m $[0m[2mzero[0m[2m =[0m[2m [0m[2m0[0m[2m`.
+
+[0m[2mSo[0m[2m this[0m[2m function[0m[2m returns[0m[2m [0m[2m0[0m[2m.[0m[2m The[0m[2m current[0m[2m source[0m[2m code[0m[2m already[0m[2m has[0m[2m:
+[0m[2m```[0m[2mc[0m[2m
+[0m[2ms[0m[2m32[0m[2m func[0m[2m_[0m[2m800[0m[2m21[0m[2mD[0m[2m78[0m[2m(void[0m[2m)[0m[2m {
+[0m[2m   [0m[2m return[0m[2m [0m[2m0[0m[2m;
+[0m[2m}
+[0m[2m```
+
+[0m[2mThis[0m[2m looks[0m[2m correct[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m the[0m[2m diff[0m[2m to[0m[2m see[0m[2m if[0m[2m it's[0m[2m matching[0m[2m.
+[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_80021D78 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_80021D78.target.o
+source:  src/func_80021D78.c
+
+
+build/diffFunc/func_80021D78.target.o:     file format e   |	build/diffFunc/func_80021D78.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m function[0m[2m is[0m[2m already[0m[2m matching[0m[2m at[0m[2m [0m[2m100[0m[2m%.[0m[2m The[0m[2m diff[0m[2m shows[0m[2m:
+[0m[2m-[0m[2m Original[0m[2m:[0m[2m `[0m[2mjr[0m[2m ra[0m[2m`[0m[2m then[0m[2m `[0m[2mad[0m[2mdu[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m,[0m[2m zero[0m[2m`[0m[2m in[0m[2m delay[0m[2m slot[0m[2m
+[0m[2m-[0m[2m Comp[0m[2miled[0m[2m:[0m[2m `[0m[2mjr[0m[2m ra[0m[2m`[0m[2m then[0m[2m `[0m[2mmove[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m`[0m[2m in[0m[2m delay[0m[2m slot[0m[2m
+
+[0m[2mThese[0m[2m are[0m[2m equivalent[0m[2m -[0m[2m both[0m[2m set[0m[2m v[0m[2m0[0m[2m to[0m[2m zero[0m[2m.[0m[2m The[0m[2m `[0m[2mmove[0m[2m`[0m[2m instruction[0m[2m is[0m[2m the[0m[2m standard[0m[2m MIPS[0m[2m way[0m[2m to[0m[2m copy[0m[2m a[0m[2m register[0m[2m,[0m[2m and[0m[2m GCC[0m[2m correctly[0m[2m chose[0m[2m `[0m[2mmove[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m`[0m[2m which[0m[2m is[0m[2m the[0m[2m same[0m[2m as[0m[2m `[0m[2mad[0m[2mdu[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m, zero[0m[2m`.
+
+[0m[2mThe[0m[2m function[0m[2m is[0m[2m already[0m[2m a[0m[2m [0m[2m100[0m[2m%[0m[2m match[0m[2m!
+[0mThe function is already matching at 100%. Let me verify once more:
+
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_80021D78 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_80021D78.target.o
+source:  src/func_80021D78.c
+
+
+build/diffFunc/func_80021D78.target.o:     file format e   |	build/diffFunc/func_80021D78.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThis[0m[2m is[0m[2m already[0m[2m [0m[2m100[0m[2m%[0m[2m matched[0m[2m.[0m[2m The[0m[2m m[0m[2m2[0m[2mc[0m[2m output[0m[2m was[0m[2m correct[0m[2m for[0m[2m this[0m[2m function[0m[2m:
+
+[0m[2m```[0m[2mc[0m[2m
+[0m[2m#include[0m[2m "[0m[2mcommon[0m[2m.h[0m[2m"
+
+[0m[2ms[0m[2m32[0m[2m func[0m[2m_[0m[2m800[0m[2m21[0m[2mD[0m[2m78[0m[2m(void[0m[2m)[0m[2m {
+[0m[2m   [0m[2m return[0m[2m [0m[2m0[0m[2m;
+[0m[2m}
+[0m[2m```
+
+[0m[2mThis[0m[2m matches[0m[2m the[0m[2m original[0m[2m assembly[0m[2m which[0m[2m is[0m[2m:
+[0m[2m-[0m[2m `[0m[2mjr[0m[2m $[0m[2mra[0m[2m`[0m[2m -[0m[2m return[0m[2m to[0m[2m caller[0m[2m
+[0m[2m-[0m[2m `[0m[2mad[0m[2mdu[0m[2m $[0m[2mv[0m[2m0[0m[2m,[0m[2m $[0m[2mzero[0m[2m,[0m[2m $[0m[2mzero[0m[2m`[0m[2m -[0m[2m in[0m[2m the[0m[2m delay[0m[2m slot[0m[2m,[0m[2m sets[0m[2m $[0m[2mv[0m[2m0[0m[2m to[0m[2m [0m[2m0[0m[2m
+
+[0m[2mThe[0m[2m compiled[0m[2m version[0m[2m uses[0m[2m `[0m[2mmove[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m`[0m[2m which[0m[2m is[0m[2m sem[0m[2mantically[0m[2m equivalent[0m[2m to[0m[2m `[0m[2mad[0m[2mdu[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m,[0m[2m zero[0m[2m`[0m[2m -[0m[2m both[0m[2m set[0m[2m v[0m[2m0[0m[2m to[0m[2m zero[0m[2m.[0m[2m This[0m[2m is[0m[2m a[0m[2m [0m[2m100[0m[2m%[0m[2m match[0m[2m.
+
+[0m[2mThe[0m[2m task[0m[2m is[0m[2m complete[0m[2m!
+[0m**Match: 2/2 instructions (100.0%)**
+
+The function is already correctly decompiled. The m2c output was accurate:
+
+```c
+#include "common.h"
+
+s32 func_80021D78(void) {
+    return 0;
+}
+```
+
+The original assembly:
+- `jr $ra` — return to caller
+- `addu $v0, $zero, $zero` — in the delay slot, sets return value to 0
+
+GCC compiles this as `move v0, zero`, which is semantically identical to `addu v0, zero, zero` (both set v0 to zero). The function is a simple leaf function that returns 0.[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 20943 total (9768 in, 1175 out)
+[agent-loop] Cost: $0.0041
+  Stage 3: running cleanup agent for func_80021D78
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+Processing func_80021D88 (tier 1, 2 instrs, priority #5)
+  Stage 1: m2c ok
+  Stage 2: running matching agent for func_80021D88
+[agent-loop] Model: openrouter/minimax/minimax-m2.5
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+[2mLet[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m current state[0m[2m of[0m[2m the[0m[2m file[0m[2m and[0m[2m understanding[0m[2m what's[0m[2m needed[0m[2m.
+[0m
+[36m[tool:read][0m {"path":"src/func_80021D88.c"}
+[32m[tool:read done][0m #include "common.h"
+
+s32 func_80021D88(void) {
+    return 0;
+}
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m current[0m[2m code[0m[2m is[0m[2m a[0m[2m simple[0m[2m function[0m[2m that[0m[2m returns[0m[2m [0m[2m0[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m what[0m[2m the[0m[2m assembly[0m[2m looks[0m[2m like[0m[2m and[0m[2m compile[0m[2m it[0m[2m to[0m[2m see[0m[2m if[0m[2m it[0m[2m matches[0m[2m.
+[0m
+[36m[tool:bash][0m $ timeout 5 npx tsx tools/diffFunc.ts func_80021D88 2>&1
+[32m[tool:bash done][0m target:  build/diffFunc/func_80021D88.target.o
+source:  src/func_80021D88.c
+
+
+build/diffFunc/func_80021D88.target.o:     file format e   |	build/diffFunc/func_80021D88.c.o:     file format elf32-
+
+
+Di...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+[2mThe[0m[2m function[0m[2m already[0m[2m matches[0m[2m [0m[2m100[0m[2m%[0m[2m![0m[2m The[0m[2m return[0m[2m [0m[2m0[0m[2m compiles[0m[2m to[0m[2m `[0m[2mjr[0m[2m ra[0m[2m`[0m[2m followed[0m[2m by[0m[2m `[0m[2mmove[0m[2m v[0m[2m0[0m[2m,[0m[2m zero[0m[2m`,[0m[2m which[0m[2m is[0m[2m exactly[0m[2m what's[0m[2m in[0m[2m the[0m[2m original[0m[2m assembly[0m[2m.[0m[2m There's[0m[2m nothing[0m[2m more[0m[2m to[0m[2m do[0m[2m here[0m[2m -[0m[2m the[0m[2m de[0m[2mcomp[0m[2milation[0m[2m is[0m[2m complete[0m[2m.
+[0mThe function is already fully matched at 100%. The current implementation:
+
+```c
+#include "common.h"
+
+s32 func_80021D88(void) {
+    return 0;
+}
+```
+
+Compiles to the exact same MIPS instructions:
+- `jr ra` (return)
+- `move v0, zero` (delay slot: set return value to 0)
+
+The m2c output was already correct for this simple function. No changes needed.[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 14217 total (13836 in, 381 out)
+[agent-loop] Cost: $0.0041
+  Stage 3: running cleanup agent for func_80021D88
+  Stage 4: exported 1 signature(s) to include/functions.h
+
+————————————————————————————————————————————————————————————
+Processed 5 function(s):
+
+  func_8001FB08: m2c ✓ | match ✓ | cleanup (stubbed) | context ✓
+  func_8002040C: m2c ✓ | match ✓ | cleanup (stubbed) | context ✓
+  func_800207DC: m2c ✓ | match ✓ | cleanup (stubbed) | context ✓
+  func_80021D78: m2c ✓ | match ✓ | cleanup (stubbed) | context ✓
+  func_80021D88: m2c ✓ | match ✓ | cleanup (stubbed) | context ✓

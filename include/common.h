@@ -19,4 +19,10 @@ typedef volatile signed char vs8;
 typedef volatile signed short vs16;
 typedef volatile signed int vs32;
 
+/* MIPS break instruction — code goes in upper 10 bits of the 20-bit field */
+#define BREAK(n) __asm__ volatile("break " #n ", 0")
+#define M2C_BREAK(n) BREAK(n)
+
+#include "globals.h"
+
 #endif

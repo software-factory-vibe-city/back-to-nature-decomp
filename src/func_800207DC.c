@@ -1,4 +1,5 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_800207DC", func_800207DC);
+s32 func_800207DC(void) {
+    return 0;
+}
