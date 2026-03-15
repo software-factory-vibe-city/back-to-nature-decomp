@@ -207,7 +207,6 @@ segments:
       - [0x8270, c, func_80017A70]       # 0x80017A70 func_80017A70
       - [0x82A0, c, func_80017AA0]       # 0x80017AA0 func_80017AA0
       - [0x82C0, c, func_80017AC0]
-      - [0x82C4, c, func_80017AC4]
       - [0x82CC, c, func_80017ACC]       # 0x80017ACC func_80017ACC
       - [0x82E8, c, func_80017AE8]       # 0x80017AE8 func_80017AE8
       - [0x8318, c, func_80017B18]       # 0x80017B18 func_80017B18
@@ -328,11 +327,9 @@ segments:
       - [0xCB7C, c, func_8001C37C]       # 0x8001C37C func_8001C37C
       - [0xDA1C, c, func_8001D21C]       # 0x8001D21C func_8001D21C
       - [0xDA84, c, func_8001D284]
-      - [0xDA88, c, func_8001D288]
       - [0xDAA4, c, func_8001D2A4]
       - [0xDAD0, c, func_8001D2D0]
       - [0xDAD8, c, func_8001D2D8]       # 0x8001D2D8 func_8001D2D8
-      - [0xDAF4, c, func_8001D2F4]
       - [0xDAFC, c, func_8001D2FC]
       - [0xDB40, c, func_8001D340]
       - [0xDB48, c, func_8001D348]       # 0x8001D348 func_8001D348
@@ -341,7 +338,6 @@ segments:
       - [0xDEAC, c, func_8001D6AC]       # 0x8001D6AC func_8001D6AC
       - [0xDEB8, c, func_8001D6B8]       # 0x8001D6B8 func_8001D6B8
       - [0xE06C, c, func_8001D86C]       # 0x8001D86C func_8001D86C
-      - [0xE084, c, func_8001D884]
       - [0xE0A0, c, func_8001D8A0]
       - [0xE0B8, c, func_8001D8B8]       # 0x8001D8B8 func_8001D8B8
       - [0xE3F0, c, func_8001DBF0]       # 0x8001DBF0 func_8001DBF0
@@ -362,10 +358,8 @@ segments:
       - [0xECC0, c, func_8001E4C0]       # 0x8001E4C0 func_8001E4C0
       - [0xEEFC, c, func_8001E6FC]       # 0x8001E6FC func_8001E6FC
       - [0xEF8C, c, func_8001E78C]       # 0x8001E78C func_8001E78C
-      - [0xEFB8, c, func_8001E7B8]
       - [0xEFC0, c, func_8001E7C0]
       - [0xEFDC, c, func_8001E7DC]       # 0x8001E7DC func_8001E7DC
-      - [0xF018, c, func_8001E818]
       - [0xF020, c, func_8001E820]
       - [0xF078, c, func_8001E878]       # 0x8001E878 func_8001E878
       - [0xF1F8, c, func_8001E9F8]       # 0x8001E9F8 func_8001E9F8
@@ -462,7 +456,6 @@ segments:
       - [0x11FB0, c, func_800217B0]       # 0x800217B0 func_800217B0
       - [0x12018, c, func_80021818]
       - [0x12020, c, func_80021820]       # 0x80021820 func_80021820
-      - [0x12044, c, func_80021844]
       - [0x120A8, c, func_800218A8]
       - [0x120BC, c, func_800218BC]       # 0x800218BC func_800218BC
       - [0x120C4, c, func_800218C4]       # 0x800218C4 func_800218C4
@@ -470,7 +463,6 @@ segments:
       - [0x12320, c, func_80021B20]       # 0x80021B20 func_80021B20
       - [0x12364, c, func_80021B64]       # 0x80021B64 func_80021B64
       - [0x12384, c, func_80021B84]
-      - [0x12388, c, func_80021B88]
       - [0x12390, c, func_80021B90]       # 0x80021B90 func_80021B90
       - [0x124D8, c, func_80021CD8]       # 0x80021CD8 func_80021CD8
       - [0x12564, c, func_80021D64]       # 0x80021D64 func_80021D64
@@ -487,8 +479,6 @@ segments:
       - [0x127E4, c, func_80021FE4]       # 0x80021FE4 func_80021FE4
       - [0x12808, c, func_80022008]       # 0x80022008 func_80022008
       - [0x12814, c, func_80022014]       # 0x80022014 func_80022014
-      - [0x12828, c, func_80022028]
-      - [0x12830, c, func_80022030]
       - [0x12848, c, func_80022048]
       - [0x1286C, c, func_8002206C]       # 0x8002206C func_8002206C
       - [0x12B8C, c, func_8002238C]       # 0x8002238C func_8002238C
@@ -522,7 +512,6 @@ segments:
       - [0x137A0, c, func_80022FA0]
       - [0x137B4, c, func_80022FB4]
       - [0x137D4, c, func_80022FD4]
-      - [0x137D8, c, func_80022FD8]
       - [0x137E0, c, func_80022FE0]       # 0x80022FE0 func_80022FE0
       - [0x1381C, c, func_8002301C]       # 0x8002301C func_8002301C
       - [0x13830, c, func_80023030]       # 0x80023030 func_80023030
@@ -548,7 +537,6 @@ segments:
       - [0x1429C, c, func_80023A9C]       # 0x80023A9C func_80023A9C
       - [0x1435C, c, func_80023B5C]       # 0x80023B5C func_80023B5C
       - [0x1442C, c, func_80023C2C]       # 0x80023C2C func_80023C2C
-      - [0x144A4, c, func_80023CA4]
       - [0x144E8, c, func_80023CE8]
       - [0x14508, c, func_80023D08]       # 0x80023D08 func_80023D08
       - [0x145BC, c, func_80023DBC]       # 0x80023DBC func_80023DBC
@@ -564,8 +552,6 @@ segments:
       - [0x14C00, c, func_80024400]
       - [0x14C08, c, func_80024408]       # 0x80024408 func_80024408
       - [0x14C30, c, func_80024430]
-      - [0x14C34, c, func_80024434]
-      - [0x14C40, c, func_80024440]
       - [0x14C48, c, func_80024448]       # 0x80024448 func_80024448
       - [0x14CFC, c, func_800244FC]       # 0x800244FC func_800244FC
       - [0x14D78, c, func_80024578]       # 0x80024578 func_80024578

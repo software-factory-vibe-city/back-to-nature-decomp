@@ -127,11 +127,6 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise
   };
 }
 
-async function runCleanupAgent(funcName: string, _ctx: PipelineContext): Promise<AgentResult> {
-  console.log(`  Stage 3: running cleanup agent for ${funcName}`);
-  // TODO: integrate with agent framework
-  return { success: false, attempts: 0, log: ["agent not implemented"] };
-}
 
 async function runRefinementAgent(funcName: string): Promise<AgentResult> {
   console.log(`  Stage 5: running refinement agent for ${funcName}`);
@@ -318,12 +313,6 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     if (maxStage >= 2 && !alreadyMatched) {
       const result = await runMatchingAgent(name, ctx);
       stages["match"] = result.success ? "ok" : "stubbed";
-    }
-
-    // Stage 3: cleanup agent (stubbed)
-    if (maxStage >= 3) {
-      const result = await runCleanupAgent(name, ctx);
-      stages["cleanup"] = result.success ? "ok" : "stubbed";
     }
 
     // Stage 4: context export

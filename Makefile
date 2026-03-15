@@ -53,6 +53,7 @@ disassemble:
 # Split the binary with splat
 split:
 	npx tsx tools/bootstrap.ts --write
+	npx tsx tools/mergeFragments.ts --write
 	npx tsx tools/addLibSymbols.ts --write
 	npx tsx tools/patchSplatForLibs.ts --write
 	npx tsx tools/addDepObjects.ts --write
@@ -62,6 +63,8 @@ split:
 		if grep -q "No cross-file" /tmp/crossfile_$$; then break; fi; \
 		SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml; \
 	done
+	npx tsx tools/mergeFragments.ts --write
+	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml
 	npx tsx tools/patchLinkerBss.ts --write
 	npx tsx tools/patchLibBss.ts --write
 	@printf 'INCLUDE "build/undefined_funcs_auto.txt"\nINCLUDE "build/undefined_syms_auto.txt"\n' >> $(LD_SCRIPT)

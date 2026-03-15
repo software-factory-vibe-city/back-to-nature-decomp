@@ -170,7 +170,6 @@ SECTIONS
         build/src/func_80017A70.c.o(.rodata);
         build/src/func_80017AA0.c.o(.rodata);
         build/src/func_80017AC0.c.o(.rodata);
-        build/src/func_80017AC4.c.o(.rodata);
         build/src/func_80017ACC.c.o(.rodata);
         build/src/func_80017AE8.c.o(.rodata);
         build/src/func_80017B18.c.o(.rodata);
@@ -291,11 +290,9 @@ SECTIONS
         build/src/func_8001C37C.c.o(.rodata);
         build/src/func_8001D21C.c.o(.rodata);
         build/src/func_8001D284.c.o(.rodata);
-        build/src/func_8001D288.c.o(.rodata);
         build/src/func_8001D2A4.c.o(.rodata);
         build/src/func_8001D2D0.c.o(.rodata);
         build/src/func_8001D2D8.c.o(.rodata);
-        build/src/func_8001D2F4.c.o(.rodata);
         build/src/func_8001D2FC.c.o(.rodata);
         build/src/func_8001D340.c.o(.rodata);
         build/src/func_8001D348.c.o(.rodata);
@@ -304,7 +301,6 @@ SECTIONS
         build/src/func_8001D6AC.c.o(.rodata);
         build/src/func_8001D6B8.c.o(.rodata);
         build/src/func_8001D86C.c.o(.rodata);
-        build/src/func_8001D884.c.o(.rodata);
         build/src/func_8001D8A0.c.o(.rodata);
         build/src/func_8001D8B8.c.o(.rodata);
         build/src/func_8001DBF0.c.o(.rodata);
@@ -325,10 +321,8 @@ SECTIONS
         build/src/func_8001E4C0.c.o(.rodata);
         build/src/func_8001E6FC.c.o(.rodata);
         build/src/func_8001E78C.c.o(.rodata);
-        build/src/func_8001E7B8.c.o(.rodata);
         build/src/func_8001E7C0.c.o(.rodata);
         build/src/func_8001E7DC.c.o(.rodata);
-        build/src/func_8001E818.c.o(.rodata);
         build/src/func_8001E820.c.o(.rodata);
         build/src/func_8001E878.c.o(.rodata);
         build/src/func_8001E9F8.c.o(.rodata);
@@ -425,7 +419,6 @@ SECTIONS
         build/src/func_800217B0.c.o(.rodata);
         build/src/func_80021818.c.o(.rodata);
         build/src/func_80021820.c.o(.rodata);
-        build/src/func_80021844.c.o(.rodata);
         build/src/func_800218A8.c.o(.rodata);
         build/src/func_800218BC.c.o(.rodata);
         build/src/func_800218C4.c.o(.rodata);
@@ -433,7 +426,6 @@ SECTIONS
         build/src/func_80021B20.c.o(.rodata);
         build/src/func_80021B64.c.o(.rodata);
         build/src/func_80021B84.c.o(.rodata);
-        build/src/func_80021B88.c.o(.rodata);
         build/src/func_80021B90.c.o(.rodata);
         build/src/func_80021CD8.c.o(.rodata);
         build/src/func_80021D64.c.o(.rodata);
@@ -450,8 +442,6 @@ SECTIONS
         build/src/func_80021FE4.c.o(.rodata);
         build/src/func_80022008.c.o(.rodata);
         build/src/func_80022014.c.o(.rodata);
-        build/src/func_80022028.c.o(.rodata);
-        build/src/func_80022030.c.o(.rodata);
         build/src/func_80022048.c.o(.rodata);
         build/src/func_8002206C.c.o(.rodata);
         build/src/func_8002238C.c.o(.rodata);
@@ -485,7 +475,6 @@ SECTIONS
         build/src/func_80022FA0.c.o(.rodata);
         build/src/func_80022FB4.c.o(.rodata);
         build/src/func_80022FD4.c.o(.rodata);
-        build/src/func_80022FD8.c.o(.rodata);
         build/src/func_80022FE0.c.o(.rodata);
         build/src/func_8002301C.c.o(.rodata);
         build/src/func_80023030.c.o(.rodata);
@@ -511,7 +500,6 @@ SECTIONS
         build/src/func_80023A9C.c.o(.rodata);
         build/src/func_80023B5C.c.o(.rodata);
         build/src/func_80023C2C.c.o(.rodata);
-        build/src/func_80023CA4.c.o(.rodata);
         build/src/func_80023CE8.c.o(.rodata);
         build/src/func_80023D08.c.o(.rodata);
         build/src/func_80023DBC.c.o(.rodata);
@@ -527,8 +515,6 @@ SECTIONS
         build/src/func_80024400.c.o(.rodata);
         build/src/func_80024408.c.o(.rodata);
         build/src/func_80024430.c.o(.rodata);
-        build/src/func_80024434.c.o(.rodata);
-        build/src/func_80024440.c.o(.rodata);
         build/src/func_80024448.c.o(.rodata);
         build/src/func_800244FC.c.o(.rodata);
         build/src/func_80024578.c.o(.rodata);
@@ -730,7 +716,6 @@ SECTIONS
         build/src/func_80017A70.c.o(.text);
         build/src/func_80017AA0.c.o(.text);
         build/src/func_80017AC0.c.o(.text);
-        build/src/func_80017AC4.c.o(.text);
         build/src/func_80017ACC.c.o(.text);
         build/src/func_80017AE8.c.o(.text);
         build/src/func_80017B18.c.o(.text);
@@ -851,11 +836,9 @@ SECTIONS
         build/src/func_8001C37C.c.o(.text);
         build/src/func_8001D21C.c.o(.text);
         build/src/func_8001D284.c.o(.text);
-        build/src/func_8001D288.c.o(.text);
         build/src/func_8001D2A4.c.o(.text);
         build/src/func_8001D2D0.c.o(.text);
         build/src/func_8001D2D8.c.o(.text);
-        build/src/func_8001D2F4.c.o(.text);
         build/src/func_8001D2FC.c.o(.text);
         build/src/func_8001D340.c.o(.text);
         build/src/func_8001D348.c.o(.text);
@@ -864,7 +847,6 @@ SECTIONS
         build/src/func_8001D6AC.c.o(.text);
         build/src/func_8001D6B8.c.o(.text);
         build/src/func_8001D86C.c.o(.text);
-        build/src/func_8001D884.c.o(.text);
         build/src/func_8001D8A0.c.o(.text);
         build/src/func_8001D8B8.c.o(.text);
         build/src/func_8001DBF0.c.o(.text);
@@ -885,10 +867,8 @@ SECTIONS
         build/src/func_8001E4C0.c.o(.text);
         build/src/func_8001E6FC.c.o(.text);
         build/src/func_8001E78C.c.o(.text);
-        build/src/func_8001E7B8.c.o(.text);
         build/src/func_8001E7C0.c.o(.text);
         build/src/func_8001E7DC.c.o(.text);
-        build/src/func_8001E818.c.o(.text);
         build/src/func_8001E820.c.o(.text);
         build/src/func_8001E878.c.o(.text);
         build/src/func_8001E9F8.c.o(.text);
@@ -985,7 +965,6 @@ SECTIONS
         build/src/func_800217B0.c.o(.text);
         build/src/func_80021818.c.o(.text);
         build/src/func_80021820.c.o(.text);
-        build/src/func_80021844.c.o(.text);
         build/src/func_800218A8.c.o(.text);
         build/src/func_800218BC.c.o(.text);
         build/src/func_800218C4.c.o(.text);
@@ -993,7 +972,6 @@ SECTIONS
         build/src/func_80021B20.c.o(.text);
         build/src/func_80021B64.c.o(.text);
         build/src/func_80021B84.c.o(.text);
-        build/src/func_80021B88.c.o(.text);
         build/src/func_80021B90.c.o(.text);
         build/src/func_80021CD8.c.o(.text);
         build/src/func_80021D64.c.o(.text);
@@ -1010,8 +988,6 @@ SECTIONS
         build/src/func_80021FE4.c.o(.text);
         build/src/func_80022008.c.o(.text);
         build/src/func_80022014.c.o(.text);
-        build/src/func_80022028.c.o(.text);
-        build/src/func_80022030.c.o(.text);
         build/src/func_80022048.c.o(.text);
         build/src/func_8002206C.c.o(.text);
         build/src/func_8002238C.c.o(.text);
@@ -1045,7 +1021,6 @@ SECTIONS
         build/src/func_80022FA0.c.o(.text);
         build/src/func_80022FB4.c.o(.text);
         build/src/func_80022FD4.c.o(.text);
-        build/src/func_80022FD8.c.o(.text);
         build/src/func_80022FE0.c.o(.text);
         build/src/func_8002301C.c.o(.text);
         build/src/func_80023030.c.o(.text);
@@ -1071,7 +1046,6 @@ SECTIONS
         build/src/func_80023A9C.c.o(.text);
         build/src/func_80023B5C.c.o(.text);
         build/src/func_80023C2C.c.o(.text);
-        build/src/func_80023CA4.c.o(.text);
         build/src/func_80023CE8.c.o(.text);
         build/src/func_80023D08.c.o(.text);
         build/src/func_80023DBC.c.o(.text);
@@ -1087,8 +1061,6 @@ SECTIONS
         build/src/func_80024400.c.o(.text);
         build/src/func_80024408.c.o(.text);
         build/src/func_80024430.c.o(.text);
-        build/src/func_80024434.c.o(.text);
-        build/src/func_80024440.c.o(.text);
         build/src/func_80024448.c.o(.text);
         build/src/func_800244FC.c.o(.text);
         build/src/func_80024578.c.o(.text);
@@ -1620,7 +1592,6 @@ SECTIONS
         build/src/func_80017A70.c.o(.data);
         build/src/func_80017AA0.c.o(.data);
         build/src/func_80017AC0.c.o(.data);
-        build/src/func_80017AC4.c.o(.data);
         build/src/func_80017ACC.c.o(.data);
         build/src/func_80017AE8.c.o(.data);
         build/src/func_80017B18.c.o(.data);
@@ -1741,11 +1712,9 @@ SECTIONS
         build/src/func_8001C37C.c.o(.data);
         build/src/func_8001D21C.c.o(.data);
         build/src/func_8001D284.c.o(.data);
-        build/src/func_8001D288.c.o(.data);
         build/src/func_8001D2A4.c.o(.data);
         build/src/func_8001D2D0.c.o(.data);
         build/src/func_8001D2D8.c.o(.data);
-        build/src/func_8001D2F4.c.o(.data);
         build/src/func_8001D2FC.c.o(.data);
         build/src/func_8001D340.c.o(.data);
         build/src/func_8001D348.c.o(.data);
@@ -1754,7 +1723,6 @@ SECTIONS
         build/src/func_8001D6AC.c.o(.data);
         build/src/func_8001D6B8.c.o(.data);
         build/src/func_8001D86C.c.o(.data);
-        build/src/func_8001D884.c.o(.data);
         build/src/func_8001D8A0.c.o(.data);
         build/src/func_8001D8B8.c.o(.data);
         build/src/func_8001DBF0.c.o(.data);
@@ -1775,10 +1743,8 @@ SECTIONS
         build/src/func_8001E4C0.c.o(.data);
         build/src/func_8001E6FC.c.o(.data);
         build/src/func_8001E78C.c.o(.data);
-        build/src/func_8001E7B8.c.o(.data);
         build/src/func_8001E7C0.c.o(.data);
         build/src/func_8001E7DC.c.o(.data);
-        build/src/func_8001E818.c.o(.data);
         build/src/func_8001E820.c.o(.data);
         build/src/func_8001E878.c.o(.data);
         build/src/func_8001E9F8.c.o(.data);
@@ -1875,7 +1841,6 @@ SECTIONS
         build/src/func_800217B0.c.o(.data);
         build/src/func_80021818.c.o(.data);
         build/src/func_80021820.c.o(.data);
-        build/src/func_80021844.c.o(.data);
         build/src/func_800218A8.c.o(.data);
         build/src/func_800218BC.c.o(.data);
         build/src/func_800218C4.c.o(.data);
@@ -1883,7 +1848,6 @@ SECTIONS
         build/src/func_80021B20.c.o(.data);
         build/src/func_80021B64.c.o(.data);
         build/src/func_80021B84.c.o(.data);
-        build/src/func_80021B88.c.o(.data);
         build/src/func_80021B90.c.o(.data);
         build/src/func_80021CD8.c.o(.data);
         build/src/func_80021D64.c.o(.data);
@@ -1900,8 +1864,6 @@ SECTIONS
         build/src/func_80021FE4.c.o(.data);
         build/src/func_80022008.c.o(.data);
         build/src/func_80022014.c.o(.data);
-        build/src/func_80022028.c.o(.data);
-        build/src/func_80022030.c.o(.data);
         build/src/func_80022048.c.o(.data);
         build/src/func_8002206C.c.o(.data);
         build/src/func_8002238C.c.o(.data);
@@ -1935,7 +1897,6 @@ SECTIONS
         build/src/func_80022FA0.c.o(.data);
         build/src/func_80022FB4.c.o(.data);
         build/src/func_80022FD4.c.o(.data);
-        build/src/func_80022FD8.c.o(.data);
         build/src/func_80022FE0.c.o(.data);
         build/src/func_8002301C.c.o(.data);
         build/src/func_80023030.c.o(.data);
@@ -1961,7 +1922,6 @@ SECTIONS
         build/src/func_80023A9C.c.o(.data);
         build/src/func_80023B5C.c.o(.data);
         build/src/func_80023C2C.c.o(.data);
-        build/src/func_80023CA4.c.o(.data);
         build/src/func_80023CE8.c.o(.data);
         build/src/func_80023D08.c.o(.data);
         build/src/func_80023DBC.c.o(.data);
@@ -1977,8 +1937,6 @@ SECTIONS
         build/src/func_80024400.c.o(.data);
         build/src/func_80024408.c.o(.data);
         build/src/func_80024430.c.o(.data);
-        build/src/func_80024434.c.o(.data);
-        build/src/func_80024440.c.o(.data);
         build/src/func_80024448.c.o(.data);
         build/src/func_800244FC.c.o(.data);
         build/src/func_80024578.c.o(.data);
@@ -2213,7 +2171,6 @@ SECTIONS
         build/src/func_80017A70.c.o(.bss);
         build/src/func_80017AA0.c.o(.bss);
         build/src/func_80017AC0.c.o(.bss);
-        build/src/func_80017AC4.c.o(.bss);
         build/src/func_80017ACC.c.o(.bss);
         build/src/func_80017AE8.c.o(.bss);
         build/src/func_80017B18.c.o(.bss);
@@ -2334,11 +2291,9 @@ SECTIONS
         build/src/func_8001C37C.c.o(.bss);
         build/src/func_8001D21C.c.o(.bss);
         build/src/func_8001D284.c.o(.bss);
-        build/src/func_8001D288.c.o(.bss);
         build/src/func_8001D2A4.c.o(.bss);
         build/src/func_8001D2D0.c.o(.bss);
         build/src/func_8001D2D8.c.o(.bss);
-        build/src/func_8001D2F4.c.o(.bss);
         build/src/func_8001D2FC.c.o(.bss);
         build/src/func_8001D340.c.o(.bss);
         build/src/func_8001D348.c.o(.bss);
@@ -2347,7 +2302,6 @@ SECTIONS
         build/src/func_8001D6AC.c.o(.bss);
         build/src/func_8001D6B8.c.o(.bss);
         build/src/func_8001D86C.c.o(.bss);
-        build/src/func_8001D884.c.o(.bss);
         build/src/func_8001D8A0.c.o(.bss);
         build/src/func_8001D8B8.c.o(.bss);
         build/src/func_8001DBF0.c.o(.bss);
@@ -2368,10 +2322,8 @@ SECTIONS
         build/src/func_8001E4C0.c.o(.bss);
         build/src/func_8001E6FC.c.o(.bss);
         build/src/func_8001E78C.c.o(.bss);
-        build/src/func_8001E7B8.c.o(.bss);
         build/src/func_8001E7C0.c.o(.bss);
         build/src/func_8001E7DC.c.o(.bss);
-        build/src/func_8001E818.c.o(.bss);
         build/src/func_8001E820.c.o(.bss);
         build/src/func_8001E878.c.o(.bss);
         build/src/func_8001E9F8.c.o(.bss);
@@ -2468,7 +2420,6 @@ SECTIONS
         build/src/func_800217B0.c.o(.bss);
         build/src/func_80021818.c.o(.bss);
         build/src/func_80021820.c.o(.bss);
-        build/src/func_80021844.c.o(.bss);
         build/src/func_800218A8.c.o(.bss);
         build/src/func_800218BC.c.o(.bss);
         build/src/func_800218C4.c.o(.bss);
@@ -2476,7 +2427,6 @@ SECTIONS
         build/src/func_80021B20.c.o(.bss);
         build/src/func_80021B64.c.o(.bss);
         build/src/func_80021B84.c.o(.bss);
-        build/src/func_80021B88.c.o(.bss);
         build/src/func_80021B90.c.o(.bss);
         build/src/func_80021CD8.c.o(.bss);
         build/src/func_80021D64.c.o(.bss);
@@ -2493,8 +2443,6 @@ SECTIONS
         build/src/func_80021FE4.c.o(.bss);
         build/src/func_80022008.c.o(.bss);
         build/src/func_80022014.c.o(.bss);
-        build/src/func_80022028.c.o(.bss);
-        build/src/func_80022030.c.o(.bss);
         build/src/func_80022048.c.o(.bss);
         build/src/func_8002206C.c.o(.bss);
         build/src/func_8002238C.c.o(.bss);
@@ -2528,7 +2476,6 @@ SECTIONS
         build/src/func_80022FA0.c.o(.bss);
         build/src/func_80022FB4.c.o(.bss);
         build/src/func_80022FD4.c.o(.bss);
-        build/src/func_80022FD8.c.o(.bss);
         build/src/func_80022FE0.c.o(.bss);
         build/src/func_8002301C.c.o(.bss);
         build/src/func_80023030.c.o(.bss);
@@ -2554,7 +2501,6 @@ SECTIONS
         build/src/func_80023A9C.c.o(.bss);
         build/src/func_80023B5C.c.o(.bss);
         build/src/func_80023C2C.c.o(.bss);
-        build/src/func_80023CA4.c.o(.bss);
         build/src/func_80023CE8.c.o(.bss);
         build/src/func_80023D08.c.o(.bss);
         build/src/func_80023DBC.c.o(.bss);
@@ -2570,8 +2516,6 @@ SECTIONS
         build/src/func_80024400.c.o(.bss);
         build/src/func_80024408.c.o(.bss);
         build/src/func_80024430.c.o(.bss);
-        build/src/func_80024434.c.o(.bss);
-        build/src/func_80024440.c.o(.bss);
         build/src/func_80024448.c.o(.bss);
         build/src/func_800244FC.c.o(.bss);
         build/src/func_80024578.c.o(.bss);

@@ -23,6 +23,16 @@ const FUNC_DEF_RE = /^([\w][\w\s]*\*?)\s+([\w]+)\s*\(([^)]*)\)\s*\{/gm;
 // Lines that are not function definitions
 const SKIP_RE = /^(?:#include|\/\/|\/\*|\*|$)/;
 
+// Match typedef struct { ... } Name; — no nesting, C89 anonymous structs
+const STRUCT_TYPEDEF_RE = /typedef\s+struct\s*\{[^}]*\}\s*(\w+)\s*;/gs;
+
+// Built-in types that don't need struct definitions
+const BUILTIN_TYPES = new Set([
+  "u8", "u16", "u32", "s8", "s16", "s32",
+  "vu8", "vu16", "vu32", "vs8", "vs16", "vs32",
+  "char", "int", "short", "long", "void", "unsigned", "signed",
+]);
+
 interface ExportResult {
   signatures: string[];
   skipped: boolean;
@@ -60,6 +70,77 @@ export function extractSignatures(cFilePath: string): string[] {
 }
 
 /**
+ * Extract struct typedefs from a C source file.
+ * Returns a map of type name -> full typedef text.
+ */
+export function extractStructTypedefs(cFilePath: string): Map<string, string> {
+  const defs = new Map<string, string>();
+  if (!existsSync(cFilePath)) return defs;
+
+  const source = readFileSync(cFilePath, "utf-8");
+  STRUCT_TYPEDEF_RE.lastIndex = 0;
+
+  let match: RegExpExecArray | null;
+  while ((match = STRUCT_TYPEDEF_RE.exec(source)) !== null) {
+    defs.set(match[1], match[0]);
+  }
+  return defs;
+}
+
+/**
+ * Given all signatures and all struct defs, find which struct names are referenced
+ * in any signature. Computes transitive closure (struct fields referencing other structs).
+ */
+function findReferencedTypes(
+  signatures: Map<string, string>,
+  structDefs: Map<string, string>,
+): Set<string> {
+  const referenced = new Set<string>();
+
+  // Find struct names referenced directly in signatures
+  const allSigText = [...signatures.values()].join("\n");
+  for (const name of structDefs.keys()) {
+    if (allSigText.includes(name)) {
+      referenced.add(name);
+    }
+  }
+
+  // Transitive closure: if a referenced struct's body mentions another struct, include it
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const name of referenced) {
+      const body = structDefs.get(name)!;
+      for (const candidate of structDefs.keys()) {
+        if (!referenced.has(candidate) && body.includes(candidate)) {
+          referenced.add(candidate);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return referenced;
+}
+
+/**
+ * Collect struct typedefs from all source files in src/.
+ */
+function collectAllStructDefs(srcDir: string): Map<string, string> {
+  const allDefs = new Map<string, string>();
+  if (!existsSync(srcDir)) return allDefs;
+
+  const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
+  for (const file of files) {
+    const defs = extractStructTypedefs(join(srcDir, file));
+    for (const [name, def] of defs) {
+      allDefs.set(name, def);
+    }
+  }
+  return allDefs;
+}
+
+/**
  * Read the current include/functions.h and return a map of funcName -> signature line.
  */
 function readExistingHeader(headerPath: string): Map<string, string> {
@@ -79,11 +160,21 @@ function readExistingHeader(headerPath: string): Map<string, string> {
 }
 
 /**
- * Write include/functions.h with sorted signatures.
+ * Write include/functions.h with sorted signatures and any referenced struct typedefs.
  */
-function writeHeader(headerPath: string, signatures: Map<string, string>): void {
+function writeHeader(
+  headerPath: string,
+  signatures: Map<string, string>,
+  structDefs: Map<string, string> = new Map(),
+): void {
   // Sort by function name (which sorts by address for func_XXXXXXXX names)
-  const sorted = [...signatures.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const sortedSigs = [...signatures.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+  // Filter to only structs referenced in signatures
+  const referenced = findReferencedTypes(signatures, structDefs);
+  const sortedStructs = [...structDefs.entries()]
+    .filter(([name]) => referenced.has(name))
+    .sort((a, b) => a[0].localeCompare(b[0]));
 
   // No preprocessor directives — m2c parses this as plain C context
   const lines = [
@@ -96,9 +187,17 @@ function writeHeader(headerPath: string, signatures: Map<string, string>): void 
     "typedef signed short s16;",
     "typedef signed int s32;",
     "",
-    ...sorted.map(([_, sig]) => sig),
-    "",
   ];
+
+  if (sortedStructs.length > 0) {
+    for (const [_, def] of sortedStructs) {
+      lines.push(def);
+      lines.push("");
+    }
+  }
+
+  lines.push(...sortedSigs.map(([_, sig]) => sig));
+  lines.push("");
 
   writeFileSync(headerPath, lines.join("\n"));
 }
@@ -130,7 +229,11 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
     }
   }
 
-  writeHeader(headerPath, existing);
+  // Collect struct defs from ALL source files (a signature in file A may reference a struct from file B)
+  const srcDir = join(rootDir, "src");
+  const allStructDefs = collectAllStructDefs(srcDir);
+
+  writeHeader(headerPath, existing, allStructDefs);
   return { signatures: sigs, skipped: false };
 }
 
@@ -145,14 +248,21 @@ export function exportAll(rootDir: string = ROOT): { exported: string[]; skipped
   const exported: string[] = [];
   const skipped: string[] = [];
 
-  // Collect all signatures first
+  // Collect all signatures and struct defs
   const headerPath = join(rootDir, "include/functions.h");
   const allSigs = readExistingHeader(headerPath);
+  const allStructDefs = new Map<string, string>();
 
   for (const file of files) {
     const funcName = file.replace(/\.c$/, "");
     const cFile = join(srcDir, file);
     const sigs = extractSignatures(cFile);
+
+    // Collect struct defs from every file
+    const defs = extractStructTypedefs(cFile);
+    for (const [name, def] of defs) {
+      allStructDefs.set(name, def);
+    }
 
     if (sigs.length === 0) {
       skipped.push(funcName);
@@ -169,7 +279,7 @@ export function exportAll(rootDir: string = ROOT): { exported: string[]; skipped
   }
 
   if (exported.length > 0) {
-    writeHeader(headerPath, allSigs);
+    writeHeader(headerPath, allSigs, allStructDefs);
   }
 
   return { exported, skipped };
@@ -193,15 +303,37 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
     if (dryRun) {
       const srcDir = join(ROOT, "src");
       const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
-      let count = 0;
+      const allSigs = new Map<string, string>();
+      const allStructDefs = new Map<string, string>();
       for (const file of files) {
-        const sigs = extractSignatures(join(srcDir, file));
+        const cFile = join(srcDir, file);
+        const sigs = extractSignatures(cFile);
         for (const sig of sigs) {
-          console.log(sig);
-          count++;
+          const m = sig.match(/^[\w][\w\s]*\*?\s+([\w]+)\s*\(/);
+          if (m) allSigs.set(m[1], sig);
+        }
+        const defs = extractStructTypedefs(cFile);
+        for (const [name, def] of defs) {
+          allStructDefs.set(name, def);
         }
       }
-      console.log(`\n${count} signature(s) found (dry run, nothing written)`);
+      const referenced = findReferencedTypes(allSigs, allStructDefs);
+      const referencedDefs = [...allStructDefs.entries()]
+        .filter(([name]) => referenced.has(name))
+        .sort((a, b) => a[0].localeCompare(b[0]));
+      if (referencedDefs.length > 0) {
+        console.log("/* Struct typedefs */");
+        for (const [_, def] of referencedDefs) {
+          console.log(def);
+          console.log();
+        }
+      }
+      console.log("/* Function signatures */");
+      const sortedSigs = [...allSigs.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [_, sig] of sortedSigs) {
+        console.log(sig);
+      }
+      console.log(`\n${sortedSigs.length} signature(s), ${referencedDefs.length} struct(s) found (dry run, nothing written)`);
     } else {
       const result = exportAll();
       console.log(`Exported ${result.exported.length} function(s), skipped ${result.skipped.length} stub(s)`);

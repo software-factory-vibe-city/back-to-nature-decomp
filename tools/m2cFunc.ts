@@ -75,8 +75,21 @@ export function runM2c(funcName: string, root: string = DEFAULT_ROOT, options: M
 
   cmd.push(sFile);
 
-  // Auto-detect jump table references and find the data file(s) that define them
+  // Auto-detect cross-function branch targets and include their .s files
   const sContent = readFileSync(join(root, sFile), "utf-8");
+  const branchTargetRe = /\b(b(?:eq|ne|gez|gtz|lez|ltz|eqz|nez)\w*)\s+.*?(func_[0-9A-Fa-f]+)/g;
+  const branchTargets = [...sContent.matchAll(branchTargetRe)].map((m) => m[2]);
+  const externalTargets = [...new Set(branchTargets)].filter((t) => t !== sBasename);
+  for (const target of externalTargets) {
+    try {
+      const targetSFile = resolveSFile(target, root);
+      cmd.push(targetSFile);
+    } catch {
+      // target .s not found — m2c will report the error
+    }
+  }
+
+  // Auto-detect jump table references and find the data file(s) that define them
   const jtblRefs = [...sContent.matchAll(/jtbl_[0-9A-Fa-f]+/g)].map((m) => m[0]);
   if (jtblRefs.length > 0) {
     const unique = [...new Set(jtblRefs)];
