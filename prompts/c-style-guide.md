@@ -116,6 +116,20 @@ D_80061F08 = value;
 
 However, some symbols (e.g., `.sdata` symbols defined by splat) are NOT in `globals.h`. For those, you DO need a local extern. Check whether the symbol compiles without a declaration before adding one.
 
+### Use `&D_XXXX` to get a global's address, never `_D_XXXX`
+
+`globals.h` macros expand `D_XXXX` to a dereference: `(*((s32*)_D_XXXX))`. To get the address, use `&D_XXXX` — it naturally cancels the dereference:
+
+```c
+/* GOOD — &D_XXXX gives the address */
+s32 *base = &D_8006C838;
+
+/* BAD — uses internal __asm__ identifier, leaks implementation detail */
+s32 *base = (s32 *)_D_8006C838;
+```
+
+Never reference `_D_XXXX` (the underscore-prefixed internal name) in source files.
+
 ### Match the extern type to the access pattern
 
 ```c
