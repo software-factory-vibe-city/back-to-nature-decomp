@@ -6,10 +6,12 @@
  *
  * 1. Detects fragments: functions with no jr $ra / tail-call j that fall
  *    through into the next function
- * 2. Adds size: to the head function so spimdisasm doesn't end it early
- * 3. Changes unreferenced fragments to type:label (internal branch labels)
- * 4. Keeps externally-referenced fragments as type:func (alternative entries)
- * 5. Removes splat.yaml subsegments and stale source files for fragments
+ * 2. Detects cross-function branches: functions that conditionally branch
+ *    to the immediately-next function (if/else chains, cascading checks)
+ * 3. Adds size: to the head function so spimdisasm doesn't end it early
+ * 4. Changes unreferenced fragments to type:label (internal branch labels)
+ * 5. Keeps externally-referenced fragments as type:func (alternative entries)
+ * 6. Removes splat.yaml subsegments and stale source files for fragments
  *
  * Usage:
  *   npx tsx tools/mergeFragments.ts           # dry run
@@ -83,6 +85,36 @@ function hasTerminator(
     }
   }
 
+  return false;
+}
+
+/**
+ * Scan a region of the binary for branch instructions targeting a specific address.
+ */
+function scanBodyForBranchTarget(
+  binary: Buffer,
+  bodyStart: number,
+  bodyEnd: number,
+  targetAddr: number,
+  info: ReturnType<typeof loadPsxExeInfo>
+): boolean {
+  const startOff = vramToRom(bodyStart, info);
+  const endOff = vramToRom(bodyEnd, info);
+
+  for (let off = startOff; off + 4 <= endOff; off += 4) {
+    const word = binary.readUInt32LE(off);
+    const opcode = word >>> 26;
+
+    // Branch opcodes: REGIMM(0x01), BEQ(0x04), BNE(0x05), BLEZ(0x06), BGTZ(0x07)
+    if (opcode === 0x01 || (opcode >= 0x04 && opcode <= 0x07)) {
+      const instrAddr = (off - info.payloadOffset + info.loadAddr) >>> 0;
+      const offset16 = word & 0xffff;
+      const signedOff = offset16 >= 0x8000 ? offset16 - 0x10000 : offset16;
+      const branchTarget = (instrAddr + 4 + signedOff * 4) >>> 0;
+
+      if (branchTarget === targetAddr) return true;
+    }
+  }
   return false;
 }
 
@@ -197,7 +229,7 @@ function main() {
 
   const jalTargets = findExternalCallTargets(binary, info, allSorted.map((e) => e.addr));
 
-  // Detect fall-through: func has no terminator, next func is not a jal/j target
+  // Pass 1: Detect fall-through — func has no terminator, next func is not a jal/j target
   const isFragment = new Set<number>();
   for (let i = 0; i < gameEntries.length - 1; i++) {
     const func = gameEntries[i];
@@ -209,8 +241,34 @@ function main() {
     }
   }
 
+  // Pass 2: Detect cross-function branches — func branches to next func (if/else chains, etc.)
+  // Iterates until no new fragments are found (chain merging convergence).
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < gameEntries.length - 1; i++) {
+      if (isFragment.has(gameEntries[i].addr)) continue; // only check heads
+
+      // Find next non-fragment function
+      let j = i + 1;
+      while (j < gameEntries.length && isFragment.has(gameEntries[j].addr)) j++;
+      if (j >= gameEntries.length) continue;
+
+      const nextFunc = gameEntries[j];
+      if (jalTargets.has(nextFunc.addr)) continue;
+      // Must be adjacent (no gaps from non-game symbols)
+      if (getNextFuncAddr(gameEntries[j - 1].addr) !== nextFunc.addr) continue;
+
+      // Scan entire body (head + already-absorbed fragments) for branch to nextFunc
+      if (scanBodyForBranchTarget(binary, gameEntries[i].addr, nextFunc.addr, nextFunc.addr, info)) {
+        isFragment.add(nextFunc.addr);
+        changed = true;
+      }
+    }
+  }
+
   if (isFragment.size === 0) {
-    console.log("No fall-through fragments detected.");
+    console.log("No fragments detected.");
     return;
   }
 
@@ -311,12 +369,17 @@ function main() {
         continue;
       }
 
-      // Change unreferenced fragments to type:label
+      // Change unreferenced fragments to type:label and rename func_X → _X
+      // so m2c treats them as internal labels (matches re_local_label pattern)
       if (toLabelify.has(addr)) {
         let newLine = line;
         if (newLine.includes("type:func")) {
           newLine = newLine.replace("type:func", "type:label");
         }
+        // Rename func_800XXXXX → _800XXXXX
+        const oldName = match[1];
+        const newName = oldName.replace(/^func_/, "_");
+        newLine = newLine.replace(oldName, newName);
         outputLines.push(newLine);
         changedLabel++;
         continue;
