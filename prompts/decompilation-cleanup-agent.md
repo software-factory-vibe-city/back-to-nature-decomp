@@ -153,6 +153,10 @@ temp_v0->unkE4
 
 **Fix:** Define a struct with the correct layout and use field access. Use `char pad[N]` for gaps between known fields. Name fields `field_XX` (hex offset) until their purpose is known. **Change the parameter/variable type to the struct pointer** — do NOT keep `void *` and cast on every access.
 
+If the struct is for a **global variable** (`D_XXXXXXXX`), define it in `include/globals_override.h` so `classifyGlobals.ts` uses the correct type. Do NOT define struct types for globals locally in source files — they'll conflict with `globals.h`.
+
+If the struct is for a **function parameter or local variable**, define it in the source file or in `include/game_types.h` if shared across files.
+
 ```c
 typedef struct {
     char pad[0xE4];
@@ -375,7 +379,7 @@ npx tsx tools/diffFunc.ts {FUNC_NAME} 2>&1
 
 Each diff tells you exactly what's wrong. Make one targeted change per iteration:
 - `slt` vs `sltu` mismatch → fix signedness with casts
-- Wrong registers → reorder local variable declarations; as a last resort use `register __asm__`
+- Wrong registers → reorder variable declarations, try ternary vs if/else, try combining conditions with `||`/`&&`; as a last resort use `register __asm__`
 - Extra/missing instructions → restructure control flow or fix extern declaration sizes
 - Wrong offsets in loads/stores → fix pointer types or struct layout
 - Two adjacent instructions swapped → scheduling barrier (see C style guide)

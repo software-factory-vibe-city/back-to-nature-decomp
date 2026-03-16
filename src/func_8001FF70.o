@@ -1,0 +1,32 @@
+	.file	1 "src/func_8001FF70.c"
+gcc2_compiled.:
+__gnu_compiled_c:
+	.text
+	.align	2
+	.globl	func_8001FF70
+	.text
+	.ent	func_8001FF70
+func_8001FF70:
+	.frame	$fp,8,$31		# vars= 0, regs= 1/0, args= 0, extra= 0
+	.mask	0x40000000,-8
+	.fmask	0x00000000,0
+	subu	$sp,$sp,8
+	sw	$fp,0($sp)
+	move	$fp,$sp
+	.set	noreorder
+	nop
+	.set	reorder
+$L2:
+$L4:
+	j	$L3
+$L5:
+	j	$L4
+$L3:
+$L1:
+	move	$sp,$fp
+	lw	$fp,0($sp)
+	addu	$sp,$sp,8
+	j	$31
+	.end	func_8001FF70
+
+	.comm	D_80049A10,96

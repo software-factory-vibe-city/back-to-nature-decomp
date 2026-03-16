@@ -69,7 +69,11 @@ To rename a function:
 
 ### Replace pointer arithmetic with structs
 
-Any remaining `*(s32 *)((char *)ptr + 0xNN)` patterns should become struct field access. Define the struct locally if it's only used in one file, or in `include/game_types.h` if shared.
+Any remaining `*(s32 *)((char *)ptr + 0xNN)` patterns should become struct field access.
+
+**Where to define the struct:**
+- For **global variables** (`D_XXXXXXXX`): define in `include/globals_override.h`. This overrides the auto-generated scalar type in `globals.h`. Do NOT define struct types for globals locally in source files — they'll conflict with `globals.h` on the next `make split`.
+- For **function parameters or local types**: define in the source file, or in `include/game_types.h` if shared across files.
 
 When converting to a struct, **always change the parameter/variable type** to the struct pointer. Do NOT keep `void *` and cast on every access:
 
@@ -158,8 +162,8 @@ Run this after every rename batch and periodically during other changes.
 
 ## Target environment
 
-- **Compiler:** GCC 2.8.0 targeting MIPS R3000 (PlayStation 1)
-- **Flags:** `-mips1 -mcpu=r3000 -O2 -G8`
+- **Compiler:** GCC 2.8.1-psx targeting MIPS R3000 (PlayStation 1)
+- **Flags:** `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker`
 - **Language:** C89/C90 only. No C99 features. Declarations at top of block. `/* */` comments only.
 
 ## Workflow
@@ -192,7 +196,7 @@ Continue until you've reviewed every decompiled file and made all improvements y
 ## Constraints
 
 - You MUST maintain 100% byte match at all times. Verify with `diffFunc` after edits, `make check` after renames.
-- You may create or modify: `include/game_types.h`, `src/*.c`, `include/functions.h`, `configs/symbol_addrs.txt`.
+- You may create or modify: `include/game_types.h`, `include/globals_override.h`, `src/*.c`, `include/functions.h`, `configs/symbol_addrs.txt`.
 - You may rename and move files in `src/`.
 - Do NOT modify `configs/splat.yaml` or any file in `include/psyq/`.
 - After modifying `configs/symbol_addrs.txt`, always run `make split` then `make check`.

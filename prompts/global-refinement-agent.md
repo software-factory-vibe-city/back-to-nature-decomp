@@ -81,8 +81,8 @@ Edit `src/{FUNC_NAME}.c` with your improvements.
 
 ## Target environment
 
-- **Compiler:** GCC 2.8.0 targeting MIPS R3000 (PlayStation 1)
-- **Flags:** `-mips1 -mcpu=r3000 -O2 -G8`
+- **Compiler:** GCC 2.8.1-psx targeting MIPS R3000 (PlayStation 1)
+- **Flags:** `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker`
 - **Language:** C89/C90 only. No C99 features. Declarations at top of block. `/* */` comments only.
 
 ## Replacing pointer arithmetic with structs
@@ -94,7 +94,11 @@ A common pattern from the matching agent is raw pointer arithmetic like:
 *(s32 *)((char *)arg0 + 0x18) = arg2;
 ```
 
-This is correct but unreadable. **Always replace these with a proper struct.** Define the struct in the source file (or in a shared header if multiple functions use it), **change the parameter type to the struct pointer**, and use field access:
+This is correct but unreadable. **Always replace these with a proper struct**, then **change the parameter type to the struct pointer** and use field access.
+
+**Where to define the struct:**
+- For **global variables** (`D_XXXXXXXX`): define in `include/globals_override.h`. This overrides the auto-generated scalar type in `globals.h`. Do NOT define struct types for globals locally in source files.
+- For **function parameters or local types**: define in the source file, or in `include/game_types.h` if shared across files.
 
 ```c
 typedef struct {
@@ -185,7 +189,7 @@ If you discovered better types or names:
 ## Constraints
 
 - You MUST maintain 100% byte match at all times.
-- You may modify: `src/*.c`, `include/functions.h`, `include/game_types.h`, `configs/symbol_addrs.txt`.
+- You may modify: `src/*.c`, `include/functions.h`, `include/game_types.h`, `include/globals_override.h`, `configs/symbol_addrs.txt`.
 - You may rename and move files in `src/`.
 - After modifying `configs/symbol_addrs.txt`, always run `make split` then `make check`.
 - Do NOT modify `configs/splat.yaml` or any file in `include/psyq/`.
