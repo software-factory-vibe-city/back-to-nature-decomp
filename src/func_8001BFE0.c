@@ -1,6 +1,7 @@
 #include "common.h"
+#include "game_types.h"
 
-void func_8001BFE0(void *arg0) {
-    *(s32 *)((s32)arg0 + 0) = 0;
-    *(s32 *)((s32)arg0 + 4) = 0;
+void func_8001BFE0(PairS32 *obj) {
+    obj->field_0 = 0;
+    obj->field_4 = 0;
 }

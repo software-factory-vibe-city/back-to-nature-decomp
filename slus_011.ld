@@ -78,8 +78,8 @@ SECTIONS
         build/src/func_800136D4.c.o(.rodata);
         build/src/func_800139FC.c.o(.rodata);
         build/src/func_80013A24.c.o(.rodata);
-        build/src/func_80013AA4.c.o(.rodata);
-        build/src/func_80013AC8.c.o(.rodata);
+        build/src/SetGfxOffset.c.o(.rodata);
+        build/src/SetGfxClip.c.o(.rodata);
         build/src/func_80013AEC.c.o(.rodata);
         build/src/func_80013AF8.c.o(.rodata);
         build/src/func_80013B04.c.o(.rodata);
@@ -316,7 +316,7 @@ SECTIONS
         build/src/func_8001F1B4.c.o(.rodata);
         build/src/func_8001F1C0.c.o(.rodata);
         build/src/func_8001F1E0.c.o(.rodata);
-        build/src/func_8001F250.c.o(.rodata);
+        build/src/pow_int.c.o(.rodata);
         build/src/func_8001F278.c.o(.rodata);
         build/src/func_8001F2EC.c.o(.rodata);
         build/src/func_8001F338.c.o(.rodata);
@@ -583,8 +583,8 @@ SECTIONS
         build/src/func_800136D4.c.o(.text);
         build/src/func_800139FC.c.o(.text);
         build/src/func_80013A24.c.o(.text);
-        build/src/func_80013AA4.c.o(.text);
-        build/src/func_80013AC8.c.o(.text);
+        build/src/SetGfxOffset.c.o(.text);
+        build/src/SetGfxClip.c.o(.text);
         build/src/func_80013AEC.c.o(.text);
         build/src/func_80013AF8.c.o(.text);
         build/src/func_80013B04.c.o(.text);
@@ -821,7 +821,7 @@ SECTIONS
         build/src/func_8001F1B4.c.o(.text);
         build/src/func_8001F1C0.c.o(.text);
         build/src/func_8001F1E0.c.o(.text);
-        build/src/func_8001F250.c.o(.text);
+        build/src/pow_int.c.o(.text);
         build/src/func_8001F278.c.o(.text);
         build/src/func_8001F2EC.c.o(.text);
         build/src/func_8001F338.c.o(.text);
@@ -1418,8 +1418,8 @@ SECTIONS
         build/src/func_800136D4.c.o(.data);
         build/src/func_800139FC.c.o(.data);
         build/src/func_80013A24.c.o(.data);
-        build/src/func_80013AA4.c.o(.data);
-        build/src/func_80013AC8.c.o(.data);
+        build/src/SetGfxOffset.c.o(.data);
+        build/src/SetGfxClip.c.o(.data);
         build/src/func_80013AEC.c.o(.data);
         build/src/func_80013AF8.c.o(.data);
         build/src/func_80013B04.c.o(.data);
@@ -1656,7 +1656,7 @@ SECTIONS
         build/src/func_8001F1B4.c.o(.data);
         build/src/func_8001F1C0.c.o(.data);
         build/src/func_8001F1E0.c.o(.data);
-        build/src/func_8001F250.c.o(.data);
+        build/src/pow_int.c.o(.data);
         build/src/func_8001F278.c.o(.data);
         build/src/func_8001F2EC.c.o(.data);
         build/src/func_8001F338.c.o(.data);
@@ -1956,8 +1956,8 @@ SECTIONS
         build/src/func_800136D4.c.o(.bss);
         build/src/func_800139FC.c.o(.bss);
         build/src/func_80013A24.c.o(.bss);
-        build/src/func_80013AA4.c.o(.bss);
-        build/src/func_80013AC8.c.o(.bss);
+        build/src/SetGfxOffset.c.o(.bss);
+        build/src/SetGfxClip.c.o(.bss);
         build/src/func_80013AEC.c.o(.bss);
         build/src/func_80013AF8.c.o(.bss);
         build/src/func_80013B04.c.o(.bss);
@@ -2194,7 +2194,7 @@ SECTIONS
         build/src/func_8001F1B4.c.o(.bss);
         build/src/func_8001F1C0.c.o(.bss);
         build/src/func_8001F1E0.c.o(.bss);
-        build/src/func_8001F250.c.o(.bss);
+        build/src/pow_int.c.o(.bss);
         build/src/func_8001F278.c.o(.bss);
         build/src/func_8001F2EC.c.o(.bss);
         build/src/func_8001F338.c.o(.bss);

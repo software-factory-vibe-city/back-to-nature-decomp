@@ -115,8 +115,8 @@ segments:
       - [0x3ED4, c, func_800136D4]       # 0x800136D4 func_800136D4
       - [0x41FC, c, func_800139FC]       # 0x800139FC func_800139FC
       - [0x4224, c, func_80013A24]       # 0x80013A24 func_80013A24
-      - [0x42A4, c, func_80013AA4]       # 0x80013AA4 func_80013AA4
-      - [0x42C8, c, func_80013AC8]       # 0x80013AC8 func_80013AC8
+      - [0x42A4, c, SetGfxOffset]       # 0x80013AA4 SetGfxOffset
+      - [0x42C8, c, SetGfxClip]       # 0x80013AC8 SetGfxClip
       - [0x42EC, c, func_80013AEC]       # 0x80013AEC func_80013AEC
       - [0x42F8, c, func_80013AF8]       # 0x80013AF8 func_80013AF8
       - [0x4304, c, func_80013B04]       # 0x80013B04 func_80013B04
@@ -353,7 +353,7 @@ segments:
       - [0xF9B4, c, func_8001F1B4]       # 0x8001F1B4 func_8001F1B4
       - [0xF9C0, c, func_8001F1C0]       # 0x8001F1C0 func_8001F1C0
       - [0xF9E0, c, func_8001F1E0]       # 0x8001F1E0 func_8001F1E0
-      - [0xFA50, c, func_8001F250]       # 0x8001F250 func_8001F250
+      - [0xFA50, c, pow_int]       # 0x8001F250 pow_int
       - [0xFA78, c, func_8001F278]       # 0x8001F278 func_8001F278
       - [0xFAEC, c, func_8001F2EC]       # 0x8001F2EC func_8001F2EC
       - [0xFB38, c, func_8001F338]       # 0x8001F338 func_8001F338

@@ -182,11 +182,16 @@ async function runProjectRefinementAgent(): Promise<AgentResult> {
 
   const checkSuccess = (): boolean => {
     try {
+      /* Full clean rebuild: agent may have changed splat.yaml or symbol_addrs.txt,
+       * so we need make clean + make split to regenerate the linker script and
+       * assembly before checking the binary match. */
+      execSync("make clean", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
+      execSync("make split", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
       const makeOutput = execSync("make check", {
         cwd: ROOT,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
-        timeout: 60000,
+        timeout: 120000,
       });
       return makeOutput.includes("matches original payload");
     } catch {

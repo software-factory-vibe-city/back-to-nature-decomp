@@ -7,20 +7,6 @@ typedef signed char s8;
 typedef signed short s16;
 typedef signed int s32;
 
-typedef struct {
-    char pad[2];
-    u16 field_2;
-    s8 field_4;
-    s8 field_5;
-    s16 field_6;
-} Struct_80015840;
-
-typedef struct {
-    s32 unk0;
-    s32 unk4;
-    s32 unk8;
-} Struct8001F338;
-
 void func_80011270(void);
 void func_80011EE8(void);
 s32 func_80011F08(void);
@@ -35,13 +21,14 @@ s32 func_800129E8(void);
 void func_80013438(s32 arg0);
 s32 func_80013444(void);
 s32 func_800134B8(void);
-void func_80013AC8(s32 arg0, s32 arg1);
+void SetGfxOffset(s32 arg0, s32 arg1);
+void SetGfxClip(s32 arg0, s32 arg1);
 void func_80013AEC(s32 arg0);
 s32 func_80013AF8(void);
 s32 func_80014B38(void);
 s32 func_80014CB0(void);
-void func_80015840(Struct_80015840 *arg0, s8 arg1);
-void func_8001585C(void *arg0, s8 arg1);
+void func_80015840(ObjectState *obj, s8 arg1);
+void func_8001585C(ObjectState *obj, s8 arg1);
 void func_80015880(void *arg0, s32 arg1, s32 arg2);
 void func_8001588C(void);
 void func_80015894(void *arg0, s32 arg1);
@@ -67,8 +54,9 @@ void func_8001B100(void);
 s32 func_8001B10C(void);
 void func_8001B4D0(s32 arg0, s32 arg1);
 void func_8001B9F8(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
+void func_8001BA40(s32 arg0, s32 arg1, s32 arg2);
 void func_8001BF9C(s32 arg0);
-void func_8001BFE0(void *arg0);
+void func_8001BFE0(PairS32 *obj);
 void func_8001D6AC(void);
 s32 func_8001DCA8(void);
 s32 func_8001DFC8(void);
@@ -78,7 +66,7 @@ void func_8001EF8C(s32 arg0);
 s32 func_8001EF98(void);
 void func_8001F1B4(void);
 s32 func_8001F250(s32 arg0, s32 arg1);
-void func_8001F338(Struct8001F338 *arg0, Struct8001F338 *arg1);
+void func_8001F338(Vec3 *dest, Vec3 *src);
 int func_8001FAB4(void);
 s32 func_8001FB08(void);
 void func_8001FBE4(s32 arg0, s32 arg1);
