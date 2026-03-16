@@ -8,9 +8,7 @@ Your job: walk through all decompiled source files, identify patterns across the
 
 {{CONTEXT}}
 
-## C style guide
-
-Read `prompts/c-style-guide.md` before modifying any C. It contains idiomatic patterns that produce correct codegen with this toolchain, and common pitfalls that cause instruction reordering.
+{{C_STYLE_GUIDE}}
 
 ## What to do
 

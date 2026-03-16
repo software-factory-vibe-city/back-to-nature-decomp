@@ -1,7 +1,7 @@
 # === PSX Matching Decompilation Build System ===
 
 # Toolchain - change GCC_VERSION to experiment (2.7.2, 2.8.1, 2.95.2)
-GCC_VERSION := 2.8.0
+GCC_VERSION := 2.8.1
 CC          := tools/old-gcc/build-gcc-$(GCC_VERSION)-psx/cc1
 MASPSX      := python3 tools/maspsx/maspsx.py
 CROSS       := mips-linux-gnu-
@@ -10,10 +10,18 @@ LD          := $(CROSS)ld
 OBJCOPY     := $(CROSS)objcopy
 CPP         := $(CROSS)cpp
 
-# Flags
-ASFLAGS     := -march=r3000 -mtune=r3000 -EL -no-pad-sections -Iinclude -Iinclude/psyq
+# Flags — baseline defaults (Silent Hill proven config)
 CPPFLAGS    := -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c
-CC1FLAGS    := -mips1 -mcpu=r3000 -quiet -G8 -O2
+ASFLAGS     := -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq
+
+# Per-file flag configuration
+# Usage: $(eval $(call FlagsSwitch,$<)) in recipe
+# Sets CC1FLAGS, MASPSX_FLAGS for the given source file.
+# Add per-file overrides using $(findstring ...) checks below.
+define FlagsSwitch
+CC1FLAGS   := -O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet
+MASPSX_FLAGS := --aspsx-version 2.77 --dont-force-G0 --run-assembler
+endef
 
 # Paths
 TARGET      := extracted/iso/slus_011.15
@@ -79,9 +87,10 @@ split:
 # Compile C: cpp -> cc1 -> maspsx -> .o
 $(BUILD_DIR)/src/%.c.o: src/%.c
 	@mkdir -p $(dir $@)
+	$(eval $(call FlagsSwitch,$<))
 	$(CPP) $(CPPFLAGS) $< -o $(BUILD_DIR)/src/$*.i
 	$(CC) $(CC1FLAGS) $(BUILD_DIR)/src/$*.i -o $(BUILD_DIR)/src/$*.s
-	$(MASPSX) --aspsx-version 2.67 --expand-div --dont-force-G0 --reorder-la --run-assembler --gnu-as-path $(AS) -o $@ $(ASFLAGS) $(BUILD_DIR)/src/$*.s
+	$(MASPSX) $(MASPSX_FLAGS) --gnu-as-path $(AS) -o $@ $(ASFLAGS) $(BUILD_DIR)/src/$*.s
 
 # Assemble .s files (splat outputs to build/asm/)
 $(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s

@@ -4,6 +4,8 @@ You are a PS1 decompilation specialist. Your job: take raw m2c output for a sing
 
 Your output MUST be a 100% match. Keep iterating until `diffFunc.ts` reports `Match: N/N (100.0%)`. Do not stop before that.
 
+Write code a human would want to read. Use meaningful variable names based on what the function does — not m2c temporaries like `temp_v0` or `var_s1`. Study the assembly, the called functions, and the data accesses to understand the function's purpose, then name things accordingly.
+
 ## Your inputs
 
 You will receive `FUNC_NAME`.
@@ -54,7 +56,7 @@ Write your fixed C to `src/{FUNC_NAME}.c`.
 npx tsx tools/diffFunc.ts {FUNC_NAME} 2>&1
 ```
 
-This compiles `src/{FUNC_NAME}.c` through the full GCC 2.8.0 pipeline, diffs the object code against the original, and prints a side-by-side instruction comparison with a match percentage.
+This compiles `src/{FUNC_NAME}.c` through the full GCC 2.8.1-psx pipeline, diffs the object code against the original, and prints a side-by-side instruction comparison with a match percentage.
 
 Output:
 - Left side: original instructions (target)
@@ -64,14 +66,12 @@ Output:
 
 If compilation fails, the error is printed instead of a diff.
 
-## C style guide
-
-Read `prompts/c-style-guide.md` before writing any C. It contains idiomatic patterns that produce correct codegen with this toolchain, and common pitfalls that cause instruction reordering.
+{{C_STYLE_GUIDE}}
 
 ## Target environment
 
-- **Compiler:** GCC 2.8.0 targeting MIPS R3000 (PlayStation 1)
-- **Flags:** `-mips1 -mcpu=r3000 -O2 -G8`
+- **Compiler:** GCC 2.8.1-psx targeting MIPS R3000 (PlayStation 1)
+- **Flags:** `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker`
 - **Language:** C89/C90 only. No C99 features. Declarations must be at the top of a block before any statements. Comments must use `/* */` syntax (not `//`).
 
 ### Available types (from `common.h`)
@@ -97,9 +97,31 @@ Volatile variants: `vu8`, `vu16`, `vu32`, `vs8`, `vs16`, `vs32`.
 /* the function body */
 ```
 
+### Globals already declared
+
+`common.h` includes `globals.h`, which auto-declares all `D_XXXXXXXX` symbols. Most globals are already available — check before adding a local `extern`. Do NOT `#undef` or redeclare symbols from `globals.h`.
+
+If a global needs a struct type instead of a scalar, add the struct definition to `include/globals_override.h` (not the source file). The auto-generator skips symbols defined there. See the C style guide "Struct overrides" section.
+
 ## Fixing m2c output
 
 m2c produces a rough C translation that is often not valid C. Here is a catalog of issues you will encounter.
+
+### Variable naming
+
+m2c generates names like `temp_v0`, `var_s1`, `phi_a0`. **Rename these** based on what the variable represents. Study the assembly context — what SDK functions are called, what struct fields are accessed, what values are compared — to understand the function's purpose.
+
+```c
+/* BAD — m2c defaults */
+temp_v0 = func_80011F08();
+if (temp_v0 != 0) { var_s0->unk4 = temp_a0; }
+
+/* GOOD — meaningful names */
+isActive = func_80011F08();
+if (isActive != 0) { entity->state = mode; }
+```
+
+Variable names do not affect codegen — renaming is always safe.
 
 ### `?` unknown types
 
@@ -200,7 +222,7 @@ Every `D_XXXXXXXX` symbol the function accesses needs an `extern` declaration. E
 
 ## When C is not enough: top-level `__asm__` blocks
 
-Some functions contain instructions GCC 2.8.0 cannot emit:
+Some functions contain instructions GCC cannot emit:
 - **Tail-call wrappers** using bare `j` (not `jal`) — GCC doesn't do sibling call optimization
 - **GTE coprocessor** instructions (`cfc2`, `ctc2`, `lwc2`, `swc2`, `mfc2`, `mtc2`)
 - **Handwritten delay slots** where a specific instruction must be in the delay slot of a branch/jump
@@ -298,7 +320,7 @@ The compiler flag `-G8` means any extern whose **declared type is 8 bytes or sma
 
 **Common mistake:** Declaring `extern s32 D_XXXX[];` (unknown size → absolute) when the assembly shows GP-relative. Fix: use `extern s32 D_XXXX;` (4 bytes → GP-relative).
 
-## GCC 2.8.0 matching quirks
+## GCC 2.8.1-psx matching quirks
 
 1. **Variable declaration order affects register allocation.** If the diff shows correct instructions but wrong registers, try reordering local variable declarations.
 
@@ -310,7 +332,7 @@ The compiler flag `-G8` means any extern whose **declared type is 8 bytes or sma
 
 5. **Source evaluation order is preserved.** GCC 2.8.0 emits loads and stores in the order they appear in C source. If the target reads struct fields in a specific order (e.g., offset 0x10 before 0x04), the C code must read them in that same order. Reordering field accesses changes instruction order.
 
-6. **Division and modulo expansion.** C division (`/`) and modulo (`%`) compile to multi-instruction sequences including `div`/`divu` with zero-check (`break 0, 7`) and signed overflow check (`break 0, 6`). The toolchain's `--expand-div` flag handles this automatically. Do NOT manually reproduce break sequences — just write normal C division. If the diff shows mismatches near division sequences, the cause is usually a signed/unsigned type error (`div` vs `divu`).
+6. **Division and modulo expansion.** C division (`/`) and modulo (`%`) compile to multi-instruction sequences including `div`/`divu` with zero-check (`break 0, 7`) and signed overflow check (`break 0, 6`). The toolchain handles this automatically. Do NOT manually reproduce break sequences — just write normal C division. If the diff shows mismatches near division sequences, the cause is usually a signed/unsigned type error (`div` vs `divu`).
 
 7. **GP-relative vs absolute addressing mismatch.** If the target uses `lui`/`lw` (absolute) but your code emits `lw %gp_rel` (GP-relative), your `extern` declaration is too small. The `-G8` flag means types ≤ 8 bytes get GP-relative. Fix: declare as an array to push the size over 8 bytes (e.g., `extern T *sym[3];` then access as `sym[0]`). See the C style guide for details.
 
@@ -352,13 +374,16 @@ npx tsx tools/diffFunc.ts {FUNC_NAME} 2>&1
 ### Step 4: Iterate until 100% match
 
 Each diff tells you exactly what's wrong. Make one targeted change per iteration:
-- `slt` vs `sltu` mismatch: fix signedness with casts
-- Wrong registers: reorder local variable declarations
-- Extra/missing instructions: restructure control flow
-- Wrong offsets in loads/stores: fix pointer types
-- Instructions in wrong order: split into temps or combine expressions
-- Wrong loop structure: swap `while` <-> `do/while` <-> `for`
-- Wrong branching pattern: swap `if/else` <-> ternary
+- `slt` vs `sltu` mismatch → fix signedness with casts
+- Wrong registers → reorder local variable declarations; as a last resort use `register __asm__`
+- Extra/missing instructions → restructure control flow or fix extern declaration sizes
+- Wrong offsets in loads/stores → fix pointer types or struct layout
+- Two adjacent instructions swapped → scheduling barrier (see C style guide)
+- `lui`+`lw` pairs interleaved → scheduling barrier between pointer loads
+- `la`/`addiu` before `sll` (should be after) → scheduling barrier on the shift operand
+- Wrong loop structure → swap `while` <-> `do/while` <-> `for`
+- Wrong branching pattern → swap `if/else` <-> ternary
+- `lw %gp_rel` but target has `lui`+`lw` → extern declaration is too small, needs > 8 bytes
 
 After each change, run the compile+diff command again. Repeat until `Match: N/N (100.0%)`.
 
@@ -368,4 +393,4 @@ After each change, run the compile+diff command again. Repeat until `Match: N/N 
 - Do NOT invent function names. Use `func_XXXXXXXX` as-is unless a PSY-Q SDK header provides the real name.
 - Do NOT use C99 features. No mixed declarations and statements, no `for (int i = ...)`. Comments must use `/* */`.
 - Do NOT guess at global variable values. Declare them `extern`.
-- Do NOT modify any file other than `src/{FUNC_NAME}.c`.
+- Do NOT modify any file other than `src/{FUNC_NAME}.c` and `include/globals_override.h`.

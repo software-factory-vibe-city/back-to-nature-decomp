@@ -17,6 +17,7 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const TEMPLATE = join(ROOT, "prompts/decompilation-cleanup-agent.md");
 const REFINEMENT_TEMPLATE = join(ROOT, "prompts/global-refinement-agent.md");
 const PROJECT_REFINEMENT_TEMPLATE = join(ROOT, "prompts/project-refinement-agent.md");
+const C_STYLE_GUIDE = join(ROOT, "prompts/c-style-guide.md");
 const CALL_GRAPH = join(ROOT, "build/callGraph.json");
 
 interface CallGraphEntry {
@@ -45,8 +46,13 @@ function resolveAsmFile(funcName: string): string | null {
   return null;
 }
 
+function injectStyleGuide(template: string): string {
+  const guide = readFileSync(C_STYLE_GUIDE, "utf-8");
+  return template.replace("{{C_STYLE_GUIDE}}", guide);
+}
+
 export function getDecompilationCleanupAgentPrompt(funcName: string): string {
-  const template = readFileSync(TEMPLATE, "utf-8");
+  const template = injectStyleGuide(readFileSync(TEMPLATE, "utf-8"));
   const srcFile = join(ROOT, "src", `${funcName}.c`);
 
   /* Assembly */
@@ -103,7 +109,7 @@ ${callGraphEntry}
  * call graph entry, and current functions.h signatures.
  */
 export function getGlobalRefinementAgentPrompt(funcName: string): string {
-  const template = readFileSync(REFINEMENT_TEMPLATE, "utf-8");
+  const template = injectStyleGuide(readFileSync(REFINEMENT_TEMPLATE, "utf-8"));
 
   if (!existsSync(CALL_GRAPH)) {
     throw new Error("callGraph.json not found — run callGraph.ts first");
@@ -229,7 +235,7 @@ export function findRefinementCandidates(rootDir: string = ROOT): Array<{ name: 
  * global usage patterns, and current shared type definitions.
  */
 export function getProjectRefinementAgentPrompt(): string {
-  const template = readFileSync(PROJECT_REFINEMENT_TEMPLATE, "utf-8");
+  const template = injectStyleGuide(readFileSync(PROJECT_REFINEMENT_TEMPLATE, "utf-8"));
 
   const srcDir = join(ROOT, "src");
   const allSrcFiles = existsSync(srcDir)

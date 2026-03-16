@@ -1,6 +1,6 @@
 # C Style Guide for PSX Decompilation
 
-Idiomatic C patterns that produce correct codegen with GCC 2.8.0 `-O2 -G8 -mips1`. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output.
+Idiomatic C patterns that produce correct codegen with GCC 2.8.1-psx `-O2 -G8 -mips1`. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output.
 
 ## Array and pointer access
 
@@ -16,7 +16,7 @@ When the assembly shows `sll` + `addiu $reg, $gp, %gp_rel(sym)` + `addu` + `lw/s
 *(s32 *)((u8 *)&D_8005E4C8 + (arg0 << 2)) = arg1;
 ```
 
-The `--reorder-la` flag in maspsx handles the `sll`/`addiu` instruction ordering automatically.
+If the instruction ordering doesn't match (e.g., `sll` before `addiu` in the target but `addiu` before `sll` in your output), use a scheduling barrier — see "Scheduling barriers" below.
 
 ### Use `array[index]` not pointer arithmetic
 
@@ -74,7 +74,7 @@ If the assembly does something one way, write C that naturally produces that pat
 
 ## Instruction ordering
 
-GCC 2.8.0 evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
+GCC 2.8.1-psx evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
 
 ### Operand order in source = instruction order in output
 
@@ -99,6 +99,50 @@ y = obj->field_04;
 y = obj->field_04;
 x = obj->field_10;
 ```
+
+## Scheduling barriers
+
+GCC's instruction scheduler reorders independent instructions to hide pipeline stalls. The original PSY-Q toolchain did not always do this. When you get a 100% instruction match except for ordering of independent instructions, use a zero-cost barrier:
+
+```c
+__asm__ volatile("" : "=r"(var) : "0"(var));
+```
+
+This emits zero instructions. It tells GCC that `var` is consumed and produced at that point, preventing instruction movement across it.
+
+### Interleaved pointer loads
+
+When loading two absolute-addressed pointers, GCC interleaves the `lui+lw` pairs. The original keeps them sequential. Fix:
+
+```c
+/* Target: lui v0 / lw v0 / lui v1 / lw v1 (sequential) */
+/* GCC:    lui v0 / lui v1 / lw v0 / lw v1 (interleaved) */
+
+Foo *a = GLOBAL_A[0];
+__asm__ volatile("" : "=r"(a) : "0"(a));  /* barrier: complete a before starting b */
+Foo *b = GLOBAL_B[0];
+```
+
+Only needed for absolute-addressed symbols (outside GP range). GP-relative loads are single instructions and don't get interleaved. See `src/func_80013AA4.c`.
+
+### Address load before ALU op
+
+GCC emits address loads (`la`/`addiu $gp`) before independent shifts. The original has the shift first. Fix:
+
+```c
+/* Target: sll a0 / addiu v0,gp,offset / addu a0,a0,v0 */
+/* GCC:    addiu v0,gp,offset / sll a0 / addu a0,a0,v0 */
+
+/* Natural C (mismatches): (&D_8005E4C8)[arg0] = arg1; */
+
+/* With barrier (matches): */
+arg0 <<= 2;
+__asm__ volatile("" : "=r"(arg0) : "0"(arg0));
+base = &D_8005E4C8;
+*(s32*)((char*)base + arg0) = arg1;
+```
+
+See `src/func_8001B4D0.c`.
 
 ## Declarations
 

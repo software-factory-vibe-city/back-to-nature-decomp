@@ -16,9 +16,7 @@ You will also receive:
 
 {{CONTEXT}}
 
-## C style guide
-
-Read `prompts/c-style-guide.md` before modifying any C. It contains idiomatic patterns that produce correct codegen with this toolchain, and common pitfalls that cause instruction reordering.
+{{C_STYLE_GUIDE}}
 
 ## Goal
 
