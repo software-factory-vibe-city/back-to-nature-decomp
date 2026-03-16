@@ -228,6 +228,106 @@ function truncate(s: string, max: number): string {
   return s.slice(0, max) + "...";
 }
 
+// --- Plan-then-execute mode ---
+
+export interface PlanThenExecuteOptions {
+  systemPrompt: string;
+  planMessage: string;
+  cwd?: string;
+  maxRetries?: number;
+  checkSuccess?: () => boolean;
+  /** Max tasks to execute from the plan. 0 = unlimited. */
+  maxTasks?: number;
+}
+
+export interface PlanThenExecuteResult {
+  plan: string[];
+  results: Array<{ task: string; success: boolean }>;
+}
+
+/**
+ * Two-phase agent execution:
+ * 1. Planning: agent surveys the codebase and outputs a JSON task list
+ * 2. Execution: each task runs in a fresh agent session with clean context
+ *
+ * The planning prompt MUST instruct the agent to output a JSON array of
+ * task strings as its final output, fenced in ```json ... ```.
+ */
+export async function runPlanThenExecute(options: PlanThenExecuteOptions): Promise<PlanThenExecuteResult> {
+  const {
+    systemPrompt,
+    planMessage,
+    cwd = process.cwd(),
+    maxRetries = 3,
+    checkSuccess,
+    maxTasks = 0,
+  } = options;
+
+  /* Phase 1: Planning */
+  console.log(`\n\x1b[1m[plan-execute] Phase 1: Planning...\x1b[0m\n`);
+
+  const planResult = await runAgentLoop({
+    systemPrompt,
+    userMessage: planMessage,
+    cwd,
+    maxRetries: 0, /* no retries for planning */
+  });
+
+  /* Extract JSON task list from the plan output */
+  const jsonMatch = planResult.output.match(/```json\s*([\s\S]*?)```/);
+  if (!jsonMatch) {
+    console.error(`[plan-execute] No JSON task list found in plan output.`);
+    return { plan: [], results: [] };
+  }
+
+  let plan: string[];
+  try {
+    plan = JSON.parse(jsonMatch[1]);
+    if (!Array.isArray(plan) || !plan.every((t) => typeof t === "string")) {
+      throw new Error("Expected JSON array of strings");
+    }
+  } catch (e: any) {
+    console.error(`[plan-execute] Failed to parse task list: ${e.message}`);
+    return { plan: [], results: [] };
+  }
+
+  if (maxTasks > 0) {
+    plan = plan.slice(0, maxTasks);
+  }
+
+  console.log(`\n\x1b[1m[plan-execute] Plan: ${plan.length} task(s)\x1b[0m`);
+  for (let i = 0; i < plan.length; i++) {
+    console.log(`  ${i + 1}. ${plan[i].slice(0, 120)}`);
+  }
+
+  /* Phase 2: Execute each task */
+  const results: Array<{ task: string; success: boolean }> = [];
+
+  for (let i = 0; i < plan.length; i++) {
+    const task = plan[i];
+    console.log(`\n\x1b[1m[plan-execute] Task ${i + 1}/${plan.length}: ${task.slice(0, 100)}\x1b[0m\n`);
+
+    const taskResult = await runAgentLoop({
+      systemPrompt,
+      userMessage: task,
+      cwd,
+      maxRetries,
+      checkSuccess,
+    });
+
+    results.push({ task, success: taskResult.success });
+
+    if (checkSuccess && !checkSuccess()) {
+      console.error(`\n\x1b[31m[plan-execute] checkSuccess failed after task ${i + 1} — stopping.\x1b[0m`);
+      break;
+    }
+  }
+
+  console.log(`\n\x1b[1m[plan-execute] Done: ${results.filter((r) => r.success).length}/${results.length} task(s) succeeded.\x1b[0m`);
+
+  return { plan, results };
+}
+
 // --- CLI test mode ---
 
 if (process.argv[1]?.endsWith("agent-loop.ts")) {

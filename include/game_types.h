@@ -16,4 +16,11 @@ typedef struct {
     /* 0x1C */ s32 field_0x1C;
 } SomeStruct;
 
+/* Simple 3-element vector (used for position, rotation, etc.) */
+typedef struct {
+    s32 x;
+    s32 y;
+    s32 z;
+} Vec3;
+
 #endif /* GAME_TYPES_H */

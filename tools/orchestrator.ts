@@ -21,7 +21,7 @@ import { execSync } from "child_process";
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 import { exportContext as runContextExport } from "./contextExport.js";
-import { runAgentLoop } from "./agent-loop.js";
+import { runAgentLoop, runPlanThenExecute } from "./agent-loop.js";
 import { getDecompilationCleanupAgentPrompt, getGlobalRefinementAgentPrompt, getProjectRefinementAgentPrompt, findRefinementCandidates } from "./getPrompt.js";
 import { runM2c } from "./m2cFunc.js";
 
@@ -176,7 +176,7 @@ async function runRefinementAgent(funcName: string): Promise<AgentResult> {
 }
 
 async function runProjectRefinementAgent(): Promise<AgentResult> {
-  console.log(`Running project-wide refinement pass...`);
+  console.log(`Running project-wide refinement pass (plan-then-execute)...`);
 
   const systemPrompt = getProjectRefinementAgentPrompt();
 
@@ -200,18 +200,42 @@ async function runProjectRefinementAgent(): Promise<AgentResult> {
     return { success: false, attempts: 0, log: ["pre-check failed: binary not matching"] };
   }
 
-  const result = await runAgentLoop({
+  const planMessage = `Survey all decompiled source files and create a plan for refinement.
+
+Read every file in src/ that doesn't contain INCLUDE_ASM. Identify:
+- Shared struct types that should be consolidated (same globals accessed with different local structs)
+- \`_D_\` references that should use \`&D_\` or be moved to globals_override.h
+- Variables that can be meaningfully renamed based on context
+- Functions whose purpose is clear enough to rename
+
+Then output your plan as a JSON array of task strings, fenced in \`\`\`json ... \`\`\`.
+Each task should be a self-contained instruction that can be executed independently.
+Keep tasks small and focused — one struct consolidation, one file fix, one rename batch.
+
+Example:
+\`\`\`json
+[
+  "Consolidate the struct types for D_8005E3A8/D_8005E3AC used in func_80013AA4.c and func_80013AC8.c into a shared type in include/globals_override.h. Update both source files to use it. Verify with diffFunc and make check.",
+  "In func_8001BA40.c, the _D_80061DE8 references need a struct type in globals_override.h. Define Struct_80061DE8 with fields at offsets 0x0C, 0x10, 0x14, 0x1C and update the source file. Verify with diffFunc.",
+  "Rename func_80011F08 to getGameState — it's a single-line getter for D_8005E394. Update symbol_addrs.txt, run make split, rename the file, update references, verify with make check."
+]
+\`\`\`
+
+Do NOT make any changes during planning. Only survey and output the task list.`;
+
+  const result = await runPlanThenExecute({
     systemPrompt,
-    userMessage: `Perform a project-wide refinement pass. Walk through all decompiled source files, identify shared structs, rename variables, propagate types, and improve readability. Run \`npx tsx tools/diffFunc.ts FUNC_NAME\` after every edit and \`make check\` periodically to verify the full binary. Output rename recommendations for globals and functions at the end.`,
+    planMessage,
     cwd: ROOT,
     maxRetries: 3,
     checkSuccess,
   });
 
+  const successCount = result.results.filter((r) => r.success).length;
   return {
-    success: result.success,
-    attempts: result.retries + 1,
-    log: [result.output.slice(-500)],
+    success: successCount > 0,
+    attempts: result.results.length,
+    log: result.plan,
   };
 }
 
