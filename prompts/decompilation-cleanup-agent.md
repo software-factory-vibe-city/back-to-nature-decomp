@@ -86,7 +86,7 @@ Getting this wrong changes instruction count → impossible to match.
 ## Diagnosing diffs
 
 - `slt` vs `sltu` → fix signedness with casts
-- Wrong registers → reorder declarations or try ternary vs if/else
+- Wrong registers → reorder declarations, try ternary vs if/else; if still wrong after 3 attempts use `register __asm__("v0")` to force it
 - Extra/missing instructions → fix extern sizes or control flow
 - Two instructions swapped → scheduling barrier: `__asm__ volatile("" : "=r"(var) : "0"(var));`
 - `lw %gp_rel` but target has `lui`+`lw` → extern too small, needs > 8 bytes
