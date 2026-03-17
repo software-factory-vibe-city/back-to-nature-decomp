@@ -36,4 +36,12 @@ struct struct_80061DE8 {
 extern struct GfxObj *D_8005E3A8[3];
 extern struct GfxObj *D_8005E3AC[3];
 
+/* D_8006C838 - array of 0x3C-byte structs used for flags
+ * Accessed with 0x3C stride but accessed in 4-byte s32 words
+ * Struct size must be 4 bytes to get correct indexing (index * 0x3C as byte offset) */ 
+struct struct_8006C838 {
+    char data[0x3C];  /* 60 bytes per struct */
+};
+extern struct struct_8006C838 D_8006C838[];
+
 #endif /* GLOBALS_OVERRIDE_H */
