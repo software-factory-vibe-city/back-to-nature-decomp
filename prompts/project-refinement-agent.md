@@ -193,7 +193,7 @@ Start with the highest-impact changes:
 5. Rename source files to match function names
 6. Improve types and add comments
 
-**After each batch of changes, run `make check` to verify the build.** Do not proceed to the next batch until the current one passes.
+**Before finishing each task, you MUST run `make clean`, then `make split`, then `make check` (as three separate commands) and confirm the binary matches.** Do not consider a task complete until `make check` prints "matches original payload". If it doesn't match, fix the issue before finishing.
 
 ### Phase 3: Keep going
 

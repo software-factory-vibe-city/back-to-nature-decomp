@@ -214,15 +214,15 @@ Read every file in src/ that doesn't contain INCLUDE_ASM. Identify:
 - Functions whose purpose is clear enough to rename
 
 Then output your plan as a JSON array of task strings, fenced in \`\`\`json ... \`\`\`.
-Each task should be a self-contained instruction that can be executed independently.
-Keep tasks small and focused — one struct consolidation, one file fix, one rename batch.
+
+IMPORTANT: Output at most 5 tasks. Group related work into batches — e.g., ALL struct consolidations in one task, ALL function renames in another. Each task spawns a fresh agent session (expensive), so fewer bigger tasks are better than many small ones. Each task description should list every file and change in the batch so the executing agent has full context.
 
 Example:
 \`\`\`json
 [
-  "Consolidate the struct types for D_8005E3A8/D_8005E3AC used in func_80013AA4.c and func_80013AC8.c into a shared type in include/globals_override.h. Update both source files to use it. Verify with diffFunc and make check.",
-  "In func_8001BA40.c, the _D_80061DE8 references need a struct type in globals_override.h. Define Struct_80061DE8 with fields at offsets 0x0C, 0x10, 0x14, 0x1C and update the source file. Verify with diffFunc.",
-  "Rename func_80011F08 to getGameState — it's a single-line getter for D_8005E394. Update symbol_addrs.txt, run make split, rename the file, update references, verify with make check."
+  "Consolidate shared struct types: (1) Define GfxObj in game_types.h with fields at 0x18, 0x1C, 0x2C, 0x30 — update func_80013AA4.c and func_80013AC8.c to use it. (2) Define Struct_80061DE8 in globals_override.h with fields at 0x00-0x1C — update func_8001B9F8.c and func_8001BA40.c. Verify with make check after all changes.",
+  "Rename functions with clear purposes: func_80011F08 -> getGameState (getter for D_8005E394), func_80011F14 -> setGameState (setter). For each: update symbol_addrs.txt, update splat.yaml segment name, mv the source file, update function name in source, update functions.h. Run make split then make check after all renames.",
+  "Fix _D_ references and type void* parameters: In func_80021FD0.c change _D_8006C838 to &D_8006C838. In func_80015880.c and func_80015894.c, change void* to SomeStruct*. Verify each with diffFunc."
 ]
 \`\`\`
 
