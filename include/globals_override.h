@@ -20,13 +20,13 @@ struct GfxObj;
 
 /* D_80061DE8 - shared struct used by func_8001B9F8 and func_8001BA40 */
 struct struct_80061DE8 {
-    s32 unk0;           /* 0x00 */
-    s32 unk4;           /* 0x04 */
-    s32 unk8;           /* 0x08 */
+    s32 field_00;       /* 0x00 */
+    s32 field_04;       /* 0x04 */
+    s32 field_08;       /* 0x08 */
     s32 field_0C;       /* 0x0C */
     s32 field_10;       /* 0x10 */
     s32 field_14;       /* 0x14 */
-    s32 unk18;          /* 0x18 */
+    s32 field_18;       /* 0x18 */
     s32 field_1C;       /* 0x1C */
 };
 

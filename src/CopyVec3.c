@@ -1,7 +1,7 @@
 #include "common.h"
 #include "game_types.h"
 
-void func_8001F338(Vec3 *dest, Vec3 *src) {
+void CopyVec3(Vec3 *dest, Vec3 *src) {
     register s32 temp_v1 __asm__("v1");
     register s32 temp_v0 __asm__("v0");
     

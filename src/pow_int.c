@@ -1,6 +1,6 @@
 #include "common.h"
 
-s32 func_8001F250(s32 arg0, s32 arg1) {
+s32 pow_int(s32 arg0, s32 arg1) {
     s32 result;
 
     result = 1;

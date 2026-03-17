@@ -1,5 +1,6 @@
 #include "common.h"
 
+/* D_8005E360 is a pointer to a u16 array; loaded as s32 */
 extern s32 D_8005E360;
 
 void func_80023A74(void) {

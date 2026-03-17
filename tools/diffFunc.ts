@@ -3,6 +3,7 @@
  *
  * Usage: npx tsx tools/diffFunc.ts func_8001FE00
  *        npx tsx tools/diffFunc.ts func_8001FE00 --watch
+ *        npx tsx tools/diffFunc.ts func_8001FE00 --columns   (side-by-side diff)
  *        npx tsx tools/diffFunc.ts src/func_8001FE00.c build/src/func_8001FE00.c.o
  */
 
@@ -72,8 +73,9 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
     writeFileSync(ltmp, left);
     writeFileSync(rtmp, right);
 
+    const diffFlags = columnsMode ? "-y -W 120" : "-u";
     try {
-      const out = execSync(`diff --color=always -y -W 120 ${ltmp} ${rtmp}`, {
+      const out = execSync(`diff --color=always ${diffFlags} ${ltmp} ${rtmp}`, {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -214,8 +216,9 @@ function doDiffFromBinary(src: string, funcName: string): void {
     writeFileSync(ltmp, origInstrs.join("\n"));
     writeFileSync(rtmp, builtInstrs.join("\n"));
 
+    const diffFlags = columnsMode ? "-y -W 120" : "-u";
     try {
-      const out = execSync(`diff --color=always -y -W 120 ${ltmp} ${rtmp}`, {
+      const out = execSync(`diff --color=always ${diffFlags} ${ltmp} ${rtmp}`, {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -272,7 +275,8 @@ function resolveArgs(args: string[]): { src: string; target: string | null; func
 // --- Main ---
 const rawArgs = process.argv.slice(2);
 const watchMode = rawArgs.includes("--watch");
-const filteredArgs = rawArgs.filter((a) => a !== "--watch");
+const columnsMode = rawArgs.includes("--columns");
+const filteredArgs = rawArgs.filter((a) => a !== "--watch" && a !== "--columns");
 
 const { src, target, funcName } = resolveArgs(filteredArgs);
 if (!existsSync(src)) { console.error(`Not found: ${src}`); process.exit(1); }

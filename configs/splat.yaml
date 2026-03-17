@@ -307,7 +307,7 @@ segments:
       - [0xC788, c, func_8001BF88]       # 0x8001BF88 func_8001BF88
       - [0xC79C, c, func_8001BF9C]       # 0x8001BF9C func_8001BF9C
       - [0xC7A8, c, func_8001BFA8]       # 0x8001BFA8 func_8001BFA8
-      - [0xC7E0, c, func_8001BFE0]       # 0x8001BFE0 func_8001BFE0
+      - [0xC7E0, c, ClearPairS32]         # 0x8001BFE0 ClearPairS32
       - [0xC7EC, c, func_8001BFEC]       # 0x8001BFEC func_8001BFEC
       - [0xC8D4, c, func_8001C0D4]       # 0x8001C0D4 func_8001C0D4
       - [0xC9C0, c, func_8001C1C0]       # 0x8001C1C0 func_8001C1C0
@@ -356,7 +356,7 @@ segments:
       - [0xFA50, c, pow_int]       # 0x8001F250 pow_int
       - [0xFA78, c, func_8001F278]       # 0x8001F278 func_8001F278
       - [0xFAEC, c, func_8001F2EC]       # 0x8001F2EC func_8001F2EC
-      - [0xFB38, c, func_8001F338]       # 0x8001F338 func_8001F338
+      - [0xFB38, c, CopyVec3]             # 0x8001F338 CopyVec3
       - [0xFB5C, c, func_8001F35C]       # 0x8001F35C func_8001F35C
       - [0xFB9C, c, func_8001F39C]       # 0x8001F39C func_8001F39C
       - [0xFBDC, c, func_8001F3DC]       # 0x8001F3DC func_8001F3DC

@@ -1,0 +1,1427 @@
+Running project-wide refinement pass (plan-then-execute)...
+
+[1m[plan-execute] Phase 1: Planning...[0m
+
+[agent-loop] Model: anthropic/claude-sonnet-4-6
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+I'll survey all decompiled source files systematically.
+[36m[tool:bash][0m $ grep -rL "INCLUDE_ASM" src/*.c | sort
+
+[36m[tool:bash][0m $ cat configs/symbol_addrs.txt
+[32m[tool:bash done][0m src/func_80011270.c
+src/func_80011EE8.c
+src/func_80011F08.c
+src/func_80011F14.c
+src/func_80011F20.c
+src/func_80011F2C.c
+src/func_80011F38.c
+src/func_80011F44.c
+src/func_80011F50.c
+src/func_800120BC.c
+...
+[32m[tool:bash done][0m 
+func_80011270 = 0x80011270; // type:func
+func_80011278 = 0x80011278; // type:func
+func_80011370 = 0x80011370; // type:func
+func_80011DB0 = 0x80011DB0; // type:func
+func_80011EE8 = 0x80011EE8; // type...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat src/func_80011F08.c src/func_80011F14.c src/func_80011F20.c src/func_80011F2C.c src/func_80011F38.c src/func_80011F44.c src/func_80011F50.c src/func_800120BC.c
+
+[36m[tool:bash][0m $ cat src/func_80013438.c src/func_80013444.c src/func_800134B8.c src/func_80013AEC.c src/func_80013AF8.c src/func_80014B38.c src/func_80014CB0.c
+[32m[tool:bash done][0m #include "common.h"
+
+extern s32 D_8005E394;
+
+s32 func_80011F08(void) {
+    return D_8005E394;
+}
+#include "common.h"
+
+extern s32 D_8005E39C;
+
+s32 func_80011F14(void) {
+    return D_8005E39C;
+}
+#include...
+[32m[tool:bash done][0m #include "common.h"
+
+extern s32 D_8005E29C;
+
+/* Setter for D_8005E29C - see func_80013444 for getter */
+void func_80013438(s32 arg0) {
+    D_8005E29C = arg0;
+}
+#include "common.h"
+
+extern s32 D_8005E2...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat src/func_80017A38.c src/func_80017A48.c src/func_80017A64.c src/func_80017ACC.c src/func_80017B18.c src/func_80017B24.c src/func_80017B30.c src/func_80017C24.c src/func_80017C30.c src/func_80017C3C.c
+
+[36m[tool:bash][0m $ cat src/func_80017EE4.c src/func_800183D0.c src/func_80018B8C.c src/func_800195F4.c src/func_80019600.c src/func_80019FAC.c src/func_8001ACA0.c src/func_8001AF34.c
+[32m[tool:bash done][0m #include "common.h"
+
+extern s16 D_8005E2B8;
+
+void func_80017A38(s16 arg0, s16 arg1) {
+    D_8005E2B8 = arg0;
+    D_8005E2BA = arg1;
+}
+#include "common.h"
+
+extern u32 D_8005E450;
+
+void func_80017A48(u3...
+[32m[tool:bash done][0m #include "common.h"
+
+__asm__(
+"\n.set\tnoreorder\n"
+".globl\tfunc_80017EE4\n"
+".ent\tfunc_80017EE4\n"
+"func_80017EE4:\n"
+"\tj\tfunc_80017EF0\n"
+"\tori\t$a3,$zero,0xFFFF\n"
+".end\tfunc_80017EE4\n"
+".se...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat src/func_8001B100.c src/func_8001B10C.c src/func_8001B4D0.c src/func_8001B9F8.c src/func_8001BA40.c src/func_8001BF9C.c src/func_8001BFE0.c src/func_8001D6AC.c
+
+[36m[tool:bash][0m $ cat src/func_8001DCA8.c src/func_8001DFC8.c src/func_8001E158.c src/func_8001E334.c src/func_8001EF8C.c src/func_8001EF98.c src/func_8001F1B4.c src/func_8001F338.c
+[32m[tool:bash done][0m #include "common.h"
+
+extern s32 D_8005E2CC;
+
+/* Setter for D_8005E2CC (clears to 0) - see func_8001B10C for getter */
+void func_8001B100(void) {
+    D_8005E2CC = 0;
+}
+#include "common.h"
+
+extern s32 D...
+[32m[tool:bash done][0m #include "common.h"
+
+/* Stub function - returns 0 */
+s32 func_8001DCA8(void) {
+    return 0;
+}
+#include "common.h"
+
+extern s32 D_8005E2E4;
+
+s32 func_8001DFC8(void) {
+    return D_8005E2E4;
+}
+#include ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat src/func_8001FAB4.c src/func_8001FB08.c src/func_8001FBE4.c src/func_8001FCDC.c src/func_8001FD74.c src/func_8001FF70.c src/func_8002040C.c src/func_800207DC.c
+
+[36m[tool:bash][0m $ cat src/func_80020A70.c src/func_80020A7C.c src/func_80020A88.c src/func_80020E38.c src/func_800215EC.c src/func_800218BC.c src/func_80021FD0.c src/func_80022008.c
+[32m[tool:bash done][0m /* Stub function - returns 0 */
+int func_8001FAB4(void) {
+  return 0;
+}#include "common.h"
+
+s32 func_8001FB08(void) {
+    return 0x17;
+}
+#include "common.h"
+
+extern s32 D_8005E530;
+
+void func_8001FBE4...
+[32m[tool:bash done][0m #include "common.h"
+
+extern s32 D_8005E55C;
+
+s32 func_80020A70(void) {
+    return D_8005E55C;
+}
+#include "common.h"
+
+extern s32 D_8005E544;
+
+s32 func_80020A7C(void) {
+    return D_8005E544;
+}
+#include...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat src/func_800225B8.c src/func_800226A4.c src/func_800226B0.c src/func_800226D8.c src/func_800226E4.c src/func_80022788.c src/func_8002301C.c src/func_80023A74.c
+
+[36m[tool:bash][0m $ cat src/func_80021D64.c src/func_80021D70.c src/func_80021D78.c src/func_80021D80.c src/func_80021D88.c src/func_80021D90.c src/func_80021D98.c src/func_80021DA0.c
+[32m[tool:bash done][0m #include "common.h"
+
+extern s32 D_8005E5B8;
+
+s32 func_800225B8(void) {
+    return D_8005E5B8;
+}
+#include "common.h"
+
+extern s32 D_8005E5B4;
+
+s32 func_800226A4(void) {
+    return D_8005E5B4;
+}
+#include...
+[32m[tool:bash done][0m #include "common.h"
+
+__asm__(
+"\n.set\tnoreorder\n"
+".globl\tfunc_80021D64\n"
+".ent\tfunc_80021D64\n"
+"func_80021D64:\n"
+"\taddiu\t$sp,$sp,-16\n"
+"\tjr\t$ra\n"
+"\taddiu\t$sp,$sp,16\n"
+".end\tfunc_8002...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat src/func_80015840.c src/func_8001585C.c src/func_80015880.c src/func_8001588C.c src/func_80015894.c src/func_800158D8.c
+
+[36m[tool:bash][0m $ cat src/pow_int.c src/func_800129E8.c src/func_80011270.c src/func_80011EE8.c
+[32m[tool:bash done][0m #include "common.h"
+#include "game_types.h"
+
+void func_80015840(ObjectState *obj, s8 arg1) {
+    u16 temp = obj->field_2;
+    obj->field_4 = arg1;
+    obj->field_5 = 0;
+    obj->field_6 = 0;
+    obj->...
+[32m[tool:bash done][0m #include "common.h"
+
+s32 func_8001F250(s32 arg0, s32 arg1) {
+    s32 result;
+
+    result = 1;
+    if (arg1 > 0) {
+        do {
+            arg1 -= 1;
+            result *= arg0;
+        } while (arg1 ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat include/globals_override.h
+
+[36m[tool:bash][0m $ cat include/common.h
+[32m[tool:bash done][0m /*
+ * Manual type overrides for auto-generated globals.
+ *
+ * classifyGlobals.ts generates globals.h with scalar types for all D_ symbols.
+ * When a symbol's true type is known (e.g., it's a struct), ...
+[32m[tool:bash done][0m #ifndef COMMON_H
+#define COMMON_H
+
+#include "include_asm.h"
+
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
+
+typedef signed char s8;
+typedef signed short s16;
+typedef ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ grep -n "_D_" src/*.c
+
+[36m[tool:bash][0m $ grep -n "void \*" src/*.c | grep -v "INCLUDE_ASM"
+[31m[tool:bash ERROR][0m (no output)
+
+Command exited with code 1
+[32m[tool:bash done][0m src/func_80015880.c:4:void func_80015880(void *arg0, s32 arg1, s32 arg2) {
+src/func_80015894.c:4:void func_80015894(void *arg0, s32 arg1) {
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Check what globals.h looks like for the relevant addresses to understand which are in GP range and which aren't
+grep -n "D_8005E" include/globals.h | head -60
+
+[36m[tool:bash][0m $ grep -n "D_8006" include/globals.h | head -40
+[32m[tool:bash done][0m 11:extern s32 D_8005E025;
+12:extern u16 D_8005E2BA;
+13:extern u8 D_8005E2DD;
+14:extern u8 D_8005E2DE;
+15:extern u8 D_8005E2E1;
+16:extern u8 D_8005E2E2;
+17:extern s8 D_8005E2ED;
+18:extern s8 D_8005E2EE...
+[32m[tool:bash done][0m 53:extern s32 D_800605F0;
+54:extern s32 D_80061E0E;
+55:extern s32 D_80061E14;
+56:extern s32 D_80061E28;
+57:extern s32 D_80061E48;
+58:extern s32 D_80061E68;
+59:extern s32 D_80061E88;
+60:extern s32 D_80...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ grep -n "D_8006C\|D_8006B\|D_80049" include/globals.h | head -30
+
+[36m[tool:bash][0m $ # Look at the asm for functions that reference D_8006C7B8 and D_8006C838 to understand them better
+cat asm/functions/func_800215EC.s 2>/dev/null || echo "not found"
+cat asm/functions/func_80021FD0.s 2>/dev/null || echo "not found"
+[32m[tool:bash done][0m 73:extern s32 _D_80049296[3] __asm__("D_80049296");
+74:#define D_80049296 (*((s32*)_D_80049296))
+103:extern s32 _D_8006BF28[3] __asm__("D_8006BF28");
+104:#define D_8006BF28 (*((s32*)_D_8006BF28))
+105:...
+[32m[tool:bash done][0m not found
+not found
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ ls asm/functions/ | head -20
+ls asm/functions/ | grep "80021"
+
+[36m[tool:bash][0m $ # Look at the asm CSV to understand function context - look at neighbor functions for the stub cluster
+grep -A2 -B2 "80021D" asm/functions.csv | head -30
+[31m[tool:bash ERROR][0m ls: cannot access 'asm/functions/': No such file or directory
+ls: cannot access 'asm/functions/': No such file or directory
+
+
+Command exited with code 1
+[32m[tool:bash done][0m grep: asm/functions.csv: No such file or directory
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ ls asm/
+find asm/ -name "*.s" | head -10
+
+[36m[tool:bash][0m $ cat asm/functions.csv 2>/dev/null || find . -name "functions.csv" 2>/dev/null | head -5
+[32m[tool:bash done][0m ls: cannot access 'asm/': No such file or directory
+find: ‘asm/’: No such file or directory
+
+[32m[tool:bash done][0m (no output)
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ ls
+
+[36m[tool:bash][0m $ cat configs/splat.yaml | head -100
+[32m[tool:bash done][0m assets
+build
+CLAUDE.md
+configs
+docs
+extracted
+include
+lib
+Makefile
+node_modules
+notes
+orchestrator_output_01.txt
+orchestrator_output_02.txt
+orchestrator_output_03.txt
+orchestrator_output_04.txt
+orches...
+[32m[tool:bash done][0m name: slus_011.15
+sha1: 07fbcffbdd96080d39939e569f84abe76b9d1039
+options:
+  platform: psx
+  compiler: GCC
+  basename: slus_011
+  base_path: ..
+  build_path: build
+  target_path: extracted/iso/slus_011...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ grep -n "func_80015840\|func_8001585C\|func_80015880\|func_80015894\|func_800158D8\|func_80013438\|func_80013444\|func_8001B100\|func_8001B10C\|func_80017B18\|func_80017B24\|func_800226D8\|func_800226E4\|func_80013AEC\|func_80013AF8" configs/splat.yaml
+
+[36m[tool:bash][0m $ # Look at asm blocks for the stub cluster to understand context
+grep -B5 "func_80021D64\|func_80021D70\|func_80021D78\|func_80021D80\|func_80021D88\|func_80021D90\|func_80021D98\|func_80021DA0" configs/splat.yaml | head -40
+[32m[tool:bash done][0m 108:      - [0x3C38, c, func_80013438]       # 0x80013438 func_80013438
+109:      - [0x3C44, c, func_80013444]       # 0x80013444 func_80013444
+120:      - [0x42EC, c, func_80013AEC]       # 0x80013AE...
+[32m[tool:bash done][0m       - [0x1214C, c, func_8002194C]       # 0x8002194C func_8002194C
+      - [0x12320, c, func_80021B20]       # 0x80021B20 func_80021B20
+      - [0x12364, c, func_80021B64]       # 0x80021B64 func_80...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Look at surrounding context of the stub cluster in splat to understand what module they belong to
+grep -A2 -B2 "12564\|12570\|12578\|12580\|12588\|12590\|12598\|125A0\|124D8" configs/splat.yaml | head -40
+
+[36m[tool:bash][0m $ # Understand D_8005E5B4 context - what values 2 and 5 mean
+grep -rn "D_8005E5B4\|D_8005E5B8\|D_8005E5C0" src/*.c include/*.h
+[32m[tool:bash done][0m       - [0x2A98, c, func_80012298]       # 0x80012298 func_80012298
+      - [0x2B1C, c, func_8001231C]       # 0x8001231C func_8001231C
+      - [0x2D98, c, func_80012598]       # 0x80012598 func_80012...
+[32m[tool:bash done][0m src/func_800225B8.c:3:extern s32 D_8005E5B8;
+src/func_800225B8.c:6:    return D_8005E5B8;
+src/func_800226A4.c:3:extern s32 D_8005E5B4;
+src/func_800226A4.c:6:    return D_8005E5B4;
+src/func_800226B0.c:...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Check for any uses of D_8006C7B8 - the Vec3 pointer in func_800215EC
+grep -rn "D_8006C7B8\|D_8006C838\|D_8006C905" src/*.c include/*.h
+
+[36m[tool:bash][0m $ # Look for all functions that have clear getter/setter patterns and meaningful globals
+# Specifically cross-reference which globals appear multiple times with same setter/getter pattern
+grep -h "extern s32\|extern s16\|extern u8\|extern u16" src/*.c | sort | uniq -c | sort -rn | head -30
+[32m[tool:bash done][0m src/func_800215EC.c:5:    Vec3 *vec = (Vec3 *)&D_8006C7B8;
+src/func_80021FD0.c:6:    base = &D_8006C838;
+src/func_80022008.c:4:    D_8006C905 = 0;
+include/globals.h:139:extern s32 _D_8006C7B8[3] __asm...
+[32m[tool:bash done][0m       3 extern s16 D_8005E468;
+      2 extern u8 D_8005E274;
+      2 extern s32 D_8005E5B4;
+      2 extern s32 D_8005E3EC;
+      2 extern s32 D_8005E334;
+      2 extern s32 D_8005E2CC;
+      2 extern ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Look at the notes directory for any existing analysis
+ls notes/
+cat notes/*.md 2>/dev/null || cat notes/*.txt 2>/dev/null | head -100
+
+[36m[tool:bash][0m $ # Check for any prior refiner output notes
+cat project-refiner-run-5--claude46.txt 2>/dev/null | tail -100
+[32m[tool:bash done][0m - [x] Reuse signature parsing (`parseSig`, `findPattern`) from `matchSignatures.ts`
+- [x] Record start VRAM, end VRAM, .o path, labels for each match
+- [x] Get `.text` section size from `.o` files via...
+[32m[tool:bash done][0m [36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && grep "D_8005E444" include/globals.h
+[31m[tool:bash ERROR][0m (no output)
+
+Command exited with code 1
+[33m--- turn end ---[0...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Check for any remaining issues - void* parameters that could be typed
+grep -rn "void \*\|cast.*SomeStruct" src/*.c
+
+[36m[tool:bash][0m $ # Understand what D_8005E360 is - used in func_80023A74
+grep -n "D_8005E360" include/globals.h src/*.c
+[32m[tool:bash done][0m src/func_80015880.c:4:void func_80015880(void *arg0, s32 arg1, s32 arg2) {
+src/func_80015894.c:4:void func_80015894(void *arg0, s32 arg1) {
+
+[32m[tool:bash done][0m src/func_80023A74.c:3:extern s32 D_8005E360;
+src/func_80023A74.c:12:    var_v0 = (char *)D_8005E360 + 0x10;
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Check if the pow_int file already has the right name for its function
+cat src/pow_int.c
+
+[36m[tool:bash][0m $ # Find the pow_int function in symbol_addrs.txt
+grep "pow_int\|8001F250" configs/symbol_addrs.txt
+[32m[tool:bash done][0m #include "common.h"
+
+s32 func_8001F250(s32 arg0, s32 arg1) {
+    s32 result;
+
+    result = 1;
+    if (arg1 > 0) {
+        do {
+            arg1 -= 1;
+            result *= arg0;
+        } while (arg1 ...
+[32m[tool:bash done][0m func_8001F250 = 0x8001F250; // type:func
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Check if pow_int is the segment name in splat.yaml
+grep "pow_int\|1F250" configs/splat.yaml
+
+[36m[tool:bash][0m $ # Look at func_8001F338 context - clear copy of Vec3
+grep "8001F338\|func_8001F338" configs/splat.yaml configs/symbol_addrs.txt
+[32m[tool:bash done][0m       - [0xFA50, c, pow_int]       # 0x8001F250 pow_int
+
+[32m[tool:bash done][0m configs/splat.yaml:      - [0xFB38, c, func_8001F338]       # 0x8001F338 func_8001F338
+configs/symbol_addrs.txt:func_8001F338 = 0x8001F338; // type:func
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # pow_int segment name already matches but function name inside is still func_8001F250
+# This is a mismatch. Let's verify...
+grep "pow_int" configs/splat.yaml configs/symbol_addrs.txt
+
+[36m[tool:bash][0m $ # Look at what the overall set of rename candidates is
+# Functions with clear enough semantic meaning to rename
+# Let's check context of func_8001F338 callers
+grep -rn "func_8001F338" build/asm/ 2>/dev/null | head -5
+[32m[tool:bash done][0m configs/splat.yaml:      - [0xFA50, c, pow_int]       # 0x8001F250 pow_int
+
+[32m[tool:bash done][0m build/asm/nonmatchings/func_8001F42C/func_8001F42C.s:19:    /* FC5C 8001F45C CE7C000C */  jal        func_8001F338
+build/asm/nonmatchings/func_8001F42C/func_8001F42C.s:44:    /* FCC0 8001F4C0 CE7C000C...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Check how many callers the key functions have
+grep -rn "func_80015840\|func_8001585C" build/asm/ 2>/dev/null | head -10
+
+[36m[tool:bash][0m $ # Look at func_80015840 and func_8001585C context - they modify ObjectState
+# field_4 = state, field_5 = sub_state or animation, field_6 = timer
+# These are animation/object state setters
+# Check the asm for context
+cat build/asm/nonmatchings/func_80015840/func_80015840.s 2>/dev/null | head -20
+ls build/asm/nonmatchings/ | grep "8001584\|8001585" 2>/dev/null
+[32m[tool:bash done][0m build/asm/nonmatchings/func_80022EA4/func_80022EA4.s:24:    /* 136E4 80022EE4 1056000C */  jal        func_80015840
+build/asm/nonmatchings/func_8001B074/func_8001B074.s:32:    /* B8D8 8001B0D8 1056000...
+[31m[tool:bash ERROR][0m (no output)
+
+Command exited with code 1
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # Let me also check if func_8001B9F8 struct field names are consistent with func_8001BA40
+# The struct has unk0, unk4, unk8 and unk18 in func_8001B9F8 but field_0C, field_10, field_14, field_1C in func_8001BA40
+# Both use field_1C = 0. This inconsistency should be fixed.
+grep -A5 "struct_80061DE8" include/globals_override.h
+
+[36m[tool:bash][0m $ # Check the overall picture more carefully  
+# What globals are declared with extern locally that are likely not in globals.h
+# (as opposed to globals that need the local extern because they're not there)
+for f in src/*.c; do
+  exts=$(grep "^extern" "$f" 2>/dev/null | grep -v "#include")
+  if [ -n "$exts" ]; then
+    echo "=== $f ==="
+    echo "$exts"
+  fi
+done | head -80
+[32m[tool:bash done][0m struct struct_80061DE8 {
+    s32 unk0;           /* 0x00 */
+    s32 unk4;           /* 0x04 */
+    s32 unk8;           /* 0x08 */
+    s32 field_0C;       /* 0x0C */
+    s32 field_10;       /* 0x10 */
+
+[32m[tool:bash done][0m === src/func_80011F08.c ===
+extern s32 D_8005E394;
+=== src/func_80011F14.c ===
+extern s32 D_8005E39C;
+=== src/func_80011F20.c ===
+extern s32 D_8005E280;
+=== src/func_80011F2C.c ===
+extern u8 D_8005E27...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ for f in src/*.c; do
+  exts=$(grep "^extern" "$f" 2>/dev/null | grep -v "#include")
+  if [ -n "$exts" ]; then
+    echo "=== $f ==="
+    echo "$exts"
+  fi
+done | tail -60
+
+[36m[tool:bash][0m $ # Check gp_value so we know which addresses are GP-relative
+grep "gp_value" configs/splat.yaml
+[32m[tool:bash done][0m extern s16 D_8005E444;
+=== src/func_8001ACA0.c ===
+extern s16 D_8005E454;
+extern s16 D_8005E460;
+extern s16 D_8005E468;
+=== src/func_8001AF34.c ===
+extern s16 D_8005E468;
+=== src/func_8001B100.c ===
+e...
+[32m[tool:bash done][0m   gp_value: 0x8005E274
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # GP range: 0x8005E274 ± 0x7FFF = 0x8005E274 - 0x8005624D (low) to 0x80066272 (high)
+# All D_8005EXXX addresses should be GP-relative (no need for extern in source files,
+# but they ARE needed because they're not in globals.h!)
+# Let's verify which of these are actually NOT in globals.h
+for sym in D_8005E394 D_8005E39C D_8005E280 D_8005E274 D_8005E278 D_8005E27C D_8005E3B0 D_8005E29C D_8005E3D4 D_8005E3EC D_8005E40C D_8005E2B4 D_8005E43C D_8005E2B8 D_8005E450 D_8005E2BC D_8005E470 D_8005E484 D_8005E460 D_8005E468 D_8005E49C D_8005E4B0 D_8005E444 D_8005E454 D_8005E4C8 D_8005E2D8 D_8005E2D4 D_8005E2E4 D_8005E51C D_8005E2E8 D_8005E524 D_8005E2EC D_8005E530 D_8005E55C D_8005E544 D_8005E548 D_8005E554 D_8005E5B8 D_8005E5B4 D_8005E334 D_8005E5C0 D_8005E338 D_8005E33C D_8005E360 D_8005E2CC; do
+  if ! grep -q "^extern.*${sym}" include/globals.h && ! grep -q "^#define ${sym}" include/globals.h; then
+    echo "NOT IN globals.h: $sym"
+  fi
+done
+[32m[tool:bash done][0m NOT IN globals.h: D_8005E394
+NOT IN globals.h: D_8005E39C
+NOT IN globals.h: D_8005E280
+NOT IN globals.h: D_8005E274
+NOT IN globals.h: D_8005E278
+NOT IN globals.h: D_8005E27C
+NOT IN globals.h: D_8005E3...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ # These are all GP-relative sdata/sbss globals not listed in globals.h 
+# That means the local externs are REQUIRED.
+# They represent game globals. The local externs are correct and needed.
+
+# Now let's assess: what are the highest-confidence rename candidates?
+# Summary of findings:
+# 1. pow_int.c has func_8001F250 internally - should be renamed to pow_int (symbol and file match)
+# 2. func_80015880 and func_80015894 use void* when SomeStruct* would be better
+# 3. struct_80061DE8 has inconsistent naming (unk0/unk4/unk8 vs field_0C/field_10/field_14)
+# 4. func_8001F338 copies a Vec3 - could be renamed
+# 5. Several clear setter/getter pairs but their global purposes are unknown
+
+# Let me check how many renames are confident enough
+# func_8001F338 - copies Vec3 struct, very clear purpose -> copyVec3 or Vec3Copy
+# func_8001BFE0 - zeros both fields of PairS32 -> clearPairS32  
+# func_800215EC - sets Vec3 at D_8006C7B8 -> clear purpose but global unknown
+# pow_int - file says pow_int, function says func_8001F250 -> inconsistent
+
+echo "Survey complete"
+[32m[tool:bash done][0m Survey complete
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Based on my thorough survey of all 93 decompiled source files, here is my refinement plan:
+
+```json
+[
+  "Fix internal function name mismatch in pow_int.c: The file is named pow_int.c and the splat.yaml segment is 'pow_int', but the function inside is still named 'func_8001F250'. (1) Update symbol_addrs.txt: change 'func_8001F250 = 0x8001F250' to 'pow_int = 0x8001F250'. (2) Update src/pow_int.c: rename the function from func_8001F250 to pow_int. (3) Update include/functions.h: change the declaration from 's32 func_8001F250(s32 arg0, s32 arg1)' to 's32 pow_int(s32 arg0, s32 arg1)'. NOTE: splat.yaml already has 'pow_int' as the segment name so NO change needed there. Run 'make split' then 'make check' to verify byte match.",
+
+  "Fix void* parameters in func_80015880 and func_80015894: Both functions cast void* to SomeStruct* on every access — they should take SomeStruct* directly. (1) In src/func_80015880.c: change parameter type from 'void *arg0' to 'SomeStruct *arg0', remove the '(SomeStruct *)' casts, keep the '#include \"game_types.h\"'. (2) In src/func_80015894.c: same change. (3) Update include/functions.h: change both declarations to use 'SomeStruct *arg0'. Run 'npx tsx tools/diffFunc.ts func_80015880' and 'npx tsx tools/diffFunc.ts func_80015894' after each change to verify 100% match, then 'make check'.",
+
+  "Fix inconsistent field naming in struct_80061DE8 in globals_override.h: fields 0x00, 0x04, 0x08, 0x18 use 'unk' prefix while 0x0C, 0x10, 0x14, 0x1C use 'field_' prefix — make all consistent using 'field_' prefix. (1) In include/globals_override.h: rename unk0->field_00, unk4->field_04, unk8->field_08, unk18->field_18. (2) In src/func_8001B9F8.c: update references from D_80061DE8.unk0 to D_80061DE8.field_00, .unk4 to .field_04, .unk8 to .field_08, .unk18 to .field_18. Keep field_1C = 0 unchanged. Run 'npx tsx tools/diffFunc.ts func_8001B9F8' and 'npx tsx tools/diffFunc.ts func_8001BA40' to verify 100% match (func_8001BA40 is unaffected but verify anyway), then 'make check'.",
+
+  "Rename func_8001F338 to CopyVec3 — it is a clear Vec3 copy function (copies x/y/z from src to dest). Steps: (1) Edit configs/symbol_addrs.txt: change 'func_8001F338 = 0x8001F338' to 'CopyVec3 = 0x8001F338'. (2) Edit configs/splat.yaml: change the segment line '[0xFB38, c, func_8001F338]' to '[0xFB38, c, CopyVec3]'. (3) Rename the source file: 'mv src/func_8001F338.c src/CopyVec3.c'. (4) Inside src/CopyVec3.c: rename the function from func_8001F338 to CopyVec3. (5) Update include/functions.h: change 'void func_8001F338(Vec3 *dest, Vec3 *src)' to 'void CopyVec3(Vec3 *dest, Vec3 *src)'. Run 'make split' (must not regenerate CopyVec3.c), then 'npx tsx tools/diffFunc.ts CopyVec3' to verify 100% match, then 'make check'.",
+
+  "Rename func_8001BFE0 to ClearPairS32 — it zeros both fields of a PairS32 struct. Steps: (1) Edit configs/symbol_addrs.txt: change 'func_8001BFE0 = 0x8001BFE0' to 'ClearPairS32 = 0x8001BFE0'. (2) Edit configs/splat.yaml: change segment '[0xC7E0, c, func_8001BFE0]' to '[0xC7E0, c, ClearPairS32]'. (3) Rename file: 'mv src/func_8001BFE0.c src/ClearPairS32.c'. (4) Update function name inside src/ClearPairS32.c. (5) Update include/functions.h. Run 'make split', then 'npx tsx tools/diffFunc.ts ClearPairS32', then 'make check'. Additionally, add a comment to src/func_80023A74.c explaining that D_8005E360 is used as a pointer (it is dereferenced as a pointer to u16 data, stored as s32 in globals). Add '/* D_8005E360 is a pointer to a u16 array; loaded as s32 */' near the extern declaration. Verify with 'make check' after the comment addition."
+]
+```[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: false, Retries: 0[0m
+[agent-loop] Tokens: 1757924 total (30 in, 7195 out)
+[agent-loop] Cost: $0.9366
+
+[1m[plan-execute] Plan: 5 task(s)[0m
+  1. Fix internal function name mismatch in pow_int.c: The file is named pow_int.c and the splat.yaml segment is 'pow_int', b
+  2. Fix void* parameters in func_80015880 and func_80015894: Both functions cast void* to SomeStruct* on every access — they
+  3. Fix inconsistent field naming in struct_80061DE8 in globals_override.h: fields 0x00, 0x04, 0x08, 0x18 use 'unk' prefix w
+  4. Rename func_8001F338 to CopyVec3 — it is a clear Vec3 copy function (copies x/y/z from src to dest). Steps: (1) Edit con
+  5. Rename func_8001BFE0 to ClearPairS32 — it zeros both fields of a PairS32 struct. Steps: (1) Edit configs/symbol_addrs.tx
+
+[1m[plan-execute] Task 1/5: Fix internal function name mismatch in pow_int.c: The file is named pow_int.c and the splat.yaml seg[0m
+
+[agent-loop] Model: anthropic/claude-sonnet-4-6
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+Let me start by examining the current state of the relevant files.
+[36m[tool:bash][0m $ grep -n "func_8001F250\|pow_int" configs/symbol_addrs.txt configs/splat.yaml include/functions.h src/pow_int.c 2>/dev/null
+[32m[tool:bash done][0m configs/symbol_addrs.txt:318:func_8001F250 = 0x8001F250; // type:func
+configs/splat.yaml:356:      - [0xFA50, c, pow_int]       # 0x8001F250 pow_int
+include/functions.h:68:s32 func_8001F250(s32 arg0, ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All four locations are confirmed. Now I'll make all three changes:
+[36m[tool:edit][0m {"path":"configs/symbol_addrs.txt","oldText":"func_8001F250 = 0x8001F250; // type:func","newText":"pow_int = 0x8001F250; // type:func"}
+[32m[tool:edit done][0m Successfully replaced text in configs/symbol_addrs.txt.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:edit][0m {"path":"src/pow_int.c","oldText":"s32 func_8001F250(s32 arg0, s32 arg1) {","newText":"s32 pow_int(s32 arg0, s32 arg1) {"}
+[32m[tool:edit done][0m Successfully replaced text in src/pow_int.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:edit][0m {"path":"include/functions.h","oldText":"s32 func_8001F250(s32 arg0, s32 arg1);","newText":"s32 pow_int(s32 arg0, s32 arg1);"}
+[32m[tool:edit done][0m Successfully replaced text in include/functions.h.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All three edits done. Now run `make split` then `make check`:
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && make split 2>&1
+[32m[tool:bash done][0m npx tsx tools/bootstrap.ts --write
+PSX-EXE: load=0x80010000 entry=0x80011278 payload=321536 GP=0x8005e274
+
+Configs already exist, skipping bootstrap.
+sectionLayout.json already exists.
+npx tsx tools/m...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+`make split` completed cleanly. Now run `make check`:
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && make check 2>&1
+[31m[tool:bash ERROR][0m mips-linux-gnu-cpp -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c src/pow_int.c -o build/src/pow_int.i
+tools/old-gcc/build-gcc-2.8.1-psx/cc1 -O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet build/src/pow_int.i -o build/src/pow_int.s
+python3 tools/maspsx/maspsx.py --aspsx-version 2.77 --dont-force-G0 --run-assembler --gnu-as-path mips-linux-gnu-as -o build/src/...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+The linker caught a stale reference in `src/func_8001AE34.c`. Let me fix that caller:
+[36m[tool:bash][0m $ grep -n "func_8001F250" src/func_8001AE34.c
+[31m[tool:bash ERROR][0m (no output)
+
+Command exited with code 1
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ grep -rn "func_8001F250" src/ include/ configs/
+[32m[tool:bash done][0m grep: include/functions.h.m2c: binary file matches
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+The source files are clean. The issue is a stale object file — `build/src/func_8001AE34.c.o` was compiled before the rename and still references the old symbol name. A full rebuild will fix it:
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && make clean 2>&1 | tail -5 && make check 2>&1 | tail -10
+[32m[tool:bash done][0m rm -rf build
+rm -f configs/undefined_funcs_auto.txt configs/undefined_syms_auto.txt
+rm -f slus_011.ld
+src/SetGfxOffset.c:11: warning: assignment from incompatible pointer type
+python3 tools/maspsx/mas...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+`make clean` removed the linker script; need to run `make split` first to regenerate it:
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && make split 2>&1 | tail -5
+[32m[tool:bash done][0m   Outside GP:   84
+  Reclassified 11 GP-range symbol(s) to absolute (lui access detected)
+  Overridden:   3 (from globals_override.h)
+Wrote /home/dave/Documents/code/btn-decompilation/include/globals....
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && make check 2>&1 | tail -10
+[32m[tool:bash done][0m mips-linux-gnu-as -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq build/asm/data/490C4.data.s -o build/asm/data/490C4.data.s.o
+mips-linux-gnu-as -march=r3000 -mtune=r3000 -...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+✅ **`OK: build/slus_011.bin matches original payload`**
+
+All three changes are complete and verified:
+
+1. **`configs/symbol_addrs.txt`**: `func_8001F250 = 0x8001F250` → `pow_int = 0x8001F250`
+2. **`src/pow_int.c`**: function definition renamed from `func_8001F250` to `pow_int`
+3. **`include/functions.h`**: declaration updated from `s32 func_8001F250(...)` to `s32 pow_int(...)`
+
+The initial incremental `make check` failed because `build/src/func_8001AE34.c.o` was a stale object file compiled against the old `func_8001F250` symbol name. Running `make clean` → `make split` → `make check` forced a full rebuild with the renamed symbol and the binary matched perfectly.[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 275407 total (14 in, 1497 out)
+[agent-loop] Cost: $0.1450
+
+[1m[plan-execute] Task 2/5: Fix void* parameters in func_80015880 and func_80015894: Both functions cast void* to SomeStruct* on[0m
+
+[agent-loop] Model: anthropic/claude-sonnet-4-6
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+Let me start by reading the current state of the files.
+[36m[tool:read][0m {"path":"src/func_80015880.c"}
+
+[36m[tool:read][0m {"path":"src/func_80015894.c"}
+
+[36m[tool:read][0m {"path":"include/functions.h"}
+[32m[tool:read done][0m #include "common.h"
+#include "game_types.h"
+
+void func_80015880(void *arg0, s32 arg1, s32 arg2) {
+    ((SomeStruct *)arg0)->field_0x14 = arg1;
+    ((SomeStruct *)arg0)->field_0x18 = arg2;
+}
+
+[32m[tool:read done][0m #include "common.h"
+#include "game_types.h"
+
+void func_80015894(void *arg0, s32 arg1) {
+    ((SomeStruct *)arg0)->field_0x18 = arg1;
+}
+
+[32m[tool:read done][0m /* Auto-generated by tools/contextExport.ts — do not edit manually */
+
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
+typedef signed char s8;
+typedef signed short s16;...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Good. Now I'll make all three changes simultaneously — both source files and `functions.h`:
+[36m[tool:edit][0m {"path":"src/func_80015880.c","oldText":"void func_80015880(void *arg0, s32 arg1, s32 arg2) {\n    ((SomeStruct *)arg0)->field_0x14 = arg1;\n    ((SomeStruct *)arg0)->field_0x18 = arg2;\n}","newText":
+
+[36m[tool:edit][0m {"path":"src/func_80015894.c","oldText":"void func_80015894(void *arg0, s32 arg1) {\n    ((SomeStruct *)arg0)->field_0x18 = arg1;\n}","newText":"void func_80015894(SomeStruct *arg0, s32 arg1) {\n    a
+
+[36m[tool:edit][0m {"path":"include/functions.h","oldText":"void func_80015880(void *arg0, s32 arg1, s32 arg2);\nvoid func_8001588C(void);\nvoid func_80015894(void *arg0, s32 arg1);","newText":"void func_80015880(SomeSt
+[32m[tool:edit done][0m Successfully replaced text in src/func_80015880.c.
+[32m[tool:edit done][0m Successfully replaced text in src/func_80015894.c.
+[32m[tool:edit done][0m Successfully replaced text in include/functions.h.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All three edits applied. Now verify both functions individually:
+[36m[tool:bash][0m $ npx tsx tools/diffFunc.ts func_80015880 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/func_80015880.c
+
+sw	a1,20(a0)						sw	a1,20(a0)
+jr	ra							jr	ra
+sw	a2,24(a0)						sw	a2,24(a0)
+Match: 3/3 instructions (100.0%)
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ npx tsx tools/diffFunc.ts func_80015894 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/func_80015894.c
+
+jr	ra							jr	ra
+sw	a1,24(a0)						sw	a1,24(a0)
+Match: 2/2 instructions (100.0%)
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Both at 100%. Now run the full binary check:
+[36m[tool:bash][0m $ make check 2>&1
+[32m[tool:bash done][0m OK: build/slus_011.bin matches original payload
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All done. Here's a summary of every change made:
+
+**`src/func_80015880.c`** — parameter `void *arg0` → `SomeStruct *arg0`; removed the two `(SomeStruct *)` casts on the field accesses.
+
+**`src/func_80015894.c`** — same: `void *arg0` → `SomeStruct *arg0`; removed the single cast.
+
+**`include/functions.h`** — updated both declarations to match the new parameter types.
+
+Both functions verify at 100% instruction match, and the full binary still matches the original payload.[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 116756 total (8 in, 1151 out)
+[agent-loop] Cost: $0.0663
+
+[1m[plan-execute] Task 3/5: Fix inconsistent field naming in struct_80061DE8 in globals_override.h: fields 0x00, 0x04, 0x08, 0x1[0m
+
+[agent-loop] Model: anthropic/claude-sonnet-4-6
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+Let me start by reading the current state of the files.
+[36m[tool:read][0m {"path":"include/globals_override.h"}
+
+[36m[tool:read][0m {"path":"src/func_8001B9F8.c"}
+[32m[tool:read done][0m /*
+ * Manual type overrides for auto-generated globals.
+ *
+ * classifyGlobals.ts generates globals.h with scalar types for all D_ symbols.
+ * When a symbol's true type is known (e.g., it's a struct), ...
+[32m[tool:read done][0m #include "common.h"
+#include "globals_override.h"
+
+#undef D_80061DE8
+extern struct struct_80061DE8 D_80061DE8;
+
+void func_8001B9F8(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+    D_80061DE8.unk0 = arg0;...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Good. Now I have a clear picture. I'll make both edits simultaneously:
+[36m[tool:edit][0m {"path":"include/globals_override.h","oldText":"/* D_80061DE8 - shared struct used by func_8001B9F8 and func_8001BA40 */\nstruct struct_80061DE8 {\n    s32 unk0;           /* 0x00 */\n    s32 unk4;   
+[32m[tool:edit done][0m Successfully replaced text in include/globals_override.h.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:edit][0m {"path":"src/func_8001B9F8.c","oldText":"    D_80061DE8.unk0 = arg0;\n    D_80061DE8.unk4 = arg1;\n    D_80061DE8.unk8 = arg2;\n    D_80061DE8.unk18 = arg3;","newText":"    D_80061DE8.field_00 = arg0;
+[32m[tool:edit done][0m Successfully replaced text in src/func_8001B9F8.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Now verify both functions and the full binary:
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && npx tsx tools/diffFunc.ts func_8001B9F8 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/func_8001B9F8.c
+
+lui	v0,0x8006						lui	v0,0x8006
+sw	a0,7656(v0)						sw	a0,7656(v0)
+addiu	v0,v0,7656						addiu	v0,v0,7656
+sw	a1,4(v0)						s...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && npx tsx tools/diffFunc.ts func_8001BA40 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/func_8001BA40.c
+
+lui	v0,0x8006						lui	v0,0x8006
+addiu	v0,v0,7656						addiu	v0,v0,7656
+sw	a0,12(v0)						sw	a0,12(v0)
+sw	a1,16(v0)						sw	a...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Both 100%. Now the full binary check:
+[36m[tool:bash][0m $ cd /home/dave/Documents/code/btn-decompilation && make check 2>&1
+[32m[tool:bash done][0m OK: build/slus_011.bin matches original payload
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All clean. Here's a summary of what was changed:
+
+**`include/globals_override.h`** — renamed four fields in `struct struct_80061DE8`:
+- `unk0` → `field_00`
+- `unk4` → `field_04`
+- `unk8` → `field_08`
+- `unk18` → `field_18`
+
+**`src/func_8001B9F8.c`** — updated the four corresponding member accesses to use the new names. `field_0C`, `field_10`, `field_14`, and `field_1C` were already correctly named and required no changes in either file.
+
+Both `func_8001B9F8` and `func_8001BA40` remain 100% instruction matches, and the full binary is verified identical to the original payload.[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 132427 total (9 in, 1278 out)
+[agent-loop] Cost: $0.0686
+
+[1m[plan-execute] Task 4/5: Rename func_8001F338 to CopyVec3 — it is a clear Vec3 copy function (copies x/y/z from src to dest).[0m
+
+[agent-loop] Model: anthropic/claude-sonnet-4-6
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+I'll execute all the steps systematically. Let me start by making all the edits in parallel.
+[36m[tool:bash][0m $ grep -n "func_8001F338" configs/symbol_addrs.txt
+
+[36m[tool:bash][0m $ grep -n "func_8001F338" configs/splat.yaml
+
+[36m[tool:bash][0m $ cat src/func_8001F338.c
+
+[36m[tool:bash][0m $ grep -n "func_8001F338" include/functions.h
+[32m[tool:bash done][0m 321:func_8001F338 = 0x8001F338; // type:func
+
+[32m[tool:bash done][0m 359:      - [0xFB38, c, func_8001F338]       # 0x8001F338 func_8001F338
+
+[32m[tool:bash done][0m #include "common.h"
+#include "game_types.h"
+
+void func_8001F338(Vec3 *dest, Vec3 *src) {
+    register s32 temp_v1 __asm__("v1");
+    register s32 temp_v0 __asm__("v0");
+    
+    temp_v1 = src->x;
+    ...
+[32m[tool:bash done][0m 69:void func_8001F338(Vec3 *dest, Vec3 *src);
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All four locations confirmed. Now apply all edits in parallel:
+[36m[tool:edit][0m {"path":"configs/symbol_addrs.txt","oldText":"func_8001F338 = 0x8001F338; // type:func","newText":"CopyVec3 = 0x8001F338; // type:func"}
+
+[36m[tool:edit][0m {"path":"configs/splat.yaml","oldText":"      - [0xFB38, c, func_8001F338]       # 0x8001F338 func_8001F338","newText":"      - [0xFB38, c, CopyVec3]             # 0x8001F338 CopyVec3"}
+
+[36m[tool:edit][0m {"path":"include/functions.h","oldText":"void func_8001F338(Vec3 *dest, Vec3 *src);","newText":"void CopyVec3(Vec3 *dest, Vec3 *src);"}
+[32m[tool:edit done][0m Successfully replaced text in configs/symbol_addrs.txt.
+[32m[tool:edit done][0m Successfully replaced text in configs/splat.yaml.
+[32m[tool:edit done][0m Successfully replaced text in include/functions.h.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Now rename the file and update the function name inside it:
+[36m[tool:bash][0m $ mv src/func_8001F338.c src/CopyVec3.c
+[32m[tool:bash done][0m (no output)
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:edit][0m {"path":"src/CopyVec3.c","oldText":"void func_8001F338(Vec3 *dest, Vec3 *src) {","newText":"void CopyVec3(Vec3 *dest, Vec3 *src) {"}
+[32m[tool:edit done][0m Successfully replaced text in src/CopyVec3.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Now verify no stray references remain, then run `make split`:
+[36m[tool:bash][0m $ grep -rn "func_8001F338" src/ configs/ include/ 2>&1
+[32m[tool:bash done][0m grep: include/functions.h.m2c: binary file matches
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Clean — only the `.m2c` binary cache file (not relevant). Run `make split`:
+[36m[tool:bash][0m $ make split 2>&1 | tail -20
+[32m[tool:bash done][0m Loaded 84 global BSS symbol addresses
+Processing 361 library .o files
+Found 31 .o files with BSS sections
+
+Results:
+  Patched 31 .o files, 221 symbols converted to ABS
+  7 HI16 carry compensations app...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+`make split` completed. Confirm it did **not** regenerate `CopyVec3.c` as an INCLUDE_ASM stub:
+[36m[tool:bash][0m $ grep -c "INCLUDE_ASM" src/CopyVec3.c 2>&1; cat src/CopyVec3.c
+[32m[tool:bash done][0m 0
+#include "common.h"
+#include "game_types.h"
+
+void CopyVec3(Vec3 *dest, Vec3 *src) {
+    register s32 temp_v1 __asm__("v1");
+    register s32 temp_v0 __asm__("v0");
+    
+    temp_v1 = src->x;
+    des...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+File is intact. Now diff and check:
+[36m[tool:bash][0m $ npx tsx tools/diffFunc.ts CopyVec3 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/CopyVec3.c
+
+Compile error: MASPSX: Warning, no input from stdin, will try to read from a file
+mips-linux-gnu-ld: build/src/func_8001EFA4.c.o: ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Several callers still reference the old name. Let me update them all:
+[36m[tool:bash][0m $ grep -rn "func_8001F338" src/*.c 2>&1
+[31m[tool:bash ERROR][0m (no output)
+
+Command exited with code 1
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ grep -rn "func_8001F338" src/ 2>&1
+[31m[tool:bash ERROR][0m (no output)
+
+Command exited with code 1
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+The source files don't have text references — they must be using `INCLUDE_ASM` stubs that pull the symbol from the assembled `.s` files. Check the assembly:
+[36m[tool:bash][0m $ grep -rn "func_8001F338" asm/ 2>&1 | head -20
+[32m[tool:bash done][0m grep: asm/: No such file or directory
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ find . -name "*.s" | xargs grep -l "func_8001F338" 2>/dev/null | head -20
+[32m[tool:bash done][0m ./build/src/func_8001F338.s
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ find . -name "*.s" | xargs grep -l "jal.*func_8001F338\|j.*func_8001F338" 2>/dev/null | head -20
+[32m[tool:bash done][0m (no output)
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ cat build/src/func_8001F338.s | head -5
+[32m[tool:bash done][0m 	.file	1 "src/func_8001F338.c"
+
+ # -G value = 8, Cpu = r3000, ISA = 1
+ # GNU C version 2.8.1 (mips-sony-psx) compiled by GNU C version 9.4.0.
+ # options passed:  -O2 -G8 -mips1 -mcpu=r3000 -funsigned-...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+The build cache has a stale `func_8001F338.s`. The callers are compiled `.o` files referencing the old symbol. I need to run `make` to recompile everything, or clean the stale build artifact:
+[36m[tool:bash][0m $ make clean 2>&1 | tail -5
+[32m[tool:bash done][0m rm -rf build
+rm -f configs/undefined_funcs_auto.txt configs/undefined_syms_auto.txt
+rm -f slus_011.ld
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ make split 2>&1 | tail -10
+[32m[tool:bash done][0m npx tsx tools/classifyGlobals.ts --write
+GP value: 8005e274
+GP range: 80056284 — 80066263
+Data symbols: 145 total
+  In GP range:  61
+  Outside GP:   84
+  Reclassified 11 GP-range symbol(s) to absolute...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ npx tsx tools/diffFunc.ts CopyVec3 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/CopyVec3.c
+
+lw	v1,0(a1)						lw	v1,0(a1)
+nop								nop
+sw	v1,0(a0)						sw	v1,0(a0)
+lw	v0,4(a1)						lw	v0,4(a1)
+nop								nop
+sw	v0,4(a0)		...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+100% match. Now run the full binary check:
+[36m[tool:bash][0m $ make check 2>&1
+[32m[tool:bash done][0m OK: build/slus_011.bin matches original payload
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+All steps complete and verified:
+
+1. **`configs/symbol_addrs.txt`** — `func_8001F338` → `CopyVec3`
+2. **`configs/splat.yaml`** — segment entry updated to `CopyVec3`
+3. **`src/func_8001F338.c`** → **`src/CopyVec3.c`** (renamed)
+4. **`src/CopyVec3.c`** — function body updated to `CopyVec3`
+5. **`include/functions.h`** — declaration updated to `CopyVec3`
+6. `make split` — did not regenerate the file (splat.yaml matched)
+7. `diffFunc CopyVec3` — **100% match** (9/9 instructions)
+8. `make check` — **OK: matches original payload**[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 377043 total (21 in, 2246 out)
+[agent-loop] Cost: $0.1648
+
+[1m[plan-execute] Task 5/5: Rename func_8001BFE0 to ClearPairS32 — it zeros both fields of a PairS32 struct. Steps: (1) Edit con[0m
+
+[agent-loop] Model: anthropic/claude-sonnet-4-6
+[agent-loop] CWD: /home/dave/Documents/code/btn-decompilation/
+
+[1m[agent-loop] Sending initial prompt...[0m
+
+[33m[agent start][0m
+
+[33m--- turn start ---[0m
+I'll execute all the steps systematically. Let me start by reading the relevant files to understand the current state.
+[36m[tool:bash][0m $ grep -n "func_8001BFE0" configs/symbol_addrs.txt configs/splat.yaml
+
+[36m[tool:read][0m {"path":"src/func_8001BFE0.c"}
+[32m[tool:bash done][0m configs/symbol_addrs.txt:259:func_8001BFE0 = 0x8001BFE0; // type:func
+configs/splat.yaml:310:      - [0xC7E0, c, func_8001BFE0]       # 0x8001BFE0 func_8001BFE0
+
+[32m[tool:read done][0m #include "common.h"
+#include "game_types.h"
+
+void func_8001BFE0(PairS32 *obj) {
+    obj->field_0 = 0;
+    obj->field_4 = 0;
+}
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+
+[36m[tool:bash][0m $ grep -n "func_8001BFE0" include/functions.h
+
+[36m[tool:read][0m {"path":"src/func_80023A74.c"}
+[32m[tool:bash done][0m 59:void func_8001BFE0(PairS32 *obj);
+
+[32m[tool:read done][0m #include "common.h"
+
+extern s32 D_8005E360;
+
+void func_80023A74(void) {
+    char *var_v0;
+    s32 var_v1;
+    u16 fill;
+
+    fill = 0xFFFF;
+    var_v1 = 8;
+    var_v0 = (char *)D_8005E360 + 0x10;
+    ...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Good. Now I have a clear picture. Let me also check if `func_8001BFE0` is called anywhere else in the codebase:
+[36m[tool:bash][0m $ grep -rn "func_8001BFE0" src/ include/
+[32m[tool:bash done][0m src/func_8001BFE0.c:4:void func_8001BFE0(PairS32 *obj) {
+grep: include/functions.h.m2c: binary file matches
+include/functions.h:59:void func_8001BFE0(PairS32 *obj);
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Only referenced in its own file and `functions.h`. Now let me execute all steps:
+
+**Step 1: Edit `configs/symbol_addrs.txt`**
+[36m[tool:edit][0m {"path":"configs/symbol_addrs.txt","oldText":"func_8001BFE0 = 0x8001BFE0; // type:func","newText":"ClearPairS32 = 0x8001BFE0; // type:func"}
+[32m[tool:edit done][0m Successfully replaced text in configs/symbol_addrs.txt.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+**Step 2: Edit `configs/splat.yaml`**
+[36m[tool:edit][0m {"path":"configs/splat.yaml","oldText":"      - [0xC7E0, c, func_8001BFE0]       # 0x8001BFE0 func_8001BFE0","newText":"      - [0xC7E0, c, ClearPairS32]         # 0x8001BFE0 ClearPairS32"}
+[32m[tool:edit done][0m Successfully replaced text in configs/splat.yaml.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+**Step 3: Rename the source file**
+[36m[tool:bash][0m $ mv src/func_8001BFE0.c src/ClearPairS32.c
+[32m[tool:bash done][0m (no output)
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+**Step 4: Update the function name inside the source file**
+[36m[tool:edit][0m {"path":"src/ClearPairS32.c","oldText":"void func_8001BFE0(PairS32 *obj) {","newText":"void ClearPairS32(PairS32 *obj) {"}
+[32m[tool:edit done][0m Successfully replaced text in src/ClearPairS32.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+**Step 5: Update `include/functions.h`**
+[36m[tool:edit][0m {"path":"include/functions.h","oldText":"void func_8001BFE0(PairS32 *obj);","newText":"void ClearPairS32(PairS32 *obj);"}
+[32m[tool:edit done][0m Successfully replaced text in include/functions.h.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+**Step 6: Add comment to `src/func_80023A74.c`**
+[36m[tool:edit][0m {"path":"src/func_80023A74.c","oldText":"extern s32 D_8005E360;","newText":"/* D_8005E360 is a pointer to a u16 array; loaded as s32 */\nextern s32 D_8005E360;"}
+[32m[tool:edit done][0m Successfully replaced text in src/func_80023A74.c.
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Now let's verify the source files look correct before running the build:
+[36m[tool:read][0m {"path":"src/ClearPairS32.c"}
+
+[36m[tool:read][0m {"path":"src/func_80023A74.c"}
+[32m[tool:read done][0m #include "common.h"
+#include "game_types.h"
+
+void ClearPairS32(PairS32 *obj) {
+    obj->field_0 = 0;
+    obj->field_4 = 0;
+}
+
+[32m[tool:read done][0m #include "common.h"
+
+/* D_8005E360 is a pointer to a u16 array; loaded as s32 */
+extern s32 D_8005E360;
+
+void func_80023A74(void) {
+    char *var_v0;
+    s32 var_v1;
+    u16 fill;
+
+    fill = 0xFFFF;
+...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Both files look correct. Now run `make split`:
+[36m[tool:bash][0m $ make split 2>&1
+[32m[tool:bash done][0m npx tsx tools/bootstrap.ts --write
+PSX-EXE: load=0x80010000 entry=0x80011278 payload=321536 GP=0x8005e274
+
+Configs already exist, skipping bootstrap.
+sectionLayout.json already exists.
+npx tsx tools/m...
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+`make split` completed successfully and didn't clobber `ClearPairS32.c`. Now run the diff check:
+[36m[tool:bash][0m $ npx tsx tools/diffFunc.ts ClearPairS32 2>&1
+[32m[tool:bash done][0m target:  original binary (linked comparison)
+source:  src/ClearPairS32.c
+
+sw	zero,0(a0)						sw	zero,0(a0)
+jr	ra							jr	ra
+sw	zero,4(a0)						sw	zero,4(a0)
+Match: 3/3 instructions (100.0%)
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+100% match. Now run the full binary check:
+[36m[tool:bash][0m $ make check 2>&1
+[32m[tool:bash done][0m OK: build/slus_011.bin matches original payload
+
+[33m--- turn end ---[0m
+
+
+[33m--- turn start ---[0m
+Everything is verified. Here's a summary of all changes made:
+
+### Changes made
+
+**`configs/symbol_addrs.txt`** — renamed symbol at `0x8001BFE0` from `func_8001BFE0` to `ClearPairS32`.
+
+**`configs/splat.yaml`** — updated the segment entry at offset `0xC7E0` to use `ClearPairS32` as the source file name.
+
+**`src/func_8001BFE0.c` → `src/ClearPairS32.c`** — file renamed, and the function name inside updated from `func_8001BFE0` to `ClearPairS32`.
+
+**`include/functions.h`** — declaration updated from `void func_8001BFE0(PairS32 *obj)` to `void ClearPairS32(PairS32 *obj)`.
+
+**`src/func_80023A74.c`** — added comment `/* D_8005E360 is a pointer to a u16 array; loaded as s32 */` above the `extern s32 D_8005E360` declaration to document the semantic mismatch between the declared type and actual usage.
+
+**Verification:** `ClearPairS32` diffed at 100% (3/3 instructions), and `make check` confirms the full binary still matches the original payload.[33m--- turn end ---[0m
+
+[33m[agent end][0m
+
+[1m[agent-loop] Done. Success: true, Retries: 0[0m
+[agent-loop] Tokens: 284532 total (16 in, 1989 out)
+[agent-loop] Cost: $0.1483
+
+[1m[plan-execute] Done: 5/5 task(s) succeeded.[0m
+
+————————————————————————————————————————————————————————————
+Project refinement: ✓ done

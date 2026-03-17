@@ -186,6 +186,7 @@ async function runProjectRefinementAgent(): Promise<AgentResult> {
        * so we need make clean + make split to regenerate the linker script and
        * assembly before checking the binary match. */
       execSync("make clean", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
+      execSync("npx tsx ./tools/callGraph.ts", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
       execSync("make split", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
       const makeOutput = execSync("make check", {
         cwd: ROOT,
@@ -545,6 +546,14 @@ async function main() {
         console.log(`  ${r.name} ${icon} — neighbors: ${r.neighbors.join(", ") || "(none)"}`);
       }
     }
+  }
+
+  // Stage 6: project-wide refinement pass
+  if (writeMode) {
+    console.log(`\n${"—".repeat(60)}`);
+    console.log(`Running project-wide refinement pass...`);
+    const projectResult = await runProjectRefinementAgent();
+    console.log(`Project refinement: ${projectResult.success ? "\u2713 done" : "\u2717 failed"}`);
   }
 }
 
