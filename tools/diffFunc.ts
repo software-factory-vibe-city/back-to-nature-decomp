@@ -14,7 +14,7 @@ import { join } from "path";
 const ROOT = new URL("..", import.meta.url).pathname;
 
 // Toolchain (from Makefile)
-const GCC_VERSION = "2.8.0";
+const GCC_VERSION = "2.8.1";
 const CC = `tools/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
 const MASPSX = "python3 tools/maspsx/maspsx.py";
 const CROSS = "mips-linux-gnu-";
@@ -23,11 +23,20 @@ const CPP = `${CROSS}cpp`;
 const OBJDUMP = `${CROSS}objdump`;
 
 const CPPFLAGS = "-Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c";
-const CC1FLAGS = "-mips1 -mcpu=r3000 -quiet -G8 -O2";
-const ASFLAGS = "-march=r3000 -mtune=r3000 -EL -no-pad-sections -Iinclude -Iinclude/psyq";
+const CC1FLAGS = "-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet";
+const ASFLAGS = "-march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq";
 
 function run(cmd: string): string {
   return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+}
+
+function runStep(label: string, cmd: string): string {
+  try {
+    return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+  } catch (e: any) {
+    const msg = (e.stderr || e.stdout || e.message || "").trim();
+    throw new Error(`${label}: ${msg}`);
+  }
 }
 
 function compile(src: string): string {
@@ -37,9 +46,9 @@ function compile(src: string): string {
   const s = `${dir}/${stem}.s`;
   const o = `${dir}/${stem}.c.o`;
   run(`mkdir -p ${dir}`);
-  run(`${CPP} ${CPPFLAGS} ${src} -o ${i}`);
-  run(`${CC} ${CC1FLAGS} ${i} -o ${s}`);
-  run(`${MASPSX} --aspsx-version 2.67 --expand-div --dont-force-G0 --reorder-la --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
+  runStep("cpp", `${CPP} ${CPPFLAGS} ${src} -o ${i}`);
+  runStep("cc1", `${CC} ${CC1FLAGS} ${i} -o ${s}`);
+  runStep("maspsx", `${MASPSX} --aspsx-version 2.77 --dont-force-G0 --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
   return o;
 }
 
