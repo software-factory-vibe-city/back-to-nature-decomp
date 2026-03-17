@@ -7,6 +7,38 @@ typedef signed char s8;
 typedef signed short s16;
 typedef signed int s32;
 
+typedef struct {
+    /* 0x00 */ char pad_00[0x02];
+    /* 0x02 */ u16 field_2;     /* flags/status word */
+    /* 0x04 */ s8 field_4;      /* state identifier */
+    /* 0x05 */ s8 field_5;      /* sub-state or animation index */
+    /* 0x06 */ s16 field_6;     /* timer or counter */
+} ObjectState;
+
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+} PairS32;
+
+typedef struct {
+    /* 0x00 */ s32 field_0x0;
+    /* 0x04 */ s32 field_0x4;
+    /* 0x08 */ s32 field_0x8;
+    /* 0x0C */ s32 field_0xC;
+    /* 0x10 */ s32 field_0x10;
+    /* 0x14 */ s32 field_0x14;
+    /* 0x18 */ s32 field_0x18;
+    /* 0x1C */ s32 field_0x1C;
+} SomeStruct;
+
+typedef struct {
+    s32 x;
+    s32 y;
+    s32 z;
+} Vec3;
+
+void ClearPairS32(PairS32 *obj);
+void CopyVec3(Vec3 *dest, Vec3 *src);
 void func_80011270(void);
 void func_80011EE8(void);
 s32 func_80011F08(void);
@@ -21,8 +53,6 @@ s32 func_800129E8(void);
 void func_80013438(s32 arg0);
 s32 func_80013444(void);
 s32 func_800134B8(void);
-void SetGfxOffset(s32 arg0, s32 arg1);
-void SetGfxClip(s32 arg0, s32 arg1);
 void func_80013AEC(s32 arg0);
 s32 func_80013AF8(void);
 s32 func_80014B38(void);
@@ -56,7 +86,6 @@ void func_8001B4D0(s32 arg0, s32 arg1);
 void func_8001B9F8(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 void func_8001BA40(s32 arg0, s32 arg1, s32 arg2);
 void func_8001BF9C(s32 arg0);
-void ClearPairS32(PairS32 *obj);
 void func_8001D6AC(void);
 s32 func_8001DCA8(void);
 s32 func_8001DFC8(void);
@@ -65,8 +94,6 @@ void func_8001E334(s32 arg0);
 void func_8001EF8C(s32 arg0);
 s32 func_8001EF98(void);
 void func_8001F1B4(void);
-s32 pow_int(s32 arg0, s32 arg1);
-void CopyVec3(Vec3 *dest, Vec3 *src);
 int func_8001FAB4(void);
 s32 func_8001FB08(void);
 void func_8001FBE4(s32 arg0, s32 arg1);
@@ -97,3 +124,6 @@ s32 func_800226E4(void);
 void func_80022788(s32 arg0);
 void func_8002301C(void);
 void func_80023A74(void);
+s32 pow_int(s32 arg0, s32 arg1);
+void SetGfxClip(s32 arg0, s32 arg1);
+void SetGfxOffset(s32 arg0, s32 arg1);

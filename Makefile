@@ -79,6 +79,7 @@ split:
 	@if [ -f build/dep_syms.txt ]; then printf 'INCLUDE "build/dep_syms.txt"\n' >> $(LD_SCRIPT); fi
 	@if [ -f build/lib_bss_syms.txt ]; then printf 'INCLUDE "build/lib_bss_syms.txt"\n' >> $(LD_SCRIPT); fi
 	npx tsx tools/classifyGlobals.ts --write
+	npx tsx tools/contextExport.ts --all
 
 # ---------------------------------------------------------------------------
 # Compile + link

@@ -494,6 +494,16 @@ async function main() {
     return;
   }
 
+  /* Clean build to ensure consistent state before processing */
+  console.log("Running: make clean");
+  execSync("make clean", { cwd: ROOT, stdio: "inherit" });
+  console.log("Running: make split");
+  execSync("make split", { cwd: ROOT, stdio: "inherit" });
+  console.log("Running: make check");
+  execSync("make check", { cwd: ROOT, stdio: "inherit" });
+  console.log("Running: callGraph.ts");
+  execSync("npx tsx tools/callGraph.ts", { cwd: ROOT, stdio: "inherit" });
+
   const graph: CallGraph = JSON.parse(readFileSync(graphPath, "utf-8"));
 
   // Filter functions to process
@@ -554,6 +564,10 @@ async function main() {
     console.log(`Running project-wide refinement pass...`);
     const projectResult = await runProjectRefinementAgent();
     console.log(`Project refinement: ${projectResult.success ? "\u2713 done" : "\u2717 failed"}`);
+
+    /* Re-export signatures after project refinement (may have renamed functions/added types) */
+    console.log("Running: contextExport.ts --all");
+    execSync("npx tsx tools/contextExport.ts --all", { cwd: ROOT, stdio: "inherit" });
   }
 }
 

@@ -137,6 +137,17 @@ function collectAllStructDefs(srcDir: string): Map<string, string> {
       allDefs.set(name, def);
     }
   }
+
+  /* Also scan shared headers for struct typedefs */
+  const includeDir = join(srcDir, "..", "include");
+  const sharedHeaders = ["game_types.h"];
+  for (const header of sharedHeaders) {
+    const defs = extractStructTypedefs(join(includeDir, header));
+    for (const [name, def] of defs) {
+      allDefs.set(name, def);
+    }
+  }
+
   return allDefs;
 }
 
@@ -276,6 +287,15 @@ export function exportAll(rootDir: string = ROOT): { exported: string[]; skipped
       }
     }
     exported.push(funcName);
+  }
+
+  /* Also scan shared headers for struct typedefs */
+  const includeDir = join(rootDir, "include");
+  for (const header of ["game_types.h"]) {
+    const defs = extractStructTypedefs(join(includeDir, header));
+    for (const [name, def] of defs) {
+      allStructDefs.set(name, def);
+    }
   }
 
   if (exported.length > 0) {
