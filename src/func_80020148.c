@@ -1,4 +1,9 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80020148", func_80020148);
+extern s32 D_8005E550;
+
+s32 func_80020148(s32 arg0) {
+    (&D_8006BF48)[D_8005E550] = arg0 * 2;
+    D_8005E550 += 1;
+    return 0;
+}
