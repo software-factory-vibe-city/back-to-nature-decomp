@@ -2,6 +2,6 @@
 
 extern s32 D_8005E524;
 
-s32 func_8001EF98(void) {
+s32 GetVal8005E524(void) {
     return D_8005E524;
 }

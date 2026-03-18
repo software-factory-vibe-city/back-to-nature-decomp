@@ -2,7 +2,7 @@
 
 extern s16 D_8005E49C;
 
-void func_800183D0(void) {
+void ClearVal8005E49C(void) {
     D_8005E49C = 0;
     D_8005E49E = 0;
 }
