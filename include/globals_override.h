@@ -44,4 +44,23 @@ struct struct_8006C838 {
 };
 extern struct struct_8006C838 D_8006C838[];
 
+/* D_80049050 - array used by func_80017A70
+ * Array size of 5 ensures >8 byte declaration for absolute addressing (lui+addiu) */
+extern u16 D_80049050[5];
+
+/* D_8005E44C - GP-relative u16 scalar */
+extern u16 D_8005E44C;
+
+/* D_80061F08 - struct used by func_8001FE00
+ * Fields at 0x04, 0x0C, 0x10 - size at least 0x14 (20 bytes) for absolute addressing */
+typedef struct {
+    char pad[4];        /* 0x00-0x03 */
+    s32 field_04;       /* 0x04 */
+    char pad2[4];       /* 0x08-0x0B */
+    s32 field_0C;       /* 0x0C */
+    s32 field_10;       /* 0x10 */
+} struct_80061F08;
+extern struct_80061F08 _D_80061F08[1] __asm__("D_80061F08");
+#define D_80061F08 (*((struct_80061F08*)_D_80061F08))
+
 #endif /* GLOBALS_OVERRIDE_H */
