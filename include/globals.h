@@ -5,7 +5,7 @@
 /* Requires common.h typedefs (s8, s16, s32, u8, u16, u32) */
 #include "globals_override.h"
 
-/* 3 symbol(s) defined in globals_override.h */
+/* 5 symbol(s) defined in globals_override.h */
 
 /* GP-relative symbols (within $gp ± 0x7FF0) */
 extern s32 D_8005E025;
@@ -22,7 +22,6 @@ extern u16 D_8005E356;
 extern s16 D_8005E3CE;
 extern u16 D_8005E446;
 extern u16 D_8005E44E;
-extern u16 D_8005E47A;
 extern s16 D_8005E47E;
 extern u16 D_8005E482;
 extern u16 D_8005E49A;
@@ -33,7 +32,6 @@ extern s16 D_8005E56A;
 extern s16 D_8005E56E;
 extern s16 D_8005E572;
 extern u8 D_8005E5D1;
-extern s32 D_8005E870;
 extern s32 D_8005E8E0;
 extern s32 D_8005E910;
 extern s32 D_8005E930;

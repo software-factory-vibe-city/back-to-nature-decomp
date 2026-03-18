@@ -51,6 +51,20 @@ extern u16 D_80049050[5];
 /* D_8005E44C - GP-relative u16 scalar */
 extern u16 D_8005E44C;
 
+/* D_8005E47A - used as signed halfword (lh) */
+extern s16 D_8005E47A_s __asm__("D_8005E47A");
+
+
+
+/* D_8005E870 - struct accessed with sb at offsets 0x36 and 0x37 */
+typedef struct {
+    char pad[0x36];     /* 0x00-0x35 */
+    u8 field_36;        /* 0x36 */
+    u8 field_37;        /* 0x37 */
+} struct_8005E870;
+extern struct_8005E870 _D_8005E870[1] __asm__("D_8005E870");
+#define D_8005E870 (*((struct_8005E870*)_D_8005E870))
+
 /* D_80061F08 - struct used by func_8001FE00
  * Fields at 0x04, 0x0C, 0x10 - size at least 0x14 (20 bytes) for absolute addressing */
 typedef struct {
