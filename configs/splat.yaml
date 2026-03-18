@@ -73,8 +73,8 @@ segments:
       - [0x2708, c, func_80011F08]       # 0x80011F08 func_80011F08
       - [0x2714, c, func_80011F14]       # 0x80011F14 func_80011F14
       - [0x2720, c, func_80011F20]       # 0x80011F20 func_80011F20
-      - [0x272C, c, func_80011F2C]       # 0x80011F2C func_80011F2C
-      - [0x2738, c, func_80011F38]       # 0x80011F38 func_80011F38
+      - [0x272C, c, SetFlag8005E274]       # 0x80011F2C SetFlag8005E274
+      - [0x2738, c, GetFlag8005E274]       # 0x80011F38 GetFlag8005E274
       - [0x2744, c, func_80011F44]       # 0x80011F44 func_80011F44
       - [0x2750, c, func_80011F50]       # 0x80011F50 func_80011F50
       - [0x275C, c, func_80011F5C]       # 0x80011F5C func_80011F5C
@@ -92,7 +92,7 @@ segments:
       - [0x31E8, c, func_800129E8]       # 0x800129E8 func_800129E8
       - [0x31F4, c, func_800129F4]       # 0x800129F4 func_800129F4
       - [0x3214, c, func_80012A14]       # 0x80012A14 func_80012A14
-      - [0x3234, c, func_80012A34]       # 0x80012A34 func_80012A34
+      - [0x3234, c, Rand]                 # 0x80012A34 Rand
       - [0x3268, c, func_80012A68]       # 0x80012A68 func_80012A68
       - [0x32B0, c, func_80012AB0]       # 0x80012AB0 func_80012AB0
       - [0x34B4, c, func_80012CB4]       # 0x80012CB4 func_80012CB4
@@ -105,8 +105,8 @@ segments:
       - [0x3B94, c, func_80013394]       # 0x80013394 func_80013394
       - [0x3C00, c, func_80013400]       # 0x80013400 func_80013400
       - [0x3C30, c, func_80013430]
-      - [0x3C38, c, func_80013438]       # 0x80013438 func_80013438
-      - [0x3C44, c, func_80013444]       # 0x80013444 func_80013444
+      - [0x3C38, c, SetVal8005E29C]       # 0x80013438 SetVal8005E29C
+      - [0x3C44, c, GetVal8005E29C]       # 0x80013444 GetVal8005E29C
       - [0x3C50, c, func_80013450]       # 0x80013450 func_80013450
       - [0x3C88, c, func_80013488]       # 0x80013488 func_80013488
       - [0x3CB8, c, func_800134B8]       # 0x800134B8 func_800134B8
@@ -117,8 +117,8 @@ segments:
       - [0x4224, c, func_80013A24]       # 0x80013A24 func_80013A24
       - [0x42A4, c, SetGfxOffset]       # 0x80013AA4 SetGfxOffset
       - [0x42C8, c, SetGfxClip]       # 0x80013AC8 SetGfxClip
-      - [0x42EC, c, func_80013AEC]       # 0x80013AEC func_80013AEC
-      - [0x42F8, c, func_80013AF8]       # 0x80013AF8 func_80013AF8
+      - [0x42EC, c, SetVal8005E3EC]       # 0x80013AEC SetVal8005E3EC
+      - [0x42F8, c, GetVal8005E3EC]       # 0x80013AF8 GetVal8005E3EC
       - [0x4304, c, func_80013B04]       # 0x80013B04 func_80013B04
       - [0x44D0, c, func_80013CD0]       # 0x80013CD0 func_80013CD0
       - [0x4790, c, func_80013F90]       # 0x80013F90 func_80013F90
@@ -202,8 +202,8 @@ segments:
       - [0x82A0, c, func_80017AA0]       # 0x80017AA0 func_80017AA0
       - [0x82CC, c, func_80017ACC]       # 0x80017ACC func_80017ACC
       - [0x82E8, c, func_80017AE8]       # 0x80017AE8 func_80017AE8
-      - [0x8318, c, func_80017B18]       # 0x80017B18 func_80017B18
-      - [0x8324, c, func_80017B24]       # 0x80017B24 func_80017B24
+      - [0x8318, c, SetVal8005E2BC]       # 0x80017B18 SetVal8005E2BC
+      - [0x8324, c, GetVal8005E2BC]       # 0x80017B24 GetVal8005E2BC
       - [0x8330, c, func_80017B30]       # 0x80017B30 func_80017B30
       - [0x833C, c, func_80017B3C]       # 0x80017B3C func_80017B3C
       - [0x83C8, c, func_80017BC8]       # 0x80017BC8 func_80017BC8
@@ -281,8 +281,8 @@ segments:
       - [0xB7E0, c, func_8001AFE0]       # 0x8001AFE0 func_8001AFE0
       - [0xB828, c, func_8001B028]       # 0x8001B028 func_8001B028
       - [0xB874, c, func_8001B074]       # 0x8001B074 func_8001B074
-      - [0xB900, c, func_8001B100]       # 0x8001B100 func_8001B100
-      - [0xB90C, c, func_8001B10C]       # 0x8001B10C func_8001B10C
+      - [0xB900, c, ClearVal8005E2CC]       # 0x8001B100 ClearVal8005E2CC
+      - [0xB90C, c, GetVal8005E2CC]       # 0x8001B10C GetVal8005E2CC
       - [0xB918, c, func_8001B118]       # 0x8001B118 func_8001B118
       - [0xBA58, c, func_8001B258]       # 0x8001B258 func_8001B258
       - [0xBACC, c, func_8001B2CC]       # 0x8001B2CC func_8001B2CC
@@ -465,8 +465,8 @@ segments:
       - [0x12E1C, c, func_8002261C]       # 0x8002261C func_8002261C
       - [0x12EA4, c, func_800226A4]       # 0x800226A4 func_800226A4
       - [0x12EB0, c, func_800226B0]       # 0x800226B0 func_800226B0
-      - [0x12ED8, c, func_800226D8]       # 0x800226D8 func_800226D8
-      - [0x12EE4, c, func_800226E4]       # 0x800226E4 func_800226E4
+      - [0x12ED8, c, SetVal8005E334]       # 0x800226D8 SetVal8005E334
+      - [0x12EE4, c, GetVal8005E334]       # 0x800226E4 GetVal8005E334
       - [0x12EF0, c, func_800226F0]       # 0x800226F0 func_800226F0
       - [0x12F38, c, func_80022738]       # 0x80022738 func_80022738
       - [0x12F88, c, func_80022788]       # 0x80022788 func_80022788

@@ -1,5 +1,13 @@
 #include "common.h"
 
+/*
+ * Returns an integer encoding of the current mode stored in D_8005E44C (set by
+ * func_80017A70 / func_80017A48):
+ *   0 → mode is 0  (inactive / off)
+ *   2 → mode is 5  (some specific active state)
+ *   1 → any other non-zero value
+ * Callers can use this to distinguish "off", "full", and "partial" states.
+ */
 __asm__(
 "\n"
 "\t.text\n"
