@@ -130,6 +130,8 @@ s16 func_80022AF0(void);
 void func_8002301C(void);
 void func_80023100(void);
 void func_80023A74(void);
+s32 func_8002437C(s32 arg0, s32 arg1, s32 arg2);
+s32 func_80024578(s32 arg0, s32 arg1);
 u16 func_800245C8(s32 arg0, s32 arg1);
 u8 GetFlag8005E274(void);
 s32 GetVal8005E29C(void);

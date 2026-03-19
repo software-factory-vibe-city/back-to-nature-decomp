@@ -18,6 +18,19 @@
 /* Forward declaration - defined in game_types.h */
 struct GfxObj;
 
+/* D_8006C7B8 - absolute-addressed struct accessed at offsets 0x0, 0xC, 0x10, 0x14, 0x18, 0x1C */
+typedef struct {
+    s32 unk0;       /* 0x00 */
+    char pad[0x8];  /* 0x04-0x0B */
+    s32 unkC;       /* 0x0C */
+    s32 unk10;      /* 0x10 */
+    s32 unk14;      /* 0x14 */
+    s32 unk18;      /* 0x18 */
+    s32 unk1C;      /* 0x1C */
+} struct_8006C7B8;
+extern struct_8006C7B8 _D_8006C7B8[1] __asm__("D_8006C7B8");
+#define D_8006C7B8 (*((struct_8006C7B8*)_D_8006C7B8))
+
 /* D_80061DE8 - shared struct used by func_8001B9F8 and func_8001BA40 */
 struct struct_80061DE8 {
     s32 field_00;       /* 0x00 */
