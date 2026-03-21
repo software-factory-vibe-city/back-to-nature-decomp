@@ -55,7 +55,31 @@ export class WorktreeManager {
   prepare(info: WorktreeInfo): void {
     console.log(`  Worktree: preparing ${info.path}`);
 
-    // Symlink gitignored paths that are needed for building/running
+    // Initialize submodules FIRST (before symlinks, since rmSync of submodule
+    // dirs would destroy symlinks placed inside them like old-gcc/build-gcc-2.8.1-psx)
+    console.log(`  Worktree: initializing submodules`);
+    const registeredSubs = execSync("git config --file .gitmodules --get-regexp path", {
+      cwd: info.mainRoot,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim().split("\n").map((line) => line.split(" ")[1]);
+
+    for (const sub of registeredSubs) {
+      // git worktree add creates empty submodule dirs that block clone;
+      // remove them so git submodule update --init can clone fresh
+      const subPath = join(info.path, sub);
+      if (existsSync(subPath)) {
+        rmSync(subPath, { recursive: true, force: true });
+      }
+      execSync(`git submodule update --init "${sub}"`, {
+        cwd: info.path,
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 60000,
+      });
+    }
+
+    // Symlink gitignored paths AFTER submodule init (some symlinks go inside
+    // submodule dirs like tools/old-gcc/build-gcc-2.8.1-psx)
     const symlinks: Array<{ target: string; link: string }> = [
       { target: join(info.mainRoot, "extracted"), link: join(info.path, "extracted") },
       { target: join(info.mainRoot, "node_modules"), link: join(info.path, "node_modules") },
@@ -77,42 +101,14 @@ export class WorktreeManager {
         continue;
       }
       // Remove existing file/symlink at destination if present
-      if (existsSync(link) || (lstatSync(link, { throwIfNoEntry: false }) !== undefined)) {
-        try {
-          // If it's already a correct symlink, skip
-          if (lstatSync(link).isSymbolicLink() && readlinkSync(link) === target) continue;
-        } catch {
-          // lstat failed, link doesn't exist — fine
-        }
-      }
       try {
-        symlinkSync(target, link);
+        const stat = lstatSync(link, { throwIfNoEntry: false });
+        if (stat?.isSymbolicLink() && readlinkSync(link) === target) continue;
+        if (stat) rmSync(link, { recursive: true, force: true });
       } catch {
-        // Already exists or other issue — not fatal
+        // doesn't exist — fine
       }
-    }
-
-    // Initialize only registered submodules (avoids failure on untracked dirs
-    // that git mistakes for submodules, e.g. tools/homebrew-psyq)
-    console.log(`  Worktree: initializing submodules`);
-    const registeredSubs = execSync("git config --file .gitmodules --get-regexp path", {
-      cwd: info.mainRoot,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim().split("\n").map((line) => line.split(" ")[1]);
-
-    for (const sub of registeredSubs) {
-      // git worktree add creates empty submodule dirs that block clone;
-      // remove them so git submodule update --init can clone fresh
-      const subPath = join(info.path, sub);
-      if (existsSync(subPath)) {
-        rmSync(subPath, { recursive: true, force: true });
-      }
-      execSync(`git submodule update --init "${sub}"`, {
-        cwd: info.path,
-        stdio: ["pipe", "pipe", "pipe"],
-        timeout: 60000,
-      });
+      symlinkSync(target, link);
     }
 
     // Run make split to generate build/ artifacts in the worktree

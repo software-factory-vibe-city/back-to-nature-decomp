@@ -18,7 +18,7 @@
  *   npx tsx tools/mergeFragments.ts --write   # modify
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync } from "fs";
 import { join } from "path";
 import { loadPsxExeInfo, vramToRom, ROOT } from "./psxExeInfo.ts";
 
@@ -267,16 +267,107 @@ function main() {
     }
   }
 
-  if (isFragment.size === 0) {
+  // Pass 3: Detect jump table case targets — small functions that are only
+  // reachable via a jump table (not called via JAL or J from elsewhere).
+  // These are case handler stubs that spimdisasm split into separate functions.
+  // Unlike fall-through fragments, jtbl targets must stay type:func (not type:label)
+  // so spimdisasm emits them with alabel (global visibility) for rodata references.
+  const jtblAbsorbed = new Set<number>(); // absorbed but keep as type:func
+  const jtblOwners = new Map<number, number>(); // target addr → owner addr
+  {
+    const ASM_DATA_DIR = join(ROOT, "build/asm/data");
+    const ASM_NM_DIR = join(ROOT, "build/asm/nonmatchings");
+    // Include all known addresses (func_ and _prefixed labels) as potential jtbl targets
+    const allKnownAddrs = new Set(allSorted.map((e) => e.addr));
+
+    // Step 1: Parse jump tables from rodata, extract target addresses
+    interface JtblInfo {
+      name: string;
+      targets: number[];
+    }
+    const jumpTables: JtblInfo[] = [];
+
+    if (existsSync(ASM_DATA_DIR)) {
+      for (const f of readdirSync(ASM_DATA_DIR).filter((f: string) => f.endsWith(".s"))) {
+        const content = readFileSync(join(ASM_DATA_DIR, f), "utf-8");
+        let currentJtbl: JtblInfo | null = null;
+        for (const line of content.split("\n")) {
+          const jtblStart = line.match(/^dlabel (jtbl_[0-9A-Fa-f]+)/);
+          if (jtblStart) {
+            currentJtbl = { name: jtblStart[1], targets: [] };
+            continue;
+          }
+          if (line.match(/^enddlabel jtbl_/)) {
+            if (currentJtbl && currentJtbl.targets.length > 0) {
+              jumpTables.push(currentJtbl);
+            }
+            currentJtbl = null;
+            continue;
+          }
+          if (currentJtbl) {
+            // Match .word with raw hex address or function/label name
+            const wordHex = line.match(/\.word\s+0x([0-9A-Fa-f]+)/i);
+            if (wordHex) {
+              currentJtbl.targets.push(parseInt(wordHex[1], 16));
+            }
+            const wordFunc = line.match(/\.word\s+(?:func_|_)([0-9A-Fa-f]{8})/i);
+            if (wordFunc) {
+              currentJtbl.targets.push(parseInt(wordFunc[1], 16));
+            }
+            // .word .LXXXXXXXX is already an internal label, skip
+          }
+        }
+      }
+    }
+
+    // Step 2: For each jump table, find the owning function (references jtbl in its asm)
+    for (const jtbl of jumpTables) {
+      const uniqueTargets = [...new Set(jtbl.targets)].filter((t) => allKnownAddrs.has(t));
+      if (uniqueTargets.length === 0) continue;
+
+      // Find the owning function by scanning asm files for %hi(jtbl_name)
+      let ownerAddr: number | null = null;
+      if (existsSync(ASM_NM_DIR)) {
+        for (const sub of readdirSync(ASM_NM_DIR)) {
+          const subPath = join(ASM_NM_DIR, sub);
+          try {
+            for (const sf of readdirSync(subPath).filter((f: string) => f.endsWith(".s"))) {
+              const content = readFileSync(join(subPath, sf), "utf-8");
+              if (content.includes(`%hi(${jtbl.name})`)) {
+                const funcMatch = sub.match(/[0-9A-Fa-f]{8}/);
+                if (funcMatch) ownerAddr = parseInt(funcMatch[0], 16);
+                break;
+              }
+            }
+          } catch {}
+          if (ownerAddr !== null) break;
+        }
+      }
+      if (ownerAddr === null) continue;
+
+      // Step 3: Absorb targets that are separate functions not externally called
+      for (const targetAddr of uniqueTargets) {
+        if (targetAddr === ownerAddr) continue;
+        if (isFragment.has(targetAddr)) continue;
+        if (jtblAbsorbed.has(targetAddr)) continue;
+        if (jalTargets.has(targetAddr)) continue;
+
+        jtblAbsorbed.add(targetAddr);
+        jtblOwners.set(targetAddr, ownerAddr);
+      }
+    }
+  }
+
+  if (isFragment.size === 0 && jtblAbsorbed.size === 0) {
     console.log("No fragments detected.");
     return;
   }
 
-  // Build merge groups
+  // Build merge groups from fall-through fragments
   interface MergeGroup {
     head: string;
     headAddr: number;
-    absorbed: { name: string; addr: number }[];
+    absorbed: { name: string; addr: number; isJtbl?: boolean }[];
     endAddr: number;
   }
   const merges: MergeGroup[] = [];
@@ -302,6 +393,44 @@ function main() {
     });
   }
 
+  // Build merge groups from jump table case targets
+  // Group jtbl targets by their owner function
+  const jtblByOwner = new Map<number, number[]>();
+  for (const [targetAddr, ownerAddr] of jtblOwners) {
+    if (!jtblByOwner.has(ownerAddr)) jtblByOwner.set(ownerAddr, []);
+    jtblByOwner.get(ownerAddr)!.push(targetAddr);
+  }
+
+  const allAddrToName = new Map(allSorted.map((e) => [e.addr, e.name]));
+
+  for (const [ownerAddr, targets] of jtblByOwner) {
+    const ownerName = allAddrToName.get(ownerAddr);
+    if (!ownerName) continue;
+
+    // Check if owner already has a merge group (from fall-through detection)
+    let existing = merges.find((m) => m.headAddr === ownerAddr);
+    if (!existing) {
+      existing = {
+        head: ownerName,
+        headAddr: ownerAddr,
+        absorbed: [],
+        endAddr: getNextFuncAddr(ownerAddr),
+      };
+      merges.push(existing);
+    }
+
+    for (const targetAddr of targets.sort((a, b) => a - b)) {
+      const targetName = allAddrToName.get(targetAddr);
+      if (!targetName) continue;
+      existing.absorbed.push({ name: targetName, addr: targetAddr, isJtbl: true });
+    }
+
+    // Extend endAddr to cover all jtbl targets
+    const allAddrsInGroup = [existing.headAddr, ...existing.absorbed.map((a) => a.addr)];
+    const maxAddr = Math.max(...allAddrsInGroup);
+    existing.endAddr = Math.max(existing.endAddr, getNextFuncAddr(maxAddr));
+  }
+
   // Find which absorbed addresses are referenced from OUTSIDE their merge group
   const allAbsorbedAddrs = new Set(merges.flatMap((m) => m.absorbed.map((a) => a.addr)));
   const mergeRanges = merges.map((m) => ({ start: m.headAddr, end: m.endAddr }));
@@ -313,7 +442,9 @@ function main() {
 
   for (const m of merges) {
     for (const a of m.absorbed) {
-      if (externallyReferenced.has(a.addr)) {
+      if (a.isJtbl || externallyReferenced.has(a.addr)) {
+        // Jump table targets must stay type:func so spimdisasm emits alabel
+        // (global visibility) — the rodata jump table references them by name
         toKeepFunc.add(a.addr);
       } else {
         toLabelify.add(a.addr);
@@ -325,8 +456,12 @@ function main() {
   console.log(`Found ${merges.length} merge group(s):\n`);
   for (const m of merges) {
     const size = m.endAddr - m.headAddr;
-    const details = m.absorbed.map((a) =>
-      `${a.name}${externallyReferenced.has(a.addr) ? " [ext ref, stays func]" : ""}`
+    const details = m.absorbed.map((a) => {
+      const tag = a.isJtbl ? " [jtbl target, stays func]"
+        : externallyReferenced.has(a.addr) ? " [ext ref, stays func]"
+        : "";
+      return `${a.name}${tag}`;
+    }
     );
     console.log(`  ${m.head} (size:0x${size.toString(16)}) absorbs: ${details.join(", ")}`);
   }
@@ -350,7 +485,7 @@ function main() {
   let changedSize = 0;
 
   for (const line of content.split("\n")) {
-    const match = line.match(/^(func_[0-9A-Fa-f]+)\s*=\s*(0x[0-9A-Fa-f]+)/i);
+    const match = line.match(/^((?:func_|_)[0-9A-Fa-f]+)\s*=\s*(0x[0-9A-Fa-f]+)/i);
     if (match) {
       const addr = parseInt(match[2], 16);
 
@@ -384,6 +519,23 @@ function main() {
         changedLabel++;
         continue;
       }
+
+      // Ensure jtbl targets that should stay as func have the right name/type
+      // (they may have been previously converted to _XXXX type:label)
+      if (toKeepFunc.has(addr)) {
+        let newLine = line;
+        if (newLine.includes("type:label")) {
+          newLine = newLine.replace("type:label", "type:func");
+        }
+        // Rename _800XXXXX → func_800XXXXX if needed
+        const oldName = match[1];
+        if (oldName.startsWith("_") && !oldName.startsWith("func_")) {
+          const newName = `func_${oldName.slice(1)}`;
+          newLine = newLine.replace(oldName, newName);
+        }
+        outputLines.push(newLine);
+        continue;
+      }
     }
 
     outputLines.push(line);
@@ -393,6 +545,8 @@ function main() {
   console.log(`\nWrote symbol_addrs.txt: ${changedSize} size attrs, ${changedLabel} → type:label`);
 
   // Remove splat.yaml subsegments for ALL absorbed fragments (label or func)
+  // Match by ROM offset since names may differ (func_ vs _)
+  const allAbsorbedAddrsForYaml = new Set(merges.flatMap((m) => m.absorbed.map((a) => a.addr)));
   const allAbsorbedNames = new Set(merges.flatMap((m) => m.absorbed.map((a) => a.name)));
   if (existsSync(SPLAT_YAML)) {
     const yaml = readFileSync(SPLAT_YAML, "utf-8");
@@ -400,10 +554,14 @@ function main() {
     const filteredYaml: string[] = [];
     let removedYaml = 0;
     for (const line of yamlLines) {
-      const segMatch = line.match(/,\s*c,\s*(func_[0-9A-Fa-f]+)\s*\]/);
-      if (segMatch && allAbsorbedNames.has(segMatch[1])) {
-        removedYaml++;
-        continue;
+      const segMatch = line.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*c\s*,/);
+      if (segMatch) {
+        const romOffset = parseInt(segMatch[1], 16);
+        const vram = romOffset - info.payloadOffset + info.loadAddr;
+        if (allAbsorbedAddrsForYaml.has(vram)) {
+          removedYaml++;
+          continue;
+        }
       }
       filteredYaml.push(line);
     }
@@ -413,13 +571,16 @@ function main() {
     }
   }
 
-  // Delete stale source files for absorbed fragments
+  // Delete stale source files for absorbed fragments (check both func_ and _ prefixes)
   let deletedSrc = 0;
-  for (const name of allAbsorbedNames) {
-    const srcFile = join(SRC_DIR, `${name}.c`);
-    if (existsSync(srcFile)) {
-      unlinkSync(srcFile);
-      deletedSrc++;
+  for (const a of merges.flatMap((m) => m.absorbed)) {
+    const addrHex = a.addr.toString(16).toUpperCase();
+    for (const prefix of ["func_", "_"]) {
+      const srcFile = join(SRC_DIR, `${prefix}${addrHex}.c`);
+      if (existsSync(srcFile)) {
+        unlinkSync(srcFile);
+        deletedSrc++;
+      }
     }
   }
   if (deletedSrc > 0) {

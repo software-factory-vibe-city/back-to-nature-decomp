@@ -139,6 +139,32 @@ for (const file of files) {
   }
 }
 
+// Parse sized functions from symbol_addrs.txt so we can skip symbols that
+// fall inside a sized function's range (e.g., jump table case targets that
+// were merged into their parent function via size:)
+const sizedFunctions: Array<{ addr: number; size: number }> = [];
+{
+  const symContent = readFileSync(SYMBOLS_PATH, "utf-8");
+  for (const line of symContent.split("\n")) {
+    const m = line.match(/=\s*0x([0-9A-Fa-f]+).*size:0x([0-9A-Fa-f]+).*type:func/);
+    if (m) {
+      sizedFunctions.push({
+        addr: parseInt(m[1], 16),
+        size: parseInt(m[2], 16),
+      });
+    }
+  }
+}
+
+function isInsideSizedFunction(vram: number): boolean {
+  for (const fn of sizedFunctions) {
+    if (vram > fn.addr && vram < fn.addr + fn.size) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Find cross-file references to non-global labels
 const problems: { symbol: string; defFile: string; refFiles: string[] }[] = [];
 
@@ -152,6 +178,14 @@ for (const [sym, refFileSet] of allRefs) {
 
   // If it's already global, no problem
   if (isGlobal.get(sym)) continue;
+
+  // Skip symbols that fall inside a sized function's range — these are
+  // internal labels (e.g., jump table case targets) that will be emitted
+  // with jlabel by spimdisasm once the parent function's size is correct
+  const addrMatch = sym.match(/([0-9A-Fa-f]{8})/);
+  if (addrMatch && isInsideSizedFunction(parseInt(addrMatch[1], 16))) {
+    continue;
+  }
 
   problems.push({ symbol: sym, defFile, refFiles: crossFileRefs });
 }

@@ -78,7 +78,6 @@ interface PipelineContext {
   funcName: string;
   sFile: string;
   cFile: string;
-  stagingDir: string;
   callGraphEntry: CallGraphEntry;
   contextHeader?: string;
 }
@@ -271,9 +270,6 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     const name = entry.name;
     console.log(`\nProcessing ${name} (tier ${entry.tier}, ${entry.instructionCount} instrs, priority #${entry.priority})`);
 
-    const stagingDir = join(ROOT, "build/pipeline", name);
-    mkdirSync(stagingDir, { recursive: true });
-
     // Create and prepare worktree for isolation
     let wtInfo;
     try {
@@ -305,7 +301,6 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
       funcName: name,
       sFile,
       cFile: join("src", `${name}.c`),
-      stagingDir,
       callGraphEntry: entry,
     };
 
@@ -318,23 +313,18 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
 
     // Stage 1: m2c (writes src/ in worktree)
     try {
-      const wrapped = runM2c(name, wtPath, {
+      runM2c(name, wtPath, {
         contextFile: ctx.contextHeader,
         write: writeMode,
       });
-
-      writeFileSync(join(stagingDir, "m2c_output.c"), wrapped);
-
       stages["m2c"] = "ok";
       console.log(`  Stage 1: m2c ok`);
     } catch (e: any) {
       stages["m2c"] = "error";
       console.log(`  Stage 1: m2c error — ${e.message}`);
-      const logLines = [`m2c error: ${e.message}`];
-      writeFileSync(join(stagingDir, "log.txt"), logLines.join("\n"));
       results.push({ name, stages });
       wt.cleanup(wtInfo, true);
-      continue; // skip remaining stages on m2c failure
+      continue;
     }
 
     // Pre-check: does m2c output already match?
@@ -396,10 +386,6 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
       // Failed — discard worktree
       wt.cleanup(wtInfo, true);
     }
-
-    // Write pipeline log
-    const logLines = Object.entries(stages).map(([k, v]) => `${k}: ${v}`);
-    writeFileSync(join(stagingDir, "log.txt"), logLines.join("\n") + "\n");
 
     results.push({ name, stages });
   }
