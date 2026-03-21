@@ -6,7 +6,7 @@
  */
 
 import { execSync } from "child_process";
-import { existsSync, symlinkSync, lstatSync, readlinkSync } from "fs";
+import { existsSync, symlinkSync, lstatSync, readlinkSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
 export interface WorktreeInfo {
@@ -92,13 +92,28 @@ export class WorktreeManager {
       }
     }
 
-    // Initialize submodules in the worktree
+    // Initialize only registered submodules (avoids failure on untracked dirs
+    // that git mistakes for submodules, e.g. tools/homebrew-psyq)
     console.log(`  Worktree: initializing submodules`);
-    execSync("git submodule update --init --recursive", {
-      cwd: info.path,
+    const registeredSubs = execSync("git config --file .gitmodules --get-regexp path", {
+      cwd: info.mainRoot,
+      encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      timeout: 120000,
-    });
+    }).trim().split("\n").map((line) => line.split(" ")[1]);
+
+    for (const sub of registeredSubs) {
+      // git worktree add creates empty submodule dirs that block clone;
+      // remove them so git submodule update --init can clone fresh
+      const subPath = join(info.path, sub);
+      if (existsSync(subPath)) {
+        rmSync(subPath, { recursive: true, force: true });
+      }
+      execSync(`git submodule update --init "${sub}"`, {
+        cwd: info.path,
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 60000,
+      });
+    }
 
     // Run make split to generate build/ artifacts in the worktree
     console.log(`  Worktree: running make split`);
