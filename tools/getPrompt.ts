@@ -35,8 +35,8 @@ interface CallGraphEntry {
   handwritten: false | "asm" | "gte";
 }
 
-function resolveAsmFile(funcName: string): string | null {
-  const asmDir = join(ROOT, "build/asm/nonmatchings", funcName);
+function resolveAsmFile(funcName: string, rootDir: string = ROOT): string | null {
+  const asmDir = join(rootDir, "build/asm/nonmatchings", funcName);
   const expected = join(asmDir, `${funcName}.s`);
   if (existsSync(expected)) return expected;
   if (existsSync(asmDir)) {
@@ -46,17 +46,17 @@ function resolveAsmFile(funcName: string): string | null {
   return null;
 }
 
-function injectStyleGuide(template: string): string {
-  const guide = readFileSync(C_STYLE_GUIDE, "utf-8");
+function injectStyleGuide(template: string, rootDir: string = ROOT): string {
+  const guide = readFileSync(join(rootDir, "prompts/c-style-guide.md"), "utf-8");
   return template.replace("{{C_STYLE_GUIDE}}", guide);
 }
 
-export function getDecompilationCleanupAgentPrompt(funcName: string): string {
-  const template = injectStyleGuide(readFileSync(TEMPLATE, "utf-8"));
-  const srcFile = join(ROOT, "src", `${funcName}.c`);
+export function getDecompilationCleanupAgentPrompt(funcName: string, rootDir: string = ROOT): string {
+  const template = injectStyleGuide(readFileSync(join(rootDir, "prompts/decompilation-cleanup-agent.md"), "utf-8"), rootDir);
+  const srcFile = join(rootDir, "src", `${funcName}.c`);
 
   /* Assembly */
-  const sFile = resolveAsmFile(funcName);
+  const sFile = resolveAsmFile(funcName, rootDir);
   const assembly = sFile && existsSync(sFile)
     ? readFileSync(sFile, "utf-8").trim()
     : "(assembly file not found)";
@@ -67,9 +67,10 @@ export function getDecompilationCleanupAgentPrompt(funcName: string): string {
     : "(m2c output not found — run m2cFunc.ts --write first)";
 
   /* Call graph entry */
+  const callGraphPath = join(rootDir, "build/callGraph.json");
   let callGraphEntry = "(callGraph.json not found — run callGraph.ts first)";
-  if (existsSync(CALL_GRAPH)) {
-    const graph = JSON.parse(readFileSync(CALL_GRAPH, "utf-8"));
+  if (existsSync(callGraphPath)) {
+    const graph = JSON.parse(readFileSync(callGraphPath, "utf-8"));
     const entry = graph.functions.find((f: CallGraphEntry) => f.name === funcName);
     callGraphEntry = entry
       ? JSON.stringify(entry, null, 2)
@@ -108,21 +109,22 @@ ${callGraphEntry}
  * Injects the target function's source, decompiled neighbor sources,
  * call graph entry, and current functions.h signatures.
  */
-export function getGlobalRefinementAgentPrompt(funcName: string): string {
-  const template = injectStyleGuide(readFileSync(REFINEMENT_TEMPLATE, "utf-8"));
+export function getGlobalRefinementAgentPrompt(funcName: string, rootDir: string = ROOT): string {
+  const template = injectStyleGuide(readFileSync(join(rootDir, "prompts/global-refinement-agent.md"), "utf-8"), rootDir);
 
-  if (!existsSync(CALL_GRAPH)) {
+  const callGraphPath = join(rootDir, "build/callGraph.json");
+  if (!existsSync(callGraphPath)) {
     throw new Error("callGraph.json not found — run callGraph.ts first");
   }
 
-  const graph = JSON.parse(readFileSync(CALL_GRAPH, "utf-8"));
+  const graph = JSON.parse(readFileSync(callGraphPath, "utf-8"));
   const entry = graph.functions.find((f: CallGraphEntry) => f.name === funcName);
   if (!entry) {
     throw new Error(`Function ${funcName} not found in callGraph.json`);
   }
 
   /* Target function source */
-  const srcFile = join(ROOT, "src", `${funcName}.c`);
+  const srcFile = join(rootDir, "src", `${funcName}.c`);
   const targetSource = existsSync(srcFile)
     ? readFileSync(srcFile, "utf-8").trim()
     : "(source not found)";
@@ -135,7 +137,7 @@ export function getGlobalRefinementAgentPrompt(funcName: string): string {
 
   const neighborSections: string[] = [];
   for (const n of neighborNames) {
-    const nSrc = join(ROOT, "src", `${n}.c`);
+    const nSrc = join(rootDir, "src", `${n}.c`);
     if (!existsSync(nSrc)) continue;
     const content = readFileSync(nSrc, "utf-8").trim();
     /* Skip stubs — they have no useful context */
@@ -148,13 +150,13 @@ export function getGlobalRefinementAgentPrompt(funcName: string): string {
   }
 
   /* functions.h */
-  const functionsH = join(ROOT, "include/functions.h");
+  const functionsH = join(rootDir, "include/functions.h");
   const signatures = existsSync(functionsH)
     ? readFileSync(functionsH, "utf-8").trim()
     : "(include/functions.h not found)";
 
   /* Original assembly (useful for verifying type changes) */
-  const sFile = resolveAsmFile(funcName);
+  const sFile = resolveAsmFile(funcName, rootDir);
   const assembly = sFile && existsSync(sFile)
     ? readFileSync(sFile, "utf-8").trim()
     : "(assembly file not found)";
@@ -234,10 +236,10 @@ export function findRefinementCandidates(rootDir: string = ROOT): Array<{ name: 
  * Injects a summary of all decompiled files, the call graph stats,
  * global usage patterns, and current shared type definitions.
  */
-export function getProjectRefinementAgentPrompt(): string {
-  const template = injectStyleGuide(readFileSync(PROJECT_REFINEMENT_TEMPLATE, "utf-8"));
+export function getProjectRefinementAgentPrompt(rootDir: string = ROOT): string {
+  const template = injectStyleGuide(readFileSync(join(rootDir, "prompts/project-refinement-agent.md"), "utf-8"), rootDir);
 
-  const srcDir = join(ROOT, "src");
+  const srcDir = join(rootDir, "src");
   const allSrcFiles = existsSync(srcDir)
     ? readdirSync(srcDir).filter((f) => f.endsWith(".c"))
     : [];
@@ -252,20 +254,21 @@ export function getProjectRefinementAgentPrompt(): string {
   }
 
   /* Call graph stats */
+  const callGraphPath = join(rootDir, "build/callGraph.json");
   let graphStats = "(callGraph.json not found)";
-  if (existsSync(CALL_GRAPH)) {
-    const graph = JSON.parse(readFileSync(CALL_GRAPH, "utf-8"));
+  if (existsSync(callGraphPath)) {
+    const graph = JSON.parse(readFileSync(callGraphPath, "utf-8"));
     graphStats = JSON.stringify(graph.stats, null, 2);
   }
 
   /* functions.h */
-  const functionsH = join(ROOT, "include/functions.h");
+  const functionsH = join(rootDir, "include/functions.h");
   const signatures = existsSync(functionsH)
     ? readFileSync(functionsH, "utf-8").trim()
     : "(not yet created)";
 
   /* game_types.h */
-  const gameTypesH = join(ROOT, "include/game_types.h");
+  const gameTypesH = join(rootDir, "include/game_types.h");
   const gameTypes = existsSync(gameTypesH)
     ? readFileSync(gameTypesH, "utf-8").trim()
     : "(not yet created)";

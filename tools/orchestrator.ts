@@ -24,8 +24,10 @@ import { exportContext as runContextExport } from "./contextExport.js";
 import { runAgentLoop, runPlanThenExecute } from "./agent-loop.js";
 import { getDecompilationCleanupAgentPrompt, getGlobalRefinementAgentPrompt, getProjectRefinementAgentPrompt, findRefinementCandidates } from "./getPrompt.js";
 import { runM2c } from "./m2cFunc.js";
+import { WorktreeManager } from "./worktree.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
+const wt = new WorktreeManager(ROOT);
 
 // --- CLI args ---
 
@@ -83,16 +85,16 @@ interface PipelineContext {
 
 // --- Agent stubs ---
 
-async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise<AgentResult> {
+async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir: string = ROOT): Promise<AgentResult> {
   console.log(`  Stage 2: running matching agent for ${funcName}`);
 
-  const systemPrompt = getDecompilationCleanupAgentPrompt(funcName);
+  const systemPrompt = getDecompilationCleanupAgentPrompt(funcName, workDir);
 
   const checkSuccess = (): boolean => {
     try {
       // Check per-function match via diffFunc
       const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
-        cwd: ROOT,
+        cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -100,7 +102,7 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise
 
       // Verify full binary still matches (catches relocation/linker issues)
       const makeOutput = execSync("make check", {
-        cwd: ROOT,
+        cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
         timeout: 60000,
@@ -114,7 +116,7 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise
   const result = await runAgentLoop({
     systemPrompt,
     userMessage: `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`,
-    cwd: ROOT,
+    cwd: workDir,
     maxRetries: 10,
     checkSuccess,
   });
@@ -128,22 +130,22 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext): Promise
 }
 
 
-async function runRefinementAgent(funcName: string): Promise<AgentResult> {
+async function runRefinementAgent(funcName: string, workDir: string = ROOT): Promise<AgentResult> {
   console.log(`  Stage 5: running refinement agent for ${funcName}`);
 
-  const systemPrompt = getGlobalRefinementAgentPrompt(funcName);
+  const systemPrompt = getGlobalRefinementAgentPrompt(funcName, workDir);
 
   const checkSuccess = (): boolean => {
     try {
       const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
-        cwd: ROOT,
+        cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
       });
       if (!diffOutput.includes("100.0%")) return false;
 
       const makeOutput = execSync("make check", {
-        cwd: ROOT,
+        cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
         timeout: 60000,
@@ -163,7 +165,7 @@ async function runRefinementAgent(funcName: string): Promise<AgentResult> {
   const result = await runAgentLoop({
     systemPrompt,
     userMessage: `Refine ${funcName} using context from its decompiled neighbors. The function already matches — your job is to improve readability (rename variables, propagate types, add comments) while keeping the 100% match. Run \`npx tsx tools/diffFunc.ts ${funcName}\` after every change to verify. If you cannot improve it with the available context, say so.`,
-    cwd: ROOT,
+    cwd: workDir,
     maxRetries: 3,
     checkSuccess,
   });
@@ -175,21 +177,21 @@ async function runRefinementAgent(funcName: string): Promise<AgentResult> {
   };
 }
 
-async function runProjectRefinementAgent(): Promise<AgentResult> {
+async function runProjectRefinementAgent(workDir: string = ROOT): Promise<AgentResult> {
   console.log(`Running project-wide refinement pass (plan-then-execute)...`);
 
-  const systemPrompt = getProjectRefinementAgentPrompt();
+  const systemPrompt = getProjectRefinementAgentPrompt(workDir);
 
   const checkSuccess = (): boolean => {
     try {
       /* Full clean rebuild: agent may have changed splat.yaml or symbol_addrs.txt,
        * so we need make clean + make split to regenerate the linker script and
        * assembly before checking the binary match. */
-      execSync("make clean", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
-      execSync("npx tsx ./tools/callGraph.ts", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
-      execSync("make split", { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
+      execSync("make clean", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
+      execSync("npx tsx ./tools/callGraph.ts", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
+      execSync("make split", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
       const makeOutput = execSync("make check", {
-        cwd: ROOT,
+        cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
         timeout: 120000,
@@ -232,7 +234,7 @@ Do NOT make any changes during planning. Only survey and output the task list.`;
   const result = await runPlanThenExecute({
     systemPrompt,
     planMessage,
-    cwd: ROOT,
+    cwd: workDir,
     maxRetries: 3,
     checkSuccess,
   });
@@ -272,11 +274,25 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     const stagingDir = join(ROOT, "build/pipeline", name);
     mkdirSync(stagingDir, { recursive: true });
 
+    // Create and prepare worktree for isolation
+    let wtInfo;
+    try {
+      wtInfo = wt.create(name);
+      wt.prepare(wtInfo);
+    } catch (e: any) {
+      console.log(`  Worktree setup failed — ${e.message}`);
+      results.push({ name, stages: { worktree: "error" } });
+      if (wtInfo) wt.cleanup(wtInfo, true);
+      continue;
+    }
+
+    const wtPath = wtInfo.path;
+
     // Resolve the actual .s file (handles named symbols like __start)
     const asmDir = join("build/asm/nonmatchings", name);
     let sFile = join(asmDir, `${name}.s`);
-    if (!existsSync(join(ROOT, sFile))) {
-      const absDir = join(ROOT, asmDir);
+    if (!existsSync(join(wtPath, sFile))) {
+      const absDir = join(wtPath, asmDir);
       if (existsSync(absDir)) {
         const files = readdirSync(absDir).filter((f) => f.endsWith(".s"));
         if (files.length === 1) {
@@ -293,16 +309,16 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
       callGraphEntry: entry,
     };
 
-    const autoContext = join(ROOT, "include/functions.h");
+    const autoContext = join(wtPath, "include/functions.h");
     if (existsSync(autoContext)) {
       ctx.contextHeader = "include/functions.h";
     }
 
     const stages: Record<string, string> = {};
 
-    // Stage 1: m2c
+    // Stage 1: m2c (writes src/ in worktree)
     try {
-      const wrapped = runM2c(name, ROOT, {
+      const wrapped = runM2c(name, wtPath, {
         contextFile: ctx.contextHeader,
         write: writeMode,
       });
@@ -317,6 +333,7 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
       const logLines = [`m2c error: ${e.message}`];
       writeFileSync(join(stagingDir, "log.txt"), logLines.join("\n"));
       results.push({ name, stages });
+      wt.cleanup(wtInfo, true);
       continue; // skip remaining stages on m2c failure
     }
 
@@ -325,7 +342,7 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     if (writeMode && maxStage >= 2) {
       try {
         const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${name}`, {
-          cwd: ROOT,
+          cwd: wtPath,
           encoding: "utf-8",
           stdio: ["pipe", "pipe", "pipe"],
         });
@@ -339,15 +356,45 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
       }
     }
 
-    // Stage 2: match agent
+    // Stage 2: match agent (runs in worktree)
     if (maxStage >= 2 && !alreadyMatched) {
-      const result = await runMatchingAgent(name, ctx);
+      const result = await runMatchingAgent(name, ctx, wtPath);
       stages["match"] = result.success ? "ok" : "stubbed";
     }
 
-    // Stage 4: context export
-    if (maxStage >= 4) {
-      stages["context"] = exportContext(name, ctx);
+    // On success: commit in worktree, merge into trunk, rebuild
+    const matched = stages["match"] === "ok" || stages["match"] === "ok (m2c)";
+    if (matched) {
+      const committed = wt.commit(wtInfo, `Decomp: ${name}`);
+      if (committed) {
+        const mergeResult = wt.merge(wtInfo);
+        if (mergeResult.success) {
+          wt.cleanup(wtInfo);
+
+          // Rebuild trunk after merge
+          console.log(`  Rebuilding trunk after merge...`);
+          execSync("make clean", { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
+          execSync("make split", { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
+
+          // Stage 4: context export (runs on trunk post-merge)
+          if (maxStage >= 4) {
+            stages["context"] = exportContext(name, ctx);
+          }
+        } else {
+          console.log(`  Merge failed — discarding worktree`);
+          stages["merge"] = "conflict";
+          wt.cleanup(wtInfo, true);
+        }
+      } else {
+        // No changes to commit (shouldn't happen for a successful match)
+        wt.cleanup(wtInfo);
+        if (maxStage >= 4) {
+          stages["context"] = exportContext(name, ctx);
+        }
+      }
+    } else {
+      // Failed — discard worktree
+      wt.cleanup(wtInfo, true);
     }
 
     // Write pipeline log
@@ -450,13 +497,40 @@ async function runRefinementPipeline(): Promise<RefinementResult[]> {
   for (const candidate of candidates) {
     console.log(`\nRefining ${candidate.name} (${candidate.decompiledNeighborCount} decompiled neighbor(s))`);
 
-    const result = await runRefinementAgent(candidate.name);
-    const status = result.success ? "ok" : "failed";
-
-    if (result.success) {
-      markRefined(candidate.name, candidate.neighbors);
+    // Create worktree for isolation
+    let wtInfo;
+    try {
+      wtInfo = wt.create(candidate.name);
+      wt.prepare(wtInfo);
+    } catch (e: any) {
+      console.log(`  Worktree setup failed — ${e.message}`);
+      results.push({ name: candidate.name, neighbors: candidate.neighbors, status: "worktree-error" });
+      if (wtInfo) wt.cleanup(wtInfo, true);
+      continue;
     }
 
+    const result = await runRefinementAgent(candidate.name, wtInfo.path);
+
+    if (result.success) {
+      const committed = wt.commit(wtInfo, `Refine: ${candidate.name}`);
+      if (committed) {
+        const mergeResult = wt.merge(wtInfo);
+        if (mergeResult.success) {
+          wt.cleanup(wtInfo);
+          markRefined(candidate.name, candidate.neighbors);
+        } else {
+          console.log(`  Merge failed — discarding refinement`);
+          wt.cleanup(wtInfo, true);
+        }
+      } else {
+        wt.cleanup(wtInfo);
+        markRefined(candidate.name, candidate.neighbors);
+      }
+    } else {
+      wt.cleanup(wtInfo, true);
+    }
+
+    const status = result.success ? "ok" : "failed";
     results.push({
       name: candidate.name,
       neighbors: candidate.neighbors,
@@ -470,6 +544,9 @@ async function runRefinementPipeline(): Promise<RefinementResult[]> {
 // --- Main ---
 
 async function main() {
+  // Clean up any leftover worktrees from crashed runs
+  wt.cleanupStale();
+
   const graphPath = join(ROOT, "build/callGraph.json");
   if (!existsSync(graphPath)) {
     console.error("callGraph.json not found. Run: npx tsx tools/callGraph.ts");
@@ -477,9 +554,29 @@ async function main() {
   }
 
   if (projectRefineMode) {
-    const result = await runProjectRefinementAgent();
-    console.log(`\n${"—".repeat(60)}`);
-    console.log(`Project refinement: ${result.success ? "\u2713 done" : "\u2717 failed"}`);
+    let wtInfo;
+    try {
+      wtInfo = wt.create("project-refine");
+      wt.prepare(wtInfo);
+      const result = await runProjectRefinementAgent(wtInfo.path);
+      if (result.success) {
+        const committed = wt.commit(wtInfo, "Project-wide refinement");
+        if (committed) {
+          const mergeResult = wt.merge(wtInfo);
+          if (!mergeResult.success) {
+            console.log(`Merge failed: ${mergeResult.error}`);
+          }
+        }
+        wt.cleanup(wtInfo);
+      } else {
+        wt.cleanup(wtInfo, true);
+      }
+      console.log(`\n${"—".repeat(60)}`);
+      console.log(`Project refinement: ${result.success ? "\u2713 done" : "\u2717 failed"}`);
+    } catch (e: any) {
+      console.log(`Project refinement worktree failed — ${e.message}`);
+      if (wtInfo) wt.cleanup(wtInfo, true);
+    }
     return;
   }
 
@@ -558,12 +655,32 @@ async function main() {
     }
   }
 
-  // Stage 6: project-wide refinement pass
+  // Stage 6: project-wide refinement pass (in worktree)
   if (writeMode) {
     console.log(`\n${"—".repeat(60)}`);
     console.log(`Running project-wide refinement pass...`);
-    const projectResult = await runProjectRefinementAgent();
-    console.log(`Project refinement: ${projectResult.success ? "\u2713 done" : "\u2717 failed"}`);
+    let wtInfo;
+    try {
+      wtInfo = wt.create("project-refine");
+      wt.prepare(wtInfo);
+      const projectResult = await runProjectRefinementAgent(wtInfo.path);
+      if (projectResult.success) {
+        const committed = wt.commit(wtInfo, "Project-wide refinement");
+        if (committed) {
+          const mergeResult = wt.merge(wtInfo);
+          if (!mergeResult.success) {
+            console.log(`Project refinement merge failed: ${mergeResult.error}`);
+          }
+        }
+        wt.cleanup(wtInfo);
+      } else {
+        wt.cleanup(wtInfo, true);
+      }
+      console.log(`Project refinement: ${projectResult.success ? "\u2713 done" : "\u2717 failed"}`);
+    } catch (e: any) {
+      console.log(`Project refinement worktree failed — ${e.message}`);
+      if (wtInfo) wt.cleanup(wtInfo, true);
+    }
 
     /* Re-export signatures after project refinement (may have renamed functions/added types) */
     console.log("Running: contextExport.ts --all");
