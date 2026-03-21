@@ -3,24 +3,30 @@
 extern s32 D_80049A10[3];
 
 s32 func_800217B0(s32 arg0, s32 arg1, s32 arg2, u8 *arg3) {
-    s32 *var_v1;
-    s32 var_a1;
-    u8 temp_v0;
+    s32 *v1;
+    s32 three;
+    u8 temp;
+    s32 *base;
 
-    var_a1 = arg1;
-    if (arg2 < var_a1) {
-        return -1;
+    three = 3;
+    if (arg2 < arg1) {
+        goto done;
     }
-    var_v1 = &D_80049A10[var_a1];
-loop_2:
-    temp_v0 = arg3[var_a1];
-    if (((temp_v0 == 0) || (temp_v0 == 3)) && ((u32) (*var_v1 - arg0) >= 2U)) {
-        return var_a1;
+    base = &D_80049A10[0];
+    __asm__ volatile("" : "=r"(base) : "0"(base));
+    v1 = (s32 *)((arg1 << 2) + (s32)base);
+loop:
+    temp = arg3[arg1];
+    if ((temp == 0) || (temp == three)) {
+        if ((u32)(*v1 - arg0) >= 2U) {
+            return arg1;
+        }
     }
-    var_a1 += 1;
-    var_v1++;
-    if (arg2 >= var_a1) {
-        goto loop_2;
+    arg1 += 1;
+    v1++;
+    if (arg2 >= arg1) {
+        goto loop;
     }
+done:
     return -1;
 }
