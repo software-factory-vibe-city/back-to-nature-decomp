@@ -25,3 +25,8 @@
 # GCC -O2: lui v0 / lui v1 / lw v0,0(v0) / lw v1,0(v1) (interleaved)
 # Barriers can't fix this because the interleaving happens at the lui level.
 CC1FLAGS_SetGfxClip := -fno-schedule-insns -fno-schedule-insns2
+
+# SetGfxOffset: same pattern as SetGfxClip - sequential lui/lw with self-clobbering loads
+# Target has lui v0 / lw v0,-7252(v0) / lui v1 / lw v1,-7256(v1)
+# Needs scheduling disabled to prevent lui grouping and register __asm__ for v0/v1.
+CC1FLAGS_SetGfxOffset := -fno-schedule-insns -fno-schedule-insns2
