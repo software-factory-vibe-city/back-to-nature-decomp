@@ -84,8 +84,8 @@ interface PipelineContext {
 
 // --- Agent stubs ---
 
-async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir: string = ROOT): Promise<AgentResult> {
-  console.log(`  Stage 2: running matching agent for ${funcName}`);
+async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir: string = ROOT, resumeDiff?: string): Promise<AgentResult> {
+  console.log(`  Stage 2: running matching agent for ${funcName}${resumeDiff !== undefined ? " (resuming)" : ""}`);
 
   const systemPrompt = getDecompilationCleanupAgentPrompt(funcName, workDir);
 
@@ -112,9 +112,16 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir:
     }
   };
 
+  let userMessage: string;
+  if (resumeDiff !== undefined) {
+    userMessage = `You're picking up the decompilation of ${funcName} from a previous attempt that didn't reach 100% match.\n\nHere's the git diff of changes made so far:\n\n\`\`\`diff\n${resumeDiff}\n\`\`\`\n\nContinue from this state. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to see the current match percentage and keep iterating until you reach 100% match.`;
+  } else {
+    userMessage = `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`;
+  }
+
   const result = await runAgentLoop({
     systemPrompt,
-    userMessage: `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`,
+    userMessage,
     cwd: workDir,
     maxRetries: 10,
     checkSuccess,
@@ -270,16 +277,31 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     const name = entry.name;
     console.log(`\nProcessing ${name} (tier ${entry.tier}, ${entry.instructionCount} instrs, priority #${entry.priority})`);
 
-    // Create and prepare worktree for isolation
+    // Try to resume from an existing worktree, or create a fresh one
     let wtInfo;
-    try {
-      wtInfo = wt.create(name);
-      wt.prepare(wtInfo);
-    } catch (e: any) {
-      console.log(`  Worktree setup failed — ${e.message}`);
-      results.push({ name, stages: { worktree: "error" } });
-      if (wtInfo) wt.cleanup(wtInfo, true);
-      continue;
+    let resumeDiff: string | undefined;
+    const resumed = wt.tryResume(name);
+    if (resumed) {
+      wtInfo = resumed.info;
+      resumeDiff = resumed.diff;
+      // Re-prepare symlinks and build artifacts (idempotent)
+      try {
+        wt.prepare(wtInfo);
+      } catch (e: any) {
+        console.log(`  Worktree prepare failed on resume — ${e.message}`);
+        results.push({ name, stages: { worktree: "error" } });
+        continue;
+      }
+    } else {
+      try {
+        wtInfo = wt.create(name);
+        wt.prepare(wtInfo);
+      } catch (e: any) {
+        console.log(`  Worktree setup failed — ${e.message}`);
+        results.push({ name, stages: { worktree: "error" } });
+        if (wtInfo) wt.cleanup(wtInfo, true);
+        continue;
+      }
     }
 
     const wtPath = wtInfo.path;
@@ -311,23 +333,28 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
 
     const stages: Record<string, string> = {};
 
-    // Stage 1: m2c (writes src/ in worktree)
-    try {
-      runM2c(name, wtPath, {
-        contextFile: ctx.contextHeader,
-        write: writeMode,
-      });
-      stages["m2c"] = "ok";
-      console.log(`  Stage 1: m2c ok`);
-    } catch (e: any) {
-      stages["m2c"] = "error";
-      console.log(`  Stage 1: m2c error — ${e.message}`);
-      results.push({ name, stages });
-      wt.cleanup(wtInfo, true);
-      continue;
+    // Stage 1: m2c (skip if resuming — worktree already has previous attempt's src/)
+    if (resumed) {
+      stages["m2c"] = "ok (resumed)";
+      console.log(`  Stage 1: m2c skipped (resuming from previous attempt)`);
+    } else {
+      try {
+        runM2c(name, wtPath, {
+          contextFile: ctx.contextHeader,
+          write: writeMode,
+        });
+        stages["m2c"] = "ok";
+        console.log(`  Stage 1: m2c ok`);
+      } catch (e: any) {
+        stages["m2c"] = "error";
+        console.log(`  Stage 1: m2c error — ${e.message}`);
+        results.push({ name, stages });
+        wt.cleanup(wtInfo, true);
+        continue;
+      }
     }
 
-    // Pre-check: does m2c output already match?
+    // Pre-check: does current output already match?
     let alreadyMatched = false;
     if (writeMode && maxStage >= 2) {
       try {
@@ -337,8 +364,8 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
           stdio: ["pipe", "pipe", "pipe"],
         });
         if (diffOutput.includes("100.0%")) {
-          console.log(`  Stage 2: m2c output already matches 100% — skipping agent`);
-          stages["match"] = "ok (m2c)";
+          console.log(`  Stage 2: ${resumed ? "resumed" : "m2c"} output already matches 100% — skipping agent`);
+          stages["match"] = resumed ? "ok (resumed)" : "ok (m2c)";
           alreadyMatched = true;
         }
       } catch {
@@ -348,7 +375,7 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
 
     // Stage 2: match agent (runs in worktree)
     if (maxStage >= 2 && !alreadyMatched) {
-      const result = await runMatchingAgent(name, ctx, wtPath);
+      const result = await runMatchingAgent(name, ctx, wtPath, resumeDiff);
       stages["match"] = result.success ? "ok" : "stubbed";
     }
 

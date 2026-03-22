@@ -264,6 +264,49 @@ export class WorktreeManager {
   }
 
   /**
+   * Try to resume from an existing worktree. Returns the WorktreeInfo and a
+   * git diff of work-in-progress changes, or undefined if no worktree exists.
+   */
+  tryResume(funcName: string): { info: WorktreeInfo; diff: string } | undefined {
+    const branch = `decomp/${funcName}`;
+    const wtPath = resolve(this.mainRoot, "..", "btn-worktrees", funcName);
+
+    if (!existsSync(wtPath)) return undefined;
+
+    // Verify it's a registered git worktree
+    try {
+      execSync(`git rev-parse --verify "${branch}"`, {
+        cwd: this.mainRoot,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch {
+      return undefined;
+    }
+
+    const info: WorktreeInfo = {
+      funcName,
+      branch,
+      path: wtPath,
+      mainRoot: this.mainRoot,
+    };
+
+    // Get the diff of work-in-progress changes (staged + unstaged, focused on src/ and include/)
+    let diff = "";
+    try {
+      diff = execSync("git diff HEAD -- src/ include/", {
+        cwd: wtPath,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    } catch {
+      // No diff available — still resume with empty diff
+    }
+
+    console.log(`  Worktree: resuming existing worktree at ${wtPath} (${diff ? diff.split("\n").length + " lines of diff" : "no diff"})`);
+    return { info, diff };
+  }
+
+  /**
    * Remove a specific stale worktree/branch (used internally before creating a new one).
    */
   private cleanupStaleWorktree(info: WorktreeInfo): void {
