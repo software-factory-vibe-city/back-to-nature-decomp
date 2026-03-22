@@ -22,7 +22,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 
 const DEFAULT_MAX_RETRIES = 10;
-const DEFAULT_ESCALATE_AFTER_TURNS = 80;
+const DEFAULT_ESCALATE_AFTER_TURNS = 45;
 
 export interface AgentLoopOptions {
   systemPrompt: string;
@@ -175,6 +175,15 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       case "turn_end":
         turnCount++;
         console.log(`\x1b[33m--- turn ${turnCount} end ---\x1b[0m\n`);
+        // Escalate immediately when turn threshold is reached
+        if (!escalated && strongerModel && turnCount >= escalateAfterTurns) {
+          const stats = session.getSessionStats();
+          console.log(`\n\x1b[1;35m[agent-loop] Escalating after ${turnCount} turns\x1b[0m`);
+          console.log(`[agent-loop] Weak model cost: $${stats.cost.toFixed(4)} (${stats.tokens.total} tokens)`);
+          session.setModel(strongerModel);
+          escalated = true;
+          console.log(`\x1b[1;35m[agent-loop] Now using: ${strongerModel.provider}/${strongerModel.id}\x1b[0m\n`);
+        }
         break;
       case "agent_start":
         console.log(`\x1b[33m[agent start]\x1b[0m`);
@@ -200,16 +209,6 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
     while (!success && retries < maxRetries) {
       retries++;
-
-      // Escalate to stronger model if configured and turn threshold reached
-      if (!escalated && strongerModel && turnCount >= escalateAfterTurns) {
-        const stats = session.getSessionStats();
-        console.log(`\n\x1b[1;35m[agent-loop] Escalating after ${turnCount} turns\x1b[0m`);
-        console.log(`[agent-loop] Weak model cost: $${stats.cost.toFixed(4)} (${stats.tokens.total} tokens)`);
-        await session.setModel(strongerModel);
-        escalated = true;
-        console.log(`\x1b[1;35m[agent-loop] Now using: ${strongerModel.provider}/${strongerModel.id}\x1b[0m\n`);
-      }
 
       console.log(`\n\x1b[1m[agent-loop] Retry ${retries}/${maxRetries} — not yet successful, prompting again...\x1b[0m\n`);
       await session.prompt(

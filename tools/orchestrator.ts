@@ -75,6 +75,7 @@ interface AgentResult {
   attempts?: number;
   matchPercent?: number;
   log: string[];
+  sessionLog?: string;
 }
 
 interface PipelineContext {
@@ -83,6 +84,16 @@ interface PipelineContext {
   cFile: string;
   callGraphEntry: CallGraphEntry;
   contextHeader?: string;
+}
+
+// --- Logging ---
+
+/** Write the agent session log into the worktree so it gets committed. */
+function writeSessionLog(workDir: string, name: string, log: string): void {
+  const logDir = join(workDir, "logs");
+  mkdirSync(logDir, { recursive: true });
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  writeFileSync(join(logDir, `${name}_${timestamp}.md`), log);
 }
 
 // --- Agent stubs ---
@@ -135,6 +146,7 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir:
     attempts: result.retries + 1,
     matchPercent: result.success ? 100 : undefined,
     log: [result.output.slice(-500)],
+    sessionLog: result.output,
   };
 }
 
@@ -183,6 +195,7 @@ async function runRefinementAgent(funcName: string, workDir: string = ROOT): Pro
     success: result.success,
     attempts: result.retries + 1,
     log: [result.output.slice(-500)],
+    sessionLog: result.output,
   };
 }
 
@@ -377,14 +390,17 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     }
 
     // Stage 2: match agent (runs in worktree)
+    let agentSessionLog: string | undefined;
     if (maxStage >= 2 && !alreadyMatched) {
       const result = await runMatchingAgent(name, ctx, wtPath, resumeDiff);
       stages["match"] = result.success ? "ok" : "stubbed";
+      agentSessionLog = result.sessionLog;
     }
 
     // On success: commit in worktree, merge into trunk, rebuild
     const matched = stages["match"] === "ok" || stages["match"] === "ok (m2c)";
     if (matched) {
+      if (agentSessionLog) writeSessionLog(wtPath, name, agentSessionLog);
       const committed = wt.commit(wtInfo, `Decomp: ${name}`);
       if (committed) {
         const mergeResult = wt.merge(wtInfo);
@@ -528,6 +544,7 @@ async function runRefinementPipeline(): Promise<RefinementResult[]> {
     const result = await runRefinementAgent(candidate.name, wtInfo.path);
 
     if (result.success) {
+      if (result.sessionLog) writeSessionLog(wtInfo.path, candidate.name, result.sessionLog);
       const committed = wt.commit(wtInfo, `Refine: ${candidate.name}`);
       if (committed) {
         const mergeResult = wt.merge(wtInfo);
@@ -632,6 +649,7 @@ Keep iterating until you reach 100% match.`;
     if (result.success) {
       console.log(`\nFix succeeded for ${fixFunc}!`);
       if (writeMode) {
+        writeSessionLog(wtPath, fixFunc, result.output);
         const committed = wt.commit(wtInfo, `Fix: ${fixFunc}`);
         if (committed) {
           const mergeResult = wt.merge(wtInfo);
