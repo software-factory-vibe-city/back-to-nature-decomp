@@ -22,6 +22,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 
 const DEFAULT_MAX_RETRIES = 10;
+const DEFAULT_ESCALATE_AFTER_TURNS = 80;
 
 export interface AgentLoopOptions {
   systemPrompt: string;
@@ -30,6 +31,8 @@ export interface AgentLoopOptions {
   maxRetries?: number;
   /** Called after each prompt() returns. Return true if the task is done. */
   checkSuccess?: () => boolean;
+  /** After this many total turns (not retries), escalate to STRONGER_AGENT if configured. */
+  escalateAfterTurns?: number;
 }
 
 export interface AgentLoopResult {
@@ -59,6 +62,18 @@ function parseAgentConfig(): AgentConfig {
   return config;
 }
 
+function parseStrongerAgentConfig(): AgentConfig | undefined {
+  const raw = process.env.STRONGER_AGENT;
+  if (!raw) return undefined;
+  try {
+    const config = JSON.parse(raw);
+    if (!config.provider || !config.apiKey || !config.modelId) return undefined;
+    return config;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   const {
     systemPrompt,
@@ -66,13 +81,18 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     cwd = process.cwd(),
     maxRetries = DEFAULT_MAX_RETRIES,
     checkSuccess,
+    escalateAfterTurns = DEFAULT_ESCALATE_AFTER_TURNS,
   } = options;
 
   const agentConfig = parseAgentConfig();
+  const strongerConfig = parseStrongerAgentConfig();
 
   // Set up auth and model
   const authStorage = AuthStorage.create();
   authStorage.setRuntimeApiKey(agentConfig.provider, agentConfig.apiKey);
+  if (strongerConfig) {
+    authStorage.setRuntimeApiKey(strongerConfig.provider, strongerConfig.apiKey);
+  }
   const modelRegistry = new ModelRegistry(authStorage);
   const model = modelRegistry.find(agentConfig.provider, agentConfig.modelId);
 
@@ -88,7 +108,14 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     );
   }
 
+  const strongerModel = strongerConfig
+    ? modelRegistry.find(strongerConfig.provider, strongerConfig.modelId)
+    : undefined;
+
   console.log(`[agent-loop] Model: ${model.provider}/${model.id}`);
+  if (strongerModel) {
+    console.log(`[agent-loop] Stronger model: ${strongerModel.provider}/${strongerModel.id} (after ${escalateAfterTurns} turns)`);
+  }
   console.log(`[agent-loop] CWD: ${cwd}`);
 
   // Custom system prompt — replace entirely, no appended defaults
@@ -115,6 +142,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
   // Verbose event logging
   let output = "";
+  let turnCount = 0;
+  let escalated = false;
 
   session.subscribe((event) => {
     switch (event.type) {
@@ -141,10 +170,11 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         break;
       }
       case "turn_start":
-        console.log(`\n\x1b[33m--- turn start ---\x1b[0m`);
+        console.log(`\n\x1b[33m--- turn ${turnCount + 1} start ---\x1b[0m`);
         break;
       case "turn_end":
-        console.log(`\x1b[33m--- turn end ---\x1b[0m\n`);
+        turnCount++;
+        console.log(`\x1b[33m--- turn ${turnCount} end ---\x1b[0m\n`);
         break;
       case "agent_start":
         console.log(`\x1b[33m[agent start]\x1b[0m`);
@@ -170,6 +200,17 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
     while (!success && retries < maxRetries) {
       retries++;
+
+      // Escalate to stronger model if configured and turn threshold reached
+      if (!escalated && strongerModel && turnCount >= escalateAfterTurns) {
+        const stats = session.getSessionStats();
+        console.log(`\n\x1b[1;35m[agent-loop] Escalating after ${turnCount} turns\x1b[0m`);
+        console.log(`[agent-loop] Weak model cost: $${stats.cost.toFixed(4)} (${stats.tokens.total} tokens)`);
+        await session.setModel(strongerModel);
+        escalated = true;
+        console.log(`\x1b[1;35m[agent-loop] Now using: ${strongerModel.provider}/${strongerModel.id}\x1b[0m\n`);
+      }
+
       console.log(`\n\x1b[1m[agent-loop] Retry ${retries}/${maxRetries} — not yet successful, prompting again...\x1b[0m\n`);
       await session.prompt(
         "You haven't reached 100% match yet. Keep iterating. Run diffFunc.ts to see the current diff and fix the remaining issues."
@@ -182,7 +223,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
     // Log final stats
     const stats = session.getSessionStats();
-    console.log(`\n\x1b[1m[agent-loop] Done. Success: ${success}, Retries: ${retries}\x1b[0m`);
+    console.log(`\n\x1b[1m[agent-loop] Done. Success: ${success}, Retries: ${retries}, Turns: ${turnCount}${escalated ? " (escalated)" : ""}\x1b[0m`);
     console.log(`[agent-loop] Tokens: ${stats.tokens.total} total (${stats.tokens.input} in, ${stats.tokens.output} out)`);
     console.log(`[agent-loop] Cost: $${stats.cost.toFixed(4)}`);
   } catch (err: any) {
