@@ -257,7 +257,13 @@ segments:
       - [0xB008, c, func_8001A808]       # 0x8001A808 func_8001A808
       - [0xB070, c, func_8001A870]       # 0x8001A870 func_8001A870
       - [0xB0D0, c, func_8001A8D0]       # 0x8001A8D0 func_8001A8D0
-      - [0xB170, c, func_8001A970]       # 0x8001A970 func_8001A970
+      - [0xB140, c, func_8001A940]
+      - [0xB148, c, func_8001A948]
+      - [0xB150, c, func_8001A950]
+      - [0xB158, c, func_8001A958]
+      - [0xB160, c, func_8001A960]
+      - [0xB168, c, func_8001A968]
+      - [0xB170, c, func_8001A970]       # 0x8001A970 func_8001A970       # 0x8001A970 func_8001A970
       - [0xB27C, c, func_8001AA7C]       # 0x8001AA7C func_8001AA7C
       - [0xB2B8, c, func_8001AAB8]       # 0x8001AAB8 func_8001AAB8
       - [0xB2F4, c, func_8001AAF4]       # 0x8001AAF4 func_8001AAF4

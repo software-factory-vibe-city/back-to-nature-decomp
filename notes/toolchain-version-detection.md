@@ -1,248 +1,143 @@
-# Toolchain Version Detection Strategy
+# Toolchain Version Detection
 
-## Problem
+## Confirmed Toolchain for SLUS-01115
 
-The build pipeline currently hardcodes `GCC_VERSION := 2.8.0` and `--aspsx-version 2.67`. For general-purpose use across arbitrary PSX ROMs, these must be detected automatically. Getting either wrong produces correct-looking code that fails to byte-match.
+| Parameter | Value | How confirmed |
+|-----------|-------|---------------|
+| GCC version | **2.95.2** | Byte-identical output from `CC1PSX.EXE` (PSY-Q 4.6) and `tools/old-gcc/build-gcc-2.95.2-psx/cc1` |
+| ASPSX version | **2.77** | `li` expansion pattern: 1142 `addiu` (small positives) vs 88 `ori` (values >= 0x8000) confirms >= 2.56. maspsx `--aspsx-version 2.77` produces correct encodings. |
+| PSY-Q SDK | **4.7** (runtime libs) | Library signature matching against `tools/psx_psyq_signatures/470/` patterns |
+| Optimization | **-O2** | Delay slot fill rate >90%, aggressive register allocation |
+| -G value | **8** | GP-relative accesses present for symbols <= 8 bytes |
+| Compiler binary | `tools/old-gcc/build-gcc-2.95.2-psx/cc1` | Native Linux x86 ELF, built from `gcc-2.95.2-psx.Dockerfile` |
 
-## What Needs Detecting
+### Key finding: GCC 2.95.2, not 2.8.1
 
-| Parameter | Current Hardcode | Affects |
-|-----------|-----------------|---------|
-| GCC version (2.6.3, 2.7.2, 2.8.0, 2.8.1, 2.91, 2.95.2) | `GCC_VERSION := 2.8.0` | Code generation, register allocation, instruction selection |
-| ASPSX version (1.05 through 2.86) | `--aspsx-version 2.67` | `li` expansion (addiu vs ori), div expansion, $at usage, nop insertion |
-| PSY-Q SDK version | Implicit (lib/ contents) | Available library functions, header signatures |
-| Optimization level (-O0, -O1, -O2) | `-O2` | Inlining, loop transforms, dead code elimination |
-| -G flag value (sdata threshold) | `-G8` | Small data section usage, $gp-relative addressing |
+We originally assumed GCC 2.8.1 based on epilog pattern heuristics (delay-slot SP restore). This was wrong — GCC 2.8.1 and 2.95.2 share the same epilog style and many codegen behaviors, making them indistinguishable via that signal alone.
 
-## Detection Signals
+The correct version was identified by:
 
-### GCC Version
+1. **Switch dispatch register** — GCC 2.8.1 hardcodes `$v0` for switch table jumps (`lw $2, 0($3)` / `jr $2`). The original binary uses `$a0` (`lw $4, 0($3)` / `jr $4`). GCC 2.95.2 produces `$a0`, matching the target. This was unsolvable with 2.8.1 — no C tricks or `register __asm__` hacks could change it.
 
-**Signal 1: Function epilog pattern (strongest)**
+2. **CC1PSX.EXE from PSY-Q 4.6** — The binary at `tools/psyq_sdk/psyq/bin/CC1PSX.EXE` (MD5: `47c2c91ca6f5536b646483c95e8d5996`, byte-identical to the copy in `Psy-Q_46.zip` from `psx.arthus.net`) identifies as `GNU C version 2.95.2 19991024 BUILD 4.0.0030 (PSX)`. Compiling func_8001A8D0 with it produces a byte-identical match using clean C, no register hacks.
 
-GCC 2.7.2 adjusts `$sp` before the jump:
-```
-addiu $sp, $sp, N
-jr    $ra
-nop
-```
+3. **Native Linux build matches CC1PSX.EXE** — `tools/old-gcc/build-gcc-2.95.2-psx/cc1`, built from `gcc-2.95.2-psx.Dockerfile` with the `psx-2.91.patch` target config, produces byte-identical output to CC1PSX.EXE. No Wine needed.
 
-GCC 2.8.0+ puts the `$sp` adjustment in the delay slot:
-```
-jr    $ra
-addiu $sp, $sp, N
-```
+### PSY-Q compiler version history
 
-Detection: scan the binary for function epilogs. If `jr $ra` is consistently followed by `addiu $sp, $sp, N` in the delay slot, it's 2.8.0+. If `addiu $sp` precedes `jr $ra`, it's 2.7.2.
+| PSY-Q SDK | GCC Version | Source |
+|-----------|-------------|--------|
+| 4.3 (May 1998) | 2.8.0 | `psx/CHANGE.TXT`: "compiler\cc1psx.exe Updated GNU 2.8.0" |
+| 4.4 | 2.8.1 | homebrew-psyq project (open-source reconstruction) |
+| 4.6 | **2.95.2** | CC1PSX.EXE self-identification; confirmed byte-identical to Psy-Q_46.zip |
 
-**Signal 2: Comment header in .s output**
+The jump from 2.8.1 to 2.95.2 between PSY-Q 4.4 and 4.6 is a significant change (the entire egcs merger happened in between). This explains why heuristics trained on 2.7.x vs 2.8.x differences couldn't distinguish 2.8.1 from 2.95.2.
 
-GCC 2.7.2 (Sony variant) emits:
-```
-# GNU C 2.7.2 [AL 1.1, MM 40] Sony Playstation compiled by GNU C
-```
-
-GCC 2.8.0 emits no comment header. This is only visible in intermediate `.s` files, not the final binary, so it's useful for confirming but not for detection from a ROM.
-
-**Signal 3: Unnecessary stack frames**
-
-GCC 2.7.2 allocates stack frames even for simple leaf functions that don't need them. GCC 2.8.0 eliminates unnecessary frames. A function that's clearly a leaf but has `addiu $sp, $sp, -N` / `addiu $sp, $sp, N` without saving any registers suggests 2.7.2.
-
-**Signal 4: `li` literal format in assembly**
-
-GCC 2.7.2: `li $2,0x00000001  # 1` (hex primary, decimal comment)
-GCC 2.8.0: `li $2,1  # 0x00000001` (decimal primary, hex comment)
-
-Only visible in intermediate `.s` files. Not detectable from the final binary since both produce the same machine code (after assembler expansion).
-
-### ASPSX Version
-
-The ASPSX version determines how pseudo-instructions are expanded. These are detectable from the final binary since they produce different opcodes.
-
-**Signal 1: `li` expansion — `addiu` vs `ori` (strongest)**
-
-| Pattern | ASPSX Version |
-|---------|---------------|
-| `li $reg, <small positive>` → `ori $reg, $zero, val` (opcode 0x34) | < 2.56 |
-| `li $reg, <small positive>` → `addiu $reg, $zero, val` (opcode 0x24) | >= 2.56 |
-
-Detection: scan for instructions matching `addiu $reg, $zero, <0-0x7FFF>` and `ori $reg, $zero, <0-0x7FFF>`. The dominant pattern indicates the version boundary. Note: values >= 0x8000 always use `ori` (sign-extension semantics differ), so only count values < 0x8000.
-
-**Signal 2: Division overflow check — `break` vs `tge`**
-
-| Pattern | ASPSX Version |
-|---------|---------------|
-| `div; ...; break 7` | All except 2.05/2.08 |
-| `div; ...; tge` | 2.05/2.08 only |
-
-Detection: search for `tge` instructions near `div`/`divu`. If present, ASPSX is 2.05-2.08. If only `break` is used, it's any other version.
-
-**Signal 3: `$at` usage in `sltu` expansion**
-
-| Pattern | ASPSX Version |
-|---------|---------------|
-| `sltu $reg, $at` (load immediate into $at first) | < 2.70 |
-| `sltiu $reg, $reg, imm` (direct immediate) | >= 2.70 |
-
-Detection: look for `sltu` with `$at` as operand preceded by `li $at, imm`. If absent and `sltiu` is used instead, ASPSX >= 2.70.
-
-**Signal 4: Nop insertion at `$at` expansion**
-
-| Pattern | ASPSX Version |
-|---------|---------------|
-| Extra nop between value load and `$at` use | < 2.30 |
-| No extra nop | >= 2.30 |
-
-**Signal 5: `mflo`/`mfhi` gap enforcement**
-
-| Pattern | ASPSX Version |
-|---------|---------------|
-| No enforced gap between `mflo`/`mfhi` and `div`/`mult` | < 2.30 |
-| 2-instruction gap enforced (nops inserted if needed) | >= 2.30 |
-
-### ASPSX Version Decision Tree
+## Build Pipeline
 
 ```
-Has tge instructions near div?
+cpp → cc1 (GCC 2.95.2-psx) → maspsx → gas → .o
+```
+
+The compiler is `tools/old-gcc/build-gcc-2.95.2-psx/cc1`. Build it with:
+```bash
+cd tools/old-gcc && make VERSION=2.95.2-psx
+```
+
+Full compilation command:
+```bash
+mips-linux-gnu-cpp -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -lang-c INPUT.c -o OUTPUT.i
+tools/old-gcc/build-gcc-2.95.2-psx/cc1 -quiet -O2 -G8 -mips1 -mcpu=r3000 \
+  -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon \
+  -fverbose-asm -msoft-float -mgas -fgnu-linker OUTPUT.i -o OUTPUT.s
+python3 tools/maspsx/maspsx.py --aspsx-version 2.77 --dont-force-G0 \
+  --run-assembler --gnu-as-path mips-linux-gnu-as -o OUTPUT.o \
+  -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq OUTPUT.s
+```
+
+### CC1PSX.EXE via Wine (alternative)
+
+The native Linux build is preferred. If CC1PSX.EXE is needed directly:
+
+```bash
+# Input must have CRLF line endings; output will too
+sed 's/$/\r/' < OUTPUT.i > OUTPUT_crlf.i
+WINEPREFIX="$HOME/.wine32" wine tools/psyq_sdk/psyq/bin/CC1PSX.EXE \
+  -quiet -O2 -G8 ... OUTPUT_crlf.i -o OUTPUT.s
+sed -i 's/\r$//' OUTPUT.s  # strip CRLF before maspsx
+```
+
+Requires `wine32:i386` and a 32-bit wineprefix.
+
+### maspsx compatibility
+
+maspsx (`--aspsx-version 2.77`) is fully compatible with GCC 2.95.2 output. Tested on multiple functions — produces byte-identical objects to direct gas assembly. The `li` expansion, nop insertion, and all other ASPSX transforms work correctly.
+
+## Implications for Decompilation
+
+### Functions that need revisiting
+
+With the correct compiler, several categories of existing decomps may improve:
+
+- **17 "C with register hacks"** — `register __asm__` was used to force GCC 2.8.1's allocator. With 2.95.2's different allocator, these may match naturally without hacks.
+- **24 pure-asm functions** — written as `__asm__` blocks because no C matched 2.8.1. With 2.95.2, some may be expressible as clean C. func_8001A8D0 (switch statement) already proved this.
+- **2 functions that differ between compilers** (func_8001F39C, func_80017C3C) — C code was hand-tuned for 2.8.1's register allocation. Needs rewriting for 2.95.2.
+- **89 functions identical between compilers** — no changes needed.
+
+## General Detection Strategy
+
+For detecting toolchain versions from an arbitrary PSX binary (not yet confirmed for a specific game), the following heuristics apply. Note: the epilog-based signals cannot distinguish GCC 2.8.x from 2.95.x.
+
+### GCC Version Signals
+
+| Signal | Distinguishes | Detectable from binary? |
+|--------|--------------|------------------------|
+| Epilog: SP in delay slot vs before jr | 2.7.2 vs 2.8.0+ | Yes |
+| Unnecessary leaf stack frames | 2.7.2 vs 2.8.0+ | Yes |
+| Switch dispatch: `$v0` vs `$a0` | 2.8.x vs 2.95.x | Yes |
+| `-fregmove` effects on register allocation | 2.8.x vs 2.95.x | Subtle, requires comparison |
+| `s16` store sign-extend (`sll`/`sra` before `sh`) | 2.95.2 quirk (source-dependent) | Unreliable |
+
+The switch dispatch register is the strongest signal for distinguishing 2.8.x from 2.95.x. If the binary has any switch statements using jump tables, check the `lw`/`jr` register:
+- `lw $v0` / `jr $v0` → GCC 2.8.x
+- `lw $a0` / `jr $a0` → GCC 2.95.x (PSY-Q 4.6+)
+
+### ASPSX Version Signals
+
+| Signal | Distinguishes | Binary pattern |
+|--------|--------------|----------------|
+| `li` small positive → `addiu` vs `ori` | < 2.56 vs >= 2.56 | Opcode byte 0x24 vs 0x34 |
+| `div` overflow → `break` vs `tge` | 2.05/2.08 vs others | Instruction near `div` |
+| `sltu` via `$at` vs `sltiu` direct | < 2.70 vs >= 2.70 | `$at` usage patterns |
+| Nop at `$at` expansion | < 2.30 vs >= 2.30 | Extra nops |
+| `mflo`/`mfhi` gap enforcement | < 2.30 vs >= 2.30 | Nops between mul/div |
+
+### ASPSX Decision Tree
+
+```
+Has tge near div?
   YES → 2.05/2.08
   NO →
     li small positive → ori?
-      YES → < 2.56
-        Has nop at $at expansion?
-          YES → < 2.30
-            Has mflo/mfhi gap enforcement?
-              NO  → < 2.30 (confirmed)
-              YES → contradiction, manual review
-          NO → 2.30-2.55
-      NO (addiu) → >= 2.56
+      YES (0x34) → < 2.56
+      NO (0x24) → >= 2.56
         sltu uses $at?
           YES → 2.56-2.69
           NO (sltiu) → >= 2.70
-            gp-relative with offset?
-              NO  → 2.70-2.79
-              YES → >= 2.80
-                la uses gp?
-                  NO  → 2.70-2.79 (recheck)
-                  YES → >= 2.80
 ```
 
 ### PSY-Q SDK Version
 
-**Signal 1: `$Id` tags in binary**
-
-PSY-Q library objects embed RCS `$Id` tags with dates. These survive linking into the final binary. Example from SLUS-01115:
-```
-$Id: intr.c,v 1.75 1997/02/07
-$Id: bios.c,v 1.86 1997/03/28
-$Id: sys.c,v 1.140 1998/01/12
-```
-
-The latest date gives a lower bound on the SDK version. Cross-reference with known PSY-Q release dates:
-- PSY-Q 3.5: mid 1996
-- PSY-Q 3.6: late 1996
-- PSY-Q 4.0: early 1997
-- PSY-Q 4.3: mid 1997
-- PSY-Q 4.6: late 1997 / early 1998
-- PSY-Q 4.7: mid 1998
-
-**Signal 2: Copyright string**
-
-The standard PSY-Q copyright:
-```
-Library Programs (c) 1993-YYYY Sony Computer Entertainment Inc.
-```
-
-The end year gives a rough SDK era.
-
-**Signal 3: Library function signatures**
-
-Different SDK versions have slightly different implementations. Matching `.obj` files from known SDK versions against the binary's library segments identifies the exact SDK release.
+- **`$Id` tags**: RCS dates in library code give a lower bound on SDK version
+- **Library signatures**: Match `.obj` patterns from known SDK versions (see `tools/psx_psyq_signatures/`)
+- **Copyright string year**: `Library Programs (c) 1993-YYYY` gives rough era
 
 ### Optimization Level
 
-**Signal 1: Instruction scheduling**
+- `-O2`: delay slots aggressively filled, values kept in registers across basic blocks
+- `-O1`: some scheduling, more stack spills
+- `-O0`: nops after branches, everything spilled to stack
 
-`-O2` aggressively reorders instructions to fill delay slots. `-O0` leaves nops. `-O1` does some reordering. Count the ratio of `nop` instructions after branches — a high ratio suggests lower optimization.
+### -G Flag
 
-**Signal 2: Function inlining**
-
-`-O2` inlines small functions. If the binary has many tiny functions that are never inlined, it's likely `-O1` or `-O0`.
-
-**Signal 3: Register allocation patterns**
-
-`-O0` spills everything to the stack. `-O2` keeps values in registers across basic blocks.
-
-### -G Flag (sdata threshold)
-
-Detection: look for `$gp`-relative loads/stores (`lw $reg, offset($gp)`). The maximum offset used reveals the sdata threshold. If no `$gp`-relative accesses exist, `-G0`. If accesses exist for symbols up to 8 bytes, `-G8`. The splat disassembler can report which symbols use `$gp`-relative addressing.
-
-## Implementation Plan
-
-### Phase 1: Detection Tool (`tools/detectToolchain.ts`)
-
-Takes a PSX EXE as input, outputs detected parameters:
-
-```
-$ npx tsx tools/detectToolchain.ts extracted/iso/slus_011.15
-
-Detected toolchain:
-  GCC version:   2.8.0  (confidence: high — delay-slot epilog pattern)
-  ASPSX version: 2.56+  (confidence: high — addiu dominant for li)
-  ASPSX version: <2.70  (confidence: medium — sltu uses $at)
-  ASPSX version: ~2.67  (best estimate)
-  PSY-Q SDK:     4.6+   (confidence: medium — $Id dates to 1998/01)
-  Optimization:  -O2    (confidence: high — delay slot fill rate >90%)
-  -G value:      8      (confidence: high — gp-relative accesses present)
-```
-
-Implementation steps:
-1. Parse the PSX EXE header to locate the code segment
-2. Disassemble the code segment (use existing spimdisasm infrastructure)
-3. Run each heuristic, collect votes with confidence levels
-4. Output detected parameters as JSON for consumption by other tools
-
-### Phase 2: Config Generation
-
-The detection tool outputs a `toolchain.json` that the Makefile and all tools read:
-
-```json
-{
-  "gcc_version": "2.8.0",
-  "aspsx_version": "2.67",
-  "psyq_sdk": "4.6",
-  "optimization": "-O2",
-  "sdata_limit": 8
-}
-```
-
-The Makefile reads this instead of hardcoding:
-```makefile
-TOOLCHAIN := $(shell cat build/toolchain.json)
-GCC_VERSION := $(shell echo '$(TOOLCHAIN)' | jq -r '.gcc_version')
-ASPSX_FLAGS := --aspsx-version $(shell echo '$(TOOLCHAIN)' | jq -r '.aspsx_version')
-```
-
-### Phase 3: Validation
-
-After detection, validate by compiling a few already-matched functions (or trivial stubs) and checking byte-match. If the detected versions produce mismatches, try neighboring versions. This creates a feedback loop that narrows the detection.
-
-### Phase 4: Per-File Overrides
-
-Some games use multiple compilation units with different flags (e.g., library code compiled with different optimization than game code). Support per-file or per-segment overrides in `toolchain.json`:
-
-```json
-{
-  "default": { "gcc_version": "2.8.0", "optimization": "-O2" },
-  "overrides": {
-    "lib_*": { "optimization": "-O1" },
-    "func_80018000-80019FFF": { "gcc_version": "2.7.2" }
-  }
-}
-```
-
-## Known Limitations
-
-1. **GCC 2.7.2 vs 2.7.2.1**: Minor point releases may be indistinguishable from the binary alone.
-2. **ASPSX 2.56 vs 2.67**: The `addiu`-for-`li` signal only distinguishes `>= 2.56` from `< 2.56`. Narrowing further requires the `sltu` and `$gp` signals, which may have few instances.
-3. **Mixed toolchains**: Some games link objects compiled with different compiler versions (e.g., middleware compiled separately). The detection needs to handle non-uniform signals gracefully.
-4. **Custom compiler patches**: Some studios patched GCC. The Sony PSX variant of GCC 2.7.2 has specific codegen differences from upstream 2.7.2. Detection heuristics are trained on known variants.
+Presence of `$gp`-relative loads/stores indicates `-G8` (default). Absence indicates `-G0`.

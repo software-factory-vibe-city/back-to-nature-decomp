@@ -67,6 +67,10 @@ extern u16 D_8005E44C;
 /* D_8005E47A - used as signed halfword (lh) */
 extern s16 D_8005E47A_s __asm__("D_8005E47A");
 
+/* D_8005E025 - byte table accessed with absolute addressing (lui+addiu+lbu) 
+ * Array of 9 bytes ensures >8 byte declaration for absolute addressing */
+extern u8 D_8005E025[9];
+
 
 
 /* D_8005E870 - struct accessed with sb at offsets 0x36 and 0x37 */
