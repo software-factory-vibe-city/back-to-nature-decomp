@@ -14,7 +14,7 @@ import { join } from "path";
 const ROOT = new URL("..", import.meta.url).pathname;
 
 // Toolchain (from Makefile)
-const GCC_VERSION = "2.8.1";
+const GCC_VERSION = "2.95.2";
 const CC = `tools/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
 const MASPSX = "python3 tools/maspsx/maspsx.py";
 const CROSS = "mips-linux-gnu-";
@@ -25,6 +25,21 @@ const OBJDUMP = `${CROSS}objdump`;
 const CPPFLAGS = "-Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c";
 const CC1FLAGS = "-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet";
 const ASFLAGS = "-march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq";
+
+/** Parse configs/flag_overrides.mk for CC1FLAGS_<stem> := <flags> lines */
+function loadFlagOverrides(): Map<string, string> {
+  const overrides = new Map<string, string>();
+  const overridePath = join(ROOT, "configs/flag_overrides.mk");
+  if (!existsSync(overridePath)) return overrides;
+  const content = readFileSync(overridePath, "utf-8");
+  for (const line of content.split("\n")) {
+    const m = line.match(/^CC1FLAGS_(\S+)\s*:=\s*(.+)$/);
+    if (m) overrides.set(m[1], m[2].trim());
+  }
+  return overrides;
+}
+
+const flagOverrides = loadFlagOverrides();
 
 function run(cmd: string): string {
   return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
@@ -46,8 +61,10 @@ function compile(src: string): string {
   const s = `${dir}/${stem}.s`;
   const o = `${dir}/${stem}.c.o`;
   run(`mkdir -p ${dir}`);
+  const extraFlags = flagOverrides.get(stem) || "";
+  const cc1flags = extraFlags ? `${CC1FLAGS} ${extraFlags}` : CC1FLAGS;
   runStep("cpp", `${CPP} ${CPPFLAGS} ${src} -o ${i}`);
-  runStep("cc1", `${CC} ${CC1FLAGS} ${i} -o ${s}`);
+  runStep("cc1", `${CC} ${cc1flags} ${i} -o ${s}`);
   runStep("maspsx", `${MASPSX} --aspsx-version 2.77 --dont-force-G0 --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
   return o;
 }

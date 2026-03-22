@@ -18,7 +18,7 @@ You will receive `FUNC_NAME`. The file `src/{FUNC_NAME}.c` already contains raw 
 
 ## Target environment
 
-- **Compiler:** GCC 2.8.1-psx, MIPS R3000 (PlayStation 1)
+- **Compiler:** GCC 2.95.2-psx, MIPS R3000 (PlayStation 1)
 - **Flags:** `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpcc-struct-return -fcommon -msoft-float`
 - **Language:** C89 only. Declarations at top of block. `/* */` comments only. No `//`, no C99.
 
@@ -86,7 +86,8 @@ Getting this wrong changes instruction count → impossible to match.
 ## Diagnosing diffs
 
 - `slt` vs `sltu` → fix signedness with casts
-- Wrong registers → reorder declarations, try ternary vs if/else; if still wrong after 3 attempts use `register __asm__("v0")` to force it
+- Wrong registers → try natural C first (simplify expressions, use `-=` operators, remove hand-tuned variable ordering); if still wrong after 3 attempts use `register __asm__("v0")` to force it
+- Switch case bodies in wrong order → reorder cases in the `switch` to match the binary's layout
 - Extra/missing instructions → fix extern sizes or control flow
 - Two instructions swapped → scheduling barrier: `__asm__ volatile("" : "=r"(var) : "0"(var));`
 - `lw %gp_rel` but target has `lui`+`lw` → extern too small, needs > 8 bytes
@@ -94,6 +95,56 @@ Getting this wrong changes instruction count → impossible to match.
 ## When C is not enough
 
 If the `.s` file has GTE coprocessor instructions (`cfc2`, `ctc2`, `lwc2`, `swc2`) or bare `j` tail calls, use a top-level `__asm__` block. Use symbolic references (never `.word` with raw hex). Start asm string with `"\n"` so maspsx sees `.set\tnoreorder` correctly.
+
+**Switch statements are fully supported.** GCC 2.95.2 generates correct jump table dispatch. Prefer `switch` over if/else chains when the assembly shows a jump table pattern (`sll`/`addu`/`lw`/`jr` sequence with a `.word` table in rodata).
+
+## Escalation strategy for stubborn mismatches
+
+When clean C doesn't match, escalate through these steps in order:
+
+1. **Clean C** — reorder declarations, swap operands, use natural idioms
+2. **Scheduling barriers** — `__asm__ volatile("" : "=r"(var) : "0"(var));` to prevent instruction reordering
+3. **`register __asm__`** — `register s32 tmp __asm__("v0");` to force register assignment
+4. **Per-file flag overrides** (last resort) — add an entry in `configs/flag_overrides.mk`
+
+### Flag overrides
+
+The file `configs/flag_overrides.mk` defines per-file CC1FLAGS overrides:
+
+```makefile
+CC1FLAGS_SetGfxClip := -fno-schedule-insns -fno-schedule-insns2
+```
+
+Both `make` and `diffFunc.ts` read this file automatically. The override flags are appended to the base CC1FLAGS for that file only.
+
+**When to use:** The most common case is self-clobbering loads. The target has sequential `lui`/`lw` pairs where the `lw` overwrites the base register (`lui v0, %hi(sym)` / `lw v0, %lo(sym)(v0)`). GCC's scheduler groups `lui` instructions together and uses extra registers, making barriers insufficient. Disabling scheduling fixes this.
+
+**Signs you need flag overrides:**
+- Multiple `lui` instructions grouped together in your output but interleaved with `lw` in the target
+- `register __asm__` fixes the register but instructions are still in wrong order
+- The target uses self-clobbering loads (`lw $r, off($r)`) that GCC won't emit with scheduling enabled
+
+**How to add:**
+1. Add a line to `configs/flag_overrides.mk`: `CC1FLAGS_<stem> := -fno-schedule-insns -fno-schedule-insns2`
+2. Add `register __asm__("v0")` / `register __asm__("v1")` for the pointer variables
+3. Remove any scheduling barriers (no longer needed)
+4. Verify with `diffFunc.ts` — it picks up the override automatically
+
+**Worked example — SetGfxClip:**
+```c
+/* Requires -fno-schedule-insns -fno-schedule-insns2 (see flag_overrides.mk) */
+void SetGfxClip(s32 arg0, s32 arg1) {
+    register GfxObj *ptr_ac __asm__("v0");
+    register GfxObj *ptr_a8 __asm__("v1");
+
+    ptr_ac = D_8005E3AC[0];
+    ptr_a8 = D_8005E3A8[0];
+    ptr_ac->field_2C = arg0;
+    ptr_a8->field_2C = arg0;
+    ptr_ac->field_30 = arg1;
+    ptr_a8->field_30 = arg1;
+}
+```
 
 ## Constraints
 

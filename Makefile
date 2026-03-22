@@ -1,7 +1,7 @@
 # === PSX Matching Decompilation Build System ===
 
 # Toolchain - change GCC_VERSION to experiment (2.7.2, 2.8.1, 2.95.2)
-GCC_VERSION := 2.8.1
+GCC_VERSION := 2.95.2
 CC          := tools/old-gcc/build-gcc-$(GCC_VERSION)-psx/cc1
 MASPSX      := python3 tools/maspsx/maspsx.py
 CROSS       := mips-linux-gnu-
@@ -14,12 +14,15 @@ CPP         := $(CROSS)cpp
 CPPFLAGS    := -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c
 ASFLAGS     := -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq
 
+# Per-file flag overrides (CC1FLAGS_<stem> := <extra flags>)
+-include configs/flag_overrides.mk
+
 # Per-file flag configuration
 # Usage: $(eval $(call FlagsSwitch,$<)) in recipe
 # Sets CC1FLAGS, MASPSX_FLAGS for the given source file.
-# Add per-file overrides using $(findstring ...) checks below.
+# Appends any per-file overrides from flag_overrides.mk.
 define FlagsSwitch
-CC1FLAGS   := -O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet
+CC1FLAGS   := -O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet $(CC1FLAGS_$(basename $(notdir $(1))))
 MASPSX_FLAGS := --aspsx-version 2.77 --dont-force-G0 --run-assembler
 endef
 

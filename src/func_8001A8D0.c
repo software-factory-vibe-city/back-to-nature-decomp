@@ -1,51 +1,32 @@
 #include "common.h"
 
-__asm__(
-"\n"
-"\t.text\n"
-"\t.align\t2\n"
-"\t.globl\tfunc_8001A8D0\n"
-"\t.ent\tfunc_8001A8D0\n"
-"func_8001A8D0:\n"
-"\t.frame\t$sp,0,$31\n"
-"\t.mask\t0x00000000,0\n"
-"\t.fmask\t0x00000000,0\n"
-"\t.set\tnoreorder\n"
-"\tandi\t$a0, $a0, 0xFF\n"
-"\tlui\t$v0, %hi(D_8005E025)\n"
-"\taddiu\t$v0, $v0, %lo(D_8005E025)\n"
-"\taddu\t$v0, $a0, $v0\n"
-"\tlbu\t$v0, 0($v0)\n"
-"\tnop\n"
-"\tandi\t$v1, $v0, 0x4\n"
-"\tbeqz\t$v1, _8001A8FC\n"
-"\tandi\t$v0, $v0, 0x3\n"
-"\tjr\t$ra\n"
-"\taddiu\t$v0, $a0, 0x10\n"
-"_8001A8FC:\n"
-"\tbeqz\t$v0, _8001A910\n"
-"\taddiu\t$v1, $a0, -0xA\n"
-"\taddiu\t$v0, $a0, -0x41\n"
-"\tjr\t$ra\n"
-"\tandi\t$v0, $v0, 0xFFFF\n"
-"_8001A910:\n"
-"\tsltiu\t$v0, $v1, 0x36\n"
-"\tbeqz\t$v0, func_8001A968\n"
-"\tlui\t$v0, %hi(jtbl_80010144)\n"
-"\taddiu\t$v0, $v0, %lo(jtbl_80010144)\n"
-"\tsll\t$v1, $v1, 2\n"
-"\taddu\t$v1, $v1, $v0\n"
-"\tlw\t$a0, 0($v1)\n"
-"\tnop\n"
-"\tjr\t$a0\n"
-"\tnop\n"
-"\t.end\tfunc_8001A8D0\n"
-"\n"
-"\t.align\t2\n"
-"\t.globl\t.L8001A938\n"
-"\t.ent\t.L8001A938\n"
-".L8001A938:\n"
-"\tjr\t$ra\n"
-"\taddiu\t$v0, $zero, 0x63\n"
-"\t.end\t.L8001A938\n"
-);
+extern u8 D_8005E025[];
+
+s32 func_8001A8D0(s32 arg0) {
+    u8 ch = arg0;
+    u8 flags = D_8005E025[ch];
+
+    if (flags & 4) {
+        return ch + 0x10;
+    }
+    if (flags & 3) {
+        return (u16)(ch - 0x41);
+    }
+
+    switch (ch - 0xA) {
+        case 23:
+            return 99;
+        case 53:
+            return 98;
+        case 35:
+            return 105;
+        case 30:
+            return 106;
+        case 31:
+            return 107;
+        case 0:
+            return 0xFFFE;
+        default:
+            return 4093;
+    }
+}

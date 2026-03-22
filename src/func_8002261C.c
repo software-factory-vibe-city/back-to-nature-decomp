@@ -8,7 +8,7 @@ extern s32 D_8005E5C8;
 
 s32 func_8002261C(s32 arg0, s32 arg1) {
     s32 var_a2;
-    register struct struct_8006C838 *temp_v0 __asm__("v0");
+    struct struct_8006C838 *temp_v0;
 
     var_a2 = 1;
     temp_v0 = D_8006C838;

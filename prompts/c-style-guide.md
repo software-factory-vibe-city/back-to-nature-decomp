@@ -1,6 +1,6 @@
 # C Style Guide for PSX Decompilation
 
-Idiomatic C patterns that produce correct codegen with GCC 2.8.1-psx `-O2 -G8 -mips1`. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output.
+Idiomatic C patterns that produce correct codegen with GCC 2.95.2-psx `-O2 -G8 -mips1`. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output.
 
 ## Array and pointer access
 
@@ -74,7 +74,7 @@ If the assembly does something one way, write C that naturally produces that pat
 
 ## Instruction ordering
 
-GCC 2.8.1-psx evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
+GCC 2.95.2-psx evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
 
 ### Operand order in source = instruction order in output
 
@@ -206,16 +206,54 @@ extern SomeStruct *D_8005E3AC[3];
 
 This happens when the original source file declared multiple variables together (e.g., as part of the same array or struct), making the total declaration > 8 bytes, even though each individual access only uses one element.
 
+### Switch statements
+
+GCC 2.95.2 compiles switch statements correctly, including jump table dispatch. Use them freely.
+
+**Case order matters.** The compiler emits case bodies in source order. If the diff shows the right case values but in the wrong order, reorder the cases in your switch to match the original binary's layout:
+
+```c
+/* If the original binary has case bodies in order: 99, 98, 105, 106, 107, 0xFFFE, default */
+switch (x) {
+    case 23: return 99;   /* emitted first */
+    case 53: return 98;   /* emitted second */
+    case 35: return 105;  /* etc. */
+    case 30: return 106;
+    case 31: return 107;
+    case 0:  return 0xFFFE;
+    default: return 4093;
+}
+```
+
+### Prefer natural C over hand-tuned variables
+
+GCC 2.95.2's register allocator often picks the right registers with natural C. Don't manually name variables `v0`/`v1` or hand-order assignments to influence allocation — write the simplest C first:
+
+```c
+/* GOOD — natural, often matches */
+arg0->field_0 -= arg1->field_0;
+arg0->field_4 -= arg1->field_4;
+arg0->field_8 -= arg1->field_8;
+
+/* BAD — hand-tuned for a different compiler's allocator */
+s32 v0 = arg0->field_0;
+s32 v1 = arg1->field_0;
+v0 = v0 - v1;
+/* ... carefully ordered to steer register assignment ... */
+```
+
 ### Register allocation: accept rare quirks
 
-In rare cases (~3% of functions), the target binary uses two registers where the compiler insists on reusing one. For example, the target loads two constants into `$v0` and `$v1` before any stores, but every C pattern produces single-register code that reuses `$v0`.
-
-When this happens, `register s16 temp __asm__("v1")` can force the register assignment. This is a last resort — try all natural C patterns first (temp variables, reordering declarations, reordering statements). If nothing works after exhausting natural approaches, `register __asm__` is acceptable. Always add a comment explaining why:
+In rare cases, the target binary uses registers the compiler won't naturally pick. `register __asm__` can force the register. This is a last resort — try natural C first. With GCC 2.95.2, this is needed less often than with older compiler versions.
 
 ```c
 /* register __asm__ required: compiler reuses $v0, target uses $v0 and $v1 */
 register s16 temp_v1 __asm__("v1");
 ```
+
+### CSE of address high halves
+
+GCC 2.95.2 has aggressive common subexpression elimination. When two globals share the same `lui` high half (e.g., both in the 0x8006xxxx range), the compiler merges them into one `lui`. The original binary may have two independent `lui` instructions. This is a known limitation — scheduling barriers do NOT prevent CSE.
 
 ### Declare locals at the top of the block (C89)
 

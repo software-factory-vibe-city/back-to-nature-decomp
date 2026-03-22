@@ -24,9 +24,9 @@ git clone --recursive <repo-url>
 cd btn-decompilation
 npm install
 
-# Build the PSX GCC 2.7.2 cross-compiler (requires Docker)
+# Build the PSX GCC 2.95.2 cross-compiler (requires Docker)
 cd tools/old-gcc
-make VERSION=2.7.2-psx
+make VERSION=2.95.2-psx
 cd ../..
 ```
 
@@ -119,7 +119,7 @@ build/                  All generated artifacts (gitignored)
 ## Compilation Pipeline
 
 ```
-C source → cpp (preprocessor) → cc1 (PSX GCC 2.7.2) → maspsx (assembler wrapper) → .o
+C source → cpp (preprocessor) → cc1 (PSX GCC 2.95.2) → maspsx (assembler wrapper) → .o
 Assembly → mips-linux-gnu-as → .o
 All .o → mips-linux-gnu-ld → ELF → objcopy → raw binary → verify against original
 ```
@@ -224,4 +224,4 @@ Watches the source file for changes and re-diffs automatically.
 | Entry point | `0x80011278` |
 | Payload size | 321,536 bytes (`0x4E800`) |
 | Payload offset | `0x800` |
-| Compiler | GCC 2.7.2 |
+| Compiler | GCC 2.95.2 (PSY-Q 4.6 CC1PSX) |

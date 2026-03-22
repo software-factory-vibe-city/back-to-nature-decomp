@@ -274,6 +274,7 @@ function main() {
   // so spimdisasm emits them with alabel (global visibility) for rodata references.
   const jtblAbsorbed = new Set<number>(); // absorbed but keep as type:func
   const jtblOwners = new Map<number, number>(); // target addr → owner addr
+  const jtblByOwnerFunc = new Map<number, JtblInfo[]>(); // owner addr → jtbl infos
   {
     const ASM_DATA_DIR = join(ROOT, "build/asm/data");
     const ASM_NM_DIR = join(ROOT, "build/asm/nonmatchings");
@@ -284,6 +285,8 @@ function main() {
     interface JtblInfo {
       name: string;
       targets: number[];
+      romStart: number; // ROM offset of first .word
+      romEnd: number;   // ROM offset past last .word
     }
     const jumpTables: JtblInfo[] = [];
 
@@ -294,7 +297,7 @@ function main() {
         for (const line of content.split("\n")) {
           const jtblStart = line.match(/^dlabel (jtbl_[0-9A-Fa-f]+)/);
           if (jtblStart) {
-            currentJtbl = { name: jtblStart[1], targets: [] };
+            currentJtbl = { name: jtblStart[1], targets: [], romStart: 0, romEnd: 0 };
             continue;
           }
           if (line.match(/^enddlabel jtbl_/)) {
@@ -305,6 +308,13 @@ function main() {
             continue;
           }
           if (currentJtbl) {
+            // Parse ROM offset from comment: /* 944 80010144 ... */
+            const romComment = line.match(/\/\*\s+([0-9A-Fa-f]+)\s+/);
+            if (romComment) {
+              const rom = parseInt(romComment[1], 16);
+              if (currentJtbl.romStart === 0) currentJtbl.romStart = rom;
+              currentJtbl.romEnd = rom + 4;
+            }
             // Match .word with raw hex address or function/label name
             const wordHex = line.match(/\.word\s+0x([0-9A-Fa-f]+)/i);
             if (wordHex) {
@@ -343,7 +353,30 @@ function main() {
           if (ownerAddr !== null) break;
         }
       }
+
+      // Fallback: if no asm file found (function compiled as C), find the owner
+      // by checking which function with size: encompasses the jtbl targets
+      if (ownerAddr === null) {
+        const symContent = readFileSync(SYMBOL_ADDRS, "utf-8");
+        for (const symLine of symContent.split("\n")) {
+          const sizeMatch = symLine.match(/^(?:func_|_)([0-9A-Fa-f]+)\s*=\s*(0x[0-9A-Fa-f]+).*size:0x([0-9A-Fa-f]+)/i);
+          if (sizeMatch) {
+            const funcAddr = parseInt(sizeMatch[2], 16);
+            const funcSize = parseInt(sizeMatch[3], 16);
+            const funcEnd = funcAddr + funcSize;
+            // Check if any jtbl target falls within this function's range
+            if (uniqueTargets.some((t) => t >= funcAddr && t < funcEnd)) {
+              ownerAddr = funcAddr;
+              break;
+            }
+          }
+        }
+      }
       if (ownerAddr === null) continue;
+
+      // Track jtbl ownership for rodata migration
+      if (!jtblByOwnerFunc.has(ownerAddr)) jtblByOwnerFunc.set(ownerAddr, []);
+      jtblByOwnerFunc.get(ownerAddr)!.push(jtbl);
 
       // Step 3: Absorb targets that are separate functions not externally called
       for (const targetAddr of uniqueTargets) {
@@ -359,6 +392,29 @@ function main() {
   }
 
   if (isFragment.size === 0 && jtblAbsorbed.size === 0) {
+    // Even with no fragments, strip orphaned .rodata entries from prior runs
+    if (writeMode && existsSync(SPLAT_YAML)) {
+      const yaml = readFileSync(SPLAT_YAML, "utf-8");
+      const yamlLines = yaml.split("\n");
+      const cleanedLines: string[] = [];
+      let stripped = 0;
+      for (let k = 0; k < yamlLines.length; k++) {
+        const line = yamlLines[k];
+        if (line.match(/\[\s*0x[0-9A-Fa-f]+\s*,\s*\.rodata\s*,\s*\w+\s*\]/)) {
+          // Also strip continuation rodata line immediately after
+          if (k + 1 < yamlLines.length && yamlLines[k + 1].match(/\[\s*0x[0-9A-Fa-f]+\s*,\s*rodata\s*\]/)) {
+            k++;
+          }
+          stripped++;
+          continue;
+        }
+        cleanedLines.push(line);
+      }
+      if (stripped > 0) {
+        writeFileSync(SPLAT_YAML, cleanedLines.join("\n"));
+        console.log(`Stripped ${stripped} orphaned .rodata entry/entries from splat.yaml`);
+      }
+    }
     console.log("No fragments detected.");
     return;
   }
@@ -565,9 +621,90 @@ function main() {
       }
       filteredYaml.push(line);
     }
-    if (removedYaml > 0) {
-      writeFileSync(SPLAT_YAML, filteredYaml.join("\n"));
+    // Insert .rodata subsegments for merge-group heads that own jump tables.
+    // These must be inserted within the rodata section (in ROM order), splitting
+    // the monolithic rodata segment. After the jtbl, add a continuation rodata segment.
+    let addedRodata = 0;
+    const rodataInserts: { romStart: number; romEnd: number; name: string }[] = [];
+    for (const m of merges) {
+      const jtbls = jtblByOwnerFunc.get(m.headAddr);
+      if (jtbls && jtbls.length > 0) {
+        for (const jtbl of jtbls) {
+          if (jtbl.romStart > 0) {
+            rodataInserts.push({ romStart: jtbl.romStart, romEnd: jtbl.romEnd, name: m.head });
+          }
+        }
+      }
+    }
+
+    // Sort by ROM offset
+    rodataInserts.sort((a, b) => a.romStart - b.romStart);
+
+    // Insert rodata splits in ROM-offset order among existing subsegments.
+    // Find any line matching [0xNNN, rodata] that covers a jtbl range and split it.
+    const finalYaml: string[] = [];
+    // First, strip any previously-inserted .rodata entries and their continuation
+    // rodata segments for idempotency. This must work even when rodataInserts is
+    // empty (e.g. function already decomped as C, no merge groups detected).
+    const stripped: string[] = [];
+    for (let k = 0; k < filteredYaml.length; k++) {
+      const line = filteredYaml[k];
+      // Match a .rodata entry with a function name: [0xNNN, .rodata, func_name]
+      const dotRodataMatch = line.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*\.rodata\s*,\s*(\w+)\s*\]/);
+      if (dotRodataMatch) {
+        // Also strip the continuation rodata line immediately after, if present
+        if (k + 1 < filteredYaml.length) {
+          const nextLine = filteredYaml[k + 1];
+          if (nextLine.match(/\[\s*0x[0-9A-Fa-f]+\s*,\s*rodata\s*\]/)) {
+            k++; // skip the continuation line too
+          }
+        }
+        continue; // remove the .rodata entry
+      }
+      stripped.push(line);
+    }
+
+    for (let i = 0; i < stripped.length; i++) {
+      const line = stripped[i];
+      // Match monolithic rodata: [0xNNN, rodata] (not .rodata, not o with .rdata)
+      const rodataMatch = line.match(/^(\s*)-\s*\[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/);
+      if (rodataMatch && rodataInserts.length > 0) {
+        const indent = rodataMatch[1];
+        const rodataStart = parseInt(rodataMatch[2], 16);
+        // Find the end of this rodata segment (next subsegment's ROM offset)
+        let rodataEnd = 0xFFFFFFFF;
+        for (let j = i + 1; j < stripped.length; j++) {
+          const nextSeg = stripped[j].match(/\[\s*0x([0-9A-Fa-f]+)\s*,/);
+          if (nextSeg) {
+            rodataEnd = parseInt(nextSeg[1], 16);
+            break;
+          }
+        }
+
+        // Check if any jtbl falls within this rodata segment
+        const insertsHere = rodataInserts.filter(
+          (ins) => ins.romStart >= rodataStart && ins.romStart < rodataEnd
+        );
+        if (insertsHere.length > 0) {
+          // Emit: [rodataStart, rodata] (part before first jtbl)
+          finalYaml.push(line);
+          for (const ins of insertsHere) {
+            finalYaml.push(`${indent}- [0x${ins.romStart.toString(16).toUpperCase()}, .rodata, ${ins.name}]`);
+            finalYaml.push(`${indent}- [0x${ins.romEnd.toString(16).toUpperCase()}, rodata]`);
+            addedRodata++;
+          }
+          continue;
+        }
+      }
+      finalYaml.push(line);
+    }
+
+    if (removedYaml > 0 || addedRodata > 0) {
+      writeFileSync(SPLAT_YAML, finalYaml.join("\n"));
       console.log(`Removed ${removedYaml} subsegment(s) from splat.yaml`);
+      if (addedRodata > 0) {
+        console.log(`Added ${addedRodata} .rodata split(s) for jump tables`);
+      }
     }
   }
 
@@ -587,7 +724,9 @@ function main() {
     console.log(`Deleted ${deletedSrc} stale source file(s)`);
   }
 
-  // Reset head function source files to INCLUDE_ASM if they have stale C code
+  // Reset head function source files to INCLUDE_ASM only if they contain
+  // stale inline __asm__ blocks (from pre-merge decomps that included sub-functions).
+  // Do NOT reset files that have real C code (switch statements, function bodies, etc.)
   const includeAsmStub = (name: string) =>
     `#include "common.h"\n#include "include_asm.h"\n\nINCLUDE_ASM("build/asm/nonmatchings/${name}", ${name});\n`;
 
@@ -596,7 +735,8 @@ function main() {
     const srcFile = join(SRC_DIR, `${m.head}.c`);
     if (existsSync(srcFile)) {
       const content = readFileSync(srcFile, "utf-8");
-      if (!content.includes("INCLUDE_ASM")) {
+      // Only reset if it's an inline __asm__ block (not real C, not already a stub)
+      if (!content.includes("INCLUDE_ASM") && content.includes("__asm__")) {
         writeFileSync(srcFile, includeAsmStub(m.head));
         resetSrc++;
       }

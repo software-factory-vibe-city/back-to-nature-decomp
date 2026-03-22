@@ -7,7 +7,7 @@ For tools, this is typescript only. do not check in python scripts.
 ## Key Facts
 - PS-X EXE at `extracted/iso/slus_011.15` — load addr `0x80010000`, entry `0x80011278`, 321,536 byte payload at offset `0x800`
 - 761 disassembled functions in `asm/functions/`, metadata in `asm/functions.csv`
-- PSX-era GCC 2.8.1-psx cross-compiler built via Docker in `tools/old-gcc/`
+- PSX-era GCC 2.95.2-psx cross-compiler built via Docker in `tools/old-gcc/`
 - Build: `make split` (splat) → `make` (compile+link) → `make check` (verify match)
 - Custom tooling is TypeScript, run via `npx tsx`
 

@@ -14,6 +14,8 @@
  *   npx tsx --env-file=.env tools/orchestrator.ts --refine --func X     # refine a specific function
  *   npx tsx --env-file=.env tools/orchestrator.ts --refine --top 5      # refine top 5 candidates
  *   npx tsx --env-file=.env tools/orchestrator.ts --project-refine     # project-wide refinement pass
+ *   npx tsx --env-file=.env tools/orchestrator.ts --fix SetGfxOffset   # fix a previously-attempted function
+ *   npx tsx --env-file=.env tools/orchestrator.ts --fix SetGfxOffset --write  # fix and commit on success
  */
 
 import { createHash } from "crypto";
@@ -44,6 +46,7 @@ const targetFunc = argVal("--func");
 const maxStage = argVal("--stage") ? parseInt(argVal("--stage")!, 10) : 5;
 const refineMode = args.includes("--refine");
 const projectRefineMode = args.includes("--project-refine");
+const fixFunc = argVal("--fix");
 
 // --- Types ---
 
@@ -559,6 +562,99 @@ async function runRefinementPipeline(): Promise<RefinementResult[]> {
 async function main() {
   // Clean up any leftover worktrees from crashed runs
   wt.cleanupStale();
+
+  if (fixFunc) {
+    console.log(`Fix mode: attempting to fix ${fixFunc}`);
+
+    const srcFile = join(ROOT, "src", `${fixFunc}.c`);
+    if (!existsSync(srcFile)) {
+      console.error(`Source file not found: src/${fixFunc}.c`);
+      process.exit(1);
+    }
+
+    /* Create worktree for isolation */
+    let wtInfo;
+    try {
+      wtInfo = wt.create(fixFunc);
+      wt.prepare(wtInfo);
+    } catch (e: any) {
+      console.log(`Worktree setup failed — ${e.message}`);
+      if (wtInfo) wt.cleanup(wtInfo, true);
+      process.exit(1);
+    }
+
+    const wtPath = wtInfo.path;
+    const systemPrompt = getDecompilationCleanupAgentPrompt(fixFunc, wtPath);
+
+    const checkSuccess = (): boolean => {
+      try {
+        const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${fixFunc}`, {
+          cwd: wtPath,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+        if (!diffOutput.includes("100.0%")) return false;
+
+        const makeOutput = execSync("make check", {
+          cwd: wtPath,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+          timeout: 120000,
+        });
+        return makeOutput.includes("matches original payload");
+      } catch {
+        return false;
+      }
+    };
+
+    const userMessage = `You are fixing ${fixFunc}, which has a previous decompilation attempt that didn't match the target binary.
+
+The file src/${fixFunc}.c already contains the previous attempt. Run \`timeout 5 npx tsx tools/diffFunc.ts ${fixFunc}\` to see the current match percentage and the diff.
+
+This function likely needs the escalation strategy to match. Try in order:
+1. Clean C fixes (reorder declarations, swap operands, simplify expressions)
+2. Scheduling barriers: \`__asm__ volatile("" : "=r"(var) : "0"(var));\`
+3. \`register __asm__("v0")\` to force register allocation
+4. Per-file flag overrides in \`configs/flag_overrides.mk\` (e.g., \`CC1FLAGS_${fixFunc} := -fno-schedule-insns -fno-schedule-insns2\`) — both make and diffFunc.ts read this file automatically
+
+Look for signs of scheduler interference: grouped \`lui\` instructions, self-clobbering loads (\`lw $r, off($r)\`), or instruction pairs that are correct but swapped.
+
+Keep iterating until you reach 100% match.`;
+
+    const result = await runAgentLoop({
+      systemPrompt,
+      userMessage,
+      cwd: wtPath,
+      maxRetries: 10,
+      checkSuccess,
+    });
+
+    if (result.success) {
+      console.log(`\nFix succeeded for ${fixFunc}!`);
+      if (writeMode) {
+        const committed = wt.commit(wtInfo, `Fix: ${fixFunc}`);
+        if (committed) {
+          const mergeResult = wt.merge(wtInfo);
+          if (mergeResult.success) {
+            wt.cleanup(wtInfo);
+            console.log(`Committed and merged.`);
+          } else {
+            console.log(`Merge failed: ${mergeResult.error}`);
+            wt.cleanup(wtInfo, true);
+          }
+        } else {
+          wt.cleanup(wtInfo);
+        }
+      } else {
+        console.log(`Dry run — changes in worktree: ${wtPath}`);
+        wt.cleanup(wtInfo, true);
+      }
+    } else {
+      console.log(`\nFix failed for ${fixFunc}.`);
+      wt.cleanup(wtInfo, true);
+    }
+    return;
+  }
 
   const graphPath = join(ROOT, "build/callGraph.json");
   if (!existsSync(graphPath)) {
