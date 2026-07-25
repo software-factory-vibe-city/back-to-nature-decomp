@@ -80,7 +80,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 
 | File | Role |
 |---|---|
-| `progress.ts` | Progress report from splat segments + src scan (`make progress`, `npm run progress`). |
+| `progress.ts` | Progress report from splat segments + src scan (`make progress`, `npm run progress`). `--markdown` emits a full per-function table (status/VRAM/size/source/asm links) suitable for redirecting to a file; `--list`, `--remaining`, `--done` filter. |
 | `diffBinary.ts` | Whole-binary diff: coverage gaps in .text, linker-map drift vs lib `.o` placements. |
 | `headerInfo.ts` | One-shot: parsed the PSX-EXE header into `notes/slus_01115_header_info.md`. Done; kept for reproducibility. |
 | `matchSignatures.ts` | Standalone multi-version signature scanner. Did its job (proved SDK 4.70 during compiler identification); `build/detectLibFunctions.ts` now does its own 4.7-only scan. Occasional diagnostic. |
