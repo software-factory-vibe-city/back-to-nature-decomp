@@ -1,7 +1,9 @@
 /**
  * analyzeLayout.ts — Classify binary entries as code or data using byte-level heuristics
  *
- * Reads build/functions.csv (from spimdisasm with --disasm-unknown) and the raw binary,
+ * Reads build/without-unknown/functions.csv (from spimdisasm WITHOUT
+ * --disasm-unknown — that flag makes spimdisasm invent giant phantom
+ * "functions" inside data regions, which breaks boundary inference) and the raw binary,
  * then independently classifies each entry by inspecting actual bytes rather than
  * trusting spimdisasm's T_/func_ labels.
  *
@@ -28,6 +30,16 @@ const KNOWN_CODE: Set<number> = new Set([
   0x80041AB4, // GTE/COP0 code — handwritten, spimdisasm refuses without --disasm-unknown
   0x800425A4, // interrupt trampoline — jr $t2 not jr $ra
   0x800425C4, // GTE/COP0 code — handwritten, spimdisasm refuses without --disasm-unknown
+]);
+
+// Entries that ARE code but whose length spimdisasm over-reports, mapping
+// entry address -> true code end. _padChkRC2wait (inside libpad's pdresres.o)
+// is the canonical case: spimdisasm cannot find its end and overruns 26KB
+// into real data (ASCII strings). Ground truth: pdresres.o .text is 0x1E70
+// bytes from ROM 0x374A4, ending exactly at VRAM 0x80048B14 (readelf-verified;
+// ASCII path strings begin immediately after).
+const KNOWN_CODE_END: Map<number, number> = new Map([
+  [0x80048190, 0x80048b14], // _padChkRC2wait / pdresres.o tail
 ]);
 
 export interface CsvEntry {
@@ -354,9 +366,19 @@ export function classifyEntries(
   const binaryStart = loadAddr;
   const binaryEnd = loadAddr + payloadSize;
 
-  return entries.map(e =>
-    classifyEntry(e, binary, callTargets, callers, loadAddr, payloadOffset, binaryStart, binaryEnd)
-  );
+  return entries.map(e => {
+    const result = classifyEntry(e, binary, callTargets, callers, loadAddr, payloadOffset, binaryStart, binaryEnd);
+    const knownEnd = KNOWN_CODE_END.get(e.address);
+    if (knownEnd !== undefined) {
+      return {
+        ...result,
+        classification: "code" as const,
+        signals: [...result.signals, `known code, overrun capped at 0x${knownEnd.toString(16)}`],
+        entry: { ...e, length: knownEnd - e.address },
+      };
+    }
+    return result;
+  });
 }
 
 /**

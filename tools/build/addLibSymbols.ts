@@ -233,7 +233,17 @@ function main() {
 
       // Case 2: This address is now claimed by a different detection label
       const claimant = detectedAddrs.get(addr);
-      if (claimant && claimant !== name && !correctAddrs.has(name)) {
+      // Only auto-generated names (func_XXXXXXXX) may be garbage-collected.
+      // A hand-chosen name at a detection-claimed address is a deliberate
+      // rename of a library symbol and must WIN — same "existing entries
+      // win" semantics as the add filter below. Without this guard, lib
+      // renames silently revert on the next split.
+      if (
+        claimant &&
+        claimant !== name &&
+        !correctAddrs.has(name) &&
+        /^func_[0-9A-Fa-f]{8}$/.test(name)
+      ) {
         // This entry's address belongs to a different symbol now — remove it
         console.log(`  Removing stale ${name} at 0x${addr.toString(16).toUpperCase()} (now ${claimant})`);
         lines.splice(i, 1);

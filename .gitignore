@@ -1,6 +1,6 @@
 extracted/
 build/
-tools/old-gcc/build-gcc-*/
+tools/vendor/old-gcc/build-gcc-*/
 # Logs
 logs
 *.log

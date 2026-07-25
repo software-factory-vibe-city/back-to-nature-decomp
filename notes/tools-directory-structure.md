@@ -60,6 +60,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | 10 | `classifyGlobals.ts` | Generates `include/globals.h` — the `D_XXXXXXXX` extern declarations with correct GP-relative vs absolute addressing. **Never edit `globals.h` by hand.** |
 | 11 | `agent/contextExport.ts --all` | (see agent group) |
 | 12 | `genProjectProfile.ts` | Generates `configs/project-profile.md` (injected into every agent prompt) from machine-readable sources: EXE header + `splat.yaml` via psxExeInfo, compiler/flags/ASPSX version from the Makefile, SDK version auto-detected via `matchSignatures.ts`, byte-identity **verified** by hashing the built binary at generation time. Human facts (game title, evidence note) live in `configs/project-info.json`. |
+| — | `genDisasmSymbols.ts` | Generates `build/disassembler_symbol_addrs.txt` from `symbol_addrs.txt` (+ `__start` fallback) before every disassembly — a pure derived artifact, hence in `build/`, never committed. Rich symbols give spimdisasm entry points into indirectly-called library code: real names, correct function starts, no phantom blobs. Called by `disassemble.sh` and `bootstrap.ts`. |
 
 ### Library-detection internals (called by the above, not run directly)
 
@@ -84,6 +85,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | `diffBinary.ts` | Whole-binary diff: coverage gaps in .text, linker-map drift vs lib `.o` placements. |
 | `headerInfo.ts` | One-shot: parsed the PSX-EXE header into `notes/slus_01115_header_info.md`. Done; kept for reproducibility. |
 | `matchSignatures.ts` | Standalone multi-version signature scanner. Did its job (proved SDK 4.70 during compiler identification); `build/detectLibFunctions.ts` now does its own 4.7-only scan. Occasional diagnostic. |
+| `analyzeAccess.ts` | **Restored 2026-07-25** (was briefly deleted as orphaned — mistake). Scans the disassembly for every data-symbol reference and classifies by access pattern (`%gp_rel` read/write, absolute read/write, jump table), then infers section types per region. This is the *only* honest `.sdata` detector: position-in-GP-range is necessary but not sufficient (most of `.data`'s tail is in GP range too). On the current binary it finds `.sdata` at `0x8005D3D8`–`0x8005E800` with high confidence — exactly the documented boundary, which no other tool reproduces. Also useful as a cross-check for `classifyGlobals`' addressing decisions. Output: `notes/access-patterns.md` + `build/accessRegions.json` (machine-readable; consumed by `bootstrap.ts` to set `sdataStart`).
 
 ## tools/vendor/ — vendored repos & SDK data
 
@@ -122,9 +124,11 @@ bootstrap-era tools are idempotent or no-op when configs exist.
   planned anti-hack gate work lands (see
   `notes/next-steps-for-revisiting-the-project.md`).
 - **Deleted in the reorganization** (verified orphaned — zero references):
-  `splitFunctions.ts` and `analyzeAccess.ts` (superseded by `bootstrap.ts` /
-  `analyzeLayout.ts`), `splitSegments.ts` (old segment approach),
+  `splitFunctions.ts` (superseded by `bootstrap.ts`),
+  `splitSegments.ts` (old segment approach),
   `convertToC.ts` (INCLUDE_ASM approach — now a forbidden pattern).
+  `analyzeAccess.ts` was deleted in the same sweep but **restored** after its
+  value became clear (see diagnostics table).
 - `.env` holds `AGENT` / `STRONGER_AGENT` configs consumed by `agent-loop.ts`;
   it lives at project root, not in `tools/`.
 - Historical session notes (`binary-diff.md`, `maspsx-issue*.md`,

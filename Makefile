@@ -32,7 +32,7 @@ BUILD_DIR   := build
 BASENAME    := slus_011
 
 # Splat outputs
-LD_SCRIPT   := $(BASENAME).ld
+LD_SCRIPT   := $(BUILD_DIR)/$(BASENAME).ld
 BUILT_BIN   := $(BUILD_DIR)/$(BASENAME).bin
 BUILT_ELF   := $(BUILD_DIR)/$(BASENAME).elf
 
@@ -124,6 +124,7 @@ check: $(BUILT_BIN)
 		echo "  built:    $$(cat $(BUILD_DIR)/built.sha256)"; \
 		exit 1; \
 	fi
+	@npx tsx tools/build/genProjectProfile.ts --write > /dev/null && echo "Refreshed configs/project-profile.md (byte-identity verified)"
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -136,6 +137,21 @@ setup:
 # Show decompilation progress
 progress:
 	@npx tsx tools/diagnostics/progress.ts
+
+# Config convergence guard: re-run the split pipeline and assert that NO
+# tracked config or generated header changes. A dirty result means either
+# the committed state was not converged (someone committed mid-derivation)
+# or the environment drifted (tool version change) — both need human review,
+# not a silent commit. Run after fresh clones and before committing.
+config-check:
+	@$(MAKE) split > /dev/null 2>&1
+	@git diff --exit-code configs/ include/ > /dev/null || { \
+		echo "CONFIG DRIFT DETECTED — make split changed tracked files:"; \
+		git diff --stat configs/ include/; \
+		echo "Review and commit deliberately, or revert."; \
+		exit 1; \
+	}
+	@echo "OK: configs are converged (make split produced no tracked-file changes)"
 
 # Clean build artifacts + splat output
 clean:

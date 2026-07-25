@@ -6,6 +6,7 @@ options:
   basename: slus_011
   base_path: ..
   build_path: build
+  ld_script_path: build/slus_011.ld
   target_path: extracted/iso/slus_011.15
   asm_path: build/asm
   src_path: src

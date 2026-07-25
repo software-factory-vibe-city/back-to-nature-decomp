@@ -61,6 +61,10 @@ To rename a function — **ALL steps are required, in this order:**
 7. Run `make split` to regenerate (this will NOT clobber your renamed file if splat.yaml matches)
 8. Run `make` then `make check` to verify the full binary still matches
 
+Do NOT hand-edit `build/disassembler_symbol_addrs.txt` — it is regenerated
+from `symbol_addrs.txt` automatically on every `make split` / `make disassemble`
+(by `genDisasmSymbols.ts`). Renames propagate on their own.
+
 **CRITICAL:** If you skip step 2 (updating `splat.yaml`), `make split` will regenerate the source file as an `INCLUDE_ASM` stub under the OLD name, destroying your work. The segment name in `splat.yaml` MUST match the source file name (without `.c`).
 
 **Batch renames:** You can rename multiple symbols in `symbol_addrs.txt` and `splat.yaml` before running `make split`, then update all source files, then verify once. This is faster than one-at-a-time.

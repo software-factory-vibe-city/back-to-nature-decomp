@@ -29,7 +29,7 @@ import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
 const BINARY_PATH = _info.binaryPath;
-const LD_SCRIPT = join(ROOT, "slus_011.ld");
+const LD_SCRIPT = join(ROOT, "build", "slus_011.ld");
 const CACHE_PATH = join(ROOT, "build/libSections.json");
 const BSS_SYMS_PATH = join(ROOT, "build/lib_bss_syms.txt");
 const BUILD_LIB = join(ROOT, "build/lib");

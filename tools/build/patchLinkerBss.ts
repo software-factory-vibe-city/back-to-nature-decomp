@@ -9,7 +9,7 @@
  *
  * Usage:
  *   npx tsx tools/build/patchLinkerBss.ts           # dry run
- *   npx tsx tools/build/patchLinkerBss.ts --write   # update slus_011.ld
+ *   npx tsx tools/build/patchLinkerBss.ts --write   # update build/slus_011.ld
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
@@ -20,7 +20,7 @@ import { requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _layout = requireSectionLayout();
-const LD_SCRIPT = join(ROOT, "slus_011.ld");
+const LD_SCRIPT = join(ROOT, "build", "slus_011.ld");
 const CACHE_PATH = join(ROOT, "build/libSections.json");
 
 interface LibSections {
@@ -242,7 +242,7 @@ function main() {
   }
 
   if (!writeMode) {
-    console.log("\nDry run. Run with --write to update slus_011.ld");
+    console.log("\nDry run. Run with --write to update build/slus_011.ld");
     return;
   }
 

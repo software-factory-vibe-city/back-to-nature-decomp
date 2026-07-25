@@ -6,7 +6,7 @@
  *
  * When configs are empty:
  * 1. Parse PSX-EXE header via psxExeInfo.ts
- * 2. Write disassembler_symbol_addrs.txt (just __start)
+ * 2. Generate disassembler symbol file (from symbol_addrs.txt, or just __start on cold start)
  * 3. Run spimdisasm to produce build/functions.csv
  * 4. Analyze layout to find section boundaries → build/sectionLayout.json
  * 5. Generate symbol_addrs.txt from functions.csv
@@ -36,9 +36,14 @@ import {
 
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const SYMBOL_ADDRS = join(ROOT, "configs/symbol_addrs.txt");
-const DISASM_SYMBOL_ADDRS = join(ROOT, "configs/disassembler_symbol_addrs.txt");
+const DISASM_SYMBOL_ADDRS = join(ROOT, "build", "disassembler_symbol_addrs.txt");
 const LAYOUT_PATH = join(ROOT, "build/sectionLayout.json");
 const FUNCTIONS_CSV = join(ROOT, "build/functions.csv");
+/* Layout analysis (classifyEntries) must use a disassembly WITHOUT
+ * --disasm-unknown: with that flag spimdisasm invents giant phantom
+ * "functions" inside data regions (e.g. a 26KB blob spanning libpad's
+ * pdresres tail + real data), which breaks section-boundary inference. */
+const LAYOUT_CSV = join(ROOT, "build/without-unknown/functions.csv");
 
 function romHex(rom: number): string {
   return `0x${rom.toString(16).toUpperCase()}`;
@@ -60,15 +65,15 @@ function needsBootstrap(): boolean {
   return false;
 }
 
-/** Write disassembler_symbol_addrs.txt with just __start */
+/** Regenerate disassembler_symbol_addrs.txt from symbol_addrs.txt (+
+ *  __start fallback) via genDisasmSymbols.ts. On a cold start
+ *  symbol_addrs.txt doesn't exist yet, so this degrades to __start-only. */
 function writeDisasmSymAddrs(info: PsxExeInfo, writeMode: boolean): void {
-  const content = `__start = 0x${info.entryPoint.toString(16).toUpperCase()}; // type:func\n`;
-  if (writeMode) {
-    writeFileSync(DISASM_SYMBOL_ADDRS, content);
-    console.log(`Wrote ${DISASM_SYMBOL_ADDRS}`);
-  } else {
-    console.log(`Would write ${DISASM_SYMBOL_ADDRS}`);
-  }
+  const flag = writeMode ? "--write" : "";
+  execSync(`npx tsx tools/build/genDisasmSymbols.ts ${flag}`, {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
 }
 
 /** Run spimdisasm to produce functions.csv */
@@ -97,18 +102,38 @@ function runDisassembler(info: PsxExeInfo): void {
   execSync(cmd, { cwd: ROOT, stdio: "inherit" });
   // Clean up text files that we don't need
   execSync("rm -f build/slus_011_*.text.s", { cwd: ROOT });
+
+  /* Second pass WITHOUT --disasm-unknown, for layout analysis only
+   * (see LAYOUT_CSV comment above). */
+  mkdirSync(join(ROOT, "build/without-unknown"), { recursive: true });
+  const layoutCmd = [
+    "spimdisasm singleFileDisasm",
+    "--arch-level MIPS1",
+    info.binaryPath,
+    "build/without-unknown",
+    `--start 0x${info.payloadOffset.toString(16)}`,
+    `--vram 0x${info.loadAddr.toString(16).toUpperCase()}`,
+    "--instr-category r3000gte",
+    "--function-info build/without-unknown/functions.csv",
+    "--compiler PSYQ",
+    "--endian little",
+    `--gp ${gpHex}`,
+    `--symbol-addrs ${DISASM_SYMBOL_ADDRS}`,
+  ].join(" \\\n  ");
+  execSync(layoutCmd, { cwd: ROOT, stdio: "inherit" });
+  execSync("rm -f build/without-unknown/slus_011_*.text.s", { cwd: ROOT });
   console.log("Disassembly complete");
 }
 
 /** Analyze layout and write sectionLayout.json */
 function analyzeAndWriteLayout(info: PsxExeInfo, writeMode: boolean): SectionLayout {
-  if (!existsSync(FUNCTIONS_CSV)) {
-    throw new Error(`${FUNCTIONS_CSV} not found. Run disassembler first.`);
+  if (!existsSync(LAYOUT_CSV)) {
+    throw new Error(`${LAYOUT_CSV} not found. Run disassembler first (make disassemble).`);
   }
 
   const binary = readFileSync(info.binaryPath);
   const results = classifyEntries(
-    FUNCTIONS_CSV,
+    LAYOUT_CSV,
     binary,
     info.loadAddr,
     info.payloadOffset,
@@ -116,6 +141,41 @@ function analyzeAndWriteLayout(info: PsxExeInfo, writeMode: boolean): SectionLay
   );
 
   const boundaries = inferSectionBoundaries(results, info);
+
+  /* sdataStart via access analysis. inferSectionBoundaries' sdata rule
+   * ("first data section starting in GP range") is structurally unable to
+   * fire when .data + .sdata form one contiguous data run — so let
+   * analyzeAccess' %gp_rel access patterns decide instead. Best-effort:
+   * any failure leaves the inferred value in place. */
+  try {
+    execSync("npx tsx tools/diagnostics/analyzeAccess.ts", {
+      cwd: ROOT,
+      stdio: "ignore",
+    });
+  } catch {
+    /* analyzeAccess is best-effort */
+  }
+  const accessRegionsPath = join(ROOT, "build/accessRegions.json");
+  if (existsSync(accessRegionsPath)) {
+    const regions = JSON.parse(readFileSync(accessRegionsPath, "utf-8")) as Array<{
+      startAddr: number;
+      section: string;
+      confidence: string;
+      gpRelative: number;
+    }>;
+    const best = regions
+      .filter((r) => r.section === ".sdata" && r.confidence.startsWith("high"))
+      .sort((a, b) => b.gpRelative - a.gpRelative)[0];
+    if (best) {
+      const rom = best.startAddr - info.loadAddr + info.payloadOffset;
+      if (rom !== boundaries.sdataStart) {
+        console.log(
+          `sdataStart: 0x${boundaries.sdataStart.toString(16)} -> 0x${rom.toString(16)} (access analysis: ${best.confidence})`
+        );
+        boundaries.sdataStart = rom;
+      }
+    }
+  }
   const layout: SectionLayout = {
     rodataStart: boundaries.rodataStart,
     textStart: boundaries.textStart,
@@ -290,7 +350,7 @@ function main() {
   if (bootstrap) {
     console.log("\nBootstrapping configs from binary...");
 
-    // Step 1: Write disassembler_symbol_addrs.txt
+    // Step 1: Generate disassembler symbol file
     writeDisasmSymAddrs(info, writeMode);
 
     // Step 2: Run spimdisasm (only if functions.csv doesn't exist)
@@ -314,6 +374,11 @@ function main() {
     }
   } else {
     console.log("\nConfigs already exist, skipping bootstrap.");
+
+    /* Always keep disassembler symbols in sync with symbol_addrs.txt —
+     * this is how function renames propagate to the next disassembly
+     * without anyone hand-editing the generated file. */
+    writeDisasmSymAddrs(info, writeMode);
 
     // Always regenerate sectionLayout.json for downstream tools
     if (existsSync(FUNCTIONS_CSV)) {
