@@ -61,11 +61,13 @@ To reproduce: strip the pins, `npx tsx tools/agent/diffFunc.ts CopyVec3`.
 
 ### 1. The reward loophole (primary)
 
-`checkSuccess` in `tools/agent/orchestrator.ts` is byte-match only (`diffFunc` 100% +
-`make check`). Raw `__asm__` passes trivially. The prompt forbids asm; the gate
-permits it. Under turn pressure agents do what the gate rewards.
-`run0003.txt` shows the arc verbatim: thrash → "let me try something completely
-different" → "I'll write it as inline asm" → gate passes → merged.
+The retired `tools/agent/orchestrator.ts` used a byte-only `checkSuccess`
+(`diffFunc` 100% + `make check`). Raw `__asm__` passed trivially. The prompt
+forbade asm while the gate permitted it, so under turn pressure agents did what
+the gate rewarded. `run0003.txt` shows the arc verbatim: thrash → "let me try
+something completely different" → "I'll write it as inline asm" → gate passes
+→ merged. The project-local Pi workflow no longer auto-commits or merges agent
+output and its matching skill treats these constructs as failure states.
 
 ### 2. No diagnostic method
 
@@ -97,13 +99,15 @@ currently cannot distinguish "search failure" from "tool failure".
 
 ## Proposed next steps (ordered by cost/benefit)
 
-### 1. Close the gate (small change, biggest effect)
+### 1. Close the gate (migration completed; mechanical check still desirable)
 
-In `tools/agent/orchestrator.ts` `checkSuccess`: reject any *new* `__asm__(`,
-`INCLUDE_ASM`, `register __asm__`, or `flag_overrides.mk` entry outside an
-explicit allowlist of the sanctioned ones. A 100% match via asm is recorded as
-**"stuck — asm-quarantined"**, not "done". Converts silent poisoning into
-honest signal.
+The standalone SDK loop and auto-merging orchestrator were removed in favor of
+project-local Pi commands, game-agnostic PlayStation skills, and focused tool
+wrappers. The workflow now rejects new `__asm__(`, `INCLUDE_ASM`, register
+pinning, and flag overrides as policy and never commits automatically. A future
+mechanical source-gate tool should enforce the same allowlist independently of
+the model; a 100% match through a forbidden construct must remain **"stuck —
+asm-quarantined"**, not "done".
 
 ### 2. De-superstition sweep (mechanical, no LLM)
 

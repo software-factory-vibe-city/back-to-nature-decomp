@@ -1,15 +1,15 @@
 # Tools Directory Structure
 
-*Updated 2026-03-23 after the great reorganization: four orphaned tools were
-deleted (`splitFunctions.ts`, `analyzeAccess.ts`, `splitSegments.ts`,
-`convertToC.ts` — verified zero references in code, Makefile, configs, and
-prompts before removal) and everything else was grouped by role.*
+*Updated 2026-07-25 for the project-local Pi migration. The standalone SDK
+agent loop and auto-committing orchestrator were removed; commands, skills, and
+thin wrappers around the game-agnostic PlayStation tools now live in `.pi/`.*
 
 All custom tooling is TypeScript, run via `npx tsx tools/<group>/<name>.ts`.
 
 ```
+.pi/              project-local Pi commands and game-agnostic PSX workflow skills
 tools/
-├── agent/         the LLM decompilation loop (day-to-day work)
+├── agent/         decompilation diagnostics and context helpers
 ├── build/         the `make split` pipeline (binary → buildable project)
 ├── diagnostics/   progress reports, whole-binary diffs, one-shot analysis
 ├── lib/           shared constants module
@@ -18,26 +18,43 @@ tools/
 
 ---
 
-## tools/agent/ — the live decomp loop
+## .pi/ — the interactive decompilation workflow
 
-These form the LLM-driven matching pipeline. `orchestrator.ts` is the entry
-point; the others are its libraries, most of which also work standalone.
+Pi owns model selection, authentication, sessions, retries, compaction, and the
+standard coding tools. Project-local resources add only reusable PlayStation
+matching behavior:
+
+| Path | Role |
+|---|---|
+| `.pi/extensions/psx-decomp/index.ts` | Registers `/decompile`, `/fix-decomp`, `/refine-decomp`, `/project-refine`, and `/decomp-status`; reads the generated call graph for selection and completion. |
+| `.pi/extensions/psx-decomp/tools/*.ts` | Bounded-output Pi tool wrappers around m2c, function diffing/classification/tracing, call-graph generation, context export, and full verification in `tools/agent/`. |
+| `.pi/skills/psx-decompile-function/SKILL.md` | Fresh/resumed per-function matching workflow. |
+| `.pi/skills/psx-refine-function/SKILL.md` | Evidence-backed refinement of one already-matching function. |
+| `.pi/skills/psx-project-refinement/SKILL.md` | One conservative cross-file cleanup batch with full verification. |
+
+The skills derive game and toolchain facts from the active project's
+instructions, generated profile, and configuration. They do not auto-commit,
+create worktrees, or merge branches.
+
+## tools/agent/ — decompilation support tools
+
+These tools are called directly by humans, Pi skills, and future custom Pi tool
+wrappers.
 
 | File | Role | Entry point? |
 |---|---|---|
-| `orchestrator.ts` | Main driver. Reads `build/callGraph.json`, spins up git worktrees, runs agents per function, verifies via `diffFunc.ts`, merges branches `decomp/<func>`. Modes: `--write`, `--top N`, `--func X`, `--stage N`, `--refine`, `--project-refine`, `--fix X`. Dry-run without `--write`. | **Yes** — `npx tsx --env-file=.env tools/agent/orchestrator.ts` |
-| `agent-loop.ts` | Thin wrapper over the `@mariozechner/pi-coding-agent` SDK. Exports `runAgentLoop` / `runPlanThenExecute`; streams transcripts; outer retry loop with external success check. Reads `AGENT` / `STRONGER_AGENT` from `.env` (project root). | Library (also standalone CLI for testing) |
-| `getPrompt.ts` | Builds per-function prompts: injects asm, m2c output, call-graph context, and `prompts/c-style-guide.md` into `prompts/decompilation-cleanup-agent.md`. Also exports the global/project refinement prompt builders. | Library (CLI prints a prompt to stdout) |
-| `worktree.ts` | `WorktreeManager` — per-run git worktree isolation so failed agent runs can't dirty the main checkout; merges successful branches back. Symlinks `tools/vendor/old-gcc` build dirs into worktrees. | Library only |
-| `diffFunc.ts` | **The oracle.** Compiles one function through the full pipeline (cc1 2.95.2 → maspsx → as → objdump) and diffs against the original. This is the reward signal every agent optimizes for — and the file the planned "gate" changes (next-steps doc §1) will modify. Flags: `--watch`, `--columns`. | **Yes** — `npx tsx tools/agent/diffFunc.ts <func>` |
-| `m2cFunc.ts` | Runs m2c on one function's `.s` to produce the agent's starting draft. `--write` writes `src/<func>.c`, `--context` feeds `include/functions.h`. Imported by orchestrator. | Library + CLI |
-| `callGraph.ts` | Builds `build/callGraph.json`: call graph + tier/priority ordering that decides which function the orchestrator works next. | **Yes** — `npx tsx tools/agent/callGraph.ts` |
-| `contextExport.ts` | Extracts signatures from matched `src/*.c` into `include/functions.h` so later functions see real prototypes. Imported by orchestrator (`exportContext`); also run as `--all` at the end of `make split`. | Library + CLI |
+| `diffFunc.ts` | **The oracle.** Compiles one function through the configured compiler/assembler pipeline and diffs against the original. Flags: `--watch`, `--columns`. | **Yes** — `npx tsx tools/agent/diffFunc.ts <func>` |
+| `explainDiff.ts` | Classifies structural mismatches so matching starts from a fix class rather than random edits. | **Yes** |
+| `compilerTrace.ts` | Captures and summarizes compiler allocation/scheduling traces for stubborn mismatches. | **Yes** |
+| `m2cFunc.ts` | Runs m2c on one function's assembly. `--write` writes `src/<func>.c`; `--context` supplies generated signatures. | Library + CLI |
+| `callGraph.ts` | Builds `build/callGraph.json`, including tier and priority ordering used by the Pi extension. | **Yes** |
+| `contextExport.ts` | Extracts matched signatures into the generated function context header. | Library + CLI |
+| `getPrompt.ts` | Legacy standalone prompt builder retained while detailed policy remains in `prompts/`. | Library + CLI |
+| `worktree.ts` | Legacy worktree helper retained for manual experiments; the Pi workflow does not invoke it. | Library only |
 
 Data flow:
-`callGraph.ts` → `orchestrator.ts` → (`worktree.ts` + `m2cFunc.ts` +
-`getPrompt.ts` + `agent-loop.ts`) → verify with `diffFunc.ts` →
-`contextExport.ts`.
+`callGraph.ts` → Pi command/skill → `m2cFunc.ts` → `explainDiff.ts` /
+`compilerTrace.ts` → `diffFunc.ts` → full project check → `contextExport.ts`.
 
 ## tools/build/ — what `make split` runs
 
@@ -119,9 +136,9 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 
 - **The two groups of tools have different quality gates.** Build-pipeline
   tools were written when the goal was "get a buildable, verifiable binary" —
-  they are solid. Agent tools were written when the gate was "bytes match,
-  nothing else" — `agent/orchestrator.ts` / `agent/diffFunc.ts` are where the
-  planned anti-hack gate work lands (see
+  they are solid. The older automation used a byte-only completion gate; the
+  project-local Pi skills now make clean-source policy explicit while
+  `agent/diffFunc.ts` remains the exact byte oracle (see
   `notes/next-steps-for-revisiting-the-project.md`).
 - **Deleted in the reorganization** (verified orphaned — zero references):
   `splitFunctions.ts` (superseded by `bootstrap.ts`),
@@ -129,8 +146,6 @@ bootstrap-era tools are idempotent or no-op when configs exist.
   `convertToC.ts` (INCLUDE_ASM approach — now a forbidden pattern).
   `analyzeAccess.ts` was deleted in the same sweep but **restored** after its
   value became clear (see diagnostics table).
-- `.env` holds `AGENT` / `STRONGER_AGENT` configs consumed by `agent-loop.ts`;
-  it lives at project root, not in `tools/`.
 - Historical session notes (`binary-diff.md`, `maspsx-issue*.md`,
   `compiler-identification.md`, etc.) still reference old flat `tools/` paths —
   they are dated logs and were left as history.

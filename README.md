@@ -111,13 +111,14 @@ configs/
 lib/                    PSY-Q 4.7 static libs (libgpu.a, libgte.a, ...) used for
                         signature detection and dead-code classification
 tools/                  TypeScript tooling (npx tsx) — see notes/tools-directory-structure.md
-  agent/                LLM orchestration loop (orchestrator, agent-loop, diffFunc, ...)
+  agent/                Decompilation diagnostics and context tools
   build/                make split pipeline (bootstrap, lib folding, splat patching, ...)
   diagnostics/          progress/diff/one-shot analysis tools
   lib/                  shared constants module (psxExeInfo.ts)
   vendor/               vendored repos (old-gcc, maspsx, m2c, splat_ext, SDK data, reference)
+.pi/                    Project-local Pi extension commands and reusable PSX skills
 notes/                  Research/writeups — the project's institutional memory
-prompts/                LLM agent prompt templates
+prompts/                Detailed decompilation policy and style references
 build/                  All generated artifacts (gitignored): asm/, callGraph.json,
                         pipeline audit trails, map files, sha256 sums
 extracted/iso/          Original game files (gitignored)
@@ -125,49 +126,45 @@ orchestrator_output_*.txt, run000*.txt, project-refiner-run-*.txt
                         Historical agent run logs (large, kept for forensics)
 ```
 
-## The agent-driven decompilation pipeline
+## The Pi decompilation workflow
 
-The distinctive part of this project: per-function decompilation is done by LLM
-agents orchestrated in **git worktrees**, driven by `tools/agent/orchestrator.ts`
-(using the pi-coding-agent SDK).
+The standalone SDK loop and auto-committing worktree orchestrator have been
+replaced by project-local Pi resources in `.pi/`. Pi supplies the model,
+authentication, session loop, compaction, and standard coding tools; this
+project supplies reusable PlayStation decompilation policy and workflow.
 
-**Function selection:** `callGraph.ts` builds a call graph from the disassembly
-and priority-ranks functions (tier 1 = leaf/easy, tier 3 = complex).
+`tools/agent/callGraph.ts` still builds and priority-ranks the worklist. The Pi
+extension reads that generated graph and exposes these commands:
 
-**Per-function stages:**
-
-1. **m2c** — mechanical MIPS→C decompilation (`m2cFunc.ts`)
-2. **Match** — LLM agent classifies with `explainDiff.ts`, uses
-   `compilerTrace.ts` for allocation/scheduling cases, then iterates
-   `src/X.c` edits with `diffFunc.ts` as the exact oracle until 100%, followed
-   by full `make check`
-3. **Cleanup** — rename variables, comment (mostly stubbed)
-4. **Context export** — signature goes into `include/functions.h` so later
-   functions/agents see typed callees
-5. **Global refinement** — when a function's neighbors get decompiled, a hash
-   marker invalidates and it becomes a re-refinement candidate
-
-**Isolation:** each run gets a git worktree on branch `decomp/<func>`
-(`worktree.ts`); on success it's merged to master, on failure nothing is
-touched. Session logs are committed under `logs/`.
-
-**Agents:** configured via `.env` — `AGENT` (workhorse, OpenRouter/Kimi K2.5)
-and `STRONGER_AGENT` (escalation, Claude Sonnet). Prompts are built by
-`getPrompt.ts` from templates in `prompts/` with injected context (assembly,
-neighbor sources, call graph).
-
-```bash
-npx tsx --env-file=.env tools/agent/orchestrator.ts --write            # run pipeline
-npx tsx --env-file=.env tools/agent/orchestrator.ts --func func_80011F08 --write
-npx tsx --env-file=.env tools/agent/orchestrator.ts --fix SetGfxOffset --write
-npx tsx --env-file=.env tools/agent/orchestrator.ts --refine           # refinement pass
-npx tsx --env-file=.env tools/agent/orchestrator.ts --project-refine   # holistic whole-project pass
+```text
+/decompile [function]       Start a fresh function, or select the next target
+/fix-decomp <function>      Resume an existing clean-source attempt
+/refine-decomp [function]   Refine an already-matching function
+/project-refine             Execute one conservative project-wide cleanup batch
+/decomp-status              Show worklist counts and the next target
 ```
 
-**Known failure mode (important):** the success gate is byte-match only, so a
-stuck agent can "pass" by embedding the original assembly verbatim. This
-happened. Read `notes/next-steps-for-revisiting-the-project.md` before running
-more agents.
+The commands dispatch project-local, game-agnostic skills:
+
+- `psx-decompile-function` — m2c → classify → trace when needed → exact diff → full check
+- `psx-refine-function` — caller/callee-driven cleanup while preserving the match
+- `psx-project-refinement` — one small, reviewable, fully verified cross-file batch
+
+The extension also registers focused tool wrappers around the TypeScript tools
+in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
+`psx_diff_function`, `psx_build_call_graph`, `psx_export_context`, and
+`psx_verify_build`. Command output is bounded before it enters model context.
+
+Start `pi` from the repository root and use a slash command. Run `/reload` after
+editing `.pi` resources in an existing session. The workflows never commit or
+merge automatically, and they derive game/toolchain details from `AGENTS.md`,
+`configs/project-profile.md`, and the current project rather than baking in one
+game's values.
+
+**Known failure mode (important):** a byte-only success gate rewards embedded
+assembly, register pinning, and flag overrides. The skills explicitly reject
+those outcomes and require a classified stuck report instead. Read
+`notes/next-steps-for-revisiting-the-project.md` before matching more functions.
 
 ## The `make split` pipeline
 
@@ -189,7 +186,8 @@ so `make split` runs a choreographed sequence:
 
 | Directory | Contents |
 |-----------|----------|
-| `tools/agent/` | The LLM decomp loop: `orchestrator.ts` (driver), `agent-loop.ts` (SDK runner), `worktree.ts` (git worktree isolation), `getPrompt.ts` (prompt builder), `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: exact per-function diff + match %), `explainDiff.ts` (structural diff classifier), `compilerTrace.ts` (GCC RTL/allocation/scheduler observability), `contextExport.ts` (signatures → `functions.h`) |
+| `.pi/` | Project-local Pi extension commands and game-agnostic PlayStation matching/refinement skills |
+| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: exact per-function diff + match %), `explainDiff.ts` (structural diff classifier), `compilerTrace.ts` (GCC RTL/allocation/scheduler observability), `contextExport.ts` (signatures → `functions.h`), plus legacy prompt/worktree helpers retained for reference |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |
