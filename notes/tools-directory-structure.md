@@ -59,6 +59,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | 9 | `patchLibBss.ts` | Patches library `.o` files: converts BSS symbols to `SHN_ABS` absolute addresses (PSYLINK placed BSS symbols independently; GNU ld would pack them). |
 | 10 | `classifyGlobals.ts` | Generates `include/globals.h` — the `D_XXXXXXXX` extern declarations with correct GP-relative vs absolute addressing. **Never edit `globals.h` by hand.** |
 | 11 | `agent/contextExport.ts --all` | (see agent group) |
+| 12 | `genProjectProfile.ts` | Generates `configs/project-profile.md` (injected into every agent prompt) from machine-readable sources: EXE header + `splat.yaml` via psxExeInfo, compiler/flags/ASPSX version from the Makefile, SDK version auto-detected via `matchSignatures.ts`, byte-identity **verified** by hashing the built binary at generation time. Human facts (game title, evidence note) live in `configs/project-info.json`. |
 
 ### Library-detection internals (called by the above, not run directly)
 

@@ -46,13 +46,19 @@ function resolveAsmFile(funcName: string, rootDir: string = ROOT): string | null
   return null;
 }
 
-function injectStyleGuide(template: string, rootDir: string = ROOT): string {
+function injectShared(template: string, rootDir: string = ROOT): string {
   const guide = readFileSync(join(rootDir, "prompts/c-style-guide.md"), "utf-8");
-  return template.replace("{{C_STYLE_GUIDE}}", guide);
+  const profilePath = join(rootDir, "configs/project-profile.md");
+  const profile = existsSync(profilePath)
+    ? readFileSync(profilePath, "utf-8")
+    : "(no configs/project-profile.md found — toolchain specifics unknown; ask before assuming compiler version or flags)";
+  return template
+    .replace("{{C_STYLE_GUIDE}}", guide)
+    .replace(/\{\{PROJECT_PROFILE\}\}/g, profile);
 }
 
 export function getDecompilationCleanupAgentPrompt(funcName: string, rootDir: string = ROOT): string {
-  const template = injectStyleGuide(readFileSync(join(rootDir, "prompts/decompilation-cleanup-agent.md"), "utf-8"), rootDir);
+  const template = injectShared(readFileSync(join(rootDir, "prompts/decompilation-cleanup-agent.md"), "utf-8"), rootDir);
   const srcFile = join(rootDir, "src", `${funcName}.c`);
 
   /* Assembly */
@@ -110,7 +116,7 @@ ${callGraphEntry}
  * call graph entry, and current functions.h signatures.
  */
 export function getGlobalRefinementAgentPrompt(funcName: string, rootDir: string = ROOT): string {
-  const template = injectStyleGuide(readFileSync(join(rootDir, "prompts/global-refinement-agent.md"), "utf-8"), rootDir);
+  const template = injectShared(readFileSync(join(rootDir, "prompts/global-refinement-agent.md"), "utf-8"), rootDir);
 
   const callGraphPath = join(rootDir, "build/callGraph.json");
   if (!existsSync(callGraphPath)) {
@@ -237,7 +243,7 @@ export function findRefinementCandidates(rootDir: string = ROOT): Array<{ name: 
  * global usage patterns, and current shared type definitions.
  */
 export function getProjectRefinementAgentPrompt(rootDir: string = ROOT): string {
-  const template = injectStyleGuide(readFileSync(join(rootDir, "prompts/project-refinement-agent.md"), "utf-8"), rootDir);
+  const template = injectShared(readFileSync(join(rootDir, "prompts/project-refinement-agent.md"), "utf-8"), rootDir);
 
   const srcDir = join(rootDir, "src");
   const allSrcFiles = existsSync(srcDir)

@@ -8,6 +8,10 @@ You will receive `FUNC_NAME`, its source, its neighbors' source, the call graph 
 
 {{CONTEXT}}
 
+## Target environment
+
+{{PROJECT_PROFILE}}
+
 ## Goal
 
 Using neighbor context, improve readability and types:

@@ -1,8 +1,8 @@
 # C Style Guide for PSX Decompilation
 
-Idiomatic C patterns that produce correct codegen with GCC 2.95.2-psx `-O2 -G8 -mips1`. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output.
+Idiomatic C patterns that produce correct codegen with old (2.x-era) PSY-Q GCC at `-O2` on MIPS I. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output. Concrete toolchain facts (compiler version, flags, `-G` threshold, SDK version) are in the **project profile** injected alongside this guide.
 
-**The compiler is proven byte-identical to the original PSY-Q `CC1PSX.EXE`.** For every function that was originally C, clean matching source exists. If you cannot find it, STOP and report the diff signature — do not reach for inline asm, `register __asm__` pinning, or flag overrides. Scheduling barriers (below) are the one tolerated workaround, and even they require a justification comment and are treated as debt pending re-validation.
+**The project's compiler is proven byte-identical to the one that built the original binary** (see project profile). For every function that was originally C, clean matching source exists. If you cannot find it, STOP and report the diff signature — do not reach for inline asm, `register __asm__` pinning, or flag overrides. Scheduling barriers (below) are the one tolerated workaround, and even they require a justification comment and are treated as debt pending re-validation.
 
 ## Array and pointer access
 
@@ -76,7 +76,7 @@ If the assembly does something one way, write C that naturally produces that pat
 
 ## Instruction ordering
 
-GCC 2.95.2-psx evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
+Old GCC evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
 
 ### Operand order in source = instruction order in output
 
@@ -125,7 +125,7 @@ __asm__ volatile("" : "=r"(a) : "0"(a));  /* barrier: complete a before starting
 Foo *b = GLOBAL_B[0];
 ```
 
-Only needed for absolute-addressed symbols (outside GP range). GP-relative loads are single instructions and don't get interleaved. Real barrier example: `src/func_8001B4D0.c`.
+Only needed for absolute-addressed symbols (outside GP range). GP-relative loads are single instructions and don't get interleaved. Existing barrier examples in this project: grep `src/` for `__asm__ volatile`.
 
 Every barrier must carry a comment stating the exact target-vs-GCC ordering it fixes. Barriers are tracked debt: they are periodically re-tested and removed when clean C is found to match without them.
 
@@ -145,8 +145,6 @@ __asm__ volatile("" : "=r"(arg0) : "0"(arg0));
 base = &D_8005E4C8;
 *(s32*)((char*)base + arg0) = arg1;
 ```
-
-See `src/func_8001B4D0.c`.
 
 ## Declarations
 
@@ -193,11 +191,11 @@ extern s32 D_80062008;
 
 ### GP-relative vs absolute: match the addressing mode
 
-The `-G8` flag means externs declared as **8 bytes or smaller** get GP-relative addressing (single `lw %gp_rel(sym)($gp)` instruction). Externs **larger than 8 bytes** get absolute addressing (`lui` + `lw %lo(sym)($reg)` two-instruction pair).
+The `-G` small-data threshold (value in the project profile) means externs declared **at or below the threshold** get GP-relative addressing (single `lw %gp_rel(sym)($gp)` instruction). Larger externs get absolute addressing (`lui` + `lw %lo(sym)($reg)` two-instruction pair).
 
 **If the assembly shows `lui`/`lw` but your code emits `lw %gp_rel`, your extern declaration is too small.** This is the most common cause of addressing mode mismatches.
 
-Fix: declare the extern as something > 8 bytes. Common patterns:
+Fix: declare the extern as something above the threshold. Common patterns (assuming an 8-byte threshold):
 
 ```c
 /* 4-byte pointer → GP-relative (WRONG if asm shows lui/lw) */
@@ -208,11 +206,11 @@ extern SomeStruct *D_8005E3AC[3];
 /* Then access as: D_8005E3AC[0]->field */
 ```
 
-This happens when the original source file declared multiple variables together (e.g., as part of the same array or struct), making the total declaration > 8 bytes, even though each individual access only uses one element.
+This happens when the original source file declared multiple variables together (e.g., as part of the same array or struct), making the total declaration exceed the threshold, even though each individual access only uses one element.
 
 ### Switch statements
 
-GCC 2.95.2 compiles switch statements correctly, including jump table dispatch. Use them freely.
+Old GCC compiles switch statements predictably, including jump table dispatch. Use them freely.
 
 **Case order matters.** The compiler emits case bodies in source order. If the diff shows the right case values but in the wrong order, reorder the cases in your switch to match the original binary's layout:
 
@@ -231,7 +229,7 @@ switch (x) {
 
 ### Prefer natural C over hand-tuned variables
 
-GCC 2.95.2's register allocator often picks the right registers with natural C. Don't manually name variables `v0`/`v1` or hand-order assignments to influence allocation — write the simplest C first:
+The register allocator often picks the right registers with natural C. Don't manually name variables `v0`/`v1` or hand-order assignments to influence allocation — write the simplest C first:
 
 ```c
 /* GOOD — natural, often matches */
@@ -250,11 +248,11 @@ v0 = v0 - v1;
 
 If the target uses registers the compiler won't naturally pick, that means your C's temporary-variable structure differs from the original — not that the compiler needs forcing. Restructure: change declaration order, introduce or eliminate temporaries, swap operand order, change types (`s16` vs `s32`).
 
-**Do not use `register __asm__` pinning.** Existing uses in `src/` are legacy from the pre-2.95.2 era, are known to include unnecessary cases (e.g. `CopyVec3` matches 100% with plain natural C), and are being systematically removed. If you are truly stuck after restructuring, stop and report the diff — a stuck function is useful signal, a pinned match is not.
+**Do not use `register __asm__` pinning.** Existing uses in `src/` are legacy from before this project's toolchain was verified, and have repeatedly proven unnecessary when re-tested with plain natural C. If you are truly stuck after restructuring, stop and report the diff — a stuck function is useful signal, a pinned match is not.
 
 ### CSE of address high halves
 
-GCC 2.95.2 has aggressive common subexpression elimination. When two globals share the same `lui` high half (e.g., both in the 0x8006xxxx range), the compiler merges them into one `lui`. The original binary may have two independent `lui` instructions. This is a known limitation — scheduling barriers do NOT prevent CSE.
+The compiler has aggressive common subexpression elimination. When two globals share the same `lui` high half, the compiler merges them into one `lui`. The original binary may have two independent `lui` instructions. This is a known limitation — scheduling barriers do NOT prevent CSE.
 
 ### Declare locals at the top of the block (C89)
 
