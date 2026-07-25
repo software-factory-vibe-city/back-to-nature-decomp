@@ -19,7 +19,7 @@ Using neighbor context, improve readability and types:
 ## Core loop
 
 1. Edit `src/{FUNC_NAME}.c`
-2. Run `timeout 5 npx tsx tools/diffFunc.ts {FUNC_NAME} 2>&1`
+2. Run `timeout 5 npx tsx tools/agent/diffFunc.ts {FUNC_NAME} 2>&1`
 3. If not 100%, revert. If 100%, keep.
 
 ## Safe changes (never affect codegen)

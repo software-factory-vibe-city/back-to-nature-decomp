@@ -5,11 +5,11 @@
  * and checking for INCLUDE_ASM usage in C source files.
  *
  * Usage:
- *   npx tsx tools/progress.ts              # summary only
- *   npx tsx tools/progress.ts --list       # list all functions with status
- *   npx tsx tools/progress.ts --remaining  # list only remaining (not decompiled)
- *   npx tsx tools/progress.ts --done       # list only decompiled functions
- *   npx tsx tools/progress.ts --markdown  # markdown table with links to source and asm
+ *   npx tsx tools/diagnostics/progress.ts              # summary only
+ *   npx tsx tools/diagnostics/progress.ts --list       # list all functions with status
+ *   npx tsx tools/diagnostics/progress.ts --remaining  # list only remaining (not decompiled)
+ *   npx tsx tools/diagnostics/progress.ts --done       # list only decompiled functions
+ *   npx tsx tools/diagnostics/progress.ts --markdown  # markdown table with links to source and asm
  */
 
 import { readFileSync, existsSync, readdirSync } from "fs";
@@ -17,7 +17,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const ROOT = join(__dirname, "../..");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const SRC_DIR = join(ROOT, "src");
 const ASM_DIR = join(ROOT, "build/asm/nonmatchings");

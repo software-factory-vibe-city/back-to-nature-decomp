@@ -8,15 +8,15 @@
  * Reads cached section info from build/libSections.json (written by patchSplatForLibs.ts).
  *
  * Usage:
- *   npx tsx tools/patchLinkerBss.ts           # dry run
- *   npx tsx tools/patchLinkerBss.ts --write   # update slus_011.ld
+ *   npx tsx tools/build/patchLinkerBss.ts           # dry run
+ *   npx tsx tools/build/patchLinkerBss.ts --write   # update slus_011.ld
  */
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { requireSectionLayout, ROOT } from "./psxExeInfo.ts";
+import { requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _layout = requireSectionLayout();
@@ -45,7 +45,7 @@ function main() {
     libSections = JSON.parse(readFileSync(CACHE_PATH, "utf-8"));
   } else {
     console.log("Running resolveLibSections.ts (no cache found)...");
-    const output = execSync("npx tsx tools/resolveLibSections.ts", {
+    const output = execSync("npx tsx tools/build/resolveLibSections.ts", {
       encoding: "utf-8",
       cwd: ROOT,
       maxBuffer: 10 * 1024 * 1024,
@@ -103,7 +103,7 @@ function main() {
   // Run extractBssSymAddrs.ts to get exact global BSS addresses from the original binary
   const bssSymsPath = join(ROOT, "build/lib_bss_syms.txt");
   console.log("Extracting BSS symbol addresses from original binary...");
-  const bssSymsOutput = execSync("npx tsx tools/extractBssSymAddrs.ts", {
+  const bssSymsOutput = execSync("npx tsx tools/build/extractBssSymAddrs.ts", {
     encoding: "utf-8",
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,

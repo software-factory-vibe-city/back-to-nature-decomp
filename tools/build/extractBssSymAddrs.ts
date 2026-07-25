@@ -8,14 +8,14 @@
  * Output: sorted list of `symbolName = 0xADDRESS;` lines suitable for a linker script.
  *
  * Usage:
- *   npx tsx tools/extractBssSymAddrs.ts
+ *   npx tsx tools/build/extractBssSymAddrs.ts
  */
 
 import { readFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();

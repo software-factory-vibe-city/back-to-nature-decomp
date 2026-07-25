@@ -16,15 +16,15 @@
  * The linker script is updated to reference build/lib/ instead of lib/.
  *
  * Usage:
- *   npx tsx tools/patchLibBss.ts           # dry run
- *   npx tsx tools/patchLibBss.ts --write   # patch files and update linker script
+ *   npx tsx tools/build/patchLibBss.ts           # dry run
+ *   npx tsx tools/build/patchLibBss.ts --write   # patch files and update linker script
  */
 
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();

@@ -13,7 +13,7 @@ You will receive `FUNC_NAME`. The file `src/{FUNC_NAME}.c` already contains raw 
 ## Core loop
 
 1. Edit `src/{FUNC_NAME}.c`
-2. Run `timeout 5 npx tsx tools/diffFunc.ts {FUNC_NAME} 2>&1`
+2. Run `timeout 5 npx tsx tools/agent/diffFunc.ts {FUNC_NAME} 2>&1`
 3. Read the diff, fix mismatches, repeat until 100%
 
 ## Target environment

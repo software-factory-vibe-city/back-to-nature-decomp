@@ -2,8 +2,8 @@
 
 # Toolchain - change GCC_VERSION to experiment (2.7.2, 2.8.1, 2.95.2)
 GCC_VERSION := 2.95.2
-CC          := tools/old-gcc/build-gcc-$(GCC_VERSION)-psx/cc1
-MASPSX      := python3 tools/maspsx/maspsx.py
+CC          := tools/vendor/old-gcc/build-gcc-$(GCC_VERSION)-psx/cc1
+MASPSX      := python3 tools/vendor/maspsx/maspsx.py
 CROSS       := mips-linux-gnu-
 AS          := $(CROSS)as
 LD          := $(CROSS)ld
@@ -59,30 +59,30 @@ all: check
 
 # Disassemble the binary with spimdisasm (generates functions.csv + per-function .s files)
 disassemble:
-	bash tools/disassemble.sh
+	bash tools/build/disassemble.sh
 
 # Split the binary with splat
 split:
-	npx tsx tools/bootstrap.ts --write
-	npx tsx tools/mergeFragments.ts --write
-	npx tsx tools/addLibSymbols.ts --write
-	npx tsx tools/patchSplatForLibs.ts --write
-	npx tsx tools/addDepObjects.ts --write
+	npx tsx tools/build/bootstrap.ts --write
+	npx tsx tools/build/mergeFragments.ts --write
+	npx tsx tools/build/addLibSymbols.ts --write
+	npx tsx tools/build/patchSplatForLibs.ts --write
+	npx tsx tools/build/addDepObjects.ts --write
 	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml
 	@for i in 1 2 3; do \
-		npx tsx tools/fixCrossFileRefs.ts --write 2>&1 | tee /tmp/crossfile_$$; \
+		npx tsx tools/build/fixCrossFileRefs.ts --write 2>&1 | tee /tmp/crossfile_$$; \
 		if grep -q "No cross-file" /tmp/crossfile_$$; then break; fi; \
 		SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml; \
 	done
-	npx tsx tools/mergeFragments.ts --write
+	npx tsx tools/build/mergeFragments.ts --write
 	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat.yaml
-	npx tsx tools/patchLinkerBss.ts --write
-	npx tsx tools/patchLibBss.ts --write
+	npx tsx tools/build/patchLinkerBss.ts --write
+	npx tsx tools/build/patchLibBss.ts --write
 	@printf 'INCLUDE "build/undefined_funcs_auto.txt"\nINCLUDE "build/undefined_syms_auto.txt"\n' >> $(LD_SCRIPT)
 	@if [ -f build/dep_syms.txt ]; then printf 'INCLUDE "build/dep_syms.txt"\n' >> $(LD_SCRIPT); fi
 	@if [ -f build/lib_bss_syms.txt ]; then printf 'INCLUDE "build/lib_bss_syms.txt"\n' >> $(LD_SCRIPT); fi
-	npx tsx tools/classifyGlobals.ts --write
-	npx tsx tools/contextExport.ts --all
+	npx tsx tools/build/classifyGlobals.ts --write
+	npx tsx tools/agent/contextExport.ts --all
 
 # ---------------------------------------------------------------------------
 # Compile + link
@@ -134,7 +134,7 @@ setup:
 
 # Show decompilation progress
 progress:
-	@npx tsx tools/progress.ts
+	@npx tsx tools/diagnostics/progress.ts
 
 # Clean build artifacts + splat output
 clean:

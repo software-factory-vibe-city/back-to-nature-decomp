@@ -6,7 +6,7 @@
  * with the resolved instructions in the binary.
  *
  * Usage:
- *   npx tsx tools/resolveLibSections.ts [--verbose]
+ *   npx tsx tools/build/resolveLibSections.ts [--verbose]
  *
  * Output (stdout): JSON array of LibSections objects
  */
@@ -15,7 +15,7 @@ import { readFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -286,7 +286,7 @@ function main() {
 
   // Run detectLibFunctions.ts
   console.error("Running detectLibFunctions.ts...");
-  const output = execSync("npx tsx tools/detectLibFunctions.ts", {
+  const output = execSync("npx tsx tools/build/detectLibFunctions.ts", {
     encoding: "utf-8",
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,

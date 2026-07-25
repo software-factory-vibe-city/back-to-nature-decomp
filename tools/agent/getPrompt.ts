@@ -5,14 +5,14 @@
  * m2c output, call graph entry), and prints the result to stdout.
  *
  * Usage:
- *   npx tsx tools/getPrompt.ts func_80011F08
- *   npx tsx tools/getPrompt.ts --refine func_80011F08
+ *   npx tsx tools/agent/getPrompt.ts func_80011F08
+ *   npx tsx tools/agent/getPrompt.ts --refine func_80011F08
  */
 
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = new URL("../..", import.meta.url).pathname;
 
 const TEMPLATE = join(ROOT, "prompts/decompilation-cleanup-agent.md");
 const REFINEMENT_TEMPLATE = join(ROOT, "prompts/global-refinement-agent.md");
@@ -316,9 +316,9 @@ if (process.argv[1]?.includes("getPrompt")) {
   if (isProject) {
     process.stdout.write(getProjectRefinementAgentPrompt());
   } else if (!funcName) {
-    console.error("Usage: npx tsx tools/getPrompt.ts <func_name>");
-    console.error("       npx tsx tools/getPrompt.ts --refine <func_name>");
-    console.error("       npx tsx tools/getPrompt.ts --project");
+    console.error("Usage: npx tsx tools/agent/getPrompt.ts <func_name>");
+    console.error("       npx tsx tools/agent/getPrompt.ts --refine <func_name>");
+    console.error("       npx tsx tools/agent/getPrompt.ts --project");
     process.exit(1);
   } else if (isRefine) {
     process.stdout.write(getGlobalRefinementAgentPrompt(funcName));

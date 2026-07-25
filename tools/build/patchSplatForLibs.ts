@@ -10,8 +10,8 @@
  * Text `o` entries are preserved across re-runs; missing ones are inserted.
  *
  * Usage:
- *   npx tsx tools/patchSplatForLibs.ts           # dry run
- *   npx tsx tools/patchSplatForLibs.ts --write   # update configs/splat.yaml
+ *   npx tsx tools/build/patchSplatForLibs.ts           # dry run
+ *   npx tsx tools/build/patchSplatForLibs.ts --write   # update configs/splat.yaml
  */
 
 import {
@@ -26,7 +26,7 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { Buffer } from "buffer";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
@@ -250,7 +250,7 @@ function main() {
 
   // Run resolveLibSections.ts
   console.log("Running resolveLibSections.ts...");
-  const sectionsOutput = execSync("npx tsx tools/resolveLibSections.ts", {
+  const sectionsOutput = execSync("npx tsx tools/build/resolveLibSections.ts", {
     encoding: "utf-8",
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,

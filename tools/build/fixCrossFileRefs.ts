@@ -8,12 +8,12 @@
  * next `make split`.
  *
  * Usage:
- *   npx tsx tools/fixCrossFileRefs.ts           # dry run
- *   npx tsx tools/fixCrossFileRefs.ts --write   # update symbol_addrs.txt
+ *   npx tsx tools/build/fixCrossFileRefs.ts           # dry run
+ *   npx tsx tools/build/fixCrossFileRefs.ts --write   # update symbol_addrs.txt
  *
  * Intended workflow:
  *   make split
- *   npx tsx tools/fixCrossFileRefs.ts --write
+ *   npx tsx tools/build/fixCrossFileRefs.ts --write
  *   make split   # re-split with fixed symbols
  *   make         # should link cleanly
  */
@@ -21,7 +21,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();

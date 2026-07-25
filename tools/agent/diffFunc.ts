@@ -1,22 +1,22 @@
 /**
  * diffFunc.ts — Compile a .c file and diff against the original .o
  *
- * Usage: npx tsx tools/diffFunc.ts func_8001FE00
- *        npx tsx tools/diffFunc.ts func_8001FE00 --watch
- *        npx tsx tools/diffFunc.ts func_8001FE00 --columns   (side-by-side diff)
- *        npx tsx tools/diffFunc.ts src/func_8001FE00.c build/src/func_8001FE00.c.o
+ * Usage: npx tsx tools/agent/diffFunc.ts func_8001FE00
+ *        npx tsx tools/agent/diffFunc.ts func_8001FE00 --watch
+ *        npx tsx tools/agent/diffFunc.ts func_8001FE00 --columns   (side-by-side diff)
+ *        npx tsx tools/agent/diffFunc.ts src/func_8001FE00.c build/src/func_8001FE00.c.o
  */
 
 import { execSync } from "child_process";
 import { watchFile, existsSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from "fs";
 import { join } from "path";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = new URL("../..", import.meta.url).pathname;
 
 // Toolchain (from Makefile)
 const GCC_VERSION = "2.95.2";
-const CC = `tools/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
-const MASPSX = "python3 tools/maspsx/maspsx.py";
+const CC = `tools/vendor/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
+const MASPSX = "python3 tools/vendor/maspsx/maspsx.py";
 const CROSS = "mips-linux-gnu-";
 const AS = `${CROSS}as`;
 const CPP = `${CROSS}cpp`;
@@ -293,8 +293,8 @@ function resolveArgs(args: string[]): { src: string; target: string | null; func
     const targetO = assembleTarget(name);
     return { src: `src/${name}.c`, target: targetO, funcName: name };
   }
-  console.error("Usage: npx tsx tools/diffFunc.ts <func_name>");
-  console.error("       npx tsx tools/diffFunc.ts <src.c> <target.o>");
+  console.error("Usage: npx tsx tools/agent/diffFunc.ts <func_name>");
+  console.error("       npx tsx tools/agent/diffFunc.ts <src.c> <target.o>");
   process.exit(1);
 }
 

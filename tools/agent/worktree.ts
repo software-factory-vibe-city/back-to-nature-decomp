@@ -79,20 +79,20 @@ export class WorktreeManager {
     }
 
     // Symlink gitignored paths AFTER submodule init (some symlinks go inside
-    // submodule dirs like tools/old-gcc/build-gcc-*-psx)
+    // submodule dirs like tools/vendor/old-gcc/build-gcc-*-psx)
     const symlinks: Array<{ target: string; link: string }> = [
       { target: join(info.mainRoot, "extracted"), link: join(info.path, "extracted") },
       { target: join(info.mainRoot, "node_modules"), link: join(info.path, "node_modules") },
     ];
 
     // Symlink all available compiler builds (build-gcc-*-psx)
-    const oldGccDir = join(info.mainRoot, "tools/old-gcc");
+    const oldGccDir = join(info.mainRoot, "tools/vendor/old-gcc");
     if (existsSync(oldGccDir)) {
       for (const entry of readdirSync(oldGccDir)) {
         if (entry.startsWith("build-gcc-") && entry.endsWith("-psx")) {
           symlinks.push({
             target: join(oldGccDir, entry),
-            link: join(info.path, "tools/old-gcc", entry),
+            link: join(info.path, "tools/vendor/old-gcc", entry),
           });
         }
       }

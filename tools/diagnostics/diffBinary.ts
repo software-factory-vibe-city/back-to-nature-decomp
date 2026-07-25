@@ -5,13 +5,13 @@
  * library .o entries and their actual linker map positions.
  *
  * Usage:
- *   npx tsx tools/diffBinary.ts
+ *   npx tsx tools/diagnostics/diffBinary.ts
  */
 
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, loadSectionLayout, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, loadSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

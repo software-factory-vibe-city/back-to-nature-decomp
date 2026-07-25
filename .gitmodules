@@ -1,12 +1,12 @@
 [submodule "tools/old-gcc"]
-	path = tools/old-gcc
+	path = tools/vendor/old-gcc
 	url = https://github.com/decompals/old-gcc.git
 [submodule "tools/maspsx"]
-	path = tools/maspsx
+	path = tools/vendor/maspsx
 	url = https://github.com/mkst/maspsx.git
 [submodule "tools/m2c"]
-	path = tools/m2c
+	path = tools/vendor/m2c
 	url = https://github.com/matt-kempster/m2c.git
 [submodule "tools/psx_psyq_signatures"]
-	path = tools/psx_psyq_signatures
+	path = tools/vendor/psx_psyq_signatures
 	url = https://github.com/lab313ru/psx_psyq_signatures.git

@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "progress": "tsx tools/progress.ts",
-    "diff": "tsx tools/diffFunc.ts"
+    "progress": "tsx tools/diagnostics/progress.ts",
+    "diff": "tsx tools/agent/diffFunc.ts"
   },
   "keywords": [],
   "author": "",

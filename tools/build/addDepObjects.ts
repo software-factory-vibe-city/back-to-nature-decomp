@@ -11,15 +11,15 @@
  *   so patchLinkerBss.ts can add them to the linker script
  *
  * Usage:
- *   npx tsx tools/addDepObjects.ts           # dry run
- *   npx tsx tools/addDepObjects.ts --write   # update configs/splat.yaml + build/libSections.json
+ *   npx tsx tools/build/addDepObjects.ts           # dry run
+ *   npx tsx tools/build/addDepObjects.ts --write   # update configs/splat.yaml + build/libSections.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -195,7 +195,7 @@ function main() {
 
   // Step 1: Run findMissingLibDeps.ts to get dependency info
   console.log("Running findMissingLibDeps.ts...");
-  const depsOutput = execSync("npx tsx tools/findMissingLibDeps.ts", {
+  const depsOutput = execSync("npx tsx tools/build/findMissingLibDeps.ts", {
     encoding: "utf-8",
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,

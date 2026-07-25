@@ -6,7 +6,7 @@
  * retry loop with an external success check.
  *
  * Requires AGENT env var: {"provider": "openrouter", "apiKey": "...", "modelId": "minimax/minimax-m2.5"}
- * Run with: npx tsx --env-file=.env tools/agent-loop.ts
+ * Run with: npx tsx --env-file=.env tools/agent/agent-loop.ts
  */
 
 import {
@@ -52,7 +52,7 @@ function parseAgentConfig(): AgentConfig {
   if (!raw) {
     throw new Error(
       "AGENT env var not set. Expected JSON: {\"provider\": \"...\", \"apiKey\": \"...\", \"modelId\": \"...\"}\n" +
-      "Run with: npx tsx --env-file=.env tools/agent-loop.ts"
+      "Run with: npx tsx --env-file=.env tools/agent/agent-loop.ts"
     );
   }
   const config = JSON.parse(raw);

@@ -155,7 +155,7 @@ make split
 ### Compile and diff a single function (verify after every change)
 
 ```bash
-npx tsx tools/diffFunc.ts {FUNC_NAME} 2>&1
+npx tsx tools/agent/diffFunc.ts {FUNC_NAME} 2>&1
 ```
 
 ### Verify the full binary matches

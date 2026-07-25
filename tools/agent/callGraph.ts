@@ -5,8 +5,8 @@
  * a prioritized JSON file for the decompilation pipeline.
  *
  * Usage:
- *   npx tsx tools/callGraph.ts              # build graph + summary
- *   npx tsx tools/callGraph.ts --top 20     # also print top 20 priority functions
+ *   npx tsx tools/agent/callGraph.ts              # build graph + summary
+ *   npx tsx tools/agent/callGraph.ts --top 20     # also print top 20 priority functions
  */
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from "fs";
@@ -14,7 +14,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const ROOT = join(__dirname, "../..");
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 const SRC_DIR = join(ROOT, "src");
 const ASM_DIR = join(ROOT, "build/asm/nonmatchings");

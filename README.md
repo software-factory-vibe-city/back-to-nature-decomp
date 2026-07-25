@@ -44,7 +44,7 @@ and `notes/toolchain-version-detection.md` for the full evidence trail.
 |-----------|-------|---------------|
 | Compiler | **GCC 2.95.2-psx** (PSY-Q 4.6 `CC1PSX.EXE`) | Our Docker-built `cc1` produces **byte-identical output** to the original `CC1PSX.EXE` |
 | Assembler | **ASPSX 2.77** (emulated by maspsx) | `li` expansion patterns in the binary (1,142 `addiu` vs 88 `ori`) |
-| Runtime libs | **PSY-Q SDK 4.7** | Signature matching against `tools/psx_psyq_signatures/470/` |
+| Runtime libs | **PSY-Q SDK 4.7** | Signature matching against `tools/vendor/psx_psyq_signatures/470/` |
 | Optimization | `-O2 -G8` | Delay-slot fill rate, GP-relative access for symbols ≤ 8 bytes |
 
 Key hard-won fact: it is **2.95.2, not 2.8.1**. The giveaway was the switch-dispatch
@@ -73,7 +73,7 @@ git clone --recursive <repo-url> && cd btn-decompilation
 npm install
 
 # Build the PSX GCC 2.95.2 cross-compiler (requires Docker)
-cd tools/old-gcc && make VERSION=2.95.2-psx && cd ../..
+cd tools/vendor/old-gcc && make VERSION=2.95.2-psx && cd ../..
 ```
 
 Place the original EXE at `extracted/iso/slus_011.15` (gitignored).
@@ -107,7 +107,12 @@ configs/
   flag_overrides.mk     Per-file cc1 flag overrides
 lib/                    PSY-Q 4.7 static libs (libgpu.a, libgte.a, ...) used for
                         signature detection and dead-code classification
-tools/                  All TypeScript tooling (npx tsx) + git submodules
+tools/                  TypeScript tooling (npx tsx) — see notes/tools-directory-structure.md
+  agent/                LLM orchestration loop (orchestrator, agent-loop, diffFunc, ...)
+  build/                make split pipeline (bootstrap, lib folding, splat patching, ...)
+  diagnostics/          progress/diff/one-shot analysis tools
+  lib/                  shared constants module (psxExeInfo.ts)
+  vendor/               vendored repos (old-gcc, maspsx, m2c, splat_ext, SDK data, reference)
 notes/                  Research/writeups — the project's institutional memory
 prompts/                LLM agent prompt templates
 build/                  All generated artifacts (gitignored): asm/, callGraph.json,
@@ -120,7 +125,7 @@ orchestrator_output_*.txt, run000*.txt, project-refiner-run-*.txt
 ## The agent-driven decompilation pipeline
 
 The distinctive part of this project: per-function decompilation is done by LLM
-agents orchestrated in **git worktrees**, driven by `tools/orchestrator.ts`
+agents orchestrated in **git worktrees**, driven by `tools/agent/orchestrator.ts`
 (using the pi-coding-agent SDK).
 
 **Function selection:** `callGraph.ts` builds a call graph from the disassembly
@@ -147,11 +152,11 @@ and `STRONGER_AGENT` (escalation, Claude Sonnet). Prompts are built by
 neighbor sources, call graph).
 
 ```bash
-npx tsx --env-file=.env tools/orchestrator.ts --write            # run pipeline
-npx tsx --env-file=.env tools/orchestrator.ts --func func_80011F08 --write
-npx tsx --env-file=.env tools/orchestrator.ts --fix SetGfxOffset --write
-npx tsx --env-file=.env tools/orchestrator.ts --refine           # refinement pass
-npx tsx --env-file=.env tools/orchestrator.ts --project-refine   # holistic whole-project pass
+npx tsx --env-file=.env tools/agent/orchestrator.ts --write            # run pipeline
+npx tsx --env-file=.env tools/agent/orchestrator.ts --func func_80011F08 --write
+npx tsx --env-file=.env tools/agent/orchestrator.ts --fix SetGfxOffset --write
+npx tsx --env-file=.env tools/agent/orchestrator.ts --refine           # refinement pass
+npx tsx --env-file=.env tools/agent/orchestrator.ts --project-refine   # holistic whole-project pass
 ```
 
 **Known failure mode (important):** the success gate is byte-match only, so a
@@ -175,35 +180,24 @@ so `make split` runs a choreographed sequence:
 7. `classifyGlobals.ts` — GP-relative vs absolute global classification → `globals.h`
 8. `contextExport.ts --all` — refresh `functions.h`
 
-## Tools inventory (tools/)
+## Tools inventory
 
-| Tool | Purpose |
-|------|---------|
-| `orchestrator.ts` | Pipeline driver (m2c → match → cleanup → export → refine) |
-| `agent-loop.ts` | Generic LLM agent session runner (pi-coding-agent SDK) |
-| `worktree.ts` | Git worktree isolation per agent run |
-| `getPrompt.ts` | Build agent prompts with injected context |
-| `callGraph.ts` | Call graph + priority ranking → `build/callGraph.json` |
-| `m2cFunc.ts` | Run m2c on one function |
-| `diffFunc.ts` | Compile one .c, diff against original, match % (watches for changes) |
-| `diffBinary.ts` | Whole-payload comparison, coverage gaps, drift detection |
-| `progress.ts` | Progress report (`--markdown` for progress-list.md) |
-| `contextExport.ts` | Extract decompiled signatures → `include/functions.h` |
-| `classifyGlobals.ts` | Classify globals GP-relative vs absolute → `globals.h` |
-| `headerInfo.ts` / `psxExeInfo.ts` | PS-X EXE header parsing |
-| `disassemble.sh` | spimdisasm invocation (bootstrap) |
-| `analyzeLayout.ts` / `analyzeAccess.ts` | Section layout + data-access analysis (bootstrap-era) |
-| `detectLibFunctions.ts` / `matchSignatures.ts` | PSY-Q 4.7 library detection via byte signatures |
-| `addLibSymbols.ts` / `addDepObjects.ts` / `findMissingLibDeps.ts` | Fold matched lib objects + their deps into the build |
-| `resolveLibSections.ts` / `patchSplatForLibs.ts` / `patchLibBss.ts` / `patchLinkerBss.ts` | Make splat reproduce PSYLINK layouts (sections, BSS) |
-| `bootstrap.ts` / `mergeFragments.ts` / `fixCrossFileRefs.ts` / `splitFunctions.ts` / `splitSegments.ts` / `convertToC.ts` / `extractBssSymAddrs.ts` | Splat pipeline machinery |
+| Directory | Contents |
+|-----------|----------|
+| `tools/agent/` | The LLM decomp loop: `orchestrator.ts` (driver), `agent-loop.ts` (SDK runner), `worktree.ts` (git worktree isolation), `getPrompt.ts` (prompt builder), `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: per-function compile + diff + match %), `contextExport.ts` (signatures → `functions.h`) |
+| `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
+| `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
+| `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |
+| `tools/vendor/` | Vendored repos: `old-gcc` (cc1 2.95.2-psx), `maspsx`, `m2c`, `splat_ext`, `psx_psyq_signatures`, `psyq47` (SDK + docs), plus reference-only `psyq_sdk`, `silent-hill-decomp`, `homebrew-psyq` |
 
-**Git submodules:** `tools/old-gcc` (decompals/old-gcc — Docker GCC builds),
-`tools/maspsx` (mkst/maspsx — ASPSX emulator), `tools/m2c`
-(matt-kempster/m2c — MIPS→C decompiler), `tools/psx_psyq_signatures`
-(lab313ru — SDK byte signatures). Also vendored: `tools/psyq47`,
-`tools/psyq_sdk` (contains original `CC1PSX.EXE`), `tools/homebrew-psyq`,
-`tools/silent-hill-decomp` (reference project), `tools/splat_ext`.
+Full details: `notes/tools-directory-structure.md`.
+
+**Git submodules:** `tools/vendor/old-gcc` (decompals/old-gcc — Docker GCC builds),
+`tools/vendor/maspsx` (mkst/maspsx — ASPSX emulator), `tools/m2c`
+(matt-kempster/m2c — MIPS→C decompiler), `tools/vendor/psx_psyq_signatures`
+(lab313ru — SDK byte signatures). Also vendored: `tools/vendor/psyq47`,
+`tools/vendor/psyq_sdk` (contains original `CC1PSX.EXE`), `tools/vendor/homebrew-psyq`,
+`tools/vendor/silent-hill-decomp` (reference project), `tools/vendor/splat_ext`.
 
 ## Notes index (notes/)
 

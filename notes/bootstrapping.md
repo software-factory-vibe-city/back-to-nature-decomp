@@ -9,7 +9,7 @@ Extract the PS-X EXE from the game disc ISO to `extracted/iso/slus_011.15`. The 
 - Entry point: `0x80011278`
 - Payload: 321,536 bytes at offset `0x800`
 
-Tool: `npx tsx tools/headerInfo.ts`
+Tool: `npx tsx tools/diagnostics/headerInfo.ts`
 
 ## 2. Find the GP value
 
@@ -24,7 +24,7 @@ Run a first-pass disassembly without `--gp` and look for instructions writing to
 
 ## 3. Initial disassembly with spimdisasm
 
-Run standalone spimdisasm (`tools/disassemble.sh`) with the discovered GP value:
+Run standalone spimdisasm (`tools/build/disassemble.sh`) with the discovered GP value:
 - **GP value**: `0x8005E274`
 - **Compiler**: PSY-Q (Sony's modified GCC for PS1, identified via instruction patterns — see `notes/compiler-identification.md`)
 - **Architecture**: MIPS1 (set via `SPIMDISASM_ARCHLEVEL=1`)
@@ -34,7 +34,7 @@ Critical flags: `--arch-level MIPS1`, `--compiler PSYQ`, `--gp 0x8005E274`, `--d
 
 ## 3. Determine section layout
 
-Built `tools/analyzeLayout.ts` to classify each spimdisasm entry as code or data using byte-level heuristics (prologue patterns, `jr $ra`, GP-relative accesses, branch targets). Compared with/without `--disasm-unknown`. Result: **contiguous sections, no interleaving.**
+Built `tools/build/analyzeLayout.ts` to classify each spimdisasm entry as code or data using byte-level heuristics (prologue patterns, `jr $ra`, GP-relative accesses, branch targets). Compared with/without `--disasm-unknown`. Result: **contiguous sections, no interleaving.**
 
 ```
 0x80010000 – 0x80011270  .rodata  (4,720 bytes)
@@ -55,15 +55,19 @@ Wrote `configs/splat.yaml` with:
 - `align: 4` and `subalign: 4` on both segments plus global `subalign: 4` — splat's default 16-byte alignment added padding that shifted GP-relative offsets
 - `asm_path: build/asm` so splat output goes into build/, not top-level
 
-## 5. Per-function splitting
+## 5. Per-function splitting (now automated)
 
-`npx tsx tools/splitFunctions.ts --write` reads `build/functions.csv` from step 3 and:
+Originally a manual step (`splitFunctions.ts`, since removed). Today
+`tools/build/bootstrap.ts` does this automatically as the first step of
+`make split` — it reads `build/functions.csv` and:
 - Replaces the single `.text` subsegment in `splat.yaml` with one `asm` entry per function (674 entries)
 - Initializes `configs/symbol_addrs.txt` if it doesn't exist (gives splat function names)
 
+bootstrap.ts is a no-op when configs already exist, so `make split` is safe to re-run.
+
 After that, `symbol_addrs.txt` is a living file — manual edits (real function names, `type:func` annotations) accumulate over time.
 
-After splitting, cross-file label references can break the build (a branch in one function targeting a label inside another function's file). `tools/fixCrossFileRefs.ts` detects these by scanning all `.s` files, then adds the target symbols to `symbol_addrs.txt` with `type:func` so spimdisasm emits them with `glabel` (global visibility).
+After splitting, cross-file label references can break the build (a branch in one function targeting a label inside another function's file). `tools/build/fixCrossFileRefs.ts` detects these by scanning all `.s` files, then adds the target symbols to `symbol_addrs.txt` with `type:func` so spimdisasm emits them with `glabel` (global visibility).
 
 Both steps are integrated into `make split`:
 1. First splat split

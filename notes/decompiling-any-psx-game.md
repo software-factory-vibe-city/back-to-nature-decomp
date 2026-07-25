@@ -23,7 +23,7 @@ and that ambiguity is what makes both humans and LLM agents thrash.
   with its own build. Decide scope early.
 - Parse the header: `initial_pc`, `text_addr`, `text_size`, payload offset
   (always `0x800` for PS-X EXE).
-  - Tools: `tools/headerInfo.ts`, `tools/psxExeInfo.ts` — fully game-agnostic.
+  - Tools: `tools/diagnostics/headerInfo.ts`, `tools/lib/psxExeInfo.ts` — fully game-agnostic.
 - Note that `initial_gp` in the header is usually **zero** — GP must be
   discovered from the code (Phase 2).
 
@@ -63,9 +63,9 @@ Heuristics that distinguish GCC versions (all discovered the hard way):
 Heuristics only narrow the search. The proof:
 
 1. Obtain the candidate original compiler. PSY-Q `CC1PSX.EXE` binaries circulate
-   in SDK archives (we have one in `tools/psyq_sdk/psyq/bin/`, MD5-verified
+   in SDK archives (we have one in `tools/vendor/psyq_sdk/psyq/bin/`, MD5-verified
    against a second source). Run under Wine if needed.
-2. Build the equivalent native compiler via `tools/old-gcc` (decompals
+2. Build the equivalent native compiler via `tools/vendor/old-gcc` (decompals
    Dockerfiles; supports 2.5.7 through 2.95.2, psx patches included).
 3. Pick a function with distinctive codegen, decompile it by hand, compile with
    both binaries, and require **byte-identical output from both, matching the
@@ -85,7 +85,7 @@ find *new* maspsx gaps per game (see Phase 6).
 
 ### 1e. SDK library version
 
-Match the binary against `tools/psx_psyq_signatures` (lab313ru) per SDK
+Match the binary against `tools/vendor/psx_psyq_signatures` (lab313ru) per SDK
 version. For us: compiler from PSY-Q 4.6, runtime libs from 4.7 — **mixed
 versions are normal**. Tools: `detectLibFunctions.ts`, `matchSignatures.ts`.
 
@@ -98,10 +98,10 @@ is independent per axis. Do not assume one PSY-Q release implies all three.
 
 1. **Find GP:** disassemble near the entry point, look for the `lui $gp` /
    `addiu $gp` pair. Game-specific value, mechanically discoverable.
-2. Run **spimdisasm** (`tools/disassemble.sh`) with:
+2. Run **spimdisasm** (`tools/build/disassemble.sh`) with:
    `--arch-level MIPS1 --compiler PSYQ --gp <value> --disasm-unknown`
    → per-function `.s` files + `functions.csv`.
-3. **Classify the layout** (`analyzeLayout.ts`, `analyzeAccess.ts`):
+3. **Classify the layout** (`analyzeLayout.ts`):
    rodata/text/data/sdata boundaries via byte-level heuristics (prologue
    patterns, `jr $ra`, GP-relative access density, branch targets). Determine
    whether sections are **contiguous or interleaved** — this decides how much
@@ -118,8 +118,9 @@ and crash m2c later — see `notes/jump-table-problem.md`.
 - splat config (`configs/splat.yaml`): section boundaries from Phase 2,
   `gp_value`, and watch `subalign` — splat's default 16-byte alignment can
   shift GP-relative offsets (we needed `subalign: 4`).
-- Per-function splitting (`splitFunctions.ts`) so functions can later flip from
-  `asm` to `c` subsegments individually (`convertToC.ts`).
+- Per-function splitting: one `asm` subsegment per function generated from
+  `functions.csv` (`bootstrap.ts` automates this) so functions can later be
+  decompiled individually.
 - Cross-file branch references will break the build;
   `fixCrossFileRefs.ts` detects them and promotes targets to global labels.
 - **Library objects:** fold matched SDK `.o` files into the splat config

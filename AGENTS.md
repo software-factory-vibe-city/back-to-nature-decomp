@@ -34,9 +34,9 @@ one pure-asm function — they were handwritten assembly in the original game.
 
 | Parameter | Value | Proof |
 |---|---|---|
-| Compiler | GCC 2.95.2-psx (`tools/old-gcc/build-gcc-2.95.2-psx/cc1`) | Byte-identical output to original PSY-Q 4.6 `CC1PSX.EXE` |
-| Assembler | ASPSX 2.77 via `tools/maspsx` | `li` expansion statistics |
-| Runtime libs | PSY-Q SDK 4.7 | Signature matching (`tools/psx_psyq_signatures/470/`) |
+| Compiler | GCC 2.95.2-psx (`tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1`) | Byte-identical output to original PSY-Q 4.6 `CC1PSX.EXE` |
+| Assembler | ASPSX 2.77 via `tools/vendor/maspsx` | `li` expansion statistics |
+| Runtime libs | PSY-Q SDK 4.7 | Signature matching (`tools/vendor/psx_psyq_signatures/470/`) |
 | Flags | `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -msoft-float` | — |
 
 It is **2.95.2, not 2.8.1** (switch-dispatch register `$a0` vs `$v0`). Register
@@ -57,9 +57,9 @@ make                              # build + verify byte-identical (the source of
 make check                        # verify only
 make split                        # regenerate splat output (asm + linker script)
 make progress                     # decompilation progress
-npx tsx tools/diffFunc.ts <func>  # per-function compile + diff + match %
-npx tsx tools/m2cFunc.ts <func>   # m2c first-pass decompilation
-npx tsx tools/callGraph.ts --top 20   # priority ranking
+npx tsx tools/agent/diffFunc.ts <func>  # per-function compile + diff + match %
+npx tsx tools/agent/m2cFunc.ts <func>   # m2c first-pass decompilation
+npx tsx tools/agent/callGraph.ts --top 20   # priority ranking
 ```
 
 ## Repo map
@@ -70,7 +70,7 @@ npx tsx tools/callGraph.ts --top 20   # priority ranking
   types for globals), `functions.h` (auto-generated signatures), `game_types.h`
   (shared structs), `psyq/` (SDK headers)
 - `configs/` — `splat.yaml`, `symbol_addrs.txt`, `flag_overrides.mk`
-- `tools/` — TypeScript tooling + submodules (old-gcc, maspsx, m2c)
+- `tools/` — TypeScript tooling: `agent/` (LLM loop), `build/` (make split pipeline), `diagnostics/`, `lib/`, `vendor/` (old-gcc, maspsx, m2c, SDK data). See `notes/tools-directory-structure.md`
 - `notes/` — institutional memory; `prompts/` — LLM agent prompt templates
 - `build/` — all generated artifacts (gitignored); `extracted/` — original game (gitignored)
 

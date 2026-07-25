@@ -8,7 +8,7 @@
  * the actual binary.
  *
  * Usage:
- *   npx tsx tools/findMissingLibDeps.ts
+ *   npx tsx tools/build/findMissingLibDeps.ts
  *
  * Output (stdout): JSON array of resolved symbols with VRAM addresses
  */
@@ -17,7 +17,7 @@ import { readFileSync, existsSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -52,7 +52,7 @@ function vramToFileOffset(vram: number): number {
 function main() {
   // Get matched .o files
   console.error("Running detectLibFunctions.ts...");
-  const detectOutput = execSync("npx tsx tools/detectLibFunctions.ts", {
+  const detectOutput = execSync("npx tsx tools/build/detectLibFunctions.ts", {
     encoding: "utf-8",
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,

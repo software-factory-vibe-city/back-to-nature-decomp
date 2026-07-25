@@ -7,7 +7,7 @@
  * names with their addresses.
  *
  * Usage:
- *   npx tsx tools/matchSignatures.ts [--version <ver>] [--symbols]
+ *   npx tsx tools/diagnostics/matchSignatures.ts [--version <ver>] [--symbols]
  *
  * Options:
  *   --version <ver>  Only scan a specific version (e.g., 400, 440)
@@ -16,12 +16,12 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { loadPsxExeInfo, requireSectionLayout } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
 
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
 const BINARY_PATH = _info.binaryPath;
-const SIGS_DIR = "tools/psx_psyq_signatures";
+const SIGS_DIR = "tools/vendor/psx_psyq_signatures";
 const PAYLOAD_OFFSET = _info.payloadOffset;
 const LOAD_ADDR = _info.loadAddr;
 const TEXT_START = _layout.textStart - PAYLOAD_OFFSET + LOAD_ADDR;

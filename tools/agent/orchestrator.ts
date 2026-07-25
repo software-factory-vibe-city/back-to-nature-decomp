@@ -5,17 +5,17 @@
  * Default is dry-run; use --write to modify src/ files.
  *
  * Usage:
- *   npx tsx --env-file=.env tools/orchestrator.ts                        # dry-run: show what would happen
- *   npx tsx --env-file=.env tools/orchestrator.ts --write                # actually modify src/ files
- *   npx tsx --env-file=.env tools/orchestrator.ts --top 5                # only process top 5 priority functions
- *   npx tsx --env-file=.env tools/orchestrator.ts --func func_80011F08   # process a specific function
- *   npx tsx --env-file=.env tools/orchestrator.ts --stage 1              # only run stage 1 (m2c)
- *   npx tsx --env-file=.env tools/orchestrator.ts --refine              # run global refinement on all candidates
- *   npx tsx --env-file=.env tools/orchestrator.ts --refine --func X     # refine a specific function
- *   npx tsx --env-file=.env tools/orchestrator.ts --refine --top 5      # refine top 5 candidates
- *   npx tsx --env-file=.env tools/orchestrator.ts --project-refine     # project-wide refinement pass
- *   npx tsx --env-file=.env tools/orchestrator.ts --fix SetGfxOffset   # fix a previously-attempted function
- *   npx tsx --env-file=.env tools/orchestrator.ts --fix SetGfxOffset --write  # fix and commit on success
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts                        # dry-run: show what would happen
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --write                # actually modify src/ files
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --top 5                # only process top 5 priority functions
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --func func_80011F08   # process a specific function
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --stage 1              # only run stage 1 (m2c)
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --refine              # run global refinement on all candidates
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --refine --func X     # refine a specific function
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --refine --top 5      # refine top 5 candidates
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --project-refine     # project-wide refinement pass
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --fix SetGfxOffset   # fix a previously-attempted function
+ *   npx tsx --env-file=.env tools/agent/orchestrator.ts --fix SetGfxOffset --write  # fix and commit on success
  */
 
 import { createHash } from "crypto";
@@ -28,7 +28,7 @@ import { getDecompilationCleanupAgentPrompt, getGlobalRefinementAgentPrompt, get
 import { runM2c } from "./m2cFunc.js";
 import { WorktreeManager } from "./worktree.js";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = new URL("../..", import.meta.url).pathname;
 const wt = new WorktreeManager(ROOT);
 
 // --- CLI args ---
@@ -106,7 +106,7 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir:
   const checkSuccess = (): boolean => {
     try {
       // Check per-function match via diffFunc
-      const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
+      const diffOutput = execSync(`timeout 10 npx tsx tools/agent/diffFunc.ts ${funcName}`, {
         cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
@@ -128,9 +128,9 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir:
 
   let userMessage: string;
   if (resumeDiff !== undefined) {
-    userMessage = `You're picking up the decompilation of ${funcName} from a previous attempt that didn't reach 100% match.\n\nHere's the git diff of changes made so far:\n\n\`\`\`diff\n${resumeDiff}\n\`\`\`\n\nContinue from this state. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to see the current match percentage and keep iterating until you reach 100% match.`;
+    userMessage = `You're picking up the decompilation of ${funcName} from a previous attempt that didn't reach 100% match.\n\nHere's the git diff of changes made so far:\n\n\`\`\`diff\n${resumeDiff}\n\`\`\`\n\nContinue from this state. Run \`timeout 5 npx tsx tools/agent/diffFunc.ts ${funcName}\` to see the current match percentage and keep iterating until you reach 100% match.`;
   } else {
-    userMessage = `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`;
+    userMessage = `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/agent/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`;
   }
 
   const result = await runAgentLoop({
@@ -158,7 +158,7 @@ async function runRefinementAgent(funcName: string, workDir: string = ROOT): Pro
 
   const checkSuccess = (): boolean => {
     try {
-      const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${funcName}`, {
+      const diffOutput = execSync(`timeout 10 npx tsx tools/agent/diffFunc.ts ${funcName}`, {
         cwd: workDir,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
@@ -185,7 +185,7 @@ async function runRefinementAgent(funcName: string, workDir: string = ROOT): Pro
 
   const result = await runAgentLoop({
     systemPrompt,
-    userMessage: `Refine ${funcName} using context from its decompiled neighbors. The function already matches — your job is to improve readability (rename variables, propagate types, add comments) while keeping the 100% match. Run \`npx tsx tools/diffFunc.ts ${funcName}\` after every change to verify. If you cannot improve it with the available context, say so.`,
+    userMessage: `Refine ${funcName} using context from its decompiled neighbors. The function already matches — your job is to improve readability (rename variables, propagate types, add comments) while keeping the 100% match. Run \`npx tsx tools/agent/diffFunc.ts ${funcName}\` after every change to verify. If you cannot improve it with the available context, say so.`,
     cwd: workDir,
     maxRetries: 3,
     checkSuccess,
@@ -210,7 +210,7 @@ async function runProjectRefinementAgent(workDir: string = ROOT): Promise<AgentR
        * so we need make clean + make split to regenerate the linker script and
        * assembly before checking the binary match. */
       execSync("make clean", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60000 });
-      execSync("npx tsx ./tools/callGraph.ts", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
+      execSync("npx tsx ./tools/agent/callGraph.ts", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
       execSync("make split", { cwd: workDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 120000 });
       const makeOutput = execSync("make check", {
         cwd: workDir,
@@ -374,7 +374,7 @@ async function processFunctions(funcs: CallGraphEntry[]): Promise<FuncResult[]> 
     let alreadyMatched = false;
     if (writeMode && maxStage >= 2) {
       try {
-        const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${name}`, {
+        const diffOutput = execSync(`timeout 10 npx tsx tools/agent/diffFunc.ts ${name}`, {
           cwd: wtPath,
           encoding: "utf-8",
           stdio: ["pipe", "pipe", "pipe"],
@@ -605,7 +605,7 @@ async function main() {
 
     const checkSuccess = (): boolean => {
       try {
-        const diffOutput = execSync(`timeout 10 npx tsx tools/diffFunc.ts ${fixFunc}`, {
+        const diffOutput = execSync(`timeout 10 npx tsx tools/agent/diffFunc.ts ${fixFunc}`, {
           cwd: wtPath,
           encoding: "utf-8",
           stdio: ["pipe", "pipe", "pipe"],
@@ -626,7 +626,7 @@ async function main() {
 
     const userMessage = `You are fixing ${fixFunc}, which has a previous decompilation attempt that didn't match the target binary.
 
-The file src/${fixFunc}.c already contains the previous attempt. Run \`timeout 5 npx tsx tools/diffFunc.ts ${fixFunc}\` to see the current match percentage and the diff.
+The file src/${fixFunc}.c already contains the previous attempt. Run \`timeout 5 npx tsx tools/agent/diffFunc.ts ${fixFunc}\` to see the current match percentage and the diff.
 
 This function likely needs the escalation strategy to match. Try in order:
 1. Clean C fixes (reorder declarations, swap operands, simplify expressions)
@@ -676,7 +676,7 @@ Keep iterating until you reach 100% match.`;
 
   const graphPath = join(ROOT, "build/callGraph.json");
   if (!existsSync(graphPath)) {
-    console.error("callGraph.json not found. Run: npx tsx tools/callGraph.ts");
+    console.error("callGraph.json not found. Run: npx tsx tools/agent/callGraph.ts");
     process.exit(1);
   }
 
@@ -726,7 +726,7 @@ Keep iterating until you reach 100% match.`;
   console.log("Running: make check");
   execSync("make check", { cwd: ROOT, stdio: "inherit" });
   console.log("Running: callGraph.ts");
-  execSync("npx tsx tools/callGraph.ts", { cwd: ROOT, stdio: "inherit" });
+  execSync("npx tsx tools/agent/callGraph.ts", { cwd: ROOT, stdio: "inherit" });
 
   const graph: CallGraph = JSON.parse(readFileSync(graphPath, "utf-8"));
 
@@ -769,7 +769,7 @@ Keep iterating until you reach 100% match.`;
   if (maxStage >= 5) {
     if (writeMode) {
       console.log(`\nRebuilding call graph for refinement...`);
-      execSync("npx tsx tools/callGraph.ts", { cwd: ROOT, stdio: "ignore" });
+      execSync("npx tsx tools/agent/callGraph.ts", { cwd: ROOT, stdio: "ignore" });
     }
     const refinementResults = await runRefinementPipeline();
     if (refinementResults.length > 0) {
@@ -811,7 +811,7 @@ Keep iterating until you reach 100% match.`;
 
     /* Re-export signatures after project refinement (may have renamed functions/added types) */
     console.log("Running: contextExport.ts --all");
-    execSync("npx tsx tools/contextExport.ts --all", { cwd: ROOT, stdio: "inherit" });
+    execSync("npx tsx tools/agent/contextExport.ts --all", { cwd: ROOT, stdio: "inherit" });
   }
 }
 

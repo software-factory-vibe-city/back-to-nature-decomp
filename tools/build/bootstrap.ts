@@ -15,8 +15,8 @@
  * Always regenerates build/sectionLayout.json for downstream tools.
  *
  * Usage:
- *   npx tsx tools/bootstrap.ts           # dry run
- *   npx tsx tools/bootstrap.ts --write   # write configs
+ *   npx tsx tools/build/bootstrap.ts           # dry run
+ *   npx tsx tools/build/bootstrap.ts --write   # write configs
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "fs";
@@ -27,7 +27,7 @@ import {
   ROOT,
   type PsxExeInfo,
   type SectionLayout,
-} from "./psxExeInfo.ts";
+} from "../lib/psxExeInfo.ts";
 import {
   classifyEntries,
   inferSectionBoundaries,

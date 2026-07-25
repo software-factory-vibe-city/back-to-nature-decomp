@@ -2,9 +2,9 @@
  * m2cFunc.ts — Run m2c on a single function's .s file
  *
  * Usage:
- *   npx tsx tools/m2cFunc.ts func_80011F08              # print C to stdout
- *   npx tsx tools/m2cFunc.ts func_80011F08 --write      # write to src/func_80011F08.c
- *   npx tsx tools/m2cFunc.ts func_80011F08 --context include/functions.h
+ *   npx tsx tools/agent/m2cFunc.ts func_80011F08              # print C to stdout
+ *   npx tsx tools/agent/m2cFunc.ts func_80011F08 --write      # write to src/func_80011F08.c
+ *   npx tsx tools/agent/m2cFunc.ts func_80011F08 --context include/functions.h
  *
  * Importable:
  *   import { runM2c } from "./m2cFunc.js";
@@ -15,7 +15,7 @@ import { execSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
 import { join } from "path";
 
-const DEFAULT_ROOT = new URL("..", import.meta.url).pathname;
+const DEFAULT_ROOT = new URL("../..", import.meta.url).pathname;
 
 interface M2cOptions {
   contextFile?: string;
@@ -56,7 +56,7 @@ export function runM2c(funcName: string, root: string = DEFAULT_ROOT, options: M
   const sBasename = sFile.split("/").pop()!.replace(/\.s$/, "");
 
   const cmd = [
-    "python3", "tools/m2c/m2c.py",
+    "python3", "tools/vendor/m2c/m2c.py",
     "--target", "mipsel-gcc-c",
     "-f", sBasename,
   ];
@@ -127,7 +127,7 @@ if (isCLI) {
   const funcName = args.find((a) => !a.startsWith("--") && a !== contextFile);
 
   if (!funcName) {
-    console.error("Usage: npx tsx tools/m2cFunc.ts <func_name> [--write] [--context <file>]");
+    console.error("Usage: npx tsx tools/agent/m2cFunc.ts <func_name> [--write] [--context <file>]");
     process.exit(1);
   }
 

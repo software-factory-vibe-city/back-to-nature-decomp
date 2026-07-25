@@ -12,7 +12,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-export const ROOT = join(__dirname, "..");
+export const ROOT = join(__dirname, "../..");
 
 export interface PsxExeInfo {
   binaryPath: string;
@@ -148,7 +148,7 @@ export function requireSectionLayout(): SectionLayout {
   const layout = loadSectionLayout();
   if (!layout) {
     throw new Error(
-      "build/sectionLayout.json not found. Run bootstrap first: npx tsx tools/bootstrap.ts --write"
+      "build/sectionLayout.json not found. Run bootstrap first: npx tsx tools/build/bootstrap.ts --write"
     );
   }
   return layout;

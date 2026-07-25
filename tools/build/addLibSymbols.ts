@@ -6,15 +6,15 @@
  * that splat uses real function names in disassembly output.
  *
  * Usage:
- *   npx tsx tools/addLibSymbols.ts           # dry run
- *   npx tsx tools/addLibSymbols.ts --write   # update symbol_addrs.txt
+ *   npx tsx tools/build/addLibSymbols.ts           # dry run
+ *   npx tsx tools/build/addLibSymbols.ts --write   # update symbol_addrs.txt
  */
 
 import { readFileSync, writeFileSync, existsSync, renameSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -38,7 +38,7 @@ function main() {
 
   // Run detectLibFunctions.ts and parse its JSON output
   console.log("Running detectLibFunctions.ts...");
-  const output = execSync("npx tsx tools/detectLibFunctions.ts", {
+  const output = execSync("npx tsx tools/build/detectLibFunctions.ts", {
     encoding: "utf-8",
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,
@@ -60,7 +60,7 @@ function main() {
   // Also run findMissingLibDeps.ts to get cross-referenced symbols
   console.log("Running findMissingLibDeps.ts...");
   try {
-    const depsOutput = execSync("npx tsx tools/findMissingLibDeps.ts", {
+    const depsOutput = execSync("npx tsx tools/build/findMissingLibDeps.ts", {
       encoding: "utf-8",
       cwd: ROOT,
       maxBuffer: 10 * 1024 * 1024,
@@ -98,7 +98,7 @@ function main() {
       dataSize?: number;
     }
 
-    const sectionsOutput = execSync("npx tsx tools/resolveLibSections.ts", {
+    const sectionsOutput = execSync("npx tsx tools/build/resolveLibSections.ts", {
       encoding: "utf-8",
       cwd: ROOT,
       maxBuffer: 10 * 1024 * 1024,

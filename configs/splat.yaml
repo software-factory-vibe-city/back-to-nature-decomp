@@ -17,7 +17,7 @@ options:
   disasm_unknown: true
   gp_value: 0x8005E274
   section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
-  extensions_path: tools/splat_ext
+  extensions_path: tools/vendor/splat_ext
   subalign: 4
 
 segments:

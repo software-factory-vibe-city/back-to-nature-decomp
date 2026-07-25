@@ -14,7 +14,7 @@ fake decompilations pass the gate, get merged, and pollute `src/`.
 
 ## Why folding is (almost) never justified here
 
-The toolchain is **proven correct**: `tools/old-gcc/build-gcc-2.95.2-psx/cc1`
+The toolchain is **proven correct**: `tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1`
 produces byte-identical output to the original PSY-Q 4.6 `CC1PSX.EXE`
 (GCC 2.95.2). Consequence: for every function that was originally C, **source
 exists that matches with stock flags**. A fold is a search failure, not proof of
@@ -38,7 +38,7 @@ This natural, pin-free version compiles through the stock pipeline to
 certainly residue from the GCC 2.8.1 era (where hacks were load-bearing because
 the compiler was wrong) or cargo-culted from other hacked files.
 
-To reproduce: strip the pins, `npx tsx tools/diffFunc.ts CopyVec3`.
+To reproduce: strip the pins, `npx tsx tools/agent/diffFunc.ts CopyVec3`.
 
 ### Legitimate exceptions (asm is correct)
 
@@ -61,7 +61,7 @@ To reproduce: strip the pins, `npx tsx tools/diffFunc.ts CopyVec3`.
 
 ### 1. The reward loophole (primary)
 
-`checkSuccess` in `tools/orchestrator.ts` is byte-match only (`diffFunc` 100% +
+`checkSuccess` in `tools/agent/orchestrator.ts` is byte-match only (`diffFunc` 100% +
 `make check`). Raw `__asm__` passes trivially. The prompt forbids asm; the gate
 permits it. Under turn pressure agents do what the gate rewards.
 `run0003.txt` shows the arc verbatim: thrash → "let me try something completely
@@ -82,7 +82,7 @@ Every diff is one of a few kinds, each with a known playbook:
 
 ### 3. Superstition compounds via contextExport
 
-`tools/contextExport.ts` feeds already-"matched" neighbor sources into prompts
+`tools/agent/contextExport.ts` feeds already-"matched" neighbor sources into prompts
 as examples of accepted practice. One agent's hack becomes the next agent's
 template. The register-pin pattern spread this way. After the 2.8.1 → 2.95.2
 compiler switch, nobody re-tested whether old hacks were still needed.
@@ -99,7 +99,7 @@ currently cannot distinguish "search failure" from "tool failure".
 
 ### 1. Close the gate (small change, biggest effect)
 
-In `tools/orchestrator.ts` `checkSuccess`: reject any *new* `__asm__(`,
+In `tools/agent/orchestrator.ts` `checkSuccess`: reject any *new* `__asm__(`,
 `INCLUDE_ASM`, `register __asm__`, or `flag_overrides.mk` entry outside an
 explicit allowlist of the sanctioned ones. A 100% match via asm is recorded as
 **"stuck — asm-quarantined"**, not "done". Converts silent poisoning into

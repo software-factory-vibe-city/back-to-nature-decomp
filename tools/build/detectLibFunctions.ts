@@ -6,7 +6,7 @@
  * library objects with their VRAM ranges and labels.
  *
  * Usage:
- *   npx tsx tools/detectLibFunctions.ts [--verbose]
+ *   npx tsx tools/build/detectLibFunctions.ts [--verbose]
  *
  * Output (stdout): JSON array of matched library objects:
  *   [{ vramStart, vramEnd, oPath, textSize, sigLength, labels }]
@@ -15,12 +15,12 @@
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
-import { loadPsxExeInfo, requireSectionLayout } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
 
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
 const BINARY_PATH = _info.binaryPath;
-const SIGS_DIR = "tools/psx_psyq_signatures";
+const SIGS_DIR = "tools/vendor/psx_psyq_signatures";
 const VERSION = "470";
 const PAYLOAD_OFFSET = _info.payloadOffset;
 const LOAD_ADDR = _info.loadAddr;

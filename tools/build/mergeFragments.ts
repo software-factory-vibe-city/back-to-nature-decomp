@@ -14,13 +14,13 @@
  * 6. Removes splat.yaml subsegments and stale source files for fragments
  *
  * Usage:
- *   npx tsx tools/mergeFragments.ts           # dry run
- *   npx tsx tools/mergeFragments.ts --write   # modify
+ *   npx tsx tools/build/mergeFragments.ts           # dry run
+ *   npx tsx tools/build/mergeFragments.ts --write   # modify
  */
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync } from "fs";
 import { join } from "path";
-import { loadPsxExeInfo, vramToRom, ROOT } from "./psxExeInfo.ts";
+import { loadPsxExeInfo, vramToRom, ROOT } from "../lib/psxExeInfo.ts";
 
 const SRC_DIR = join(ROOT, "src");
 const SYMBOL_ADDRS = join(ROOT, "configs/symbol_addrs.txt");
