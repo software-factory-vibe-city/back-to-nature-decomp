@@ -13,7 +13,6 @@ s32 func_800217B0(s32 arg0, s32 arg1, s32 arg2, u8 *arg3) {
         goto done;
     }
     base = &D_80049A10[0];
-    __asm__ volatile("" : "=r"(base) : "0"(base));
     v1 = (s32 *)((arg1 << 2) + (s32)base);
 loop:
     temp = arg3[arg1];

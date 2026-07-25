@@ -2,9 +2,9 @@
 
 s32 func_80024578(s32 arg0, s32 arg1) {
     s32 var_a0;
-    /* register __asm__ required: compiler uses a2 for mflo, target uses v0 */
-    register s32 var_v0 __asm__("v0");
+    s32 var_v0;
     s32 var_v1;
+    s32 prod;
 
     var_a0 = arg0;
     var_v1 = 0;
@@ -21,6 +21,6 @@ s32 func_80024578(s32 arg0, s32 arg1) {
             var_v0 = 3;
         }
     }
-    var_v0 = arg1 * var_v0;
-    return (var_v1 + (var_v0 + var_a0)) & 0xFFFF;
+    prod = arg1 * var_v0;
+    return (var_v1 + (prod + var_a0)) & 0xFFFF;
 }

@@ -111,7 +111,7 @@ The compiler is proven byte-identical to the one that built the original binary 
 - Top-level `__asm__` blocks for non-GTE functions
 - New entries in `configs/flag_overrides.mk`
 
-Existing uses of these in `src/` are legacy debt under active removal — never treat them as examples to copy.
+Existing uses of these in `src/` are legacy debt under active removal — never treat them as examples to copy. If you touch a file containing them, strip the hack and re-test before matching (see "Legacy hacks: strip first, decode the idiom" in the style guide) — most are residue.
 
 ## Constraints
 

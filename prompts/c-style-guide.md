@@ -250,6 +250,32 @@ If the target uses registers the compiler won't naturally pick, that means your 
 
 **Do not use `register __asm__` pinning.** Existing uses in `src/` are legacy from before this project's toolchain was verified, and have repeatedly proven unnecessary when re-tested with plain natural C. If you are truly stuck after restructuring, stop and report the diff — a stuck function is useful signal, a pinned match is not.
 
+## Legacy hacks: strip first, decode the idiom
+
+Some older `src/` files contain `register __asm__` pins, scheduling barriers, or hand-written asm dating from before the toolchain was verified. When you touch such a file, your first move is **strip and re-test** — in the 2026-07 sweep, 15 of 18 pinned files matched clean with zero or minor restructuring. A 100% match tells you nothing about whether a hack is needed; only stripping does. Comments claiming a pin is "required" were wrong every single time they were re-tested.
+
+Protocol:
+
+1. Remove `__asm__("reg")` from declarations (keep the temp variables themselves) and any barrier/forged-asm lines. Run `diffFunc`.
+2. Still 100% → done; the hack was residue.
+3. Not 100% → read the diff and fix the actual class (usually temp structure or statement order — see "Register allocation" above and "Instruction ordering").
+4. Cannot restore 100% → restore the hacked file exactly (`git checkout src/<file>`) and record the diff signature. Never leave a file in a non-matching state.
+
+### Hand-written asm is usually a native C operator
+
+Agents sometimes hand-forge instructions the compiler generates on its own. Before concluding any asm is needed (in an existing file or in code you are writing), decode the pattern:
+
+| Asm pattern | What it actually is |
+|---|---|
+| `sll x,16` + `sra x,16` | `(s16)` cast |
+| `sll x,24` + `sra x,24` | `(s8)` cast |
+| `div $zero,a,b` + `mflo` + `bnez b` + `break 7` | plain signed `a / b` (`mfhi` for `%`) — GCC emits the zero-check automatically |
+| `lui`/`ori` magic constant + `multu` + `mfhi` (+ shifts) | unsigned division/modulo by a constant (e.g. `0x92492493` → ÷7; an even divisor may appear as a shift plus magic: `/14` = `>>1` then magic ÷7) |
+| forged `addiu x,x,1` | plain `x + 1` / `x++` |
+| label-only asm lines (`_L8001E818:`) | block markers — delete them; `goto` labels generate their own |
+
+Every one of these has been found hand-written in this repo where the plain C operator produces byte-identical output.
+
 ### CSE of address high halves
 
 The compiler has aggressive common subexpression elimination. When two globals share the same `lui` high half, the compiler merges them into one `lui`. The original binary may have two independent `lui` instructions. This is a known limitation — scheduling barriers do NOT prevent CSE.
