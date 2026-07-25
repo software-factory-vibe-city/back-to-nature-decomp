@@ -30,6 +30,11 @@ a solution. If you cannot match a function in clean C:
 Exceptions that are legitimate (do not "fix" these): GTE/cop2 functions and the
 one pure-asm function — they were handwritten assembly in the original game.
 
+**Warning:** some existing files in `src/` still contain legacy hacks (asm
+embeds, `register __asm__` pins, scheduling barriers, flag overrides). They are
+debt scheduled for removal, NOT accepted practice — never copy these patterns
+into new work, even when they appear in exported neighbor context.
+
 ## Proven toolchain facts (trust these, don't re-investigate)
 
 | Parameter | Value | Proof |
@@ -47,8 +52,10 @@ hacks in older files date from the wrong-compiler era and are often unneeded now
 - EXE: `extracted/iso/slus_011.15` — load `0x80010000`, entry `0x80011278`,
   payload 321,536 bytes at file offset `0x800`, GP `0x8005E274`
 - Sections contiguous: `.rodata` → `.text` (0x80011270–0x80048190) → `.data` → `.sdata`
-- ~463 functions total: 257 live (93 decompiled), 206 dead PSY-Q library code,
-  10 GTE, 1 pure-asm
+- ~463 functions total: 257 live, 206 dead PSY-Q library code, 10 GTE, 1 pure-asm
+- Progress: 93/257 "decompiled" per `make progress` — but ~19 of those are raw
+  `__asm__` embeds and ~18 more use register pinning. Real clean-C count ~74.
+  See `notes/next-steps-for-revisiting-the-project.md` for the full inventory.
 
 ## Commands
 
@@ -96,6 +103,8 @@ Struct types inferred from access patterns go in `game_types.h` (locals) or
 
 ## Notes index (read before changing fundamentals)
 
+- `notes/next-steps-for-revisiting-the-project.md` — **current roadmap**: why
+  agents fold to asm, inventory of compromised files, planned fixes
 - `notes/toolchain-version-detection.md` — the 2.95.2 proof
 - `notes/compiler-identification.md` — SDK/compiler identification method
 - `notes/bootstrapping.md` — how this project was built from scratch
