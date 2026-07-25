@@ -43,7 +43,7 @@ Do not overwrite an existing clean-source attempt. In resume/fix mode, preserve 
 5. After each deliberate change, call `psx_diff_function`.
 
 6. Re-run the classifier whenever the mismatch signature changes or the cause is unclear.
-7. At an exact match, call `psx_verify_build`, then `psx_export_context` for the target. These tools wrap the current project's full check and context exporter.
+7. At an exact match, call `psx_export_context` for the target, then call `psx_finalize_function`. The finalizer independently requires the exact function diff, full build, modification-scope check, and clean-source policy gate. If finalization fails, continue from its concrete failures rather than reporting success.
 
 ## Clean-source gate
 

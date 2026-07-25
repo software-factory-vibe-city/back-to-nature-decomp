@@ -152,14 +152,50 @@ The commands dispatch project-local, game-agnostic skills:
 
 The extension also registers focused tool wrappers around the TypeScript tools
 in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
-`psx_diff_function`, `psx_build_call_graph`, `psx_export_context`, and
-`psx_verify_build`. Command output is bounded before it enters model context.
+`psx_diff_function`, `psx_build_call_graph`, `psx_export_context`,
+`psx_verify_build`, and the terminating `psx_finalize_function` clean-source
+and byte-identity gate. Command output is bounded before it enters model context.
 
 Start `pi` from the repository root and use a slash command. Run `/reload` after
-editing `.pi` resources in an existing session. The workflows never commit or
-merge automatically, and they derive game/toolchain details from `AGENTS.md`,
-`configs/project-profile.md`, and the current project rather than baking in one
-game's values.
+editing `.pi` resources in an existing session. Interactive workflows never
+commit or merge automatically, and they derive game/toolchain details from
+`AGENTS.md`, `configs/project-profile.md`, and the current project rather than
+baking in one game's values.
+
+### Autonomous project loop
+
+The deterministic supervisor under `.pi/extensions/psx-decomp/autonomous/`
+runs isolated short-lived Pi workers, gates their patches independently, and
+schedules matching plus targeted/project refinement until all live ordinary-C
+functions are accepted. Start and inspect it from Pi:
+
+```text
+/autodecomp start
+/autodecomp status
+/autodecomp pause
+/autodecomp resume
+/autodecomp stop
+/autodecomp retry <function-or-vram>
+/autodecomp skip <function-or-vram>
+/autodecomp unblock <function-or-vram>
+/autodecomp logs
+```
+
+Or run it in the foreground/headlessly:
+
+```bash
+npm run autodecomp -- start
+npm run autodecomp -- start --dry-run
+npm run autodecomp -- start --once
+npm run autodecomp -- status
+```
+
+Configuration is `.pi/autodecomp.json`; durable state, Pi sessions, patches,
+and reports are written to gitignored `run_output/autodecomp/`. The default
+requires a clean tracked tree at first startup and uses sequential detached git
+worktrees. Accepted patches are applied transactionally to the main checkout
+and reverified, but are **never committed**. Failed patches remain in the
+runtime directory for diagnosis and cannot dirty the main checkout.
 
 **Known failure mode (important):** a byte-only success gate rewards embedded
 assembly, register pinning, and flag overrides. The skills explicitly reject
@@ -186,8 +222,8 @@ so `make split` runs a choreographed sequence:
 
 | Directory | Contents |
 |-----------|----------|
-| `.pi/` | Project-local Pi extension commands and game-agnostic PlayStation matching/refinement skills |
-| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: exact per-function diff + match %), `explainDiff.ts` (structural diff classifier), `compilerTrace.ts` (GCC RTL/allocation/scheduler observability), `contextExport.ts` (signatures → `functions.h`), plus legacy prompt/worktree helpers retained for reference |
+| `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
+| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: exact per-function diff + match %), `explainDiff.ts` (structural diff classifier), `compilerTrace.ts` (GCC RTL/allocation/scheduler observability), `contextExport.ts` (signatures → `functions.h`), `sourcePolicy.ts` (mechanical clean-source audit), plus legacy helpers retained for reference |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |

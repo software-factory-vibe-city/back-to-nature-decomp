@@ -111,6 +111,45 @@ Specific signatures:
 - Two instructions swapped → first try operand/statement reordering. As a last resort, a scheduling barrier with a justification comment: `__asm__ volatile("" : "=r"(var) : "0"(var));`
 - `lw %gp_rel` but target has `lui`+`lw` → extern too small, needs > 8 bytes
 
+## Deep allocation/scheduling findings
+
+Proven against the vendored GCC 2.95.2 sources; full case study in
+`notes/research/func_8001B4E4-scheduler-allocator-resolution.md`. Read these
+before any stubborn allocation or scheduling fight — they replace source
+permutation with mechanism-driven design.
+
+1. **Count a variable's deaths before reusing it.** local-alloc only accepts
+   pseudos that die exactly once (`REG_N_DEATHS == 1`). A variable reassigned
+   to *independent* values (e.g. one pointer reused for unrelated addresses)
+   dies multiple times, falls to global-alloc, and will not reproduce a
+   tight register relay race — deterministically, so no perturbation of that
+   shape can work. Reassignment that *reads* the variable (`x <<= 1`,
+   `p += n`) keeps one continuous range: it stays local-alloc-eligible AND
+   still creates the anti-dependencies that pin the scheduler.
+2. **Never re-assign an argument the target keeps in its incoming register.**
+   A statement like `arg0 <<= 1` forces a hidden entry copy and reshapes both
+   the scheduler's ready list and the allocator's suggestion table. Compute
+   derived values inline or in fresh temporaries instead.
+3. **Control expression birth sites.** A shared subexpression written inline
+   at each use (`(arg0 << 1)` in each address expression) is CSE'd into one
+   value born at the first consumer; hoisting it into a standalone statement
+   births it earlier. Birth position drives scheduler placement AND register
+   choice. Match the birth site to where the target shows the value born.
+4. **A dying argument donates its register.** A value born at the
+   instruction where `$a0`–`$a3` dies (the argument's last use) inherits
+   that hard register via the allocator's suggestion mechanism. If the
+   target shows a temporary living in `$a0`, arrange for the argument's last
+   use to be that temporary's birth instruction.
+5. **Stores through distinct symbol bases reorder freely.** The pre-alloc
+   scheduler is a backward list scheduler; only data deps, anti-deps, and
+   may-alias memory output deps pin order. If the target keeps stores
+   strictly sequential with independent address chains, look for an
+   arg-death/RMW structure — not variable reuse.
+6. **Diagnose allocation before scheduling.** A post-allocation order flip
+   (sched2) can be a symptom of wrong registers: hard-register hazards steer
+   sched2's choices. If a pair flips only in post-alloc scheduling, suspect
+   the register web before treating it as an order problem.
+
 ## When C is not enough
 
 Top-level assembly is legitimate only when the original function is classified as handwritten assembly, notably GTE/cop2 functions (`cfc2`, `ctc2`, `lwc2`, `swc2`) and the project's one known pure-asm function. A bare `j` tail call or a stubborn compiler diff is not evidence that the original was assembly. Do not convert an ordinary C function to top-level asm.
@@ -124,8 +163,9 @@ The compiler is proven byte-identical to the one that built the original binary 
 1. **Classify** — run `explainDiff.ts`; record the category, first divergence, register/web mapping, and whether instruction count differs.
 2. **Clean C** — apply only the corresponding fix class: types/idioms, temporary web structure, expression birth site, statement order, or natural address form.
 3. **Trace the exact compiler** — for allocation/scheduling cases, run `compilerTrace.ts` and inspect `.rtl`, `.sched`, `.lreg`, `.greg`, and `.sched2`. State which pseudo or pass decision the next edit is intended to change.
-4. **Scheduling barrier** — only for an independently reordered instruction pair that resists source-order fixes: `__asm__ volatile("" : "=r"(var) : "0"(var));` with a comment stating the exact target-vs-compiler ordering it fixes.
-5. **STOP and report** — if these do not work, leave the file at its best clean-C state and report the structural category, trace finding, and remaining instructions. A documented stuck function is valuable; a hacked match is not.
+4. **Read the compiler source (escape hatch)** — if an allocation/scheduling mismatch survives several traced, mechanism-targeted edits, stop permuting and consult the vendored GCC 2.95.2 sources (`notes/scratch/gcc-2.95.2-reference/local-alloc.c`, `sched.c`) plus the mechanism table in the style guide ("Escape hatch") and the "Deep allocation/scheduling findings" section above. Identify the exact rule defeating the candidate, then design one source shape that satisfies it. This is diagnostics-only: never patch or instrument cc1.
+5. **Scheduling barrier** — only for an independently reordered instruction pair that resists source-order fixes: `__asm__ volatile("" : "=r"(var) : "0"(var));` with a comment stating the exact target-vs-compiler ordering it fixes.
+6. **STOP and report** — if these do not work, leave the file at its best clean-C state and report the structural category, trace finding, and remaining instructions. A documented stuck function is valuable; a hacked match is not.
 
 **Forbidden workarounds** (they pass the byte gate while faking decompilation, and they teach bad patterns to future work):
 - `register __asm__("v0")` / any register pinning

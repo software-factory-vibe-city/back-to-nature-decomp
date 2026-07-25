@@ -183,6 +183,30 @@ base = &D_8005E4C8;
 *(s32*)((char*)base + arg0) = arg1;
 ```
 
+## Escape hatch: read the exact compiler source
+
+When a function resists the playbook — especially allocation or scheduling
+mismatches that survive many mechanism-targeted source edits — stop
+permuting and read the compiler. The exact GCC 2.95.2 sources are vendored
+at `notes/scratch/gcc-2.95.2-reference/` (`local-alloc.c`, `sched.c`); if
+absent, fetch `local-alloc.c` and `sched.c` from the gcc-mirror GitHub
+(`releases/gcc-2.95.2` tag). One hour reading allocator source replaces
+days of blind source search. This is diagnostics-only: never patch or
+instrument cc1 itself, since that would invalidate toolchain identity.
+
+Mechanisms already extracted (full case study:
+`notes/research/func_8001B4E4-scheduler-allocator-resolution.md`):
+
+| Mechanism | Where | Consequence for source shape |
+|---|---|---|
+| local-alloc eligibility: `REG_BASIC_BLOCK >= 0 && REG_N_DEATHS == 1` | `local_alloc` | A variable reassigned to *independent* values dies multiple times → global-alloc → will not reproduce a tight register relay race (deterministic — same RTL, same compiler, same output). Reassignment that *reads* the variable (`x <<= 1`, `p += n`) keeps one continuous range: stays local AND still creates anti-dependencies that pin the scheduler. |
+| Dying-input tie (`combine_regs`) | `block_alloc` insn scan | An output shares the register of an input that dies in the same insn. The `addu v0,v0,v1` / `addu a0,a0,v0` relay chains come from *fresh* pseudos tying to dying inputs, not from variable reuse. |
+| Hard-register suggestions | `combine_regs` hard-reg path | A pseudo born where a hard register dies (argument's last use) inherits it; suggested quantities are allocated first, with true lifetimes. This is how a temp lands in `$a0`–`$a3`. |
+| Priority `floor_log2(refs)*refs*size/(death-birth)`, ties → birth order | `QTY_CMP_PRI` | Short-lived, multiply-referenced quantities grab registers first. Birth position (which statement expands an expression) is a controllable input. |
+| Fake lifetimes (±1 insn) with `-fschedule-insns2` | `block_alloc` tail | Quantities pseudo-conflict across one-instruction gaps; shifting a birth by one statement can change its register. |
+| Pre-alloc scheduler is a backward list scheduler; `potential_hazard` tie-break favors memory-unit insns | `sched.c` `schedule_select` | Independent stretches do NOT keep source order — they bubble. Only dependencies (data, anti, memory output) pin order. |
+| Store output deps require may-alias | alias analysis via cselib base values | Stores through provably-distinct symbol bases (`&A+x` vs `&B+y`) are freely reorderable. Sequential target stores with independent address chains imply an arg-death/RMW structure, not variable reuse. |
+
 ## Declarations
 
 ### Don't redeclare globals from `globals.h`

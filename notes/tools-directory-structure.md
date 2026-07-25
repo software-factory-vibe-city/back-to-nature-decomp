@@ -1,8 +1,9 @@
 # Tools Directory Structure
 
-*Updated 2026-07-25 for the project-local Pi migration. The standalone SDK
-agent loop and auto-committing orchestrator were removed; commands, skills, and
-thin wrappers around the game-agnostic PlayStation tools now live in `.pi/`.*
+*Updated 2026-07-25 for the project-local Pi migration and deterministic
+autonomous supervisor. The standalone SDK agent loop and auto-committing
+orchestrator were removed; commands, skills, focused tools, and non-committing
+transactional automation now live in `.pi/`.*
 
 All custom tooling is TypeScript, run via `npx tsx tools/<group>/<name>.ts`.
 
@@ -26,15 +27,19 @@ matching behavior:
 
 | Path | Role |
 |---|---|
-| `.pi/extensions/psx-decomp/index.ts` | Registers `/decompile`, `/fix-decomp`, `/refine-decomp`, `/project-refine`, and `/decomp-status`; reads the generated call graph for selection and completion. |
-| `.pi/extensions/psx-decomp/tools/*.ts` | Bounded-output Pi tool wrappers around m2c, function diffing/classification/tracing, call-graph generation, context export, and full verification in `tools/agent/`. |
+| `.pi/extensions/psx-decomp/index.ts` | Registers single-function commands, `/decomp-status`, `/autodecomp`, and all focused tools. |
+| `.pi/extensions/psx-decomp/tools/*.ts` | Bounded-output Pi wrappers around m2c, function diffing/classification/tracing, call-graph generation, context export, full verification, and deterministic function finalization. |
+| `.pi/extensions/psx-decomp/autonomous/*.ts` | Durable VRAM-keyed state machine, call-graph scheduler, Pi worker process, watchdogs, source policy, isolated workspaces, patch integration/rollback, retries, refinements, locks, controls, and reporting. |
+| `.pi/autodecomp.json` | Sequential autonomous-run models, budgets, cadence, integration roots, and source-policy configuration. |
 | `.pi/skills/psx-decompile-function/SKILL.md` | Fresh/resumed per-function matching workflow. |
 | `.pi/skills/psx-refine-function/SKILL.md` | Evidence-backed refinement of one already-matching function. |
 | `.pi/skills/psx-project-refinement/SKILL.md` | One conservative cross-file cleanup batch with full verification. |
 
 The skills derive game and toolchain facts from the active project's
-instructions, generated profile, and configuration. They do not auto-commit,
-create worktrees, or merge branches.
+instructions, generated profile, and configuration. Skills do not commit. The
+autonomous supervisor creates detached disposable worktrees, independently
+gates candidate patches, applies accepted patches transactionally without
+committing, and rolls back a failed trunk gate.
 
 ## tools/agent/ — decompilation support tools
 
@@ -49,6 +54,7 @@ wrappers.
 | `m2cFunc.ts` | Runs m2c on one function's assembly. `--write` writes `src/<func>.c`; `--context` supplies generated signatures. | Library + CLI |
 | `callGraph.ts` | Builds `build/callGraph.json`, including tier and priority ordering used by the Pi extension. | **Yes** |
 | `contextExport.ts` | Extracts matched signatures into the generated function context header. | Library + CLI |
+| `sourcePolicy.ts` | Audits eligible source and current changes for forbidden matching workarounds and modification-scope violations. | **Yes** |
 | `getPrompt.ts` | Legacy standalone prompt builder retained while detailed policy remains in `prompts/`. | Library + CLI |
 | `worktree.ts` | Legacy worktree helper retained for manual experiments; the Pi workflow does not invoke it. | Library only |
 

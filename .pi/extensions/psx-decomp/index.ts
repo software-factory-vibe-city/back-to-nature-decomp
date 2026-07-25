@@ -6,6 +6,8 @@ import { registerCompilerTraceTool } from "./tools/compiler-trace.ts";
 import { registerDiffFunctionTool } from "./tools/diff-function.ts";
 import { registerExplainDiffTool } from "./tools/explain-diff.ts";
 import { registerExportContextTool } from "./tools/export-context.ts";
+import { registerFinalizeFunctionTool } from "./tools/finalize-function.ts";
+import { registerAutodecompCommands } from "./autonomous/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
 import { registerVerifyBuildTool } from "./tools/verify-build.ts";
 
@@ -14,6 +16,7 @@ interface CallGraphEntry {
   priority: number;
   decompiled: boolean;
   handwritten: false | "asm" | "gte";
+  dead: boolean;
   calls: string[];
   calledBy: string[];
 }
@@ -75,16 +78,16 @@ function targetExists(root: string, name: string): boolean {
 
 function nextDecompilationTarget(root: string): string | undefined {
   const graph = loadCallGraph(root);
-  return graph?.functions.find((entry) => !entry.decompiled && entry.handwritten === false)?.name;
+  return graph?.functions.find((entry) => !entry.decompiled && entry.handwritten === false && !entry.dead)?.name;
 }
 
 function nextRefinementTarget(root: string): string | undefined {
   const graph = loadCallGraph(root);
   if (!graph) return undefined;
 
-  const decompiled = new Set(graph.functions.filter((entry) => entry.decompiled).map((entry) => entry.name));
+  const decompiled = new Set(graph.functions.filter((entry) => entry.decompiled && !entry.dead).map((entry) => entry.name));
   return graph.functions
-    .filter((entry) => entry.decompiled)
+    .filter((entry) => entry.decompiled && !entry.dead)
     .map((entry) => ({
       name: entry.name,
       neighborCount: [...new Set([...entry.calls, ...entry.calledBy])].filter((name) => decompiled.has(name)).length,
@@ -115,6 +118,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerDiffFunctionTool(pi);
   registerExplainDiffTool(pi);
   registerExportContextTool(pi);
+  registerFinalizeFunctionTool(pi);
   registerM2cTool(pi);
   registerVerifyBuildTool(pi);
 
@@ -128,7 +132,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     description: "Decompile and byte-match a function; omit the name to pick the next priority target",
     getArgumentCompletions: (prefix) => {
       const items = completionItems(
-        functionNames(root, (entry) => !entry.decompiled && entry.handwritten === false),
+        functionNames(root, (entry) => !entry.decompiled && entry.handwritten === false && !entry.dead),
         prefix,
       );
       return items.length > 0 ? items : null;
@@ -186,7 +190,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   pi.registerCommand("refine-decomp", {
     description: "Refine an already-matching function using decompiled neighbor context",
     getArgumentCompletions: (prefix) => {
-      const items = completionItems(functionNames(root, (entry) => entry.decompiled), prefix);
+      const items = completionItems(functionNames(root, (entry) => entry.decompiled && !entry.dead), prefix);
       return items.length > 0 ? items : null;
     },
     handler: async (args, ctx) => {
@@ -222,6 +226,8 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     },
   });
 
+  registerAutodecompCommands(pi, root);
+
   pi.registerCommand("decomp-status", {
     description: "Show the current call-graph decompilation worklist summary",
     handler: async (_args, ctx) => {
@@ -231,8 +237,8 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
         return;
       }
 
-      const remaining = graph.functions.filter((entry) => !entry.decompiled && entry.handwritten === false);
-      const decompiled = graph.functions.filter((entry) => entry.decompiled).length;
+      const remaining = graph.functions.filter((entry) => !entry.decompiled && entry.handwritten === false && !entry.dead);
+      const decompiled = graph.functions.filter((entry) => entry.decompiled && !entry.dead).length;
       const next = remaining[0]?.name ?? "none";
       ctx.ui.notify(`${decompiled} decompiled; ${remaining.length} clean-C targets remain; next: ${next}`, "info");
     },

@@ -34,6 +34,6 @@ Apply risky changes one at a time. After each type, expression, declaration, or 
 
 ## Finish
 
-Call `psx_export_context` for the target, then `psx_verify_build`.
+Call `psx_export_context` for the target, then `psx_finalize_function`. If finalization fails, repair or revert the refinement before stopping.
 
 Inspect the final diff and summarize only changes supported by concrete neighbor or assembly evidence. Do not commit or introduce any workaround forbidden by project policy.

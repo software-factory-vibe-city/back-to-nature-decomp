@@ -1,0 +1,45 @@
+{
+  "runtimeDir": "run_output/autodecomp",
+  "parallelism": 1,
+  "requireCleanTrackedTree": true,
+  "matching": {
+    "models": [
+      {
+        "thinking": "high",
+        "maxAttempts": 2
+      }
+    ],
+    "turnLimit": 60,
+    "timeoutMinutes": 90,
+    "idleTimeoutMinutes": 15
+  },
+  "refinement": {
+    "targetedEveryMatches": 5,
+    "targetedBatchSize": 2,
+    "projectEveryMatches": 25,
+    "projectAtFinalization": true
+  },
+  "retry": {
+    "retryParkedAfterEpoch": true,
+    "retryOnNeighborHashChange": true,
+    "blockedSleepMinutes": 30
+  },
+  "integration": {
+    "mode": "patch",
+    "allowCommits": false,
+    "allowedRoots": [
+      "src",
+      "include",
+      "configs"
+    ]
+  },
+  "budgets": {
+    "maxCostUsd": null,
+    "maxRuntimeHours": null,
+    "maxAttemptsPerFunctionPerEpoch": 4
+  },
+  "sourcePolicy": {
+    "allowEmptyMemoryBarrier": true,
+    "allowlist": {}
+  }
+}

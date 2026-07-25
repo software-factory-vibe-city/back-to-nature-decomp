@@ -20,7 +20,9 @@ the same session and are not repeated here.
 
 Sweep scoreboard: 15 stripped clean, 3 parked with candidates
 (`notes/scratch/func_8001B4E4-candidate.c`, `func_8001E7DC-candidate.c`,
-`func_8001AF44-candidate.c`), 2 kept with ablation-proven load-bearing
+`func_8001AF44-candidate.c`) — **of which func_8001B4E4 was since solved
+in clean C (2026-07-25, case C4 update)** — 2 kept with ablation-proven
+load-bearing
 workarounds but unresolved root cause (SetGfxClip, SetGfxOffset), 1 excluded
 (`func_80021820`, known broken — needs full re-decomp, not a sweep candidate).
 
@@ -172,7 +174,7 @@ because `globals.h` declares these as pointer-deref macros, making
 follow-up debt — the correct fix is declaring proper arrays in
 `globals_override.h` so the source can use the sanctioned form.)
 
-### Case C4 — func_8001B4E4: variable reuse as a scheduler pin (PARKED)
+### Case C4 — func_8001B4E4: variable reuse as a scheduler pin (SOLVED 2026-07-25)
 
 **The hack** (commit `1e997f8`): six pins (all forcing `v0`/`v1`/`a0`), three
 barriers, comment: "register __asm__ required: v0 must be used for both
@@ -219,6 +221,92 @@ this sweep did not crack (see Open questions).
 **Lever**: *when the target shows one register carrying a chain of
 independent values, the original source reused one variable — reproduce the
 reuse; do not pin.*
+
+#### C4 update (2026-07-25): the reuse hypothesis is self-defeating — refined analysis
+
+A follow-up session fetched the GCC 2.95.2 sources (now vendored at
+`notes/scratch/gcc-2.95.2-reference/local-alloc.c` and `sched.c`) and
+traced the exact mechanisms. The picture changed substantially:
+
+1. **Variable reuse *cannot* be the original shape.** `local-alloc.c:365`
+   restricts local allocation to pseudos with `REG_BASIC_BLOCK >= 0 &&
+   REG_N_DEATHS == 1`. A reused variable has multiple disjoint live ranges
+   (the candidate's `sp` pseudo 82 dies 3 times), so it is *always* pushed
+   to global-alloc, which conservatively loses `$v0` to the short-lived
+   symref locals overlapping its windows — deterministically. Same RTL +
+   same compiler = same output, so the original RTL provably differed from
+   the candidate's. The reuse lever pins the schedule but *guarantees* the
+   wrong register web.
+
+2. **Why every fresh-pseudo variant shuffles (the missing pin is alias
+   analysis, not just anti-deps).** GCC's pre-alloc scheduler is a
+   *backward* list scheduler; with all insn priorities tied at 1, ordering
+   is decided by ready-list dynamics plus a `potential_hazard`
+   function-unit tie-break (`sched.c:2082`). Stores through provably
+   *distinct* base symbols (`&D_8005E4C8+off` vs `&D_8005E4C4+off`) get
+   **no memory output dependencies** — cselib base-value tracking
+   disambiguates them — so every store is simultaneously ready and the
+   scheduler bubbles independent chains (shifts to the top, `la`/`addu`
+   above the `sb`s, `sw` pushed below the s16 address chains): 6/19 match.
+   The candidate's same-pseudo stores may-alias → output deps → order
+   pinned. Fresh pseudos allocate correctly but schedule chaotically.
+
+3. **Allocation is solved on paper.** With all-single-set pseudos *and*
+   the target's RTL order, the local-alloc cascade reproduces the target
+   allocation exactly, including the alternating `v0`/`v1` symref pattern.
+   Ingredients, all verified in source: output ties to a dying input
+   (`combine_regs`), hard-register suggestions from copy insns and dying
+   hard-reg inputs (allocated first, with *true* lifetimes), priority
+   `floor_log2(refs)*refs*size/(death-birth)` tie-broken by qty number
+   (`QTY_CMP_PRI`, `local-alloc.c:1505`), and the ±1-insn "fake lifetime"
+   extension used when `-fschedule-insns2` is on (`local-alloc.c:1442`).
+
+4. **The candidate's one order flip (`la C4` before `sw`) is a `sched2`
+   artifact, not a source-order problem.** It comes from the post-alloc
+   `potential_hazard` pick and disappears under the target allocation:
+   with the `v0` web continuous, `la C4` writes `$v0` which the `sw`
+   reads — a hard-register WAR that pins it. Fixing allocation fixes
+   scheduling; the two are not independent.
+
+5. ~~The remaining gap~~ **SOLVED.** Lead (a) from the earlier list
+   cracked it: *never re-assign `arg0`*. The matching source
+   (`src/func_8001B4E4.c`) writes the halfword index inline at each s16
+   store — `(arg0 << 1)` inside the address expression — instead of the
+   `arg0 <<= 1` statement every prior variant used:
+
+   ```c
+   ep = &D_8005E870;
+   ep->field_36 = 0;
+   ep->field_37 = 0;
+   s4 = arg0 << 2;
+   p32 = (s32 *)((char *)&D_8005E4C8 + s4);
+   *p32 = 0;
+   p16a = (s16 *)((char *)&D_8005E4C4 + (arg0 << 1));
+   p16b = (s16 *)((char *)&D_8005E4D0 + (arg0 << 1));
+   *p16a = 0;
+   p16c = (s16 *)((char *)&D_8005E4C0 + (arg0 << 1));
+   *p16b = 0;
+   *p16c = 0;
+   ```
+
+   → **19/19, `make check` byte-identical, zero workarounds.** Why it
+   works: (i) with `arg0` never assigned, it stays in hard `$4` — no
+   entry copy, no `arg0 <<= 1` statement — so the shared `arg0<<1` temp
+   is CSE-born inside the first s16 store and inherits `$4` via the
+   dying-hard-reg suggestion; (ii) that birth site (the C3 lever, fused
+   into the consumer) lands the `sll a0,a0,1` exactly between the C8
+   addu and the `sw` in the backward scheduler's ready-list dynamics;
+   (iii) with RTL order equal to target order, the local-alloc cascade
+   (point 3) produces the target's register webs exactly. The
+   `arg0 <<= 1` statement was the poison in every earlier variant: it
+   forced the entry copy and an extra anti-dependency that let the
+   backward scheduler bubble the shifts to the top of the block,
+   shifting every pseudo birth and breaking the cascade.
+
+6. Operand-order note: for reg+reg `plus`, emission order survives to
+   final asm (no regno canonicalization observed). Both the array-index
+   form `(&D_8005E4C8)[arg0]` and the pointer-arithmetic form emit the
+   scaled value as the first `addu` operand, matching the target.
 
 ### Case C5 — func_8001E7DC: allocation preference determines whole-function shape (PARKED)
 
@@ -319,6 +407,14 @@ explanations and directed source search, not a different code generator.
    This is the single highest-value investigation here: it would convert
    three parked functions and an unknown number of future ones from "thrash"
    to "deterministic fix".
+
+   *Partially answered (2026-07-25):* the exact 2.95.2 `local-alloc.c` and
+   `sched.c` are now vendored in `notes/scratch/gcc-2.95.2-reference/`, and
+   the local-alloc eligibility rule (`REG_N_DEATHS == 1`), priority formula,
+   tie/suggestion mechanics, and fake-lifetime extension are documented in
+   the C4 update above. What remains unmodeled is *global*-alloc ordering
+   (for genuinely multi-death webs) and a way to give `compilerTrace.ts`
+   exact qty composition/suggestions instead of approximations.
 2. **Does C1's fresh-temp lever generalize?** It worked on `mult` and failed
    on address `addu`. Needs 2–3 more instances before prompt inclusion.
 3. **C5 has no lever at all** — "make a load-result pseudo prefer `$a0`" may
@@ -509,8 +605,10 @@ assembler emulation.
   func_80022AF0, func_800245C8, func_8001FCE4, func_80024578, func_800132B8,
   func_80019E50, func_8001FE00, func_80020174, func_800226B0, func_8001B4D0,
   func_800217B0, func_800244FC.
-- **Parked with classified candidates (3)**: func_8001B4E4 (C4),
-  func_8001E7DC (C5), func_8001AF44 (C6) — see `notes/scratch/`.
+- **Parked with classified candidates (3, one since solved)**:
+  ~~func_8001B4E4 (C4)~~ — solved 2026-07-25 in clean C, see C4 update;
+  func_8001E7DC (C5), func_8001AF44 (C6) remain parked — see
+  `notes/scratch/`.
 - **Unresolved/load-bearing, kept (2)**: SetGfxClip, SetGfxOffset (D1) + their
   flag overrides; ablation proves necessity for the current reconstruction,
   not a maspsx root cause.
@@ -522,6 +620,9 @@ assembler emulation.
 
 - `notes/next-steps-for-revisiting-the-project.md` — the parent analysis
   (root causes, six proposed steps; this sweep was step 2).
+- `notes/research/func_8001B4E4-scheduler-allocator-resolution.md` — full
+  research writeup of the C4 resolution (mechanism extraction from the
+  2.95.2 sources, failed-strategy catalog, reusable levers).
 - `notes/maspsx-issue.md`, `notes/maspsx-issue2.md` — the `la`-before-`sll`
   assembler-divergence class.
 - `prompts/c-style-guide.md` — "Legacy hacks: strip first, decode the idiom"

@@ -124,6 +124,10 @@ go in `game_types.h` (locals) or
   agents fold to asm, inventory of compromised files, planned fixes
 - `notes/decompilation-retro.md` — 2026-07 sweep retro: mechanism catalog for
   allocation/scheduling levers (Bucket C) and maspsx-gap analysis (Bucket D)
+- `notes/research/func_8001B4E4-scheduler-allocator-resolution.md` — deep
+  case study: GCC 2.95.2 allocator/scheduler internals (vendored in
+  `notes/scratch/gcc-2.95.2-reference/`), reusable levers for
+  allocation/scheduling fights
 - `notes/toolchain-version-detection.md` — the 2.95.2 proof
 - `notes/compiler-identification.md` — SDK/compiler identification method
 - `notes/bootstrapping.md` — how this project was built from scratch
