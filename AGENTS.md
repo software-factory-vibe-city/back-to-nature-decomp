@@ -76,7 +76,9 @@ npx tsx tools/callGraph.ts --top 20   # priority ranking
 
 ## Decompilation playbook
 
-Match diffs by **classifying first**, then applying the known fix class:
+The full pattern catalog is `prompts/c-style-guide.md` (canonical C style
+guide — read it before matching work). The short version: match diffs by
+**classifying first**, then applying the known fix class:
 
 | Diff kind | Meaning | Fix class |
 |---|---|---|

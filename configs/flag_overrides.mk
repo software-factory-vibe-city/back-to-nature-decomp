@@ -4,21 +4,18 @@
 #   where <stem> is the source filename without path or .c extension
 #
 # These flags are APPENDED to the base CC1FLAGS in the FlagsSwitch macro.
-# Use sparingly — most functions match with the default -O2 flags.
 #
-# Escalation strategy (try in order):
-#   1. Clean C: reorder declarations, swap operands, use natural idioms
-#   2. Scheduling barriers: __asm__ volatile("" : "=r"(var) : "0"(var))
-#   3. register __asm__("v0"): force specific register allocation
-#   4. Flag overrides (this file): disable scheduler or other passes
+# POLICY: flag overrides are GOVERNED WORKAROUNDS, not a decompilation tool.
+# The compiler is proven byte-identical to the original CC1PSX.EXE, so a
+# flag override means the C source is (probably) still wrong. New entries
+# require explicit human approval and a comment explaining why clean C
+# cannot match. The two entries below are legacy and pending re-validation
+# (see notes/next-steps-for-revisiting-the-project.md).
 #
-# Only use flag overrides when steps 1-3 cannot produce a match.
-# The most common case is self-clobbering loads: the target binary has
-# sequential lui/lw pairs (lui v0 / lw v0,off(v0)) where the lw
+# The pattern they work around: self-clobbering loads — the target binary
+# has sequential lui/lw pairs (lui v0 / lw v0,off(v0)) where the lw
 # overwrites the base register. GCC's scheduler groups the lui
 # instructions together and uses extra registers, preventing this pattern.
-# Disabling scheduling with -fno-schedule-insns -fno-schedule-insns2
-# combined with register __asm__ produces exact matches.
 
 # SetGfxClip: sequential pointer loads with self-clobbering lw pattern
 # Target: lui v0 / lw v0,0(v0) / lui v1 / lw v1,0(v1) (sequential)

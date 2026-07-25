@@ -53,6 +53,7 @@ To reproduce: strip the pins, `npx tsx tools/diffFunc.ts CopyVec3`.
 |---|---|---|
 | Raw `__asm__` embeds (bad) | 5 | `func_8001205C`, `func_80015AAC`, `func_80017E34`, `func_80021604`, `func_80022014` |
 | `register __asm__` pinning (suspect) | 18 | incl. `CopyVec3` (proven unneeded), `SetGfxClip`, `SetGfxOffset`, `func_80021820` (known broken, needs full re-decomp for 2.95.2) |
+| Scheduling barriers `__asm__ volatile("")` (suspect) | 9 | `func_800132B8`, `func_80019E50`, `func_8001B4D0`, `func_8001B4E4`, `func_8001E7DC`, `func_8001FE00`, `func_80020174`, `func_800217B0`, `func_800244FC` (6 overlap with the pinning list) |
 | Flag overrides in `configs/flag_overrides.mk` (suspect) | 2 | `SetGfxClip`, `SetGfxOffset` — `-fno-schedule-insns -fno-schedule-insns2` |
 | GTE / handwritten asm (legit) | 11 | keep as-is |
 
@@ -106,9 +107,11 @@ honest signal.
 
 ### 2. De-superstition sweep (mechanical, no LLM)
 
-For each of the 18 register-pinned files and 2 flag-override files: strip the
-hack, run `diffFunc`, keep it stripped if still 100%. CopyVec3 suggests a
-meaningful fraction will match clean. Script it; minutes of work.
+For each of the 18 register-pinned files, 9 barrier files, and 2 flag-override
+files: strip the hack, run `diffFunc`, keep it stripped if still 100%.
+CopyVec3 suggests a meaningful fraction will match clean. Script it; minutes
+of work. (For the flag-override files, remove the override *and* any pinning
+in the same file together.)
 
 ### 3. Diff classifier tool
 

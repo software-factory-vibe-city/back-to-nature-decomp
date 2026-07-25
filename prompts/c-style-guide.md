@@ -2,6 +2,8 @@
 
 Idiomatic C patterns that produce correct codegen with GCC 2.95.2-psx `-O2 -G8 -mips1`. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output.
 
+**The compiler is proven byte-identical to the original PSY-Q `CC1PSX.EXE`.** For every function that was originally C, clean matching source exists. If you cannot find it, STOP and report the diff signature — do not reach for inline asm, `register __asm__` pinning, or flag overrides. Scheduling barriers (below) are the one tolerated workaround, and even they require a justification comment and are treated as debt pending re-validation.
+
 ## Array and pointer access
 
 ### GP-relative indexed access
@@ -100,9 +102,9 @@ y = obj->field_04;
 x = obj->field_10;
 ```
 
-## Scheduling barriers
+## Scheduling barriers (governed workaround — last resort)
 
-GCC's instruction scheduler reorders independent instructions to hide pipeline stalls. The original PSY-Q toolchain did not always do this. When you get a 100% instruction match except for ordering of independent instructions, use a zero-cost barrier:
+GCC's instruction scheduler reorders independent instructions to hide pipeline stalls. The original PSY-Q toolchain did not always do this. When you get a 100% instruction match except for ordering of independent instructions — and only after exhausting operand-order and statement-order fixes — a zero-cost barrier is permitted:
 
 ```c
 __asm__ volatile("" : "=r"(var) : "0"(var));
@@ -123,7 +125,9 @@ __asm__ volatile("" : "=r"(a) : "0"(a));  /* barrier: complete a before starting
 Foo *b = GLOBAL_B[0];
 ```
 
-Only needed for absolute-addressed symbols (outside GP range). GP-relative loads are single instructions and don't get interleaved. See `src/func_80013AA4.c`.
+Only needed for absolute-addressed symbols (outside GP range). GP-relative loads are single instructions and don't get interleaved. Real barrier example: `src/func_8001B4D0.c`.
+
+Every barrier must carry a comment stating the exact target-vs-GCC ordering it fixes. Barriers are tracked debt: they are periodically re-tested and removed when clean C is found to match without them.
 
 ### Address load before ALU op
 
@@ -242,14 +246,11 @@ v0 = v0 - v1;
 /* ... carefully ordered to steer register assignment ... */
 ```
 
-### Register allocation: accept rare quirks
+### Register allocation: do NOT pin registers
 
-In rare cases, the target binary uses registers the compiler won't naturally pick. `register __asm__` can force the register. This is a last resort — try natural C first. With GCC 2.95.2, this is needed less often than with older compiler versions.
+If the target uses registers the compiler won't naturally pick, that means your C's temporary-variable structure differs from the original — not that the compiler needs forcing. Restructure: change declaration order, introduce or eliminate temporaries, swap operand order, change types (`s16` vs `s32`).
 
-```c
-/* register __asm__ required: compiler reuses $v0, target uses $v0 and $v1 */
-register s16 temp_v1 __asm__("v1");
-```
+**Do not use `register __asm__` pinning.** Existing uses in `src/` are legacy from the pre-2.95.2 era, are known to include unnecessary cases (e.g. `CopyVec3` matches 100% with plain natural C), and are being systematically removed. If you are truly stuck after restructuring, stop and report the diff — a stuck function is useful signal, a pinned match is not.
 
 ### CSE of address high halves
 

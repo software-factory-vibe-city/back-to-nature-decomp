@@ -86,10 +86,10 @@ Getting this wrong changes instruction count → impossible to match.
 ## Diagnosing diffs
 
 - `slt` vs `sltu` → fix signedness with casts
-- Wrong registers → try natural C first (simplify expressions, use `-=` operators, remove hand-tuned variable ordering); if still wrong after 3 attempts use `register __asm__("v0")` to force it
+- Wrong registers → your temporary-variable structure differs from the original. Restructure: reorder declarations, introduce/eliminate temporaries, swap operands, change types (`s16` vs `s32`), simplify expressions. NEVER use `register __asm__` to force it.
 - Switch case bodies in wrong order → reorder cases in the `switch` to match the binary's layout
 - Extra/missing instructions → fix extern sizes or control flow
-- Two instructions swapped → scheduling barrier: `__asm__ volatile("" : "=r"(var) : "0"(var));`
+- Two instructions swapped → first try operand/statement reordering. As a last resort, a scheduling barrier with a justification comment: `__asm__ volatile("" : "=r"(var) : "0"(var));`
 - `lw %gp_rel` but target has `lui`+`lw` → extern too small, needs > 8 bytes
 
 ## When C is not enough
@@ -100,55 +100,23 @@ If the `.s` file has GTE coprocessor instructions (`cfc2`, `ctc2`, `lwc2`, `swc2
 
 ## Escalation strategy for stubborn mismatches
 
-When clean C doesn't match, escalate through these steps in order:
+The compiler is proven byte-identical to the original (`CC1PSX.EXE`), so clean matching C exists for every function that was originally C. Escalate in order:
 
-1. **Clean C** — reorder declarations, swap operands, use natural idioms
-2. **Scheduling barriers** — `__asm__ volatile("" : "=r"(var) : "0"(var));` to prevent instruction reordering
-3. **`register __asm__`** — `register s32 tmp __asm__("v0");` to force register assignment
-4. **Per-file flag overrides** (last resort) — add an entry in `configs/flag_overrides.mk`
+1. **Clean C** — reorder declarations, swap operands, restructure temporaries, use natural idioms (this resolves the overwhelming majority)
+2. **Scheduling barrier** — only for correct-instructions-wrong-order diffs that resist step 1: `__asm__ volatile("" : "=r"(var) : "0"(var));` with a comment stating the exact ordering it fixes
+3. **STOP and report** — if neither works, leave the file at its best clean-C state and report the diff signature (which instructions differ, how). A documented stuck function is valuable; a hacked match is not.
 
-### Flag overrides
+**Forbidden workarounds** (they pass the byte gate while faking decompilation, and they teach bad patterns to future work):
+- `register __asm__("v0")` / any register pinning
+- Top-level `__asm__` blocks for non-GTE functions
+- New entries in `configs/flag_overrides.mk`
 
-The file `configs/flag_overrides.mk` defines per-file CC1FLAGS overrides:
-
-```makefile
-CC1FLAGS_SetGfxClip := -fno-schedule-insns -fno-schedule-insns2
-```
-
-Both `make` and `diffFunc.ts` read this file automatically. The override flags are appended to the base CC1FLAGS for that file only.
-
-**When to use:** The most common case is self-clobbering loads. The target has sequential `lui`/`lw` pairs where the `lw` overwrites the base register (`lui v0, %hi(sym)` / `lw v0, %lo(sym)(v0)`). GCC's scheduler groups `lui` instructions together and uses extra registers, making barriers insufficient. Disabling scheduling fixes this.
-
-**Signs you need flag overrides:**
-- Multiple `lui` instructions grouped together in your output but interleaved with `lw` in the target
-- `register __asm__` fixes the register but instructions are still in wrong order
-- The target uses self-clobbering loads (`lw $r, off($r)`) that GCC won't emit with scheduling enabled
-
-**How to add:**
-1. Add a line to `configs/flag_overrides.mk`: `CC1FLAGS_<stem> := -fno-schedule-insns -fno-schedule-insns2`
-2. Add `register __asm__("v0")` / `register __asm__("v1")` for the pointer variables
-3. Remove any scheduling barriers (no longer needed)
-4. Verify with `diffFunc.ts` — it picks up the override automatically
-
-**Worked example — SetGfxClip:**
-```c
-/* Requires -fno-schedule-insns -fno-schedule-insns2 (see flag_overrides.mk) */
-void SetGfxClip(s32 arg0, s32 arg1) {
-    register GfxObj *ptr_ac __asm__("v0");
-    register GfxObj *ptr_a8 __asm__("v1");
-
-    ptr_ac = D_8005E3AC[0];
-    ptr_a8 = D_8005E3A8[0];
-    ptr_ac->field_2C = arg0;
-    ptr_a8->field_2C = arg0;
-    ptr_ac->field_30 = arg1;
-    ptr_a8->field_30 = arg1;
-}
-```
+Existing uses of these in `src/` are legacy debt under active removal — never treat them as examples to copy.
 
 ## Constraints
 
-- You MUST achieve 100% instruction match.
+- Aim for 100% instruction match in clean C. If unreachable, follow the escalation strategy — stopping and reporting is an acceptable, valued outcome.
+- Do NOT use `register __asm__` pinning, top-level `__asm__` blocks (except GTE functions), or modify `configs/flag_overrides.mk`.
 - Do NOT modify any file other than `src/{FUNC_NAME}.c` and `include/globals_override.h`.
 - Do NOT use C99 features.
 - Do NOT use `_D_XXXXXXXX`. Use `&D_XXXXXXXX` for addresses.
