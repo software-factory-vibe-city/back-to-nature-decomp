@@ -1,57 +1,32 @@
 # BTN Decompilation
 
-A matching decompilation of SLUS-01115 (PS1). The goal is to produce C source code that compiles to a byte-for-byte identical binary.
+A **matching decompilation** of *Harvest Moon: Back to Nature* (SLUS-01115, PS1).
+The goal: C source code that compiles to a **byte-for-byte identical binary** of the
+original PS-X EXE, verified by SHA-256 on every build.
 
-## Prerequisites
+## Status snapshot
 
-- Linux
-- Docker
-- Node.js + npm (for TypeScript tooling)
-- Python 3
-- GNU Make
+- **93 / 257 live functions decompiled (36%)**, ~8.5% of live bytes
+- 206 functions classified as **dead code** (PSY-Q library residue, excluded from counts)
+- 10 **GTE functions** (handwritten cop2 assembly in the original — kept as asm, correct)
+- 1 pure-asm function
+- The full build (`make`) currently links and **matches the original payload**
+- Known caveat: a small number of "matched" files use inline-asm / register-pinning
+  hacks that are suspected to be unnecessary. See
+  **`notes/next-steps-for-revisiting-the-project.md`** — read this first if resuming work.
 
-### System packages
+## Binary facts
 
-```bash
-sudo apt install binutils-mips-linux-gnu
-pipx install splat64[mips]
-```
+| Field | Value |
+|-------|-------|
+| File | `extracted/iso/slus_011.15` (PS-X EXE, 323,584 bytes) |
+| Load address | `0x80010000` |
+| Entry point | `0x80011278` |
+| Payload | 321,536 bytes at file offset `0x800` |
+| GP value | `0x8005E274` (discovered from code; header field is zero) |
+| Stack base | `0x801FFFF0` |
 
-## Setup
-
-```bash
-git clone --recursive <repo-url>
-cd btn-decompilation
-npm install
-
-# Build the PSX GCC 2.95.2 cross-compiler (requires Docker)
-cd tools/old-gcc
-make VERSION=2.95.2-psx
-cd ../..
-```
-
-Place the original ISO contents in `extracted/iso/` (gitignored). The EXE must be at `extracted/iso/slus_011.15`.
-
-## Building
-
-```bash
-make split         # splat: split binary into .s files + linker script
-make               # assemble + link + verify match
-```
-
-`make` runs `make check` by default, which verifies the built binary is byte-identical to the original.
-
-## How It Works
-
-### Pipeline
-
-1. **`make split`** — Runs splat to split the EXE into per-segment `.s` files and a linker script. Appends `INCLUDE` directives for auto-generated undefined symbol definitions.
-
-2. **`make` / `make check`** — Assembles all `.s` files, links, extracts the raw binary, and compares the payload against the original via SHA-256.
-
-### Section Layout
-
-The binary has contiguous, non-interleaved sections:
+Sections are contiguous, non-interleaved:
 
 ```
 0x80010000 – 0x80011270  .rodata  (4,720 bytes)
@@ -60,168 +35,196 @@ The binary has contiguous, non-interleaved sections:
 0x8005D3D8 – 0x8005E800  .sdata   (5,160 bytes, GP-relative)
 ```
 
-GP value: `0x8005E274`
+## Toolchain (proven, not guessed)
 
-## Project Structure
+This is the foundation everything rests on — see `notes/compiler-identification.md`
+and `notes/toolchain-version-detection.md` for the full evidence trail.
+
+| Parameter | Value | How confirmed |
+|-----------|-------|---------------|
+| Compiler | **GCC 2.95.2-psx** (PSY-Q 4.6 `CC1PSX.EXE`) | Our Docker-built `cc1` produces **byte-identical output** to the original `CC1PSX.EXE` |
+| Assembler | **ASPSX 2.77** (emulated by maspsx) | `li` expansion patterns in the binary (1,142 `addiu` vs 88 `ori`) |
+| Runtime libs | **PSY-Q SDK 4.7** | Signature matching against `tools/psx_psyq_signatures/470/` |
+| Optimization | `-O2 -G8` | Delay-slot fill rate, GP-relative access for symbols ≤ 8 bytes |
+
+Key hard-won fact: it is **2.95.2, not 2.8.1**. The giveaway was the switch-dispatch
+register (`$a0` in the target; 2.8.1 hardcodes `$v0`). Everything register-hacked
+during the 2.8.1 era is suspect and may now be unnecessary (see next-steps note).
+
+### Compilation pipeline
 
 ```
-src/                    Decompiled C source (empty initially)
-include/
-  include_asm.h         INCLUDE_ASM macro for function stubs
-  common.h              Basic PSX types (u8, u16, u32, s8, s16, s32)
-  functions.h           Auto-generated function signatures (by contextExport.ts)
-  game_types.h          Shared struct definitions (created by refinement agents)
-  psyq/                 PSY-Q SDK headers
-configs/
-  splat.yaml            Splat configuration (manually maintained)
-  symbol_addrs.txt      Function/data symbols (manually maintained)
-prompts/
-  decompilation-cleanup-agent.md   Stage 2 matching agent prompt
-  global-refinement-agent.md       Stage 5 per-function refinement prompt
-  project-refinement-agent.md      Project-wide refinement prompt
-tools/
-  old-gcc/              PSX-era GCC cross-compiler (git submodule)
-  maspsx/               MIPS assembler wrapper for PSY-Q compatibility (git submodule)
-  asm-differ/           Assembly diff tool (git submodule)
-  m2c/                  MIPS-to-C decompiler (git submodule)
-  disassemble.sh        spimdisasm invocation (bootstrap only)
-  headerInfo.ts         PS-X EXE header parser
-  analyzeLayout.ts      Section layout classifier
-  analyzeAccess.ts      Data access pattern analyzer
-  callGraph.ts          Build call graph + priority ranking
-  m2cFunc.ts            Run m2c decompiler on a single function
-  orchestrator.ts       Drive the decompilation pipeline
-  agent-loop.ts         Generic LLM agent loop (pi-coding-agent SDK)
-  getPrompt.ts          Build agent prompts with injected context
-  contextExport.ts      Extract function signatures into include/functions.h
-  diffFunc.ts           Compile a .c file and diff against original .o
-  progress.ts           Decompilation progress tracker
-extracted/iso/          ISO contents including the EXE (gitignored)
-build/                  All generated artifacts (gitignored)
-  asm/                  Splat-generated assembly
-    data/               Data/rodata/sdata segment .s files
-    *.s                 Code segment .s files
-  callGraph.json        Call graph + priority ranking
-  pipeline/             Per-function pipeline artifacts + refinement markers
+C source → mips-linux-gnu-cpp → cc1 (GCC 2.95.2-psx, Docker-built)
+         → maspsx (emulates ASPSX 2.77 quirks) → mips-linux-gnu-as → .o
+Assembly (splat) → mips-linux-gnu-as → .o
+All .o → mips-linux-gnu-ld (slus_011.ld) → ELF → objcopy → raw binary
+       → SHA-256 compare against original payload
 ```
 
-## Make Targets
+Per-file flag overrides live in `configs/flag_overrides.mk` (currently 2 entries,
+both suspect).
+
+## Setup
+
+```bash
+sudo apt install binutils-mips-linux-gnu
+pipx install splat64[mips]
+git clone --recursive <repo-url> && cd btn-decompilation
+npm install
+
+# Build the PSX GCC 2.95.2 cross-compiler (requires Docker)
+cd tools/old-gcc && make VERSION=2.95.2-psx && cd ../..
+```
+
+Place the original EXE at `extracted/iso/slus_011.15` (gitignored).
+
+## Make targets
 
 | Target | Description |
 |--------|-------------|
-| `make` | Build and verify (`make check`) |
-| `make split` | Run splat to split binary into .s files + linker script |
-| `make check` | Compare built binary against original payload |
-| `make setup` | Initialize git submodules |
-| `make progress` | Show decompilation progress |
-| `make clean` | Remove all generated artifacts |
+| `make` / `make check` | Build and verify byte-identical match (default) |
+| `make split` | Full splat pipeline: split binary → .s files + linker script (runs ~10 TS tools around splat, see below) |
+| `make progress` | Decompilation progress summary |
+| `make disassemble` | spimdisasm bootstrap (functions.csv + per-function .s) |
+| `make setup` | Init git submodules |
+| `make clean` / `make wipe` | Remove build artifacts / wipe generated configs to re-bootstrap |
 
-## Compilation Pipeline
+## Project structure
 
 ```
-C source → cpp (preprocessor) → cc1 (PSX GCC 2.95.2) → maspsx (assembler wrapper) → .o
-Assembly → mips-linux-gnu-as → .o
-All .o → mips-linux-gnu-ld → ELF → objcopy → raw binary → verify against original
+src/                    Decompiled C, one file per function (466 files)
+include/
+  common.h              u8/s32 etc. PSX types; includes globals.h
+  globals.h             Auto-generated D_XXXXXXXX externs (classifyGlobals.ts)
+  globals_override.h    Hand-maintained struct types for specific globals
+  functions.h           Auto-generated signatures of decompiled functions (contextExport.ts)
+  game_types.h          Shared struct definitions (Vec3, GfxObj, ...)
+  include_asm.h         INCLUDE_ASM macro for nonmatching stubs
+  psyq/                 PSY-Q SDK headers
+configs/
+  splat.yaml            Splat config (partially auto-generated by bootstrap.ts)
+  symbol_addrs.txt      Hand-maintained function/data symbols
+  flag_overrides.mk     Per-file cc1 flag overrides
+lib/                    PSY-Q 4.7 static libs (libgpu.a, libgte.a, ...) used for
+                        signature detection and dead-code classification
+tools/                  All TypeScript tooling (npx tsx) + git submodules
+notes/                  Research/writeups — the project's institutional memory
+prompts/                LLM agent prompt templates
+build/                  All generated artifacts (gitignored): asm/, callGraph.json,
+                        pipeline audit trails, map files, sha256 sums
+extracted/iso/          Original game files (gitignored)
+orchestrator_output_*.txt, run000*.txt, project-refiner-run-*.txt
+                        Historical agent run logs (large, kept for forensics)
 ```
 
-## Tools
+## The agent-driven decompilation pipeline
 
-### `callGraph.ts` — Build call graph
+The distinctive part of this project: per-function decompilation is done by LLM
+agents orchestrated in **git worktrees**, driven by `tools/orchestrator.ts`
+(using the pi-coding-agent SDK).
 
-Analyzes all disassembled functions, builds a call graph, and outputs a priority-ranked JSON file for the decompilation pipeline.
+**Function selection:** `callGraph.ts` builds a call graph from the disassembly
+and priority-ranks functions (tier 1 = leaf/easy, tier 3 = complex).
+
+**Per-function stages:**
+
+1. **m2c** — mechanical MIPS→C decompilation (`m2cFunc.ts`)
+2. **Match** — LLM agent iterates: edit `src/X.c` → `diffFunc.ts` → repeat until
+   100% byte match, then full `make check`
+3. **Cleanup** — rename variables, comment (mostly stubbed)
+4. **Context export** — signature goes into `include/functions.h` so later
+   functions/agents see typed callees
+5. **Global refinement** — when a function's neighbors get decompiled, a hash
+   marker invalidates and it becomes a re-refinement candidate
+
+**Isolation:** each run gets a git worktree on branch `decomp/<func>`
+(`worktree.ts`); on success it's merged to master, on failure nothing is
+touched. Session logs are committed under `logs/`.
+
+**Agents:** configured via `.env` — `AGENT` (workhorse, OpenRouter/Kimi K2.5)
+and `STRONGER_AGENT` (escalation, Claude Sonnet). Prompts are built by
+`getPrompt.ts` from templates in `prompts/` with injected context (assembly,
+neighbor sources, call graph).
 
 ```bash
-npx tsx tools/callGraph.ts              # build graph + summary
-npx tsx tools/callGraph.ts --top 20     # also print top 20 priority functions
+npx tsx --env-file=.env tools/orchestrator.ts --write            # run pipeline
+npx tsx --env-file=.env tools/orchestrator.ts --func func_80011F08 --write
+npx tsx --env-file=.env tools/orchestrator.ts --fix SetGfxOffset --write
+npx tsx --env-file=.env tools/orchestrator.ts --refine           # refinement pass
+npx tsx --env-file=.env tools/orchestrator.ts --project-refine   # holistic whole-project pass
 ```
 
-Output: `build/callGraph.json`
+**Known failure mode (important):** the success gate is byte-match only, so a
+stuck agent can "pass" by embedding the original assembly verbatim. This
+happened. Read `notes/next-steps-for-revisiting-the-project.md` before running
+more agents.
 
-### `m2cFunc.ts` — Run m2c on a single function
+## The `make split` pipeline
 
-Runs the m2c decompiler on a function's `.s` file and produces initial C output wrapped in standard `#include` headers.
+Splat alone can't handle this binary (PSY-Q libs, cross-file refs, BSS layout),
+so `make split` runs a choreographed sequence:
 
-```bash
-npx tsx tools/m2cFunc.ts func_80011F08              # print C to stdout
-npx tsx tools/m2cFunc.ts func_80011F08 --write      # write to src/func_80011F08.c
-npx tsx tools/m2cFunc.ts func_80011F08 --context include/functions.h
-```
+1. `bootstrap.ts` — generate configs if absent (no-op when they exist)
+2. `mergeFragments.ts`, `addLibSymbols.ts`, `patchSplatForLibs.ts`, `addDepObjects.ts`
+   — fold detected PSY-Q library objects into the splat config
+3. `splat split` (with `SPIMDISASM_ARCHLEVEL=1`)
+4. `fixCrossFileRefs.ts` + re-split loop (up to 3×) — resolve symbols spanning fragments
+5. `patchLinkerBss.ts`, `patchLibBss.ts` — reproduce PSYLINK's independent
+   per-symbol BSS allocation
+6. Append auto-generated `undefined_funcs/syms` INCLUDEs to `slus_011.ld`
+7. `classifyGlobals.ts` — GP-relative vs absolute global classification → `globals.h`
+8. `contextExport.ts --all` — refresh `functions.h`
 
-Auto-detects `include/functions.h` for `--context` if it exists. Handles named symbols (like `__start`) whose `.s` files use address-based names.
+## Tools inventory (tools/)
 
-### `orchestrator.ts` — Decompilation pipeline driver
+| Tool | Purpose |
+|------|---------|
+| `orchestrator.ts` | Pipeline driver (m2c → match → cleanup → export → refine) |
+| `agent-loop.ts` | Generic LLM agent session runner (pi-coding-agent SDK) |
+| `worktree.ts` | Git worktree isolation per agent run |
+| `getPrompt.ts` | Build agent prompts with injected context |
+| `callGraph.ts` | Call graph + priority ranking → `build/callGraph.json` |
+| `m2cFunc.ts` | Run m2c on one function |
+| `diffFunc.ts` | Compile one .c, diff against original, match % (watches for changes) |
+| `diffBinary.ts` | Whole-payload comparison, coverage gaps, drift detection |
+| `progress.ts` | Progress report (`--markdown` for progress-list.md) |
+| `contextExport.ts` | Extract decompiled signatures → `include/functions.h` |
+| `classifyGlobals.ts` | Classify globals GP-relative vs absolute → `globals.h` |
+| `headerInfo.ts` / `psxExeInfo.ts` | PS-X EXE header parsing |
+| `disassemble.sh` | spimdisasm invocation (bootstrap) |
+| `analyzeLayout.ts` / `analyzeAccess.ts` | Section layout + data-access analysis (bootstrap-era) |
+| `detectLibFunctions.ts` / `matchSignatures.ts` | PSY-Q 4.7 library detection via byte signatures |
+| `addLibSymbols.ts` / `addDepObjects.ts` / `findMissingLibDeps.ts` | Fold matched lib objects + their deps into the build |
+| `resolveLibSections.ts` / `patchSplatForLibs.ts` / `patchLibBss.ts` / `patchLinkerBss.ts` | Make splat reproduce PSYLINK layouts (sections, BSS) |
+| `bootstrap.ts` / `mergeFragments.ts` / `fixCrossFileRefs.ts` / `splitFunctions.ts` / `splitSegments.ts` / `convertToC.ts` / `extractBssSymAddrs.ts` | Splat pipeline machinery |
 
-Reads `callGraph.json` and processes functions in priority order through a multi-stage pipeline:
+**Git submodules:** `tools/old-gcc` (decompals/old-gcc — Docker GCC builds),
+`tools/maspsx` (mkst/maspsx — ASPSX emulator), `tools/m2c`
+(matt-kempster/m2c — MIPS→C decompiler), `tools/psx_psyq_signatures`
+(lab313ru — SDK byte signatures). Also vendored: `tools/psyq47`,
+`tools/psyq_sdk` (contains original `CC1PSX.EXE`), `tools/homebrew-psyq`,
+`tools/silent-hill-decomp` (reference project), `tools/splat_ext`.
 
-1. **Stage 1: m2c** — Mechanical decompilation via m2c
-2. **Stage 2: Match** — LLM agent iterates until 100% byte match
-3. **Stage 3: Cleanup** — LLM agent renames variables, adds comments (stubbed)
-4. **Stage 4: Context export** — Extract signatures to `include/functions.h`
-5. **Stage 5: Global refinement** — Revisit already-decompiled functions when neighbors are newly decompiled (runs automatically at end of pipeline)
+## Notes index (notes/)
 
-```bash
-# Normal pipeline (stages 1-5)
-npx tsx --env-file=.env tools/orchestrator.ts                        # dry-run
-npx tsx --env-file=.env tools/orchestrator.ts --write                # actually modify src/
-npx tsx --env-file=.env tools/orchestrator.ts --top 5                # top 5 functions
-npx tsx --env-file=.env tools/orchestrator.ts --func func_80011F08   # specific function
-npx tsx --env-file=.env tools/orchestrator.ts --stage 1              # only stage 1
+The research trail — worth reading before changing anything fundamental:
 
-# Per-function refinement (stage 5 only)
-npx tsx --env-file=.env tools/orchestrator.ts --refine               # all candidates
-npx tsx --env-file=.env tools/orchestrator.ts --refine --func X      # specific function
+- `compiler-identification.md` — how PSY-Q was identified from binary strings/patterns
+- `toolchain-version-detection.md` — the 2.95.2 proof (CC1PSX byte-identity)
+- `bootstrapping.md` — how the project was set up from scratch (GP discovery, sections)
+- `jump-table-problem.md` — switch/jump-table handling in m2c and the linker script
+- `maspsx-issue.md`, `maspsx-issue2.md` — known ASPSX-emulation discrepancies
+- `scheduling-breakage.md` — impact of `-fno-schedule-insns` (regresses 134 functions globally)
+- `psyq-detection.md`, `rom_info/` — SDK/library detection details
+- `jobs-to-be-done.md` — **stale** (pre-2.95.2-switch); superseded by
+  `next-steps-for-revisiting-the-project.md`
+- `thoughts-on-automated-decomp.md` — design thinking behind the agent pipeline
 
-# Project-wide refinement (holistic pass across all decompiled code)
-npx tsx --env-file=.env tools/orchestrator.ts --project-refine
-```
+## Conventions
 
-**Dry-run (default):** Outputs go to `build/pipeline/{funcName}/` only. `src/` files are never touched.
-
-**Write mode (`--write`):** Same as dry-run, but also writes the final result to `src/{name}.c`.
-
-**Refinement tracking:** After a function is refined, a marker file is written to `build/pipeline/{funcName}/refined_{hash}.marker`. The hash is derived from the function's decompiled neighbor set — when a new neighbor is decompiled, the hash changes and the function becomes a refinement candidate again.
-
-**Project refinement (`--project-refine`):** Runs a holistic pass across the entire decompiled codebase — defines shared structs, renames globals and functions, replaces pointer arithmetic with struct access, and improves type consistency. Run this periodically as more functions are decompiled.
-
-Requires `AGENT` env var (see `.env`). `build/pipeline/` always contains the full audit trail regardless of mode.
-
-### `getPrompt.ts` — Build agent prompts
-
-Reads a prompt template and injects per-function or project-wide context (assembly, source, call graph, neighbor sources).
-
-```bash
-npx tsx tools/getPrompt.ts func_80011F08            # matching agent prompt
-npx tsx tools/getPrompt.ts --refine func_80011F08   # per-function refinement prompt
-npx tsx tools/getPrompt.ts --project                # project-wide refinement prompt
-```
-
-### `contextExport.ts` — Export function signatures
-
-Extracts function signatures from decompiled C files into `include/functions.h` for use by m2c and LLM agents.
-
-```bash
-npx tsx tools/contextExport.ts func_80011F08        # single function
-npx tsx tools/contextExport.ts --all                # all decompiled functions
-```
-
-### `diffFunc.ts` — Diff compiled output against original
-
-Compiles a `.c` file through the full PSX GCC pipeline and diffs the resulting object code against the original, showing a match percentage.
-
-```bash
-npx tsx tools/diffFunc.ts func_80011F08
-```
-
-Watches the source file for changes and re-diffs automatically.
-
-## Binary Details
-
-| Field | Value |
-|-------|-------|
-| File | `SLUS_011.15` |
-| Format | PS-X EXE |
-| Load address | `0x80010000` |
-| Entry point | `0x80011278` |
-| Payload size | 321,536 bytes (`0x4E800`) |
-| Payload offset | `0x800` |
-| Compiler | GCC 2.95.2 (PSY-Q 4.6 CC1PSX) |
+- Never commit `extracted/` or `build/`
+- Tooling is TypeScript only (run via `npx tsx`); no Python scripts checked in
+- C is C89: declarations at top of block, `/* */` comments only
+- Never redeclare `D_XXXXXXXX` globals in .c files — they come from `globals.h`;
+  struct types for globals go in `globals_override.h`
+- Don't commit unless asked
