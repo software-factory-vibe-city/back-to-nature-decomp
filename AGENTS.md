@@ -70,9 +70,11 @@ make                              # build + verify byte-identical (the source of
 make check                        # verify only
 make split                        # regenerate splat output (asm + linker script)
 make progress                     # decompilation progress
-npx tsx tools/agent/diffFunc.ts <func>  # per-function compile + diff + match %
-npx tsx tools/agent/m2cFunc.ts <func>   # m2c first-pass decompilation
-npx tsx tools/agent/callGraph.ts --top 20   # priority ranking
+npx tsx tools/agent/diffFunc.ts <func>       # exact per-function diff + match % oracle
+npx tsx tools/agent/explainDiff.ts <func>    # classify allocation/order/selection/relocation diffs
+npx tsx tools/agent/compilerTrace.ts <func>  # GCC RTL, pseudo allocation, and scheduler trace
+npx tsx tools/agent/m2cFunc.ts <func>        # m2c first-pass decompilation
+npx tsx tools/agent/callGraph.ts --top 20    # priority ranking
 ```
 
 ## Repo map
@@ -105,9 +107,14 @@ guide — read it before matching work). The short version: match diffs by
 | `lui` grouping, self-clobbering loads | Temp reuse | Global access pattern, reused temporaries across statements |
 | Different stack frame | Locals | Local count/order, spills |
 
-Workflow per function: m2c first pass → classify diff → apply fix class →
-`diffFunc.ts` until 100% → `make check` (catches relocation/linker issues).
-Struct types inferred from access patterns go in `game_types.h` (locals) or
+Workflow per function: m2c first pass → run `explainDiff.ts` → apply the
+reported fix class → for allocation/scheduling/mixed cases, inspect
+`compilerTrace.ts` before perturbing source → use `diffFunc.ts` as the exact
+progress oracle until 100% → `make check` (catches relocation/linker issues).
+Re-run `explainDiff.ts` when the signature changes. `compilerTrace.ts`'s
+`priority~` is approximate; distinguish `.lreg` assignments from those that
+appear only post-local in `.greg`. Struct types inferred from access patterns
+go in `game_types.h` (locals) or
 `globals_override.h` (globals). Use load widths to infer types: `lw/sw`→s32,
 `lh/sh`→s16, `lhu`→u16, `lb/sb`→s8, `lbu`→u8.
 

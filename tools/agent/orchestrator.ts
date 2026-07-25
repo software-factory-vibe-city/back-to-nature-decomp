@@ -126,11 +126,13 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir:
     }
   };
 
+  const diagnosticWorkflow = `Start by running \`timeout 10 npx tsx tools/agent/explainDiff.ts ${funcName}\` and classify the mismatch before editing. Use \`diffFunc.ts\` as the exact progress oracle. If the report says register-allocation, scheduling, mixed-operands, or scheduling-and-operands, run \`timeout 15 npx tsx tools/agent/compilerTrace.ts ${funcName}\` and identify the relevant pseudo, assignment pass, or scheduler decision before changing source shape. Re-run explainDiff whenever the signature changes. Do not use register pinning, forged/top-level asm, or flag overrides; if clean C remains stuck, report the structural category and trace finding.`;
+
   let userMessage: string;
   if (resumeDiff !== undefined) {
-    userMessage = `You're picking up the decompilation of ${funcName} from a previous attempt that didn't reach 100% match.\n\nHere's the git diff of changes made so far:\n\n\`\`\`diff\n${resumeDiff}\n\`\`\`\n\nContinue from this state. Run \`timeout 5 npx tsx tools/agent/diffFunc.ts ${funcName}\` to see the current match percentage and keep iterating until you reach 100% match.`;
+    userMessage = `You're picking up the decompilation of ${funcName} from a previous attempt that didn't reach 100% match.\n\nHere's the git diff of changes made so far:\n\n\`\`\`diff\n${resumeDiff}\n\`\`\`\n\nContinue from this state. ${diagnosticWorkflow}`;
   } else {
-    userMessage = `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. Run \`timeout 5 npx tsx tools/agent/diffFunc.ts ${funcName}\` to compile and check your match percentage. Keep iterating until you reach 100% match.`;
+    userMessage = `Decompile and match ${funcName}. The file src/${funcName}.c already contains m2c output as your starting point. ${diagnosticWorkflow}`;
   }
 
   const result = await runAgentLoop({
@@ -139,6 +141,7 @@ async function runMatchingAgent(funcName: string, ctx: PipelineContext, workDir:
     cwd: workDir,
     maxRetries: 10,
     checkSuccess,
+    retryMessage: `The function still does not match. Run diffFunc.ts for the exact remaining diff. If the cause is not already proven, re-run explainDiff.ts; for allocation, scheduling, or mixed categories inspect compilerTrace.ts before another source-shape change. Do not use register pinning, forged/top-level asm, or flag overrides. If the clean-C search is exhausted, report the category, trace evidence, and remaining instructions rather than hacking the match.`,
   });
 
   return {
@@ -626,17 +629,17 @@ async function main() {
 
     const userMessage = `You are fixing ${fixFunc}, which has a previous decompilation attempt that didn't match the target binary.
 
-The file src/${fixFunc}.c already contains the previous attempt. Run \`timeout 5 npx tsx tools/agent/diffFunc.ts ${fixFunc}\` to see the current match percentage and the diff.
+The file src/${fixFunc}.c already contains the previous attempt.
 
-This function likely needs the escalation strategy to match. Try in order:
-1. Clean C fixes (reorder declarations, swap operands, simplify expressions)
-2. Scheduling barriers: \`__asm__ volatile("" : "=r"(var) : "0"(var));\`
-3. \`register __asm__("v0")\` to force register allocation
-4. Per-file flag overrides in \`configs/flag_overrides.mk\` (e.g., \`CC1FLAGS_${fixFunc} := -fno-schedule-insns -fno-schedule-insns2\`) — both make and diffFunc.ts read this file automatically
+Use the diagnostic escalation strategy in order:
+1. Run \`timeout 10 npx tsx tools/agent/explainDiff.ts ${fixFunc}\` and record the structural category and first divergence.
+2. Apply the matching clean-C fix class: types/idioms for instruction selection; temporary birth/reuse/lifetime for allocation; statement or expression-birth order for scheduling; natural array/struct/address forms for address arithmetic.
+3. For register-allocation, scheduling, mixed-operands, or scheduling-and-operands, run \`timeout 15 npx tsx tools/agent/compilerTrace.ts ${fixFunc}\`. Inspect pseudo lifetimes/conflicts, whether assignment is local or global/reload, and the \`.sched\`/\`.sched2\` summaries before perturbing source.
+4. Use \`timeout 5 npx tsx tools/agent/diffFunc.ts ${fixFunc}\` after each deliberate change as the exact progress oracle. Re-run explainDiff when the signature changes.
+5. Use a justified zero-instruction scheduling barrier only for a proven order-only pair after clean source-order fixes fail.
+6. If still stuck, stop with the best clean-C candidate and report the explainDiff category, trace finding, and remaining instructions.
 
-Look for signs of scheduler interference: grouped \`lui\` instructions, self-clobbering loads (\`lw $r, off($r)\`), or instruction pairs that are correct but swapped.
-
-Keep iterating until you reach 100% match.`;
+Do not use register pinning, forged or top-level asm, or new flag overrides. A byte match obtained through those mechanisms is not a successful fix.`;
 
     const result = await runAgentLoop({
       systemPrompt,
@@ -644,6 +647,7 @@ Keep iterating until you reach 100% match.`;
       cwd: wtPath,
       maxRetries: 10,
       checkSuccess,
+      retryMessage: `The fix still does not match. Use diffFunc.ts as the exact oracle, explainDiff.ts to reclassify the remaining signature, and compilerTrace.ts for allocation/scheduling/mixed cases. Make only a change tied to observed pseudo or pass evidence. Do not pin registers, forge assembly, add top-level asm, or add flag overrides; stop and report a classified clean-C failure instead.`,
     });
 
     if (result.success) {

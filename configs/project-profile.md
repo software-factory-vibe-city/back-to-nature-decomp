@@ -21,16 +21,18 @@ supplies the specifics. It is injected into every agent prompt by
 - **Compiler:** GCC 2.95.2-psx (`cc1`) — verified byte-identical output against the original binary (evidence: `notes/toolchain-version-detection.md`); SHA-256 match confirmed at generation time
 - **Flags:** `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet`
 - **Small-data threshold:** `-G8` — externs declared **8 bytes or smaller** get GP-relative addressing (single `lw/sw %gp_rel(sym)($gp)`); larger declarations get absolute addressing (`lui` + `lw/sw %lo(sym)`)
-- **Assembler semantics:** ASPSX 2.77 via maspsx (`tools/vendor/maspsx`) — expands `li`/macro instructions and `$gp` relocations exactly like the original assembler
+- **Assembler semantics:** ASPSX 2.77 via maspsx (`tools/vendor/maspsx`) — emulates macro expansion and relocation behavior; unlike cc1, byte identity with real ASPSX is not established for every input
 - **SDK:** PSY-Q 4.7 (auto-detected by signature matching — 394 signatures matched, `tools/diagnostics/matchSignatures.ts`)
 
-## Verification commands
+## Diagnostic and verification commands
 
-- Per function: `npx tsx tools/agent/diffFunc.ts <func>` (100% = match)
-- Full binary: `make check` (SHA-256 against the original payload)
+- Structural classification: `npx tsx tools/agent/explainDiff.ts <func>`
+- GCC pass/allocation trace: `npx tsx tools/agent/compilerTrace.ts <func>`
+- Exact per-function oracle: `npx tsx tools/agent/diffFunc.ts <func>` (100% = match)
+- Full binary oracle: `make check` (SHA-256 against the original payload)
 
 ## Consequences for matching work
 
-- Because the compiler is verified byte-identical, **clean matching C exists for every function that was originally C**. Never "solve" functions with inline asm, `register __asm__` pinning, or flag overrides — find the clean C, or stop and report the diff signature.
+- Because the compiler is verified byte-identical, the original C under its original compiler invocation is reproducible. Compiler identity does not by itself prove a reconstructed source shape or per-file flag assumption. Never "solve" functions with inline asm, `register __asm__` pinning, or flag overrides — find the clean C, or stop and report the diff signature.
 - Switch statements compile correctly, including jump-table dispatch; case bodies are emitted in source order.
 - The compiler's scheduler reorders independent instructions; the original toolchain often did not. Order-only diffs are a known, well-understood diff class (see the style guide).

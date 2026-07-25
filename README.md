@@ -137,8 +137,10 @@ and priority-ranks functions (tier 1 = leaf/easy, tier 3 = complex).
 **Per-function stages:**
 
 1. **m2c** — mechanical MIPS→C decompilation (`m2cFunc.ts`)
-2. **Match** — LLM agent iterates: edit `src/X.c` → `diffFunc.ts` → repeat until
-   100% byte match, then full `make check`
+2. **Match** — LLM agent classifies with `explainDiff.ts`, uses
+   `compilerTrace.ts` for allocation/scheduling cases, then iterates
+   `src/X.c` edits with `diffFunc.ts` as the exact oracle until 100%, followed
+   by full `make check`
 3. **Cleanup** — rename variables, comment (mostly stubbed)
 4. **Context export** — signature goes into `include/functions.h` so later
    functions/agents see typed callees
@@ -187,7 +189,7 @@ so `make split` runs a choreographed sequence:
 
 | Directory | Contents |
 |-----------|----------|
-| `tools/agent/` | The LLM decomp loop: `orchestrator.ts` (driver), `agent-loop.ts` (SDK runner), `worktree.ts` (git worktree isolation), `getPrompt.ts` (prompt builder), `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: per-function compile + diff + match %), `contextExport.ts` (signatures → `functions.h`) |
+| `tools/agent/` | The LLM decomp loop: `orchestrator.ts` (driver), `agent-loop.ts` (SDK runner), `worktree.ts` (git worktree isolation), `getPrompt.ts` (prompt builder), `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**: exact per-function diff + match %), `explainDiff.ts` (structural diff classifier), `compilerTrace.ts` (GCC RTL/allocation/scheduler observability), `contextExport.ts` (signatures → `functions.h`) |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |
@@ -216,6 +218,7 @@ The research trail — worth reading before changing anything fundamental:
 - `jobs-to-be-done.md` — **stale** (pre-2.95.2-switch); superseded by
   `next-steps-for-revisiting-the-project.md`
 - `thoughts-on-automated-decomp.md` — design thinking behind the agent pipeline
+- `decompilation-tooling-ideas.md` — Bucket C observability tools, usage, and limitations
 
 ## Conventions
 

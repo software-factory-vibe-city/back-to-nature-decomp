@@ -5,11 +5,13 @@ Companion to `notes/next-steps-for-revisiting-the-project.md`. Documents the
 clean, binary verified byte-identical by `make check`) and analyzes the two
 buckets that were deliberately **not** distilled into prompts yet:
 
-- **Bucket C** — real search problems mislabeled "impossible": agents wrote
-  "register asm required" comments while a clean-C lever existed but wasn't
-  found within their search budget.
-- **Bucket D** — genuine tool gaps: divergences at the cc1 → maspsx boundary
-  that no C input can fix.
+- **Bucket C** — real inverse-compilation/search problems mislabeled
+  "impossible": agents wrote "register asm required" comments while a clean-C
+  lever existed but wasn't found within their search budget.
+- **Bucket D** — candidate tool-boundary problems: divergences that may occur
+  between cc1 output, ASPSX macro expansion, and maspsx emulation. These are
+  not proven tool gaps until the same compiler assembly is run through real
+  ASPSX and maspsx and produces different objects.
 
 Buckets A (pure residue — pins with zero effect on output) and B (hand-written
 asm for idioms GCC generates natively) were distilled into
@@ -18,9 +20,9 @@ the same session and are not repeated here.
 
 Sweep scoreboard: 15 stripped clean, 3 parked with candidates
 (`notes/scratch/func_8001B4E4-candidate.c`, `func_8001E7DC-candidate.c`,
-`func_8001AF44-candidate.c`), 2 confirmed genuine (SetGfxClip, SetGfxOffset),
-1 excluded (`func_80021820`, known broken — needs full re-decomp, not a sweep
-candidate).
+`func_8001AF44-candidate.c`), 2 kept with ablation-proven load-bearing
+workarounds but unresolved root cause (SetGfxClip, SetGfxOffset), 1 excluded
+(`func_80021820`, known broken — needs full re-decomp, not a sweep candidate).
 
 ---
 
@@ -28,18 +30,33 @@ candidate).
 
 ### Thesis
 
-The compiler is proven byte-identical to the original CC1PSX.EXE, so "GCC
-won't pick these registers" is never a statement about the compiler — it is a
-statement about the *source's temporary-variable structure*. Bucket C cases
-are ones where that structure was findable, but the mechanism connecting
-source shape to allocator/scheduler behavior was obscure enough that the
-agent folded first. Every Bucket C file carried a comment asserting
-necessity; every solved one proved the comment wrong.
+The compiler executable is proven byte-identical to the original
+CC1PSX.EXE. That proves the forward compiler is deterministic and trustworthy;
+it does **not** make the inverse problem easy. We see only final instructions,
+not the original C, RTL pseudos, live ranges, allocation quantities, or
+scheduler dependency graph. Many semantically equivalent C forms converge to
+the same wrong output, while a small change in pseudo birth or lifetime can
+perturb allocation and scheduling across the whole function.
+
+Strictly, compiler identity guarantees that the original source under the
+original compiler invocation produced the original cc1 output. It does not by
+itself prove that every translation unit used our assumed flags. For the
+Bucket C cases, however, the observed diffs and successful clean-C
+perturbations point strongly to source temporary structure rather than a
+compiler or assembler discrepancy. Here, "GCC won't pick these registers" is
+best read as "this reconstruction has the wrong RTL web structure."
+
+Bucket C cases are ones where that structure was partly or fully recoverable,
+but the mechanism connecting source shape to pre-SSA optimization,
+`local-alloc`, reload, and scheduling was obscure enough that the agent folded
+first. Every solved Bucket C file carried a comment asserting necessity; every
+solved one proved the comment wrong.
 
 The value of this bucket is the **mechanism catalog**: each case isolates one
 lever by which source shape drives the compiler's decisions. These levers are
-real but currently rest on one data point each — they need validation before
-becoming prompt doctrine (see "Open questions").
+real but currently rest on one data point each — they need validation and
+better pass-level observability before becoming prompt doctrine (see "Open
+questions").
 
 ### Case C1 — func_80024578: fresh temp vs. reuse for commutative results (SOLVED)
 
@@ -269,16 +286,39 @@ operand-order preferences).
 | Allocation preference shaping (C5) | Whole-function shape from one reg choice | unsolved | — |
 | Address-arithmetic canonicalization (C6) | `addu` operand order in address chains | unsolved | — |
 
+### What Bucket C says about the toolchain
+
+Bucket C is not evidence that cc1 code generation is broken. The missing tool
+is **observability of the exact compiler**. The current oracle collapses
+expansion, optimization, address legalization, allocation, reload, and
+scheduling into one final instruction diff. That tells us a candidate is
+wrong, but usually not which pass first diverged or which source property
+controls that pass.
+
+The safe direction is therefore to inspect and instrument the matching
+compiler without changing its decisions. A custom allocator or patched
+scheduler might make one function match, but it would destroy the central
+invariant that the compiler behaves like CC1PSX.EXE. Bucket C needs better
+explanations and directed source search, not a different code generator.
+
 ### Bucket C open questions (why this isn't prompt doctrine yet)
 
-1. **The local-alloc priority model is unknown.** C4 failed *only* on which
-   of two webs gets `v0`. We need the actual GCC 2.95 `local-alloc.c`
-   quantity-ordering rule (birth order vs. live-range size vs. use density)
-   determined — either by reading the source in `tools/vendor/old-gcc/` or
-   by a controlled experiment harness (minimal functions with two competing
-   webs, varied systematically). This is the single highest-value
-   investigation here: it would convert three parked functions and an unknown
-   number of future ones from "thrash" to "deterministic fix".
+1. **The allocator priority model and pass attribution are unknown.** C4
+   failed *only* on which of two webs gets `v0`, but the first
+   `compilerTrace.ts` report corrected the initial hypothesis that this was
+   necessarily `local-alloc`: the candidate's long-lived pointer pseudo 82
+   has three deaths, receives no assignment in `.lreg`, and is assigned `$v1`
+   only in the post-local `.greg` state. The important C5 user pseudos are
+   likewise post-local assignments. The investigation must therefore include
+   `global.c` and reload as well as `local-alloc.c`.
+
+   The vendored old-gcc checkout currently contains build recipes and compiler
+   binaries, not the GCC source tree, so exact quantity/allocno ordering means
+   obtaining the source used by the build and/or instrumenting a matching
+   diagnostic build, plus controlled experiments with minimal competing webs.
+   This is the single highest-value investigation here: it would convert
+   three parked functions and an unknown number of future ones from "thrash"
+   to "deterministic fix".
 2. **Does C1's fresh-temp lever generalize?** It worked on `mult` and failed
    on address `addu`. Needs 2–3 more instances before prompt inclusion.
 3. **C5 has no lever at all** — "make a load-result pseudo prefer `$a0`" may
@@ -290,17 +330,28 @@ operand-order preferences).
 
 ---
 
-## Bucket D — genuine tool gaps (the maspsx boundary)
+## Bucket D — candidate tool gaps (the cc1/ASPSX/maspsx boundary)
 
 ### Thesis
 
 cc1 is proven byte-identical to CC1PSX.EXE; **maspsx (the ASPSX 2.77
-emulation) is not**. Divergences that happen at assembler macro-expansion
-time cannot be fixed by any C input, because the C compiler's output is
-already correct and the bytes diverge afterwards. An agent fighting one of
-these can never win with C and will rationally fold — unless it can recognize
-the signature and stop. Bucket D is about learning the signature *without*
-creating a new superstition (see "Why this section is dangerous").
+emulation) is not**. A real divergence at assembler macro-expansion time
+cannot be fixed by changing C once the compiler assembly is fixed. But
+compiler identity alone does not prove that our reconstructed C, assumed
+per-file flags, or assembler-output mode produced the original compiler
+assembly.
+
+There are therefore two different claims that must not be conflated:
+
+1. **Current workaround is load-bearing.** Ablation can prove this locally.
+2. **No clean C can match because maspsx differs from ASPSX.** This requires
+   assembling the *same cc1 output* through real ASPSX and maspsx and showing
+   that the objects differ in exactly the target-relevant way.
+
+Bucket D records suspicious boundary signatures and preserves working
+workarounds, but it does not promote them to proven tool bugs before that
+layer-by-layer differential. This distinction matters because "tool gap" can
+otherwise become the next version of "register pin required."
 
 ### Case D1 — SetGfxClip / SetGfxOffset: self-clobbering `lui`/`lw` pairs
 
@@ -330,14 +381,25 @@ lw	$7,%lo(D_8005E3A8)($3)
 
 Split address form, both `lui`s grouped, pointers allocated to `$6`/`$7`.
 
-**Interpretation**: the target's shape is what real ASPSX produces when it
-expands the macro instruction `lw $v0, D_8005E3AC` *in place*: it reuses the
-destination register as the temporary base, yielding
-`lui $v0,%hi; lw $v0,%lo($v0)` — sequential, self-clobbering pairs. Our cc1
-pre-splits the address load (allocating the pointer to a different register
-than the `lui` temp), and no downstream tool re-joins it. This is the same
-layer as `notes/maspsx-issue2.md` (the `la`-before-`sll` ordering class):
-"the divergence happens at macro-expansion time in the assembler."
+**Competing interpretations**: the target shape is consistent with real
+ASPSX expanding a macro instruction such as `lw $v0,D_8005E3AC` in place,
+reusing the destination as its temporary base. It is also consistent with
+cc1 having already emitted an explicit split pair whose pointer web naturally
+received `$v0`. Our pin-stripped cc1 output does not yet distinguish those
+histories.
+
+At least four explanations remain live:
+
+1. the original C had a different temporary web and naturally allocated the
+   pointers to `$v0`/`$v1` (another Bucket C problem);
+2. this translation unit used different scheduler or optimization flags;
+3. the original compiler invocation/output mode emitted an atomic symbolic
+   load which real ASPSX expanded, while our `-mgas` path emits explicit
+   `%hi`/`%lo` split instructions;
+4. real ASPSX and maspsx transform the same compiler assembly differently.
+
+Only explanation 4 is a maspsx bug. `notes/maspsx-issue2.md` makes that layer
+plausible, but does not by itself identify the cause here.
 
 **Experimental evidence from the sweep** (all via `diffFunc`, function-local):
 
@@ -349,17 +411,17 @@ layer as `notes/maspsx-issue2.md` (the `la`-before-`sll` ordering class):
 | Both removed | 22.2% | no free lunch |
 
 Contrast with every other pinned file in the sweep, where stripping the pin
-changed *nothing* about the output. **That contrast is the point**: genuine
-workarounds are load-bearing under ablation; superstitions are not.
-Ablation (strip-and-test) is the general-purpose discriminator.
+changed *nothing* about the output. **That contrast is the point**: these two
+workarounds are load-bearing, while the stripped pins were superstition.
+Ablation is an excellent discriminator of whether a workaround affects the
+current build; it is not a discriminator of *why* the workaround is needed.
 
-**Why the workaround is legitimate (for now)**: the pins + override don't
-fake the computation — they steer cc1's own output into the exact form real
-ASPSX would have produced from the original macro-form input. But they are a
-tool-gap patch, not a decompilation result, and they are counted as such in
-`AGENTS.md`. They should be retired if maspsx learns to re-join split address
-loads (or the Wine differential shows the divergence is something else
-entirely).
+**Why the workaround is retained (for now)**: the pins + override do not fake
+the computation, and removing either breaks the byte match. Keeping a known,
+narrow workaround is safer than replacing it with an unverified theory. It
+should nevertheless be described as unresolved debt, not a proven maspsx
+patch. Retirement depends on identifying which of the four explanations
+above is true.
 
 ### The maspsx layer is known-unstable
 
@@ -381,38 +443,42 @@ entirely).
 
 ### Draft diagnostic signature (NOT yet prompt doctrine)
 
-A mismatch is a *candidate* maspsx-gap when **all** of these hold:
+A self-clobbering target load (`lui $vX` followed by
+`lw $vX,off($vX)`) is a useful **triage signal**, not a diagnosis. It warrants
+capturing the exact cc1 `.s`, its relocations, and the final object at each
+pipeline boundary. Source restructuring failure and workaround ablation add
+useful evidence, but neither proves an assembler gap.
 
-1. Target shows a global load whose base register equals its destination
-   (`lw $vX, off($vX)` where `$vX` was just `lui`'d), i.e. self-clobbering;
-2. our cc1 `.s` already contains the correct instructions in split form with
-   the *same* registers as the target apart from the self-clobber pairing;
-3. the diff survives source restructuring (it's not a temp-structure
-   problem);
-4. stripping any present hack drops the match sharply (ablation proves the
-   hack load-bearing).
+A mismatch is a **proven maspsx gap** only when:
 
-Conditions 2–4 are the anti-superstition guards: without them, "tool gap"
-becomes the new fold excuse. The definitive test remains the Wine
-differential (next-steps step 4): assemble the proven-correct cc1 output
-through real ASPSX 2.77 under Wine vs. maspsx and compare. If they differ,
-it's a maspsx bug — fix the tool and mark the function unmatchable-by-C so no
-agent burns hours on it again.
+1. the identical cc1 assembly is accepted by real ASPSX 2.77 and maspsx;
+2. the resulting objects differ;
+3. the ASPSX object has the target behavior while the maspsx object does not;
+4. the difference is attributable to macro expansion, delay-slot handling,
+   relocation, or another assembler operation—not different compiler flags
+   or different assembly text.
+
+If both assemblers produce the same mismatching object, the search returns to
+source structure and compiler invocation. If they differ, fix maspsx and add
+the assembly input as a regression test. Only then is an "unmatchable by C
+under the current emulated pipeline" stop-rule justified.
 
 ### Bucket D open questions
 
-1. **Run the Wine differential** on SetGfxClip/SetGfxOffset (and any function
-   where cc1's `.s` matches the target disassembly but final bytes differ).
-   This is the only way to convert "draft diagnostic" into a stop-rule we can
-   teach.
-2. **Can maspsx re-join split address loads?** If cc1's split form (`lui $2 /
-   lw $6,%lo($2)`) is provably equivalent to the macro form when the base
-   temp dies at the load, maspsx could legitimately re-pair them — that would
-   retire both flag overrides and is likely less work than it looks given the
-   existing maspsx patch culture.
-3. How many other currently-matched functions sit on this boundary? The two
+1. **Run the same-input Wine differential** on representative cc1 assembly
+   from SetGfxClip/SetGfxOffset. Preserve the exact text and options fed to
+   each assembler; otherwise the layer being tested is ambiguous.
+2. **Verify compiler invocation assumptions.** In particular, determine
+   whether the original path used the same `-mgas`/assembler-output mode and
+   whether these files plausibly had different scheduling flags. Exact cc1
+   identity does not settle either question.
+3. **Do not teach maspsx to re-join explicit split loads without proof.** If
+   real ASPSX rewrites the same explicit `lui $2` / `lw $6,...($2)` input,
+   maspsx should emulate it. If real ASPSX preserves those registers, rejoining
+   would be a project-specific codegen patch rather than assembler emulation.
+4. How many other currently-matched functions sit on this boundary? The two
    flag-override files are the known set; a scan for self-clobbering loads in
-   the target binary vs. split form in our objects would bound it.
+   the target binary vs. compiler/object forms would bound it.
 
 ---
 
@@ -420,7 +486,9 @@ agent burns hours on it again.
 
 Every one of these HEAD-side comments was investigated during the sweep.
 Verdicts: wrong = hack unnecessary, removed; half-right = mechanism real,
-hack wrong; genuine = load-bearing tool-gap workaround.
+hack wrong; unresolved/load-bearing = ablation proves the workaround affects
+output, but not whether the root cause is source, flags, compiler mode, or
+assembler emulation.
 
 | File | Comment (verbatim, HEAD) | Verdict |
 |---|---|---|
@@ -433,7 +501,7 @@ hack wrong; genuine = load-bearing tool-gap workaround.
 | `func_8001E7DC.c:6` | "compiler uses t0 for arg0 copy, target uses a2; uses t1 for loaded temp, target uses a0" | **Half-right** — the shape is real; it's an allocation-preference consequence (C5, parked) |
 | `func_8001AF44.c:4` | "compiler assigns v1 to index and v0 to ptr, target uses v0 for index and v1 for ptr" | **Wrong** mechanism — one commutative operand order away (C6, parked) |
 | `func_800244FC.c` | "Inline asm to force multu/mfhi pattern" | **Wrong** — `/14` and `%14` produce it natively (C2) |
-| `SetGfxClip.c`, `SetGfxOffset.c` | "Requires -fno-schedule-insns -fno-schedule-insns2 ... self-clobbering lui/lw pattern" | **Genuine** — ablation-proven maspsx gap (D1) |
+| `SetGfxClip.c`, `SetGfxOffset.c` | "Requires -fno-schedule-insns -fno-schedule-insns2 ... self-clobbering lui/lw pattern" | **Unresolved/load-bearing** — workaround proven necessary for current source and invocation; maspsx root cause not yet proven (D1) |
 
 ## Appendix B — sweep scoreboard (2026-07-25)
 
@@ -443,7 +511,9 @@ hack wrong; genuine = load-bearing tool-gap workaround.
   func_800217B0, func_800244FC.
 - **Parked with classified candidates (3)**: func_8001B4E4 (C4),
   func_8001E7DC (C5), func_8001AF44 (C6) — see `notes/scratch/`.
-- **Genuine, kept (2)**: SetGfxClip, SetGfxOffset (D1) + their flag overrides.
+- **Unresolved/load-bearing, kept (2)**: SetGfxClip, SetGfxOffset (D1) + their
+  flag overrides; ablation proves necessity for the current reconstruction,
+  not a maspsx root cause.
 - **Excluded (1)**: func_80021820 (known broken for 2.95.2 — full re-decomp,
   see next-steps step 6).
 - **Verification**: `make check` byte-identical after the sweep.

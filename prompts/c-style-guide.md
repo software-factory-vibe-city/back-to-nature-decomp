@@ -102,6 +102,43 @@ y = obj->field_04;
 x = obj->field_10;
 ```
 
+## Tool-assisted classification
+
+Do not use `diffFunc.ts`'s aggregate percentage as the diagnosis. It is the
+exact match oracle, but source changes should be selected from a structural
+classification first:
+
+```bash
+npx tsx tools/agent/explainDiff.ts <func>
+npx tsx tools/agent/compilerTrace.ts <func>  # allocation/scheduling cases
+npx tsx tools/agent/diffFunc.ts <func>       # exact progress oracle
+```
+
+`explainDiff.ts` compares target and compiled objects while normalizing
+relocation aliases and tracking both hard registers and separate live-range
+webs. Apply its categories as follows:
+
+| Category | First response |
+|---|---|
+| `register-allocation` | Change temporary birth, reuse, lifetime, declaration order, or statement order |
+| `operand-order` | Change fresh-result vs. input-reuse structure; use natural address forms for address `addu` |
+| `scheduling` | Reorder independent statements, fuse/split the expression birth site, or reproduce variable dependencies |
+| `instruction-selection` | Fix types, signedness, casts, idioms, control flow, or extern shape |
+| `relocation-or-immediate` | Check declarations and linked-layout/GP noise before changing C |
+| `mixed-operands` / `scheduling-and-operands` | Inspect compiler pass dumps before further source search |
+
+`compilerTrace.ts` stores GCC 2.95 `-da` dumps under
+`build/compilerTrace/<func>/`. Its report distinguishes assignments visible in
+`.lreg` from those appearing only post-local in `.greg`, and summarizes
+scheduler decisions in `.sched`/`.sched2`. The `priority~` field approximates
+the GCC quantity priority from stock dump data; it is evidence, not an exact
+quantity trace. Compare traces from deliberately different source shapes and
+state which pseudo lifetime, conflict, or pass decision each edit is intended
+to change.
+
+If `explainDiff.ts` cannot find archived original assembly, fall back to
+`diffFunc.ts`; do not interpret a diagnostic setup failure as a source diff.
+
 ## Scheduling barriers (governed workaround — last resort)
 
 GCC's instruction scheduler reorders independent instructions to hide pipeline stalls. The original PSY-Q toolchain did not always do this. When you get a 100% instruction match except for ordering of independent instructions — and only after exhausting operand-order and statement-order fixes — a zero-cost barrier is permitted:
@@ -258,7 +295,7 @@ Protocol:
 
 1. Remove `__asm__("reg")` from declarations (keep the temp variables themselves) and any barrier/forged-asm lines. Run `diffFunc`.
 2. Still 100% → done; the hack was residue.
-3. Not 100% → read the diff and fix the actual class (usually temp structure or statement order — see "Register allocation" above and "Instruction ordering").
+3. Not 100% → run `explainDiff.ts`; for allocation/scheduling/mixed results also run `compilerTrace.ts`, then fix the reported class (usually temp structure or statement order — see "Register allocation" above and "Instruction ordering").
 4. Cannot restore 100% → restore the hacked file exactly (`git checkout src/<file>`) and record the diff signature. Never leave a file in a non-matching state.
 
 ### Hand-written asm is usually a native C operator

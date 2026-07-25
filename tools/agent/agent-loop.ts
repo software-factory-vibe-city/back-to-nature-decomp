@@ -33,6 +33,8 @@ export interface AgentLoopOptions {
   checkSuccess?: () => boolean;
   /** After this many total turns (not retries), escalate to STRONGER_AGENT if configured. */
   escalateAfterTurns?: number;
+  /** Task-specific message sent after an external success check fails. */
+  retryMessage?: string;
 }
 
 export interface AgentLoopResult {
@@ -82,6 +84,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     maxRetries = DEFAULT_MAX_RETRIES,
     checkSuccess,
     escalateAfterTurns = DEFAULT_ESCALATE_AFTER_TURNS,
+    retryMessage = "You haven't reached 100% match yet. Keep iterating. Run diffFunc.ts to see the current diff and fix the remaining issues.",
   } = options;
 
   const agentConfig = parseAgentConfig();
@@ -211,9 +214,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       retries++;
 
       console.log(`\n\x1b[1m[agent-loop] Retry ${retries}/${maxRetries} — not yet successful, prompting again...\x1b[0m\n`);
-      await session.prompt(
-        "You haven't reached 100% match yet. Keep iterating. Run diffFunc.ts to see the current diff and fix the remaining issues."
-      );
+      await session.prompt(retryMessage);
 
       if (checkSuccess) {
         success = checkSuccess();

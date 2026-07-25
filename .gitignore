@@ -1,5 +1,10 @@
 extracted/
 build/
+# `build/` also matches tools/build/. Keep this generated-profile source
+# trackable without exposing unrelated local files in that directory.
+!tools/build/
+tools/build/*
+!tools/build/genProjectProfile.ts
 tools/vendor/old-gcc/build-gcc-*/
 # Logs
 logs
