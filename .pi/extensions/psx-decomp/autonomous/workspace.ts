@@ -69,6 +69,25 @@ export async function workspaceChangedFiles(workspace: string): Promise<string[]
   return [...new Set(files)].sort();
 }
 
+/**
+ * Split a changed-file list into files that were already dirty when a
+ * baseline was captured (preExisting) and files dirtied afterwards (newFiles).
+ * Used by the finalize scope gate so pre-existing workspace dirt (user WIP,
+ * local vendor patches) cannot block finalization of an unrelated function.
+ */
+export function filterNewChanges(
+  changedFiles: string[],
+  baseline: Iterable<string>,
+): { newFiles: string[]; preExisting: string[] } {
+  const baselineSet = baseline instanceof Set ? baseline : new Set(baseline);
+  const newFiles: string[] = [];
+  const preExisting: string[] = [];
+  for (const file of changedFiles) {
+    (baselineSet.has(file) ? preExisting : newFiles).push(file);
+  }
+  return { newFiles, preExisting };
+}
+
 export function patchHash(patch: string): string {
   return createHash("sha256").update(patch).digest("hex");
 }

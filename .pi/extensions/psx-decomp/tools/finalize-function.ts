@@ -3,7 +3,8 @@ import { Type } from "typebox";
 import { loadConfig } from "../autonomous/config.ts";
 import { runGate } from "../autonomous/gates.ts";
 import { loadCallGraph } from "../autonomous/call-graph.ts";
-import { createTreeFromWorktree, changedFilesBetweenTrees, treePatch, workspaceChangedFiles } from "../autonomous/workspace.ts";
+import { createTreeFromWorktree, changedFilesBetweenTrees, filterNewChanges, treePatch, workspaceChangedFiles } from "../autonomous/workspace.ts";
+import { getSessionBaseline } from "./session-baseline.ts";
 import { validateFunctionName } from "./shared.ts";
 
 export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
@@ -22,10 +23,12 @@ export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
       const entry = loadCallGraph(ctx.cwd).functions.find((candidate) => candidate.name === params.functionName);
       const tree = await createTreeFromWorktree(ctx.cwd, ctx.cwd, config.integration.allowedRoots);
       const patch = await treePatch(ctx.cwd, "HEAD", tree, config.integration.allowedRoots);
-      const changedFiles = [...new Set([
+      const allChangedFiles = [...new Set([
         ...await changedFilesBetweenTrees(ctx.cwd, "HEAD", tree),
         ...await workspaceChangedFiles(ctx.cwd),
       ])].sort();
+      const baseline = await getSessionBaseline(ctx.cwd);
+      const { newFiles: changedFiles, preExisting } = filterNewChanges(allChangedFiles, baseline);
       const gate = await runGate({
         projectRoot: ctx.cwd,
         config,
@@ -36,9 +39,12 @@ export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
         patch,
         signal,
       });
+      const scopeNote = preExisting.length
+        ? `\nScope gate ignored ${preExisting.length} pre-existing workspace change(s): ${preExisting.join(", ")}`
+        : "";
       const text = gate.pass
-        ? `${params.functionName} passed exact diff, full build, scope, and clean-source gates.`
-        : `${params.functionName} failed finalization:\n${gate.failures.map((failure) => `- ${failure}`).join("\n")}`;
+        ? `${params.functionName} passed exact diff, full build, scope, and clean-source gates.${scopeNote}`
+        : `${params.functionName} failed finalization:\n${gate.failures.map((failure) => `- ${failure}`).join("\n")}${scopeNote}`;
       return {
         content: [{ type: "text", text }],
         details: gate,

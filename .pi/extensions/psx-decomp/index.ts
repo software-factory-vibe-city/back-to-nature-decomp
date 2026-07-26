@@ -11,6 +11,8 @@ import { registerFuzzVariantsTool } from "./tools/fuzz-variants.ts";
 import { registerAutodecompCommands } from "./autonomous/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
 import { registerVerifyBuildTool } from "./tools/verify-build.ts";
+import { runProjectCommand } from "./tools/shared.ts";
+import { captureSessionBaseline } from "./tools/session-baseline.ts";
 
 interface CallGraphEntry {
   name: string;
@@ -82,19 +84,46 @@ function nextDecompilationTarget(root: string): string | undefined {
   return graph?.functions.find((entry) => !entry.decompiled && entry.handwritten === false && !entry.dead)?.name;
 }
 
+async function ensureCallGraph(
+  pi: ExtensionAPI,
+  ctx: { ui: { notify(message: string, level: "info" | "warning" | "error"): void } },
+  root: string,
+): Promise<boolean> {
+  if (loadCallGraph(root)) return true;
+
+  ctx.ui.notify("build/callGraph.json is missing or invalid; rebuilding it...", "info");
+  try {
+    await runProjectCommand(pi, root, "npx", ["tsx", "tools/agent/callGraph.ts"], undefined, 120_000);
+  } catch (error) {
+    ctx.ui.notify(
+      `Call graph rebuild failed: ${error instanceof Error ? error.message : String(error)}`,
+      "error",
+    );
+    return false;
+  }
+
+  return loadCallGraph(root) !== undefined;
+}
+
 function nextRefinementTarget(root: string): string | undefined {
   const graph = loadCallGraph(root);
   if (!graph) return undefined;
 
-  const decompiled = new Set(graph.functions.filter((entry) => entry.decompiled && !entry.dead).map((entry) => entry.name));
-  return graph.functions
-    .filter((entry) => entry.decompiled && !entry.dead)
+  const live = graph.functions.filter((entry) => entry.decompiled && !entry.dead);
+  const decompiled = new Set(live.map((entry) => entry.name));
+  const ranked = live
     .map((entry) => ({
       name: entry.name,
-      neighborCount: [...new Set([...entry.calls, ...entry.calledBy])].filter((name) => decompiled.has(name)).length,
+      decompiledNeighbors: [...new Set([...entry.calls, ...entry.calledBy])].filter((name) => decompiled.has(name)).length,
+      totalNeighbors: new Set([...entry.calls, ...entry.calledBy]).size,
     }))
-    .filter((entry) => entry.neighborCount > 0)
-    .sort((a, b) => b.neighborCount - a.neighborCount)[0]?.name;
+    .sort(
+      (a, b) =>
+        b.decompiledNeighbors - a.decompiledNeighbors ||
+        b.totalNeighbors - a.totalNeighbors ||
+        a.name.localeCompare(b.name),
+    );
+  return ranked[0]?.name;
 }
 
 function dispatchSkill(
@@ -125,6 +154,9 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerVerifyBuildTool(pi);
 
   const root = findProjectRoot(process.cwd());
+  /* Snapshot pre-existing workspace dirt so the finalize scope gate only
+   * fails on files this session actually touched. */
+  captureSessionBaseline(root);
   const allFunctionCompletions = (prefix: string) => {
     const items = completionItems(functionNames(root), prefix);
     return items.length > 0 ? items : null;
@@ -141,13 +173,17 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     },
     handler: async (args, ctx) => {
       const explicit = args.trim().length > 0;
-      const name = explicit ? parseFunctionArg(args) : nextDecompilationTarget(root);
+      let name = explicit ? parseFunctionArg(args) : nextDecompilationTarget(root);
+
+      if (!name && !explicit && (await ensureCallGraph(pi, ctx, root))) {
+        name = nextDecompilationTarget(root);
+      }
 
       if (!name) {
         ctx.ui.notify(
           explicit
             ? "Usage: /decompile <function_name>"
-            : "No target found. Run npx tsx tools/agent/callGraph.ts and try again.",
+            : "No decompilation target found.",
           "warning",
         );
         return;
@@ -197,13 +233,17 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     },
     handler: async (args, ctx) => {
       const explicit = args.trim().length > 0;
-      const name = explicit ? parseFunctionArg(args) : nextRefinementTarget(root);
+      let name = explicit ? parseFunctionArg(args) : nextRefinementTarget(root);
+
+      if (!name && !explicit && (await ensureCallGraph(pi, ctx, root))) {
+        name = nextRefinementTarget(root);
+      }
 
       if (!name) {
         ctx.ui.notify(
           explicit
             ? "Usage: /refine-decomp <function_name>"
-            : "No refinement target found. Rebuild build/callGraph.json and try again.",
+            : "No refinement target found.",
           "warning",
         );
         return;
@@ -233,9 +273,12 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   pi.registerCommand("decomp-status", {
     description: "Show the current call-graph decompilation worklist summary",
     handler: async (_args, ctx) => {
-      const graph = loadCallGraph(root);
+      let graph = loadCallGraph(root);
+      if (!graph && (await ensureCallGraph(pi, ctx, root))) {
+        graph = loadCallGraph(root);
+      }
       if (!graph) {
-        ctx.ui.notify("build/callGraph.json is missing or invalid. Run npx tsx tools/agent/callGraph.ts.", "warning");
+        ctx.ui.notify("build/callGraph.json is missing or invalid and could not be rebuilt.", "warning");
         return;
       }
 

@@ -884,18 +884,75 @@ function main() {
     f.endsWith(".c")
   );
 
+  // Map VRAM -> c-segment name so renamed functions (e.g. func_80019FAC ->
+  // GetPairedTpage) can have their real source MIGRATED to the new file name
+  // instead of deleted (splat would otherwise scaffold an INCLUDE_ASM stub,
+  // silently regressing a matched decompilation).
+  const vramToCName = new Map<number, string>();
+  const symLines = readFileSync(join(ROOT, "configs/symbol_addrs.txt"), "utf-8").split("\n");
+  for (const line of symLines) {
+    const m = line.match(/^(\S+)\s*=\s*(0x[0-9A-Fa-f]+);\s*\/\/\s*type:func/);
+    if (m && cSegNames.has(m[1])) {
+      vramToCName.set(parseInt(m[2], 16), m[1]);
+    }
+  }
+
   let removedSrcCount = 0;
+  let migratedSrcCount = 0;
+  let keptSrcCount = 0;
   for (const f of srcFiles) {
     const name = f.replace(/\.c$/, "");
-    if (!cSegNames.has(name)) {
-      unlinkSync(join(ROOT, "src", f));
+    if (cSegNames.has(name)) continue;
+
+    const srcPath = join(ROOT, "src", f);
+    const content = readFileSync(srcPath, "utf-8");
+
+    // INCLUDE_ASM stubs are regenerable by splat -- always safe to remove.
+    if (content.includes("INCLUDE_ASM(")) {
+      unlinkSync(srcPath);
       removedSrcCount++;
+      continue;
+    }
+
+    // Real source: never delete it. A func_<VRAM> orphan whose address still
+    // has a c segment under another name is a rename -- migrate the content.
+    const funcMatch = name.match(/^func_([0-9A-Fa-f]{8})$/);
+    const renameTarget = funcMatch
+      ? vramToCName.get(parseInt(funcMatch[1], 16))
+      : undefined;
+    if (renameTarget) {
+      const newPath = join(ROOT, "src", `${renameTarget}.c`);
+      const targetContent = existsSync(newPath) ? readFileSync(newPath, "utf-8") : "";
+      if (targetContent && !targetContent.includes("INCLUDE_ASM(")) {
+        keptSrcCount++;
+        console.log(
+          `WARNING: keeping ${f}; rename target ${renameTarget}.c already exists with real source`
+        );
+      } else {
+        writeFileSync(newPath, content.replace(new RegExp(name, "g"), renameTarget));
+        unlinkSync(srcPath);
+        migratedSrcCount++;
+        console.log(`Migrated renamed source ${f} -> ${renameTarget}.c`);
+      }
+    } else {
+      keptSrcCount++;
+      console.log(
+        `WARNING: keeping orphaned non-stub source ${f} (no c segment named ${name}; refusing to delete real source)`
+      );
     }
   }
 
   if (removedSrcCount > 0) {
     console.log(
-      `Removed ${removedSrcCount} orphaned source files (covered by o segments)`
+      `Removed ${removedSrcCount} orphaned stub source files (covered by o segments)`
+    );
+  }
+  if (migratedSrcCount > 0) {
+    console.log(`Migrated ${migratedSrcCount} renamed source file(s)`);
+  }
+  if (keptSrcCount > 0) {
+    console.log(
+      `Kept ${keptSrcCount} orphaned non-stub source file(s) -- resolve manually`
     );
   }
 

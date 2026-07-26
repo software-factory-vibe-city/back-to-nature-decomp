@@ -6,6 +6,7 @@ build/
 tools/build/*
 !tools/build/genProjectProfile.ts
 tools/vendor/old-gcc/build-gcc-*/
+tools/vendor/homebrew-psyq/
 # Logs
 logs
 *.log
