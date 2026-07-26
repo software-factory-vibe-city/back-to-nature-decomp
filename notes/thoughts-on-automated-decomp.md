@@ -1,5 +1,10 @@
 # Automated Decompilation Pipeline — Design Doc
 
+> **Archived design:** this describes the retired standalone prompt-injection
+> and agent-loop architecture. Active workflows live under `.pi/skills/`;
+> archived templates live under `prompts/legacy/`. Concrete facts in this note
+> are historical and are not an operational source of truth.
+
 ## Overview
 
 Byte-matching decompilation of SLUS-01115 (PS1, GCC 2.8.0, PSY-Q 4.60+). 463 game functions remain. The pipeline processes them bottom-up through the call graph, accumulating type context as it goes.
@@ -76,7 +81,7 @@ Handles named symbols (like `__start`) where the `.s` filename differs from the 
 **Input:** m2c output in `src/{name}.c` + original assembly + diff output
 **Output:** Byte-matching C code
 **Tool:** LLM agent with bash access, using `diffFunc.ts` as oracle
-**Prompt:** `prompts/decompilation-cleanup-agent.md` (injected via `tools/getPrompt.ts`)
+**Prompt:** `prompts/legacy/decompilation-cleanup-agent.md` (injected via `tools/getPrompt.ts`)
 
 The core loop:
 
@@ -173,9 +178,9 @@ Examples of what this catches:
 | Call graph + priority | **Done** | `tools/callGraph.ts` → `build/callGraph.json` |
 | m2c function wrapper | **Done** | `tools/m2cFunc.ts` — runs m2c on a single function, handles named symbols, auto-detects context header |
 | Orchestrator | **Done** | `tools/orchestrator.ts` — dry-run by default (`--write` to modify src/), supports `--top N`, `--func`, `--stage` filtering. Stages 2-4 stubbed. |
-| Stage 2 agent prompt | **Done** | `prompts/decompilation-cleanup-agent.md` — complete prompt with m2c fix catalog, GCC quirk reference, assembly reading guide, iteration workflow |
-| Stage 5 refinement prompt | **Done** | `prompts/global-refinement-agent.md` — per-function refinement with neighbor context |
-| Project refinement prompt | **Done** | `prompts/project-refinement-agent.md` — holistic codebase pass: structs, renames, types |
+| Stage 2 agent prompt | **Done** | `prompts/legacy/decompilation-cleanup-agent.md` — complete prompt with m2c fix catalog, GCC quirk reference, assembly reading guide, iteration workflow |
+| Stage 5 refinement prompt | **Done** | `prompts/legacy/global-refinement-agent.md` — per-function refinement with neighbor context |
+| Project refinement prompt | **Done** | `prompts/legacy/project-refinement-agent.md` — holistic codebase pass: structs, renames, types |
 | Prompt injection | **Done** | `tools/getPrompt.ts` — reads template, injects per-function or project-wide context at `{{CONTEXT}}` marker. Supports `--refine` and `--project` modes. |
 | Agent loop | **Done** | `tools/agent-loop.ts` — generic LLM agent loop via pi-coding-agent SDK with retry + success check |
 | Context export | **Done** | `tools/contextExport.ts` — extracts signatures from decompiled C into `include/functions.h` |
@@ -199,10 +204,10 @@ Examples of what this catches:
 | Component | Description | Location |
 |-----------|-------------|----------|
 | Agent framework integration | LLM agent loop via pi-coding-agent SDK | `tools/agent-loop.ts` |
-| Stage 2 matching agent | Full prompt + orchestrator integration | `prompts/decompilation-cleanup-agent.md` |
+| Stage 2 matching agent | Full prompt + orchestrator integration | `prompts/legacy/decompilation-cleanup-agent.md` |
 | Stage 4 context export | Extract function signatures into `include/functions.h` | `tools/contextExport.ts` |
-| Stage 5 per-function refinement | Prompt + orchestrator integration, hash-based tracking | `prompts/global-refinement-agent.md` |
-| Project-wide refinement | Holistic pass: structs, renames, type consistency | `prompts/project-refinement-agent.md` |
+| Stage 5 per-function refinement | Prompt + orchestrator integration, hash-based tracking | `prompts/legacy/global-refinement-agent.md` |
+| Project-wide refinement | Holistic pass: structs, renames, type consistency | `prompts/legacy/project-refinement-agent.md` |
 | Prompt builder | Injects context into prompt templates | `tools/getPrompt.ts` |
 
 ## Design Decisions Made
@@ -211,7 +216,7 @@ Examples of what this catches:
 
 2. **m2c output does not include `include_asm.h`:** Once a function is decompiled, the `INCLUDE_ASM` mechanism is replaced by real C. The decompiled files only need `#include "common.h"`.
 
-3. **Agent prompt is a static template with injection:** `prompts/decompilation-cleanup-agent.md` contains the full prompt with a `{{CONTEXT}}` marker. `tools/getPrompt.ts` reads the template and injects per-function context (assembly, m2c output, call graph entry). This keeps the prompt version-controlled and the injection logic testable.
+3. **Agent prompt is a static template with injection:** `prompts/legacy/decompilation-cleanup-agent.md` contains the full prompt with a `{{CONTEXT}}` marker. `tools/getPrompt.ts` reads the template and injects per-function context (assembly, m2c output, call graph entry). This keeps the prompt version-controlled and the injection logic testable.
 
 4. **m2c target is `mipsel-gcc-c`:** Not `mips-psx-gcc` (which doesn't exist in m2c). Little-endian MIPS, GCC compiler, C language.
 

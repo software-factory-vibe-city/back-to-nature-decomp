@@ -50,17 +50,15 @@ finishing, exhaust the semantic evidence:
   script, or dispatches commands, say so; it frames what the target's inputs
   actually are.
 
-When this evidence establishes the semantics, rename the function from
-`func_800XXXXX` to a precise name in the project's convention (CamelCase
-verb, e.g. `GetVal8005E394`, `SetGfxClip`):
+When this evidence establishes the semantics, rename the function from its
+placeholder symbol to a precise name in the active project's convention:
 
 1. Rename in `configs/symbol_addrs.txt` and the `configs/splat.yaml` segment
    list (both the entry and its trailing comment).
-2. Run `make split` — it regenerates asm, the linker script, and caller
-   references, and migrates the old `src/func_800XXXXX.c` to
-   `src/<NewName>.c` with the symbol replaced inside (never deleting real
-   source). Review the migrated file: fix up the doc comment if it cites the
-   old name.
+2. Run the active project's regeneration command. It must regenerate assembly,
+   linker inputs, and caller references and migrate the old source path to the
+   new symbol without deleting real source. Review the migrated file and fix
+   any comment that cites the old name.
 3. Re-run the exact diff, then export context (remove the stale old-name
    signature from the generated header if the exporter leaves it), then
    rebuild the call graph so tooling sees the new name.

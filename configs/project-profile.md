@@ -4,11 +4,10 @@
 
 # Project Profile — Harvest Moon: Back to Nature (SLUS-01115)
 
-Concrete environment facts for agents working on this project. The prompt
-templates in `prompts/` are deliberately toolchain-agnostic; this file
-supplies the specifics. It is injected into every agent prompt by
-`tools/agent/getPrompt.ts`. **For a new decompilation project, update
-`configs/project-info.json` and the Makefile, then regenerate this file.**
+Concrete target and toolchain facts for agents working on this project.
+Reusable guides and skills derive project-specific details from this file.
+For a new project, update `configs/project-info.json` and the build
+configuration, then regenerate this file.
 
 ## Target
 
@@ -30,9 +29,3 @@ supplies the specifics. It is injected into every agent prompt by
 - GCC pass/allocation trace: `npx tsx tools/agent/compilerTrace.ts <func>`
 - Exact per-function oracle: `npx tsx tools/agent/diffFunc.ts <func>` (100% = match)
 - Full binary oracle: `make check` (SHA-256 against the original payload)
-
-## Consequences for matching work
-
-- Because the compiler is verified byte-identical, the original C under its original compiler invocation is reproducible. Compiler identity does not by itself prove a reconstructed source shape or per-file flag assumption. Never "solve" functions with inline asm, `register __asm__` pinning, or flag overrides — find the clean C, or stop and report the diff signature.
-- Switch statements compile correctly, including jump-table dispatch; case bodies are emitted in source order.
-- The compiler's scheduler reorders independent instructions; the original toolchain often did not. Order-only diffs are a known, well-understood diff class (see the style guide).

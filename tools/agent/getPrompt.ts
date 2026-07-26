@@ -1,8 +1,10 @@
 /**
- * getPrompt.ts — Build the full agent prompt for a given function
+ * getPrompt.ts — Legacy standalone prompt builder
  *
- * Reads the prompt template, injects per-function context (assembly,
- * m2c output, call graph entry), and prints the result to stdout.
+ * The active Pi commands and autonomous workers dispatch `.pi/skills/`
+ * directly and do not call this module. It is retained for manual use and
+ * historical reproducibility. It reads archived templates, injects context,
+ * and prints the result to stdout.
  *
  * Usage:
  *   npx tsx tools/agent/getPrompt.ts func_80011F08
@@ -13,12 +15,6 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
-
-const TEMPLATE = join(ROOT, "prompts/decompilation-cleanup-agent.md");
-const REFINEMENT_TEMPLATE = join(ROOT, "prompts/global-refinement-agent.md");
-const PROJECT_REFINEMENT_TEMPLATE = join(ROOT, "prompts/project-refinement-agent.md");
-const C_STYLE_GUIDE = join(ROOT, "prompts/c-style-guide.md");
-const CALL_GRAPH = join(ROOT, "build/callGraph.json");
 
 interface CallGraphEntry {
   name: string;
@@ -58,7 +54,7 @@ function injectShared(template: string, rootDir: string = ROOT): string {
 }
 
 export function getDecompilationCleanupAgentPrompt(funcName: string, rootDir: string = ROOT): string {
-  const template = injectShared(readFileSync(join(rootDir, "prompts/decompilation-cleanup-agent.md"), "utf-8"), rootDir);
+  const template = injectShared(readFileSync(join(rootDir, "prompts/legacy/decompilation-cleanup-agent.md"), "utf-8"), rootDir);
   const srcFile = join(rootDir, "src", `${funcName}.c`);
 
   /* Assembly */
@@ -116,7 +112,7 @@ ${callGraphEntry}
  * call graph entry, and current functions.h signatures.
  */
 export function getGlobalRefinementAgentPrompt(funcName: string, rootDir: string = ROOT): string {
-  const template = injectShared(readFileSync(join(rootDir, "prompts/global-refinement-agent.md"), "utf-8"), rootDir);
+  const template = injectShared(readFileSync(join(rootDir, "prompts/legacy/global-refinement-agent.md"), "utf-8"), rootDir);
 
   const callGraphPath = join(rootDir, "build/callGraph.json");
   if (!existsSync(callGraphPath)) {
@@ -243,7 +239,7 @@ export function findRefinementCandidates(rootDir: string = ROOT): Array<{ name: 
  * global usage patterns, and current shared type definitions.
  */
 export function getProjectRefinementAgentPrompt(rootDir: string = ROOT): string {
-  const template = injectShared(readFileSync(join(rootDir, "prompts/project-refinement-agent.md"), "utf-8"), rootDir);
+  const template = injectShared(readFileSync(join(rootDir, "prompts/legacy/project-refinement-agent.md"), "utf-8"), rootDir);
 
   const srcDir = join(rootDir, "src");
   const allSrcFiles = existsSync(srcDir)

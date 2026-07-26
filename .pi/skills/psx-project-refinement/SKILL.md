@@ -29,6 +29,9 @@ Avoid speculative symbol renames. If a rename is exceptionally well supported, d
 
 ## Verification
 
-Run the project's clean regeneration commands as separate shell steps, then call `psx_verify_build`, `psx_export_context` with no function to export all signatures, and `psx_verify_build` again. In this repository the regeneration steps are `make clean` followed by `make split`; derive alternatives from the active project.
+Run the active project's clean regeneration commands as separate shell steps,
+then call `psx_verify_build`, `psx_export_context` with no function to export
+all signatures, and `psx_verify_build` again. Derive the regeneration commands
+from the current project rather than assuming them in the skill.
 
 If verification fails, repair or revert the batch before stopping. Inspect the final diff and report the evidence for each change and every verification result. Do not begin a second unrelated batch and do not commit.

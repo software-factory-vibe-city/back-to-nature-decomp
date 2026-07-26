@@ -5,69 +5,76 @@ description: Decompile or repair one function in an arbitrary PlayStation matchi
 
 # PlayStation function decompilation
 
-Work on exactly the target named in the skill invocation. Derive all game, binary, compiler, assembler, SDK, build, and language details from the current project's `AGENTS.md`, generated project profile, configuration, and source. Never assume values from another game or project.
+Work on exactly the target named in the invocation. Derive game, compiler,
+assembler, SDK, build, layout, and language facts from the current project.
+Do not commit or create a worktree unless explicitly requested.
 
-## Required reading
+## Mandatory context
 
-Before editing:
+Before editing, read completely:
 
-1. Read `AGENTS.md` completely.
-2. Read `prompts/c-style-guide.md` completely.
-3. Read `configs/project-profile.md`.
-4. Read the target source and original assembly under `build/asm/nonmatchings/<target>/`.
-5. Inspect the target entry in `build/callGraph.json` and relevant generated/shared declarations.
+1. `AGENTS.md`
+2. `configs/project-profile.md`
+3. `prompts/c-style-guide.md` — mandatory distilled matching doctrine, not an
+   optional reference
+4. the target source and original assembly
+5. the target call-graph entry and relevant generated/shared declarations
 
-Follow the project's own file-layout and language rules. Do not commit or create a git worktree unless the user explicitly requests it.
+## Prepare the target
 
-## Prepare a fresh target
+In fresh mode, inspect `src/<target>.c`. Call `psx_m2c` only if it is missing
+or still an assembly stub. Never overwrite an existing clean-C attempt. In
+resume/fix mode, preserve the source and begin from its current diff.
 
-Only in fresh-decompilation mode, inspect `src/<target>.c` first. If it is missing or still an assembly stub, call `psx_m2c` with the target. This tool wraps `tools/agent/m2cFunc.ts --write`.
+## Evidence-driven matching loop
 
-Do not overwrite an existing clean-source attempt. In resume/fix mode, preserve the current source and begin with its current diff.
+1. Call `psx_explain_diff` before editing.
+2. Apply only the fix class reported by the classifier and described in the
+   mandatory style guide.
+3. For allocation, scheduling, operand-order that survives source-order swaps,
+   or mixed categories, call `psx_compiler_trace` before further perturbation.
+   Tie the next edit to a pseudo birth, death, lifetime, conflict, assignment
+   pass, canonicalization rule, or scheduler decision.
+4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
+   the mismatch signature changes or its cause becomes unclear.
+5. If several mechanism-backed source shapes remain, write complete C89
+   variants under `build/` and compare them together with
+   `psx_fuzz_variants`. This is hypothesis testing, not percentage
+   hill-climbing. Name the mechanism before promoting a winner; confirm it in
+   full mode and then re-run the exact function diff.
+6. Keep changes within project policy and put shared types in the designated
+   headers rather than conflicting with generated declarations.
 
-## Matching loop
+If a source change has no effect, locate the first divergent compiler dump and
+read that exact pass in the vendored compiler source before trying another
+shape.
 
-1. Establish and classify the baseline with `psx_explain_diff`.
+## Finish
 
-2. Select the fix class from evidence:
-   - instruction selection: types, signedness, casts, control flow, extern shape, or source idiom
-   - register allocation: temporary births, reuse, lifetimes, declaration order, and expression grouping
-   - operand order: fresh-result versus reused-input temporaries and natural address expressions
-   - scheduling: source statement order, expression birth site, and sequence points
-   - relocation/immediate: symbol declaration, small-data shape, or linked-layout noise
-   - mixed allocation/scheduling: trace the compiler before perturbing source
-3. For allocation, scheduling, or mixed categories, call `psx_compiler_trace`.
-
-   Tie each edit to a specific pseudo lifetime, assignment pass, conflict, or scheduler decision. Do not random-walk source permutations.
-   If a diff ignores source-level changes (classic signature: a commutative operand order identical under both source orders), find the first compiler dump in which the divergence appears (`build/compilerTrace/<target>/`) and read that pass's rule in the project's vendored compiler sources before editing again.
-4. When a stubborn operand-order, allocation, or scheduling mismatch leaves several plausible web shapes, test them side by side with `psx_fuzz_variants`.
-
-   Write each structural hypothesis as a complete variant `.c` using the project's headers and pass them all in one call. Read the report comparatively — each variant's diff class and first divergence — to identify which shape family the compiler preserves. This is hypothesis testing, not match-% hill-climbing: promote a winner only after naming the compiler mechanism it exercises, confirm it in full mode (not `--cc1-only`), copy it over `src/<target>.c`, and re-verify with `psx_diff_function`.
-5. Limit edits to files allowed by the current project's instructions. Put inferred shared types in the project's designated shared headers rather than inventing local declarations that conflict with generated headers.
-6. After each deliberate change, call `psx_diff_function`.
-
-7. Re-run the classifier whenever the mismatch signature changes or the cause is unclear.
-8. At an exact match, call `psx_export_context` for the target, then call `psx_finalize_function`. The finalizer independently requires the exact function diff, full build, modification-scope check, and clean-source policy gate. If finalization fails, continue from its concrete failures rather than reporting success.
+At an exact match, call `psx_export_context` for the target and then
+`psx_finalize_function`. The finalizer independently checks the exact function,
+full binary, modification scope, and clean-source policy. Continue from any
+concrete finalizer failure; do not report success early.
 
 ## Clean-source gate
 
-A byte match is not success if it adds a workaround forbidden by the current project. By default reject:
+For an ordinary compiled function, a byte match is failure if it introduces
+register pinning, embedded/top-level assembly, a new assembly stub, a flag
+override, or a copied legacy workaround. Honor only handwritten-assembly
+exceptions established by project classification. A zero-instruction
+scheduling barrier is a documented last resort under the style guide, not a
+substitute for diagnosis.
 
-- hard-register pinning
-- embedded or top-level assembly for a function that was originally compiled from source
-- a new assembly stub
-- per-file compiler-flag overrides
-- copied legacy hacks from neighboring functions
+## Targeted deep research
 
-Honor only handwritten-assembly exceptions already established by the project's classification and documentation. A zero-instruction scheduling barrier is a last resort only when project policy permits it and an order-only mismatch has been proven; document the exact ordering it fixes.
+The style guide already contains the mandatory distilled findings. If the
+function remains stuck after traced, mechanism-directed attempts, inspect the
+titles and opening summaries under the project's research directory and select
+only the case study whose documented mismatch signature matches the current
+one. Do not load every research note indiscriminately. For a suspected
+compiler/assembler boundary, select the project's boundary-analysis note
+rather than an unrelated allocator case study.
 
-Inspect the final diff and ensure it complies with project policy.
-
-## When stuck
-
-Do deep research:
-
-- Read `notes/decompilation-retro.md`
-- Read `notes/research/*.md`
-
-Do not commit. The user decides how to preserve or isolate the result.
+If still stuck, leave the best clean-C state and report the category, first
+remaining divergence, compiler-pass evidence, and structural hypotheses
+tested. Do not commit.

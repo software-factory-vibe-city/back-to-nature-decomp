@@ -1,145 +1,83 @@
-# BTN Decompilation — Agent Guide
+# Repository Agent Guide
 
-You are working on a **matching decompilation** of *Harvest Moon: Back to Nature*
-(SLUS-01115, PlayStation 1). Goal: C source that compiles to a **byte-identical
-binary** of the original PS-X EXE, verified by SHA-256 on every build.
+This is the top-level guide for any agent working in this repository. It
+contains repository-wide policy and routes task-specific work to the relevant
+instructions. It is not a function-decompilation prompt.
 
-**Read first:**
-1. `README.md` — full project overview (toolchain, pipeline, tools inventory)
+## Sources of truth
 
-## Ground rules (non-negotiable)
+- `configs/project-profile.md` is the sole prompt-facing source for concrete
+  target and toolchain facts. Do not duplicate those facts in guides, skills,
+  or prompts.
+- `README.md` documents project architecture, setup, build flow, and the tools
+  inventory. Read it for project-level, build-system, or tooling work.
+- The active project configuration and generated artifacts are authoritative
+  for paths, symbols, sections, and build behavior.
 
-- **NEVER use git commit** — do not commit, ever, unless the user explicitly asks
-- Never commit `extracted/` or `build/`
-- Tooling is **TypeScript only** (run via `npx tsx`). Do not check in Python scripts
-- Tools go in `tools/`, configs in `configs/`, headers in `include/`
-- C is **C89**: declarations at top of block, `/* */` comments only, no `//`
+## Route by task
 
-## The #1 rule of decompilation work here
+- Matching or repairing one function: load
+  `.pi/skills/psx-decompile-function/SKILL.md` and follow its mandatory
+  matching guide.
+- Refining an already-matching function: load
+  `.pi/skills/psx-refine-function/SKILL.md`.
+- Performing a conservative cross-file cleanup batch: load
+  `.pi/skills/psx-project-refinement/SKILL.md`.
+- Changing Pi extensions, skills, commands, or autonomous workers: read the Pi
+  documentation named in the harness instructions and inspect the relevant
+  `.pi/` implementation and tests.
+- Changing build or diagnostic tooling: read `README.md` and
+  `notes/tools-directory-structure.md`, then inspect the active Make/config
+  dependencies before editing.
+- Changing project fundamentals: read the current roadmap and the relevant
+  institutional notes before acting; do not re-derive settled facts already
+  supplied by the generated profile.
 
-**Do not "solve" functions with inline assembly, `INCLUDE_ASM`, `register
-__asm__` pinning, or new entries in `configs/flag_overrides.mk`.** The compiler
-is *proven* byte-identical to the original (see below), so for every function
-that was originally C, matching source exists — a hack is a search failure, not
-a solution. If you cannot match a function in clean C:
+## Repository-wide rules
 
-1. Classify the diff (see playbook below) and apply the matching fix class
-2. If still stuck, **say so and stop** — report the diff signature. A stuck
-   function is useful signal; a hacked match is poison.
+- Never commit unless the user explicitly asks. Never commit generated or
+  extracted binary artifacts.
+- Tooling is TypeScript and runs through `npx tsx`. Do not check in Python
+  scripts.
+- Put tools, configuration, and headers in the repository's established
+  directories rather than creating parallel structures.
+- C source follows C89: declarations at the top of a block, `/* */` comments,
+  and no C99 features.
+- Do not hand-edit generated files. Change their source configuration or
+  generator and regenerate them.
+- Do not redeclare generated globals in source files. Put shared parameter or
+  local types in the designated shared type header and global type overrides
+  in the designated override header.
+- Preserve the clean-source policy. For ordinary compiled functions, embedded
+  assembly, hard-register pinning, new assembly stubs, and per-file flag hacks
+  are not valid decompilation solutions. Honor only exceptions established by
+  the active project's classification and policy.
+- Keep edits scoped to the requested task. Do not opportunistically rewrite
+  unrelated files.
 
-Exceptions that are legitimate (do not "fix" these): GTE/cop2 functions and the
-one pure-asm function — they were handwritten assembly in the original game.
+## Verification discipline
 
-**Warning:** some existing files in `src/` still contain legacy hacks (raw asm
-embeds, `register __asm__` pins, flag overrides). They are debt scheduled for
-removal, NOT accepted practice — never copy these patterns into new work, even
-when they appear in exported neighbor context. Exceptions: SetGfxClip/
-SetGfxOffset (maspsx gap, see above) and single justified scheduling barriers.
+Use the narrowest relevant check while iterating, then run the repository's
+full verification gate before reporting success. A generated binary match does
+not excuse forbidden source constructs, out-of-scope edits, or hand-edited
+generated files.
 
-## Proven toolchain facts (trust these, don't re-investigate)
+When a verification step fails, continue from its concrete output or restore
+the last known-good state. Do not leave unrelated source broken to preserve an
+experiment.
 
-| Parameter | Value | Proof |
-|---|---|---|
-| Compiler | GCC 2.95.2-psx (`tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1`) | Byte-identical output to original PSY-Q 4.6 `CC1PSX.EXE` |
-| Assembler | ASPSX 2.77 via `tools/vendor/maspsx` | `li` expansion statistics |
-| Runtime libs | PSY-Q SDK 4.7 | Signature matching (`tools/vendor/psx_psyq_signatures/470/`) |
-| Flags | `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -msoft-float` | — |
+## Repository layout
 
-It is **2.95.2, not 2.8.1** (switch-dispatch register `$a0` vs `$v0`). Register
-hacks in older files date from the wrong-compiler era and are often unneeded now.
+- `src/` — function source files
+- `include/` — common, generated, shared-type, override, and SDK headers
+- `configs/` — project configuration and generated profile
+- `.pi/` — active Pi commands, skills, tools, and autonomous workflow
+- `tools/` — build, diagnostic, matching, and shared TypeScript tooling
+- `prompts/` — mandatory matching doctrine and archived standalone templates
+- `notes/` — roadmap, retrospectives, research, and institutional memory
+- `build/` — generated build and diagnostic artifacts
+- `extracted/` — local extracted inputs
 
-## Binary facts
-
-- EXE: `extracted/iso/slus_011.15` — load `0x80010000`, entry `0x80011278`,
-  payload 321,536 bytes at file offset `0x800`, GP `0x8005E274`
-- Sections contiguous: `.rodata` → `.text` (0x80011270–0x80048190) → `.data` → `.sdata`
-- ~463 functions total: 257 live, 206 dead PSY-Q library code, 10 GTE, 1 pure-asm
-- Progress: 93/257 "decompiled" per `make progress` — but 18 of those are raw
-  `__asm__` embeds. Real clean-C count ~75.
-  See `notes/next-steps-for-revisiting-the-project.md` for the full inventory.
-- De-superstition sweep (2026-07): 15 of 18 register-pinned files stripped
-  clean immediately; the 3 parked candidates (func_8001B4E4, func_8001E7DC,
-  func_8001AF44) were all since solved in clean C — mechanisms in
-  `notes/decompilation-retro.md` cases C4–C6. SetGfxClip/SetGfxOffset pins +
-  flag overrides are a GENUINE maspsx-gap workaround (self-clobbering lui/lw
-  macro expansion) — do not strip; settle via the Wine differential first.
-
-## Commands
-
-```bash
-make                              # build + verify byte-identical (the source of truth)
-make check                        # verify only
-make split                        # regenerate splat output (asm + linker script)
-make progress                     # decompilation progress
-npx tsx tools/agent/diffFunc.ts <func>       # exact per-function diff + match % oracle
-npx tsx tools/agent/explainDiff.ts <func>    # classify allocation/order/selection/relocation diffs
-npx tsx tools/agent/compilerTrace.ts <func>  # GCC RTL, pseudo allocation, and scheduler trace
-npx tsx tools/agent/m2cFunc.ts <func>        # m2c first-pass decompilation
-npx tsx tools/agent/callGraph.ts --top 20    # priority ranking
-npx tsx tools/agent/fuzzVariants.ts <func> <variants...>  # side-by-side shape-hypothesis testing
-```
-
-## Repo map
-
-- `src/` — one C file per function (466 files); `build/asm/nonmatchings/` has original asm
-- `include/` — `common.h` (types), `globals.h` (auto-generated `D_XXXXXXXX`
-  externs — never redeclare these in .c files), `globals_override.h` (struct
-  types for globals), `functions.h` (auto-generated signatures), `game_types.h`
-  (shared structs), `psyq/` (SDK headers)
-- `configs/` — `splat.yaml`, `symbol_addrs.txt`, `flag_overrides.mk` (NOTE: not
-  a make dependency — after editing it, `touch` the affected .c files or
-  builds use stale objects), `project-info.json` (human facts),
-  `project-profile.md` (auto-generated by `genProjectProfile.ts`, injected
-  into agent prompts)
-- `tools/` — TypeScript tooling: `agent/` (LLM loop), `build/` (make split pipeline), `diagnostics/`, `lib/`, `vendor/` (old-gcc, maspsx, m2c, SDK data). See `notes/tools-directory-structure.md`
-- `notes/` — institutional memory; `prompts/` — LLM agent prompt templates
-- `build/` — all generated artifacts (gitignored); `extracted/` — original game (gitignored)
-
-## Decompilation playbook
-
-The full pattern catalog is `prompts/c-style-guide.md` (canonical C style
-guide — read it before matching work). The short version: match diffs by
-**classifying first**, then applying the known fix class:
-
-| Diff kind | Meaning | Fix class |
-|---|---|---|
-| Same instructions, different registers | Allocation order | Temp variable structure/count, operand order, expression grouping |
-| Same instructions, different order | Scheduling | Statement order, sequence points, comma expressions, `volatile` |
-| Different instruction selection | Wrong types/idiom | Signedness (`lh`/`lhu`), `x*8` vs `x<<3`, cast placement |
-| `lui` grouping, self-clobbering loads | Temp reuse | Global access pattern, reused temporaries across statements |
-| Different stack frame | Locals | Local count/order, spills |
-
-Workflow per function: m2c first pass → run `explainDiff.ts` → apply the
-reported fix class → for allocation/scheduling/mixed cases, inspect
-`compilerTrace.ts` before perturbing source → for stubborn operand-order/
-allocation/scheduling mismatches, test remaining web-shape hypotheses
-side-by-side with `fuzzVariants.ts` (hypothesis testing, not match-%
-hill-climbing — name the mechanism before promoting a winner) → use
-`diffFunc.ts` as the exact progress oracle until 100% → `make check`
-(catches relocation/linker issues).
-Re-run `explainDiff.ts` when the signature changes. `compilerTrace.ts`'s
-`priority~` is approximate; distinguish `.lreg` assignments from those that
-appear only post-local in `.greg`. Struct types inferred from access patterns
-go in `game_types.h` (locals) or
-`globals_override.h` (globals). Use load widths to infer types: `lw/sw`→s32,
-`lh/sh`→s16, `lhu`→u16, `lb/sb`→s8, `lbu`→u8.
-
-## Notes index (read before changing fundamentals)
-
-- `notes/next-steps-for-revisiting-the-project.md` — **current roadmap**: why
-  agents fold to asm, inventory of compromised files, planned fixes
-- `notes/decompilation-retro.md` — 2026-07 sweep retro: mechanism catalog for
-  allocation/scheduling/canonicalization levers (Bucket C, all six cases now
-  solved) and maspsx-gap analysis (Bucket D)
-- `notes/research/func_8001B4E4-scheduler-allocator-resolution.md` — deep
-  case study: GCC 2.95.2 allocator/scheduler internals (`local-alloc.c`,
-  `sched.c`, `cse.c` vendored in `notes/scratch/gcc-2.95.2-reference/`),
-  reusable levers for allocation/scheduling fights
-- `notes/toolchain-version-detection.md` — the 2.95.2 proof
-- `notes/compiler-identification.md` — SDK/compiler identification method
-- `notes/bootstrapping.md` — how this project was built from scratch
-- `notes/decompiling-any-psx-game.md` — generalized playbook for other games
-- `notes/jump-table-problem.md` — switch/jump-table handling
-- `notes/maspsx-issue*.md` — known assembler-emulation gaps (some mismatches
-  are unfixable in C; suspect this only after exhausting the playbook)
-- `notes/jobs-to-be-done.md` — **stale**, superseded by next-steps note
+Follow more specific task instructions after this guide; when they conflict
+with repository-wide policy, stop and ask rather than silently weakening the
+policy.

@@ -55,7 +55,7 @@ wrappers.
 | `callGraph.ts` | Builds `build/callGraph.json`, including tier and priority ordering used by the Pi extension. | **Yes** |
 | `contextExport.ts` | Extracts matched signatures into the generated function context header. | Library + CLI |
 | `sourcePolicy.ts` | Audits eligible source and current changes for forbidden matching workarounds and modification-scope violations. | **Yes** |
-| `getPrompt.ts` | Legacy standalone prompt builder retained while detailed policy remains in `prompts/`. | Library + CLI |
+| `getPrompt.ts` | Legacy standalone prompt builder using archived templates under `prompts/legacy/`; active Pi workflows do not invoke it. | Library + CLI |
 | `worktree.ts` | Legacy worktree helper retained for manual experiments; the Pi workflow does not invoke it. | Library only |
 
 Data flow:
@@ -82,7 +82,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | 9 | `patchLibBss.ts` | Patches library `.o` files: converts BSS symbols to `SHN_ABS` absolute addresses (PSYLINK placed BSS symbols independently; GNU ld would pack them). |
 | 10 | `classifyGlobals.ts` | Generates `include/globals.h` — the `D_XXXXXXXX` extern declarations with correct GP-relative vs absolute addressing. **Never edit `globals.h` by hand.** |
 | 11 | `agent/contextExport.ts --all` | (see agent group) |
-| 12 | `genProjectProfile.ts` | Generates `configs/project-profile.md` (injected into every agent prompt) from machine-readable sources: EXE header + `splat.yaml` via psxExeInfo, compiler/flags/ASPSX version from the Makefile, SDK version auto-detected via `matchSignatures.ts`, byte-identity **verified** by hashing the built binary at generation time. Human facts (game title, evidence note) live in `configs/project-info.json`. |
+| 12 | `genProjectProfile.ts` | Generates `configs/project-profile.md`, the prompt-facing source for concrete target/toolchain facts, from machine-readable sources: EXE header + `splat.yaml` via psxExeInfo, compiler/flags/assembler version from the Makefile, SDK detection, and a byte-identity hash check. Human facts live in `configs/project-info.json`. |
 | — | `genDisasmSymbols.ts` | Generates `build/disassembler_symbol_addrs.txt` from `symbol_addrs.txt` (+ `__start` fallback) before every disassembly — a pure derived artifact, hence in `build/`, never committed. Rich symbols give spimdisasm entry points into indirectly-called library code: real names, correct function starts, no phantom blobs. Called by `disassemble.sh` and `bootstrap.ts`. |
 
 ### Library-detection internals (called by the above, not run directly)

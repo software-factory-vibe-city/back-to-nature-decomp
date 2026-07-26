@@ -1,509 +1,538 @@
-# C Style Guide for PSX Decompilation
+# C Style Guide for PSX Matching Decompilation
 
-Idiomatic C patterns that produce correct codegen with old (2.x-era) PSY-Q GCC at `-O2` on MIPS I. When two C expressions are semantically equivalent, the simpler one almost always matches the original programmer's intent — and the original compiler output. Concrete toolchain facts (compiler version, flags, `-G` threshold, SDK version) are in the **project profile** injected alongside this guide.
+This is the project's mandatory matching field manual. Read it completely
+before editing a function. It distills failures that repeatedly caused agents
+to waste turns or accept false solutions. Concrete compiler flags, small-data
+threshold, assembler, SDK, and target facts are in `configs/project-profile.md`.
 
-**The project's compiler is proven byte-identical to the one that built the original binary** (see project profile). For every function that was originally C, clean matching source exists. If you cannot find it, STOP and report the diff signature — do not reach for inline asm, `register __asm__` pinning, or flag overrides. Scheduling barriers (below) are the one tolerated workaround, and even they require a justification comment and are treated as debt pending re-validation.
+Apply the compiler and assembler confidence statements from the generated
+project profile. When the active project establishes that an ordinary function
+came from a reproducible C compiler invocation, failure to find its source
+shape is not permission to bypass the clean-source gate. Stop with a classified
+diff rather than using inline assembly, hard-register pinning, a new assembly
+stub, or a flag override.
 
-## Array and pointer access
+## 1. Decode semantics before searching source shapes
 
-### GP-relative indexed access
+Do not fuzz syntax around a misread computation. If many different source
+shapes diverge at the same early instruction, stop and recompute the target's
+arithmetic, constants, signedness, and address.
 
-When the assembly shows `sll` + `addiu $reg, $gp, %gp_rel(sym)` + `addu` + `lw/sw`, this is indexed array access into a GP-relative variable. Use the simple array form:
+### Sign extension fused with element scaling
 
-```c
-/* GOOD — clean array indexing */
-(&D_8005E4C8)[arg0] = arg1;
+Around an array access, this pattern usually combines a cast with element
+scaling:
 
-/* BAD — pointer arithmetic produces the same instructions but is unreadable */
-*(s32 *)((u8 *)&D_8005E4C8 + (arg0 << 2)) = arg1;
+```text
+sll r,x,16
+...
+sra r,r,16-k
 ```
 
-If the instruction ordering doesn't match (e.g., `sll` before `addiu` in the target but `addiu` before `sll` in your output), use a scheduling barrier — see "Scheduling barriers" below.
+It means `sext16(x) * 2^k`, not `sext16(x) >> k`. For example,
+`(x << 16) >>a 15` is `(s16)x * 2`. The source index may simply be `(s16)x`;
+combine can fuse the cast's right shift with the array element's left shift.
 
-### Use `array[index]` not pointer arithmetic
+A fused instruction occupies the latest merged instruction's position. If the
+target has `sll 16` early and the fused `sra` later, split the cast into an
+earlier statement and let the consuming array access create the scaling shift:
 
 ```c
-/* GOOD */
-value = D_80048190[i];
-
-/* BAD — equivalent but may reorder instructions */
-value = *(D_80048190 + i);
-value = *((s32 *)((char *)D_80048190 + i * 4));
+idx = (s16)arg0;
+base = (char *)&D_LARGE_TABLE;
+value = D_INDEX_TABLE[idx];
 ```
 
-### Use struct field access, not offset casts
+### Strength-reduced multiplication
 
-```c
-/* GOOD */
-obj->field_0C = 1;
+Evaluate every `sll`/`addu`/`subu` step to a fixed point. Do not stop halfway.
+For example:
 
-/* BAD */
-*(s32 *)((char *)obj + 0x0C) = 1;
+```text
+8v - v = 7v
+7v << 2 = 28v
+28v + v = 29v
+29v << 2 = 116v
+116v + v = 117v
+117v << 2 = 468v
 ```
 
-Pointer-cast chains produce different instruction ordering than struct access, even when they compute the same address.
+The source multiplication is `v * 468`, not `v * 28`. Once the constant is
+correct, write the natural multiplication first and let GCC's multiply
+synthesizer reproduce the chain.
 
-## Expression simplicity
+### Unsigned comparisons with large constants
 
-### Prefer the simplest expression that matches the semantics
+MIPS `sltiu` sign-extends its immediate. Unsigned thresholds at or above
+`0x8000` therefore commonly compile as:
 
-The original programmers wrote straightforward C. When you see a pattern, write the obvious version first:
+```text
+ori  r,zero,C-1
+sltu r,r,x
+```
+
+Read this as a source comparison against `C`, not `C-1`. The branch direction
+determines whether the source is `< C` or `>= C`.
+
+### Load widths and arithmetic signedness
+
+Infer storage types from the target:
+
+| Target instruction | Likely C type |
+|---|---|
+| `lw` / `sw` | `s32`, `u32`, or pointer |
+| `lh` / `sh` | `s16` |
+| `lhu` | `u16` |
+| `lb` / `sb` | `s8` |
+| `lbu` | `u8` |
+| `slt` | signed comparison |
+| `sltu` | unsigned comparison or Boolean idiom |
+| `div` / `mult` | signed operands |
+| `divu` / `multu` | unsigned operands |
+
+Preserve cast placement. A cast on a loaded value, an index, and the final
+comparison can produce different instructions even when modern C semantics
+look equivalent.
+
+## 2. Start from natural C, not target-shaped statements
+
+The original programmers generally wrote straightforward C. First reconstruct
+the complete operation a programmer would express, then use compiler evidence
+to alter its web shape deliberately.
 
 ```c
-/* GOOD — what a programmer would write */
+/* Natural forms to try first. */
 result = table[index];
 obj->flags |= 0x10;
-if (count > 0) { ... }
-
-/* BAD — over-engineered equivalents */
-result = *((s32 *)((u8 *)table + (index << 2)));
-*(s32 *)((char *)obj + 0x08) = *(s32 *)((char *)obj + 0x08) | 0x10;
-if (count >= 1) { ... }
+delta = *p++ - *q++;
+if (count > 0) {
+    /* ... */
+}
 ```
 
-### Don't fight the compiler — match the assembly pattern
-
-If the assembly does something one way, write C that naturally produces that pattern:
-
-| Assembly pattern | C pattern |
-|---|---|
-| `sll` then `addu` then `lw/sw` | Array index: `arr[i]` or `(&var)[i]` |
-| `addiu` from `$gp` | GP-relative scalar or small array access |
-| `lui` + `addiu`/`lw`/`sw` | Absolute-addressed global (> 8 bytes) |
-| `lw` + field offset | Struct field: `ptr->field` |
-| `sll $a0, $a0, 2` before base addr | Index is first operand: `arr[index]` |
-| Base addr before `sll` | Pointer arithmetic: `*(base + offset)` |
-| `li C&~0x7fff` + `addu` + load at `C&0x7fff` | Big offset on the dereference only: `p = base + i*SZ;` then `*(T*)(p + C)` (MIPS `LEGITIMIZE_ADDRESS` splits only at a bare-REG address) |
-
-### Decode the target's arithmetic before writing C
-
-A misread constant or index makes a function unmatchable in *any* shape —
-every variant dies at the same early instruction while you fuzz structure.
-Compute these by hand before the first variant:
-
-| Assembly | Correct reading | Trap |
-|---|---|---|
-| `sll r,x,16` … `sra r,r,16-k` around an array access | `sext16(x) * 2^k` — sign-extension fused with element scaling by combine.c; the index is just `(s16)x` | reading it as `sext16(x) >> k` |
-| `sll`/`subu`/`addu` chain feeding an address | strength-reduced multiply — fold every step to a fixed point | stopping early: `8v-v, <<2` is ×28 *so far*, but may run on to ×468 |
-| `ori r,zero,IMM; sltu` | unsigned compare against constant `IMM+1` | `sltiu` sign-extends its immediate, so constants ≥ 0x8000 always use this form; do not transcribe IMM literally |
-
-If several structurally different variants cannot move the first divergence,
-stop fuzzing shapes and re-decode the assembly arithmetic.
-
-## Reconstruct expressions, not assembly-shaped temporaries
-
-A named temporary is not free in pre-SSA GCC. Reusing one local for several
-independent loads gives the compiler one multi-death pseudo, often forcing it
-through global allocation. Translating each assembly instruction into a C
-statement can therefore lock in the wrong register structure even when every
-statement is semantically correct.
-
-Before manipulating allocator preferences, write the complete operation a
-programmer would naturally write. For a component-wise pointer walk:
+Avoid instruction-by-instruction transcriptions and unnecessary cast chains:
 
 ```c
-/* BAD reconstruction — one reusable RHS pseudo dies in every check. */
+/* Usually the wrong starting shape. */
 rhs = *q;
 q++;
 delta = *p;
 delta -= rhs;
 p++;
+```
 
-/* GOOD natural expression — fresh operand pseudos for this component. */
+A named temporary is not free in pre-SSA GCC. Reusing `rhs` for independent
+loads creates one multi-death pseudo, often forcing it through global
+allocation. The fused expression lets GCC create fresh, single-set,
+short-lived operand pseudos while retaining only the semantically recurring
+`delta` web.
+
+### Signature of an assembly-shaped temporary web
+
+Try a fused natural expression early when:
+
+1. opcode selection is already correct or nearly correct;
+2. the diff is a stable pointer-versus-loaded-value register-role swap;
+3. the target moves an argument out of `$a0`–`$a3` and immediately reuses the
+   incoming register for a load, while the candidate omits that move;
+4. the trace shows a reused operand pseudo with several deaths and a
+   `global/reload` assignment; and
+5. statement reordering changes priorities but never gives the operand the
+   target register.
+
+Keep named locals only for values genuinely carried across statements. Fuse
+one natural operation at a time:
+
+```c
 delta = *p++ - *q++;
+sum += *p++;
+delta = *p - *q;       /* final non-walking component */
 ```
 
-The good form may create *more* RTL pseudos. That is often desirable: each load
-gets a fresh, single-set, short-lived pseudo eligible for local allocation,
-while only `delta` remains a recurring user web. In `func_8001E7DC`, this one
-change turned a 14-pseudo global-allocation deadlock into a 19-pseudo exact
-match: the pointer moved from incoming `$a0` to `$a2`, the RHS load naturally
-used the freed `$a0`, and the result stayed in `$v1`.
+Do not reject a candidate because it creates more RTL pseudos. Fresh local
+pseudos often allocate more simply than one reused global pseudo.
 
-### Signature: the reconstructed temp web is probably wrong
+### Deliberately vary web shape
 
-Try a fused natural expression early when all of these are true:
+These forms are distinct compiler experiments:
 
-1. The computation and opcode sequence are already correct or nearly correct.
-2. The diff is a stable register-role swap, especially pointer versus loaded
-   operand.
-3. The target moves an argument out of its incoming `$a0`–`$a3` register and
-   immediately reuses that hard register for a load or short-lived result,
-   while the candidate keeps the argument there and omits the move.
-4. `compilerTrace.ts` shows a reused operand temporary with multiple deaths and
-   a `global/reload` assignment.
-5. Reordering statements changes priorities or scheduling but never gives the
-   temporary the target hard register.
+- reused named operand: one longer or multi-death web;
+- fused expression operands: fresh short-lived compiler webs;
+- reused result variable: destination overlaps an input web;
+- fresh result variable: independent destination web.
 
-### Directed fix recipe
+For a lone commutative `mult` or ALU operand-order mismatch, try changing
+whether the result is fresh or reuses an input. Swapping source operands alone
+may be canonicalized away.
 
-1. Keep a named local only for a value that is semantically carried across
-   statements, such as the recurring `delta` or bound.
-2. Remove named locals used only to spell out one operation's operands.
-3. Fuse the load, arithmetic, and natural pointer update into the consuming
-   expression: `result = *p++ - *q++`, `sum += *p++`, or the analogous array or
-   struct expression.
-4. For a final non-walking operation, use the corresponding non-incrementing
-   form, such as `result = *p - *q`.
-5. Run `diffFunc.ts`. For a remaining allocation mismatch, run
-   `compilerTrace.ts` again and verify that the old multi-death user pseudo was
-   replaced by fresh local pseudos. Do not judge a candidate by having fewer
-   pseudos; judge the final instructions.
+## 3. Use natural arrays, structs, and addresses
 
-This is related to, but distinct from, using a fresh *result* temporary for a
-commutative operand-order mismatch. The general rule is to vary the RTL web
-shape deliberately:
+### Array indexing
 
-- reused named operand → one longer or multi-death web;
-- fused expression operands → fresh short-lived compiler webs;
-- reused result variable → destination overlaps an input web;
-- fresh result variable → independent destination web.
-
-Preserve semantics and signedness. Fuse one natural operation at a time rather
-than building an artificial giant expression, and verify each change with the
-exact diff oracle.
-
-## Instruction ordering
-
-Old GCC evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:
-
-### Operand order in source = instruction order in output
+Prefer:
 
 ```c
-/* Produces: load a, load b, add */
-result = a + b;
-
-/* Produces: load b, load a, add */
-result = b + a;
+value = D_TABLE[i];
+(&D_SCALAR_BASE)[index] = value;
 ```
 
-If the diff shows correct instructions in the wrong order, check whether swapping operands or reordering statements fixes it.
-
-### Field access order matters
+Avoid:
 
 ```c
-/* If assembly reads offset 0x10 before 0x04: */
-x = obj->field_10;
-y = obj->field_04;
-
-/* NOT: */
-y = obj->field_04;
-x = obj->field_10;
+value = *((s32 *)((char *)D_TABLE + (i << 2)));
 ```
 
-## Tool-assisted classification
+A GP-relative indexed access usually appears as `sll`, `addiu $gp`, `addu`,
+then `lw/sw`. Array indexing naturally produces that form.
 
-Do not use `diffFunc.ts`'s aggregate percentage as the diagnosis. It is the
-exact match oracle, but source changes should be selected from a structural
-classification first:
+### Struct fields
+
+Prefer:
+
+```c
+obj->field_0C = 1;
+```
+
+rather than offset casts:
+
+```c
+*(s32 *)((char *)obj + 0x0C) = 1;
+```
+
+Pointer-cast chains can change expression birth, operand order, and address
+canonicalization. A natural array or struct-field MEM expression also creates
+a fresh address-result web, which can be essential for matching.
+
+### Address-expression clues
+
+| Target shape | Source family to try |
+|---|---|
+| `sll`, `addu`, `lw/sw` | array indexing |
+| `addiu` from `$gp` | GP-relative scalar or small aggregate |
+| `lui` plus `%lo` load/store | absolute global above the small-data threshold |
+| base load plus field offset | struct field |
+| scaled index before base | array/index expression |
+| base before scaled index | separately materialized base or pointer expression |
+
+### Large address constants
+
+The MIPS backend's address legitimizer splits a large constant only when the
+final memory address reaches it as `plus(REG, CONST_INT)`. This target:
+
+```text
+li    t,C & ~0x7fff
+addu  p,p,t
+lhu   v,C & 0x7fff(p)
+```
+
+usually requires materializing the base-plus-scaled part first and attaching
+the large offset only to the dereference:
+
+```c
+ptr = base + index * size;
+value = *(u16 *)(ptr + LARGE_OFFSET);
+```
+
+Folding everything into `*(base + index * size + LARGE_OFFSET)` presents a
+nested `plus(plus(reg,reg),const)` and commonly materializes the whole constant
+instead.
+
+## 4. Classify before editing
+
+Use tools in layers:
 
 ```bash
 npx tsx tools/agent/explainDiff.ts <func>
-npx tsx tools/agent/compilerTrace.ts <func>  # allocation/scheduling cases
-npx tsx tools/agent/diffFunc.ts <func>       # exact progress oracle
+npx tsx tools/agent/compilerTrace.ts <func>
+npx tsx tools/agent/diffFunc.ts <func>
 ```
 
-`explainDiff.ts` compares target and compiled objects while normalizing
-relocation aliases and tracking both hard registers and separate live-range
-webs. Apply its categories as follows:
+`diffFunc.ts` is the exact oracle, not the diagnosis. Route the next edit from
+the structural classifier:
 
 | Category | First response |
 |---|---|
-| `register-allocation` | Change temporary birth, reuse, lifetime, declaration order, or statement order |
-| `operand-order` | Change fresh-result vs. input-reuse structure; use natural address forms for address `addu`; if source swaps are no-ops, attribute the rewriting pass first (see below) |
-| `scheduling` | Reorder independent statements, fuse/split the expression birth site, or reproduce variable dependencies |
-| `instruction-selection` | Fix types, signedness, casts, idioms, control flow, or extern shape |
-| `relocation-or-immediate` | Check declarations and linked-layout/GP noise before changing C |
-| `mixed-operands` / `scheduling-and-operands` | Inspect compiler pass dumps before further source search |
-
-`compilerTrace.ts` stores GCC 2.95 `-da` dumps under
-`build/compilerTrace/<func>/`. Its report distinguishes assignments visible in
-`.lreg` from those appearing only post-local in `.greg`, and summarizes
-scheduler decisions in `.sched`/`.sched2`. The `priority~` field approximates
-the GCC quantity priority from stock dump data; it is evidence, not an exact
-quantity trace. Compare traces from deliberately different source shapes and
-state which pseudo lifetime, conflict, or pass decision each edit is intended
-to change.
-
-### Attribute the rewriting pass before perturbing
-
-When a diff persists with no apparent source cause — the signature case is a
-commutative operand order that ignores source-level operand swaps — some
-compiler pass is canonicalizing the construct and discarding your input.
-Do not keep permuting source. Instead:
-
-1. Find the **first** dump in `build/compilerTrace/<func>/` where the
-   divergence appears (grep the instruction's RTL across `.rtl`, `.jump`,
-   `.cse`, `.combine`, `.regmove`, `.lreg`).
-2. Read that pass's canonicalization rule in the vendored GCC 2.95.2 sources
-   (`notes/scratch/gcc-2.95.2-reference/` — `cse.c`, `combine.c`, `expmed.c`,
-   `explow.c`, `local-alloc.c`, `sched.c`, `config-mips/mips.h`).
-3. Design the one source web shape the rule does not fire on.
-
-Worked example (func_8001AF44): a lone `addu v1,v1,v0` vs `addu v1,v0,v1`
-diff survived seven operand-order permutations. The dumps showed the swap
-appears between `.jump` and `.cse`; `cse.c`'s `fold_rtx` places a commutative
-operand whose register has a recorded constant-equivalent value second
-(~line 5585), and the address base's pseudo records its symbol `lo_sum`
-address as such a constant. Source operand order was irrelevant; the fix was
-to change the web shape the rule fires on (see the mechanism table below).
-
-If `explainDiff.ts` cannot find archived original assembly, fall back to
-`diffFunc.ts`; do not interpret a diagnostic setup failure as a source diff.
-
-## Scheduling barriers (governed workaround — last resort)
-
-GCC's instruction scheduler reorders independent instructions to hide pipeline stalls. The original PSY-Q toolchain did not always do this. When you get a 100% instruction match except for ordering of independent instructions — and only after exhausting operand-order and statement-order fixes — a zero-cost barrier is permitted:
-
-```c
-__asm__ volatile("" : "=r"(var) : "0"(var));
-```
-
-This emits zero instructions. It tells GCC that `var` is consumed and produced at that point, preventing instruction movement across it.
-
-### Interleaved pointer loads
-
-When loading two absolute-addressed pointers, GCC interleaves the `lui+lw` pairs. The original keeps them sequential. Fix:
-
-```c
-/* Target: lui v0 / lw v0 / lui v1 / lw v1 (sequential) */
-/* GCC:    lui v0 / lui v1 / lw v0 / lw v1 (interleaved) */
-
-Foo *a = GLOBAL_A[0];
-__asm__ volatile("" : "=r"(a) : "0"(a));  /* barrier: complete a before starting b */
-Foo *b = GLOBAL_B[0];
-```
-
-Only needed for absolute-addressed symbols (outside GP range). GP-relative loads are single instructions and don't get interleaved. Existing barrier examples in this project: grep `src/` for `__asm__ volatile`.
-
-Every barrier must carry a comment stating the exact target-vs-GCC ordering it fixes. Barriers are tracked debt: they are periodically re-tested and removed when clean C is found to match without them.
-
-### Address load before ALU op
-
-GCC emits address loads (`la`/`addiu $gp`) before independent shifts. The original has the shift first. Fix:
-
-```c
-/* Target: sll a0 / addiu v0,gp,offset / addu a0,a0,v0 */
-/* GCC:    addiu v0,gp,offset / sll a0 / addu a0,a0,v0 */
-
-/* Natural C (mismatches): (&D_8005E4C8)[arg0] = arg1; */
-
-/* With barrier (matches): */
-arg0 <<= 2;
-__asm__ volatile("" : "=r"(arg0) : "0"(arg0));
-base = &D_8005E4C8;
-*(s32*)((char*)base + arg0) = arg1;
-```
-
-## Escape hatch: read the exact compiler source
-
-When a function resists the playbook — especially allocation or scheduling
-mismatches that survive many mechanism-targeted source edits — stop
-permuting and read the compiler. The exact GCC 2.95.2 sources are vendored
-at `notes/scratch/gcc-2.95.2-reference/` (`local-alloc.c`, `sched.c`); if
-absent, fetch `local-alloc.c` and `sched.c` from the gcc-mirror GitHub
-(`releases/gcc-2.95.2` tag). One hour reading allocator source replaces
-days of blind source search. This is diagnostics-only: never patch or
-instrument cc1 itself, since that would invalidate toolchain identity.
-
-Mechanisms already extracted (full case study:
-`notes/research/func_8001B4E4-scheduler-allocator-resolution.md`):
-
-| Mechanism | Where | Consequence for source shape |
-|---|---|---|
-| local-alloc eligibility: `REG_BASIC_BLOCK >= 0 && REG_N_DEATHS == 1` | `local_alloc` | A variable reassigned to *independent* values dies multiple times → global-alloc → will not reproduce a tight register relay race (deterministic — same RTL, same compiler, same output). Reassignment that *reads* the variable (`x <<= 1`, `p += n`) keeps one continuous range: stays local AND still creates anti-dependencies that pin the scheduler. |
-| Dying-input tie (`combine_regs`) | `block_alloc` insn scan | An output shares the register of an input that dies in the same insn. The `addu v0,v0,v1` / `addu a0,a0,v0` relay chains come from *fresh* pseudos tying to dying inputs, not from variable reuse. |
-| Hard-register suggestions | `combine_regs` hard-reg path | A pseudo born where a hard register dies (argument's last use) inherits it; suggested quantities are allocated first, with true lifetimes. This is how a temp lands in `$a0`–`$a3`. |
-| Priority `floor_log2(refs)*refs*size/(death-birth)`, ties → birth order | `QTY_CMP_PRI` | Short-lived, multiply-referenced quantities grab registers first. Birth position (which statement expands an expression) is a controllable input. |
-| Fake lifetimes (±1 insn) with `-fschedule-insns2` | `block_alloc` tail | Quantities pseudo-conflict across one-instruction gaps; shifting a birth by one statement can change its register. |
-| Pre-alloc scheduler is a backward list scheduler; `potential_hazard` tie-break favors memory-unit insns | `sched.c` `schedule_select` | Independent stretches do NOT keep source order — they bubble. Only dependencies (data, anti, memory output) pin order. |
-| Store output deps require may-alias | alias analysis via cselib base values | Stores through provably-distinct symbol bases (`&A+x` vs `&B+y`) are freely reorderable. Sequential target stores with independent address chains imply an arg-death/RMW structure, not variable reuse. |
-| cse constant-second canonicalization for commutative ops | `fold_rtx` end rule in `cse.c` (~line 5585) plus per-register recorded constant equivalents (`qty_const`) | A commutative operand whose pseudo has a recorded constant-equivalent value — e.g. an address base set to a symbol's `lo_sum` — is moved to second position regardless of source operand order. For an address `addu`, defeat it by making the sum a fresh compiler web inside a natural address expression (struct-field or array indexing such as `f->words[idx]`), never a reassigned user variable (`p = (u32*)((char*)p + off)`). The reassigned-variable shape is exactly the one the rule fires on. |
-
-## Declarations
-
-### Don't redeclare globals from `globals.h`
-
-`common.h` includes `globals.h`, which declares all `D_XXXXXXXX` symbols with correct addressing modes. Do NOT add your own `extern` declarations for symbols that are already there:
-
-```c
-/* BAD — conflicts with globals.h macro */
-extern s32 D_80061F08;
-
-/* GOOD — just use it, it's already declared */
-D_80061F08 = value;
-```
-
-However, some symbols (e.g., `.sdata` symbols defined by splat) are NOT in `globals.h`. For those, you DO need a local extern. Check whether the symbol compiles without a declaration before adding one.
-
-### NEVER use `_D_XXXX` — use `&D_XXXX` instead
-
-`globals.h` macros expand `D_XXXX` to a dereference: `(*((s32*)_D_XXXX))`. To get the address, use `&D_XXXX` — it naturally cancels the dereference:
-
-```c
-/* GOOD — &D_XXXX gives the address */
-s32 *base = &D_8006C838;
-
-/* BAD — uses internal __asm__ identifier, leaks implementation detail */
-s32 *base = (s32 *)_D_8006C838;
-```
-
-**NEVER reference `_D_XXXX`** (the underscore-prefixed internal name) in source files. This is an internal implementation detail of `globals.h`. If you find yourself writing `_D_`, you are doing it wrong — use `&D_` to get the address.
-
-### Match the extern type to the access pattern
-
-```c
-/* Assembly: lbu → unsigned byte */
-extern u8 D_80062000;
-
-/* Assembly: lh → signed halfword */
-extern s16 D_80062004;
-
-/* Assembly: lw → word (s32 or pointer) */
-extern s32 D_80062008;
-```
-
-### GP-relative vs absolute: match the addressing mode
-
-The `-G` small-data threshold (value in the project profile) means externs declared **at or below the threshold** get GP-relative addressing (single `lw %gp_rel(sym)($gp)` instruction). Larger externs get absolute addressing (`lui` + `lw %lo(sym)($reg)` two-instruction pair).
-
-**If the assembly shows `lui`/`lw` but your code emits `lw %gp_rel`, your extern declaration is too small.** This is the most common cause of addressing mode mismatches.
-
-Fix: declare the extern as something above the threshold. Common patterns (assuming an 8-byte threshold):
-
-```c
-/* 4-byte pointer → GP-relative (WRONG if asm shows lui/lw) */
-extern SomeStruct *D_8005E3AC;
-
-/* Array of 3 pointers → 12 bytes → absolute (CORRECT if asm shows lui/lw) */
-extern SomeStruct *D_8005E3AC[3];
-/* Then access as: D_8005E3AC[0]->field */
-```
-
-This happens when the original source file declared multiple variables together (e.g., as part of the same array or struct), making the total declaration exceed the threshold, even though each individual access only uses one element.
-
-### Switch statements
-
-Old GCC compiles switch statements predictably, including jump table dispatch. Use them freely.
-
-**Case order matters.** The compiler emits case bodies in source order. If the diff shows the right case values but in the wrong order, reorder the cases in your switch to match the original binary's layout:
-
-```c
-/* If the original binary has case bodies in order: 99, 98, 105, 106, 107, 0xFFFE, default */
-switch (x) {
-    case 23: return 99;   /* emitted first */
-    case 53: return 98;   /* emitted second */
-    case 35: return 105;  /* etc. */
-    case 30: return 106;
-    case 31: return 107;
-    case 0:  return 0xFFFE;
-    default: return 4093;
-}
-```
-
-### Prefer natural C over hand-tuned variables
-
-The register allocator often picks the right registers with natural C. Don't manually name variables `v0`/`v1` or hand-order assignments to influence allocation — write the simplest C first:
-
-```c
-/* GOOD — natural, often matches */
-arg0->field_0 -= arg1->field_0;
-arg0->field_4 -= arg1->field_4;
-arg0->field_8 -= arg1->field_8;
-
-/* BAD — hand-tuned for a different compiler's allocator */
-s32 v0 = arg0->field_0;
-s32 v1 = arg1->field_0;
-v0 = v0 - v1;
-/* ... carefully ordered to steer register assignment ... */
-```
-
-### Register allocation: do NOT pin registers
-
-If the target uses registers the compiler won't naturally pick, that means your C's temporary-variable structure differs from the original — not that the compiler needs forcing. Restructure: change declaration order, introduce or eliminate temporaries, swap operand order, change types (`s16` vs `s32`).
-
-**Do not use `register __asm__` pinning.** Existing uses in `src/` are legacy from before this project's toolchain was verified, and have repeatedly proven unnecessary when re-tested with plain natural C. If you are truly stuck after restructuring, stop and report the diff — a stuck function is useful signal, a pinned match is not.
-
-## Legacy hacks: strip first, decode the idiom
-
-Some older `src/` files contain `register __asm__` pins, scheduling barriers, or hand-written asm dating from before the toolchain was verified. When you touch such a file, your first move is **strip and re-test** — in the 2026-07 sweep, 15 of 18 pinned files matched clean with zero or minor restructuring. A 100% match tells you nothing about whether a hack is needed; only stripping does. Comments claiming a pin is "required" were wrong every single time they were re-tested.
-
-Protocol:
-
-1. Remove `__asm__("reg")` from declarations (keep the temp variables themselves) and any barrier/forged-asm lines. Run `diffFunc`.
-2. Still 100% → done; the hack was residue.
-3. Not 100% → run `explainDiff.ts`; for allocation/scheduling/mixed results also run `compilerTrace.ts`, then fix the reported class (usually temp structure or statement order — see "Register allocation" above and "Instruction ordering").
-4. Cannot restore 100% → restore the hacked file exactly (`git checkout src/<file>`) and record the diff signature. Never leave a file in a non-matching state.
-
-### Hand-written asm is usually a native C operator
-
-Agents sometimes hand-forge instructions the compiler generates on its own. Before concluding any asm is needed (in an existing file or in code you are writing), decode the pattern:
-
-| Asm pattern | What it actually is |
+| `instruction-selection` | Fix semantics, types, signedness, casts, control flow, idiom, or declaration shape |
+| `register-allocation` | Change temporary birth, reuse, death count, lifetime, declaration order, or expression grouping |
+| `operand-order` | Test fresh-result versus input-reuse structure and natural address forms |
+| `scheduling` | Change statement order, expression birth site, dependencies, or sequence points |
+| `relocation-or-immediate` | Check symbol declarations, small-data shape, and linked-layout noise |
+| `mixed-operands` / `scheduling-and-operands` | Inspect compiler pass dumps before changing source again |
+
+Run `compilerTrace.ts` for allocation, scheduling, stubborn operand-order, and
+mixed cases. It stores GCC dumps under `build/compilerTrace/<func>/` and
+summarizes pseudo lifetimes, conflicts, assignments, and scheduler decisions.
+Distinguish assignments present in `.lreg` from those appearing only in
+`.greg`; `priority~` is approximate evidence, not an exact quantity trace.
+
+Each edit should name the pseudo lifetime, conflict, assignment pass,
+canonicalization rule, or scheduler decision it intends to change. Do not run
+random declaration or statement permutations.
+
+### When source-order changes do nothing
+
+If both orders of a commutative source expression compile identically, a
+compiler pass is discarding source order. Find the first dump where the target
+shape is lost by comparing `.rtl`, `.jump`, `.cse`, `.combine`, `.regmove`,
+`.lreg`, and scheduler dumps. Read that exact rule in the vendored GCC sources
+before designing another shape.
+
+A known address case occurs in CSE: a commutative operand whose pseudo has a
+recorded constant-equivalent value, such as a symbol's `lo_sum` address, is
+placed second. Reassigning a base variable and then adding an offset is exactly
+the shape that triggers it. Defeat it with a fresh compiler address web inside
+a natural array or struct-field expression—not by swapping source operands
+again.
+
+If `explainDiff.ts` cannot find archived assembly, continue with the exact diff
+oracle. A diagnostic setup failure is not a source mismatch.
+
+## 5. Allocation and scheduling mechanisms
+
+Use these mechanisms to design source, not as reasons to hand-assign registers.
+They were confirmed against the compiler sources used by the projects from
+which these matching lessons were distilled.
+
+| Mechanism | Source consequence |
 |---|---|
-| `sll x,16` + `sra x,16` | `(s16)` cast |
-| `sll x,24` + `sra x,24` | `(s8)` cast |
-| `div $zero,a,b` + `mflo` + `bnez b` + `break 7` | plain signed `a / b` (`mfhi` for `%`) — GCC emits the zero-check automatically |
-| `lui`/`ori` magic constant + `multu` + `mfhi` (+ shifts) | unsigned division/modulo by a constant (e.g. `0x92492493` → ÷7; an even divisor may appear as a shift plus magic: `/14` = `>>1` then magic ÷7) |
-| forged `addiu x,x,1` | plain `x + 1` / `x++` |
-| label-only asm lines (`_L8001E818:`) | block markers — delete them; `goto` labels generate their own |
+| Local allocation requires one death | A local reassigned to independent values becomes a multi-death global web; fresh single-set values stay locally allocatable |
+| Dying-input tie | A fresh output can share the register of an input that dies in the same instruction |
+| Hard-register suggestion | A pseudo born where an argument hard register dies can inherit `$a0`–`$a3` |
+| Priority uses references and lifetime; ties use birth order | Statement and expression birth order can change allocation |
+| Fake lifetime extension with post-allocation scheduling | Moving a birth by one statement can create or remove a pseudo-conflict |
+| Pre-allocation scheduler works backward | Independent source statements do not necessarily retain source order |
+| Distinct symbol bases may not alias | Stores through independently proven bases can reorder freely |
+| Post-allocation scheduling sees hard-register hazards | A scheduling mismatch can be downstream of the wrong register allocation |
+| CSE commutative constant-second rule | Source operand swaps can be no-ops; change the web/address family |
 
-Every one of these has been found hand-written in this repo where the plain C operator produces byte-identical output.
+### Argument reassignment
 
-### CSE of address high halves
+Do not reassign an argument when the target keeps it in its incoming hard
+register. A statement such as `arg0 <<= 1` forces an entry copy and reshapes
+the scheduler ready list and allocator suggestion table. Compute the derived
+value in a fresh temporary or inline at the first consumer:
 
-The compiler has aggressive common subexpression elimination. When two globals share the same `lui` high half, the compiler merges them into one `lui`. The original binary may have two independent `lui` instructions. This is a known limitation — scheduling barriers do NOT prevent CSE.
+```c
+p16 = (s16 *)((char *)&D_HALFWORD_BASE + (arg0 << 1));
+```
 
-### Declare locals at the top of the block (C89)
+An inline repeated expression may be CSE'd into one value born at the first
+consumer. Hoisting it to a standalone statement births it earlier. Match the
+birth site shown by the target.
+
+### Allocation before scheduling
+
+If an instruction moves only in post-allocation scheduling, first ask whether
+the candidate has the wrong register web. Target hard-register read/write
+hazards can pin an order that the candidate's allocation leaves independent.
+Fixing allocation can fix scheduling without any source-order workaround.
+
+### Operand and field order
+
+Old GCC expansion follows expression-tree and statement structure closely
+enough that source order is a useful first lever:
+
+```c
+result = a + b;  /* tends to load/expand a before b */
+result = b + a;  /* tests the reverse birth order */
+```
+
+Likewise, read struct fields in the order the target loads them. If source
+swaps have no effect, stop and attribute the canonicalizing pass rather than
+continuing permutations.
+
+## 6. Scheduling barriers are a governed last resort
+
+First exhaust statement order, operand order, natural expression structure,
+expression birth sites, and allocation diagnosis. For a proven order-only
+mismatch of independent instructions, project policy may permit a
+zero-instruction barrier:
+
+```c
+__asm__ volatile("" : "=r"(value) : "0"(value));
+```
+
+It emits no target instruction but creates a dependency. Every barrier must
+carry a comment stating the exact target-versus-compiler order it fixes and is
+tracked debt.
+
+For two absolute pointer loads where GCC interleaves `lui` pairs but the target
+completes one `lui/lw` pair before starting the next:
+
+```c
+a = GLOBAL_A[0];
+__asm__ volatile("" : "=r"(a) : "0"(a)); /* Complete A before loading B. */
+b = GLOBAL_B[0];
+```
+
+For a prologue memory store stolen into a branch delay slot, a narrower memory
+barrier may be appropriate after the mismatch has been proven:
+
+```c
+__asm__ volatile("" ::: "memory");
+```
+
+A barrier does not prevent CSE and is never a substitute for fixing types,
+allocation, or an address web.
+
+## 7. Declarations, globals, and C89
+
+### Generated globals
+
+`common.h` includes `globals.h`, which declares generated `D_XXXXXXXX`
+symbols. Do not redeclare them in `.c` files. If a global needs a struct or
+aggregate type, put the override in `include/globals_override.h`.
+
+Use `&D_XXXXXXXX` to obtain a generated global's address. Never use the
+underscore-prefixed implementation symbol `_D_XXXXXXXX`.
+
+Some linker or hand-named symbols may genuinely be absent from `globals.h`.
+Check generated headers before adding an extern. If one is needed, make its
+type and aggregate size agree with the target access and addressing mode.
+
+### Small-data addressing
+
+The active `-G` threshold is in `configs/project-profile.md`.
+
+- declarations at or below the threshold generally use one `%gp_rel` access;
+- larger declarations generally use an absolute `lui` plus `%lo` access.
+
+If the candidate emits `%gp_rel` but the target uses `lui`/`lw`, the declared
+object is probably too small. The original may have declared an array or
+aggregate even if only element zero is accessed. Do not hardcode an assumed
+threshold; use the generated profile.
+
+### Shared types
+
+- parameter/local structs shared across files: `include/game_types.h`
+- global struct/aggregate overrides: `include/globals_override.h`
+- one-file local types: the source file, if project policy permits
+
+Use padding fields for unknown gaps and fields only where access widths prove
+them. Do not cast a `void *` at every access when the parameter's struct type
+is known.
+
+### C89 form
+
+Declare locals at the top of each block and use `/* */` comments:
 
 ```c
 void func(void) {
     s32 i;
     s32 *ptr;
-    /* statements after ALL declarations */
-    ptr = &D_8005E4C8;
-    for (i = 0; i < 10; i++) { ... }
+
+    ptr = &D_SCALAR_BASE;
+    for (i = 0; i < 10; i++) {
+        /* ... */
+    }
 }
 ```
 
-## Common patterns
+## 8. Control flow and native compiler idioms
 
-### Boolean return from global
+### Switches
 
-```c
-/* "return nonzero" pattern — sltu $v0, $zero, $v0 */
-return D_80061F1C != 0;
-```
+Use a `switch` when the target has jump-table dispatch. The compiler supports
+it. Case body order matters because bodies are emitted in source order; reorder
+case clauses to match binary layout rather than replacing the switch with an
+if/else chain.
 
-### Array setter/getter
+### Native operators, not forged instructions
 
-```c
-/* setter: sll + addiu gp_rel + addu + sw */
-void set(s32 index, s32 value) {
-    (&D_8005E4C8)[index] = value;
-}
+The compiler naturally emits these patterns:
 
-/* getter: sll + addiu gp_rel + addu + lw */
-s32 get(s32 index) {
-    return (&D_8005E4C8)[index];
-}
-```
+| Target pattern | C source |
+|---|---|
+| `sll x,16; sra x,16` | `(s16)x` |
+| `sll x,24; sra x,24` | `(s8)x` |
+| `div`, zero check, `break 7`, `mflo` | signed `/` |
+| same sequence with `mfhi` | signed `%` |
+| magic constant, `multu`, `mfhi`, shifts | unsigned division/modulo by a constant |
+| `addiu x,x,1` | `x + 1` or `x++` |
+| generated labels | ordinary C control flow or `goto` labels |
 
-### Void return with single store
+Do not write assembly for operations the compiler emits itself. `M2C_BREAK`
+or `BREAK` macros already supplied by project headers may remain when they are
+part of raw m2c output, but ordinary division should normally be expressed as
+`/` or `%` and allowed to generate its own checks.
 
-```c
-/* lui + sw: absolute-addressed store */
-void func(void) {
-    D_80061F08 = 0;
-}
-```
-
-### Casting for signedness
+### Common concise forms
 
 ```c
-/* slt = signed comparison */
-if (a < b) { ... }
-
-/* sltu = unsigned comparison */
-if ((u32)a < (u32)b) { ... }
+return D_FLAG != 0;                     /* sltu zero,value Boolean */
+(&D_SCALAR_BASE)[index] = value;         /* indexed setter */
+return (&D_SCALAR_BASE)[index];          /* indexed getter */
+if ((u32)a < (u32)b) { /* sltu */ }
+if (a < b) { /* slt */ }
 ```
+
+### CSE of address high halves
+
+The compiler may merge identical `lui` high halves for nearby globals. A
+scheduling barrier does not prevent this. Before calling it an assembler or
+compiler limitation, verify the declarations, source web, compiler assembly,
+relocations, and both assembler boundaries.
+
+## 9. Cleaning raw m2c and legacy hacks
+
+### Raw m2c first pass
+
+Replace unknown types from load/store width, recover parameter/local structs
+from fixed offsets, and check generated function/SDK declarations before
+inventing prototypes. Convert `D_XXXXXXXX.unkN`-style guesses into a proven
+aggregate override, array access, or temporary pointer view; do not apply a
+field to a scalar generated global.
+
+Variable names do not affect code generation. Rename `temp_v0`, `phi_a0`, and
+similar names after the source structure is understood.
+
+### Strip legacy workarounds before trusting them
+
+When repairing a previously matched file containing pins, barriers, forged asm,
+or unusual flag assumptions:
+
+1. remove the workaround while preserving the surrounding C;
+2. run the exact function diff;
+3. if it still matches, the workaround was residue;
+4. otherwise classify and trace the clean mismatch;
+5. if clean C cannot be restored in the current task, restore the known-good
+   source rather than leaving a broken file, and report the signature.
+
+Comments saying a pin is “required” are not evidence. Many such comments in
+this project were disproven by natural C under the verified compiler.
+
+Top-level assembly is legitimate only for functions independently classified
+as handwritten assembly, including established GTE/cop2 routines and the
+known pure-assembly function. A tail call, difficult allocation, or stubborn
+diff does not establish handwritten origin.
+
+## 10. Escape hatch and targeted research
+
+When several traced, mechanism-directed source edits fail, stop permuting and
+locate the active compiler's exact source in the project. Relevant passes often
+include CSE, combine, arithmetic expansion, address legalization, local/global
+allocation, and scheduling. This is observability only; never patch the
+compiler to make reconstructed source match.
+
+Load historical research by signature, not as a wildcard. Inspect titles and
+opening summaries first, then select only the case study matching the current
+problem family: allocation/scheduling dependencies, persistent operand webs,
+semantic arithmetic decoding, address legalization, canonicalization, or a
+compiler/assembler boundary.
+
+An assembler-emulation gap is proven only by assembling identical compiler
+output through the reference and replacement assemblers and comparing objects.
+Failure to find a C shape is not proof of an assembler bug.
+
+## Final checklist
+
+Before accepting a function:
+
+1. semantics, constants, signedness, and addresses are decoded;
+2. the source uses natural arrays, structs, operators, and expressions;
+3. every nontrivial edit followed a classified diff or compiler trace;
+4. no forbidden workaround, generated-global redeclaration, `_D_` symbol, or
+   C99 construct was introduced;
+5. the exact function diff is 100%; and
+6. context export, the full binary check, modification-scope check, and
+   clean-source gate pass.

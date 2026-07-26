@@ -106,8 +106,8 @@ configs/
   symbol_addrs.txt      Hand-maintained function/data symbols
   flag_overrides.mk     Per-file cc1 flag overrides
   project-info.json     Human-supplied facts (game title, evidence note)
-  project-profile.md    Auto-generated toolchain profile (genProjectProfile.ts),
-                        injected into agent prompts — do not edit manually
+  project-profile.md    Auto-generated target/toolchain facts (genProjectProfile.ts),
+                        read by active skills — do not edit manually
 lib/                    PSY-Q 4.7 static libs (libgpu.a, libgte.a, ...) used for
                         signature detection and dead-code classification
 tools/                  TypeScript tooling (npx tsx) — see notes/tools-directory-structure.md
@@ -118,7 +118,7 @@ tools/                  TypeScript tooling (npx tsx) — see notes/tools-directo
   vendor/               vendored repos (old-gcc, maspsx, m2c, splat_ext, SDK data, reference)
 .pi/                    Project-local Pi extension commands and reusable PSX skills
 notes/                  Research/writeups — the project's institutional memory
-prompts/                Detailed decompilation policy and style references
+prompts/                Mandatory matching guide plus archived standalone templates
 build/                  All generated artifacts (gitignored): asm/, callGraph.json,
                         pipeline audit trails, map files, sha256 sums
 extracted/iso/          Original game files (gitignored)
@@ -158,9 +158,9 @@ and byte-identity gate. Command output is bounded before it enters model context
 
 Start `pi` from the repository root and use a slash command. Run `/reload` after
 editing `.pi` resources in an existing session. Interactive workflows never
-commit or merge automatically, and they derive game/toolchain details from
-`AGENTS.md`, `configs/project-profile.md`, and the current project rather than
-baking in one game's values.
+commit or merge automatically. Reusable guides derive concrete target and
+toolchain facts from `configs/project-profile.md` and active configuration
+rather than baking one project's values into workflow instructions.
 
 ### Autonomous project loop
 
