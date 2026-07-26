@@ -18,12 +18,12 @@ asm for idioms GCC generates natively) were distilled into
 `prompts/c-style-guide.md` ("Legacy hacks: strip first, decode the idiom") in
 the same session and are not repeated here.
 
-Sweep scoreboard: 15 stripped clean, 3 parked with candidates
+Sweep scoreboard: 15 stripped clean, 3 originally parked with candidates
 (`notes/scratch/func_8001B4E4-candidate.c`, `func_8001E7DC-candidate.c`,
-`func_8001AF44-candidate.c`) — **of which func_8001B4E4 was since solved
-in clean C (2026-07-25, case C4 update)** — 2 kept with ablation-proven
-load-bearing
-workarounds but unresolved root cause (SetGfxClip, SetGfxOffset), 1 excluded
+`func_8001AF44-candidate.c`) — **func_8001B4E4 was solved in clean C on
+2026-07-25 (case C4), and func_8001E7DC on 2026-07-26 (case C5)** — 2 kept
+with ablation-proven load-bearing workarounds but unresolved root cause
+(SetGfxClip, SetGfxOffset), 1 excluded
 (`func_80021820`, known broken — needs full re-decomp, not a sweep candidate).
 
 ---
@@ -308,7 +308,7 @@ traced the exact mechanisms. The picture changed substantially:
    form `(&D_8005E4C8)[arg0]` and the pointer-arithmetic form emit the
    scaled value as the first `addu` operand, matching the target.
 
-### Case C5 — func_8001E7DC: allocation preference determines whole-function shape (PARKED)
+### Case C5 — func_8001E7DC: natural expressions dissolve a global-allocation deadlock (SOLVED 2026-07-26)
 
 **The hack** (commit `da22173`): pins `a2`/`a0`, four barriers, two
 label-forging asm lines, comment: "compiler uses t0 for arg0 copy, target
@@ -336,6 +336,60 @@ on the *same* symbol. That is a link-level artifact: diffFunc compares
 against a fully-linked binary, and an unmatched function shifts `_gp`
 -relative offsets of unrelated code. gp-offset diffs in diffFunc output are
 not source bugs — chase them last, if at all.
+
+**Update (2026-07-25, deep allocator investigation)** — C5 half-solved:
+walking `arg0` *directly* (no copy variable) fixes the CSE cascade entirely
+— `make_regs_eqv` merging the copy pseudo with arg0's quantity was what made
+every `a2++` constant-foldable into indexed addressing. With the walk on
+arg0's own pseudo (self-referential sets are unrecordable), instruction
+selection/scheduling/delay slots match the target exactly; the only
+remaining diff is a 3-role register swap ($a0↔$a2 for walk/load-temp).
+That residual is a *global-alloc priority deadlock*: refs and
+REG_LIVE_LENGTH are invariant under statement order (flow computes them
+pre-sched, but the ranges are pinned by the identical final schedule), so
+the walk (8 refs/26) and the load temp (6 refs/13) tie at exactly 9230
+(24/26 == 12/13), the tie-break (allocno number == pseudo creation order)
+always favors arg0's pseudo, and its entry-copy $4-preference always fires.
+The target needs the load temp allocated first (it then takes $4 as first
+free reg, and the winner-update neutralizes the walk's $4-pref → $6).
+All three structural families provably fail: FORWARD (tie always lost),
+REVERSE (load temp = arg0, walk = copy — combine folds the copy chain since
+arg0's entry value dies at the copy, transferring the $4 copy-pref to the
+walk, which then outranks and takes $4 itself), COPY+TEMP (cse cascade).
+Full historical analysis + best candidate from that stage:
+`notes/scratch/func_8001E7DC-candidate.c`.
+
+**Resolution (2026-07-26):** the persistent right-hand-side load temporary was
+the false constraint. It came from translating each target instruction into a
+separate C statement:
+
+```c
+a0_val = arg1[0];
+arg1++;
+v1 = arg0[0];
+v1 -= a0_val;
+arg0++;
+```
+
+Writing the operation as the natural source expression instead:
+
+```c
+delta = *arg0++ - *arg1++;
+```
+
+creates fresh, single-set operand pseudos for each component. They go through
+local allocation, while the recurring `delta` web receives `$v1` and the walk
+pointer receives `$a2`. GCC naturally emits the target's right-hand-side load
+in `$a0`, preserves `move a2,a0`, and places the pointer increments and delay
+slots correctly. The third component uses `delta = *arg0 - *arg1;`.
+
+This clean source produces **39/39 instructions, 100%, with `make check`
+byte-identical** and no pins, barriers, or assembly. The final trace has 19
+pseudos versus the assembly-shaped candidate's 14: more fresh RTL temporaries
+produced a simpler final allocation than one reused, multi-death user web.
+
+The full tactics record, including the resolved frontier, is
+`notes/research/func_8001E7DC-allocator-preference-battle.md`.
 
 ### Case C6 — func_8001AF44: commutative operand canonicalization in address arithmetic (PARKED)
 
@@ -369,9 +423,9 @@ operand-order preferences).
 | Fresh temp vs. input-reuse for commutative results | One `mult`/ALU op with swapped operands | C1 (solved); C6 (failed) | Medium — works for ALU ops, not address arithmetic |
 | Statement reorder (birth order → allocation priority) | Wrong registers, no wrong instructions | C2 (solved) | Medium |
 | Expression birth site (fuse into consumer) | One instruction scheduled to wrong slot | C3 (solved) | Medium |
-| Variable reuse → WAR/WAW scheduler pin | Target keeps RTL order; our scheduler hoists | C4 (order solved, allocation not) | High for scheduling; mechanism proven |
+| Keep an argument unassigned and fuse repeated expressions into their consuming addresses | Coupled scheduling/allocation cascade breaks when an argument copy or standalone expression is introduced | C4 (solved) | Medium |
 | `::: "memory"` barrier for prologue-store/delay-slot placement | `sw ra` stolen into branch delay slot | C2 (solved) | High for this narrow class |
-| Allocation preference shaping (C5) | Whole-function shape from one reg choice | unsolved | — |
+| Fuse a natural expression to replace a multi-death user temp with fresh local pseudos | Persistent temp and pointer fight over one hard-register preference | C5 (solved) | High for assembly-shaped reconstructions |
 | Address-arithmetic canonicalization (C6) | `addu` operand order in address chains | unsolved | — |
 
 ### What Bucket C says about the toolchain
@@ -404,9 +458,9 @@ explanations and directed source search, not a different code generator.
    binaries, not the GCC source tree, so exact quantity/allocno ordering means
    obtaining the source used by the build and/or instrumenting a matching
    diagnostic build, plus controlled experiments with minimal competing webs.
-   This is the single highest-value investigation here: it would convert
-   three parked functions and an unknown number of future ones from "thrash"
-   to "deterministic fix".
+   This remains a high-value investigation for future hard allocation cases,
+   even though C4 and C5 were ultimately solved by changing the reconstructed
+   RTL web structure rather than by directly controlling global allocation.
 
    *Partially answered (2026-07-25):* the exact 2.95.2 `local-alloc.c` and
    `sched.c` are now vendored in `notes/scratch/gcc-2.95.2-reference/`, and
@@ -415,14 +469,21 @@ explanations and directed source search, not a different code generator.
    the C4 update above. What remains unmodeled is *global*-alloc ordering
    (for genuinely multi-death webs) and a way to give `compilerTrace.ts`
    exact qty composition/suggestions instead of approximations.
-2. **Does C1's fresh-temp lever generalize?** It worked on `mult` and failed
-   on address `addu`. Needs 2–3 more instances before prompt inclusion.
-3. **C5 has no lever at all** — "make a load-result pseudo prefer `$a0`" may
-   require understanding the same priority model as question 1.
-4. The three parked candidates (`notes/scratch/`) are packaged starting
-   points for the diff classifier + `STRONGER_AGENT` escalation proposed in
-   the next-steps note — each has a classified diff signature recorded in its
-   header comment.
+2. **How broadly does the fresh-web lever generalize?** C1 solved a `mult`
+   operand-order mismatch with a fresh result temp, and C5 solved a larger
+   allocation deadlock by letting a fused expression create fresh operand
+   pseudos. It still failed on C6's address `addu`; distinguish ALU results,
+   expression operands, and legalized address arithmetic before turning this
+   into a universal rule.
+3. **C5 is resolved without a preference lever.** The matching source removes
+   the reusable load-result pseudo by fusing the subtraction and pointer
+   increments. The compiler's fresh operand pseudos allocate locally and
+   naturally reproduce `$a0`.
+4. Of the three candidates originally parked under `notes/scratch/`, C4 and
+   C5 are now solved. C5 is evidence that a thoroughly mapped allocator
+   frontier may still be the wrong problem: before escalating preference
+   manipulation, test whether a natural fused expression removes the
+   multi-death user web entirely. C6 (`func_8001AF44`) remains parked.
 
 ---
 
@@ -593,8 +654,8 @@ assembler emulation.
 | `func_80021FE4.c:5` | "register __asm__ required: compiles to different instructions without it" | **Wrong** — stripped clean |
 | `func_8001FE00.c:11` | "Division with zero-check - GCC doesn't generate this automatically" | **Wrong** — GCC emits it; stripped clean |
 | `func_800226B0.c:4` | "register hints required: target uses $v1 for loaded value, $a0 for result" | **Wrong** — stripped clean |
-| `func_8001B4E4.c:5` | "register __asm__ required: v0 must be used for both struct ptr and sll result" | **Half-right** — register reuse is real, but it's *variable* reuse in the original source (C4, parked) |
-| `func_8001E7DC.c:6` | "compiler uses t0 for arg0 copy, target uses a2; uses t1 for loaded temp, target uses a0" | **Half-right** — the shape is real; it's an allocation-preference consequence (C5, parked) |
+| `func_8001B4E4.c:5` | "register __asm__ required: v0 must be used for both struct ptr and sll result" | **Wrong source model** — keeping `arg0` unassigned and birthing `(arg0 << 1)` inside the first consuming address produces the target allocation and schedule (C4, solved) |
+| `func_8001E7DC.c:6` | "compiler uses t0 for arg0 copy, target uses a2; uses t1 for loaded temp, target uses a0" | **Wrong source model** — the target shape is real, but natural fused subtraction creates fresh local operand pseudos and matches without a reusable loaded temp (C5, solved) |
 | `func_8001AF44.c:4` | "compiler assigns v1 to index and v0 to ptr, target uses v0 for index and v1 for ptr" | **Wrong** mechanism — one commutative operand order away (C6, parked) |
 | `func_800244FC.c` | "Inline asm to force multu/mfhi pattern" | **Wrong** — `/14` and `%14` produce it natively (C2) |
 | `SetGfxClip.c`, `SetGfxOffset.c` | "Requires -fno-schedule-insns -fno-schedule-insns2 ... self-clobbering lui/lw pattern" | **Unresolved/load-bearing** — workaround proven necessary for current source and invocation; maspsx root cause not yet proven (D1) |
@@ -605,10 +666,10 @@ assembler emulation.
   func_80022AF0, func_800245C8, func_8001FCE4, func_80024578, func_800132B8,
   func_80019E50, func_8001FE00, func_80020174, func_800226B0, func_8001B4D0,
   func_800217B0, func_800244FC.
-- **Parked with classified candidates (3, one since solved)**:
+- **Originally parked with classified candidates (3, two since solved)**:
   ~~func_8001B4E4 (C4)~~ — solved 2026-07-25 in clean C, see C4 update;
-  func_8001E7DC (C5), func_8001AF44 (C6) remain parked — see
-  `notes/scratch/`.
+  ~~func_8001E7DC (C5)~~ — solved 2026-07-26 with fused post-increment
+  subtraction, see C5 update; func_8001AF44 (C6) remains parked.
 - **Unresolved/load-bearing, kept (2)**: SetGfxClip, SetGfxOffset (D1) + their
   flag overrides; ablation proves necessity for the current reconstruction,
   not a maspsx root cause.

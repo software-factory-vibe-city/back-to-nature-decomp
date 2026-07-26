@@ -485,6 +485,7 @@ export class AutodecompController {
           idleTimeoutMs: this.config.matching.idleTimeoutMinutes * 60_000,
           turnLimit: this.config.matching.turnLimit,
           signal: this.abortController.signal,
+          mirrorOutput: true,
           handoff: localAttempt === 0 && fn?.parkedReason
             ? `${fn.parkedReason}${fn.attempts.at(-2) && this.state.attempts[fn.attempts.at(-2)!]?.patchPath ? `; previous candidate patch: ${this.state.attempts[fn.attempts.at(-2)!].patchPath}` : ""}`
             : undefined,

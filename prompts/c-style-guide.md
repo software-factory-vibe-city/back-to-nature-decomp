@@ -74,6 +74,79 @@ If the assembly does something one way, write C that naturally produces that pat
 | `sll $a0, $a0, 2` before base addr | Index is first operand: `arr[index]` |
 | Base addr before `sll` | Pointer arithmetic: `*(base + offset)` |
 
+## Reconstruct expressions, not assembly-shaped temporaries
+
+A named temporary is not free in pre-SSA GCC. Reusing one local for several
+independent loads gives the compiler one multi-death pseudo, often forcing it
+through global allocation. Translating each assembly instruction into a C
+statement can therefore lock in the wrong register structure even when every
+statement is semantically correct.
+
+Before manipulating allocator preferences, write the complete operation a
+programmer would naturally write. For a component-wise pointer walk:
+
+```c
+/* BAD reconstruction — one reusable RHS pseudo dies in every check. */
+rhs = *q;
+q++;
+delta = *p;
+delta -= rhs;
+p++;
+
+/* GOOD natural expression — fresh operand pseudos for this component. */
+delta = *p++ - *q++;
+```
+
+The good form may create *more* RTL pseudos. That is often desirable: each load
+gets a fresh, single-set, short-lived pseudo eligible for local allocation,
+while only `delta` remains a recurring user web. In `func_8001E7DC`, this one
+change turned a 14-pseudo global-allocation deadlock into a 19-pseudo exact
+match: the pointer moved from incoming `$a0` to `$a2`, the RHS load naturally
+used the freed `$a0`, and the result stayed in `$v1`.
+
+### Signature: the reconstructed temp web is probably wrong
+
+Try a fused natural expression early when all of these are true:
+
+1. The computation and opcode sequence are already correct or nearly correct.
+2. The diff is a stable register-role swap, especially pointer versus loaded
+   operand.
+3. The target moves an argument out of its incoming `$a0`–`$a3` register and
+   immediately reuses that hard register for a load or short-lived result,
+   while the candidate keeps the argument there and omits the move.
+4. `compilerTrace.ts` shows a reused operand temporary with multiple deaths and
+   a `global/reload` assignment.
+5. Reordering statements changes priorities or scheduling but never gives the
+   temporary the target hard register.
+
+### Directed fix recipe
+
+1. Keep a named local only for a value that is semantically carried across
+   statements, such as the recurring `delta` or bound.
+2. Remove named locals used only to spell out one operation's operands.
+3. Fuse the load, arithmetic, and natural pointer update into the consuming
+   expression: `result = *p++ - *q++`, `sum += *p++`, or the analogous array or
+   struct expression.
+4. For a final non-walking operation, use the corresponding non-incrementing
+   form, such as `result = *p - *q`.
+5. Run `diffFunc.ts`. For a remaining allocation mismatch, run
+   `compilerTrace.ts` again and verify that the old multi-death user pseudo was
+   replaced by fresh local pseudos. Do not judge a candidate by having fewer
+   pseudos; judge the final instructions.
+
+This is related to, but distinct from, using a fresh *result* temporary for a
+commutative operand-order mismatch. The general rule is to vary the RTL web
+shape deliberately:
+
+- reused named operand → one longer or multi-death web;
+- fused expression operands → fresh short-lived compiler webs;
+- reused result variable → destination overlaps an input web;
+- fresh result variable → independent destination web.
+
+Preserve semantics and signedness. Fuse one natural operation at a time rather
+than building an artificial giant expression, and verify each change with the
+exact diff oracle.
+
 ## Instruction ordering
 
 Old GCC evaluates expressions roughly left-to-right and emits instructions following the expression tree structure. This means:

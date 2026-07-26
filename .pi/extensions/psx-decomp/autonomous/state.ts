@@ -65,7 +65,10 @@ export class StateStore {
   }
 
   event(type: string, data: Record<string, unknown> = {}): void {
-    appendFileSync(this.eventsPath, `${JSON.stringify({ time: new Date().toISOString(), type, ...data })}\n`);
+    const event = { source: "autodecomp-controller", time: new Date().toISOString(), type, ...data };
+    const line = JSON.stringify(event);
+    appendFileSync(this.eventsPath, `${line}\n`);
+    process.stdout.write(`${line}\n`);
   }
 }
 

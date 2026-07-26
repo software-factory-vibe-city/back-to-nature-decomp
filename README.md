@@ -197,6 +197,24 @@ worktrees. Accepted patches are applied transactionally to the main checkout
 and reverified, but are **never committed**. Failed patches remain in the
 runtime directory for diagnosis and cannot dirty the main checkout.
 
+Detached runs mirror the complete Pi worker JSON stream, worker stderr, and
+controller transition events into one append-only file. Follow it continuously
+(no polling command is required):
+
+```bash
+tail -F run_output/autodecomp/controller.log
+```
+
+For a terminal that can be detached and reattached, run the foreground
+controller inside `tmux`:
+
+```bash
+tmux new-session -s autodecomp 'npm run autodecomp -- start'
+tmux attach-session -t autodecomp
+```
+
+The foreground controller now mirrors every worker stream to that terminal.
+
 **Known failure mode (important):** a byte-only success gate rewards embedded
 assembly, register pinning, and flag overrides. The skills explicitly reject
 those outcomes and require a classified stuck report instead. Read

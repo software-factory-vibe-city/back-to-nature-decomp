@@ -87,6 +87,7 @@ Getting this wrong changes instruction count → impossible to match.
 4. **Cast for signedness.** `(u32)a < (u32)b` → `sltu`. `a < b` → `slt`.
 5. **Source order = instruction order.** Read fields in the order the assembly reads them.
 6. **Division:** just write `/` or `%` — the toolchain handles the `break` sequences. Signed/unsigned type errors cause `div` vs `divu` mismatches.
+7. **Reconstruct whole expressions, not one C statement per instruction.** A reused operand local can become one multi-death global pseudo. Prefer `delta = *p++ - *q++;` over separate load, increment, load, subtract, and increment statements when that is the natural computation.
 
 ## Diagnosing diffs
 
@@ -110,6 +111,60 @@ Specific signatures:
 - Extra/missing instructions → fix extern sizes or control flow
 - Two instructions swapped → first try operand/statement reordering. As a last resort, a scheduling barrier with a justification comment: `__asm__ volatile("" : "=r"(var) : "0"(var));`
 - `lw %gp_rel` but target has `lui`+`lw` → extern too small, needs > 8 bytes
+
+## First response to a persistent register-role swap
+
+Do this **before** spending time manipulating declaration order or allocator
+preferences when the target and candidate perform the same computation but
+consistently swap a walking pointer with a loaded temporary.
+
+Typical signature:
+
+```text
+target:    move a2,a0; lw a0,0(a1); ... lw v1,0(a2)
+candidate:             lw a2,0(a1); ... lw v1,0(a0)
+```
+
+The candidate usually contains an assembly-shaped reusable operand temp:
+
+```c
+/* Creates one multi-death user pseudo. */
+rhs = *q;
+q++;
+delta = *p;
+delta -= rhs;
+p++;
+```
+
+Replace it with the natural operation:
+
+```c
+/* Lets GCC create fresh local pseudos for this operation's operands. */
+delta = *p++ - *q++;
+```
+
+For a final component that does not advance the pointers, use:
+
+```c
+delta = *p - *q;
+```
+
+Then immediately run `diffFunc.ts`. If it does not match, run
+`compilerTrace.ts` and check whether:
+
+- the old loaded-value pseudo said `dies in N places` and `global/reload`;
+- the fused form replaced it with separate single-set `local` pseudos;
+- the recurring result remains one user web;
+- the pointer now moves out of its incoming argument register, allowing a
+  fresh load pseudo to reuse that register.
+
+**Do not reject the fused form because the trace has more pseudos.** Fresh,
+short-lived pseudos are easier to allocate than one reused multi-death pseudo.
+`func_8001E7DC` matched exactly only after its trace grew from 14 to 19 pseudos.
+The goal is the target instruction stream, not the smallest RTL graph.
+
+If this directed experiment fails, continue with the traced allocation
+playbook below. Do not return to random source permutations.
 
 ## Deep allocation/scheduling findings
 
@@ -161,7 +216,7 @@ Top-level assembly is legitimate only when the original function is classified a
 The compiler is proven byte-identical to the one that built the original binary (see project profile), so clean matching C exists for every function that was originally C under its original invocation. Escalate in order:
 
 1. **Classify** — run `explainDiff.ts`; record the category, first divergence, register/web mapping, and whether instruction count differs.
-2. **Clean C** — apply only the corresponding fix class: types/idioms, temporary web structure, expression birth site, statement order, or natural address form.
+2. **Clean C** — apply only the corresponding fix class: types/idioms, temporary web structure, expression birth site, statement order, or natural address form. For a persistent pointer/load-temp role swap, first replace assembly-shaped reusable operand locals with one natural fused expression as described above.
 3. **Trace the exact compiler** — for allocation/scheduling cases, run `compilerTrace.ts` and inspect `.rtl`, `.sched`, `.lreg`, `.greg`, and `.sched2`. State which pseudo or pass decision the next edit is intended to change.
 4. **Read the compiler source (escape hatch)** — if an allocation/scheduling mismatch survives several traced, mechanism-targeted edits, stop permuting and consult the vendored GCC 2.95.2 sources (`notes/scratch/gcc-2.95.2-reference/local-alloc.c`, `sched.c`) plus the mechanism table in the style guide ("Escape hatch") and the "Deep allocation/scheduling findings" section above. Identify the exact rule defeating the candidate, then design one source shape that satisfies it. This is diagnostics-only: never patch or instrument cc1.
 5. **Scheduling barrier** — only for an independently reordered instruction pair that resists source-order fixes: `__asm__ volatile("" : "=r"(var) : "0"(var));` with a comment stating the exact target-vs-compiler ordering it fixes.

@@ -16,6 +16,7 @@ interface WorkerOptions {
   turnLimit: number;
   signal?: AbortSignal;
   handoff?: string;
+  mirrorOutput?: boolean;
 }
 
 const EMPTY_USAGE: WorkerUsage = {
@@ -155,6 +156,7 @@ export async function runPiWorker(options: WorkerOptions): Promise<WorkerResult>
     child.stdout?.on("data", (chunk: Buffer) => {
       resetIdle();
       stdoutStream.write(chunk);
+      if (options.mirrorOutput) process.stdout.write(chunk);
       buffered += chunk.toString("utf8");
       let newline = buffered.indexOf("\n");
       while (newline >= 0) {
@@ -166,6 +168,7 @@ export async function runPiWorker(options: WorkerOptions): Promise<WorkerResult>
     child.stderr?.on("data", (chunk: Buffer) => {
       resetIdle();
       stderrStream.write(chunk);
+      if (options.mirrorOutput) process.stderr.write(chunk);
     });
 
     child.on("error", (error) => {
