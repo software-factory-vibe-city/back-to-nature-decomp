@@ -65,6 +65,11 @@ Inspect the final diff and ensure it complies with project policy.
 
 ## When stuck
 
+Do deep research:
+
+- Read `notes/decompilation-retro.md`
+- Read `notes/research/*.md`
+
 Stop instead of hacking. Leave the best clean-source candidate and report:
 
 - classifier category and first divergence
