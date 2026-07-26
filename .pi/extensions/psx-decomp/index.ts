@@ -7,6 +7,7 @@ import { registerDiffFunctionTool } from "./tools/diff-function.ts";
 import { registerExplainDiffTool } from "./tools/explain-diff.ts";
 import { registerExportContextTool } from "./tools/export-context.ts";
 import { registerFinalizeFunctionTool } from "./tools/finalize-function.ts";
+import { registerFuzzVariantsTool } from "./tools/fuzz-variants.ts";
 import { registerAutodecompCommands } from "./autonomous/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
 import { registerVerifyBuildTool } from "./tools/verify-build.ts";
@@ -119,6 +120,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerExplainDiffTool(pi);
   registerExportContextTool(pi);
   registerFinalizeFunctionTool(pi);
+  registerFuzzVariantsTool(pi);
   registerM2cTool(pi);
   registerVerifyBuildTool(pi);
 

@@ -57,6 +57,14 @@ struct struct_8006C838 {
 };
 extern struct struct_8006C838 D_8006C838[];
 
+/* View of D_8006C838 for bit-flag access: a flat array of u32 flag words
+ * starts at offset 0x38 (used by func_8001AF44 and its set/clear siblings).
+ * Index range comes from a 16-bit flag id: (0xFFFF >> 5) + 1 words. */
+struct struct_8006C838_flags {
+    char pad_000[0x38];     /* 0x00-0x37 */
+    u32 flags[0x800];       /* 0x38: one word per 32 flag ids */
+};
+
 /* D_80049050 - array used by func_80017A70
  * Array size of 5 ensures >8 byte declaration for absolute addressing (lui+addiu) */
 extern u16 D_80049050[5];

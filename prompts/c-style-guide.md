@@ -194,7 +194,7 @@ webs. Apply its categories as follows:
 | Category | First response |
 |---|---|
 | `register-allocation` | Change temporary birth, reuse, lifetime, declaration order, or statement order |
-| `operand-order` | Change fresh-result vs. input-reuse structure; use natural address forms for address `addu` |
+| `operand-order` | Change fresh-result vs. input-reuse structure; use natural address forms for address `addu`; if source swaps are no-ops, attribute the rewriting pass first (see below) |
 | `scheduling` | Reorder independent statements, fuse/split the expression birth site, or reproduce variable dependencies |
 | `instruction-selection` | Fix types, signedness, casts, idioms, control flow, or extern shape |
 | `relocation-or-immediate` | Check declarations and linked-layout/GP noise before changing C |
@@ -208,6 +208,29 @@ the GCC quantity priority from stock dump data; it is evidence, not an exact
 quantity trace. Compare traces from deliberately different source shapes and
 state which pseudo lifetime, conflict, or pass decision each edit is intended
 to change.
+
+### Attribute the rewriting pass before perturbing
+
+When a diff persists with no apparent source cause — the signature case is a
+commutative operand order that ignores source-level operand swaps — some
+compiler pass is canonicalizing the construct and discarding your input.
+Do not keep permuting source. Instead:
+
+1. Find the **first** dump in `build/compilerTrace/<func>/` where the
+   divergence appears (grep the instruction's RTL across `.rtl`, `.jump`,
+   `.cse`, `.combine`, `.regmove`, `.lreg`).
+2. Read that pass's canonicalization rule in the vendored GCC 2.95.2 sources
+   (`notes/scratch/gcc-2.95.2-reference/` — `cse.c`, `local-alloc.c`,
+   `sched.c`).
+3. Design the one source web shape the rule does not fire on.
+
+Worked example (func_8001AF44): a lone `addu v1,v1,v0` vs `addu v1,v0,v1`
+diff survived seven operand-order permutations. The dumps showed the swap
+appears between `.jump` and `.cse`; `cse.c`'s `fold_rtx` places a commutative
+operand whose register has a recorded constant-equivalent value second
+(~line 5585), and the address base's pseudo records its symbol `lo_sum`
+address as such a constant. Source operand order was irrelevant; the fix was
+to change the web shape the rule fires on (see the mechanism table below).
 
 If `explainDiff.ts` cannot find archived original assembly, fall back to
 `diffFunc.ts`; do not interpret a diagnostic setup failure as a source diff.
@@ -279,6 +302,7 @@ Mechanisms already extracted (full case study:
 | Fake lifetimes (±1 insn) with `-fschedule-insns2` | `block_alloc` tail | Quantities pseudo-conflict across one-instruction gaps; shifting a birth by one statement can change its register. |
 | Pre-alloc scheduler is a backward list scheduler; `potential_hazard` tie-break favors memory-unit insns | `sched.c` `schedule_select` | Independent stretches do NOT keep source order — they bubble. Only dependencies (data, anti, memory output) pin order. |
 | Store output deps require may-alias | alias analysis via cselib base values | Stores through provably-distinct symbol bases (`&A+x` vs `&B+y`) are freely reorderable. Sequential target stores with independent address chains imply an arg-death/RMW structure, not variable reuse. |
+| cse constant-second canonicalization for commutative ops | `fold_rtx` end rule in `cse.c` (~line 5585) plus per-register recorded constant equivalents (`qty_const`) | A commutative operand whose pseudo has a recorded constant-equivalent value — e.g. an address base set to a symbol's `lo_sum` — is moved to second position regardless of source operand order. For an address `addu`, defeat it by making the sum a fresh compiler web inside a natural address expression (struct-field or array indexing such as `f->words[idx]`), never a reassigned user variable (`p = (u32*)((char*)p + off)`). The reassigned-variable shape is exactly the one the rule fires on. |
 
 ## Declarations
 

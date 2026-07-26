@@ -39,11 +39,15 @@ Do not overwrite an existing clean-source attempt. In resume/fix mode, preserve 
 3. For allocation, scheduling, or mixed categories, call `psx_compiler_trace`.
 
    Tie each edit to a specific pseudo lifetime, assignment pass, conflict, or scheduler decision. Do not random-walk source permutations.
-4. Limit edits to files allowed by the current project's instructions. Put inferred shared types in the project's designated shared headers rather than inventing local declarations that conflict with generated headers.
-5. After each deliberate change, call `psx_diff_function`.
+   If a diff ignores source-level changes (classic signature: a commutative operand order identical under both source orders), find the first compiler dump in which the divergence appears (`build/compilerTrace/<target>/`) and read that pass's rule in the project's vendored compiler sources before editing again.
+4. When a stubborn operand-order, allocation, or scheduling mismatch leaves several plausible web shapes, test them side by side with `psx_fuzz_variants`.
 
-6. Re-run the classifier whenever the mismatch signature changes or the cause is unclear.
-7. At an exact match, call `psx_export_context` for the target, then call `psx_finalize_function`. The finalizer independently requires the exact function diff, full build, modification-scope check, and clean-source policy gate. If finalization fails, continue from its concrete failures rather than reporting success.
+   Write each structural hypothesis as a complete variant `.c` using the project's headers and pass them all in one call. Read the report comparatively — each variant's diff class and first divergence — to identify which shape family the compiler preserves. This is hypothesis testing, not match-% hill-climbing: promote a winner only after naming the compiler mechanism it exercises, confirm it in full mode (not `--cc1-only`), copy it over `src/<target>.c`, and re-verify with `psx_diff_function`.
+5. Limit edits to files allowed by the current project's instructions. Put inferred shared types in the project's designated shared headers rather than inventing local declarations that conflict with generated headers.
+6. After each deliberate change, call `psx_diff_function`.
+
+7. Re-run the classifier whenever the mismatch signature changes or the cause is unclear.
+8. At an exact match, call `psx_export_context` for the target, then call `psx_finalize_function`. The finalizer independently requires the exact function diff, full build, modification-scope check, and clean-source policy gate. If finalization fails, continue from its concrete failures rather than reporting success.
 
 ## Clean-source gate
 

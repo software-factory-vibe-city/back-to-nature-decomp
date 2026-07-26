@@ -20,8 +20,9 @@ the same session and are not repeated here.
 
 Sweep scoreboard: 15 stripped clean, 3 originally parked with candidates
 (`notes/scratch/func_8001B4E4-candidate.c`, `func_8001E7DC-candidate.c`,
-`func_8001AF44-candidate.c`) — **func_8001B4E4 was solved in clean C on
-2026-07-25 (case C4), and func_8001E7DC on 2026-07-26 (case C5)** — 2 kept
+`func_8001AF44-candidate.c`) — **all three since solved in clean C:
+func_8001B4E4 on 2026-07-25 (case C4), func_8001E7DC on 2026-07-26 (case C5),
+and func_8001AF44 on 2026-07-25 (case C6)** — 2 kept
 with ablation-proven load-bearing workarounds but unresolved root cause
 (SetGfxClip, SetGfxOffset), 1 excluded
 (`func_80021820`, known broken — needs full re-decomp, not a sweep candidate).
@@ -391,7 +392,7 @@ produced a simpler final allocation than one reused, multi-death user web.
 The full tactics record, including the resolved frontier, is
 `notes/research/func_8001E7DC-allocator-preference-battle.md`.
 
-### Case C6 — func_8001AF44: commutative operand canonicalization in address arithmetic (PARKED)
+### Case C6 — func_8001AF44: commutative operand canonicalization in address arithmetic (SOLVED 2026-07-25)
 
 **The hack** (commit `fb58365`): two pins plus a mid-function
 `__asm__("addu %0, %0, %1")` — asm wearing a C costume — comment: "compiler
@@ -405,16 +406,63 @@ commutative operand order —
 +addu	v1,v0,v1   (ours: offset first)
 ```
 
-Seven variants were tried: swapping source operands (canonicalized away —
-same finding as C1), base-first statement order, fresh temp for the sum,
-constant-fused base, pointer-index arithmetic (`temp_v1 += temp_v0`), and
-index-offset form (`[idx + 14]`). Each variant that fixed the operand order
-broke the schedule or allocation elsewhere, and vice versa — the two are
-coupled through pseudo numbering in a way not yet understood. Unlike C1, the
-fresh-temp lever did *not* resolve it, suggesting address-arithmetic
-canonicalization follows different rules than ALU-op canonicalization (the
-`addu` feeds a memory address, and MIPS address legitimation has its own
-operand-order preferences).
+Seven variants were tried in the original sweep: swapping source operands
+(canonicalized away — same finding as C1), base-first statement order, fresh
+temp for the sum, constant-fused base, pointer-index arithmetic
+(`temp_v1 += temp_v0`), and index-offset form (`[idx + 14]`). Each variant
+that fixed the operand order broke the schedule or allocation elsewhere.
+
+**Resolution (2026-07-25):** the diff class was misattributed. The pass dumps
+show the swap appears *between* `.jump` and `.cse` — not in allocation and
+not in MIPS address legitimation. Reading the vendored 2.95.2 `cse.c` pinned
+the exact rule: at the end of `fold_rtx`, a commutative operation whose first
+operand's register quantity has a recorded constant-equivalent value is
+canonicalized *constant-second* (`cse.c:5585` — "place a constant integer as
+the second operand ... Otherwise, place any constant second"). The address
+base's pseudo records its symbol `lo_sum` value as a quantity constant
+(`qty_const`), so cse rewrites `plus(base, offset)` to `plus(offset, base)`
+regardless of source operand order. That is why every operand-order
+perturbation was a no-op: cse discards the source's operand order entirely.
+
+The escape is the C1/C5 fresh-web lever applied one level earlier: make the
+addu's *destination* a fresh compiler web born inside a natural address
+expression, so the scaled-index `plus` stays inside the MEM address at expand
+time and the forced-out `addu` keeps expand's base-first order. A
+side-by-side variant harness (cc1-only compiles of seven shapes — now
+first-class tooling, `tools/agent/fuzzVariants.ts`, see below) identified the
+winning family immediately:
+
+```c
+struct struct_8006C838_flags *flags;   /* { char pad[0x38]; u32 flags[0x800]; } */
+u32 index;
+arg0 = arg0 & 0xFFFF;
+index = arg0 >> 5;                          /* srl born before the lui/addiu */
+flags = (struct struct_8006C838_flags *)&D_8006C838;
+return (flags->flags[index] >> (arg0 & 0x1F)) & 1;
+```
+
+→ **11/11, 100%, `make check` byte-identical, zero workarounds.** The
+struct-field access (`flags->flags[index]`, field at offset 0x38) is also the
+semantically honest reading: a flat u32 flag-word array at
+`D_8006C838 + 0x38`, one word per 32 flag ids. Statement order (index shift
+before base assignment) fixes the remaining `srl`-before-`lui` schedule. The
+old candidate's reassigned base variable
+(`temp_v1 = (u32 *)((char *)temp_v1 + temp_v0)`) was the poison: it made the
+addu's destination reuse the base web — exactly the shape cse's
+constant-second rule fires on.
+
+**Lever**: *when one commutative address `addu` has operands swapped vs.
+target and source-order swaps are canonicalized away, suspect cse's
+constant-second rule on the address base's recorded `lo_sum` constant;
+restructure so the sum is a fresh compiler web inside a natural address
+expression (struct-field or array indexing), not a reassigned user variable.*
+
+**Tooling fallout**: the ad-hoc variant-comparison harness that cracked this
+became `tools/agent/fuzzVariants.ts` (CLI) + the `psx_fuzz_variants`
+extension tool: side-by-side compile of complete variant shapes against the
+archived original, reporting each variant's diff class and first divergence.
+It is a hypothesis tester — the comparative divergence view is what exposed
+the cse rule — not a match-% hill-climber.
 
 ### Bucket C synthesis — the lever catalog (provisional)
 
@@ -426,7 +474,7 @@ operand-order preferences).
 | Keep an argument unassigned and fuse repeated expressions into their consuming addresses | Coupled scheduling/allocation cascade breaks when an argument copy or standalone expression is introduced | C4 (solved) | Medium |
 | `::: "memory"` barrier for prologue-store/delay-slot placement | `sw ra` stolen into branch delay slot | C2 (solved) | High for this narrow class |
 | Fuse a natural expression to replace a multi-death user temp with fresh local pseudos | Persistent temp and pointer fight over one hard-register preference | C5 (solved) | High for assembly-shaped reconstructions |
-| Address-arithmetic canonicalization (C6) | `addu` operand order in address chains | unsolved | — |
+| cse constant-second canonicalization: fresh-destination web inside a natural address expression (struct-field/array access), not a reassigned user variable | One commutative address `addu` with swapped operands; source-order swaps canonicalized away | C6 (solved) | High for address arithmetic where the base records a `lo_sum` quantity constant |
 
 ### What Bucket C says about the toolchain
 
@@ -462,28 +510,38 @@ explanations and directed source search, not a different code generator.
    even though C4 and C5 were ultimately solved by changing the reconstructed
    RTL web structure rather than by directly controlling global allocation.
 
-   *Partially answered (2026-07-25):* the exact 2.95.2 `local-alloc.c` and
-   `sched.c` are now vendored in `notes/scratch/gcc-2.95.2-reference/`, and
+   *Partially answered (2026-07-25):* the exact 2.95.2 `local-alloc.c`,
+   `sched.c`, and `cse.c` are now vendored in
+   `notes/scratch/gcc-2.95.2-reference/`, and
    the local-alloc eligibility rule (`REG_N_DEATHS == 1`), priority formula,
    tie/suggestion mechanics, and fake-lifetime extension are documented in
    the C4 update above. What remains unmodeled is *global*-alloc ordering
    (for genuinely multi-death webs) and a way to give `compilerTrace.ts`
    exact qty composition/suggestions instead of approximations.
 2. **How broadly does the fresh-web lever generalize?** C1 solved a `mult`
-   operand-order mismatch with a fresh result temp, and C5 solved a larger
+   operand-order mismatch with a fresh result temp, C5 solved a larger
    allocation deadlock by letting a fused expression create fresh operand
-   pseudos. It still failed on C6's address `addu`; distinguish ALU results,
-   expression operands, and legalized address arithmetic before turning this
-   into a universal rule.
+   pseudos, and C6 solved an address `addu` operand-order mismatch by making
+   the sum a fresh compiler web inside a struct-field address expression.
+   The lever has now held across ALU results, expression operands, and
+   address arithmetic — and C6 identified the underlying rule precisely
+   (cse constant-second canonicalization, `cse.c:5585`), which retroactively
+   explains C1 as well: commutative-order diffs are cse canonicalization
+   artifacts, and web structure is the controllable input.
 3. **C5 is resolved without a preference lever.** The matching source removes
    the reusable load-result pseudo by fusing the subtraction and pointer
    increments. The compiler's fresh operand pseudos allocate locally and
    naturally reproduce `$a0`.
-4. Of the three candidates originally parked under `notes/scratch/`, C4 and
-   C5 are now solved. C5 is evidence that a thoroughly mapped allocator
-   frontier may still be the wrong problem: before escalating preference
-   manipulation, test whether a natural fused expression removes the
-   multi-death user web entirely. C6 (`func_8001AF44`) remains parked.
+4. All three candidates originally parked under `notes/scratch/` are now
+   solved. C5 is evidence that a thoroughly mapped allocator frontier may
+   still be the wrong problem: before escalating preference manipulation,
+   test whether a natural fused expression removes the multi-death user web
+   entirely. C6 adds the complementary lesson for one-instruction
+   commutative-order diffs: check the pass dumps to find *which* pass
+   rewrites the operand order (`.jump` → `.cse` here) and read that pass's
+   canonicalization rules in the vendored sources before perturbing source —
+   side-by-side variant comparison (`tools/agent/fuzzVariants.ts`) is the
+   fast way to identify the surviving web-shape family.
 
 ---
 
@@ -656,7 +714,7 @@ assembler emulation.
 | `func_800226B0.c:4` | "register hints required: target uses $v1 for loaded value, $a0 for result" | **Wrong** — stripped clean |
 | `func_8001B4E4.c:5` | "register __asm__ required: v0 must be used for both struct ptr and sll result" | **Wrong source model** — keeping `arg0` unassigned and birthing `(arg0 << 1)` inside the first consuming address produces the target allocation and schedule (C4, solved) |
 | `func_8001E7DC.c:6` | "compiler uses t0 for arg0 copy, target uses a2; uses t1 for loaded temp, target uses a0" | **Wrong source model** — the target shape is real, but natural fused subtraction creates fresh local operand pseudos and matches without a reusable loaded temp (C5, solved) |
-| `func_8001AF44.c:4` | "compiler assigns v1 to index and v0 to ptr, target uses v0 for index and v1 for ptr" | **Wrong** mechanism — one commutative operand order away (C6, parked) |
+| `func_8001AF44.c:4` | "compiler assigns v1 to index and v0 to ptr, target uses v0 for index and v1 for ptr" | **Wrong** — cse constant-second canonicalization defeated by a fresh-destination struct-field address web (C6, solved) |
 | `func_800244FC.c` | "Inline asm to force multu/mfhi pattern" | **Wrong** — `/14` and `%14` produce it natively (C2) |
 | `SetGfxClip.c`, `SetGfxOffset.c` | "Requires -fno-schedule-insns -fno-schedule-insns2 ... self-clobbering lui/lw pattern" | **Unresolved/load-bearing** — workaround proven necessary for current source and invocation; maspsx root cause not yet proven (D1) |
 
@@ -666,10 +724,12 @@ assembler emulation.
   func_80022AF0, func_800245C8, func_8001FCE4, func_80024578, func_800132B8,
   func_80019E50, func_8001FE00, func_80020174, func_800226B0, func_8001B4D0,
   func_800217B0, func_800244FC.
-- **Originally parked with classified candidates (3, two since solved)**:
+- **Originally parked with classified candidates (3, all since solved)**:
   ~~func_8001B4E4 (C4)~~ — solved 2026-07-25 in clean C, see C4 update;
   ~~func_8001E7DC (C5)~~ — solved 2026-07-26 with fused post-increment
-  subtraction, see C5 update; func_8001AF44 (C6) remains parked.
+  subtraction, see C5 update; ~~func_8001AF44 (C6)~~ — solved 2026-07-25 with
+  a struct-field flag-array view defeating cse constant-second
+  canonicalization, see C6 update.
 - **Unresolved/load-bearing, kept (2)**: SetGfxClip, SetGfxOffset (D1) + their
   flag overrides; ablation proves necessity for the current reconstruction,
   not a maspsx root cause.
@@ -689,7 +749,8 @@ assembler emulation.
 - `prompts/c-style-guide.md` — "Legacy hacks: strip first, decode the idiom"
   (Buckets A and B, distilled).
 - `notes/scratch/func_8001B4E4-candidate.c`, `func_8001E7DC-candidate.c`,
-  `func_8001AF44-candidate.c` — parked candidates with diff signatures.
+  `func_8001AF44-candidate.c` — formerly parked candidates; each now records
+  its resolution and mechanism.
 - Hack-introduction commits: `9d010e1` (func_80024578), `1e997f8`
   (func_80020174, func_8001B4E4), `e338cf8` (func_800244FC), `da22173`
   (func_8001E7DC), `fb58365` (func_8001AF44), `78a125f` (SetGfxClip).

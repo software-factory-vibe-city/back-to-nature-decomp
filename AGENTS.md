@@ -54,14 +54,15 @@ hacks in older files date from the wrong-compiler era and are often unneeded now
   payload 321,536 bytes at file offset `0x800`, GP `0x8005E274`
 - Sections contiguous: `.rodata` → `.text` (0x80011270–0x80048190) → `.data` → `.sdata`
 - ~463 functions total: 257 live, 206 dead PSY-Q library code, 10 GTE, 1 pure-asm
-- Progress: 93/257 "decompiled" per `make progress` — but ~19 of those are raw
-  `__asm__` embeds. Real clean-C count ~74.
+- Progress: 93/257 "decompiled" per `make progress` — but 18 of those are raw
+  `__asm__` embeds. Real clean-C count ~75.
   See `notes/next-steps-for-revisiting-the-project.md` for the full inventory.
 - De-superstition sweep (2026-07): 15 of 18 register-pinned files stripped
-  clean; 3 parked with candidates in `notes/scratch/` (func_8001B4E4,
-  func_8001E7DC, func_8001AF44). SetGfxClip/SetGfxOffset pins + flag overrides
-  are a GENUINE maspsx-gap workaround (self-clobbering lui/lw macro
-  expansion) — do not strip; settle via the Wine differential first.
+  clean immediately; the 3 parked candidates (func_8001B4E4, func_8001E7DC,
+  func_8001AF44) were all since solved in clean C — mechanisms in
+  `notes/decompilation-retro.md` cases C4–C6. SetGfxClip/SetGfxOffset pins +
+  flag overrides are a GENUINE maspsx-gap workaround (self-clobbering lui/lw
+  macro expansion) — do not strip; settle via the Wine differential first.
 
 ## Commands
 
@@ -75,6 +76,7 @@ npx tsx tools/agent/explainDiff.ts <func>    # classify allocation/order/selecti
 npx tsx tools/agent/compilerTrace.ts <func>  # GCC RTL, pseudo allocation, and scheduler trace
 npx tsx tools/agent/m2cFunc.ts <func>        # m2c first-pass decompilation
 npx tsx tools/agent/callGraph.ts --top 20    # priority ranking
+npx tsx tools/agent/fuzzVariants.ts <func> <variants...>  # side-by-side shape-hypothesis testing
 ```
 
 ## Repo map
@@ -109,8 +111,12 @@ guide — read it before matching work). The short version: match diffs by
 
 Workflow per function: m2c first pass → run `explainDiff.ts` → apply the
 reported fix class → for allocation/scheduling/mixed cases, inspect
-`compilerTrace.ts` before perturbing source → use `diffFunc.ts` as the exact
-progress oracle until 100% → `make check` (catches relocation/linker issues).
+`compilerTrace.ts` before perturbing source → for stubborn operand-order/
+allocation/scheduling mismatches, test remaining web-shape hypotheses
+side-by-side with `fuzzVariants.ts` (hypothesis testing, not match-%
+hill-climbing — name the mechanism before promoting a winner) → use
+`diffFunc.ts` as the exact progress oracle until 100% → `make check`
+(catches relocation/linker issues).
 Re-run `explainDiff.ts` when the signature changes. `compilerTrace.ts`'s
 `priority~` is approximate; distinguish `.lreg` assignments from those that
 appear only post-local in `.greg`. Struct types inferred from access patterns
@@ -123,11 +129,12 @@ go in `game_types.h` (locals) or
 - `notes/next-steps-for-revisiting-the-project.md` — **current roadmap**: why
   agents fold to asm, inventory of compromised files, planned fixes
 - `notes/decompilation-retro.md` — 2026-07 sweep retro: mechanism catalog for
-  allocation/scheduling levers (Bucket C) and maspsx-gap analysis (Bucket D)
+  allocation/scheduling/canonicalization levers (Bucket C, all six cases now
+  solved) and maspsx-gap analysis (Bucket D)
 - `notes/research/func_8001B4E4-scheduler-allocator-resolution.md` — deep
-  case study: GCC 2.95.2 allocator/scheduler internals (vendored in
-  `notes/scratch/gcc-2.95.2-reference/`), reusable levers for
-  allocation/scheduling fights
+  case study: GCC 2.95.2 allocator/scheduler internals (`local-alloc.c`,
+  `sched.c`, `cse.c` vendored in `notes/scratch/gcc-2.95.2-reference/`),
+  reusable levers for allocation/scheduling fights
 - `notes/toolchain-version-detection.md` — the 2.95.2 proof
 - `notes/compiler-identification.md` — SDK/compiler identification method
 - `notes/bootstrapping.md` — how this project was built from scratch
