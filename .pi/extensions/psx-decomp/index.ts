@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerCallGraphTool } from "./tools/call-graph.ts";
@@ -84,14 +84,38 @@ function nextDecompilationTarget(root: string): string | undefined {
   return graph?.functions.find((entry) => !entry.decompiled && entry.handwritten === false && !entry.dead)?.name;
 }
 
+/* The decompiled flags are derived from src/*.c at graph-generation time, so
+ * the cached graph goes stale as soon as any function source is written. */
+function callGraphStale(root: string): boolean {
+  const graphPath = join(root, "build", "callGraph.json");
+  let graphMtimeMs: number;
+  try {
+    graphMtimeMs = statSync(graphPath).mtimeMs;
+  } catch {
+    return true;
+  }
+
+  const srcDir = join(root, "src");
+  try {
+    for (const file of readdirSync(srcDir)) {
+      if (!file.endsWith(".c")) continue;
+      if (statSync(join(srcDir, file)).mtimeMs > graphMtimeMs) return true;
+    }
+  } catch {
+    return true;
+  }
+  return false;
+}
+
 async function ensureCallGraph(
   pi: ExtensionAPI,
   ctx: { ui: { notify(message: string, level: "info" | "warning" | "error"): void } },
   root: string,
+  options: { refresh?: boolean } = {},
 ): Promise<boolean> {
-  if (loadCallGraph(root)) return true;
+  if (loadCallGraph(root) && !(options.refresh && callGraphStale(root))) return true;
 
-  ctx.ui.notify("build/callGraph.json is missing or invalid; rebuilding it...", "info");
+  ctx.ui.notify("build/callGraph.json is missing or stale; rebuilding it...", "info");
   try {
     await runProjectCommand(pi, root, "npx", ["tsx", "tools/agent/callGraph.ts"], undefined, 120_000);
   } catch (error) {
@@ -173,9 +197,9 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     },
     handler: async (args, ctx) => {
       const explicit = args.trim().length > 0;
-      let name = explicit ? parseFunctionArg(args) : nextDecompilationTarget(root);
+      let name = explicit ? parseFunctionArg(args) : undefined;
 
-      if (!name && !explicit && (await ensureCallGraph(pi, ctx, root))) {
+      if (!explicit && (await ensureCallGraph(pi, ctx, root, { refresh: true }))) {
         name = nextDecompilationTarget(root);
       }
 
@@ -233,9 +257,9 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     },
     handler: async (args, ctx) => {
       const explicit = args.trim().length > 0;
-      let name = explicit ? parseFunctionArg(args) : nextRefinementTarget(root);
+      let name = explicit ? parseFunctionArg(args) : undefined;
 
-      if (!name && !explicit && (await ensureCallGraph(pi, ctx, root))) {
+      if (!explicit && (await ensureCallGraph(pi, ctx, root, { refresh: true }))) {
         name = nextRefinementTarget(root);
       }
 
@@ -274,7 +298,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     description: "Show the current call-graph decompilation worklist summary",
     handler: async (_args, ctx) => {
       let graph = loadCallGraph(root);
-      if (!graph && (await ensureCallGraph(pi, ctx, root))) {
+      if ((!graph || callGraphStale(root)) && (await ensureCallGraph(pi, ctx, root, { refresh: true }))) {
         graph = loadCallGraph(root);
       }
       if (!graph) {
