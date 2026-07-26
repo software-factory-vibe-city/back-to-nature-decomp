@@ -309,7 +309,7 @@ segments:
       - [0xC8D4, c, func_8001C0D4]       # 0x8001C0D4 func_8001C0D4
       - [0xC9C0, c, func_8001C1C0]       # 0x8001C1C0 func_8001C1C0
       - [0xCB7C, c, func_8001C37C]       # 0x8001C37C func_8001C37C
-      - [0xDA1C, c, func_8001D21C]       # 0x8001D21C func_8001D21C
+      - [0xDA1C, c, HasTriangleVertexXInBounds]       # 0x8001D21C HasTriangleVertexXInBounds
       - [0xDAD8, c, func_8001D2D8]       # 0x8001D2D8 func_8001D2D8
       - [0xDB48, c, func_8001D348]       # 0x8001D348 func_8001D348
       - [0xDE48, c, func_8001D648]       # 0x8001D648 func_8001D648

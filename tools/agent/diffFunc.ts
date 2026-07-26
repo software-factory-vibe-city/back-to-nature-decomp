@@ -73,9 +73,31 @@ function objdump(obj: string): string {
   return run(`${OBJDUMP} -d --no-show-raw-insn ${obj}`);
 }
 
-/** Extract instruction lines from objdump output */
+/**
+ * Extract comparable instruction lines from objdump output.
+ *
+ * Objdump renders resolved local branch targets using whichever symbols happen
+ * to exist in the object, e.g. `_8001D284` in an assembled target versus
+ * `FunctionName+0x68` in compiler output. The numeric target already captures
+ * the encoded branch offset, so discard only that cosmetic annotation for
+ * PC-relative branches. Keep annotations on jumps and calls, where the symbol
+ * can identify a meaningful relocation target.
+ */
 function instrLines(dump: string): string[] {
-  return dump.split("\n").filter((l) => /^\s+[0-9a-f]+:\s/.test(l));
+  const localBranchMnemonics = new Set([
+    "b", "beq", "beql", "beqz", "beqzl", "bgez", "bgezl", "bgtz", "bgtzl",
+    "blez", "blezl", "bltz", "bltzl", "bne", "bnel", "bnez", "bnezl",
+  ]);
+
+  return dump.split("\n")
+    .filter((line) => /^\s+[0-9a-f]+:\s/.test(line))
+    .map((line) => {
+      const trimmed = line.trim();
+      const mnemonic = trimmed.match(/^[0-9a-f]+:\s+([^\s]+)/)?.[1].toLowerCase();
+      return mnemonic && localBranchMnemonics.has(mnemonic)
+        ? trimmed.replace(/\s+<[^>]+>$/, "")
+        : trimmed;
+    });
 }
 
 function doDiff(src: string, target: string | null, funcName?: string): void {
@@ -93,11 +115,13 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
     const compiled = compile(src);
     const left = objdump(target!);
     const right = objdump(compiled);
+    const targetInstrs = instrLines(left);
+    const compiledInstrs = instrLines(right);
 
     const ltmp = "/tmp/diffFunc-target.txt";
     const rtmp = "/tmp/diffFunc-compiled.txt";
-    writeFileSync(ltmp, left);
-    writeFileSync(rtmp, right);
+    writeFileSync(ltmp, targetInstrs.join("\n") + "\n");
+    writeFileSync(rtmp, compiledInstrs.join("\n") + "\n");
 
     const diffFlags = columnsMode ? "-y -W 120" : "-u";
     try {
@@ -110,8 +134,6 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
       if (e.stdout) process.stdout.write(e.stdout);
     }
 
-    const targetInstrs = instrLines(left);
-    const compiledInstrs = instrLines(right);
     const total = Math.max(targetInstrs.length, compiledInstrs.length);
     let matches = 0;
     for (let i = 0; i < total; i++) {
