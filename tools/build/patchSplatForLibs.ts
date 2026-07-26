@@ -27,6 +27,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { Buffer } from "buffer";
 import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import {
+  buildSegmentSpans,
+  isStrictlyInsideSegmentSpan,
+} from "../lib/textSegmentSpans.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
@@ -613,6 +617,13 @@ function main() {
     }
   }
 
+  // Consecutive c/o starts bound existing segment coverage. Keep type:func
+  // symbols inside those spans for labels, but do not resurrect them as c
+  // segments (notably compiler-emitted switch case bodies).
+  const existingSegmentSpans = buildSegmentSpans(existingSegRoms);
+  const isCoveredByExistingSegment = (rom: number): boolean =>
+    isStrictlyInsideSegmentSpan(rom, existingSegmentSpans);
+
   // Build merged o coverage: merge overlapping/adjacent ranges
   const rawORanges: { start: number; end: number }[] = [];
   for (const s of libSections) {
@@ -681,6 +692,7 @@ function main() {
   for (const sym of allTypeFuncSymbols) {
     const rom = vramToRom(sym.vram);
     if (existingSegRoms.has(rom)) continue;
+    if (isCoveredByExistingSegment(rom)) continue;
     const inO = mergedORanges.some((r) => rom >= r.start && rom < r.end);
     if (inO) continue;
     gapFuncEntries.push({ rom, name: sym.name });
@@ -696,6 +708,7 @@ function main() {
     const funcRoms = scanFuncBoundaries(binaryData, gap.start, gap.end);
     for (const fRom of funcRoms) {
       if (existingSegRoms.has(fRom)) continue;
+      if (isCoveredByExistingSegment(fRom)) continue;
       if (gapFuncEntries.some((e) => e.rom === fRom)) continue;
 
       const vram = fRom - PAYLOAD_OFFSET + LOAD_ADDR;
