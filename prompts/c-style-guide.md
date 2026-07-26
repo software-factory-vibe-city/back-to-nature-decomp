@@ -73,6 +73,22 @@ If the assembly does something one way, write C that naturally produces that pat
 | `lw` + field offset | Struct field: `ptr->field` |
 | `sll $a0, $a0, 2` before base addr | Index is first operand: `arr[index]` |
 | Base addr before `sll` | Pointer arithmetic: `*(base + offset)` |
+| `li C&~0x7fff` + `addu` + load at `C&0x7fff` | Big offset on the dereference only: `p = base + i*SZ;` then `*(T*)(p + C)` (MIPS `LEGITIMIZE_ADDRESS` splits only at a bare-REG address) |
+
+### Decode the target's arithmetic before writing C
+
+A misread constant or index makes a function unmatchable in *any* shape —
+every variant dies at the same early instruction while you fuzz structure.
+Compute these by hand before the first variant:
+
+| Assembly | Correct reading | Trap |
+|---|---|---|
+| `sll r,x,16` … `sra r,r,16-k` around an array access | `sext16(x) * 2^k` — sign-extension fused with element scaling by combine.c; the index is just `(s16)x` | reading it as `sext16(x) >> k` |
+| `sll`/`subu`/`addu` chain feeding an address | strength-reduced multiply — fold every step to a fixed point | stopping early: `8v-v, <<2` is ×28 *so far*, but may run on to ×468 |
+| `ori r,zero,IMM; sltu` | unsigned compare against constant `IMM+1` | `sltiu` sign-extends its immediate, so constants ≥ 0x8000 always use this form; do not transcribe IMM literally |
+
+If several structurally different variants cannot move the first divergence,
+stop fuzzing shapes and re-decode the assembly arithmetic.
 
 ## Reconstruct expressions, not assembly-shaped temporaries
 
@@ -220,8 +236,8 @@ Do not keep permuting source. Instead:
    divergence appears (grep the instruction's RTL across `.rtl`, `.jump`,
    `.cse`, `.combine`, `.regmove`, `.lreg`).
 2. Read that pass's canonicalization rule in the vendored GCC 2.95.2 sources
-   (`notes/scratch/gcc-2.95.2-reference/` — `cse.c`, `local-alloc.c`,
-   `sched.c`).
+   (`notes/scratch/gcc-2.95.2-reference/` — `cse.c`, `combine.c`, `expmed.c`,
+   `explow.c`, `local-alloc.c`, `sched.c`, `config-mips/mips.h`).
 3. Design the one source web shape the rule does not fire on.
 
 Worked example (func_8001AF44): a lone `addu v1,v1,v0` vs `addu v1,v0,v1`

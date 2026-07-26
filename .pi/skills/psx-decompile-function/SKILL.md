@@ -70,13 +70,4 @@ Do deep research:
 - Read `notes/decompilation-retro.md`
 - Read `notes/research/*.md`
 
-Stop instead of hacking. Leave the best clean-source candidate and report:
-
-- classifier category and first divergence
-- instruction-count difference, if any
-- register/web mapping or scheduler mismatch
-- relevant compiler-trace pseudo/pass finding
-- exact remaining target-versus-compiled instructions
-- source shapes already tested
-
 Do not commit. The user decides how to preserve or isolate the result.

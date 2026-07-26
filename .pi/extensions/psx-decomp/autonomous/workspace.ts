@@ -8,7 +8,9 @@ import { runCommand } from "./process.ts";
 async function git(projectRoot: string, args: string[], cwd = projectRoot, env?: NodeJS.ProcessEnv, timeoutMs = 120_000) {
   const result = await runCommand("git", args, { cwd, env, timeoutMs });
   if (result.code !== 0) throw new Error(`git ${args.join(" ")} failed:\n${result.stderr || result.stdout}`);
-  return result.stdout.trim();
+  /* trimEnd only: a leading trim would eat the status column of the first
+     --porcelain line (" M path" -> "M path"), corrupting slice(3) parsing */
+  return result.stdout.trimEnd();
 }
 
 export async function headRevision(projectRoot: string): Promise<string> {
