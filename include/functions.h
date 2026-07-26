@@ -99,6 +99,7 @@ void func_8001B4D0(s32 arg0, s32 arg1);
 void func_8001B4E4(s32 arg0);
 void func_8001B9F8(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 void func_8001BA40(s32 arg0, s32 arg1, s32 arg2);
+s32 func_8001D21C(s32 arg0, s32 arg1, s32 arg2);
 s32 func_8001D2D8(s16 arg0, s16 arg1, s16 arg2, s16 arg3);
 s32 func_8001DCA8(void);
 void func_8001E158(void);
