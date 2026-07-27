@@ -142,6 +142,13 @@ export interface ConflictSummary {
   confidence: TraceConfidence;
 }
 
+export interface AllocationOrderEntry {
+  pseudo: number;
+  rank: number;
+  assignedHardReg?: number;
+  assignedRegister?: string;
+}
+
 export interface PseudoProvenance {
   pseudo: number;
   modes: string[];
@@ -256,6 +263,7 @@ export interface CompilerTraceReport {
   stages: StageSummary[];
   stageMetadata: RtlStageMetadata[];
   pseudos: PseudoProvenance[];
+  allocationOrder: AllocationOrderEntry[];
   schedulers: SchedulerStage[];
   feedback: FeedbackFinding[];
   recurrenceHints: RegisterRecurrenceHint[];

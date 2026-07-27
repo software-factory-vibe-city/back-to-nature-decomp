@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { registerAnalyzeTargetScheduleTool } from "./tools/analyze-target-schedule.ts";
 import { registerCallGraphTool } from "./tools/call-graph.ts";
 import { registerCompilerTraceTool } from "./tools/compiler-trace.ts";
 import { registerDiffFunctionTool } from "./tools/diff-function.ts";
@@ -10,6 +11,7 @@ import { registerFinalizeFunctionTool } from "./tools/finalize-function.ts";
 import { registerFuzzVariantsTool } from "./tools/fuzz-variants.ts";
 import { registerAutodecompCommands } from "./autonomous/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
+import { registerSearchSourceShapesTool } from "./tools/search-source-shapes.ts";
 import { registerVerifyBuildTool } from "./tools/verify-build.ts";
 import { runProjectCommand } from "./tools/shared.ts";
 import { captureSessionBaseline } from "./tools/session-baseline.ts";
@@ -167,6 +169,7 @@ function dispatchSkill(
 }
 
 export default function psxDecompExtension(pi: ExtensionAPI) {
+  registerAnalyzeTargetScheduleTool(pi);
   registerCallGraphTool(pi);
   registerCompilerTraceTool(pi);
   registerDiffFunctionTool(pi);
@@ -175,6 +178,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerFinalizeFunctionTool(pi);
   registerFuzzVariantsTool(pi);
   registerM2cTool(pi);
+  registerSearchSourceShapesTool(pi);
   registerVerifyBuildTool(pi);
 
   const root = findProjectRoot(process.cwd());

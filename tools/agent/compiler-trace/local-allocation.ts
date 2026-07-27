@@ -1,4 +1,5 @@
 import type {
+  AllocationOrderEntry,
   AllocationStage,
   ConflictSummary,
   LifetimeRange,
@@ -29,7 +30,15 @@ export interface AllocationRecord {
 
 export interface AllocationAnalysis {
   records: Map<number, AllocationRecord>;
+  globalOrder: AllocationOrderEntry[];
   caveats: string[];
+}
+
+/** Parse the exact allocno visitation order printed by GCC's .greg header. */
+export function parseGlobalAllocationOrder(content: string): number[] {
+  const match = content.match(/^;;[ \t]*\d+ regs to allocate:[ \t]*(.*)$/m);
+  if (!match) return [];
+  return [...match[1]!.matchAll(/\d+/g)].map((value) => parseInt(value[0], 10));
 }
 
 function parseHeaders(content: string): Map<number, HeaderSummary> {
@@ -245,9 +254,23 @@ export function analyzeAllocation(
   }
   addFakeLifetimeConflicts(records);
 
+  const globalOrder = parseGlobalAllocationOrder(globalContent).map((pseudo, rank) => {
+    const assignedHardReg = globalAssignments.get(pseudo) ?? localAssignments.get(pseudo);
+    const entry: AllocationOrderEntry = { pseudo, rank };
+    if (assignedHardReg !== undefined) {
+      entry.assignedHardReg = assignedHardReg;
+      entry.assignedRegister = hardRegisterName(assignedHardReg);
+    }
+    return entry;
+  });
+
   return {
     records,
+    globalOrder,
     caveats: [
+      globalOrder.length > 0
+        ? "Global allocno order is copied exactly from GCC's '.greg' regs-to-allocate header."
+        : "The .greg dump did not expose a regs-to-allocate header; pairwise allocno-order claims are unavailable.",
       "Lifetime endpoints are reconstructed from scheduled instruction order, SETs, REG_DEAD notes, and live-at-start sets; GCC's private doubled qty indices are not printed by -da.",
       "Local quantity IDs are therefore reconstructed pseudo IDs unless a future dump exposes an explicit quantity merge.",
       "fake-lifetime-only conflicts are reconstructed by extending each local range one scheduled instruction on both sides.",

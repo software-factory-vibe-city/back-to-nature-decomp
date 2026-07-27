@@ -67,6 +67,9 @@ export function parseCc1Assembly(path: string): NormalizedInstruction[] {
     if ((mnemonic === "addu" || mnemonic === "add") && operands.length === 3 && /^-?(?:0x[0-9a-f]+|\d+)$/i.test(operands[2])) {
       mnemonic = "addiu";
     }
+    if ((mnemonic === "sltu" || mnemonic === "slt") && operands.length === 3 && /^-?(?:0x[0-9a-f]+|\d+)$/i.test(operands[2])) {
+      mnemonic = mnemonic === "sltu" ? "sltiu" : "slti";
+    }
     operands = operands.map((operand) => {
       const relocation = operand.match(/^%(hi|lo)\((.+)\)$/);
       return relocation ? `%${relocation[1]}(${canonicalSymbol(relocation[2])})` : canonicalNumbers(operand);

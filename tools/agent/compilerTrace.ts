@@ -169,6 +169,7 @@ export function buildTraceReport(
     .filter((stage) => parsed.instructions.has(stage));
   const pseudoMap = buildPseudoProvenance(provenanceStages, parsed.instructions);
   const caveats: string[] = [];
+  let allocationOrder: CompilerTraceReport["allocationOrder"] = [];
   for (const metadata of parsed.metadata.values()) caveats.push(...metadata.caveats);
 
   const localContent = parsed.contents.get("lreg");
@@ -179,6 +180,7 @@ export function buildTraceReport(
       parsed.instructions.get("lreg") || [],
     );
     applyAllocation(pseudoMap, allocation);
+    allocationOrder = allocation.globalOrder;
     caveats.push(...allocation.caveats);
   } else {
     caveats.push("No .lreg dump was produced, so allocation quantities and reconstructed lifetimes are unavailable.");
@@ -257,6 +259,7 @@ export function buildTraceReport(
     stages: summarizeStages(outputDirectory, files, parsed.metadata),
     stageMetadata: [...parsed.metadata.values()],
     pseudos,
+    allocationOrder,
     schedulers,
     feedback,
     recurrenceHints,

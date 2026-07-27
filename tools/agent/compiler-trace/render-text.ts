@@ -100,6 +100,11 @@ export function renderText(report: CompilerTraceReport, options: RenderOptions =
     }
   }
 
+  lines.push("\nGlobal allocno order (.greg, exact):");
+  lines.push(report.allocationOrder.length > 0
+    ? `  ${report.allocationOrder.map((entry) => `${entry.rank}:${entry.pseudo}${entry.assignedRegister ? `->$${entry.assignedRegister}` : ""}`).join("  ")}`
+    : "  (not exposed by this dump)");
+
   lines.push("\nScheduler decisions:");
   for (const scheduler of report.schedulers) {
     const decisions = relevantDecisions(scheduler.decisions, options);

@@ -1,6 +1,7 @@
 
 ;; Function fixture
 
+;; 2 regs to allocate: 106 105
 ;; 105 conflicts: 105 106 2 4
 ;; 105 preferences: 7
 ;; 106 conflicts: 105 106 4 5

@@ -37,14 +37,19 @@ resume/fix mode, preserve the source and begin from its current diff.
    pass, canonicalization rule, or scheduler decision.
 4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
    the mismatch signature changes or its cause becomes unclear.
-5. If several mechanism-backed source shapes remain, write complete C89
-   variants under `build/` and compare them with `psx_fuzz_variants`. Supply a
-   manifest (preferred) or explicit mechanism, expected pass/effect, and
-   invariants; use pass tracing to find the first causal divergence. Rank the
-   hypothesis verdict before match percentage. Never promote a cc1-only result:
-   rerun the same preserved hypothesis in full mode, then re-run the exact
-   function diff.
-6. Keep changes within project policy and put shared types in the designated
+5. If the classified trace shows coupled scheduler, allocator, or delay-slot
+   constraints, call `psx_analyze_target_schedule` before authoring more source
+   shapes. Use its confidence-labelled requirements only after baseline replay;
+   observational-only blocks do not justify counterfactual claims.
+6. If several mechanism-backed source shapes remain, either compare a small
+   hand-authored set with `psx_fuzz_variants`, or author an explicit finite
+   search specification and call `psx_search_source_shapes`. Search only after
+   the trace/analysis names concrete mechanism requirements and semantic
+   invariants. Inspect preserved generated sources under `build/`; never copy a
+   result automatically. Rank requirement and mechanism evidence before match
+   percentage. Never promote a cc1-only result: require full configured
+   assembly, then re-run the exact function diff.
+7. Keep changes within project policy and put shared types in the designated
    headers rather than conflicting with generated declarations.
 
 If a source change has no effect, locate the first divergent compiler dump and

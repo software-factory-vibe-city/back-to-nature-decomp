@@ -28,7 +28,7 @@ function fixtureAnalysis() {
 }
 
 test("parses one-set local and multi-set global pseudo provenance", () => {
-  const { pseudos } = fixtureAnalysis();
+  const { pseudos, allocation } = fixtureAnalysis();
   const local = pseudos.find((pseudo) => pseudo.pseudo === 105)!;
   const global = pseudos.find((pseudo) => pseudo.pseudo === 106)!;
 
@@ -44,6 +44,8 @@ test("parses one-set local and multi-set global pseudo provenance", () => {
   assert.equal(global.assignedRegister, "v1");
   assert.deepEqual(global.lifetimes.map((range) => [range.birthUid, range.deathUid]), [[14, 16], [20, 22]]);
   assert.equal(global.userVariable, true);
+  assert.deepEqual(allocation.globalOrder.map((entry) => entry.pseudo), [106, 105]);
+  assert.deepEqual(allocation.globalOrder.map((entry) => entry.assignedRegister), ["v1", "v0"]);
 });
 
 test("reconstructs conflicts caused only by fake lifetime extension", () => {

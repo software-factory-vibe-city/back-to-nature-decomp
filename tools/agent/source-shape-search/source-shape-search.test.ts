@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+import { ROOT } from "../decompToolchain.js";
+import { generateVariantBatch, totalProducts } from "./generator.js";
+import { validateSourceShapeSpec } from "./schema.js";
+import { sha256 } from "../variant-lab/artifacts.js";
+
+function spec() {
+  return validateSourceShapeSpec({
+    schemaVersion: 1,
+    function: "func_test",
+    baseSourcePath: "build/base.c",
+    maxVariants: 10,
+    dimensions: [
+      {
+        id: "first",
+        mechanism: "statement-birth-order",
+        expectedPass: "sched",
+        invariants: ["x remains one or two as explicitly supplied"],
+        alternatives: [
+          { id: "base", useBase: true, expectedEffect: "baseline birth", invariants: [] },
+          { id: "two", edits: [{ find: "x = 1;", replace: "x = 2;" }], expectedEffect: "alternate birth", invariants: [] },
+        ],
+      },
+      {
+        id: "second",
+        mechanism: "fresh-vs-reused-web",
+        expectedPass: "rtl",
+        invariants: ["return expression is supplied explicitly"],
+        alternatives: [
+          { id: "base", useBase: true, expectedEffect: "direct return", invariants: [] },
+          { id: "plus", edits: [{ find: "return x;", replace: "return x + 1;" }], expectedEffect: "fresh result", invariants: [] },
+        ],
+      },
+    ],
+    constraints: {
+      preserveTargetRanges: [[0, 1]],
+      preserveOpcodeStream: true,
+      forbidInstructionCountGrowth: true,
+      incompatibleAlternatives: [{ choices: ["first:two", "second:plus"] }],
+      requiredAlternatives: [],
+    },
+  }, "func_test");
+}
+
+test("validates concrete finite alternatives and rejects empty actions", () => {
+  assert.equal(totalProducts(spec()), 4);
+  const invalid: any = spec();
+  invalid.dimensions[0].alternatives[0] = { id: "empty", expectedEffect: "none", invariants: [] };
+  assert.throws(() => validateSourceShapeSpec(invalid), /concrete generation action/);
+  assert.throws(() => validateSourceShapeSpec({ ...spec(), compilerFlags: ["-fno-schedule-insns"] }), /unsupported field/);
+});
+
+test("generates deterministic Cartesian suffixes, exclusions, and resume batches without touching the base", () => {
+  const directory = mkdtempSync(join(ROOT, "build/source-shape-generation-test-"));
+  try {
+    const base = "int func_test(void)\n{\n    int x;\n    x = 1;\n    return x;\n}\n";
+    const basePath = join(directory, "base.c");
+    writeFileSync(basePath, base);
+    const first = generateVariantBatch({
+      spec: spec(),
+      baseSource: base,
+      baseHash: sha256(base),
+      outputRoot: directory,
+      startProductIndex: 0,
+      budget: 2,
+    });
+    assert.deepEqual(first.variants.map((variant) => variant.productIndex), [0, 1]);
+    const second = generateVariantBatch({
+      spec: spec(),
+      baseSource: base,
+      baseHash: sha256(base),
+      outputRoot: directory,
+      startProductIndex: first.nextProductIndex,
+      budget: 2,
+    });
+    assert.deepEqual(second.variants.map((variant) => variant.productIndex), [2]);
+    assert.equal(second.nextProductIndex, 4);
+    assert.equal(readFileSync(basePath, "utf8"), base);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects C99/asm generated source before compilation and retains lineage", () => {
+  const directory = mkdtempSync(join(ROOT, "build/source-shape-policy-test-"));
+  try {
+    const base = "void func_test(void)\n{\n    int x;\n    x = 1;\n}\n";
+    const policySpec = validateSourceShapeSpec({
+      schemaVersion: 1,
+      function: "func_test",
+      baseSourcePath: "build/base.c",
+      maxVariants: 2,
+      dimensions: [{
+        id: "policy",
+        mechanism: "custom",
+        expectedPass: "rtl",
+        invariants: ["diagnostic fixture"],
+        alternatives: [
+          { id: "base", useBase: true, expectedEffect: "clean", invariants: [] },
+          { id: "asm", edits: [{ find: "x = 1;", replace: "__asm__(\"nop\");" }], expectedEffect: "forbidden", invariants: [] },
+        ],
+      }],
+      constraints: {},
+    });
+    const generated = generateVariantBatch({
+      spec: policySpec,
+      baseSource: base,
+      baseHash: sha256(base),
+      outputRoot: directory,
+      startProductIndex: 0,
+      budget: 2,
+    });
+    assert.equal(generated.variants[0]?.policyPassed, true);
+    assert.equal(generated.variants[1]?.policyPassed, false);
+    assert.match(generated.variants[1]?.policyError || "", /embedded assembly/);
+    assert.equal(generated.variants[1]?.lineage.choices[0]?.alternative, "asm");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

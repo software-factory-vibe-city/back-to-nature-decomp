@@ -50,7 +50,9 @@ wrappers.
 |---|---|---|
 | `diffFunc.ts` | **The oracle.** Compiles one function through the configured compiler/assembler pipeline and diffs against the original. Flags: `--watch`, `--columns`. | **Yes** — `npx tsx tools/agent/diffFunc.ts <func>` |
 | `explainDiff.ts` | Classifies structural mismatches so matching starts from a fix class rather than random edits. | **Yes** |
-| `compilerTrace.ts` | Captures note-aware RTL stage metadata and loop depth alongside typed pseudo provenance, allocation hazards, target-register recurrence, and scheduler decisions for stubborn mismatches. | **Yes** |
+| `compilerTrace.ts` | Captures note-aware RTL stage metadata and loop depth alongside typed pseudo provenance, exact `.greg` allocno order, allocation hazards, target-register recurrence, and scheduler decisions for stubborn mismatches. | **Yes** |
+| `analyzeTargetSchedule.ts` | Aligns target/candidate machine instructions with final UIDs, validates scheduler replay, and emits confidence-labelled schedule, allocation-order, and delay-slot requirements under `build/targetSchedule/`; reusable logic lives under `target-schedule/`. | **Yes** |
+| `searchSourceShapes.ts` | Exhaustively evaluates an explicit finite exact-edit source grammar with policy validation, staged deduplication, bounded workers, checkpoints/resume, requirement-aware ranking, pass tracing, and full assembly confirmation; reusable logic lives under `source-shape-search/`. | **Yes** |
 | `fuzzVariants.ts` | Runs preserved mechanism hypotheses side by side, optionally locating their first note-aware `rtl`→`dbr` divergence; reusable logic lives under `variant-lab/`. | **Yes** |
 | `m2cFunc.ts` | Runs m2c on one function's assembly. `--write` writes `src/<func>.c`; `--context` supplies generated signatures. | Library + CLI |
 | `callGraph.ts` | Builds `build/callGraph.json`, including tier and priority ordering used by the Pi extension. | **Yes** |
@@ -61,8 +63,14 @@ wrappers.
 
 Data flow:
 `callGraph.ts` → Pi command/skill → `m2cFunc.ts` → `explainDiff.ts` /
-`compilerTrace.ts` / `fuzzVariants.ts` → `diffFunc.ts` → full project check →
-`contextExport.ts`.
+`compilerTrace.ts` → `analyzeTargetSchedule.ts` → explicit
+`searchSourceShapes.ts` specification (or small `fuzzVariants.ts` set) →
+`diffFunc.ts` → full project check → `contextExport.ts`.
+
+The Pi extension exposes bounded wrappers as `psx_analyze_target_schedule` and
+`psx_search_source_shapes`. They accept only function names, project-relative
+JSON paths, focused block/budget/job controls, and resume; neither wrapper can
+supply shell fragments or promote generated source.
 
 ## tools/build/ — what `make split` runs
 

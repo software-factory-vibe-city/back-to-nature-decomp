@@ -1,4 +1,4 @@
-import { execFileSync } from "child_process";
+import { execFileSync, spawn } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { basename, dirname, isAbsolute, join, resolve } from "path";
@@ -60,6 +60,26 @@ export function runTool(command: string, args: string[], cwd: string = ROOT): st
   } catch (error: any) {
     throw commandError(command, error);
   }
+}
+
+export function runToolAsync(
+  command: string,
+  args: string[],
+  cwd: string = ROOT,
+  signal?: AbortSignal,
+): Promise<string> {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(command, args, { cwd, stdio: ["ignore", "pipe", "pipe"], signal });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
+    child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
+    child.on("error", (error) => reject(commandError(command, { message: error.message, stderr: Buffer.concat(stderr) })));
+    child.on("close", (code) => {
+      if (code === 0) resolvePromise(Buffer.concat(stdout).toString("utf8"));
+      else reject(commandError(command, { message: `exit ${code}`, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) }));
+    });
+  });
 }
 
 function firstVersionLine(command: string, args: string[]): string {
@@ -173,6 +193,34 @@ export function compileSource(
     stem,
     cc1Flags,
   };
+  if (options.assemble) result.object = object;
+  return result;
+}
+
+export async function compileSourceAsync(
+  source: string,
+  outputDir: string,
+  stem: string,
+  options: { dumps?: boolean; assemble?: boolean; useOverrides?: boolean; signal?: AbortSignal } = {},
+): Promise<CompileArtifacts> {
+  const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
+  const absoluteOutput = isAbsolute(outputDir) ? outputDir : join(ROOT, outputDir);
+  mkdirSync(absoluteOutput, { recursive: true });
+  const preprocessed = join(absoluteOutput, `${stem}.i`);
+  const assembly = join(absoluteOutput, `${stem}.s`);
+  const object = join(absoluteOutput, `${stem}.c.o`);
+  await runToolAsync(CPP, [...CPP_FLAGS, absoluteSource, "-o", preprocessed], ROOT, options.signal);
+  const overrides = options.useOverrides === false ? [] : (loadFlagOverrides().get(stem) || []);
+  const cc1Flags = [...CC1_FLAGS, ...overrides];
+  if (options.dumps) cc1Flags.push("-da");
+  await runToolAsync(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput, options.signal);
+  if (options.assemble) {
+    await runToolAsync("python3", [
+      MASPSX, "--aspsx-version", "2.77", "--dont-force-G0", "--run-assembler",
+      "--gnu-as-path", AS, "-o", object, ...AS_FLAGS, assembly,
+    ], ROOT, options.signal);
+  }
+  const result: CompileArtifacts = { source: absoluteSource, preprocessed, assembly, outputDir: absoluteOutput, stem, cc1Flags };
   if (options.assemble) result.object = object;
   return result;
 }
