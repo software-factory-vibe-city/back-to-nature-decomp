@@ -50,7 +50,8 @@ wrappers.
 |---|---|---|
 | `diffFunc.ts` | **The oracle.** Compiles one function through the configured compiler/assembler pipeline and diffs against the original. Flags: `--watch`, `--columns`. | **Yes** — `npx tsx tools/agent/diffFunc.ts <func>` |
 | `explainDiff.ts` | Classifies structural mismatches so matching starts from a fix class rather than random edits. | **Yes** |
-| `compilerTrace.ts` | Captures and summarizes compiler allocation/scheduling traces for stubborn mismatches. | **Yes** |
+| `compilerTrace.ts` | Captures typed pseudo provenance, allocation hazards, target-register recurrence, and scheduler decisions for stubborn mismatches. | **Yes** |
+| `fuzzVariants.ts` | Runs preserved mechanism hypotheses side by side, optionally locating their first `rtl`→`dbr` divergence; reusable logic lives under `variant-lab/`. | **Yes** |
 | `m2cFunc.ts` | Runs m2c on one function's assembly. `--write` writes `src/<func>.c`; `--context` supplies generated signatures. | Library + CLI |
 | `callGraph.ts` | Builds `build/callGraph.json`, including tier and priority ordering used by the Pi extension. | **Yes** |
 | `contextExport.ts` | Extracts matched signatures into the generated function context header. | Library + CLI |
@@ -60,7 +61,8 @@ wrappers.
 
 Data flow:
 `callGraph.ts` → Pi command/skill → `m2cFunc.ts` → `explainDiff.ts` /
-`compilerTrace.ts` → `diffFunc.ts` → full project check → `contextExport.ts`.
+`compilerTrace.ts` / `fuzzVariants.ts` → `diffFunc.ts` → full project check →
+`contextExport.ts`.
 
 ## tools/build/ — what `make split` runs
 

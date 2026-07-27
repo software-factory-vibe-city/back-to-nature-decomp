@@ -1,0 +1,189 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseAssignments } from "../compiler-trace/local-allocation.js";
+import { FIRST_PSEUDO_REGISTER, parseRtlInstructions } from "../compiler-trace/rtl-parser.js";
+import { parseScheduler } from "../compiler-trace/scheduler-dag.js";
+import { sha256, stableJson } from "./artifacts.js";
+import {
+  PASS_STAGES,
+  type NormalizedPassInstruction,
+  type PassComparison,
+  type PassSnapshot,
+  type PassStage,
+  type StageDifference,
+} from "./types.js";
+
+function reference(reference: { register: number; mode: string; flags: string[]; name?: string }): string {
+  return `${reference.mode}:${reference.register}${reference.flags.length ? `/${reference.flags.join("/")}` : ""}${reference.name ? `:${reference.name}` : ""}`;
+}
+
+function normalizeExpression(expression: string | undefined): string | undefined {
+  return expression?.replace(/\s+/g, " ").replace(/\/[-a-z]+:/gi, ":").trim();
+}
+
+export function snapshotPassContent(stage: PassStage, content: string): PassSnapshot {
+  const parsed = parseRtlInstructions(content, stage);
+  const instructions: NormalizedPassInstruction[] = parsed.map((instruction) => ({
+    uid: instruction.uid,
+    kind: instruction.kind,
+    operation: instruction.operation,
+    expression: normalizeExpression(instruction.expression),
+    sets: instruction.sets.map(reference),
+    uses: instruction.uses.map(reference),
+    deaths: instruction.deaths.map(reference),
+    dependencies: instruction.dependencies
+      .map((dependency) => `${dependency.predecessorUid}:${dependency.note || "true"}`)
+      .sort(),
+    memoryRead: instruction.memoryRead,
+    memoryWrite: instruction.memoryWrite,
+    control: instruction.control,
+  }));
+  const assignments = [...parseAssignments(content)]
+    .map(([pseudo, hardRegister]) => ({ pseudo, hardRegister }))
+    .sort((left, right) => left.pseudo - right.pseudo);
+  let schedulerDecisions: PassSnapshot["schedulerDecisions"] = [];
+  if (stage === "sched" || stage === "sched2") {
+    const scheduler = parseScheduler(stage, content, parsed, parsed.map((instruction) => instruction.uid));
+    schedulerDecisions = scheduler.decisions.map((decision) => ({
+      cycle: decision.cycle,
+      selectedUid: decision.selectedUid,
+      ranked: decision.ranked,
+    }));
+  }
+  const normalized = {
+    stage,
+    instructions,
+    assignments,
+    schedulerOrder: parsed.map((instruction) => instruction.uid),
+    schedulerDecisions,
+  };
+  return { ...normalized, instructionCount: instructions.length, hash: sha256(stableJson(normalized)) };
+}
+
+export function loadPassSnapshots(outputDirectory: string, stem: string): Map<PassStage, PassSnapshot> {
+  const result = new Map<PassStage, PassSnapshot>();
+  for (const stage of PASS_STAGES) {
+    const path = join(outputDirectory, `${stem}.i.${stage}`);
+    if (!existsSync(path)) throw new Error(`trace pass artifact missing: ${path}`);
+    result.set(stage, snapshotPassContent(stage, readFileSync(path, "utf8")));
+  }
+  return result;
+}
+
+function pseudosIn(instruction: NormalizedPassInstruction | undefined): number[] {
+  if (!instruction) return [];
+  const result = new Set<number>();
+  for (const item of [...instruction.sets, ...instruction.uses, ...instruction.deaths]) {
+    const register = Number(item.match(/^[A-Z0-9]+:(\d+)/)?.[1]);
+    if (register >= FIRST_PSEUDO_REGISTER) result.add(register);
+  }
+  return [...result].sort((left, right) => left - right);
+}
+
+function firstInstructionDifference(baseline: PassSnapshot, variant: PassSnapshot): number | undefined {
+  const count = Math.max(baseline.instructions.length, variant.instructions.length);
+  for (let index = 0; index < count; index++) {
+    if (stableJson(baseline.instructions[index]) !== stableJson(variant.instructions[index])) return index;
+  }
+  return undefined;
+}
+
+function setCounts(snapshot: PassSnapshot): Map<number, number> {
+  const result = new Map<number, number>();
+  for (const instruction of snapshot.instructions) {
+    for (const item of instruction.sets) {
+      const pseudo = Number(item.match(/^[A-Z0-9]+:(\d+)/)?.[1]);
+      if (pseudo >= FIRST_PSEUDO_REGISTER) result.set(pseudo, (result.get(pseudo) || 0) + 1);
+    }
+  }
+  return result;
+}
+
+function changedSetCount(baseline: PassSnapshot, variant: PassSnapshot): { pseudo: number; summary: string } | undefined {
+  const before = setCounts(baseline);
+  const after = setCounts(variant);
+  const changes = [...new Set([...before.keys(), ...after.keys()])]
+    .map((pseudo) => ({ pseudo, before: before.get(pseudo) || 0, after: after.get(pseudo) || 0 }))
+    .filter((change) => change.before !== change.after)
+    .sort((left, right) => {
+      const score = (change: { before: number; after: number }): number =>
+        (change.after > change.before && change.after >= 2 ? 100 : 0) +
+        (change.after > change.before ? 10 : 0) + change.after;
+      return score(right) - score(left) || left.pseudo - right.pseudo;
+    });
+  const change = changes[0];
+  return change
+    ? { pseudo: change.pseudo, summary: `pseudo ${change.pseudo} set count changed ${change.before} -> ${change.after}` }
+    : undefined;
+}
+
+function changedAssignment(baseline: PassSnapshot, variant: PassSnapshot): string | undefined {
+  const before = new Map(baseline.assignments.map((assignment) => [assignment.pseudo, assignment.hardRegister]));
+  const after = new Map(variant.assignments.map((assignment) => [assignment.pseudo, assignment.hardRegister]));
+  for (const pseudo of [...new Set([...before.keys(), ...after.keys()])].sort((a, b) => a - b)) {
+    if (before.get(pseudo) !== after.get(pseudo)) {
+      return `pseudo ${pseudo} assignment changed ${before.get(pseudo) ?? "none"} -> ${after.get(pseudo) ?? "none"}`;
+    }
+  }
+  return undefined;
+}
+
+function stageDifference(stage: PassStage, baseline: PassSnapshot, variant: PassSnapshot): StageDifference {
+  const index = firstInstructionDifference(baseline, variant);
+  const left = index === undefined ? undefined : baseline.instructions[index];
+  const right = index === undefined ? undefined : variant.instructions[index];
+  const affectedPseudos = new Set<number>([...pseudosIn(left), ...pseudosIn(right)]);
+  for (const assignment of [...baseline.assignments, ...variant.assignments]) {
+    const leftAssignment = baseline.assignments.find((candidate) => candidate.pseudo === assignment.pseudo)?.hardRegister;
+    const rightAssignment = variant.assignments.find((candidate) => candidate.pseudo === assignment.pseudo)?.hardRegister;
+    if (leftAssignment !== rightAssignment) affectedPseudos.add(assignment.pseudo);
+  }
+  const setChange = changedSetCount(baseline, variant);
+  if (setChange) affectedPseudos.add(setChange.pseudo);
+  const assignmentChange = changedAssignment(baseline, variant);
+  let summary = setChange?.summary || assignmentChange;
+  if (!summary && index !== undefined) {
+    summary = `instruction ${index} changed from UID ${left?.uid ?? "missing"} to UID ${right?.uid ?? "missing"}`;
+  }
+  if (!summary && stableJson(baseline.schedulerDecisions) !== stableJson(variant.schedulerDecisions)) {
+    summary = "scheduler ready-list selection changed";
+  }
+  if (!summary) summary = "normalized pass metadata changed";
+  const difference: StageDifference = {
+    stage,
+    baselineHash: baseline.hash,
+    variantHash: variant.hash,
+    affectedUids: [...new Set([left?.uid, right?.uid].filter((uid): uid is number => uid !== undefined))],
+    affectedPseudos: [...affectedPseudos].sort((a, b) => a - b),
+    summary,
+  };
+  if (index !== undefined) difference.firstInstructionIndex = index;
+  if (left) difference.baselineUid = left.uid;
+  if (right) difference.variantUid = right.uid;
+  return difference;
+}
+
+export function comparePassSnapshots(
+  baseline: Map<PassStage, PassSnapshot>,
+  variant: Map<PassStage, PassSnapshot>,
+): PassComparison {
+  const divergentStages: StageDifference[] = [];
+  let commonThrough: PassStage | undefined;
+  for (const stage of PASS_STAGES) {
+    const left = baseline.get(stage);
+    const right = variant.get(stage);
+    if (!left || !right) throw new Error(`cannot compare .${stage}: snapshot missing`);
+    if (left.hash === right.hash) {
+      if (divergentStages.length === 0) commonThrough = stage;
+      continue;
+    }
+    divergentStages.push(stageDifference(stage, left, right));
+  }
+  const comparison: PassComparison = {
+    equivalent: divergentStages.length === 0,
+    divergentStages,
+  };
+  if (divergentStages[0]) comparison.firstDivergence = divergentStages[0];
+  if (commonThrough) comparison.commonThrough = commonThrough;
+  return comparison;
+}

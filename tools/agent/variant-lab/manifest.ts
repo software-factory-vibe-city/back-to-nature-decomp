@@ -1,0 +1,156 @@
+import { existsSync, readFileSync } from "node:fs";
+import { basename, isAbsolute, join } from "node:path";
+import { ROOT } from "../decompToolchain.js";
+import { sha256File } from "./artifacts.js";
+import {
+  VARIANT_MECHANISMS,
+  type ResolvedVariantHypothesis,
+  type SourceFinding,
+  type VariantHypothesis,
+  type VariantManifest,
+  type VariantMechanism,
+} from "./types.js";
+
+const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const MECHANISMS = new Set<string>(VARIANT_MECHANISMS);
+
+function object(value: unknown, context: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${context} must be an object`);
+  return value as Record<string, unknown>;
+}
+
+function nonempty(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${field} must be a non-empty string`);
+  return value.trim();
+}
+
+function stringArray(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) {
+    throw new Error(`${field} must be an array of non-empty strings`);
+  }
+  return value.map((item) => String(item).trim());
+}
+
+export function validateHypothesis(value: unknown, index = 0): VariantHypothesis {
+  const raw = object(value, `variants[${index}]`);
+  const id = nonempty(raw.id, `variants[${index}].id`);
+  if (!ID_PATTERN.test(id)) throw new Error(`variants[${index}].id contains unsafe characters: ${id}`);
+  const sourcePath = nonempty(raw.sourcePath, `variants[${index}].sourcePath`);
+  const mechanism = nonempty(raw.mechanism, `variants[${index}].mechanism`);
+  if (!MECHANISMS.has(mechanism)) throw new Error(`variants[${index}].mechanism is not supported: ${mechanism}`);
+  const hypothesis: VariantHypothesis = {
+    id,
+    sourcePath,
+    mechanism: mechanism as VariantMechanism,
+    expectedPass: nonempty(raw.expectedPass, `variants[${index}].expectedPass`),
+    expectedEffect: nonempty(raw.expectedEffect, `variants[${index}].expectedEffect`),
+    invariants: stringArray(raw.invariants, `variants[${index}].invariants`),
+  };
+  if (raw.baseline !== undefined) {
+    if (typeof raw.baseline !== "boolean") throw new Error(`variants[${index}].baseline must be boolean`);
+    hypothesis.baseline = raw.baseline;
+  }
+  return hypothesis;
+}
+
+export function validateManifest(value: unknown, functionName?: string): VariantManifest {
+  const raw = object(value, "manifest");
+  if (raw.schemaVersion !== undefined && raw.schemaVersion !== 1) throw new Error("manifest.schemaVersion must be 1");
+  if (raw.function !== undefined && typeof raw.function !== "string") throw new Error("manifest.function must be a string");
+  if (functionName && raw.function && raw.function !== functionName) {
+    throw new Error(`manifest targets ${raw.function}, not ${functionName}`);
+  }
+  if (!Array.isArray(raw.variants) || raw.variants.length === 0) throw new Error("manifest.variants must contain at least one hypothesis");
+  const variants = raw.variants.map((variant, index) => validateHypothesis(variant, index));
+  const ids = new Set<string>();
+  let baselines = 0;
+  for (const variant of variants) {
+    if (ids.has(variant.id)) throw new Error(`duplicate variant id: ${variant.id}`);
+    ids.add(variant.id);
+    if (variant.baseline) baselines++;
+  }
+  if (baselines > 1) throw new Error("manifest may mark at most one variant as baseline");
+  return { schemaVersion: 1, function: raw.function as string | undefined, variants };
+}
+
+export function loadManifest(path: string, functionName: string): VariantManifest {
+  const absolute = isAbsolute(path) ? path : join(ROOT, path);
+  if (!existsSync(absolute)) throw new Error(`variant manifest not found: ${path}`);
+  try {
+    return validateManifest(JSON.parse(readFileSync(absolute, "utf8")), functionName);
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error(`invalid JSON in variant manifest ${path}: ${error.message}`);
+    throw error;
+  }
+}
+
+export function hypothesesFromPaths(
+  paths: string[],
+  metadata: { mechanism?: string; expectedPass?: string; expectedEffect?: string; invariants: string[] },
+): VariantHypothesis[] {
+  if (!metadata.mechanism || !metadata.expectedPass || !metadata.expectedEffect) {
+    throw new Error("positional variants require --mechanism, --expected-pass, and --expected-effect; use --manifest for per-variant hypotheses");
+  }
+  return paths.map((sourcePath, index) => validateHypothesis({
+    id: basename(sourcePath, ".c") || `variant-${index + 1}`,
+    sourcePath,
+    mechanism: metadata.mechanism,
+    expectedPass: metadata.expectedPass,
+    expectedEffect: metadata.expectedEffect,
+    invariants: metadata.invariants,
+  }, index));
+}
+
+function lineNumber(source: string, offset: number): number {
+  return source.slice(0, offset).split("\n").length;
+}
+
+export function validateVariantSource(source: string): SourceFinding[] {
+  const findings: SourceFinding[] = [];
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
+  const patterns: Array<{ pattern: RegExp; kind: SourceFinding["kind"]; message: string; raw?: boolean }> = [
+    { pattern: /\bINCLUDE_ASM\s*\(/g, kind: "forbidden-construct", message: "assembly stubs are forbidden" },
+    { pattern: /\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/g, kind: "forbidden-construct", message: "embedded assembly is forbidden" },
+    { pattern: /\bregister\b[^;\n]*\b(?:__asm__|__asm)\s*\(/g, kind: "forbidden-construct", message: "hard-register pinning is forbidden" },
+    { pattern: /^\s*#\s*pragma\b/gm, kind: "forbidden-construct", message: "per-source compiler pragmas are forbidden" },
+    { pattern: /\/\//g, kind: "c99", message: "C++ line comments are not valid project C89 style", raw: true },
+    { pattern: /\bfor\s*\(\s*(?:const\s+)?(?:char|short|int|long|signed|unsigned|s\d+|u\d+)\s+[A-Za-z_]/g, kind: "c99", message: "for-loop declarations require C99" },
+    { pattern: /\b(?:inline|restrict|_Bool)\b/g, kind: "c99", message: "C99-only keyword is forbidden" },
+    { pattern: /^\s*(?:extern\s+)?(?:static\s+)?(?:const\s+)?(?:signed\s+|unsigned\s+)?(?:struct\s+\w+|union\s+\w+|enum\s+\w+|[A-Za-z_]\w*)\s+\**\s*D_[0-9A-Fa-f]{8}\b\s*(?:\[|;|=)/gm, kind: "generated-global", message: "generated globals must come from the designated header" },
+  ];
+  for (const rule of patterns) {
+    rule.pattern.lastIndex = 0;
+    const input = rule.raw ? source : code;
+    let match: RegExpExecArray | null;
+    while ((match = rule.pattern.exec(input)) !== null) {
+      findings.push({ line: lineNumber(input, match.index), kind: rule.kind, message: rule.message });
+      if (match[0].length === 0) rule.pattern.lastIndex++;
+    }
+  }
+  return findings;
+}
+
+export function resolveHypotheses(hypotheses: VariantHypothesis[]): ResolvedVariantHypothesis[] {
+  const ids = new Set<string>();
+  let baselines = 0;
+  for (const hypothesis of hypotheses) {
+    if (ids.has(hypothesis.id)) throw new Error(`duplicate variant id: ${hypothesis.id}`);
+    ids.add(hypothesis.id);
+    if (hypothesis.baseline) baselines++;
+  }
+  if (baselines !== 1) throw new Error(`exactly one baseline is required after input resolution; found ${baselines}`);
+  return hypotheses.map((hypothesis) => {
+    const absoluteSourcePath = isAbsolute(hypothesis.sourcePath)
+      ? hypothesis.sourcePath
+      : join(ROOT, hypothesis.sourcePath);
+    if (!existsSync(absoluteSourcePath)) throw new Error(`variant source not found: ${hypothesis.sourcePath}`);
+    if (!hypothesis.sourcePath.endsWith(".c")) throw new Error(`variant source must be a .c file: ${hypothesis.sourcePath}`);
+    const source = readFileSync(absoluteSourcePath, "utf8");
+    const findings = validateVariantSource(source);
+    if (findings.length > 0) {
+      const first = findings[0];
+      throw new Error(`${hypothesis.sourcePath}:${first.line}: ${first.message}`);
+    }
+    return { ...hypothesis, absoluteSourcePath, sourceHash: sha256File(absoluteSourcePath) };
+  });
+}

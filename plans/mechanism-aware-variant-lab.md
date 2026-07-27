@@ -1,5 +1,13 @@
 # Plan: mechanism-aware compiler variant laboratory
 
+**Status: implemented.** `tools/agent/variant-lab/` now validates explicit
+hypotheses, preserves deterministic run artifacts, compares normalized GCC
+passes from `rtl` through `dbr`, classifies mechanism verdicts before match
+counts, rejects forbidden/non-C89 inputs, and supplies opt-in exact-edit
+transformation families. The CLI and Pi wrapper support manifests, common CLI
+hypothesis flags, pass tracing, transformation specs, and full-mode promotion
+gates. Fixture regressions cover the two `func_800154CC` mechanisms.
+
 ## Purpose
 
 Evolve `psx_fuzz_variants` from a final-assembly comparison helper into a

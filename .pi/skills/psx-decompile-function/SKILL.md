@@ -38,10 +38,12 @@ resume/fix mode, preserve the source and begin from its current diff.
 4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
    the mismatch signature changes or its cause becomes unclear.
 5. If several mechanism-backed source shapes remain, write complete C89
-   variants under `build/` and compare them together with
-   `psx_fuzz_variants`. This is hypothesis testing, not percentage
-   hill-climbing. Name the mechanism before promoting a winner; confirm it in
-   full mode and then re-run the exact function diff.
+   variants under `build/` and compare them with `psx_fuzz_variants`. Supply a
+   manifest (preferred) or explicit mechanism, expected pass/effect, and
+   invariants; use pass tracing to find the first causal divergence. Rank the
+   hypothesis verdict before match percentage. Never promote a cc1-only result:
+   rerun the same preserved hypothesis in full mode, then re-run the exact
+   function diff.
 6. Keep changes within project policy and put shared types in the designated
    headers rather than conflicting with generated declarations.
 

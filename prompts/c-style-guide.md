@@ -279,6 +279,15 @@ lifetime, conflict, assignment pass, canonicalization rule, or scheduler
 decision it intends to change. Do not run random declaration or statement
 permutations.
 
+When several source shapes test the same diagnosis, use the variant laboratory
+with a hypothesis manifest. Every variant must name its mechanism, predicted
+pass/effect, and semantic invariants. Enable pass tracing to distinguish a real
+web or scheduling change from syntax that compiles equivalently. Read
+`confirmed` / `partially-confirmed` / `rejected` / `inconclusive` before match
+counts; a lower match can provide stronger causal evidence. A cc1-only result
+is triage and cannot be promoted without the preserved hypothesis reproducing
+in full mode.
+
 ### When source-order changes do nothing
 
 If both orders of a commutative source expression compile identically, a

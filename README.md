@@ -152,15 +152,15 @@ The commands dispatch project-local, game-agnostic skills:
 
 The extension also registers focused tool wrappers around the TypeScript tools
 in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
-`psx_diff_function`, `psx_build_call_graph`, `psx_export_context`,
+`psx_fuzz_variants`, `psx_diff_function`, `psx_build_call_graph`, `psx_export_context`,
 `psx_verify_build`, and the terminating `psx_finalize_function` clean-source
 and byte-identity gate. Command output is bounded before it enters model context.
 
 `compilerTrace.ts` writes raw `-da` dumps plus a typed
 `build/compilerTrace/<function>/report.json`. Its bounded text report connects
 observed pseudo SET/use/death provenance, reconstructed lifetime endpoints,
-local/global allocation, sched1/sched2 ready-list decisions, allocation-created hard-register
-hazards, and inferred target-register recurrence experiments. Focus difficult
+local/global allocation, sched1/sched2 ready-list decisions,
+allocation-created hard-register hazards, and inferred target-register recurrence experiments. Focus difficult
 reports without changing compilation:
 
 ```bash
@@ -168,6 +168,19 @@ npx tsx tools/agent/compilerTrace.ts <function> --pseudo 106
 npx tsx tools/agent/compilerTrace.ts <function> --scheduler-window 24:32
 npx tsx tools/agent/compilerTrace.ts <function> --json
 ```
+
+`fuzzVariants.ts` is a mechanism-aware variant laboratory, not a source
+permuter. A JSON manifest records each complete C variant's mechanism, expected
+pass/effect, and invariants. `--trace-passes` compares `rtl` through `dbr`; the
+deterministic run directory preserves exact sources, preprocessing, cc1/object
+artifacts, flags, hashes, normalized comparisons, and verdicts:
+
+```bash
+npx tsx tools/agent/fuzzVariants.ts <function> --manifest build/hypotheses.json --trace-passes
+```
+
+Verdicts rank causal evidence before instruction counts. A cc1-only result is
+never promotion-eligible until the same hypothesis is confirmed in full mode.
 
 Start `pi` from the repository root and use a slash command. Run `/reload` after
 editing `.pi` resources in an existing session. Interactive workflows never

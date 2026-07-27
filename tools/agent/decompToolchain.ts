@@ -1,4 +1,5 @@
 import { execFileSync } from "child_process";
+import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { basename, dirname, isAbsolute, join, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -59,6 +60,44 @@ export function runTool(command: string, args: string[], cwd: string = ROOT): st
   } catch (error: any) {
     throw commandError(command, error);
   }
+}
+
+function firstVersionLine(command: string, args: string[]): string {
+  try {
+    return runTool(command, args).split("\n").find((line) => line.trim())?.trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+function fileSha256(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+export function configuredToolchainIdentity(): {
+  node: string;
+  compiler: { path: string; sha256: string; version: string };
+  assemblerShim: { path: string; sha256: string };
+  cpp: string;
+  assembler: string;
+  objdump: string;
+} {
+  return {
+    node: process.version,
+    compiler: {
+      path: relativePath(CC),
+      sha256: fileSha256(CC),
+      version: firstVersionLine(CC, ["--version"]),
+    },
+    assemblerShim: { path: relativePath(MASPSX), sha256: fileSha256(MASPSX) },
+    cpp: firstVersionLine(CPP, ["--version"]),
+    assembler: firstVersionLine(AS, ["--version"]),
+    objdump: firstVersionLine(OBJDUMP, ["--version"]),
+  };
+}
+
+function relativePath(path: string): string {
+  return path.startsWith(`${ROOT}/`) ? path.slice(ROOT.length + 1) : path;
 }
 
 export function normalizeFunctionName(value: string): string {
