@@ -141,6 +141,7 @@ u16 func_80017C30(void);
 void func_80017C3C(s32 arg0);
 u16 func_800195F4(void);
 void func_80019600(void);
+s32 func_800198E0(u16 *arg0, s32 arg1, s16 arg2);
 s32 func_80019E50(s32 arg0);
 s32 func_8001A8D0(s32 arg0);
 void func_8001ACA0(void);
