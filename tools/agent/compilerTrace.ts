@@ -4,80 +4,57 @@
  *
  * Usage:
  *   npx tsx tools/agent/compilerTrace.ts func_8001B4E4
- *   npx tsx tools/agent/compilerTrace.ts func_8001B4E4 --src notes/scratch/func_8001B4E4-candidate.c
+ *   npx tsx tools/agent/compilerTrace.ts func_8001B4E4 --src build/candidate.c
+ *   npx tsx tools/agent/compilerTrace.ts func_8001B4E4 --pseudo 106
+ *   npx tsx tools/agent/compilerTrace.ts func_8001B4E4 --scheduler-window 24:32
  *   npx tsx tools/agent/compilerTrace.ts func_8001B4E4 --json
  *
- * Raw GCC -da dumps are retained under build/compilerTrace/<function>/.
+ * Raw GCC -da dumps and a stable report.json are retained under
+ * build/compilerTrace/<function>/.
  */
 
-import { existsSync, readFileSync, readdirSync, rmSync } from "fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { basename, join, relative } from "path";
 import {
   ROOT,
+  assembleCompilerOutput,
+  assembleTarget,
   compileSource,
+  disassembleObject,
   normalizeFunctionName,
   resolveSource,
 } from "./decompToolchain.js";
+import { detectAllocationFeedback } from "./compiler-trace/hard-register-hazards.js";
+import { analyzeAllocation, applyAllocation } from "./compiler-trace/local-allocation.js";
+import { buildPseudoProvenance } from "./compiler-trace/pseudo-provenance.js";
+import { renderText } from "./compiler-trace/render-text.js";
+import {
+  FIRST_PSEUDO_REGISTER,
+  parseRegisterReferences,
+  parseRtlInstructions,
+} from "./compiler-trace/rtl-parser.js";
+import { parseScheduler } from "./compiler-trace/scheduler-dag.js";
+import { findTargetRegisterRecurrences } from "./compiler-trace/target-recurrence.js";
+import type {
+  CompilerTraceReport,
+  RenderOptions,
+  RtlInstruction,
+  StageSummary,
+} from "./compiler-trace/types.js";
 
-interface StageSummary {
-  suffix: string;
-  file: string;
-  bytes: number;
-  instructionCount: number;
-  pseudoCount: number;
-  pseudoOccurrences: number;
-}
-
-interface PseudoSummary {
-  pseudo: number;
-  uses?: number;
-  span?: number;
-  block?: number;
-  sets?: number;
-  attributes: string[];
-  assignedHardReg?: number;
-  assignedRegister?: string;
-  allocationStage?: "local" | "global/reload";
-  estimatedPriority?: number;
-  conflicts: number[];
-}
-
-interface SchedulerSummary {
-  stage: string;
-  instructionPriorities: number;
-  readyListDecisions: number;
-  shortenedLives: number;
-  extendedLives: number;
-}
-
-interface CompilerTraceReport {
-  function: string;
-  source: string;
-  outputDirectory: string;
-  assembly: string;
-  flags: string[];
-  stages: StageSummary[];
-  pseudos: PseudoSummary[];
-  schedulers: SchedulerSummary[];
-  caveats: string[];
-}
+export type { CompilerTraceReport } from "./compiler-trace/types.js";
 
 const STAGE_ORDER = [
   "rtl", "jump", "cse", "gcse", "loop", "cse2", "addressof", "flow",
   "combine", "regmove", "sched", "lreg", "greg", "flow2", "bp", "sched2",
   "jump2", "dbr", "mach",
 ];
-
-const HARD_REGISTER_NAMES = [
-  "zero", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-  "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-  "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra",
-];
-
-function hardRegisterName(register: number): string {
-  return HARD_REGISTER_NAMES[register] || `hard-${register}`;
-}
 
 function countInstructions(content: string): number {
   return [...content.matchAll(/^\((?:insn|jump_insn|call_insn)\s+\d+/gm)].length;
@@ -86,32 +63,30 @@ function countInstructions(content: string): number {
 function pseudoOccurrences(content: string): { count: number; pseudos: Set<number> } {
   const pseudos = new Set<number>();
   let count = 0;
-  const pattern = /\(reg(?:\/[a-z]+)*:[A-Z0-9]+\s+(\d+)(?:\s+[^)\s]+)?\)/gi;
-  for (const match of content.matchAll(pattern)) {
-    const register = parseInt(match[1], 10);
-    /* FIRST_PSEUDO_REGISTER is 80 for this MIPS backend. */
-    if (register >= 80) {
-      pseudos.add(register);
-      count++;
-    }
+  for (const reference of parseRegisterReferences(content)) {
+    if (reference.register < FIRST_PSEUDO_REGISTER) continue;
+    pseudos.add(reference.register);
+    count++;
   }
   return { count, pseudos };
 }
 
 function stageSuffix(file: string): string {
   const pieces = file.split(".");
-  return pieces[pieces.length - 1];
+  return pieces[pieces.length - 1]!;
 }
 
-function summarizeStages(directory: string, prefix: string): StageSummary[] {
-  const files = readdirSync(directory)
+function dumpFiles(directory: string, prefix: string): string[] {
+  return readdirSync(directory)
     .filter((file) => file.startsWith(`${prefix}.i.`))
-    .sort((a, b) => {
-      const ai = STAGE_ORDER.indexOf(stageSuffix(a));
-      const bi = STAGE_ORDER.indexOf(stageSuffix(b));
-      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
+    .sort((left, right) => {
+      const leftIndex = STAGE_ORDER.indexOf(stageSuffix(left));
+      const rightIndex = STAGE_ORDER.indexOf(stageSuffix(right));
+      return (leftIndex < 0 ? 999 : leftIndex) - (rightIndex < 0 ? 999 : rightIndex);
     });
+}
 
+function summarizeStages(directory: string, files: string[]): StageSummary[] {
   return files.map((file) => {
     const path = join(directory, file);
     const content = readFileSync(path, "utf-8");
@@ -127,109 +102,31 @@ function summarizeStages(directory: string, prefix: string): StageSummary[] {
   });
 }
 
-function parseAssignments(content: string): Map<number, number> {
-  const result = new Map<number, number>();
-  for (const match of content.matchAll(/;; Register (\d+) in (\d+)\./g)) {
-    result.set(parseInt(match[1], 10), parseInt(match[2], 10));
+function parseAllStages(
+  directory: string,
+  prefix: string,
+  files: string[],
+): { contents: Map<string, string>; instructions: Map<string, RtlInstruction[]> } {
+  const contents = new Map<string, string>();
+  const instructions = new Map<string, RtlInstruction[]>();
+  for (const file of files) {
+    const stage = stageSuffix(file);
+    const content = readFileSync(join(directory, file), "utf-8");
+    contents.set(stage, content);
+    instructions.set(stage, parseRtlInstructions(content, stage));
   }
-
-  const dispositionIndex = content.indexOf(";; Register dispositions:");
-  if (dispositionIndex >= 0) {
-    const disposition = content.slice(dispositionIndex).split("\n\n", 1)[0];
-    for (const match of disposition.matchAll(/\b(\d+) in (\d+)\b/g)) {
-      result.set(parseInt(match[1], 10), parseInt(match[2], 10));
-    }
-  }
-  return result;
+  return { contents, instructions };
 }
 
-function parseConflicts(content: string): Map<number, number[]> {
-  const result = new Map<number, number[]>();
-  for (const line of content.split("\n")) {
-    const match = line.match(/^;; (\d+) conflicts:\s*(.*)$/);
-    if (!match) continue;
-    const pseudo = parseInt(match[1], 10);
-    const conflicts = [...match[2].matchAll(/\d+/g)].map((value) => parseInt(value[0], 10));
-    result.set(pseudo, conflicts.filter((value) => value !== pseudo));
+function nearestInstructions(
+  instructions: Map<string, RtlInstruction[]>,
+  candidates: string[],
+): RtlInstruction[] {
+  for (const stage of candidates) {
+    const value = instructions.get(stage);
+    if (value && value.length > 0) return value;
   }
-  return result;
-}
-
-function parsePseudos(directory: string, prefix: string): PseudoSummary[] {
-  const localPath = join(directory, `${prefix}.i.lreg`);
-  const globalPath = join(directory, `${prefix}.i.greg`);
-  if (!existsSync(localPath)) return [];
-
-  const local = readFileSync(localPath, "utf-8");
-  const global = existsSync(globalPath) ? readFileSync(globalPath, "utf-8") : "";
-  const localAssignments = parseAssignments(local);
-  const globalAssignments = parseAssignments(global);
-  const assignments = new Map(localAssignments);
-  for (const [pseudo, hard] of globalAssignments) assignments.set(pseudo, hard);
-  const conflicts = parseConflicts(global);
-  const result = new Map<number, PseudoSummary>();
-
-  for (const line of local.split("\n")) {
-    const match = line.match(
-      /^Register (\d+) used (\d+) times? across (\d+) insns?(?: in block (\d+))?; set (\d+) times?;\s*(.*)$/,
-    );
-    if (!match) continue;
-    const pseudo = parseInt(match[1], 10);
-    const hard = assignments.get(pseudo);
-    const summary: PseudoSummary = {
-      pseudo,
-      uses: parseInt(match[2], 10),
-      span: parseInt(match[3], 10),
-      sets: parseInt(match[5], 10),
-      attributes: match[6].split(";").map((item) => item.trim().replace(/\.$/, "")).filter(Boolean),
-      conflicts: conflicts.get(pseudo) || [],
-    };
-    if (match[4]) summary.block = parseInt(match[4], 10);
-    if (summary.uses && summary.span) {
-      /* Approximation of GCC 2.95.2 local-alloc.c QTY_CMP_PRI. Exact
-         quantities can merge pseudos and use doubled birth/death indices. */
-      const floorLog2 = Math.floor(Math.log2(summary.uses));
-      summary.estimatedPriority = Math.trunc((floorLog2 * summary.uses / summary.span) * 10000);
-    }
-    if (hard !== undefined) {
-      summary.assignedHardReg = hard;
-      summary.assignedRegister = hardRegisterName(hard);
-      summary.allocationStage = localAssignments.has(pseudo) ? "local" : "global/reload";
-    }
-    result.set(pseudo, summary);
-  }
-
-  /* Include allocated pseudos omitted from the descriptive header. */
-  for (const [pseudo, hard] of assignments) {
-    if (pseudo < 80 || result.has(pseudo)) continue;
-    result.set(pseudo, {
-      pseudo,
-      attributes: [],
-      assignedHardReg: hard,
-      assignedRegister: hardRegisterName(hard),
-      allocationStage: localAssignments.has(pseudo) ? "local" : "global/reload",
-      conflicts: conflicts.get(pseudo) || [],
-    });
-  }
-
-  return [...result.values()].sort((a, b) => a.pseudo - b.pseudo);
-}
-
-function parseSchedulers(directory: string, prefix: string): SchedulerSummary[] {
-  const result: SchedulerSummary[] = [];
-  for (const stage of ["sched", "sched2"]) {
-    const path = join(directory, `${prefix}.i.${stage}`);
-    if (!existsSync(path)) continue;
-    const content = readFileSync(path, "utf-8");
-    result.push({
-      stage,
-      instructionPriorities: [...content.matchAll(/^;; insn\[/gm)].length,
-      readyListDecisions: [...content.matchAll(/^;; ready list at T-/gm)].length,
-      shortenedLives: [...content.matchAll(/life shortened/g)].length,
-      extendedLives: [...content.matchAll(/life extended/g)].length,
-    });
-  }
-  return result;
+  return [];
 }
 
 export function buildTraceReport(
@@ -245,92 +142,176 @@ export function buildTraceReport(
     dumps: true,
     useOverrides,
   });
+  const files = dumpFiles(outputDirectory, funcName);
+  const parsed = parseAllStages(outputDirectory, funcName, files);
+  const provenanceStages = STAGE_ORDER.slice(0, STAGE_ORDER.indexOf("greg") + 1)
+    .filter((stage) => parsed.instructions.has(stage));
+  const pseudoMap = buildPseudoProvenance(provenanceStages, parsed.instructions);
+  const caveats: string[] = [];
 
-  return {
+  const localContent = parsed.contents.get("lreg");
+  if (localContent) {
+    const allocation = analyzeAllocation(
+      localContent,
+      parsed.contents.get("greg") || "",
+      parsed.instructions.get("lreg") || [],
+    );
+    applyAllocation(pseudoMap, allocation);
+    caveats.push(...allocation.caveats);
+  } else {
+    caveats.push("No .lreg dump was produced, so allocation quantities and reconstructed lifetimes are unavailable.");
+  }
+
+  const schedulers = [];
+  const schedContent = parsed.contents.get("sched");
+  const schedInstructions = parsed.instructions.get("sched") || [];
+  const schedInput = nearestInstructions(parsed.instructions, ["regmove", "combine", "flow"]);
+  if (schedContent) {
+    schedulers.push(parseScheduler(
+      "sched",
+      schedContent,
+      schedInstructions,
+      schedInput.map((instruction) => instruction.uid),
+    ));
+  }
+  const sched2Content = parsed.contents.get("sched2");
+  const sched2Instructions = parsed.instructions.get("sched2") || [];
+  const sched2Input = nearestInstructions(parsed.instructions, ["bp", "flow2", "greg"]);
+  if (sched2Content) {
+    schedulers.push(parseScheduler(
+      "sched2",
+      sched2Content,
+      sched2Instructions,
+      sched2Input.map((instruction) => instruction.uid),
+    ));
+  }
+  for (const scheduler of schedulers) caveats.push(...scheduler.caveats);
+
+  const pseudos = [...pseudoMap.values()].sort((left, right) => left.pseudo - right.pseudo);
+  const sched1 = schedulers.find((scheduler) => scheduler.stage === "sched");
+  const sched2 = schedulers.find((scheduler) => scheduler.stage === "sched2");
+  const feedback = detectAllocationFeedback(
+    sched1,
+    sched2,
+    schedInput,
+    schedInstructions,
+    sched2Instructions,
+    pseudos,
+  );
+
+  let recurrenceHints = [];
+  try {
+    const candidateObject = join(outputDirectory, `${funcName}.c.o`);
+    assembleCompilerOutput(artifacts.assembly, candidateObject);
+    const targetObject = assembleTarget(funcName, outputDirectory);
+    const target = disassembleObject(targetObject);
+    const candidate = disassembleObject(candidateObject);
+    recurrenceHints = findTargetRegisterRecurrences(
+      target,
+      candidate,
+      nearestInstructions(parsed.instructions, ["dbr", "mach", "sched2"]),
+      parsed.instructions.get("lreg") || [],
+      pseudos,
+    );
+  } catch (error: any) {
+    caveats.push(`Target recurrence analysis unavailable: ${error.message}`);
+  }
+
+  caveats.push(
+    "Source expressions are normalized RTL SET expressions, not recovered C identifiers; heuristic mappings are explicitly labeled inferred.",
+    "An assignment explains what cc1 did for this candidate; the archived target has no recoverable RTL dump.",
+    "Tracing is diagnostic-only: changing allocator or scheduler behavior would invalidate compiler identity.",
+  );
+
+  const reportPath = join(outputDirectory, "report.json");
+  const report: CompilerTraceReport = {
+    schemaVersion: 1,
     function: funcName,
     source: relative(ROOT, source),
     outputDirectory: relative(ROOT, outputDirectory),
     assembly: relative(ROOT, artifacts.assembly),
+    reportArtifact: relative(ROOT, reportPath),
     flags: artifacts.cc1Flags,
-    stages: summarizeStages(outputDirectory, funcName),
-    pseudos: parsePseudos(outputDirectory, funcName),
-    schedulers: parseSchedulers(outputDirectory, funcName),
-    caveats: [
-      "The stock -da dumps expose pseudo lifetimes, assignments, conflicts, and scheduler traces, but not exact quantity merges, hard-register suggestions, or source-to-pseudo relationships.",
-      "estimatedPriority approximates GCC 2.95.2 QTY_CMP_PRI from per-pseudo references/span; it is not exact when quantities merge or birth/death indices differ.",
-      "An assignment explains what cc1 did for this candidate; the original target has no recoverable RTL dump.",
-      "Tracing must remain diagnostic-only: changing allocator or scheduler behavior would invalidate compiler identity.",
-    ],
+    stages: summarizeStages(outputDirectory, files),
+    pseudos,
+    schedulers,
+    feedback,
+    recurrenceHints,
+    caveats: [...new Set(caveats)],
   };
+  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  return report;
 }
 
-function printHuman(report: CompilerTraceReport): void {
-  console.log(`Compiler trace: ${report.function}`);
-  console.log(`source:    ${report.source}`);
-  console.log(`artifacts: ${report.outputDirectory}`);
-  console.log(`assembly:  ${report.assembly}\n`);
+interface CliOptions extends RenderOptions {
+  functionName: string;
+  requestedSource?: string;
+  json: boolean;
+  useOverrides: boolean;
+}
 
-  console.log("Pass summaries:");
-  console.log("  stage       insns  pseudos  occurrences  dump");
-  for (const stage of report.stages) {
-    console.log(
-      `  ${stage.suffix.padEnd(10)} ${String(stage.instructionCount).padStart(5)}  ` +
-      `${String(stage.pseudoCount).padStart(7)}  ${String(stage.pseudoOccurrences).padStart(11)}  ${stage.file}`,
-    );
-  }
+function usage(message?: string): never {
+  if (message) console.error(`compilerTrace: ${message}`);
+  console.error(
+    "Usage: npx tsx tools/agent/compilerTrace.ts <func> [--src <file>] [--json] " +
+    "[--pseudo <number>] [--scheduler-window <start:end>] [--no-overrides]",
+  );
+  process.exit(1);
+}
 
-  console.log("\nRegister allocation:");
-  if (report.pseudos.length === 0) {
-    console.log("  (no pseudo summaries found)");
-  } else {
-    console.log("  pseudo  uses  span  sets  assigned  pass           priority~  conflicts  attributes");
-    for (const pseudo of report.pseudos) {
-      const assigned = pseudo.assignedRegister
-        ? `${pseudo.assignedRegister}($${pseudo.assignedHardReg})`
-        : "—";
-      const conflicts = pseudo.conflicts.length > 0 ? pseudo.conflicts.join(",") : "—";
-      console.log(
-        `  ${String(pseudo.pseudo).padStart(6)}  ${String(pseudo.uses ?? "—").padStart(4)}  ` +
-        `${String(pseudo.span ?? "—").padStart(4)}  ${String(pseudo.sets ?? "—").padStart(4)}  ` +
-        `${assigned.padEnd(9)} ${(pseudo.allocationStage || "—").padEnd(13)} ` +
-        `${String(pseudo.estimatedPriority ?? "—").padStart(9)}  ${conflicts.padEnd(18)} ${pseudo.attributes.join("; ")}`,
-      );
+function parseCli(args: string[]): CliOptions {
+  let functionName: string | undefined;
+  let requestedSource: string | undefined;
+  let pseudo: number | undefined;
+  let schedulerWindow: RenderOptions["schedulerWindow"];
+  let json = false;
+  let useOverrides = true;
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index]!;
+    if (argument === "--src") {
+      requestedSource = args[++index];
+      if (!requestedSource) usage("--src requires a file");
+    } else if (argument === "--pseudo") {
+      const raw = args[++index];
+      if (!raw || !/^\d+$/.test(raw)) usage("--pseudo requires an integer");
+      pseudo = parseInt(raw, 10);
+    } else if (argument === "--scheduler-window") {
+      const raw = args[++index];
+      const match = raw?.match(/^(\d+):(\d+)$/);
+      if (!match) usage("--scheduler-window requires start:end");
+      schedulerWindow = { start: parseInt(match[1], 10), end: parseInt(match[2], 10) };
+      if (schedulerWindow.end < schedulerWindow.start) usage("scheduler window end precedes start");
+    } else if (argument === "--json") {
+      json = true;
+    } else if (argument === "--no-overrides") {
+      useOverrides = false;
+    } else if (argument.startsWith("--")) {
+      usage(`unknown option ${argument}`);
+    } else if (functionName) {
+      usage("only one function may be traced");
+    } else {
+      functionName = normalizeFunctionName(argument);
     }
   }
-
-  console.log("\nScheduler traces:");
-  for (const scheduler of report.schedulers) {
-    console.log(
-      `  ${scheduler.stage}: ${scheduler.instructionPriorities} priorities, ` +
-      `${scheduler.readyListDecisions} ready-list decisions, ` +
-      `${scheduler.shortenedLives} lives shortened, ${scheduler.extendedLives} extended`,
-    );
-  }
-
-  console.log("\nCaveats:");
-  for (const caveat of report.caveats) console.log(`  - ${caveat}`);
-}
-
-function usage(): never {
-  console.error("Usage: npx tsx tools/agent/compilerTrace.ts <func> [--src <file>] [--json] [--no-overrides]");
-  process.exit(1);
+  if (!functionName) usage("missing function name");
+  const result: CliOptions = { functionName, json, useOverrides };
+  if (requestedSource) result.requestedSource = requestedSource;
+  if (pseudo !== undefined) result.pseudo = pseudo;
+  if (schedulerWindow) result.schedulerWindow = schedulerWindow;
+  return result;
 }
 
 const isCLI = process.argv[1]?.endsWith("compilerTrace.ts");
 if (isCLI) {
-  const args = process.argv.slice(2);
-  const sourceIndex = args.indexOf("--src");
-  const requestedSource = sourceIndex >= 0 ? args[sourceIndex + 1] : undefined;
-  const positional = args.filter((arg, index) =>
-    !arg.startsWith("--") && (sourceIndex < 0 || index !== sourceIndex + 1)
-  );
-  if (positional.length !== 1) usage();
-
-  const funcName = normalizeFunctionName(positional[0]);
+  const options = parseCli(process.argv.slice(2));
   try {
-    const report = buildTraceReport(funcName, requestedSource, !args.includes("--no-overrides"));
-    if (args.includes("--json")) console.log(JSON.stringify(report, null, 2));
-    else printHuman(report);
+    const report = buildTraceReport(
+      options.functionName,
+      options.requestedSource,
+      options.useOverrides,
+    );
+    if (options.json) console.log(JSON.stringify(report, null, 2));
+    else console.log(renderText(report, options));
   } catch (error: any) {
     console.error(`compilerTrace: ${error.message}`);
     process.exit(1);

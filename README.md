@@ -156,6 +156,19 @@ in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
 `psx_verify_build`, and the terminating `psx_finalize_function` clean-source
 and byte-identity gate. Command output is bounded before it enters model context.
 
+`compilerTrace.ts` writes raw `-da` dumps plus a typed
+`build/compilerTrace/<function>/report.json`. Its bounded text report connects
+observed pseudo SET/use/death provenance, reconstructed lifetime endpoints,
+local/global allocation, sched1/sched2 ready-list decisions, allocation-created hard-register
+hazards, and inferred target-register recurrence experiments. Focus difficult
+reports without changing compilation:
+
+```bash
+npx tsx tools/agent/compilerTrace.ts <function> --pseudo 106
+npx tsx tools/agent/compilerTrace.ts <function> --scheduler-window 24:32
+npx tsx tools/agent/compilerTrace.ts <function> --json
+```
+
 Start `pi` from the repository root and use a slash command. Run `/reload` after
 editing `.pi` resources in an existing session. Interactive workflows never
 commit or merge automatically. Reusable guides derive concrete target and

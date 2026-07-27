@@ -260,14 +260,24 @@ the structural classifier:
 | `mixed-operands` / `scheduling-and-operands` | Inspect compiler pass dumps before changing source again |
 
 Run `compilerTrace.ts` for allocation, scheduling, stubborn operand-order, and
-mixed cases. It stores GCC dumps under `build/compilerTrace/<func>/` and
-summarizes pseudo lifetimes, conflicts, assignments, and scheduler decisions.
-Distinguish assignments present in `.lreg` from those appearing only in
-`.greg`; `priority~` is approximate evidence, not an exact quantity trace.
+mixed cases. It stores GCC dumps and a typed `report.json` under
+`build/compilerTrace/<func>/`. The report connects observed pseudo SET/use/death
+UIDs, reconstructed lifetime endpoints, `.lreg` versus `.greg` assignments,
+scheduler ready-list decisions, and allocation-created hard-register hazards.
+Use `--pseudo <n>` or `--scheduler-window <start:end>` to focus dense output.
 
-Each edit should name the pseudo lifetime, conflict, assignment pass,
-canonicalization rule, or scheduler decision it intends to change. Do not run
-random declaration or statement permutations.
+Treat each confidence label literally. Dumped UIDs, dependency notes, conflicts,
+preferences, and assignments are exact observations. Lifetime endpoints,
+untyped dependency kinds/costs, and scheduler tie explanations are
+reconstructed or inferred because stock `-da` does not expose GCC's private
+quantity indices and every scheduler decision field. A target-register
+recurrence hint is an experiment to test, not proof of original source.
+
+Start with the cross-pass feedback category: `sched1-reordered`, `sched2-fixed`,
+`allocation-blocked`, or `memory-or-control`. Each edit should name the pseudo
+lifetime, conflict, assignment pass, canonicalization rule, or scheduler
+decision it intends to change. Do not run random declaration or statement
+permutations.
 
 ### When source-order changes do nothing
 

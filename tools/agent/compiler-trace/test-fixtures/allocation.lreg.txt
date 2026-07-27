@@ -1,0 +1,32 @@
+
+;; Function fixture
+
+107 registers.
+
+Register 105 used 2 times across 3 insns in block 0; set 1 time; user var; GR_REGS or none.
+
+Register 106 used 4 times across 8 insns in block 0; set 2 times; user var; dies in 2 places; GR_REGS or none.
+
+1 basic blocks.
+
+;; Register 105 in 2.
+;; Start of basic block 0, registers live: 4 5
+(insn 10 0 12 (set (reg/v:SI 105)
+        (plus:SI (reg:SI 4 a0) (reg:SI 5 a1))) -1 (nil)
+    (nil))
+(insn 12 10 14 (set (mem:SI (reg:SI 4 a0) 0)
+        (reg/v:SI 105)) -1 (nil)
+    (expr_list:REG_DEAD (reg/v:SI 105) (nil)))
+(insn 14 12 16 (set (reg/v:SI 106)
+        (plus:SI (reg:SI 4 a0) (const_int 1))) -1 (nil)
+    (nil))
+(insn 16 14 20 (set (mem:SI (reg:SI 4 a0) 0)
+        (reg/v:SI 106)) -1 (nil)
+    (expr_list:REG_DEAD (reg/v:SI 106) (nil)))
+(insn 20 16 22 (set (reg/v:SI 106)
+        (ior:SI (reg:SI 4 a0) (reg:SI 5 a1))) -1 (nil)
+    (nil))
+(insn 22 20 0 (set (mem:SI (reg:SI 4 a0) 0)
+        (reg/v:SI 106)) -1 (nil)
+    (expr_list:REG_DEAD (reg/v:SI 106) (nil)))
+;; End of basic block 0

@@ -1,0 +1,9 @@
+
+;; Function fixture
+
+;; 105 conflicts: 105 106 2 4
+;; 105 preferences: 7
+;; 106 conflicts: 105 106 4 5
+;; 106 preferences: 3
+;; Register dispositions:
+105 in 2  106 in 3

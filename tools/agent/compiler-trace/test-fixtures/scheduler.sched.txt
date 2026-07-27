@@ -1,0 +1,35 @@
+
+;; Function fixture
+;;	 -- basic block number 0 from 10 to 22 --
+;; ready list initially:
+;; 22
+;; insn[  10]: priority =    1, ref_count =    1
+;; insn[  12]: priority =    1, ref_count =    1
+;; insn[  14]: priority =    1, ref_count =    1
+;; insn[  16]: priority =    1, ref_count =    1
+;; insn[  20]: priority =    1, ref_count =    1
+;; insn[  22]: priority =    1, ref_count =    0
+;; ready list at T-1: 10 (1) 12 (7f000001), now 12 10
+;; ready list at T-2: 14 (1) 16 (1), now 14 16
+;; insn 16 has a greater potential hazard, now 16 14
+;; ready list at T-3: 20 (1), now 20
+;; register 105 life shortened from 8 to 3
+;; register 106 life extended from 4 to 7
+;; Start of basic block 0, registers live: 4 5
+(insn 10 0 12 (set (reg/v:SI 105)
+        (plus:SI (reg:SI 4 a0) (reg:SI 5 a1))) -1 (nil)
+    (nil))
+(insn 12 10 14 (set (mem:SI (reg:SI 4 a0) 0)
+        (reg/v:SI 105)) -1 (insn_list/j 10 (nil))
+    (expr_list:REG_DEAD (reg/v:SI 105) (nil)))
+(insn 14 12 16 (set (reg/v:SI 106)
+        (plus:SI (reg:SI 4 a0) (reg:SI 5 a1))) -1 (nil)
+    (nil))
+(insn 16 14 20 (set (mem:SI (reg:SI 4 a0) 0)
+        (reg/v:SI 106)) -1 (insn_list/j 14 (nil))
+    (expr_list:REG_DEAD (reg/v:SI 106) (nil)))
+(insn 20 16 22 (set (reg:SI 107)
+        (mem:SI (reg:SI 4 a0) 0)) -1 (insn_list/j/c 12 (insn_list/j/c 16 (nil)))
+    (nil))
+(insn 22 20 0 (use (reg:SI 107)) -1 (insn_list/j 20 (nil)))
+;; End of basic block 0

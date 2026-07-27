@@ -1,15 +1,16 @@
-# func_800154CC: POLY_F4 initializer — the jump.c diamond collapse, the crossjump solution, and the y+h scheduler bubble
+# func_800154CC: POLY_F4 initializer — crossjump, register-web reuse, and the sched2 solution
 
-**Date:** 2026-07-26
-**Status:** `src/func_800154CC.c` at **46/50 (92%)**, clean C89 — no register
-pins, no flag overrides, no new asm stubs, one documented crossjump-shaped
-branch. Remaining diff is 4 instructions (offsets 0x68–0x74) in the
-vertex-sum scheduling/allocation.
+**Date:** 2026-07-26; solved 2026-07-27
+**Status:** `src/func_800154CC.c` is **50/50 (100%)**, clean C89 — no register
+pins, barriers, flag overrides, or assembly stubs. `diffFunc` is exact and
+`make check` confirms that `build/slus_011.bin` matches the original payload.
 
-This note documents: what the function is, the jump.c transformation that
-destroyed the target's if/else diamond and the clean-C shape that defeats
-it, the GCC 2.95.2 pass-level evidence for every remaining instruction, the
-~25 experiments that failed (with reasons), and reusable levers.
+This note documents: what the function is; the `jump.c` transformation that
+destroyed the target's if/else diamond and the clean crossjump shape that
+defeats it; the GCC 2.95.2 scheduling/allocation feedback loop behind the final
+four-instruction mismatch; the two-set `$v1` web and branch-join mask birth
+that solved it; the same-input real-ASPSX boundary proof; failed experiments;
+and reusable tooling and matching lessons.
 
 ---
 
@@ -147,7 +148,7 @@ barrier at all.
 
 ---
 
-## 3. Remaining diff: the y+h sum bubble (offsets 0x68–0x74)
+## 3. The former remaining diff: the y+h sum bubble (offsets 0x68–0x74)
 
 ```
 target:  addu v1,a2,v1   addu v0,a3,a1   sh v1,12(t0)   sh v1,20(t0)
@@ -158,7 +159,7 @@ ours:    addu v0,a2,v1   sh v0,12(t0)   sh v0,20(t0)   addu v0,a3,a1
 computed in `v0` immediately after `x+w`, before the two `x+w` stores.
 Everything else in the function matches exactly.
 
-### 3.1 Confirmed mechanism chain
+### 3.1 Confirmed mechanism chain at 46/50
 
 1. **sched1 (pre-allocation list scheduler) bubbles the y+h add down.**
    In `.regmove` the two adds are adjacent (both born before the x-stores);
@@ -169,13 +170,15 @@ Everything else in the function matches exactly.
 2. **Because the adds are separated in sched1's order, the sums'
    lifetimes are disjoint → local-alloc gives both `v0`.** The conflict
    sets in the `.lreg` dump show no 104↔105 conflict.
-3. **Target allocation requires overlapping lifetimes.** local-alloc
-   assigns quantities in *decreasing* length of life (longer first;
+3. **Overlapping lifetimes were one demonstrated route to the target split.**
+   local-alloc assigns quantities in *decreasing* length of life (longer first;
    `QTY_CMP_PRI = floor_log2(n_refs) * n_refs * size / (death - birth)`,
    ties by qty number). With adjacent adds: `y+h` (pseudo 104, longer
    span) → `v0` first; then `x+w` (105) finds `v0` occupied during its
    window and takes `v1` — exactly arg4's register, freed when arg4 dies
-   at the add.
+   at the add. The final solution found a cleaner second route: make x+w
+   part of a traced multi-set global `$v1` web (§3.6), so sched1 adjacency
+   is no longer required.
 4. **The fake-lifetime escape hatch needs ±1.** With
    `-fschedule-insns2`, local-alloc first tries `fake_birth/death`
    (lifetime extended ~1 instruction each side; local-alloc.c line ~1433).
@@ -220,17 +223,155 @@ them before the wall; the clobber pins the stores after). The adds *do*
 come out adjacent (24/25) and the sums split `v0`/`v1` — but the wall
 scrambles everything else: store order flips (y-stores first), the
 arg-load registers change (`arg4→a0`, `arg5→v1`), the mask pair drops to
-26/27, net **36/50**. A second wall made it worse (34/50). The mechanism
-works but its register-web collateral is currently unmanageable — keep
-the crossjump-only 46/50.
+26/27, net **36/50**. A second wall made it worse (34/50). This proved the
+lifetime-overlap mechanism, but its register-web collateral made it unsuitable;
+the 46/50 crossjump-only source remained the best state until the later
+multi-set `$v1` solution.
 
 ### 3.4 explainDiff's hint
 
-The classifier reports "2 reordered pairs appear **register-independent**"
+The classifier reported "2 reordered pairs appear **register-independent**"
 — consistent with the case-study lever "fix the registers and the
-schedule fixes itself": sched2 currently *cannot* move the y+h add above
+schedule fixes itself": sched2 could not move the y+h add above
 `sh12/sh14` because of a hard WAR on `v0` (stores read `v0`, the add
 writes `v0`). With the correct `v1`-for-`x+w` split, the WAR disappears.
+
+### 3.5 Ruling out the assembler boundary
+
+The ordering-only signature made a maspsx/ASPSX difference plausible. This
+was tested with the exact same cc1 assembly, not two independently compiled
+inputs:
+
+1. preserve `build/compilerTrace/func_800154CC/func_800154CC.s`;
+2. convert it to CRLF, which real ASPSX requires;
+3. run PsyQ 4.3's real **ASPSX 2.77** under a 32-bit Wine prefix;
+4. parse the resulting PsyQ LNK object and extract its `.text` bytes;
+5. compare the real-ASPSX instruction order with maspsx/GNU as and the target.
+
+Real ASPSX emitted the same wrong candidate sequence:
+
+```text
+addu v0,a2,v1
+sh   v0,12(t0)
+sh   v0,20(t0)
+addu v0,a3,a1
+```
+
+It did not move y+h above the stores. Therefore this was not an assembler
+emulation gap; the search correctly returned to the C/cc1 register web.
+
+### 3.6 The decisive clue: target `$v1` recurs later
+
+The target uses `$v1` for two non-overlapping semantic results:
+
+```text
+addu v1,a2,v1       x+w
+...
+or   v1,v1,v0       first addPrim tag result
+```
+
+The 46/50 source used one local only for x+w and expressed the first tag merge
+inline, creating separate pseudos. Reusing `temp_v1` for both values produced
+the required old-GCC web:
+
+```c
+temp_v1 = arg2 + arg4;
+/* Store x+w at fields C and 14. */
+...
+temp_v1 = (*(s32 *)arg0 & 0xFF000000) | (*arg1 & mask);
+*(s32 *)arg0 = temp_v1;
+```
+
+The final compiler trace identifies this as pseudo 106:
+
+```text
+uses=5, sets=2, dies in 2 places, assigned v1, global/reload
+```
+
+This deliberately multi-set, multi-death user-variable web is the opposite of
+the usual fresh-short-lived-pseudo lever, but it matches the target's hard
+register recurrence. The x+w result is now `$v1`; y+h remains a local `$v0`
+quantity.
+
+Crucially, sched1 still bubbles y+h below the coordinate stores in the matched
+source. The solution does **not** force sched1 to reproduce the target order.
+Instead, allocation gives x+w `$v1`, removing the hard `$v0` WAR between the
+x+w stores and the y+h add. sched2 can then move y+h above those stores and
+produce:
+
+```text
+addu v1,a2,v1
+addu v0,a3,a1
+sh   v1,12(t0)
+sh   v1,20(t0)
+```
+
+The intermediate tag-reuse variant reached **47/50**. All register roles and
+sum/store positions were correct, but the mask pair moved after x+w:
+
+```text
+ours:    addu v1,a2,v1   lui a0,0xff   ori a0,a0,0xffff   addu v0,a3,a1
+target:  lui a0,0xff     ori a0,a0,0xffff   addu v1,a2,v1   addu v0,a3,a1
+```
+
+### 3.7 The final lever: materialize the mask at the branch join
+
+The final source names the shared 24-bit address mask and assigns it
+immediately after the crossjumped branch join:
+
+```c
+if (arg7 != 0) {
+    var_v0 = 0x2A;
+    arg0->field_7 = (s8)var_v0;
+} else {
+    var_v0 = 0x28;
+    arg0->field_7 = (s8)var_v0;
+}
+mask = 0xFFFFFF;
+temp_v1 = arg2 + arg4;
+temp_v0 = arg3 + arg5;
+```
+
+Both tag expressions then use `mask`. This gives the mask pseudo the required
+birth site at the control-flow join and schedules its two-instruction
+materialization before the sums. Placement was decisive:
+
+| Mask source placement | Score | Effect |
+|---|---:|---|
+| before the branch | 0/50 | mask lifetime perturbs the prologue and branch allocation |
+| after the sums | 47/50 | same x+w-before-mask order as the tag-reuse variant |
+| **immediately after the branch join** | **50/50** | target `lui/ori`, x+w, y+h order |
+
+The final core is exactly:
+
+```text
+lui  a0,0xff
+ori  a0,a0,0xffff
+addu v1,a2,v1
+addu v0,a3,a1
+sh   v1,12(t0)
+sh   v1,20(t0)
+```
+
+### 3.8 Final clean-C shape and verification
+
+The two non-obvious source mechanisms are therefore:
+
+1. the branch-local two-store/shared-variable shape, merged later by
+   crossjump; and
+2. a named mask born at the join plus reuse of `temp_v1` for two distant
+   target-`$v1` results.
+
+Verification after promotion:
+
+```text
+psx_diff_function func_800154CC: 50/50 instructions (100.0%)
+psx_verify_build: build/slus_011.bin matches original payload
+```
+
+Context export added the function signature and `Struct_800154CC` to the
+generated function context header. A separate finalizer scope-path issue is
+not a source, compiler, or binary-match failure.
 
 ---
 
@@ -257,6 +398,14 @@ writes `v0`). With the correct `v1`-for-`x+w` split, the WAR disappears.
 | q | two walls | 34/50 | worse cascade |
 | r | addPrim part 1 moved mid-block | 26/50 | `arg1` register breaks (`t1→t2`) |
 | s | addPrim part 1 right after merge store | 27/50 | same |
+| t | reassign `s16 arg4` / `arg5` to hold sums | 1–10/50 | narrowing assignment adds `sll/sra` truncation and perturbs argument loads |
+| u | `temp_v1 = arg4; temp_v1 += arg2` | 46/50 | combine removes the copy; only commutative operand order changes |
+| v | reuse sum temps for color extraction | 28–39/50 | long global webs seize early registers and disturb the prologue |
+| w | reuse both sum temps for later tag results | 45/50 | correct broad idea, but y-web reuse changes `arg5` allocation |
+| x | **reuse x temp for first tag result** | **47/50** | x+w becomes the target `$v1` web; sched2 fixes y+h, mask pair is late |
+| y | x-tag reuse + mask before branch | 0/50 | mask is born too early and perturbs the whole block |
+| z | x-tag reuse + mask after sums | 47/50 | mask birth remains too late |
+| aa | **x-tag reuse + mask at branch join** | **50/50** | final clean-C match (§3.6–3.8) |
 
 All scores via `psx_fuzz_variants` in full mode (cc1 → maspsx → as → objdump).
 
@@ -304,24 +453,38 @@ All scores via `psx_fuzz_variants` in full mode (cc1 → maspsx → as → objdu
    in sched1's order. When two values share a register that the target
    splits, measure their birth/death distance in the `.sched` dump, not
    the final asm.
+8. **Search target hard-register recurrence across the whole function.** If
+   two non-overlapping target values use the same hard register while the
+   candidate gives them fresh pseudos, test whether one C variable originally
+   carried both. In this case x+w and the later first tag OR both use `$v1`.
+9. **A sched1 mismatch can be solved at allocation/sched2.** Do not assume the
+   pass that first creates the wrong order must be changed. Giving x+w `$v1`
+   removes the post-allocation `$v0` WAR and lets sched2 repair y+h.
+10. **Multi-death webs are sometimes the target, not a smell.** Fresh operands
+    remain the default, but a repeated target hard register can justify a
+    deliberate user-variable reuse backed by trace evidence.
+11. **Control-flow joins are meaningful birth sites.** Naming a shared constant
+    immediately after a join can change scheduler LUID/lifetime behavior while
+    preserving natural C. Before-branch and after-consumer placements are not
+    equivalent experiments.
+12. **Prove assembler gaps with identical input.** Real ASPSX and maspsx must
+    receive the same cc1 assembly before assigning blame to the boundary.
 
-## 6. Open questions / next steps
+## 6. Follow-up tooling and family work
 
-- The y+h bubble resists source-level fixes; the remaining candidate
-  causes are (a) an unidentified DAG difference (extra block-3 insn,
-  different pseudo web for `arg5`/`arg3` feeds), or (b) a
-  maspsx/ASPSX-side scheduling difference (cc1's `.sched` output order
-  already differs from maspsx's final order in some passes — worth
-  checking whether the *original* binary's bubble was introduced by
-  ASPSX rather than cc1). The maspsx assembler does its own scheduling;
-  comparing cc1 `.s` against the final object for this function would
-  pin down which side owns the y+h position.
+- Plans derived from this solution now live at:
+  - `plans/compiler-web-scheduler-diagnostics.md`;
+  - `plans/aspsx-same-input-differential.md`;
+  - `plans/mechanism-aware-variant-lab.md`.
 - Decompile the sibling family with the crossjump idiom; `func_800153BC`
-  (POLY_G4) has the same sum structure and may yield the missing
-  sum-scheduling clue when matched.
-- `compilerTrace.ts` could be taught to dump exact qty composition and
-  birth/death indices from `.lreg` (the tool currently approximates
-  priorities).
+  (POLY_G4) has the same branch and sum structure and may benefit from the
+  target-register-recurrence test.
+- Extend `compilerTrace.ts` to expose exact quantity composition, pseudo
+  provenance, scheduler DAG decisions, and allocation-to-sched2 hazards.
+- Preserve complete hypothesis sources and pass-level divergence metadata in
+  future `psx_fuzz_variants` runs.
+- Automate the real-ASPSX same-input differential so a boundary hypothesis is
+  one deterministic diagnostic rather than a manual Wine experiment.
 
 ---
 
@@ -330,4 +493,6 @@ mips.h/mips.md) — jump.c newly vendored at
 `notes/scratch/gcc-2.95.2-reference/` during this research; full tree at
 `/tmp/gcc-2.95.2/`. Target analysis from
 `build/asm/nonmatchings/func_800154CC/func_800154CC.s` and `-da` pass
-dumps under `build/compilerTrace/func_800154CC/`.*
+dumps under `build/compilerTrace/func_800154CC/`. The assembler-boundary test
+used the identical cc1 `.s` with real PsyQ 4.3 ASPSX 2.77 under Wine and the
+configured maspsx/GNU-as path.*

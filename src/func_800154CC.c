@@ -8,7 +8,8 @@
  * next primitive slot.
  * See extensive documentation captured here: ./notes/research/func_800154CC-polyf4-diamond-crossjump.md
  *  before continuing investigation */
-void *func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7) {
+void* func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7) {
+    s32 mask;
     s32 temp_v0;
     s32 temp_v1;
     s32 var_v0;
@@ -32,6 +33,7 @@ void *func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 ar
         var_v0 = 0x28;
         arg0->field_7 = (s8)var_v0;
     }
+    mask = 0xFFFFFF;
     temp_v1 = arg2 + arg4;
     temp_v0 = arg3 + arg5;
     arg0->field_C = (s16)temp_v1;
@@ -42,7 +44,8 @@ void *func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 ar
     arg0->field_10 = arg2;
     arg0->field_12 = (s16)temp_v0;
     arg0->field_16 = (s16)temp_v0;
-    *(s32 *)arg0 = (*(s32 *)arg0 & 0xFF000000) | (*arg1 & 0xFFFFFF);
-    *arg1 = (*arg1 & 0xFF000000) | ((s32)arg0 & 0xFFFFFF);
+    temp_v1 = (*(s32 *)arg0 & 0xFF000000) | (*arg1 & mask);
+    *(s32 *)arg0 = temp_v1;
+    *arg1 = (*arg1 & 0xFF000000) | ((s32)arg0 & mask);
     return (void *)((char *)arg0 + 0x18);
 }

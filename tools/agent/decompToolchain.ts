@@ -85,6 +85,20 @@ export function loadFlagOverrides(): Map<string, string[]> {
   return result;
 }
 
+export function assembleCompilerOutput(assembly: string, object: string): string {
+  runTool("python3", [
+    MASPSX,
+    "--aspsx-version", "2.77",
+    "--dont-force-G0",
+    "--run-assembler",
+    "--gnu-as-path", AS,
+    "-o", object,
+    ...AS_FLAGS,
+    assembly,
+  ]);
+  return object;
+}
+
 export function compileSource(
   source: string,
   outputDir: string,
@@ -110,18 +124,7 @@ export function compileSource(
   /* Running cc1 in the artifact directory keeps all -da files together. */
   runTool(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput);
 
-  if (options.assemble) {
-    runTool("python3", [
-      MASPSX,
-      "--aspsx-version", "2.77",
-      "--dont-force-G0",
-      "--run-assembler",
-      "--gnu-as-path", AS,
-      "-o", object,
-      ...AS_FLAGS,
-      assembly,
-    ]);
-  }
+  if (options.assemble) assembleCompilerOutput(assembly, object);
 
   const result: CompileArtifacts = {
     source: absoluteSource,
