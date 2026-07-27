@@ -35,15 +35,14 @@ word ops at the end are exactly PSY-Q `addPrim(ot,p)` =
 `setaddr(p, getaddr(ot)), setaddr(ot, p)` (24-bit addr + 8-bit len in the
 tag word).
 
-**Sibling family** (all still embedded asm — decompile them with this
-note's pattern):
+**Sibling family:**
 
-| Function | Primitive | Code | Notes |
+| Function | Primitive | Code | Status / notes |
 |---|---|---|---|
 | `func_8001526C` | small prim | 0x68 (len 2) | matched via asm |
 | `func_8001530C` | small prim | 0x40 (len 3) | matched via asm |
-| `func_800153BC` | POLY_G4 | 0x38 | same diamond + vertex sums |
-| **`func_800154CC`** | **POLY_F4** | **0x28** | **this function** |
+| `func_800153BC` | POLY_G4 | 0x38 | **100% clean C**; same diamond, solved by one late field-assignment birth-site change |
+| **`func_800154CC`** | **POLY_F4** | **0x28** | **100% clean C; this function** |
 | `func_80015594` | TILE | 0x60 | immediately after (+0xC8) |
 
 All of them share the same conditional-code diamond (`beqz / j+li / li /
@@ -438,11 +437,13 @@ All scores via `psx_fuzz_variants` in full mode (cc1 → maspsx → as → objdu
    interblock scheduling, letting independent constants (lui/ori) float
    above them. Avoid barriers as scheduling fixes for store/constant
    ordering issues.
-5. **Scheduler outputs are statement-order invariant.** All permutations
-   of independent statements compiled identically — the list scheduler's
-   DAG + tiebreaks decide everything. If the order is wrong, the DAG
-   (instruction set, dependencies, pseudo webs) must change, not the
-   source text order.
+5. **Distinguish no-op permutations from birth-site changes.** The
+   permutations tested in this function compiled identically because they
+   reached the same scheduler DAG. That does not make source order generally
+   irrelevant: `func_800153BC` was solved by moving one independent field
+   assignment far enough to change RTL birth order, local allocation, and
+   sched2 hard-register hazards. Compare early dumps before declaring an order
+   experiment ineffective.
 6. **local-alloc order: decreasing length of life.** Longer-lived
    quantities get registers first; a shorter-lived quantity born where an
    argument register dies inherits that register *only if* the
@@ -453,10 +454,13 @@ All scores via `psx_fuzz_variants` in full mode (cc1 → maspsx → as → objdu
    in sched1's order. When two values share a register that the target
    splits, measure their birth/death distance in the `.sched` dump, not
    the final asm.
-8. **Search target hard-register recurrence across the whole function.** If
+8. **Treat target hard-register recurrence as an experiment, not proof.** If
    two non-overlapping target values use the same hard register while the
    candidate gives them fresh pseudos, test whether one C variable originally
-   carried both. In this case x+w and the later first tag OR both use `$v1`.
+   carried both. That was the winning mechanism here, but the analogous
+   `temp_v1` reuse in `func_800153BC` created the predicted multi-set web and
+   still fell to 35/68 through global-allocation collateral. Always verify the
+   assignment pass and downstream schedule.
 9. **A sched1 mismatch can be solved at allocation/sched2.** Do not assume the
    pass that first creates the wrong order must be changed. Giving x+w `$v1`
    removes the post-allocation `$v0` WAR and lets sched2 repair y+h.
@@ -476,9 +480,10 @@ All scores via `psx_fuzz_variants` in full mode (cc1 → maspsx → as → objdu
   - `plans/compiler-web-scheduler-diagnostics.md`;
   - `plans/aspsx-same-input-differential.md`;
   - `plans/mechanism-aware-variant-lab.md`.
-- Decompile the sibling family with the crossjump idiom; `func_800153BC`
-  (POLY_G4) has the same branch and sum structure and may benefit from the
-  target-register-recurrence test.
+- Apply the crossjump idiom to the remaining assembly siblings.
+  `func_800153BC` (POLY_G4) is now solved; its companion note documents how a
+  single field-assignment birth-site move changed local allocation and sched2,
+  and why the target-register-recurrence reuse hypothesis was rejected there.
 - Extend `compilerTrace.ts` to expose exact quantity composition, pseudo
   provenance, scheduler DAG decisions, and allocation-to-sched2 hazards.
 - Preserve complete hypothesis sources and pass-level divergence metadata in

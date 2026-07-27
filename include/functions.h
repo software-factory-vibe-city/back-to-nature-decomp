@@ -32,6 +32,37 @@ typedef struct {
 } SomeStruct;
 
 typedef struct {
+    /* 0x00 */ s8 field_0;
+    /* 0x01 */ s8 field_1;
+    /* 0x02 */ s8 field_2;
+    /* 0x03 */ s8 field_3;
+    /* 0x04 */ s8 field_4;
+    /* 0x05 */ s8 field_5;
+    /* 0x06 */ s8 field_6;
+    /* 0x07 */ s8 field_7;
+    /* 0x08 */ s16 field_8;
+    /* 0x0A */ s16 field_A;
+    /* 0x0C */ s8 field_C;
+    /* 0x0D */ s8 field_D;
+    /* 0x0E */ s8 field_E;
+    /* 0x0F */ char pad_F;
+    /* 0x10 */ s16 field_10;
+    /* 0x12 */ s16 field_12;
+    /* 0x14 */ s8 field_14;
+    /* 0x15 */ s8 field_15;
+    /* 0x16 */ s8 field_16;
+    /* 0x17 */ char pad_17;
+    /* 0x18 */ s16 field_18;
+    /* 0x1A */ s16 field_1A;
+    /* 0x1C */ s8 field_1C;
+    /* 0x1D */ s8 field_1D;
+    /* 0x1E */ s8 field_1E;
+    /* 0x1F */ char pad_1F;
+    /* 0x20 */ s16 field_20;
+    /* 0x22 */ s16 field_22;
+} Struct_800153BC;
+
+typedef struct {
     /* 0x00 */ s8  field_0;
     /* 0x01 */ s8  field_1;
     /* 0x02 */ s8  field_2;
@@ -91,6 +122,7 @@ void func_800132B8(s32 arg0, s32 arg1, s32 arg2);
 s32 func_800134B8(void);
 void func_80013F90(Struct80013F90 *arg0);
 s32 func_80014CB0(void);
+void* func_800153BC(Struct_800153BC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9, s16 arg10);
 void* func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7);
 void func_80015840(ObjectState *obj, s8 arg1);
 void func_8001585C(ObjectState *obj, s8 arg1);
