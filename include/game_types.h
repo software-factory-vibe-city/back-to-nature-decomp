@@ -39,6 +39,29 @@ typedef struct {
     s32 field_4;
 } PairS32;
 
+/* Struct initialized by func_800154CC (0x18 bytes)
+ * Offset 0x00 is accessed as s32; offsets 0x03-0x07 as s8; rest as s16.
+ * First 3 bytes are separate so field_3 lands at offset 3.
+ */
+typedef struct {
+    /* 0x00 */ s8  field_0;
+    /* 0x01 */ s8  field_1;
+    /* 0x02 */ s8  field_2;
+    /* 0x03 */ s8  field_3;
+    /* 0x04 */ s8  field_4;
+    /* 0x05 */ s8  field_5;
+    /* 0x06 */ s8  field_6;
+    /* 0x07 */ s8  field_7;
+    /* 0x08 */ s16 field_8;
+    /* 0x0A */ s16 field_A;
+    /* 0x0C */ s16 field_C;
+    /* 0x0E */ s16 field_E;
+    /* 0x10 */ s16 field_10;
+    /* 0x12 */ s16 field_12;
+    /* 0x14 */ s16 field_14;
+    /* 0x16 */ s16 field_16;
+} Struct_800154CC;
+
 /* Object state/flags structure accessed by animation/state functions */
 typedef struct {
     /* 0x00 */ char pad_00[0x02];
