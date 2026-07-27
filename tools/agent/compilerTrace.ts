@@ -33,11 +33,13 @@ import {
 import { detectAllocationFeedback } from "./compiler-trace/hard-register-hazards.js";
 import { analyzeAllocation, applyAllocation } from "./compiler-trace/local-allocation.js";
 import { buildPseudoProvenance } from "./compiler-trace/pseudo-provenance.js";
+import { reconstructRtlMetadata } from "./compiler-trace/rtl-notes.js";
 import { renderText } from "./compiler-trace/render-text.js";
 import {
   FIRST_PSEUDO_REGISTER,
   parseRegisterReferences,
   parseRtlInstructions,
+  parseRtlNotes,
 } from "./compiler-trace/rtl-parser.js";
 import { parseScheduler } from "./compiler-trace/scheduler-dag.js";
 import { findTargetRegisterRecurrences } from "./compiler-trace/target-recurrence.js";
@@ -45,6 +47,7 @@ import type {
   CompilerTraceReport,
   RenderOptions,
   RtlInstruction,
+  RtlStageMetadata,
   StageSummary,
 } from "./compiler-trace/types.js";
 
@@ -86,16 +89,26 @@ function dumpFiles(directory: string, prefix: string): string[] {
     });
 }
 
-function summarizeStages(directory: string, files: string[]): StageSummary[] {
+function summarizeStages(
+  directory: string,
+  files: string[],
+  metadata: Map<string, RtlStageMetadata>,
+): StageSummary[] {
   return files.map((file) => {
     const path = join(directory, file);
     const content = readFileSync(path, "utf-8");
     const occurrences = pseudoOccurrences(content);
+    const stageMetadata = metadata.get(stageSuffix(file));
     return {
       suffix: stageSuffix(file),
       file: relative(ROOT, path),
       bytes: Buffer.byteLength(content),
       instructionCount: countInstructions(content),
+      noteCount: stageMetadata?.notes.length || 0,
+      loopRegionCount: stageMetadata?.loopRegions.length || 0,
+      maximumLoopDepth: stageMetadata?.instructions.reduce(
+        (maximum, instruction) => Math.max(maximum, instruction.loopDepth), 0,
+      ) || 0,
       pseudoCount: occurrences.pseudos.size,
       pseudoOccurrences: occurrences.count,
     };
@@ -106,16 +119,24 @@ function parseAllStages(
   directory: string,
   prefix: string,
   files: string[],
-): { contents: Map<string, string>; instructions: Map<string, RtlInstruction[]> } {
+): {
+  contents: Map<string, string>;
+  instructions: Map<string, RtlInstruction[]>;
+  metadata: Map<string, RtlStageMetadata>;
+} {
   const contents = new Map<string, string>();
   const instructions = new Map<string, RtlInstruction[]>();
+  const metadata = new Map<string, RtlStageMetadata>();
   for (const file of files) {
     const stage = stageSuffix(file);
     const content = readFileSync(join(directory, file), "utf-8");
     contents.set(stage, content);
-    instructions.set(stage, parseRtlInstructions(content, stage));
+    const stageInstructions = parseRtlInstructions(content, stage);
+    const notes = parseRtlNotes(content, stage);
+    instructions.set(stage, stageInstructions);
+    metadata.set(stage, reconstructRtlMetadata(content, stage, stageInstructions, notes));
   }
-  return { contents, instructions };
+  return { contents, instructions, metadata };
 }
 
 function nearestInstructions(
@@ -148,6 +169,7 @@ export function buildTraceReport(
     .filter((stage) => parsed.instructions.has(stage));
   const pseudoMap = buildPseudoProvenance(provenanceStages, parsed.instructions);
   const caveats: string[] = [];
+  for (const metadata of parsed.metadata.values()) caveats.push(...metadata.caveats);
 
   const localContent = parsed.contents.get("lreg");
   if (localContent) {
@@ -232,7 +254,8 @@ export function buildTraceReport(
     assembly: relative(ROOT, artifacts.assembly),
     reportArtifact: relative(ROOT, reportPath),
     flags: artifacts.cc1Flags,
-    stages: summarizeStages(outputDirectory, files),
+    stages: summarizeStages(outputDirectory, files, parsed.metadata),
+    stageMetadata: [...parsed.metadata.values()],
     pseudos,
     schedulers,
     feedback,

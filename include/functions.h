@@ -88,6 +88,17 @@ typedef struct {
 } Struct_8001F39C;
 
 typedef struct {
+    /* 0x00 */ u16 field_0;
+    /* 0x02 */ u16 field_2;
+    /* 0x04 */ u8 field_4;
+    /* 0x05 */ u8 field_5;
+    /* 0x06 */ u16 field_6;
+    /* 0x08 */ char pad_8[0x20];
+    /* 0x28 */ u8 *field_28;
+    /* 0x2C */ u8 *field_2C;
+} Struct_S;
+
+typedef struct {
     /* 0x00 */ s32 field_0x00;
     /* 0x04 */ s32 field_0x04;
     /* 0x08 */ s32 field_0x08;
@@ -129,6 +140,7 @@ void func_8001585C(ObjectState *obj, s8 arg1);
 void func_80015880(SomeStruct *arg0, s32 arg1, s32 arg2);
 void func_8001588C(void);
 void func_80015894(SomeStruct *arg0, s32 arg1);
+void func_800158E4(Struct_S *arg0);
 void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);

@@ -73,6 +73,9 @@ extern s16 D_80055988[5];
  * Array size of 5 ensures >8 byte declaration for absolute addressing (lui+addiu) */
 extern u16 D_80049050[5];
 
+/* D_8005E43C - GP-relative update flag */
+extern s32 D_8005E43C;
+
 /* D_8005E44C - GP-relative u16 scalar */
 extern u16 D_8005E44C;
 

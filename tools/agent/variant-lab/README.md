@@ -63,6 +63,12 @@ Each run writes `build/fuzz/<function>/<run-id>/` containing:
 - GCC `-da` dumps when `--trace-passes` is enabled;
 - normalized `comparison.json` for target and candidate instructions.
 
+Pass snapshots retain loop begin/end/continue, basic-block, and deleted-instruction
+notes. Executable instructions carry reconstructed loop depth; loop regions are
+normalized by enclosed semantic instruction signatures so shifted note UIDs do
+not create false metadata differences. Source-line notes are parsed when present
+but excluded from pass equivalence.
+
 The run ID hashes source contents, hypotheses, mode, flags, and toolchain
 identity. Repeating the same run replaces the same reproducible directory.
 

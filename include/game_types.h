@@ -87,4 +87,16 @@ typedef struct {
     /* 0x34 */ s16 field_0x34;
 } Struct80013F90;
 
+/* Animation state with table and frame-data pointers. */
+typedef struct {
+    /* 0x00 */ u16 field_0;
+    /* 0x02 */ u16 field_2;
+    /* 0x04 */ u8 field_4;
+    /* 0x05 */ u8 field_5;
+    /* 0x06 */ u16 field_6;
+    /* 0x08 */ char pad_8[0x20];
+    /* 0x28 */ u8 *field_28;
+    /* 0x2C */ u8 *field_2C;
+} Struct_S;
+
 #endif /* GAME_TYPES_H */

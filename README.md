@@ -157,8 +157,11 @@ in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
 and byte-identity gate. Command output is bounded before it enters model context.
 
 `compilerTrace.ts` writes raw `-da` dumps plus a typed
-`build/compilerTrace/<function>/report.json`. Its bounded text report connects
-observed pseudo SET/use/death provenance, reconstructed lifetime endpoints,
+`build/compilerTrace/<function>/report.json`. Its pass summaries and structured
+stage metadata retain loop, basic-block, and deleted-instruction notes, annotate
+instructions with reconstructed loop depth, and normalize loop regions by their
+enclosed semantic instructions. Its bounded text report also connects observed
+pseudo SET/use/death provenance, reconstructed lifetime endpoints,
 local/global allocation, sched1/sched2 ready-list decisions,
 allocation-created hard-register hazards, and inferred target-register recurrence experiments. Focus difficult
 reports without changing compilation:
@@ -179,7 +182,9 @@ artifacts, flags, hashes, normalized comparisons, and verdicts:
 npx tsx tools/agent/fuzzVariants.ts <function> --manifest build/hypotheses.json --trace-passes
 ```
 
-Verdicts rank causal evidence before instruction counts. A cc1-only result is
+Verdicts rank causal evidence before instruction counts. Note-aware pass diffs
+report metadata-only loop-depth changes (including whether any executable loop
+control was added) instead of reducing them to UID changes. A cc1-only result is
 never promotion-eligible until the same hypothesis is confirmed in full mode.
 
 Start `pi` from the repository root and use a slash command. Run `/reload` after

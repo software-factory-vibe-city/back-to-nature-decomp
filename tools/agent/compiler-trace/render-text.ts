@@ -54,10 +54,11 @@ export function renderText(report: CompilerTraceReport, options: RenderOptions =
   lines.push("");
 
   lines.push("Pass summaries:");
-  lines.push("  stage       insns  pseudos  occurrences  dump");
+  lines.push("  stage       insns  notes loops/depth pseudos  occurrences  dump");
   for (const stage of report.stages) {
     lines.push(
       `  ${stage.suffix.padEnd(10)} ${String(stage.instructionCount).padStart(5)}  ` +
+      `${String(stage.noteCount).padStart(5)} ${`${stage.loopRegionCount}/${stage.maximumLoopDepth}`.padStart(11)} ` +
       `${String(stage.pseudoCount).padStart(7)}  ${String(stage.pseudoOccurrences).padStart(11)}  ${stage.file}`,
     );
   }

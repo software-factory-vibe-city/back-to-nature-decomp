@@ -14,8 +14,55 @@ export interface StageSummary {
   file: string;
   bytes: number;
   instructionCount: number;
+  noteCount: number;
+  loopRegionCount: number;
+  maximumLoopDepth: number;
   pseudoCount: number;
   pseudoOccurrences: number;
+}
+
+export type RtlNoteKind =
+  | "loop-begin"
+  | "loop-end"
+  | "loop-continue"
+  | "basic-block"
+  | "deleted"
+  | "source-line"
+  | "other";
+
+export interface RtlNote {
+  uid: number;
+  stage: string;
+  order: number;
+  kind: RtlNoteKind;
+  block?: number;
+  sourceFile?: string;
+  sourceLine?: number;
+}
+
+export interface InstructionMetadata {
+  uid: number;
+  loopDepth: number;
+  enclosingLoopNotes: number[];
+  block?: number;
+}
+
+export interface RtlLoopRegion {
+  beginUid: number;
+  endUid?: number;
+  depth: number;
+  confidence: TraceConfidence;
+  instructionUids: number[];
+  semanticInstructionSignatures: string[];
+  executableControlUids: number[];
+}
+
+export interface RtlStageMetadata {
+  stage: string;
+  notes: RtlNote[];
+  instructions: InstructionMetadata[];
+  loopRegions: RtlLoopRegion[];
+  caveats: string[];
 }
 
 export interface RegisterReference {
@@ -207,6 +254,7 @@ export interface CompilerTraceReport {
   reportArtifact: string;
   flags: string[];
   stages: StageSummary[];
+  stageMetadata: RtlStageMetadata[];
   pseudos: PseudoProvenance[];
   schedulers: SchedulerStage[];
   feedback: FeedbackFinding[];

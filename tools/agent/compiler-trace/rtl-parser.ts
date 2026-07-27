@@ -2,6 +2,8 @@ import type {
   RawDependencyReference,
   RegisterReference,
   RtlInstruction,
+  RtlNote,
+  RtlNoteKind,
 } from "./types.js";
 
 export const FIRST_PSEUDO_REGISTER = 80;
@@ -15,6 +17,16 @@ const HARD_REGISTER_NAMES = [
 
 const REGISTER_PATTERN = /\(reg((?:\/[a-z]+)*):([A-Z0-9]+)\s+(\d+)(?:\s+([^()\s]+))?\)/gi;
 const INSTRUCTION_START = /^\((insn|jump_insn|call_insn)\s+(\d+)\b/gm;
+const NOTE_START = /^\(note\s+(\d+)\b/gm;
+const RTL_FORM_START = /^\((?:insn|jump_insn|call_insn|note)\s+\d+\b/gm;
+
+const NOTE_KINDS: Record<string, RtlNoteKind> = {
+  NOTE_INSN_LOOP_BEG: "loop-begin",
+  NOTE_INSN_LOOP_END: "loop-end",
+  NOTE_INSN_LOOP_CONT: "loop-continue",
+  NOTE_INSN_BASIC_BLOCK: "basic-block",
+  NOTE_INSN_DELETED: "deleted",
+};
 
 export function hardRegisterName(register: number): string {
   return HARD_REGISTER_NAMES[register] || `hard-${register}`;
@@ -42,7 +54,7 @@ function lineAt(content: string, offset: number): number {
   return line;
 }
 
-function balancedForm(content: string, start: number, stage: string): string {
+function balancedForm(content: string, start: number, stage: string, kind: "instruction" | "note" = "instruction"): string {
   let depth = 0;
   let inString = false;
   let escaped = false;
@@ -61,7 +73,7 @@ function balancedForm(content: string, start: number, stage: string): string {
       if (depth === 0) return content.slice(start, index + 1);
     }
   }
-  throw new Error(`RTL parse error in .${stage} at line ${lineAt(content, start)}: unterminated instruction form`);
+  throw new Error(`RTL parse error in .${stage} at line ${lineAt(content, start)}: unterminated ${kind} form`);
 }
 
 function firstSExpression(text: string, start: number): string | undefined {
@@ -127,6 +139,42 @@ function blockAt(markers: Array<{ offset: number; block: number }>, offset: numb
     block = marker.block;
   }
   return block;
+}
+
+export function parseRtlNotes(content: string, stage: string): RtlNote[] {
+  const result: RtlNote[] = [];
+  const formOrders = new Map<number, number>();
+  let formOrder = 0;
+  RTL_FORM_START.lastIndex = 0;
+  for (const match of content.matchAll(RTL_FORM_START)) formOrders.set(match.index!, formOrder++);
+
+  NOTE_START.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = NOTE_START.exec(content)) !== null) {
+    const text = balancedForm(content, match.index, stage, "note");
+    const rawKind = text.match(/\b(NOTE_INSN_[A-Z_]+)\b/)?.[1];
+    const source = rawKind ? undefined : text.match(/^\(note\s+\d+\s+\d+\s+\d+\s+"([^"]+)"\s+(\d+)\s*\)$/s);
+    const kind: RtlNoteKind = source ? "source-line" : NOTE_KINDS[rawKind || ""] || "other";
+    const note: RtlNote = {
+      uid: parseInt(match[1], 10),
+      stage,
+      order: formOrders.get(match.index) ?? result.length,
+      kind,
+    };
+    const block = text.match(/\[bb\s+(\d+)\]/)?.[1];
+    if (block !== undefined) note.block = parseInt(block, 10);
+    if (source) {
+      note.sourceFile = source[1];
+      note.sourceLine = parseInt(source[2], 10);
+    }
+    result.push(note);
+    NOTE_START.lastIndex = match.index + text.length;
+  }
+
+  if (/^\(note\b/m.test(content) && result.length === 0) {
+    throw new Error(`RTL parse error in .${stage}: note markers were present but none could be parsed`);
+  }
+  return result;
 }
 
 export function parseRtlInstructions(content: string, stage: string): RtlInstruction[] {

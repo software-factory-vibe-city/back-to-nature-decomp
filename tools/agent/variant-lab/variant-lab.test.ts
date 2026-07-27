@@ -107,6 +107,63 @@ test("reports first divergence in rtl, combine, sched, and lreg fixtures", () =>
   assert.match(comparison.firstDivergence?.summary || "", /assignment changed/);
 });
 
+test("normalizes loop regions by semantic instructions rather than note UIDs", () => {
+  const first = `
+(note 30 0 10 "" NOTE_INSN_LOOP_BEG)
+(insn 10 30 31 (set (reg:SI 105) (sign_extend:SI (mem/s:HI (reg:SI 82) 0))) -1 (nil) (nil))
+(note 31 10 0 "" NOTE_INSN_LOOP_END)
+`;
+  const shifted = `
+(note 300 0 10 "" NOTE_INSN_LOOP_BEG)
+(insn 10 300 301 (set (reg:SI 105) (sign_extend:SI (mem/s:HI (reg:SI 82) 0))) -1 (nil) (nil))
+(note 301 10 0 "" NOTE_INSN_LOOP_END)
+`;
+  const left = snapshotPassContent("lreg", first);
+  const right = snapshotPassContent("lreg", shifted);
+  assert.equal(left.hash, right.hash);
+  assert.equal(left.loopRegions[0]?.semanticInstructionSignatures.length, 1);
+  assert.equal(left.instructions[0]?.loopDepth, 1);
+});
+
+test("reports a metadata-only loop-depth divergence without inventing loop control", () => {
+  const baseline = `
+(note 2 0 10 "" NOTE_INSN_DELETED)
+(note 3 2 10 [bb 0] NOTE_INSN_BASIC_BLOCK)
+(insn 10 3 0 (set (reg:SI 105) (sign_extend:SI (mem/s:HI (reg:SI 82) 0))) -1 (nil) (nil))
+`;
+  const looped = `
+(note 20 0 110 "" NOTE_INSN_DELETED)
+(note 30 20 40 [bb 0] NOTE_INSN_BASIC_BLOCK)
+(note 40 30 110 "" NOTE_INSN_LOOP_BEG)
+(insn 110 40 50 (set (reg:SI 205) (sign_extend:SI (mem/s:HI (reg:SI 182) 0))) -1 (nil) (nil))
+(note 50 110 0 "" NOTE_INSN_LOOP_END)
+`;
+  const left = new Map(PASS_STAGES.map((stage) => [stage, snapshotPassContent(stage, baseline)]));
+  const right = new Map(PASS_STAGES.map((stage) => [stage, snapshotPassContent(stage, looped)]));
+  const comparison = comparePassSnapshots(left, right);
+  const difference = comparison.firstDivergence!;
+  assert.match(difference.summary, /Metadata divergence: signed 16-bit memory load entered loop depth 1/);
+  assert.match(difference.summary, /no executable loop-control instruction was added/);
+  assert.equal(difference.metadataChanges[0]?.kind, "loop-depth");
+  assert.equal(difference.metadataChanges[0]?.noExecutableLoopControlAdded, true);
+  assert.equal(right.get("rtl")?.noteCount, 4);
+});
+
+test("retains basic-block and deleted notes but ignores source-line notes for pass equivalence", () => {
+  const first = `
+(note 2 0 3 "" NOTE_INSN_DELETED)
+(note 3 2 10 [bb 7] NOTE_INSN_BASIC_BLOCK)
+(note 4 3 10 "one.c" 12)
+(insn 10 4 0 (set (reg:SI 105) (const_int 1)) -1 (nil) (nil))
+`;
+  const second = first.replace('"one.c" 12', '"two.c" 99');
+  const left = snapshotPassContent("rtl", first);
+  const right = snapshotPassContent("rtl", second);
+  assert.equal(left.noteCount, 2);
+  assert.deepEqual(left.notes.map((note) => note.kind), ["deleted", "basic-block"]);
+  assert.equal(left.hash, right.hash);
+});
+
 test("classifies no-effect variants as equivalent and rejected", () => {
   const comparison = comparePassSnapshots(snapshots(), snapshots());
   assert.equal(comparison.equivalent, true);

@@ -4,7 +4,8 @@ import test from "node:test";
 import { detectAllocationFeedback } from "./hard-register-hazards.js";
 import { analyzeAllocation, applyAllocation } from "./local-allocation.js";
 import { buildPseudoProvenance } from "./pseudo-provenance.js";
-import { parseRtlInstructions } from "./rtl-parser.js";
+import { reconstructRtlMetadata } from "./rtl-notes.js";
+import { parseRtlInstructions, parseRtlNotes } from "./rtl-parser.js";
 import { parseScheduler } from "./scheduler-dag.js";
 import { findTargetRegisterRecurrences } from "./target-recurrence.js";
 import type { DisassembledInstruction } from "../decompToolchain.js";
@@ -173,9 +174,45 @@ test("labels ambiguous pass-to-pass pseudo mappings as inferred", () => {
   assert.deepEqual(transition.relatedPseudos, [101, 102]);
 });
 
+test("parses loop/basic-block/deleted notes and reconstructs nested loop depth", () => {
+  const content = fixture("rtl-notes.txt");
+  const instructions = parseRtlInstructions(content, "lreg");
+  const notes = parseRtlNotes(content, "lreg");
+  const metadata = reconstructRtlMetadata(content, "lreg", instructions, notes);
+
+  assert.deepEqual(notes.map((note) => note.kind), [
+    "deleted", "basic-block", "loop-begin", "loop-begin", "loop-continue", "loop-end", "loop-end",
+  ]);
+  assert.equal(notes.find((note) => note.kind === "basic-block")?.block, 0);
+  assert.deepEqual(metadata.instructions.map((instruction) => instruction.loopDepth), [1, 2, 1]);
+  assert.deepEqual(metadata.instructions[1]?.enclosingLoopNotes, [40, 44]);
+  assert.deepEqual(metadata.loopRegions.map((loop) => loop.semanticInstructionSignatures.length), [3, 1]);
+  assert.equal(metadata.caveats.length, 0);
+});
+
+test("confidence-labels malformed loop-note regions instead of inventing pairs", () => {
+  const content = `
+(note 10 0 12 "" NOTE_INSN_LOOP_END)
+(note 12 10 14 "" NOTE_INSN_LOOP_CONT)
+(note 14 12 16 "" NOTE_INSN_LOOP_BEG)
+(insn 16 14 0 (set (reg:SI 100) (const_int 1)) -1 (nil) (nil))
+`;
+  const instructions = parseRtlInstructions(content, "combine");
+  const notes = parseRtlNotes(content, "combine");
+  const metadata = reconstructRtlMetadata(content, "combine", instructions, notes);
+  assert.equal(metadata.caveats.length, 3);
+  assert.match(metadata.caveats[0]!, /Unmatched NOTE_INSN_LOOP_END/);
+  assert.match(metadata.caveats[1]!, /LOOP_CONT.*outside/);
+  assert.match(metadata.caveats[2]!, /Unmatched NOTE_INSN_LOOP_BEG/);
+});
+
 test("reports a useful error for a truncated RTL dump", () => {
   assert.throws(
     () => parseRtlInstructions("(insn 10 0 0 (set (reg:SI 100)", "rtl"),
     /RTL parse error in \.rtl at line 1: unterminated instruction form/,
+  );
+  assert.throws(
+    () => parseRtlNotes('(note 20 0 0 "" NOTE_INSN_LOOP_BEG', "rtl"),
+    /RTL parse error in \.rtl at line 1: unterminated note form/,
   );
 });

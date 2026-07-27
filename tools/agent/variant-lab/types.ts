@@ -52,6 +52,7 @@ export interface NormalizedPassInstruction {
   kind: string;
   operation?: string;
   expression?: string;
+  semanticSignature: string;
   sets: string[];
   uses: string[];
   deaths: string[];
@@ -59,16 +60,46 @@ export interface NormalizedPassInstruction {
   memoryRead: boolean;
   memoryWrite: boolean;
   control: boolean;
+  loopDepth: number;
+  block?: number;
+}
+
+export interface NormalizedPassNote {
+  kind: "loop-begin" | "loop-end" | "loop-continue" | "basic-block" | "deleted";
+  block?: number;
+  previousInstruction?: string;
+  nextInstruction?: string;
+}
+
+export interface NormalizedLoopRegion {
+  depth: number;
+  confidence: "exact" | "reconstructed" | "inferred";
+  semanticInstructionSignatures: string[];
+  executableControlCount: number;
 }
 
 export interface PassSnapshot {
   stage: PassStage;
   hash: string;
   instructionCount: number;
+  noteCount: number;
+  maximumLoopDepth: number;
   instructions: NormalizedPassInstruction[];
+  notes: NormalizedPassNote[];
+  loopRegions: NormalizedLoopRegion[];
+  metadataCaveats: string[];
   assignments: Array<{ pseudo: number; hardRegister: number }>;
   schedulerOrder: number[];
   schedulerDecisions: Array<{ cycle: number; selectedUid?: number; ranked: number[] }>;
+}
+
+export interface MetadataDifference {
+  kind: "loop-depth" | "loop-region" | "basic-block" | "deleted-note" | "note";
+  instruction?: string;
+  baselineDepth?: number;
+  variantDepth?: number;
+  noExecutableLoopControlAdded?: boolean;
+  summary: string;
 }
 
 export interface StageDifference {
@@ -80,6 +111,7 @@ export interface StageDifference {
   variantUid?: number;
   affectedUids: number[];
   affectedPseudos: number[];
+  metadataChanges: MetadataDifference[];
   summary: string;
 }
 
