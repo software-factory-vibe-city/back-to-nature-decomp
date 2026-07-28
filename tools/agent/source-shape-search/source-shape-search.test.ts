@@ -39,6 +39,7 @@ function spec() {
       preserveTargetRanges: [[0, 1]],
       preserveOpcodeStream: true,
       forbidInstructionCountGrowth: true,
+      preserveExistingEmptyMemoryBarriers: false,
       incompatibleAlternatives: [{ choices: ["first:two", "second:plus"] }],
       requiredAlternatives: [],
     },
@@ -79,6 +80,45 @@ test("generates deterministic Cartesian suffixes, exclusions, and resume batches
     assert.deepEqual(second.variants.map((variant) => variant.productIndex), [2]);
     assert.equal(second.nextProductIndex, 4);
     assert.equal(readFileSync(basePath, "utf8"), base);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("preserves inherited empty memory barriers without allowing edits to them", () => {
+  const directory = mkdtempSync(join(ROOT, "build/source-shape-barrier-test-"));
+  try {
+    const base = "void func_test(void)\n{\n    int x;\n    x = 1;\n    __asm__ volatile(\"\" ::: \"memory\");\n}\n";
+    const barrierSpec = validateSourceShapeSpec({
+      schemaVersion: 1,
+      function: "func_test",
+      baseSourcePath: "build/base.c",
+      maxVariants: 3,
+      dimensions: [{
+        id: "barrier",
+        mechanism: "statement-birth-order",
+        expectedPass: "sched",
+        invariants: ["the inherited barrier is unchanged"],
+        alternatives: [
+          { id: "base", useBase: true, expectedEffect: "baseline", invariants: [] },
+          { id: "clean", edits: [{ find: "x = 1;", replace: "x = 2;" }], expectedEffect: "ordinary edit", invariants: [] },
+          { id: "new-barrier", edits: [{ find: "x = 1;", replace: "x = 1; __asm__ volatile(\"\" ::: \"memory\");" }], expectedEffect: "forbidden addition", invariants: [] },
+        ],
+      }],
+      constraints: { preserveExistingEmptyMemoryBarriers: true },
+    });
+    const generated = generateVariantBatch({
+      spec: barrierSpec,
+      baseSource: base,
+      baseHash: sha256(base),
+      outputRoot: directory,
+      startProductIndex: 0,
+      budget: 3,
+    });
+    assert.equal(generated.variants[0]?.policyPassed, true);
+    assert.equal(generated.variants[1]?.policyPassed, true);
+    assert.equal(generated.variants[2]?.policyPassed, false);
+    assert.match(generated.variants[2]?.policyError || "", /protected empty memory barrier/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -153,7 +153,7 @@ The commands dispatch project-local, game-agnostic skills:
 The extension also registers focused tool wrappers around the TypeScript tools
 in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
 `psx_fuzz_variants`, `psx_analyze_target_schedule`, `psx_search_source_shapes`,
-`psx_diff_function`, `psx_build_call_graph`, `psx_export_context`,
+`psx_synthesize_source_shapes`, `psx_diff_function`, `psx_build_call_graph`, `psx_export_context`,
 `psx_verify_build`, and the terminating `psx_finalize_function` clean-source
 and byte-identity gate. Command output is bounded before it enters model context.
 
@@ -195,6 +195,20 @@ fully assembles exact candidates without changing `src/`:
 npx tsx tools/agent/searchSourceShapes.ts <function> \
   --analysis build/targetSchedule/<function>/analysis.json \
   --spec build/search/<function>.json --jobs 8 [--resume]
+```
+
+`synthesizeSourceShapes.ts` is the solution-oriented layer between target
+analysis and finite search. Its conservative MVP models the top-level C89
+prologue, binds source statements to target roles, derives dependency-preserving
+statement, initializer, known-macro, and typed pointer-copy recipes, emits an
+inspectable search spec, and optionally executes it through
+`searchSourceShapes.ts`. Existing configured empty memory barriers can be
+preserved but never added or edited:
+
+```bash
+npx tsx tools/agent/synthesizeSourceShapes.ts <function> --derive-only
+npx tsx tools/agent/synthesizeSourceShapes.ts <function> \
+  --max-variants 500 --max-depth 3 --jobs 8 [--resume]
 ```
 
 `fuzzVariants.ts` is a mechanism-aware variant laboratory, not a source
@@ -297,7 +311,7 @@ so `make split` runs a choreographed sequence:
 | Directory | Contents |
 |-----------|----------|
 | `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
-| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `contextExport.ts`, and `sourcePolicy.ts` |
+| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `contextExport.ts`, and `sourcePolicy.ts` |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |

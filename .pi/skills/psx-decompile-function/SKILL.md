@@ -1,6 +1,6 @@
 ---
 name: psx-decompile-function
-description: Decompile or repair one function in an arbitrary PlayStation matching-decompilation project using the project's m2c, diff classifier, compiler trace, exact function diff, and full-build verification tools.
+description: Decompile or repair one function in an arbitrary PlayStation matching-decompilation project using m2c, diff classification, compiler tracing, target-schedule analysis, requirement-guided clean-C synthesis, exact function diffing, and full-build verification.
 ---
 
 # PlayStation function decompilation
@@ -47,10 +47,14 @@ resume/fix mode, preserve the source and begin from its current diff.
    observational-only or unsupported resource windows do not justify a causal
    claim. Preserve any exact suffix and solved hard-register assignments named
    by the intervention set.
-6. If several mechanism-backed source shapes remain, either compare a small
-   hand-authored set with `psx_fuzz_variants`, or author an explicit finite
-   search specification and call `psx_search_source_shapes`. Search only after
-   the trace/analysis names concrete mechanism requirements and semantic
+6. If several mechanism-backed source shapes remain, first call
+   `psx_synthesize_source_shapes` when the analyzer's requirements map to a
+   conservative supported source region. Inspect its source-role bindings,
+   recipes, generated search spec, and coverage; finite exhaustion covers only
+   that recorded grammar. If synthesis refuses an ambiguous region, compare a
+   small hand-authored set with `psx_fuzz_variants` or author an explicit finite
+   specification for `psx_search_source_shapes`. Search only after the
+   trace/analysis names concrete mechanism requirements and semantic
    invariants. Inspect preserved generated sources under `build/`; never copy a
    result automatically. For a `priority-relation`, test the reported
    single-set/birth-eligibility web before unrelated statement permutations;

@@ -38,6 +38,7 @@ alternative is explicit; the tool never invents syntax or mutates `src/`.
     "preserveTargetRanges": [[20, 35]],
     "preserveOpcodeStream": true,
     "forbidInstructionCountGrowth": true,
+    "preserveExistingEmptyMemoryBarriers": false,
     "incompatibleAlternatives": [
       { "choices": ["value-web:named-result", "other:incompatible"] }
     ],
@@ -52,6 +53,13 @@ An alternative must contain exactly one generation action: `useBase: true` or
 a non-empty `edits` array. Exact-edit occurrence checks happen before
 compilation. Unknown fields, compiler flags, empty actions, unsafe IDs, and
 newer schema versions are rejected.
+
+`preserveExistingEmptyMemoryBarriers` is intended for a strong baseline that
+already contains the project's narrowly approved zero-width memory barriers.
+When enabled, those exact baseline barriers are accepted in generated variants,
+but any edit containing asm text or any added, removed, reordered, or modified
+barrier fails policy before compilation. The option never permits other
+embedded assembly.
 
 The Cartesian product uses declaration order, with the last dimension varying
 fastest. `maxVariants` bounds one invocation; `--resume` verifies the spec and

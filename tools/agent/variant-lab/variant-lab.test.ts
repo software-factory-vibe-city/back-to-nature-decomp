@@ -181,6 +181,11 @@ test("classifies no-effect variants as equivalent and rejected", () => {
 
 test("rejects forbidden and non-C89 variant constructs before compilation", () => {
   assert.match(validateVariantSource("void f(void) { __asm__(\"nop\"); }\n")[0].message, /embedded assembly/);
+  assert.match(validateVariantSource("void f(void) { __asm__ volatile(\"\" ::: \"memory\"); }\n")[0].message, /embedded assembly/);
+  assert.equal(validateVariantSource(
+    "void f(void) { __asm__ volatile(\"\" ::: \"memory\"); }\n",
+    { allowEmptyMemoryBarriers: true },
+  ).length, 0);
   assert.match(validateVariantSource("void f(void) { for (int i = 0; i < 1; i++) {} }\n")[0].message, /C99/);
   assert.match(validateVariantSource("int D_80001234;\n")[0].message, /generated globals/);
   assert.equal(validateVariantSource("void f(void)\n{\n    int i;\n    i = 0;\n}\n").length, 0);

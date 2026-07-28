@@ -12,6 +12,7 @@ import { registerFuzzVariantsTool } from "./tools/fuzz-variants.ts";
 import { registerAutodecompCommands } from "./autonomous/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
 import { registerSearchSourceShapesTool } from "./tools/search-source-shapes.ts";
+import { registerSynthesizeSourceShapesTool } from "./tools/synthesize-source-shapes.ts";
 import { registerVerifyBuildTool } from "./tools/verify-build.ts";
 import { runProjectCommand } from "./tools/shared.ts";
 import { captureSessionBaseline } from "./tools/session-baseline.ts";
@@ -179,6 +180,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerFuzzVariantsTool(pi);
   registerM2cTool(pi);
   registerSearchSourceShapesTool(pi);
+  registerSynthesizeSourceShapesTool(pi);
   registerVerifyBuildTool(pi);
 
   const root = findProjectRoot(process.cwd());

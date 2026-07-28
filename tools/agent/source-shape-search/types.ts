@@ -28,6 +28,7 @@ export interface SourceShapeConstraints {
   preserveTargetRanges: Array<[number, number]>;
   preserveOpcodeStream: boolean;
   forbidInstructionCountGrowth: boolean;
+  preserveExistingEmptyMemoryBarriers: boolean;
   incompatibleAlternatives: ChoiceConstraint[];
   requiredAlternatives: string[];
 }

@@ -145,12 +145,16 @@ export function validateSourceShapeSpec(value: unknown, functionName?: string): 
   const constraintRaw = raw.constraints === undefined ? {} : object(raw.constraints, "constraints");
   strict(constraintRaw, [
     "preserveTargetRanges", "preserveOpcodeStream", "forbidInstructionCountGrowth",
-    "incompatibleAlternatives", "requiredAlternatives",
+    "preserveExistingEmptyMemoryBarriers", "incompatibleAlternatives", "requiredAlternatives",
   ], "constraints");
   const constraints: SourceShapeConstraints = {
     preserveTargetRanges: ranges(constraintRaw.preserveTargetRanges),
     preserveOpcodeStream: optionalBoolean(constraintRaw.preserveOpcodeStream, "constraints.preserveOpcodeStream"),
     forbidInstructionCountGrowth: optionalBoolean(constraintRaw.forbidInstructionCountGrowth, "constraints.forbidInstructionCountGrowth"),
+    preserveExistingEmptyMemoryBarriers: optionalBoolean(
+      constraintRaw.preserveExistingEmptyMemoryBarriers,
+      "constraints.preserveExistingEmptyMemoryBarriers",
+    ),
     incompatibleAlternatives: choiceConstraints(constraintRaw.incompatibleAlternatives, "constraints.incompatibleAlternatives"),
     requiredAlternatives: strings(constraintRaw.requiredAlternatives ?? [], "constraints.requiredAlternatives"),
   };

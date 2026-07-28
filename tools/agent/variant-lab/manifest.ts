@@ -105,9 +105,41 @@ function lineNumber(source: string, offset: number): number {
   return source.slice(0, offset).split("\n").length;
 }
 
-export function validateVariantSource(source: string): SourceFinding[] {
-  const findings: SourceFinding[] = [];
+export interface VariantSourceValidationOptions {
+  allowEmptyMemoryBarriers?: boolean;
+}
+
+const EMPTY_MEMORY_BARRIER = /\b(?:__asm__|__asm)\s*(?:volatile\s*)?\(\s*""\s*:\s*:\s*:\s*"memory"\s*\)\s*;/g;
+
+export function findEmptyMemoryBarriers(source: string): Array<{ start: number; end: number; text: string; normalized: string }> {
   const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
+  const result: Array<{ start: number; end: number; text: string; normalized: string }> = [];
+  EMPTY_MEMORY_BARRIER.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = EMPTY_MEMORY_BARRIER.exec(code)) !== null) {
+    const text = source.slice(match.index, match.index + match[0].length);
+    result.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      text,
+      normalized: text.replace(/\s+/g, ""),
+    });
+  }
+  return result;
+}
+
+export function validateVariantSource(source: string, options: VariantSourceValidationOptions = {}): SourceFinding[] {
+  const findings: SourceFinding[] = [];
+  let code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
+  if (options.allowEmptyMemoryBarriers) {
+    const characters = code.split("");
+    for (const barrier of findEmptyMemoryBarriers(source)) {
+      for (let index = barrier.start; index < barrier.end; index++) {
+        if (characters[index] !== "\n") characters[index] = " ";
+      }
+    }
+    code = characters.join("");
+  }
   const patterns: Array<{ pattern: RegExp; kind: SourceFinding["kind"]; message: string; raw?: boolean }> = [
     { pattern: /\bINCLUDE_ASM\s*\(/g, kind: "forbidden-construct", message: "assembly stubs are forbidden" },
     { pattern: /\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/g, kind: "forbidden-construct", message: "embedded assembly is forbidden" },

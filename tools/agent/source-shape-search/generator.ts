@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { validateVariantSource } from "../variant-lab/manifest.js";
+import { findEmptyMemoryBarriers, validateVariantSource } from "../variant-lab/manifest.js";
 import { applyExactEdits } from "../variant-lab/transformations.js";
 import { writeStableJson } from "../variant-lab/artifacts.js";
 import type { SourceShapeSearchSpec, VariantLineage } from "./types.js";
@@ -71,6 +71,8 @@ export function generateVariantBatch(options: {
   const total = totalProducts(options.spec);
   const variants: GeneratedVariant[] = [];
   const sourceRepresentatives = new Map<string, string>();
+  const preserveBarriers = options.spec.constraints.preserveExistingEmptyMemoryBarriers;
+  const baselineBarriers = preserveBarriers ? findEmptyMemoryBarriers(options.baseSource) : [];
   let productIndex = options.startProductIndex;
   while (productIndex < total && variants.length < options.budget) {
     const alternatives = choicesAt(options.spec, productIndex);
@@ -84,9 +86,22 @@ export function generateVariantBatch(options: {
     let policyError: string | undefined;
     try {
       for (const alternative of alternatives) {
-        if (alternative.edits) source = applyExactEdits(source, alternative.edits);
+        if (alternative.edits) {
+          if (preserveBarriers && alternative.edits.some((edit) => /\b(?:__asm__|__asm|asm)\b/.test(`${edit.find}\n${edit.replace}`))) {
+            throw new Error("edits may not add, remove, move, or modify a protected empty memory barrier");
+          }
+          source = applyExactEdits(source, alternative.edits);
+        }
       }
-      const findings = validateVariantSource(source);
+      if (preserveBarriers) {
+        const candidateBarriers = findEmptyMemoryBarriers(source);
+        if (candidateBarriers.length !== baselineBarriers.length || candidateBarriers.some((barrier, index) =>
+          barrier.normalized !== baselineBarriers[index]?.normalized
+        )) {
+          throw new Error("candidate did not preserve the baseline empty memory barriers exactly and in order");
+        }
+      }
+      const findings = validateVariantSource(source, { allowEmptyMemoryBarriers: preserveBarriers });
       if (findings.length > 0) {
         policyPassed = false;
         policyError = `line ${findings[0]!.line}: ${findings[0]!.message}`;
