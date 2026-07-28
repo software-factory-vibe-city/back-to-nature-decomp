@@ -1,6 +1,6 @@
 ---
 name: psx-decompile-function
-description: Decompile or repair one function in an arbitrary PlayStation matching-decompilation project using m2c, diff classification, compiler tracing, target-schedule analysis, requirement-guided clean-C synthesis, exact function diffing, and full-build verification.
+description: Decompile or repair one function in an arbitrary PlayStation matching-decompilation project using m2c, diff classification, compiler tracing, target-schedule and scheduler-state constraint analysis, requirement-guided clean-C synthesis, exact function diffing, and full-build verification.
 ---
 
 # PlayStation function decompilation
@@ -46,7 +46,14 @@ resume/fix mode, preserve the source and begin from its current diff.
    priority, last-scheduled dependency class, or block-local LUID relation;
    observational-only or unsupported resource windows do not justify a causal
    claim. Preserve any exact suffix and solved hard-register assignments named
-   by the intervention set.
+   by the intervention set. If an order-only block remains stuck after bounded
+   mechanism-directed shapes, or the replay requires several coupled hidden
+   state changes, run
+   `npx tsx tools/agent/searchSchedulerState.ts <target> --block <n>`. Require
+   its candidate replay gate to be exact. Treat SAT as a web/boost/LUID/phantom
+   specification for a small complete-source experiment, scoped UNSAT as a
+   reason to stop only that serialized domain, and INCONCLUSIVE or
+   model-replay failure as no proof. Never promote a solver witness directly.
 6. If several mechanism-backed source shapes remain, first call
    `psx_synthesize_source_shapes` when the analyzer's requirements map to a
    conservative supported source region. Inspect its source-role bindings,

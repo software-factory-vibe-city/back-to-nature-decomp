@@ -95,6 +95,11 @@ sources should remain strict unless they carry verifiable exact-edit lineage.
 
 ## 3. Per-variant target-schedule mechanism comparison
 
+**Focused source-shape-search implementation now exists.** Preserved variant
+traces receive normalized fingerprints, target-relative profiles, baseline
+deltas, and causal ranking. Variant-lab integration and profile-driven staged
+synthesis composition remain future work.
+
 ### Motivation
 
 Several `func_80019070` alternatives compiled to the same 72/81 final machine

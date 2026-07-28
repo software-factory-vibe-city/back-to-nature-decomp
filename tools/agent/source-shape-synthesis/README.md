@@ -61,7 +61,11 @@ build/sourceShapeSynthesis/<function>/<run-id>/
 ```
 
 The generated search artifacts remain under `build/sourceShapeSearch/` and are
-linked from the synthesis summary.
+linked from the synthesis summary. Generated schema-v2 specifications enable
+per-preprocessed-class compiler tracing and target-schedule comparison. Each
+trace class receives a target-relative profile and baseline delta so identical
+final assembly does not hide supported replay, allocation, or delay-slot
+regressions.
 
 ## Safety and limitations
 
@@ -75,6 +79,8 @@ linked from the synthesis summary.
   about original variable names.
 - The current implementation does not yet synthesize arbitrary CFG, alias,
   expression-tree, or cross-function type transformations.
+- Schedule-profile deltas retain confidence literally; a source-distinct shape
+  whose target correspondence weakens is inconclusive rather than improved.
 - Finite exhaustion means only that the recorded generated grammar was
   exhausted. It does not prove that no matching clean C exists.
 - Exact function diff, normal source policy, modification scope, and full build

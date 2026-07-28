@@ -1,12 +1,14 @@
 # Plan: baseline-aware variants and per-variant schedule comparison
 
-**Status: partially implemented.** Source-shape search now has an explicit
-`preserveExistingEmptyMemoryBarriers` mode: it accepts the baseline's exact
-narrow barrier form while rejecting any edit containing asm text and any
-candidate that changes the barrier sequence. This unblocks requirement-guided
-synthesis against `func_80019070`. Shared lexical policy extraction,
-transformation-spec support, richer admission metadata, and all per-variant
-target-schedule profile/delta work remain proposed.
+**Status: focused source-shape-search path implemented.** Source-shape search
+can protect inherited empty memory barriers, parse preserved compiler traces
+without rerunning cc1, analyze target schedules from isolated variant artifacts,
+fingerprint normalized trace classes, derive target-relative profiles and
+baseline deltas, and rank supported causal progress before match percentage.
+Generated synthesis specifications enable this path for every distinct
+preprocessed class. Variant-lab integration, shared lexical policy extraction,
+transformation-spec admission, richer cache/admission metadata, and broader
+profile-driven causal composition remain proposed.
 
 This plan groups the two highest-priority gaps recorded in
 `notes/potentially-useful-tools.md`:

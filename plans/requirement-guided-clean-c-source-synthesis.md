@@ -7,9 +7,11 @@ proof-oriented statement/initializer/known-macro/pointer-copy recipes, search
 spec emission, optional bounded execution through `searchSourceShapes.ts`,
 artifacts, tests, and a bounded Pi wrapper. Source-shape search can preserve the
 baseline's existing empty memory barriers while rejecting edits that touch or
-add them. The broader CFG/expression/alias catalog, per-variant schedule-profile
-feedback, staged causal composition, cross-function mechanism atlas, and full
-semantic-obligation engine in later phases remain future work.
+add them. Generated searches now trace distinct preprocessed classes and retain
+per-variant target-schedule profiles and baseline deltas. The broader
+CFG/expression/alias catalog, profile-driven staged causal composition,
+cross-function mechanism atlas, and full semantic-obligation engine in later
+phases remain future work.
 
 ## Purpose
 

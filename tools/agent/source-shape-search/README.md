@@ -1,11 +1,12 @@
 # Finite source-shape search specification
 
-`searchSourceShapes.ts` accepts schema version 1. Every dimension and
+`searchSourceShapes.ts` emits schema version 2 and continues to migrate schema
+version 1 as strict, schedule-comparison-disabled input. Every dimension and
 alternative is explicit; the tool never invents syntax or mutates `src/`.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "function": "func_XXXXXXXX",
   "baseSourcePath": "src/func_XXXXXXXX.c",
   "analysisPath": "build/targetSchedule/func_XXXXXXXX/analysis.json",
@@ -44,8 +45,13 @@ alternative is explicit; the tool never invents syntax or mutates `src/`.
     ],
     "requiredAlternatives": []
   },
-  "traceAllPreprocessed": false,
-  "assembleUniqueDbr": false
+  "traceAllPreprocessed": true,
+  "assembleUniqueDbr": false,
+  "scheduleComparison": {
+    "enabled": true,
+    "analyze": "traced-classes",
+    "maxInterventions": 8
+  }
 }
 ```
 
@@ -60,6 +66,15 @@ When enabled, those exact baseline barriers are accepted in generated variants,
 but any edit containing asm text or any added, removed, reordered, or modified
 barrier fails policy before compilation. The option never permits other
 embedded assembly.
+
+When `scheduleComparison.enabled` is true, `traceAllPreprocessed` must also be
+true. Every distinct preprocessed compiler class retains GCC dumps, receives a
+normalized trace-bundle fingerprint, and one representative per trace class is
+analyzed against the target. Results preserve target-relative profile and delta
+artifacts under each variant's `target-schedule/` directory. Machine-equivalent
+variants are therefore not assumed causally equivalent. Hard-range preservation
+and supported schedule deltas rank ahead of mechanism verdicts and match score;
+untraced or confidence-reduced changes remain explicitly inconclusive.
 
 The Cartesian product uses declaration order, with the last dimension varying
 fastest. `maxVariants` bounds one invocation; `--resume` verifies the spec and

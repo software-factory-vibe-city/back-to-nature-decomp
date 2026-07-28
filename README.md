@@ -177,19 +177,38 @@ npx tsx tools/agent/compilerTrace.ts <function> --json
 UIDs while retaining proven zero-width RTL barriers, reconstructs the configured
 legacy scheduler's priority/dependency-class/LUID comparator, validates baseline
 ready-list replay, checks target order against the candidate DAG, and performs a
-bounded counterfactual participant-order replay. It writes confidence-labelled
-emission links, minimal scheduling relations, allocation-order, and delay-slot
-requirements to `build/targetSchedule/<function>/analysis.json`:
+bounded counterfactual participant-order replay. Its reusable analysis path can
+consume isolated preserved compiler-trace artifacts without rerunning cc1. It
+writes confidence-labelled emission links, minimal scheduling relations,
+allocation-order, and delay-slot requirements to
+`build/targetSchedule/<function>/analysis.json`:
 
 ```bash
 npx tsx tools/agent/analyzeTargetSchedule.ts <function> [--block 0]
+```
+
+`searchSchedulerState.ts` converts one validated scheduler block into a typed,
+function-agnostic finite constraint problem over birth boosts, realizable LUID
+relations, bounded coalescible phantom copies, and explicitly justified extra
+dependencies. It refuses target search until the parameterized model exactly
+replays the candidate block, then emits SAT, bounded exhaustive UNSAT, or
+INCONCLUSIVE with deterministic artifacts and an optional clean-C source-search
+handoff:
+
+```bash
+npx tsx tools/agent/searchSchedulerState.ts <function> --block 0
+npx tsx tools/agent/searchSchedulerState.ts \
+  --input build/schedulerConstraint/<function>/<run-id>/input.json
 ```
 
 `searchSourceShapes.ts` consumes that analysis plus an explicit finite,
 mechanism-labelled exact-edit grammar. It generates only complete policy-clean
 C under `build/sourceShapeSearch/`, deduplicates source/preprocessed/assembly
 classes, checkpoints deterministic product suffixes, traces useful classes, and
-fully assembles exact candidates without changing `src/`:
+fully assembles exact candidates without changing `src/`. Schema-v2 searches
+may trace every distinct preprocessed class, fingerprint normalized compiler
+causality, and write target-relative schedule profiles/deltas so identical final
+assembly does not hide replay, allocation, or delay-slot regressions:
 
 ```bash
 npx tsx tools/agent/searchSourceShapes.ts <function> \
@@ -201,9 +220,9 @@ npx tsx tools/agent/searchSourceShapes.ts <function> \
 analysis and finite search. Its conservative MVP models the top-level C89
 prologue, binds source statements to target roles, derives dependency-preserving
 statement, initializer, known-macro, and typed pointer-copy recipes, emits an
-inspectable search spec, and optionally executes it through
-`searchSourceShapes.ts`. Existing configured empty memory barriers can be
-preserved but never added or edited:
+inspectable schema-v2 search spec with per-variant schedule comparison, and
+optionally executes it through `searchSourceShapes.ts`. Existing configured
+empty memory barriers can be preserved but never added or edited:
 
 ```bash
 npx tsx tools/agent/synthesizeSourceShapes.ts <function> --derive-only
@@ -311,7 +330,7 @@ so `make split` runs a choreographed sequence:
 | Directory | Contents |
 |-----------|----------|
 | `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
-| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `contextExport.ts`, and `sourcePolicy.ts` |
+| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `contextExport.ts`, and `sourcePolicy.ts` |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |

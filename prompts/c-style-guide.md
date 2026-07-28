@@ -245,6 +245,7 @@ Use tools in layers:
 npx tsx tools/agent/explainDiff.ts <func>
 npx tsx tools/agent/compilerTrace.ts <func>
 npx tsx tools/agent/analyzeTargetSchedule.ts <func> [--block <n>]
+npx tsx tools/agent/searchSchedulerState.ts <func> [--block <n>]
 npx tsx tools/agent/diffFunc.ts <func>
 ```
 
@@ -277,6 +278,29 @@ A target order that is legal under the candidate DAG is not yet reproduced:
 require exact baseline replay and a supported bounded counterfactual. Target
 RTL dependencies remain unavailable. A target-register recurrence hint is an
 experiment to test, not proof of original source.
+
+When an order-only block remains stuck after mechanism-directed source shapes,
+or the counterfactual requires several coupled boost/LUID/dependency changes,
+run `searchSchedulerState.ts` before expanding the C grammar again. It builds a
+function-agnostic finite constraint domain from the trace and target analysis,
+and refuses target search unless its parameterized scheduler first reproduces
+the candidate block exactly. Interpret its terminal states literally:
+
+- `SAT` is a concrete hidden compiler-state specification—boost bits, LUID
+  relations, bounded phantom copies, and justified dependencies—not a matching
+  source;
+- `UNSAT` excludes only the serialized finite domain and is useful for stopping
+  repeated source investment in that domain;
+- `INCONCLUSIVE` means the assignment bound ended first and proves nothing; and
+- `MODEL-REPLAY-FAILED` invalidates target claims until observability improves.
+
+A SAT witness should drive one small complete-source batch that attempts all
+coupled requirements together. Check the predicted pseudo SET counts, phantom
+survival/deletion, sched1 order, allocation, and sched2 result before ranking
+instruction score. Use any generated `source-search-spec.json` only as a
+proof-admitted handoff; inspect its mechanism coverage because the current
+source catalog may represent a witness only partially. Never describe SAT as a
+solution or UNSAT as a proof over all clean C.
 
 Start with the cross-pass feedback category: `sched1-reordered`, `sched2-fixed`,
 `allocation-blocked`, or `memory-or-control`. For a stubborn scheduling window,
