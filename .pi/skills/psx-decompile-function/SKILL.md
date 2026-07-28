@@ -39,14 +39,23 @@ resume/fix mode, preserve the source and begin from its current diff.
    the mismatch signature changes or its cause becomes unclear.
 5. If the classified trace shows coupled scheduler, allocator, or delay-slot
    constraints, call `psx_analyze_target_schedule` before authoring more source
-   shapes. Use its confidence-labelled requirements only after baseline replay;
-   observational-only blocks do not justify counterfactual claims.
+   shapes. Check emission alignment first: ambiguous machine/UID links must not
+   be treated as concrete scheduler evidence. Distinguish target order that is
+   merely legal under the candidate DAG from a target order reproduced by the
+   bounded counterfactual. Use exact baseline replay and the reported decisive
+   priority, last-scheduled dependency class, or block-local LUID relation;
+   observational-only or unsupported resource windows do not justify a causal
+   claim. Preserve any exact suffix and solved hard-register assignments named
+   by the intervention set.
 6. If several mechanism-backed source shapes remain, either compare a small
    hand-authored set with `psx_fuzz_variants`, or author an explicit finite
    search specification and call `psx_search_source_shapes`. Search only after
    the trace/analysis names concrete mechanism requirements and semantic
    invariants. Inspect preserved generated sources under `build/`; never copy a
-   result automatically. Rank requirement and mechanism evidence before match
+   result automatically. For a `priority-relation`, test the reported
+   single-set/birth-eligibility web before unrelated statement permutations;
+   for a `luid-order`, test source birth/constant sites while preserving the
+   dependency graph. Rank requirement and mechanism evidence before match
    percentage. Never promote a cc1-only result: require full configured
    assembly, then re-run the exact function diff.
 7. Keep changes within project policy and put shared types in the designated

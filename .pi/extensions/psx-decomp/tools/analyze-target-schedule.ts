@@ -6,7 +6,7 @@ export function registerAnalyzeTargetScheduleTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "psx_analyze_target_schedule",
     label: "PSX Target Schedule Analysis",
-    description: "Align target/candidate machine instructions with compiler UIDs, replay scheduler blocks, and emit allocation and delay-slot requirements. Diagnostic only; never edits source. Output is limited to 50 KB or 2000 lines.",
+    description: "Align target/candidate machine instructions through zero-width RTL nodes, explain exact legacy-scheduler priority/dependency/LUID ties, replay bounded target orders, and emit allocation, scheduling, and delay-slot requirements. Diagnostic only; never edits source. Output is limited to 50 KB or 2000 lines.",
     parameters: Type.Object({
       functionName: Type.String({ description: "Exact function symbol to analyze" }),
       block: Type.Optional(Type.Integer({ minimum: 0, maximum: 10000, description: "Optional basic block focus" })),

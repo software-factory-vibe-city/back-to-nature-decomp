@@ -174,9 +174,12 @@ npx tsx tools/agent/compilerTrace.ts <function> --json
 ```
 
 `analyzeTargetSchedule.ts` aligns target/candidate instructions with final GCC
-UIDs, validates sched1/sched2 replay, and writes confidence-labelled scheduling,
-allocation-order, and delay-slot requirements to
-`build/targetSchedule/<function>/analysis.json`:
+UIDs while retaining proven zero-width RTL barriers, reconstructs the configured
+legacy scheduler's priority/dependency-class/LUID comparator, validates baseline
+ready-list replay, checks target order against the candidate DAG, and performs a
+bounded counterfactual participant-order replay. It writes confidence-labelled
+emission links, minimal scheduling relations, allocation-order, and delay-slot
+requirements to `build/targetSchedule/<function>/analysis.json`:
 
 ```bash
 npx tsx tools/agent/analyzeTargetSchedule.ts <function> [--block 0]

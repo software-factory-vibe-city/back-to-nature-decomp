@@ -1,7 +1,10 @@
-import type { TraceConfidence } from "../compiler-trace/types.js";
+import type {
+  SchedulerSelectionExplanation,
+  TraceConfidence,
+} from "../compiler-trace/types.js";
 import type { VariantMechanism } from "../variant-lab/types.js";
 
-export const TARGET_SCHEDULE_SCHEMA_VERSION = 1 as const;
+export const TARGET_SCHEDULE_SCHEMA_VERSION = 2 as const;
 
 export interface MachineInstructionRef {
   index: number;
@@ -10,7 +13,26 @@ export interface MachineInstructionRef {
   operands: string[];
   relocation?: string;
   uid?: number;
+  candidateUids?: number[];
   block?: number;
+}
+
+export interface EmissionAlignmentEntry {
+  rtlUid?: number;
+  rtlOrder?: number;
+  machineIndex?: number;
+  kind: "emitted" | "zero-width" | "rtl-only-unknown" | "machine-only";
+  score?: number;
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
+export interface MachineUidLink {
+  machineIndex: number;
+  uid?: number;
+  candidateUids: number[];
+  confidence: TraceConfidence;
+  evidence: string[];
 }
 
 export interface InstructionCorrespondence {
@@ -42,6 +64,60 @@ export interface SchedulerReplayResult {
   caveats: string[];
 }
 
+export interface BaselineReplayResult {
+  stage: "sched" | "sched2";
+  block: number;
+  status: "exact" | "partial" | "failed";
+  matchedSelections: number;
+  totalSelections: number;
+  matchedReadySets: number;
+  firstDivergence?: string;
+  unsupportedFeatures: string[];
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
+export interface TargetOrderConstraint {
+  beforeUid: number;
+  afterUid: number;
+  source: "target-machine-order" | "candidate-dependency";
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
+export interface CounterfactualStep {
+  cycle: number;
+  observedUid?: number;
+  desiredUid?: number;
+  desiredReady: boolean;
+  outcome: "same" | "tie-lost" | "dependency-blocked" | "latency-blocked" | "resource-blocked" | "ambiguous";
+  decidingCriterion?: string;
+  blockers: number[];
+  evidence: string[];
+}
+
+export interface TargetOrderReplay {
+  stage: "sched" | "sched2";
+  block: number;
+  targetUids: number[];
+  legality: "legal-under-candidate-dag" | "violates-candidate-dependency" | "ambiguous-correspondence" | "cross-block" | "wrong-stage" | "unsupported";
+  status: "reproduced-with-current-state" | "reproducible-with-interventions" | "impossible-under-current-dag" | "baseline-not-exact" | "unsupported";
+  steps: CounterfactualStep[];
+  confidence: TraceConfidence;
+  caveats: string[];
+}
+
+export interface SchedulerInterventionSet {
+  interventions: AbstractIntervention[];
+  block: number;
+  stage: "sched" | "sched2";
+  changedSteps: number[];
+  preservesObservedConstraints: string[];
+  minimalWithinBound: boolean;
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
 export type InterventionStage = "rtl" | "sched" | "greg" | "sched2" | "dbr";
 export type InterventionKind =
   | "birth-eligibility"
@@ -51,7 +127,11 @@ export type InterventionKind =
   | "dependency-remove"
   | "allocation-order"
   | "hard-register-assignment"
-  | "delay-candidate-order";
+  | "delay-candidate-order"
+  | "luid-order"
+  | "ready-insertion-order"
+  | "priority-relation"
+  | "resource-relation";
 
 export interface AbstractIntervention {
   id: string;
@@ -121,7 +201,14 @@ export interface TargetScheduleAnalysis {
   candidate: MachineInstructionRef[];
   correspondence: InstructionCorrespondence[];
   registerRoles: RegisterRoleMap[];
+  emissionAlignment: EmissionAlignmentEntry[];
+  machineUidLinks: MachineUidLink[];
+  schedulerSelections: SchedulerSelectionExplanation[];
   schedulerReplay: SchedulerReplayResult[];
+  baselineReplay: BaselineReplayResult[];
+  targetOrderConstraints: TargetOrderConstraint[];
+  targetOrderReplays: TargetOrderReplay[];
+  interventionSets: SchedulerInterventionSet[];
   allocationRequirements: AllocationRequirement[];
   delaySlots: DelaySlotAnalysis[];
   requirements: TargetScheduleRequirement[];
@@ -137,10 +224,23 @@ export function assertTargetScheduleAnalysis(value: unknown): TargetScheduleAnal
   if (raw.schemaVersion > TARGET_SCHEDULE_SCHEMA_VERSION) {
     throw new Error(`target-schedule schema ${raw.schemaVersion} is newer than supported schema ${TARGET_SCHEDULE_SCHEMA_VERSION}`);
   }
-  if (raw.schemaVersion !== TARGET_SCHEDULE_SCHEMA_VERSION) throw new Error(`unsupported target-schedule schema: ${raw.schemaVersion}`);
+  if (raw.schemaVersion !== 1 && raw.schemaVersion !== TARGET_SCHEDULE_SCHEMA_VERSION) throw new Error(`unsupported target-schedule schema: ${raw.schemaVersion}`);
   if (typeof raw.function !== "string" || !raw.function) throw new Error("target-schedule analysis is missing function");
   if (!Array.isArray(raw.target) || !Array.isArray(raw.candidate) || !Array.isArray(raw.requirements)) {
     throw new Error("target-schedule analysis is missing instruction or requirement arrays");
+  }
+  if (raw.schemaVersion === 1) {
+    return {
+      ...(value as Omit<TargetScheduleAnalysis, "schemaVersion">),
+      schemaVersion: TARGET_SCHEDULE_SCHEMA_VERSION,
+      emissionAlignment: [],
+      machineUidLinks: [],
+      schedulerSelections: [],
+      baselineReplay: [],
+      targetOrderConstraints: [],
+      targetOrderReplays: [],
+      interventionSets: [],
+    };
   }
   return value as TargetScheduleAnalysis;
 }

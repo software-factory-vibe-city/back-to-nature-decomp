@@ -2,11 +2,83 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { deriveAllocationRequirements } from "./allocation-requirements.js";
 import { analyzeDelaySlots } from "./delay-slot.js";
+import { alignFinalRtlToMachine } from "./emission-alignment.js";
+import { analyzeTargetOrderReplay } from "./counterfactual-replay.js";
 import { alignMachineInstructions, machineRefs } from "./machine-alignment.js";
 import { replayScheduler } from "./scheduler-replay.js";
+import { parseRtlInstructions } from "../compiler-trace/rtl-parser.js";
 import type { SchedulerStage } from "../compiler-trace/types.js";
+import { assertTargetScheduleAnalysis, TARGET_SCHEDULE_SCHEMA_VERSION } from "./types.js";
 
 const instruction = (mnemonic: string, operands: string[]) => ({ mnemonic, operands, canonical: `${mnemonic} ${operands.join(",")}` });
+
+test("migrates schema-v1 analyses with explicit empty replay fields", () => {
+  const analysis = assertTargetScheduleAnalysis({
+    schemaVersion: 1,
+    function: "func_test",
+    target: [],
+    candidate: [],
+    requirements: [],
+  });
+  assert.equal(analysis.schemaVersion, TARGET_SCHEDULE_SCHEMA_VERSION);
+  assert.deepEqual(analysis.emissionAlignment, []);
+  assert.deepEqual(analysis.targetOrderReplays, []);
+});
+
+test("maps emitted UIDs through a proven zero-width memory barrier", () => {
+  const machine = machineRefs([
+    instruction("move", ["t0", "a1"]),
+    instruction("li", ["v0", "4"]),
+  ]);
+  const rtl = parseRtlInstructions(`
+(insn 10 0 11 (set (reg:SI 8 t0) (reg:SI 5 a1)) 1 (nil) (nil))
+(insn 11 10 12 (parallel[ (asm_operands/v ("") ("") 0[ ] [ ] ("fixture.c") 1) (clobber (mem:BLK (scratch) 0)) ]) -1 (nil) (nil))
+(insn 12 11 0 (set (reg:SI 2 v0) (const_int 4)) 1 (nil) (nil))
+`, "mach");
+  const aligned = alignFinalRtlToMachine(machine, rtl);
+  assert.equal(aligned.alignment.filter((item) => item.kind === "zero-width").length, 1);
+  assert.deepEqual(aligned.links.map((link) => link.uid), [10, 12]);
+  assert.deepEqual(machine.map((item) => item.uid), [10, 12]);
+});
+
+test("recomputes readiness for a bounded target-order counterfactual", () => {
+  const target = machineRefs([
+    instruction("li", ["v1", "2"]),
+    instruction("li", ["v0", "1"]),
+    instruction("move", ["t0", "a0"]),
+  ]);
+  const candidate = machineRefs([
+    instruction("li", ["v0", "1"]),
+    instruction("li", ["v1", "2"]),
+    instruction("move", ["t0", "a0"]),
+  ]);
+  candidate.forEach((item, index) => { item.uid = 10 + index * 2; item.block = 0; });
+  const correspondence = [
+    { targetIndex: 0, candidateIndex: 1, candidateUid: 12, confidence: "exact" as const, evidence: [] },
+    { targetIndex: 1, candidateIndex: 0, candidateUid: 10, confidence: "exact" as const, evidence: [] },
+    { targetIndex: 2, candidateIndex: 2, candidateUid: 14, confidence: "exact" as const, evidence: [] },
+  ];
+  const ready = (uids: number[]) => uids.map((uid, rank) => ({ uid, displayedPriority: 1, rawPriority: "1", rank }));
+  const decisions = [
+    { block: 0, cycle: 1, ready: ready([10, 12, 14]), comparatorRanked: [14, 12, 10], ranked: [14, 12, 10], selectedUid: 14, selectedRank: 0, birthPriorityAdjusted: false, reason: "luid-or-list-order" as const, reasonConfidence: "reconstructed" as const, events: [] },
+    { block: 0, cycle: 2, ready: ready([10, 12]), comparatorRanked: [12, 10], ranked: [12, 10], selectedUid: 12, selectedRank: 0, birthPriorityAdjusted: false, reason: "luid-or-list-order" as const, reasonConfidence: "reconstructed" as const, events: [] },
+    { block: 0, cycle: 3, ready: ready([10]), comparatorRanked: [10], ranked: [10], selectedUid: 10, selectedRank: 0, birthPriorityAdjusted: false, reason: "sole" as const, reasonConfidence: "exact" as const, events: [] },
+  ];
+  const scheduler: SchedulerStage = {
+    stage: "sched", instructionPriorities: { "10": { priority: 1, refCount: 0 }, "12": { priority: 1, refCount: 0 }, "14": { priority: 1, refCount: 0 } },
+    decisions, selectionExplanations: [], luidByUid: { "10": 0, "12": 1, "14": 2 }, dependencies: [],
+    sourceOrder: [10, 12, 14], forwardOrder: [10, 12, 14], backwardSelectionOrder: [14, 12, 10], lifetimeChanges: [], caveats: [],
+  };
+  const result = analyzeTargetOrderReplay({
+    target, candidate, correspondence, scheduler,
+    baseline: [{ stage: "sched", block: 0, status: "exact", matchedSelections: 3, totalSelections: 3, matchedReadySets: 3, unsupportedFeatures: [], confidence: "exact", evidence: [] }],
+    maxInterventions: 3,
+  });
+  assert.equal(result.replays[0]?.legality, "legal-under-candidate-dag");
+  assert.equal(result.replays[0]?.status, "reproducible-with-interventions");
+  assert.equal(result.interventionSets[0]?.interventions[0]?.kind, "luid-order");
+  assert.deepEqual(result.interventionSets[0]?.interventions[0]?.uids, [10, 12]);
+});
 
 test("aligns a scheduling window and a consistent hard-register role swap", () => {
   const target = machineRefs([
@@ -50,6 +122,7 @@ test("marks an unresolved scheduler tie observational-only", () => {
         { uid: 10, displayedPriority: 1, rawPriority: "1", rank: 0 },
         { uid: 12, displayedPriority: 1, rawPriority: "1", rank: 1 },
       ],
+      comparatorRanked: [10, 12],
       ranked: [10, 12],
       selectedUid: 10,
       selectedRank: 0,
@@ -58,6 +131,12 @@ test("marks an unresolved scheduler tie observational-only", () => {
       reasonConfidence: "inferred",
       events: [],
     }],
+    selectionExplanations: [{
+      stage: "sched", block: 0, cycle: 1, selectedUid: 10,
+      orderKeys: [], comparisons: [{ winnerUid: 10, loserUid: 12, criterion: "unresolved", confidence: "inferred", evidence: [] }],
+      confidence: "inferred", caveats: [],
+    }],
+    luidByUid: { "10": 0, "12": 0 },
     dependencies: [],
     sourceOrder: [10, 12],
     forwardOrder: [10, 12],

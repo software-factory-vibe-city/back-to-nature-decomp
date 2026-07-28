@@ -71,6 +71,28 @@ Register 106 used 2 times across 2 insns in block 0; set 1 time; GR_REGS or none
   ), true);
 });
 
+test("reconstructs a legacy sched.c LUID tie through an intervening note", () => {
+  const source = parseRtlInstructions(`
+(insn 10 0 11 (set (reg:SI 2 v0) (const_int 1)) -1 (nil) (nil))
+(note 11 10 12 "fixture.c" 7)
+(insn 12 11 0 (set (reg:SI 3 v1) (const_int 2)) -1 (nil) (nil))
+`, "flow");
+  const dump = `
+;; -- basic block number 0 from 10 to 12 --
+;; insn[  10]: priority =    1, ref_count =    0
+;; insn[  12]: priority =    1, ref_count =    0
+;; ready list at T-1: 10 (1) 12 (1), now 12 10
+(insn 12 0 10 (set (reg:SI 3 v1) (const_int 2)) -1 (nil) (nil))
+(insn 10 12 0 (set (reg:SI 2 v0) (const_int 1)) -1 (nil) (nil))
+`;
+  const instructions = parseRtlInstructions(dump, "sched");
+  const scheduler = parseScheduler("sched", dump, instructions, source);
+  const explanation = scheduler.selectionExplanations[0]!;
+  assert.equal(explanation.confidence, "exact");
+  assert.equal(explanation.comparisons[0]?.criterion, "luid");
+  assert.equal(scheduler.luidByUid["12"], 2);
+});
+
 test("parses scheduler birth boosts, hazards, DAG edges, and lifetime changes", () => {
   const instructions = parseRtlInstructions(schedContent, "sched");
   const scheduler = parseScheduler("sched", schedContent, instructions, instructions.map((instruction) => instruction.uid));
@@ -206,6 +228,15 @@ test("confidence-labels malformed loop-note regions instead of inventing pairs",
   assert.match(metadata.caveats[0]!, /Unmatched NOTE_INSN_LOOP_END/);
   assert.match(metadata.caveats[1]!, /LOOP_CONT.*outside/);
   assert.match(metadata.caveats[2]!, /Unmatched NOTE_INSN_LOOP_BEG/);
+});
+
+test("parses final jump_insn scheduling suffixes instead of dropping delay-slotted returns", () => {
+  const instructions = parseRtlInstructions(`
+(jump_insn/s 280 0 0 (return) 453 {return} (nil) (nil))
+`, "mach");
+  assert.equal(instructions.length, 1);
+  assert.equal(instructions[0]?.uid, 280);
+  assert.equal(instructions[0]?.control, true);
 });
 
 test("reports a useful error for a truncated RTL dump", () => {

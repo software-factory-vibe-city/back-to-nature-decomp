@@ -1,36 +1,17 @@
 import type { PseudoProvenance, RtlInstruction } from "../compiler-trace/types.js";
+import { alignFinalRtlToMachine, type EmissionAlignmentResult } from "./emission-alignment.js";
 import type {
   InstructionCorrespondence,
   MachineInstructionRef,
   RegisterRoleMap,
 } from "./types.js";
 
-/**
- * GCC's final .mach dump is in emitted instruction order. We only use the
- * positional relationship when the normalized cc1 stream and executable RTL
- * counts agree; otherwise no UID is forced onto a machine instruction.
- */
+/** Map final RTL UIDs through proven zero-width forms without forcing unknowns. */
 export function attachFinalUids(
   candidate: MachineInstructionRef[],
   finalInstructions: RtlInstruction[],
-): { exactCount: boolean; caveats: string[] } {
-  if (candidate.length !== finalInstructions.length) {
-    return {
-      exactCount: false,
-      caveats: [
-        `Final .mach instruction count (${finalInstructions.length}) differs from normalized cc1 assembly (${candidate.length}); positional UID mapping was disabled.`,
-      ],
-    };
-  }
-  for (let index = 0; index < candidate.length; index++) {
-    const finalInstruction = finalInstructions[index]!;
-    candidate[index]!.uid = finalInstruction.uid;
-    if (finalInstruction.block !== undefined) candidate[index]!.block = finalInstruction.block;
-  }
-  return {
-    exactCount: true,
-    caveats: ["Candidate machine UID links are reconstructed from equal-count final .mach emission order."],
-  };
+): EmissionAlignmentResult {
+  return alignFinalRtlToMachine(candidate, finalInstructions);
 }
 
 export function attachCorrespondenceUids(

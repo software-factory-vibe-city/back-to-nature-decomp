@@ -116,12 +116,15 @@ export function renderText(report: CompilerTraceReport, options: RenderOptions =
     );
     if (decisions.length === 0 && options.schedulerWindow) lines.push("    (no decisions in requested cycle window)");
     for (const decision of decisions) {
+      const explanation = scheduler.selectionExplanations.find((item) => item.block === decision.block && item.cycle === decision.cycle);
+      const decisive = explanation?.comparisons[0];
       lines.push(
         `    b${decision.block} T-${decision.cycle}: uid ${decision.selectedUid ?? "?"}, ` +
         `rank ${decision.selectedRank ?? "?"}, base ${decision.basePriority ?? "?"}, ` +
-        `${decision.reason} (${decision.reasonConfidence}); ` +
+        `${decisive?.criterion ?? decision.reason} (${explanation?.confidence ?? decision.reasonConfidence}); ` +
         `ready [${decision.ready.map((entry) => `${entry.uid}:${entry.rawPriority}`).join(" ")}]`,
       );
+      if (decisive?.evidence[0]) lines.push(`      ${decisive.evidence[0]}`);
       for (const event of decision.events.slice(0, 2)) lines.push(`      ${event}`);
     }
   }

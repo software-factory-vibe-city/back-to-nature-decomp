@@ -60,7 +60,7 @@ const STAGE_ORDER = [
 ];
 
 function countInstructions(content: string): number {
-  return [...content.matchAll(/^\((?:insn|jump_insn|call_insn)\s+\d+/gm)].length;
+  return [...content.matchAll(/^\((?:insn|jump_insn|call_insn)(?:\/[a-z]+)*\s+\d+/gm)].length;
 }
 
 function pseudoOccurrences(content: string): { count: number; pseudos: Set<number> } {
@@ -195,7 +195,7 @@ export function buildTraceReport(
       "sched",
       schedContent,
       schedInstructions,
-      schedInput.map((instruction) => instruction.uid),
+      schedInput,
     ));
   }
   const sched2Content = parsed.contents.get("sched2");
@@ -206,7 +206,7 @@ export function buildTraceReport(
       "sched2",
       sched2Content,
       sched2Instructions,
-      sched2Input.map((instruction) => instruction.uid),
+      sched2Input,
     ));
   }
   for (const scheduler of schedulers) caveats.push(...scheduler.caveats);
@@ -249,7 +249,7 @@ export function buildTraceReport(
 
   const reportPath = join(outputDirectory, "report.json");
   const report: CompilerTraceReport = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     function: funcName,
     source: relative(ROOT, source),
     outputDirectory: relative(ROOT, outputDirectory),

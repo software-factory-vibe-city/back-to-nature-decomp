@@ -1,6 +1,7 @@
 import type {
   RawDependencyReference,
   RegisterReference,
+  RtlEmission,
   RtlInstruction,
   RtlNote,
   RtlNoteKind,
@@ -16,9 +17,9 @@ const HARD_REGISTER_NAMES = [
 ];
 
 const REGISTER_PATTERN = /\(reg((?:\/[a-z]+)*):([A-Z0-9]+)\s+(\d+)(?:\s+([^()\s]+))?\)/gi;
-const INSTRUCTION_START = /^\((insn|jump_insn|call_insn)\s+(\d+)\b/gm;
+const INSTRUCTION_START = /^\((insn|jump_insn|call_insn)(?:\/[a-z]+)*\s+(\d+)\b/gm;
 const NOTE_START = /^\(note\s+(\d+)\b/gm;
-const RTL_FORM_START = /^\((?:insn|jump_insn|call_insn|note)\s+\d+\b/gm;
+const RTL_FORM_START = /^\((?:(?:insn|jump_insn|call_insn)(?:\/[a-z]+)*|note)\s+\d+\b/gm;
 
 const NOTE_KINDS: Record<string, RtlNoteKind> = {
   NOTE_INSN_LOOP_BEG: "loop-begin",
@@ -180,11 +181,15 @@ export function parseRtlNotes(content: string, stage: string): RtlNote[] {
 export function parseRtlInstructions(content: string, stage: string): RtlInstruction[] {
   const result: RtlInstruction[] = [];
   const markers = blockMarkers(content);
+  const formOrders = new Map<number, number>();
+  let formOrder = 0;
+  RTL_FORM_START.lastIndex = 0;
+  for (const form of content.matchAll(RTL_FORM_START)) formOrders.set(form.index!, formOrder++);
   INSTRUCTION_START.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = INSTRUCTION_START.exec(content)) !== null) {
     const text = balancedForm(content, match.index, stage);
-    const headerLength = text.match(/^\((?:insn|jump_insn|call_insn)\s+\d+\s+\d+\s+\d+\s+/)?.[0].length;
+    const headerLength = text.match(/^\((?:insn|jump_insn|call_insn)(?:\/[a-z]+)*\s+\d+\s+\d+\s+\d+\s+/)?.[0].length;
     const pattern = headerLength ? firstSExpression(text, headerLength) : undefined;
     const parts = setParts(pattern || text);
     const destinationRefs = parts.destination ? parseRegisterReferences(parts.destination) : [];
@@ -222,6 +227,8 @@ export function parseRtlInstructions(content: string, stage: string): RtlInstruc
       control: match[1] === "jump_insn" || Boolean(source?.includes("(pc)")) || text.includes("(return)"),
       dependencies: parseDependencies(text),
     };
+    const chainOrder = formOrders.get(match.index);
+    if (chainOrder !== undefined) instruction.chainOrder = chainOrder;
     const block = blockAt(markers, match.index);
     if (block !== undefined) instruction.block = block;
     if (source) instruction.expression = normalizeExpression(source);
@@ -232,10 +239,54 @@ export function parseRtlInstructions(content: string, stage: string): RtlInstruc
     INSTRUCTION_START.lastIndex = match.index + text.length;
   }
 
-  if (/^\((?:insn|jump_insn|call_insn)\b/m.test(content) && result.length === 0) {
+  if (/^\((?:insn|jump_insn|call_insn)(?:\/[a-z]+)*\b/m.test(content) && result.length === 0) {
     throw new Error(`RTL parse error in .${stage}: instruction markers were present but none could be parsed`);
   }
   return result;
+}
+
+export function classifyRtlEmission(instruction: RtlInstruction): RtlEmission {
+  if (/\(asm_operands\/v\s+\(""\)\s+\(""\)/s.test(instruction.text)) {
+    return {
+      uid: instruction.uid,
+      stage: instruction.stage,
+      classification: "zero-width",
+      reason: "empty-volatile-asm",
+      confidence: "exact",
+      evidence: [
+        "The final RTL pattern is a volatile asm_operands with an exactly empty template.",
+        "Its parallel memory clobber constrains scheduling but emits no machine operation.",
+      ],
+    };
+  }
+  if (/^\((?:insn|jump_insn|call_insn)(?:\/[a-z]+)*\b[\s\S]*?\s\((?:use|clobber)\b/s.test(instruction.text) && !instruction.text.includes("(set ")) {
+    return {
+      uid: instruction.uid,
+      stage: instruction.stage,
+      classification: "zero-width",
+      reason: "use-or-clobber",
+      confidence: "reconstructed",
+      evidence: ["The final standalone USE/CLOBBER constrains compiler dataflow but has no machine template; neighboring canonical anchors confirm zero emitted operations."],
+    };
+  }
+  if (instruction.operation === "asm_operands" || instruction.text.includes("(unspec")) {
+    return {
+      uid: instruction.uid,
+      stage: instruction.stage,
+      classification: "unknown",
+      reason: "unknown-pattern",
+      confidence: "inferred",
+      evidence: ["An unrecognized asm/UNSPEC pattern was retained; zero-width emission was not assumed."],
+    };
+  }
+  return {
+    uid: instruction.uid,
+    stage: instruction.stage,
+    classification: "emits",
+    reason: "recognized-machine-pattern",
+    confidence: "reconstructed",
+    evidence: ["The final RTL form is an ordinary SET/control machine pattern and is not a recognized zero-width form."],
+  };
 }
 
 export function pseudoRegisters(instruction: RtlInstruction): Set<number> {

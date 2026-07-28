@@ -13,12 +13,13 @@ import { parseRtlInstructions } from "./compiler-trace/rtl-parser.js";
 import { parseCc1Assembly, normalizeDisassembly } from "./variant-lab/compile.js";
 import { projectPath } from "./variant-lab/artifacts.js";
 import { deriveAllocationRequirements } from "./target-schedule/allocation-requirements.js";
+import { analyzeTargetOrderReplay } from "./target-schedule/counterfactual-replay.js";
 import { writeTargetScheduleArtifacts } from "./target-schedule/artifacts.js";
 import { analyzeDelaySlots } from "./target-schedule/delay-slot.js";
 import { deriveSchedulingRequirements } from "./target-schedule/intervention-search.js";
 import { alignMachineInstructions, machineRefs } from "./target-schedule/machine-alignment.js";
 import { renderTargetSchedule } from "./target-schedule/render-text.js";
-import { replayScheduler } from "./target-schedule/scheduler-replay.js";
+import { baselineSchedulerReplay, replayScheduler } from "./target-schedule/scheduler-replay.js";
 import {
   attachCorrespondenceUids,
   attachFinalUids,
@@ -127,6 +128,7 @@ export function analyzeTargetSchedule(options: CliOptions): TargetScheduleAnalys
   attachRolePseudos(alignment.registerRoles, trace.pseudos);
 
   const schedulerReplay = trace.schedulers.flatMap((scheduler) => replayScheduler(scheduler, options.block));
+  const baselineReplay = trace.schedulers.flatMap((scheduler) => baselineSchedulerReplay(scheduler, options.block));
   const allocation = deriveAllocationRequirements(alignment.registerRoles, trace.pseudos, trace.allocationOrder);
   for (const requirement of allocation.requirements) {
     requirement.targetCanonical = requirement.targetIndexes.map((index) => target[index]?.canonical).filter((value): value is string => Boolean(value));
@@ -175,6 +177,22 @@ export function analyzeTargetSchedule(options: CliOptions): TargetScheduleAnalys
       });
     }
   }
+  const targetReplay = analyzeTargetOrderReplay({
+    target,
+    candidate,
+    correspondence: alignment.correspondence,
+    scheduler: trace.schedulers.find((scheduler) => scheduler.stage === "sched") || trace.schedulers.find((scheduler) => scheduler.stage === "sched2"),
+    baseline: baselineReplay,
+    maxInterventions: options.maxInterventions,
+  });
+  for (const set of targetReplay.interventionSets) {
+    for (const intervention of set.interventions) {
+      const related = trace.pseudos.filter((pseudo) => pseudo.stages.some((stage) =>
+        [...stage.setUids, ...stage.useUids, ...stage.deathUids].some((uid) => intervention.uids.includes(uid))
+      ));
+      intervention.pseudos = related.map((pseudo) => pseudo.pseudo);
+    }
+  }
   const requirements = [...delay.requirements, ...allocation.requirements, ...scheduling]
     .sort((left, right) => Number(right.hardConstraint) - Number(left.hardConstraint) ||
       Math.min(...left.targetIndexes) - Math.min(...right.targetIndexes) || left.id.localeCompare(right.id));
@@ -191,14 +209,22 @@ export function analyzeTargetSchedule(options: CliOptions): TargetScheduleAnalys
     candidate,
     correspondence: alignment.correspondence,
     registerRoles: alignment.registerRoles,
+    emissionAlignment: uidResult.alignment,
+    machineUidLinks: uidResult.links,
+    schedulerSelections: trace.schedulers.flatMap((scheduler) => scheduler.selectionExplanations),
     schedulerReplay,
+    baselineReplay,
+    targetOrderConstraints: targetReplay.constraints,
+    targetOrderReplays: targetReplay.replays,
+    interventionSets: targetReplay.interventionSets,
     allocationRequirements: allocation.allocation,
     delaySlots: delay.analyses,
     requirements,
     preservationRanges: exactRanges(target, candidate),
     caveats: [
       ...uidResult.caveats,
-      "Target-side statements are limited to observed machine order and legality; target RTL dependencies are never inferred.",
+      "Scheduler comparator provenance models GCC 2.95.2 legacy sched.c: displayed priority, relation to the last scheduled instruction, then block-local LUID.",
+      "Target-side statements are limited to observed machine order and candidate-DAG legality; target RTL dependencies are never inferred.",
       "Abstract interventions are diagnostic compiler-state hypotheses, not source edits or completion gates.",
       "Exact function/object comparison remains the oracle.",
     ],

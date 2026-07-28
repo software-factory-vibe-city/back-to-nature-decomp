@@ -244,6 +244,7 @@ Use tools in layers:
 ```bash
 npx tsx tools/agent/explainDiff.ts <func>
 npx tsx tools/agent/compilerTrace.ts <func>
+npx tsx tools/agent/analyzeTargetSchedule.ts <func> [--block <n>]
 npx tsx tools/agent/diffFunc.ts <func>
 ```
 
@@ -267,14 +268,23 @@ scheduler ready-list decisions, and allocation-created hard-register hazards.
 Use `--pseudo <n>` or `--scheduler-window <start:end>` to focus dense output.
 
 Treat each confidence label literally. Dumped UIDs, dependency notes, conflicts,
-preferences, and assignments are exact observations. Lifetime endpoints,
-untyped dependency kinds/costs, and scheduler tie explanations are
-reconstructed or inferred because stock `-da` does not expose GCC's private
-quantity indices and every scheduler decision field. A target-register
-recurrence hint is an experiment to test, not proof of original source.
+preferences, assignments, and ready lists are exact observations. Lifetime
+endpoints and untyped dependency kinds/costs remain reconstructed or inferred.
+For the configured legacy scheduler, `analyzeTargetSchedule.ts` reconstructs
+priority, relation to the last scheduled instruction, and block-local LUID;
+call a tie exact only when the modeled comparator reproduces the dumped order.
+A target order that is legal under the candidate DAG is not yet reproduced:
+require exact baseline replay and a supported bounded counterfactual. Target
+RTL dependencies remain unavailable. A target-register recurrence hint is an
+experiment to test, not proof of original source.
 
 Start with the cross-pass feedback category: `sched1-reordered`, `sched2-fixed`,
-`allocation-blocked`, or `memory-or-control`. Each edit should name the pseudo
+`allocation-blocked`, or `memory-or-control`. For a stubborn scheduling window,
+run target-schedule analysis and check its emission alignment before using UIDs;
+proven zero-width RTL barriers may be skipped, but ambiguous links may not be
+forced. Prefer the bounded intervention set: test birth eligibility for a
+`priority-relation`, source birth/constant sites for a `luid-order`, and natural
+dataflow only for a dependency relation. Each edit should name the pseudo
 lifetime, conflict, assignment pass, canonicalization rule, or scheduler
 decision it intends to change. Do not run random declaration or statement
 permutations.
@@ -320,6 +330,7 @@ which these matching lessons were distilled.
 | Priority uses references and lifetime; ties use birth order | Statement and expression birth order can change allocation |
 | Fake lifetime extension with post-allocation scheduling | Moving a birth by one statement can create or remove a pseudo-conflict |
 | Pre-allocation scheduler works backward | Independent source statements do not necessarily retain source order |
+| Legacy scheduler ties use priority, last-scheduled dependency class, then LUID | Separate birth-priority changes from block-local source/RTL birth-order changes |
 | Distinct symbol bases may not alias | Stores through independently proven bases can reorder freely |
 | Post-allocation scheduling sees hard-register hazards | A scheduling mismatch can be downstream of the wrong register allocation |
 | CSE commutative constant-second rule | Source operand swaps can be no-ops; change the web/address family |

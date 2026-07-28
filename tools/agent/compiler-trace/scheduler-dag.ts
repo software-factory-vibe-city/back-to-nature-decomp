@@ -8,13 +8,15 @@ import type {
   SchedulerStage,
 } from "./types.js";
 import { registerAccess } from "./rtl-parser.js";
+import { explainSchedulerSelections, reconstructLuid } from "./scheduler-order.js";
 
 function intersects(left: Set<number>, right: Set<number>): number[] {
   return [...left].filter((value) => right.has(value));
 }
 
 function parseDisplayedPriority(raw: string): number {
-  return /^[0-9]+$/.test(raw) ? parseInt(raw, 10) : parseInt(raw, 16);
+  /* Ready-list priorities are printed with %x by GCC's legacy sched.c. */
+  return parseInt(raw, 16);
 }
 
 function parseReadyEntries(text: string): ReadyEntry[] {
@@ -172,6 +174,7 @@ function parseDecisions(content: string): SchedulerDecision[] {
         block,
         cycle,
         ready: entries,
+        comparatorRanked: [...ranked],
         ranked,
         birthPriorityAdjusted: false,
         reason: "unknown",
@@ -220,10 +223,19 @@ export function parseScheduler(
   stage: "sched" | "sched2",
   content: string,
   instructions: RtlInstruction[],
-  sourceOrder: number[],
+  source: number[] | RtlInstruction[],
 ): SchedulerStage {
   const decisions = parseDecisions(content);
   const priorities = parsePriorities(content);
+  const sourceInstructions: RtlInstruction[] = source.length > 0 && typeof source[0] === "number"
+    ? (source as number[]).map((uid, order) => ({
+        uid, kind: "insn", stage: `${stage}-input`, order, chainOrder: order,
+        text: "", sets: [], uses: [], deaths: [], memoryRead: false,
+        memoryWrite: false, control: false, dependencies: [],
+      }))
+    : source as RtlInstruction[];
+  const luidByUid = reconstructLuid(sourceInstructions);
+  const dependencies = parseDependencies(instructions);
   for (const decision of decisions) {
     if (decision.selectedUid === undefined) continue;
     const base = priorities[String(decision.selectedUid)];
@@ -232,21 +244,24 @@ export function parseScheduler(
   if (/^;; ready list at T-/m.test(content) && decisions.length === 0) {
     throw new Error(`Scheduler parse error in .${stage}: ready-list lines were present but none could be parsed`);
   }
+  const selectionExplanations = explainSchedulerSelections(stage, decisions, dependencies, luidByUid);
   return {
     stage,
     instructionPriorities: priorities,
     decisions,
-    dependencies: parseDependencies(instructions),
-    sourceOrder,
+    selectionExplanations,
+    luidByUid,
+    dependencies,
+    sourceOrder: sourceInstructions.map((instruction) => instruction.uid),
     forwardOrder: instructions.map((instruction) => instruction.uid),
     backwardSelectionOrder: decisions.flatMap((decision) =>
       decision.selectedUid === undefined ? [] : [decision.selectedUid]
     ),
     lifetimeChanges: parseLifetimeChanges(content),
     caveats: [
-      "Ready-list selection is reconstructed from each line's final 'now' order; GCC schedules each block backward and emits the reverse as forward order.",
+      "Ready-list selection uses GCC 2.95.2 legacy sched.c order: priority, relation to the last scheduled instruction, then block-local LUID; scheduling is backward.",
       "Dependency costs use the documented R3000 load latency and MIPS anti/output cost adjustment when the dump does not print per-edge costs.",
-      "LUID tie breaks and birth-priority boosts are labeled reconstructed/inferred unless an explicit trace line identifies the choice.",
+      "LUID relations are reconstructed from the pre-scheduler RTL chain including note gaps and validated against each dumped comparator order.",
     ],
   };
 }

@@ -77,11 +77,24 @@ export interface RawDependencyReference {
   note?: "REG_DEP_ANTI" | "REG_DEP_OUTPUT";
 }
 
+export type EmissionClass = "emits" | "zero-width" | "unknown";
+
+export interface RtlEmission {
+  uid: number;
+  stage: string;
+  classification: EmissionClass;
+  reason: "recognized-machine-pattern" | "empty-volatile-asm" | "use-or-clobber" | "unknown-pattern";
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
 export interface RtlInstruction {
   uid: number;
   kind: "insn" | "jump_insn" | "call_insn";
   stage: string;
   order: number;
+  /** Position among instructions and notes in the dumped RTL chain. */
+  chainOrder?: number;
   block?: number;
   text: string;
   expression?: string;
@@ -191,10 +204,51 @@ export interface ReadyEntry {
   rank: number;
 }
 
+export type SchedulerTieCriterion =
+  | "sole-ready"
+  | "priority"
+  | "dependency-class"
+  | "luid"
+  | "functional-unit-hazard"
+  | "launch-or-block"
+  | "unresolved";
+
+export interface SchedulerOrderKey {
+  uid: number;
+  sourceOrder?: number;
+  luid?: number;
+  displayedPriority?: number;
+  dependencyClass?: 1 | 2 | 3;
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
+export interface PairwiseSchedulerComparison {
+  winnerUid: number;
+  loserUid: number;
+  criterion: SchedulerTieCriterion;
+  confidence: TraceConfidence;
+  evidence: string[];
+}
+
+export interface SchedulerSelectionExplanation {
+  stage: "sched" | "sched2";
+  block: number;
+  cycle: number;
+  selectedUid?: number;
+  orderKeys: SchedulerOrderKey[];
+  comparisons: PairwiseSchedulerComparison[];
+  confidence: TraceConfidence;
+  caveats: string[];
+}
+
 export interface SchedulerDecision {
   block: number;
   cycle: number;
   ready: ReadyEntry[];
+  /** Comparator result before backend hazard selection. */
+  comparatorRanked: number[];
+  /** Final order after printed blocking/hazard adjustments. */
   ranked: number[];
   selectedUid?: number;
   selectedRank?: number;
@@ -216,6 +270,8 @@ export interface SchedulerStage {
   stage: "sched" | "sched2";
   instructionPriorities: Record<string, { priority: number; refCount: number }>;
   decisions: SchedulerDecision[];
+  selectionExplanations: SchedulerSelectionExplanation[];
+  luidByUid: Record<string, number>;
   dependencies: DependencyEdge[];
   sourceOrder: number[];
   forwardOrder: number[];
@@ -253,7 +309,7 @@ export interface RegisterRecurrenceHint {
 }
 
 export interface CompilerTraceReport {
-  schemaVersion: 1;
+  schemaVersion: 2;
   function: string;
   source: string;
   outputDirectory: string;
