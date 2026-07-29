@@ -22,7 +22,15 @@ import {
   normalizeFunctionName,
   runToolAsync,
 } from "./decompToolchain.js";
+import { buildTraceReportFromArtifacts } from "./compilerTrace.js";
 import { assertTargetScheduleAnalysis, type TargetScheduleAnalysis } from "./target-schedule/types.js";
+import { analyzeTargetScheduleFromArtifacts } from "./target-schedule/analyze.js";
+import { writeTargetScheduleArtifacts } from "./target-schedule/artifacts.js";
+import { renderTargetSchedule } from "./target-schedule/render-text.js";
+import { deriveScheduleMechanismProfile, traceBundleHash } from "./target-schedule/profile.js";
+import { compareScheduleMechanismProfiles } from "./target-schedule/compare-profiles.js";
+import { writeScheduleProfileArtifacts } from "./target-schedule/profile-artifacts.js";
+import type { ScheduleMechanismProfile } from "./target-schedule/profile-types.js";
 import { sha256, sha256File, stableJson, writeStableJson, projectPath } from "./variant-lab/artifacts.js";
 import { classifyHypothesis } from "./variant-lab/classify-hypothesis.js";
 import { compareNormalized, normalizeDisassembly, parseCc1Assembly, writeNormalizedComparison } from "./variant-lab/compile.js";
@@ -162,7 +170,9 @@ function preprocessedSemanticHash(path: string): string {
 function sourceSearchImplementationHash(): string {
   const files = [
     join(ROOT, "tools/agent/searchSourceShapes.ts"),
+    join(ROOT, "tools/agent/compilerTrace.ts"),
     ...readFileNames(join(ROOT, "tools/agent/source-shape-search")),
+    ...readFileNames(join(ROOT, "tools/agent/target-schedule")),
   ];
   return sha256(files.map((path) => `${relative(ROOT, path)}:${sha256File(path)}`).join("\n"));
 }
@@ -222,6 +232,7 @@ async function main(): Promise<void> {
     implementationHash,
     jobs: options.jobs,
     budget,
+    scheduleComparison: spec.scheduleComparison,
   });
 
   const targetObject = assembleTarget(options.functionName, runRoot);
@@ -302,13 +313,16 @@ async function main(): Promise<void> {
       compilerFlags,
       compilerHash: toolchain.compiler.sha256,
       assemblerShimHash: toolchain.assemblerShim.sha256,
-      trace: false,
+      trace: spec.traceAllPreprocessed,
       full: false,
     });
     try {
       let cached = restoreCache(cacheRoot, key, directory);
       if (!cached || !existsSync(join(directory, `${options.functionName}.s`))) {
-        await compileSourceAsync(variant.sourcePath, directory, options.functionName, { signal: abort.signal });
+        await compileSourceAsync(variant.sourcePath, directory, options.functionName, {
+          dumps: spec.traceAllPreprocessed,
+          signal: abort.signal,
+        });
       }
       const compiled = parseCc1Assembly(join(directory, `${options.functionName}.s`));
       compiledStreams.set(variant.id, compiled);
@@ -367,20 +381,73 @@ async function main(): Promise<void> {
 
   const baselineTraceDirectory = join(runRoot, "baseline-trace");
   let baselinePasses: Map<PassStage, PassSnapshot> | undefined;
+  let baselineProfile: ScheduleMechanismProfile | undefined;
   const baselineExact = analysis ? compareNormalized(target, analysis.candidate).exact : -1;
-  const promising = assemblyGroups.map((group) => results.get(group.representative)!).filter((result) =>
-    result && result.compiled && (spec.traceAllPreprocessed ||
-      result.requirementResults.some((item) => item.status === "satisfied") || result.exactInstructions > baselineExact)
+  const ordinaryPromising = assemblyGroups.map((group) => results.get(group.representative)!).filter((result) =>
+    result && result.compiled && (
+      result.requirementResults.some((item) => item.status === "satisfied") || result.exactInstructions > baselineExact
+    )
   );
-  if (promising.length > 0) {
-    await compileSourceAsync(basePath, baselineTraceDirectory, options.functionName, { dumps: true, signal: abort.signal });
+  const traceVariants = spec.traceAllPreprocessed
+    ? [...preprocessingRepresentatives.values()]
+    : ordinaryPromising.flatMap((result) => {
+      const variant = batch.variants.find((item) => item.id === result.variantId);
+      return variant ? [variant] : [];
+    });
+
+  if (traceVariants.length > 0) {
+    const baselineArtifacts = await compileSourceAsync(basePath, baselineTraceDirectory, options.functionName, {
+      dumps: true,
+      signal: abort.signal,
+    });
     baselinePasses = loadPassSnapshots(baselineTraceDirectory, options.functionName);
+    if (spec.scheduleComparison.enabled) {
+      const baselineScheduleDirectory = join(baselineTraceDirectory, "target-schedule");
+      const baselineTrace = buildTraceReportFromArtifacts({
+        functionName: options.functionName,
+        sourcePath: basePath,
+        assemblyPath: baselineArtifacts.assembly,
+        dumpDirectory: baselineTraceDirectory,
+        outputDirectory: baselineScheduleDirectory,
+        flags: baselineArtifacts.cc1Flags,
+        reportFileName: "compiler-trace-report.json",
+      });
+      const baselineAssembly = parseCc1Assembly(baselineArtifacts.assembly);
+      const baselineAnalysis = analyzeTargetScheduleFromArtifacts({
+        functionName: options.functionName,
+        trace: baselineTrace,
+        target,
+        candidate: baselineAssembly,
+        outputDirectory: baselineScheduleDirectory,
+        maxInterventions: spec.scheduleComparison.maxInterventions,
+      });
+      writeTargetScheduleArtifacts(
+        baselineScheduleDirectory,
+        baselineAnalysis,
+        renderTargetSchedule(baselineAnalysis),
+      );
+      baselineProfile = deriveScheduleMechanismProfile({
+        analysis: baselineAnalysis,
+        trace: baselineTrace,
+        variantId: "baseline",
+        sourceHash: baseHash,
+        assemblyHash: sha256(stableJson(baselineAssembly)),
+      });
+      writeScheduleProfileArtifacts(baselineScheduleDirectory, baselineProfile);
+    }
   }
-  for (const result of promising) {
-    const variant = batch.variants.find((item) => item.id === result.variantId);
-    if (!variant || !baselinePasses) continue;
+
+  const tracedClasses = new Map<string, { variantId: string; profile: ScheduleMechanismProfile }>();
+  for (const variant of traceVariants.sort((left, right) => left.productIndex - right.productIndex)) {
+    const result = results.get(variant.id);
+    if (!result || !baselinePasses) continue;
     const directory = join(runRoot, "variants", variant.id);
-    await compileSourceAsync(variant.sourcePath, directory, options.functionName, { dumps: true, signal: abort.signal });
+    if (!existsSync(join(directory, `${options.functionName}.i.rtl`))) {
+      await compileSourceAsync(variant.sourcePath, directory, options.functionName, {
+        dumps: true,
+        signal: abort.signal,
+      });
+    }
     const passes = loadPassSnapshots(directory, options.functionName);
     const comparison = comparePassSnapshots(baselinePasses, passes);
     result.traceArtifact = projectPath(directory);
@@ -404,7 +471,90 @@ async function main(): Promise<void> {
     });
     const dbr = passes.get("dbr");
     if (dbr) equivalences.push(...equivalenceClasses("dbr", [{ id: result.variantId, hash: dbr.hash }], lineages));
+
+    if (spec.scheduleComparison.enabled && baselineProfile && result.assemblyHash) {
+      try {
+        const scheduleDirectory = join(directory, "target-schedule");
+        const assemblyPath = join(directory, `${options.functionName}.s`);
+        const report = buildTraceReportFromArtifacts({
+          functionName: options.functionName,
+          sourcePath: variant.sourcePath,
+          assemblyPath,
+          dumpDirectory: directory,
+          outputDirectory: scheduleDirectory,
+          flags: [...compilerFlags, "-da"],
+          reportFileName: "compiler-trace-report.json",
+        });
+        const bundleHash = traceBundleHash(report, result.assemblyHash);
+        result.traceBundleHash = bundleHash;
+        const existing = tracedClasses.get(bundleHash);
+        let profile: ScheduleMechanismProfile;
+        if (existing) {
+          result.traceEquivalentTo = existing.variantId;
+          profile = {
+            ...existing.profile,
+            variantId: variant.id,
+            sourceHash: variant.sourceHash,
+            assemblyHash: result.assemblyHash,
+          };
+        } else {
+          const variantAnalysis = analyzeTargetScheduleFromArtifacts({
+            functionName: options.functionName,
+            trace: report,
+            target,
+            outputDirectory: scheduleDirectory,
+            maxInterventions: spec.scheduleComparison.maxInterventions,
+          });
+          writeTargetScheduleArtifacts(
+            scheduleDirectory,
+            variantAnalysis,
+            renderTargetSchedule(variantAnalysis),
+          );
+          profile = deriveScheduleMechanismProfile({
+            analysis: variantAnalysis,
+            trace: report,
+            variantId: variant.id,
+            sourceHash: variant.sourceHash,
+            assemblyHash: result.assemblyHash,
+          });
+          tracedClasses.set(bundleHash, { variantId: variant.id, profile });
+        }
+        const delta = compareScheduleMechanismProfiles(baselineProfile, profile);
+        result.scheduleDelta = delta;
+        result.scheduleProfileArtifact = projectPath(join(scheduleDirectory, "profile.json"));
+        result.scheduleDeltaArtifact = projectPath(join(scheduleDirectory, "delta.json"));
+        writeScheduleProfileArtifacts(scheduleDirectory, profile, delta);
+      } catch (error) {
+        result.scheduleAnalysisError = error instanceof Error ? error.message : String(error);
+      }
+    }
     persist(startProductIndex);
+  }
+
+  if (spec.scheduleComparison.enabled) {
+    const propagateTrace = (duplicates: Map<string, string>): void => {
+      for (const [duplicateId, representativeId] of duplicates) {
+        const duplicate = results.get(duplicateId);
+        const representative = results.get(representativeId);
+        if (!duplicate || !representative?.traceBundleHash) continue;
+        duplicate.traceBundleHash = representative.traceBundleHash;
+        duplicate.traceEquivalentTo = representative.variantId;
+        if (representative.traceArtifact) duplicate.traceArtifact = representative.traceArtifact;
+        if (representative.scheduleProfileArtifact) duplicate.scheduleProfileArtifact = representative.scheduleProfileArtifact;
+        if (representative.scheduleDeltaArtifact) duplicate.scheduleDeltaArtifact = representative.scheduleDeltaArtifact;
+        if (representative.scheduleDelta) {
+          duplicate.scheduleDelta = { ...representative.scheduleDelta, variantId: duplicate.variantId };
+        }
+        if (representative.scheduleAnalysisError) duplicate.scheduleAnalysisError = representative.scheduleAnalysisError;
+      }
+    };
+    propagateTrace(preprocessingDuplicates);
+    propagateTrace(sourceDuplicates);
+    const traced = [...results.values()].filter((result) => result.traceBundleHash);
+    equivalences.push(...equivalenceClasses("trace", traced.map((result) => ({
+      id: result.variantId,
+      hash: result.traceBundleHash!,
+    })), lineages));
   }
 
   const fullGroups = assemblyGroups.filter((group) => {
@@ -471,7 +621,8 @@ async function main(): Promise<void> {
     caveats: [
       "Generated variants are preserved under build/ and are never copied to src/.",
       "A cc1-only exact result is non-promotable until full configured assembly confirms the instruction/relocation stream.",
-      "Mechanism verdicts rank before raw exact-instruction count; exact function diff and full project verification remain external final gates.",
+      "Mechanism and supported target-schedule deltas rank before raw exact-instruction count; exact function diff and full project verification remain external final gates.",
+      "Machine-equivalent traced variants are deduplicated only after normalized compiler-trace fingerprinting; untraced variants never claim schedule equivalence.",
     ],
   };
   saveSummary(runRoot, summary);

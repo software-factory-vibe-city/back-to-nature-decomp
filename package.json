@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "tsx --test .pi/extensions/psx-decomp/autonomous/*.test.ts tools/lib/*.test.ts tools/agent/compiler-trace/*.test.ts tools/agent/variant-lab/*.test.ts tools/agent/target-schedule/*.test.ts tools/agent/source-shape-search/*.test.ts tools/agent/source-shape-synthesis/*.test.ts",
+    "test": "tsx --test .pi/extensions/psx-decomp/autonomous/*.test.ts tools/lib/*.test.ts tools/agent/compiler-trace/*.test.ts tools/agent/variant-lab/*.test.ts tools/agent/target-schedule/*.test.ts tools/agent/scheduler-constraint/*.test.ts tools/agent/source-shape-search/*.test.ts tools/agent/source-shape-synthesis/*.test.ts",
     "progress": "tsx tools/diagnostics/progress.ts",
     "diff": "tsx tools/agent/diffFunc.ts",
     "autodecomp": "tsx .pi/extensions/psx-decomp/autonomous/controller.ts"

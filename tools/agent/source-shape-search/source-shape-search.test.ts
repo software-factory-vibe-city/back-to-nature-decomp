@@ -47,11 +47,26 @@ function spec() {
 }
 
 test("validates concrete finite alternatives and rejects empty actions", () => {
-  assert.equal(totalProducts(spec()), 4);
+  const migrated = spec();
+  assert.equal(totalProducts(migrated), 4);
+  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.scheduleComparison.enabled, false);
   const invalid: any = spec();
   invalid.dimensions[0].alternatives[0] = { id: "empty", expectedEffect: "none", invariants: [] };
   assert.throws(() => validateSourceShapeSpec(invalid), /concrete generation action/);
   assert.throws(() => validateSourceShapeSpec({ ...spec(), compilerFlags: ["-fno-schedule-insns"] }), /unsupported field/);
+  assert.throws(() => validateSourceShapeSpec({
+    ...spec(),
+    traceAllPreprocessed: false,
+    scheduleComparison: { enabled: true, analyze: "traced-classes", maxInterventions: 3 },
+  }), /requires traceAllPreprocessed/);
+  const profiled = validateSourceShapeSpec({
+    ...spec(),
+    traceAllPreprocessed: true,
+    scheduleComparison: { enabled: true, analyze: "traced-classes", maxInterventions: 8 },
+  });
+  assert.equal(profiled.scheduleComparison.enabled, true);
+  assert.equal(profiled.scheduleComparison.maxInterventions, 8);
 });
 
 test("generates deterministic Cartesian suffixes, exclusions, and resume batches without touching the base", () => {

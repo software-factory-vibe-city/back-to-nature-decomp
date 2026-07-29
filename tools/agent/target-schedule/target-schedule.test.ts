@@ -9,8 +9,38 @@ import { replayScheduler } from "./scheduler-replay.js";
 import { parseRtlInstructions } from "../compiler-trace/rtl-parser.js";
 import type { SchedulerStage } from "../compiler-trace/types.js";
 import { assertTargetScheduleAnalysis, TARGET_SCHEDULE_SCHEMA_VERSION } from "./types.js";
+import { compareScheduleMechanismProfiles } from "./compare-profiles.js";
+import type { ScheduleMechanismProfile } from "./profile-types.js";
 
 const instruction = (mnemonic: string, operands: string[]) => ({ mnemonic, operands, canonical: `${mnemonic} ${operands.join(",")}` });
+
+function profile(status: ScheduleMechanismProfile["targetOrder"][number]["status"], trace = "trace-a"): ScheduleMechanismProfile {
+  const targetOrder: ScheduleMechanismProfile["targetOrder"][number] = {
+    targetIndexes: [1, 2, 3],
+    stage: "sched",
+    block: 0,
+    legality: status === "unsupported" ? "unsupported" : "legal-under-candidate-dag",
+    status,
+    unsupportedOutcomes: status === "unsupported" ? ["resource-blocked"] : [],
+    interventionKinds: status === "reproducible-with-interventions" ? ["priority-relation"] : [],
+    confidence: "exact",
+  };
+  if (status === "reproducible-with-interventions") targetOrder.bestSupportedInterventionCount = 7;
+  return {
+    schemaVersion: 1,
+    function: "func_test",
+    variantId: trace,
+    sourceHash: trace,
+    assemblyHash: "same-assembly",
+    traceBundleHash: trace,
+    baselineReplay: [{ stage: "sched", block: 0, status: "exact", confidence: "exact" }],
+    targetOrder: [targetOrder],
+    allocationRoles: [],
+    delaySlots: [],
+    preservationRanges: [{ start: 4, end: 20, exact: true }],
+    caveats: [],
+  };
+}
 
 test("migrates schema-v1 analyses with explicit empty replay fields", () => {
   const analysis = assertTargetScheduleAnalysis({
@@ -164,6 +194,25 @@ test("derives a pairwise allocno reversal only for conflicting swapped roles", (
   ]);
   assert.equal(derived.allocation.length, 1);
   assert.deepEqual(derived.allocation[0]?.desiredOrder, [105, 102]);
+});
+
+test("classifies assembly-equivalent supported-to-resource-blocked replay as regressed", () => {
+  const baseline = profile("reproducible-with-interventions", "baseline-trace");
+  const variant = profile("unsupported", "variant-trace");
+  variant.targetOrder[0]!.confidence = "inferred";
+  const delta = compareScheduleMechanismProfiles(baseline, variant);
+  assert.equal(delta.finalAssemblyEquivalent, true);
+  assert.equal(delta.verdict, "regressed");
+  assert.match(delta.replayChanges.join("\n"), /replay regressed/);
+  assert.match(delta.reasons.join("\n"), /trace bundles differ/);
+});
+
+test("does not reward a smaller intervention set when replay is unsupported", () => {
+  const baseline = profile("reproducible-with-interventions", "baseline-trace");
+  const variant = profile("unsupported", "variant-trace");
+  variant.targetOrder[0]!.bestSupportedInterventionCount = 1;
+  const delta = compareScheduleMechanismProfiles(baseline, variant);
+  assert.equal(delta.verdict, "regressed");
 });
 
 test("reports the wrong own-block branch delay candidate and desired UID", () => {

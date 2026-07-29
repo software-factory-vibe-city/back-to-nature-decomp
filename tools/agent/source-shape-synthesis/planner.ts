@@ -486,7 +486,7 @@ export function deriveSynthesisPlan(options: DeriveOptions, model: SourceModel):
 
 export function sourceShapeSpec(plan: SynthesisPlan, hasEmptyMemoryBarriers: boolean): Record<string, unknown> {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     function: plan.function,
     baseSourcePath: plan.sourcePath,
     analysisPath: plan.analysisPath,
@@ -518,7 +518,12 @@ export function sourceShapeSpec(plan: SynthesisPlan, hasEmptyMemoryBarriers: boo
       incompatibleAlternatives: [],
       requiredAlternatives: [],
     },
-    traceAllPreprocessed: false,
+    traceAllPreprocessed: true,
     assembleUniqueDbr: false,
+    scheduleComparison: {
+      enabled: true,
+      analyze: "traced-classes",
+      maxInterventions: 8,
+    },
   };
 }

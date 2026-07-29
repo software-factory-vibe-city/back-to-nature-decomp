@@ -138,4 +138,7 @@ test("derives finite clean-C mechanism recipes and preserves scalar dependencies
   const validated = validateSourceShapeSpec(spec, "func_test");
   assert.equal(validated.constraints.preserveExistingEmptyMemoryBarriers, true);
   assert.equal(validated.dimensions[0]?.alternatives.length, 80);
+  assert.equal(validated.traceAllPreprocessed, true);
+  assert.equal(validated.scheduleComparison.enabled, true);
+  assert.equal(validated.scheduleComparison.maxInterventions, 8);
 });

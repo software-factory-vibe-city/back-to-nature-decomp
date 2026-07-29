@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { disassembleObject, runTool } from "../decompToolchain.js";
 import type { TargetScheduleAnalysis } from "../target-schedule/types.js";
+import { scheduleDeltaRank } from "../target-schedule/compare-profiles.js";
 import { compareNormalized } from "../variant-lab/compile.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
 import type { RequirementResult, SearchVariantResult, SourceShapeSearchSpec } from "./types.js";
@@ -112,6 +113,7 @@ export function rankSearchResults(results: SearchVariantResult[]): SearchVariant
     Number(right.policyPassed) - Number(left.policyPassed) ||
     Number(right.hardConstraintsPassed) - Number(left.hardConstraintsPassed) ||
     requirementScore(right) - requirementScore(left) ||
+    scheduleDeltaRank(right.scheduleDelta) - scheduleDeltaRank(left.scheduleDelta) ||
     verdictScore(right) - verdictScore(left) ||
     Number(right.opcodeStreamExact) - Number(left.opcodeStreamExact) ||
     Number(right.instructionCountExact) - Number(left.instructionCountExact) ||

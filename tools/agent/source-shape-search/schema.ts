@@ -8,6 +8,7 @@ import {
   type SourceShapeAlternative,
   type SourceShapeConstraints,
   type SourceShapeDimension,
+  type ScheduleComparisonConfig,
   type SourceShapeSearchSpec,
 } from "./types.js";
 
@@ -32,6 +33,20 @@ function optionalBoolean(value: unknown, context: string): boolean {
   if (value === undefined) return false;
   if (typeof value !== "boolean") throw new Error(`${context} must be boolean`);
   return value;
+}
+
+function scheduleComparison(value: unknown): ScheduleComparisonConfig {
+  if (value === undefined) return { enabled: false, analyze: "traced-classes", maxInterventions: 3 };
+  const raw = object(value, "scheduleComparison");
+  strict(raw, ["enabled", "analyze", "maxInterventions"], "scheduleComparison");
+  const enabled = optionalBoolean(raw.enabled, "scheduleComparison.enabled");
+  const analyze = raw.analyze === undefined ? "traced-classes" : string(raw.analyze, "scheduleComparison.analyze");
+  if (analyze !== "traced-classes") throw new Error(`scheduleComparison.analyze is unsupported: ${analyze}`);
+  const maxInterventions = raw.maxInterventions === undefined ? 3 : Number(raw.maxInterventions);
+  if (!Number.isInteger(maxInterventions) || maxInterventions < 1 || maxInterventions > 8) {
+    throw new Error("scheduleComparison.maxInterventions must be an integer from 1 to 8");
+  }
+  return { enabled, analyze, maxInterventions };
 }
 
 function strings(value: unknown, context: string): string[] {
@@ -126,11 +141,11 @@ export function validateSourceShapeSpec(value: unknown, functionName?: string): 
   const raw = object(value, "search spec");
   strict(raw, [
     "schemaVersion", "function", "baseSourcePath", "analysisPath", "maxVariants", "dimensions",
-    "constraints", "traceAllPreprocessed", "assembleUniqueDbr",
+    "constraints", "traceAllPreprocessed", "assembleUniqueDbr", "scheduleComparison",
   ], "search spec");
   if (typeof raw.schemaVersion !== "number") throw new Error("search spec is missing schemaVersion");
   if (raw.schemaVersion > SOURCE_SHAPE_SEARCH_SCHEMA_VERSION) throw new Error(`search schema ${raw.schemaVersion} is newer than supported schema ${SOURCE_SHAPE_SEARCH_SCHEMA_VERSION}`);
-  if (raw.schemaVersion !== SOURCE_SHAPE_SEARCH_SCHEMA_VERSION) throw new Error(`unsupported search schema ${raw.schemaVersion}`);
+  if (raw.schemaVersion !== 1 && raw.schemaVersion !== SOURCE_SHAPE_SEARCH_SCHEMA_VERSION) throw new Error(`unsupported search schema ${raw.schemaVersion}`);
   const targetFunction = string(raw.function, "function");
   if (functionName && targetFunction !== functionName) throw new Error(`search spec targets ${targetFunction}, not ${functionName}`);
   if (!Array.isArray(raw.dimensions) || raw.dimensions.length === 0) throw new Error("dimensions must contain at least one explicit finite dimension");
@@ -162,6 +177,11 @@ export function validateSourceShapeSpec(value: unknown, functionName?: string): 
   for (const choice of [...constraints.requiredAlternatives, ...constraints.incompatibleAlternatives.flatMap((item) => item.choices)]) {
     if (!knownChoices.has(choice)) throw new Error(`constraint references unknown choice: ${choice}`);
   }
+  const tracing = optionalBoolean(raw.traceAllPreprocessed, "traceAllPreprocessed");
+  const comparison = scheduleComparison(raw.scheduleComparison);
+  if (comparison.enabled && !tracing) {
+    throw new Error("scheduleComparison.enabled requires traceAllPreprocessed:true so machine-equivalent compiler classes are not hidden");
+  }
   const result: SourceShapeSearchSpec = {
     schemaVersion: SOURCE_SHAPE_SEARCH_SCHEMA_VERSION,
     function: targetFunction,
@@ -169,8 +189,9 @@ export function validateSourceShapeSpec(value: unknown, functionName?: string): 
     maxVariants,
     dimensions,
     constraints,
-    traceAllPreprocessed: optionalBoolean(raw.traceAllPreprocessed, "traceAllPreprocessed"),
+    traceAllPreprocessed: tracing,
     assembleUniqueDbr: optionalBoolean(raw.assembleUniqueDbr, "assembleUniqueDbr"),
+    scheduleComparison: comparison,
   };
   if (raw.analysisPath !== undefined) result.analysisPath = string(raw.analysisPath, "analysisPath");
   return result;

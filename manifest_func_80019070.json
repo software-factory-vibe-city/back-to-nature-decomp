@@ -1,0 +1,34 @@
+[
+  {
+    "id": "baseline",
+    "sourcePath": "build/func_80019070/variant_v2_baseline.c",
+    "mechanism": "custom",
+    "expectedPass": "rtl",
+    "expectedEffect": "baseline reference with branch fix (>= 6)",
+    "invariants": ["semantics"]
+  },
+  {
+    "id": "ternary",
+    "sourcePath": "build/func_80019070/variant_v2_ternary.c",
+    "mechanism": "fresh-vs-reused-web",
+    "expectedPass": "lreg",
+    "expectedEffect": "single-set var_a1 reduces pseudo conflicts and may shift register allocation",
+    "invariants": ["semantics"]
+  },
+  {
+    "id": "inplace",
+    "sourcePath": "build/func_80019070/variant_v2_inplace.c",
+    "mechanism": "constant-birth-site",
+    "expectedPass": "reload",
+    "expectedEffect": "modifying arg2 in-place keeps it in $a2, removing temp_a2 pseudo from conflict graph",
+    "invariants": ["semantics"]
+  },
+  {
+    "id": "stackorder",
+    "sourcePath": "build/func_80019070/variant_v2_stackorder.c",
+    "mechanism": "statement-birth-order",
+    "expectedPass": "lreg",
+    "expectedEffect": "named stack temps in target load order change pseudo birth priorities for allocation",
+    "invariants": ["semantics"]
+  }
+]

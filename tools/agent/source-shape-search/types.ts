@@ -1,7 +1,8 @@
 import type { HypothesisClassification, VariantMechanism } from "../variant-lab/types.js";
 import type { ExactSourceEdit } from "../variant-lab/types.js";
+import type { ScheduleMechanismDelta } from "../target-schedule/profile-types.js";
 
-export const SOURCE_SHAPE_SEARCH_SCHEMA_VERSION = 1 as const;
+export const SOURCE_SHAPE_SEARCH_SCHEMA_VERSION = 2 as const;
 
 export interface SourceShapeAlternative {
   id: string;
@@ -33,6 +34,12 @@ export interface SourceShapeConstraints {
   requiredAlternatives: string[];
 }
 
+export interface ScheduleComparisonConfig {
+  enabled: boolean;
+  analyze: "traced-classes";
+  maxInterventions: number;
+}
+
 export interface SourceShapeSearchSpec {
   schemaVersion: typeof SOURCE_SHAPE_SEARCH_SCHEMA_VERSION;
   function: string;
@@ -43,6 +50,7 @@ export interface SourceShapeSearchSpec {
   constraints: SourceShapeConstraints;
   traceAllPreprocessed: boolean;
   assembleUniqueDbr: boolean;
+  scheduleComparison: ScheduleComparisonConfig;
 }
 
 export interface VariantLineage {
@@ -94,11 +102,17 @@ export interface SearchVariantResult {
   fullObjectExact: boolean;
   promotionEligible: boolean;
   traceArtifact?: string;
+  traceBundleHash?: string;
+  traceEquivalentTo?: string;
+  scheduleProfileArtifact?: string;
+  scheduleDeltaArtifact?: string;
+  scheduleDelta?: ScheduleMechanismDelta;
+  scheduleAnalysisError?: string;
   artifacts: string;
 }
 
 export interface EquivalenceClass {
-  stage: "source" | "preprocessed" | "assembly" | "dbr";
+  stage: "source" | "preprocessed" | "assembly" | "dbr" | "trace";
   hash: string;
   representative: string;
   members: string[];

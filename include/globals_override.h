@@ -69,6 +69,10 @@ struct struct_8006C838_flags {
  * Index: (s16)arg. Array size of 5 ensures >8 byte declaration for absolute addressing */
 extern s16 D_80055988[5];
 
+/* D_80049044 - u16 array accessed with lhu at index*2 (func_80019070)
+ * Array size of 6 ensures >8 byte declaration for absolute addressing (lui+addiu) */
+extern u16 D_80049044[6];
+
 /* D_80049050 - array used by func_80017A70
  * Array size of 5 ensures >8 byte declaration for absolute addressing (lui+addiu) */
 extern u16 D_80049050[5];

@@ -15,6 +15,7 @@
 
 import {
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -150,21 +151,32 @@ function nearestInstructions(
   return [];
 }
 
-export function buildTraceReport(
-  funcName: string,
-  requestedSource?: string,
-  useOverrides: boolean = true,
-): CompilerTraceReport {
-  const source = resolveSource(funcName, requestedSource);
-  const outputDirectory = join(ROOT, "build/compilerTrace", funcName);
-  rmSync(outputDirectory, { recursive: true, force: true });
+export interface ExistingTraceArtifacts {
+  functionName: string;
+  sourcePath: string;
+  assemblyPath: string;
+  dumpDirectory: string;
+  outputDirectory: string;
+  flags: string[];
+  reportFileName?: string;
+}
 
-  const artifacts = compileSource(source, outputDirectory, funcName, {
-    dumps: true,
-    useOverrides,
-  });
-  const files = dumpFiles(outputDirectory, funcName);
-  const parsed = parseAllStages(outputDirectory, funcName, files);
+/** Parse a compatible preserved GCC -da directory without invoking cc1 again. */
+export function buildTraceReportFromArtifacts(options: ExistingTraceArtifacts): CompilerTraceReport {
+  const funcName = options.functionName;
+  const source = resolveSource(funcName, options.sourcePath);
+  const outputDirectory = options.outputDirectory;
+  mkdirSync(outputDirectory, { recursive: true });
+  const files = dumpFiles(options.dumpDirectory, funcName);
+  if (files.length === 0) throw new Error(`no preserved GCC dump files found in ${relative(ROOT, options.dumpDirectory)}`);
+  const availableStages = new Set(files.map(stageSuffix));
+  for (const required of ["sched", "lreg", "greg", "sched2"]) {
+    if (!availableStages.has(required)) throw new Error(`preserved compiler trace is missing .${required}`);
+  }
+  if (!availableStages.has("mach") && !availableStages.has("dbr")) {
+    throw new Error("preserved compiler trace is missing .mach or .dbr final RTL");
+  }
+  const parsed = parseAllStages(options.dumpDirectory, funcName, files);
   const provenanceStages = STAGE_ORDER.slice(0, STAGE_ORDER.indexOf("greg") + 1)
     .filter((stage) => parsed.instructions.has(stage));
   const pseudoMap = buildPseudoProvenance(provenanceStages, parsed.instructions);
@@ -226,7 +238,7 @@ export function buildTraceReport(
   let recurrenceHints = [];
   try {
     const candidateObject = join(outputDirectory, `${funcName}.c.o`);
-    assembleCompilerOutput(artifacts.assembly, candidateObject);
+    assembleCompilerOutput(options.assemblyPath, candidateObject);
     const targetObject = assembleTarget(funcName, outputDirectory);
     const target = disassembleObject(targetObject);
     const candidate = disassembleObject(candidateObject);
@@ -247,16 +259,16 @@ export function buildTraceReport(
     "Tracing is diagnostic-only: changing allocator or scheduler behavior would invalidate compiler identity.",
   );
 
-  const reportPath = join(outputDirectory, "report.json");
+  const reportPath = join(outputDirectory, options.reportFileName || "report.json");
   const report: CompilerTraceReport = {
     schemaVersion: 2,
     function: funcName,
     source: relative(ROOT, source),
     outputDirectory: relative(ROOT, outputDirectory),
-    assembly: relative(ROOT, artifacts.assembly),
+    assembly: relative(ROOT, options.assemblyPath),
     reportArtifact: relative(ROOT, reportPath),
-    flags: artifacts.cc1Flags,
-    stages: summarizeStages(outputDirectory, files, parsed.metadata),
+    flags: options.flags,
+    stages: summarizeStages(options.dumpDirectory, files, parsed.metadata),
     stageMetadata: [...parsed.metadata.values()],
     pseudos,
     allocationOrder,
@@ -267,6 +279,28 @@ export function buildTraceReport(
   };
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   return report;
+}
+
+export function buildTraceReport(
+  funcName: string,
+  requestedSource?: string,
+  useOverrides: boolean = true,
+): CompilerTraceReport {
+  const source = resolveSource(funcName, requestedSource);
+  const outputDirectory = join(ROOT, "build/compilerTrace", funcName);
+  rmSync(outputDirectory, { recursive: true, force: true });
+  const artifacts = compileSource(source, outputDirectory, funcName, {
+    dumps: true,
+    useOverrides,
+  });
+  return buildTraceReportFromArtifacts({
+    functionName: funcName,
+    sourcePath: source,
+    assemblyPath: artifacts.assembly,
+    dumpDirectory: outputDirectory,
+    outputDirectory,
+    flags: artifacts.cc1Flags,
+  });
 }
 
 interface CliOptions extends RenderOptions {
