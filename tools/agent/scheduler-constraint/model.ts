@@ -45,11 +45,94 @@ function luid(state: ConcreteSchedulerState, uid: number): number {
   return state.luids[String(uid)] ?? node?.baselineLuid ?? -1;
 }
 
+function machineClassOf(state: ConcreteSchedulerState, uid: number | undefined): string | undefined {
+  if (uid === undefined) return undefined;
+  return state.nodes.find((item) => item.uid === uid)?.machineClass;
+}
+
+/**
+ * Potential-hazard value used by the schedule_select re-pick inside one
+ * priority group. Under the memory-unit policy every load and store carries
+ * the memory unit's static blockage cost; the legacy policy recognizes only
+ * boosted loads and only participates at launch priority.
+ */
 function machineHazard(model: SchedulerBlockModel, state: ConcreteSchedulerState, uid: number): number {
   if (model.hazardPolicy.kind === "none") return 0;
   const node = state.nodes.find((item) => item.uid === uid);
+  if (model.hazardPolicy.kind === "memory-unit-potential-hazard") {
+    return node?.machineClass === "load" || node?.machineClass === "store" ? 1 : 0;
+  }
   const boosted = state.boosts[String(uid)] ?? node?.baselineBoost ?? false;
   return boosted && node?.machineClass === "load" ? 1 : 0;
+}
+
+/**
+ * Loads in one examined priority group that the memory-unit actual hazard
+ * queues for a cycle: a 2-cycle load issued directly after a 1-cycle store
+ * would collide on the shared pipelined unit's result slot.
+ */
+function blockedLoads(
+  model: SchedulerBlockModel,
+  state: ConcreteSchedulerState,
+  group: number[],
+  lastUid: number | undefined,
+): number[] {
+  if (model.hazardPolicy.kind !== "memory-unit-potential-hazard") return [];
+  if (machineClassOf(state, lastUid) !== "store") return [];
+  return group.filter((uid) => machineClassOf(state, uid) === "load");
+}
+
+export interface SelectionOutcome {
+  /** Comparator order of the full ready list (rank_for_schedule). */
+  ranked: number[];
+  /** The schedule_select winner, absent when every group member is queued. */
+  selected?: number;
+  /** Loads queued for one cycle by the memory-unit actual hazard. */
+  blocked: number[];
+  evidence: string[];
+}
+
+/** Full schedule_select: rank, queue actual hazards per group, re-pick by potential hazard. */
+export function selectReady(
+  model: SchedulerBlockModel,
+  state: ConcreteSchedulerState,
+  ready: Iterable<number>,
+  lastUid?: number,
+): SelectionOutcome {
+  const ranked = rankReady(model, state, ready, lastUid);
+  if (model.hazardPolicy.kind !== "memory-unit-potential-hazard") {
+    const outcome: SelectionOutcome = { ranked, blocked: [], evidence: [] };
+    if (ranked.length > 0) outcome.selected = ranked[0]!;
+    return outcome;
+  }
+  const blocked: number[] = [];
+  let index = 0;
+  while (index < ranked.length) {
+    const groupPriority = priority(model, state, ranked[index]!);
+    let end = index;
+    while (end < ranked.length && priority(model, state, ranked[end]!) === groupPriority) end++;
+    const group = ranked.slice(index, end);
+    const queued = blockedLoads(model, state, group, lastUid);
+    blocked.push(...queued);
+    const remaining = group.filter((uid) => !queued.includes(uid));
+    if (remaining.length > 0) {
+      let selected = remaining[0]!;
+      let best = machineHazard(model, state, selected);
+      for (const uid of remaining.slice(1)) {
+        const hazard = machineHazard(model, state, uid);
+        if (hazard > best) {
+          best = hazard;
+          selected = uid;
+        }
+      }
+      const evidence: string[] = [];
+      if (queued.length > 0) evidence.push(`Load(s) ${queued.join(", ")} queued one cycle behind the previous store.`);
+      if (selected !== remaining[0]) evidence.push(`UID ${selected} wins the greater-potential-hazard selection within its priority group.`);
+      return { ranked, selected, blocked, evidence };
+    }
+    index = end;
+  }
+  return { ranked, blocked, evidence: ["Every ready instruction in every priority group is queued by the memory-unit hazard this cycle."] };
 }
 
 export function rankReady(
@@ -65,7 +148,9 @@ export function rankReady(
     luid(state, right) - luid(state, left) ||
     left - right
   );
-  if (comparator.length < 2 || model.hazardPolicy.kind === "none") return comparator;
+  /* The legacy policy shuffles the rank order directly; the memory-unit
+     policy leaves ranking pure and selects through selectReady instead. */
+  if (comparator.length < 2 || model.hazardPolicy.kind !== "launch-priority-load-first") return comparator;
   const bestPriority = priority(model, state, comparator[0]!);
   if (bestPriority !== model.launchPriority) return comparator;
   const equalPriority = comparator.filter((uid) => priority(model, state, uid) === bestPriority);
@@ -116,17 +201,28 @@ export function simulateScheduler(
   const runtime = initialRuntime(state);
   const steps: SchedulerReplayStep[] = [];
   let matchedSelections = 0;
+  let selections = 0;
   const total = state.nodes.length;
-  for (let cycle = 1; cycle <= total; cycle++) {
+  for (let cycle = 1; selections < total && cycle <= total * 2; cycle++) {
     releaseQueued(runtime, cycle);
     const readyUids = [...runtime.ready];
     if (readyUids.length === 0) {
       steps.push({ cycle, readyUids, rankedUids: [], status: "queue-stalled", evidence: ["No instruction was ready and no represented queue entry matured at this cycle."] });
       break;
     }
-    const rankedUids = rankReady(model, state, readyUids, runtime.lastUid);
-    const selectedUid = rankedUids[0];
-    const expectedUid = expectedOrder?.[cycle - 1];
+    const outcome = selectReady(model, state, readyUids, runtime.lastUid);
+    for (const uid of outcome.blocked) {
+      runtime.ready.delete(uid);
+      runtime.queuedUntil.set(uid, Math.max(runtime.queuedUntil.get(uid) || 0, cycle + 1));
+    }
+    const selectedUid = outcome.selected;
+    if (selectedUid === undefined) {
+      /* Every group member is queued; the clock advances without a pick. */
+      steps.push({ cycle, readyUids, rankedUids: outcome.ranked, status: "queue-stalled", evidence: outcome.evidence });
+      continue;
+    }
+    const expectedUid = expectedOrder?.[selections];
+    selections++;
     const matched = expectedUid === undefined || selectedUid === expectedUid;
     if (matched) matchedSelections++;
     steps.push({
@@ -134,16 +230,15 @@ export function simulateScheduler(
       selectedUid,
       ...(expectedUid !== undefined ? { expectedUid } : {}),
       readyUids,
-      rankedUids,
+      rankedUids: outcome.ranked,
       status: matched ? "matched" : "wrong-selection",
       evidence: matched
-        ? [`UID ${selectedUid} is the modeled legacy-scheduler winner.`]
-        : [`Modeled UID ${selectedUid} wins, but the observed/asserted order requires UID ${expectedUid}.`],
+        ? [`UID ${selectedUid} is the modeled legacy-scheduler winner.`, ...outcome.evidence]
+        : [`Modeled UID ${selectedUid} wins, but the observed/asserted order requires UID ${expectedUid}.`, ...outcome.evidence],
     });
-    if (selectedUid === undefined) break;
     selectUid(state, runtime, selectedUid, cycle);
   }
-  const exact = steps.length === total && expectedOrder !== undefined && expectedOrder.length === total && matchedSelections === total;
+  const exact = selections === total && expectedOrder !== undefined && expectedOrder.length === total && matchedSelections === total;
   const first = steps.find((step) => step.status !== "matched");
   return {
     exact,
@@ -258,7 +353,45 @@ export function solveLuidForForcedOrder(
       };
     }
     const topPriority = ready.filter((uid) => priority(model, concrete, uid) === desiredPriority);
-    if (desiredPriority === model.launchPriority && model.hazardPolicy.kind !== "none") {
+    let group = topPriority;
+    if (model.hazardPolicy.kind === "memory-unit-potential-hazard") {
+      const queued = blockedLoads(model, concrete, topPriority, runtime.lastUid);
+      if (queued.includes(desiredUid)) {
+        return {
+          satisfiable: false,
+          luidConstraints: constraints,
+          conflict: {
+            id: `cycle-${cycle}-hazard-${desiredUid}`,
+            kind: "hazard",
+            cycle,
+            desiredUid,
+            competingUids: [runtime.lastUid!],
+            requirementIds: [`target-cycle-${cycle}`],
+            message: `UID ${desiredUid} is queued by the memory-unit actual hazard at target cycle ${cycle}.`,
+            evidence: [`A load cannot issue directly after store UID ${runtime.lastUid}; the memory unit blocks it for one cycle.`],
+          },
+        };
+      }
+      group = topPriority.filter((uid) => !queued.includes(uid));
+      const desiredHazard = machineHazard(model, concrete, desiredUid);
+      const higherHazard = group.filter((uid) => machineHazard(model, concrete, uid) > desiredHazard);
+      if (higherHazard.length > 0) {
+        return {
+          satisfiable: false,
+          luidConstraints: constraints,
+          conflict: {
+            id: `cycle-${cycle}-hazard-${desiredUid}`,
+            kind: "hazard",
+            cycle,
+            desiredUid,
+            competingUids: higherHazard,
+            requirementIds: [`target-cycle-${cycle}`],
+            message: `UID ${desiredUid} loses the memory-unit potential-hazard selection at target cycle ${cycle}.`,
+            evidence: ["Memory-unit instructions win the greater-potential-hazard re-pick within their priority group."],
+          },
+        };
+      }
+    } else if (desiredPriority === model.launchPriority && model.hazardPolicy.kind !== "none") {
       const desiredHazard = machineHazard(model, concrete, desiredUid);
       const higherHazard = topPriority.filter((uid) => machineHazard(model, concrete, uid) > desiredHazard);
       if (higherHazard.length > 0) {
@@ -279,7 +412,7 @@ export function solveLuidForForcedOrder(
       }
     }
     const desiredClass = dependencyClass(edges, desiredUid, runtime.lastUid);
-    const relevant = topPriority.filter((uid) => machineHazard(model, concrete, uid) === machineHazard(model, concrete, desiredUid));
+    const relevant = group.filter((uid) => machineHazard(model, concrete, uid) === machineHazard(model, concrete, desiredUid));
     const higherClass = relevant.filter((uid) => dependencyClass(edges, uid, runtime.lastUid) > desiredClass);
     if (higherClass.length > 0) {
       return {

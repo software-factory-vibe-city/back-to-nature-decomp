@@ -230,6 +230,27 @@ npx tsx tools/agent/synthesizeSourceShapes.ts <function> \
   --max-variants 500 --max-depth 3 --jobs 8 [--resume]
 ```
 
+`searchResidualSourceSpace.ts` is the automatic layer above these: from one
+function name it establishes an immutable baseline bundle, builds a lossless
+whole-function C89 semantic graph, derives a diff-seeded compiler/source causal
+closure with machine-readable reason paths, and serializes a finite versioned
+rewrite grammar (value-web split/merge partitions, dependency-valid statement
+orders, and declaration-birth forms in grammar schema 1; expression, type/cast,
+known-macro, and administrative strata are recorded as suppressed). The
+resulting domain is exactly counted, lazily enumerated in a deterministic
+order, shardable as disjoint `k/n` residue classes, checkpointed, and
+evaluated through the configured pipeline with byte-identical object
+comparison as the oracle. Terminal states distinguish exact, exhausted,
+incomplete, unsupported, drifted, and too-large outcomes; hitting a budget is
+never reported as exhaustion, and generated candidates are never promoted:
+
+```bash
+npx tsx tools/agent/searchResidualSourceSpace.ts <function> --derive-only
+npx tsx tools/agent/searchResidualSourceSpace.ts <function> --jobs 16 [--resume]
+npx tsx tools/agent/searchResidualSourceSpace.ts <function> \
+  --jobs 16 --shard 3/16 --max-candidates 100000 [--resume]
+```
+
 `fuzzVariants.ts` is a mechanism-aware variant laboratory, not a source
 permuter. A JSON manifest records each complete C variant's mechanism, expected
 pass/effect, and invariants. `--trace-passes` compares `rtl` through `dbr`; the
@@ -330,7 +351,7 @@ so `make split` runs a choreographed sequence:
 | Directory | Contents |
 |-----------|----------|
 | `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
-| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `contextExport.ts`, and `sourcePolicy.ts` |
+| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `searchResidualSourceSpace.ts` (automatic exhaustive residual source-space search), `contextExport.ts`, and `sourcePolicy.ts` |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |

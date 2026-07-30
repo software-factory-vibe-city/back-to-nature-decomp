@@ -45,7 +45,17 @@ export interface LuidOrderConstraint {
 }
 
 export interface SchedulerHazardPolicy {
-  kind: "launch-priority-load-first" | "none";
+  /**
+   * "memory-unit-potential-hazard" models sched.c schedule_select for the
+   * MIPS memory unit: within the top ready priority group, the first
+   * memory-class instruction (load or store) in rank order wins the
+   * greater-potential-hazard selection, and a load is queued for one cycle
+   * when the previous selection was a store (2-cycle load vs 1-cycle store
+   * on the shared pipelined unit). "launch-priority-load-first" preserves
+   * the narrower legacy semantics for stored artifacts. "none" fails closed
+   * when observed hazard events contradict the supported model.
+   */
+  kind: "memory-unit-potential-hazard" | "launch-priority-load-first" | "none";
   evidence: string[];
 }
 

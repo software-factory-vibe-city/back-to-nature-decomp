@@ -104,6 +104,48 @@ test("parameterized scheduler reproduces a launch-priority boosted-load hazard w
   assert.equal(replay.exact, true);
 });
 
+test("memory-unit hazard picks the first memory-class instruction in any priority group", () => {
+  const nodes = [
+    node(1, 5, { machineClass: "ordinary" }),
+    node(2, 4, { machineClass: "store" }),
+    node(3, 3, { machineClass: "load" }),
+  ];
+  const block = model(nodes, [2, 1, 3]);
+  block.hazardPolicy = { kind: "memory-unit-potential-hazard", evidence: [] };
+  const replay = simulateScheduler(block, {
+    nodes,
+    dependencies: [],
+    boosts: {},
+    luids: { "1": 5, "2": 4, "3": 3 },
+  }, [2, 1, 3]);
+  /* Cycle 1: store 2 displaces the ordinary rank head 1 at plain priority.
+     Cycle 2: load 3 is queued one cycle behind the store; ordinary 1 is
+     selected. Cycle 3: the released load 3 is selected. */
+  assert.equal(replay.exact, true);
+  assert.equal(replay.matchedSelections, 3);
+});
+
+test("memory-unit hazard blocks a load for one cycle after a store", () => {
+  const nodes = [
+    node(1, 5, { machineClass: "store" }),
+    node(2, 4, { machineClass: "load" }),
+    node(3, 3, { machineClass: "ordinary" }),
+  ];
+  const block = model(nodes, [1, 3, 2]);
+  block.hazardPolicy = { kind: "memory-unit-potential-hazard", evidence: [] };
+  const replay = simulateScheduler(block, {
+    nodes,
+    dependencies: [],
+    boosts: {},
+    luids: { "1": 5, "2": 4, "3": 3 },
+  }, [1, 3, 2]);
+  /* Cycle 1: store 1 (memory-class re-pick over nothing higher; it is the
+     rank head). Cycle 2: load 2 is queued one cycle behind the store, so
+     ordinary 3 is selected. Cycle 3: the released load 2 is selected. */
+  assert.equal(replay.exact, true);
+  assert.equal(replay.matchedSelections, 3);
+});
+
 test("serialized domains reject unjustified optional dependency edges", () => {
   const value = input(model([node(1, 0)], [1]), [1]);
   value.domain.optionalEdges.push({

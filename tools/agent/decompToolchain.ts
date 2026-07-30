@@ -162,7 +162,7 @@ export function compileSource(
   source: string,
   outputDir: string,
   stem: string,
-  options: { dumps?: boolean; assemble?: boolean; useOverrides?: boolean } = {},
+  options: { dumps?: boolean; assemble?: boolean; useOverrides?: boolean; extraCc1Flags?: string[] } = {},
 ): CompileArtifacts {
   const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
   const absoluteOutput = isAbsolute(outputDir) ? outputDir : join(ROOT, outputDir);
@@ -177,7 +177,7 @@ export function compileSource(
   const overrides = options.useOverrides === false
     ? []
     : (loadFlagOverrides().get(stem) || []);
-  const cc1Flags = [...CC1_FLAGS, ...overrides];
+  const cc1Flags = [...CC1_FLAGS, ...overrides, ...(options.extraCc1Flags || [])];
   if (options.dumps) cc1Flags.push("-da");
 
   /* Running cc1 in the artifact directory keeps all -da files together. */

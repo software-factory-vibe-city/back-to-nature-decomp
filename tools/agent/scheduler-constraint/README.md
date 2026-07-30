@@ -10,8 +10,12 @@ function-specific target sequence.
 - `finite-solver.ts` — deterministic generic finite-domain satisfiability
   enumeration in minimum intervention-cost order.
 - `model.ts` — parameterized backward scheduler, dependency release/queue,
-  birthing boost, dependency-class/LUID comparator, validated boosted-load
-  hazard policy, baseline replay, and symbolic strict-LUID solving.
+  birthing boost, dependency-class/LUID comparator, the memory-unit hazard
+  policy (sched.c schedule_select: the first memory-class instruction in
+  rank order wins the greater-potential-hazard re-pick within the top ready
+  priority group, and a load issued directly after a store queues for one
+  cycle; the narrower legacy boosted-load policy is preserved for stored
+  artifacts), baseline replay, and symbolic strict-LUID solving.
 - `derive.ts` — generic adapter from compiler trace plus target correspondence
   into model/domain/assertion artifacts and source-mechanism-labelled phantom
   templates.

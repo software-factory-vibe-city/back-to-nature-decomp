@@ -116,9 +116,9 @@ function deriveModel(
       evidence: edge.evidence,
     }));
   const eventSelections = decisions.filter((decision) => decision.events.some((event) => event.includes("greater potential hazard")));
-  const eventWinnersAreBoostedLoads = eventSelections.every((decision) => {
+  const eventWinnersAreMemoryClass = eventSelections.every((decision) => {
     const node = nodes.find((item) => item.uid === decision.selectedUid);
-    return node?.machineClass === "load" && node.baselineBoost;
+    return node?.machineClass === "load" || node?.machineClass === "store";
   });
   return {
     schemaVersion: SCHEDULER_CONSTRAINT_SCHEMA_VERSION,
@@ -131,9 +131,17 @@ function deriveModel(
     baselineBackwardOrder,
     baselineForwardOrder: scheduler.forwardOrder.filter((uid) => participants.has(uid)),
     baselineReadySets: decisions.map((decision) => ({ cycle: decision.cycle, uids: decision.ready.map((entry) => entry.uid) })),
-    hazardPolicy: eventSelections.length > 0 && eventWinnersAreBoostedLoads
-      ? { kind: "launch-priority-load-first", evidence: [`${eventSelections.length} observed greater-potential-hazard selections all chose boosted loads from the launch-priority group.`] }
-      : { kind: "none", evidence: eventSelections.length === 0 ? ["No backend hazard winner participates in this block."] : ["Observed hazard events do not fit the supported boosted-load model; baseline replay must fail closed if they affect selection."] },
+    hazardPolicy: eventWinnersAreMemoryClass
+      ? {
+        kind: "memory-unit-potential-hazard",
+        evidence: [
+          eventSelections.length > 0
+            ? `${eventSelections.length} observed greater-potential-hazard selection(s) all chose memory-unit instructions from their priority group.`
+            : "No greater-potential-hazard selection was observed; the memory-unit schedule_select semantics apply and baseline replay validates them.",
+          "sched.c schedule_select: within the top ready priority group, the first memory-class instruction in rank order wins, and a load issued directly after a store is queued for one cycle.",
+        ],
+      }
+      : { kind: "none", evidence: ["Observed hazard events do not fit the supported memory-unit model; baseline replay must fail closed if they affect selection."] },
     caveats: [
       "The model covers one legacy-scheduler block and uses candidate dependencies as the machine-semantic DAG.",
       "A target assertion is meaningful only after exact baseline replay with the observed boosts and LUIDs.",

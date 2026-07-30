@@ -1,6 +1,35 @@
 # Plan: automatic exhaustive residual source-space search
 
-**Status: proposed.**
+**Status: Phases 1-2 implemented, plus rule 4.6, the constant subset of
+rule 4.3, and rule 4.7** (`tools/agent/searchResidualSourceSpace.ts` and
+`tools/agent/residual-source-search/`): baseline bundle, whole-function
+semantic graph, diff-seeded causal closure, grammar schema 4 (web
+split/merge, statement orders, declaration-birth, known-macro component
+forms, materialization of diff-named literal macro constants through
+synthetic webs the partition rule may merge, and witness-activated
+administrative copies of a never-redefined parameter with all later reads
+redirected to the copy — `witness.ts` auto-discovers SAT
+scheduler-constraint witnesses and binds phantoms through the
+machine-evidenced ABI entry-copy channel only; general expression and
+type/cast strata recorded as suppressed), exact counting, deterministic lazy
+enumeration with shards/checkpoints/targeted starts, and full-object exact
+evaluation, with unit and synthetic compiler integration tests — including
+fixtures where the multi-set-constant and administrative-copy mechanisms are
+exercised end to end.
+
+**Current position on `func_80019070` (2026-07-29):** the schema-3 merged
+form reproduces the target's `li v0,4` first instruction; exhaustive sweeps
+prove no schema-3 form also reaches the early `li v1,100`. A
+scheduler-state SAT witness derived from the best head-matching candidate
+(`build/schedulerConstraint/func_80019070/78a4fff2edfe3681`, base
+`build/residualSourceSearch/func_80019070/satprobe2/candidate.c`, exact
+21/21 replay) names the complete remaining requirement: birth-boost removal
+for UIDs 72 and 65 (single-vs-multi-set webs) plus **one coalescible typed
+copy reading UID 4's web (pseudo 81)** — a rule 4.7 administrative form.
+**Phase 4 is therefore reprioritized ahead of the rest of 4.3, 4.4, and
+Phase 5**; see the expanded Phase 4 section for the witness-directed
+procedure and post-implementation run recipe. The Pi wrapper (Deliverable
+11.2+) remains open.
 
 ## Purpose
 
@@ -771,17 +800,199 @@ Gate:
 - full Cartesian combinations remain regenerable and coverage-accounted;
 - no atomic-equivalence pruning makes exhaustive claims unsound.
 
-## Phase 4: compiler-required administrative closure
+## Phase 4: compiler-required administrative closure — IMPLEMENTED
 
 Add globally bounded coalescible copy/alias/carry forms activated automatically
 by supported compiler-state requirements.
 
-Gate:
+**Implemented as grammar schema 4 (2026-07-29).** `witness.ts` discovers SAT
+witnesses under `build/schedulerConstraint/<function>/` (lexicographically
+last SAT run with phantoms; alternatives recorded in a caveat) and binds each
+phantom through the only machine-derived channel: a producer node whose model
+label is `move <reg>,a<n>` with ABI-entry-copy evidence binds to parameter
+`n`. A bound phantom yields copy sites `T fresh = <parameter>;` in entry-block
+regions that never touch the parameter, with every later read of the
+parameter redirected to the copy; the copy web enters the partition universe
+(never merging with the web it copies), the copy statement floats through the
+region order model, and `grammar.json` cites the witness run id. Unbindable
+phantoms and siteless witnesses leave the stratum suppressed with exact
+reasons. On `func_80019070` the witness binds to `ordering_table`, three
+entry-block regions qualify, and the copy-bearing candidates materialize the
+`move t2,a0` entry copy into the scheduled block — the target's `move t3,a0`
+instruction class — with section 620 (copy + code-merge) matching the first
+two target instructions and section 861 (copy + code-merge + the 0x64
+constant through the `sprite_x` web) realizing all three witness requirements
+simultaneously.
+
+### Activation evidence in hand
+
+`searchSchedulerState` run
+`build/schedulerConstraint/func_80019070/78a4fff2edfe3681` (SAT, exact 21/21
+candidate replay) proves the target block order is reachable from the
+schema-3 head-matching candidate with exactly:
+
+1. birth boost off for UID 72 (currently `$t4`) via a multi-set or
+   not-live-at-ready web;
+2. birth boost off for UID 65 (currently `$v0`) the same way;
+3. one coalescible typed copy reading UID 4's web (pseudo 81, currently
+   `$t2`) between its producer and release sink (witness placement:
+   selection 18, LUID 9, boost off).
+
+The witness's own bounded handoff through the legacy prologue synthesizer
+(128 variants) cannot express that copy; neither can grammar schema 3. This
+is the first concrete, machine-derived rule 4.7 requirement.
+
+### Implementation direction (grammar schema 4)
+
+- New stratum `administrative-form`, activated **only** when a
+  scheduler-constraint witness artifact for the function names phantom-copy
+  or boost requirements. The tool auto-discovers witness artifacts under
+  `build/schedulerConstraint/<function>/` (generated JSON is evidence, not
+  operator input); each activation records the witness run id in
+  `grammar.json`.
+- For each witness phantom template: map the named pseudo to a semantic web
+  through the closure's existing binding channels, then enumerate a plain
+  typed copy statement `T fresh = <web's variable>;` at dependency-valid
+  region positions covering the witness window. The fresh copy enters the
+  web universe like schema-3's synthetic constants, so partition merging
+  (and therefore multi-set/unboost effects on the copied and copying webs)
+  falls out of rule 4.1 unchanged.
+- Bound: at most the witness's phantom count, never more than the
+  grammar-versioned maximum (3, matching the constraint model's domain).
+- The boost requirements (items 1-2) need no new machinery: they are
+  satisfied or not by web-structure choices already enumerated; the copy
+  stratum exists precisely to change which webs those can be.
+
+### Witness-directed campaign results (2026-07-29, run `43f44a30139030a4`)
+
+The schema-4 domain is 58,392,788,292 candidates over 2,128 sections (532
+copy-free sections identical to schema 3, plus three copy placements x 532).
+Entry-digit sweeps of the three witness-directed section families (archived
+as `classes-s620/`, `classes-s861/`, `classes-s862/` under the run root):
+
+- **620** (copy + `4`->`code`), 37,380 forms: best 50/81, frontier
+  `[2] li v1,100` — the copy alone cannot unboost the 0x64.
+- **861** (plus `0x64`->`sprite_x`), 50,400 forms: best **59/81** with the
+  copy landing in the target's exact register `$t3` and the whole tail
+  rotation aligned; but the target stream itself proves the section's
+  ceiling: `sra t5` precedes `sb v1,7(t0)` in different registers, so the
+  100 and `sprite_x` cannot be one variable.
+- **862** (`0x64` fresh), 166,320 forms: best 50/81 — in every admissible
+  order the fresh single-set 100 schedules late (boosted) and its short
+  live range collapses into `v0`.
+
+Hand probes in scratch then identified the missing structure: the original
+source almost certainly had **one more local** — born as `0x64` for the
+sprite code field and re-set later as the CLUT byte offset
+(`clut_index = palette << 1;` feeding
+`*(u16 *)((char *)D_80049044 + clut_index)`), visible in the target as
+`li v1,100 ... sb v1,7(t0) ... sll v1,a1,1`. With that variable written by
+hand (probe C, `build/residualSourceSearch/func_80019070/handprobe/probeC.c`),
+the head matches through `[1]` with `li v1,100` scheduled at the target's
+slot 2 in a separate register for the first time; the residual frontier is
+`[2] li a1,100 vs li v1,100` — a clut/palette register swap plus the copy's
+launch position, i.e. one remaining schedule/allocation interaction.
+
+### Corrected-witness findings (2026-07-29, supersedes the step list below)
+
+After the scheduler-model hazard fix, high-bound reruns
+(`build/residualSourceSearch/func_80019070/corrected-witness/summary.md`)
+changed the requirement: both the 72/81 baseline and probe C need **two**
+self-deleting coalescible readers (of the ordering-table entry copy and of
+the 100-carrying value) plus boost removal — not schema 4's one-copy
+recipe, which the buggy comparator had endorsed. Complete-source checks
+bracket the difficulty precisely: plain C copies are propagated away by CSE
+*before* sched1 (the phantom never exists for the scheduler), while
+pointer-arithmetic copies survive allocation as a real extra instruction.
+A surviving ordering-table reader empirically produces the target's
+`move t3,a0` / `sra t5` / `t6`-`t7` register family, confirming the
+allocation reaction. The copy must therefore live in the pass window
+between CSE and reload.
+
+### SDK-idiom discovery (2026-07-29, supersedes the sections below)
+
+Comparing against matched PSY-Q code in `tools/vendor` revealed the true
+source shape: a raw `u8 *packet` cursor cast into typed per-primitive
+locals, not a field-path struct. The rewritten function is 72/81 as a
+**pure permutation with every register correct** — the typed locals are
+the witnessed coalescible copies, arising from ordinary SDK style.
+
+The follow-up idiom-family campaign
+(`plans/deprecated/idiom-family-hand-campaign.md`) exhausted 545,748
+variants without advancing the head while keeping the register family.
+Reading the boost predicate directly from sched.c (`birthing_insn_p`:
+launch priority iff plain-REG destination, function-global
+`REG_N_SETS == 1`, live at release) plus a boost-domain-restricted UNSAT
+certificate (`build/schedulerConstraint/func_80019070/5ec55253bb442227`)
+established that boost removal is necessary and that every entry-local
+mechanism for it disturbs the allocation. The surviving hypothesis —
+staging variables set first (minimum LUID) whose second assignments live
+in the tail (function-global multi-set, entry liveness untouched) — is
+the subject of **`plans/tail-reuse-hand-campaign.md`, the active line of
+attack**. Executed hand campaigns are archived under `plans/deprecated/`.
+The pass-window grader below remains the right general tool but is no
+longer the critical path for this function.
+
+### Pass-window realizability grader (deprioritized; see above)
+
+Build a graded oracle for coupled phantom requirements, reusing the
+existing dump-chain parsers:
+
+- Input: a candidate source plus phantom specs read from a witness
+  (`witness.json` phantoms: pseudo/web identity, boost, LUID window).
+- For each phantom, grade the candidate at each pass boundary the trace
+  already exposes (rtl/cse/gcse/combine/sched/greg/final): does an
+  instruction reading the named web exist, with a single-set pseudo, at
+  sched1; is it absent from final assembly; are the required boosts
+  observed. Emit per-criterion verdicts, never a bare pass/fail — a copy
+  that survives CSE but not combine is progress and must be visible.
+- Pair it with a bounded, policy-clean copy-idiom enumerator seeded by the
+  phantom specs (copies whose source is subsequently modified — the
+  existing `packet` reassignment is the natural template — copies split
+  across the existing barriers, mode-differing reads, split consumers).
+  Idioms are scored by window criteria first; the byte-exact object
+  comparison remains the final gate, since the witness constrains
+  scheduling only and two-phantoms-plus-unboost is necessary, not proven
+  sufficient.
+
+### Prescriptive next step (older list, kept for context)
+
+1. **General 4.3 (expression materialization)**: automatically
+   materializing the CLUT index/address subexpression into a named local —
+   exactly the probe-C form — and letting the existing constant-merge rule
+   put the `0x64` through it. The hand probes prove this family contains
+   the target's variable structure; the corrected witness adds that the
+   copies must additionally survive to sched1 (see the grader above).
+2. Two tool gaps discovered while closing the loop:
+   - `buildDomain` materializes every capped partition eagerly and runs out
+     of memory on probe C's 16-web universe; sections need lazy/streaming
+     construction (or an honest partition-subset mode) before the search can
+     sweep richer baselines. Still open.
+   - **FIXED (2026-07-29):** the scheduler-constraint model's hazard
+     tie-break. The old model applied a boosted-load-only preference at
+     launch priority; real sched.c `schedule_select` re-picks the first
+     memory-class instruction (load or store) within the top ready priority
+     group at any priority, and queues a load for one cycle when the
+     previous selection was a store (2-cycle load vs 1-cycle store on the
+     shared pipelined memory unit, per mips.md). The new
+     `memory-unit-potential-hazard` policy replays probe C 21/21 (was
+     10/21) and the satprobe2 block 21/21; stored artifacts keep the legacy
+     policy semantics and still replay/solve identically. Second-generation
+     witnesses against probe-C-family candidates are now unblocked; note
+     the corrected comparator may name different requirements than the
+     legacy witness did.
+3. Sweeping deeper schema-4 sections (869 and copy@r0-2/r0-3 families) is
+   deprioritized: the copy must issue inside the entry window (r0-0) to
+   reach slot 3, and the packet-web split does not change the 100's boost.
+
+Gate (all met by the implementation):
 
 - every administrative form is ordinary policy-clean C;
-- every activation cites trace/analysis evidence;
+- every activation cites trace/analysis evidence (the witness run id);
 - bounds are grammar-versioned and function-independent;
-- synthetic fixtures prove the intended copy/coalescing mechanism.
+- synthetic fixtures prove the intended copy/coalescing mechanism;
+- the `func_80019070` campaign over the witness-directed sections ended
+  with honest incomplete/window-exhausted records and archived classes.
 
 ## Phase 5: broader CFG and expression equivalence
 
