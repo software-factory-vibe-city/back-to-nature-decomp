@@ -37,7 +37,14 @@ resume/fix mode, preserve the source and begin from its current diff.
    pass, canonicalization rule, or scheduler decision.
 4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
    the mismatch signature changes or its cause becomes unclear.
-5. If the classified trace shows coupled scheduler, allocator, or delay-slot
+5. If the mismatch is order-only inside a block of constant/pointer stores,
+   run `npx tsx tools/agent/analyzeStoreBlock.ts <target>` BEFORE any
+   scheduler analysis. Mine the stored values for arithmetic structure
+   (parallel arrays, pool-carving running sums, repeated constants) and check
+   the constant birth-order fingerprint; statement order in natural data
+   order usually resolves the block outright. Never derive statement order
+   from the emitted store order (see the style guide's store-block section).
+6. If the classified trace shows coupled scheduler, allocator, or delay-slot
    constraints, call `psx_analyze_target_schedule` before authoring more source
    shapes. Check emission alignment first: ambiguous machine/UID links must not
    be treated as concrete scheduler evidence. Distinguish target order that is
@@ -54,7 +61,7 @@ resume/fix mode, preserve the source and begin from its current diff.
    specification for a small complete-source experiment, scoped UNSAT as a
    reason to stop only that serialized domain, and INCONCLUSIVE or
    model-replay failure as no proof. Never promote a solver witness directly.
-6. If several mechanism-backed source shapes remain, first call
+7. If several mechanism-backed source shapes remain, first call
    `psx_synthesize_source_shapes` when the analyzer's requirements map to a
    conservative supported source region. Inspect its source-role bindings,
    recipes, generated search spec, and coverage; finite exhaustion covers only
@@ -69,7 +76,7 @@ resume/fix mode, preserve the source and begin from its current diff.
    dependency graph. Rank requirement and mechanism evidence before match
    percentage. Never promote a cc1-only result: require full configured
    assembly, then re-run the exact function diff.
-7. Keep changes within project policy and put shared types in the designated
+8. Keep changes within project policy and put shared types in the designated
    headers rather than conflicting with generated declarations.
 
 If a source change has no effect, locate the first divergent compiler dump and

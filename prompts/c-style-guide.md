@@ -165,6 +165,36 @@ For a lone commutative `mult` or ALU operand-order mismatch, try changing
 whether the result is fresh or reuses an input. Swapping source operands alone
 may be canonicalized away.
 
+### Store-block initializers: order from the data, never from emission
+
+When a mismatch is order-only inside a block of constant/pointer stores
+(opcodes, values, and offsets all correct), the cause is almost always source
+statement order, and the correct order is the natural DATA order.
+
+- The scheduler freely rearranges store emission, but three things are
+  inherited directly from statement order and survive scheduling: constant
+  birth order (CSE materializes a shared constant at its FIRST use in source
+  order), LUIDs, and live-range extents (hence register pressure and
+  assignment). Never reverse-engineer statement order from the emitted store
+  order: that chases an invariant the scheduler does not preserve while
+  silently destroying the ones it does.
+- Before any scheduler forensics, run
+  `npx tsx tools/agent/analyzeStoreBlock.ts <func>`. It mines the target for
+  parallel arrays, arithmetic relations among stored values (e.g. pointers
+  that are running sums of a parallel count array times an element size —
+  a pool-carving table), repeated constants (one CSE web per distinct
+  value), and the birth-order fingerprint: if the target's `li` order equals
+  first-use order under ascending-offset stores, write the source in
+  ascending order and let the scheduler shuffle.
+- A diagnosis that implies the original programmer wrote something bizarre
+  (leapfrogging merged temps, unsuppressible boosts, permuted store lists)
+  is evidence the frame is wrong, not that the problem is deep. Period
+  source is mundane; re-check shallow assumptions before going deeper.
+- Validated: func_80021E60 sat at 63/92 through five web-shape experiments,
+  a SAT search, and a sched1 simulator, all built on a store order
+  reverse-engineered from emission; rewriting both arrays in natural
+  ascending offset order matched 92/92 on the first compile.
+
 ## 3. Use natural arrays, structs, and addresses
 
 ### Array indexing
@@ -617,6 +647,13 @@ show (PSY-Q samples, matched Silent Hill/ESA/soul-re, Net Yaroze, libsnd):
   order, init-statement order, `if (var) {}` dead refs on locals,
   `do { } while (0)` fences. A named constant local (`s32 neg1 = -1;`)
   does shift materialization order and is clean C.
+- Flat-initialized lookup tables written in natural ascending offset order:
+  parallel arrays (e.g. a pointer run adjacent to a u16 count run) whose
+  values are arithmetically related — each pointer the running sum of the
+  counts times the element size (pool carving). Stored constants are rarely
+  independent; mine them for structure (`analyzeStoreBlock.ts`) before
+  treating a store block as a list of unrelated literals
+  (validated 92/92 on func_80021E60).
 
 ## Final checklist
 

@@ -124,6 +124,19 @@ typedef struct {
 extern struct_80061F08 _D_80061F08[1] __asm__("D_80061F08");
 #define D_80061F08 (*((struct_80061F08*)_D_80061F08))
 
+/* func_80021E60 - absolute-addressed globals whose addresses are stored */
+extern s32 _D_8004B1A4[3] __asm__("D_8004B1A4");
+#define D_8004B1A4 (*((s32*)_D_8004B1A4))
+extern s32 _D_80049B1C[3] __asm__("D_80049B1C");
+#define D_80049B1C (*((s32*)_D_80049B1C))
+extern s32 _D_8004AFBC[3] __asm__("D_8004AFBC");
+#define D_8004AFBC (*((s32*)_D_8004AFBC))
+extern s32 _D_8004B044[3] __asm__("D_8004B044");
+#define D_8004B044 (*((s32*)_D_8004B044))
+extern s32 _D_80054BC8[3] __asm__("D_80054BC8");
+#define D_80054BC8 (*((s32*)_D_80054BC8))
+extern char D_8004ED04[0x124C];
+
 /* D_8006C088 / D_8006C0A8 - sound-driver score tables, [6 songs][1 seq track].
  * The [s][t] shape with t == 1 (SEQ-only) follows the libsnd SsSetTableSize
  * idiom; the true 2D type is required for func_8001FF98 to match (the nested
