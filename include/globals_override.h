@@ -80,6 +80,13 @@ extern u16 D_80049050[5];
 /* D_8005E43C - GP-relative update flag */
 extern s32 D_8005E43C;
 
+/* D_8005E540, D_8005E550, D_8005E554, D_8005E560 - GP-relative s32 scalars
+ * Accessed by func_8001FF98 with sw %gp_rel */
+extern s32 D_8005E540;
+extern s32 D_8005E550;
+extern s32 D_8005E554;
+extern s32 D_8005E560;
+
 /* D_8005E44C - GP-relative u16 scalar */
 extern u16 D_8005E44C;
 
@@ -116,5 +123,14 @@ typedef struct {
 } struct_80061F08;
 extern struct_80061F08 _D_80061F08[1] __asm__("D_80061F08");
 #define D_80061F08 (*((struct_80061F08*)_D_80061F08))
+
+/* D_8006C088 / D_8006C0A8 - sound-driver score tables, [6 songs][1 seq track].
+ * The [s][t] shape with t == 1 (SEQ-only) follows the libsnd SsSetTableSize
+ * idiom; the true 2D type is required for func_8001FF98 to match (the nested
+ * init loop over the second dimension must survive as a real loop). */
+extern s32 _D_8006C088[6][1] __asm__("D_8006C088");
+#define D_8006C088 (_D_8006C088)
+extern s32 _D_8006C0A8[6][1] __asm__("D_8006C0A8");
+#define D_8006C0A8 (_D_8006C0A8)
 
 #endif /* GLOBALS_OVERRIDE_H */

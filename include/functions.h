@@ -177,6 +177,7 @@ void func_8001FCDC(void);
 void func_8001FCE4(void);
 void func_8001FE00(s32 arg0);
 void func_8001FF70(void);
+void func_8001FF98(void);
 s32 func_80020148(s32 arg0);
 s32 func_80020174(s32 arg0, s32 arg1);
 s32 func_8002040C(void);

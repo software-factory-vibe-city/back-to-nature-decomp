@@ -78,7 +78,13 @@ shape.
 
 ## Finish
 
-At an exact match, call `psx_export_context` for the target and then
+An exact instruction diff is provisional: it masks relocation fields and
+cannot distinguish same-shaped accesses to different symbols. `diffFunc`
+auto-escalates a masked 100% to a linked-binary byte comparison — only its
+"VERIFIED" verdict is a match; on a reported symbol transposition, swap the
+order of the corresponding accesses in the source.
+
+At a byte-verified match, call `psx_export_context` for the target and then
 `psx_finalize_function`. The finalizer independently checks the exact function,
 full binary, modification scope, and clean-source policy. Continue from any
 concrete finalizer failure; do not report success early.

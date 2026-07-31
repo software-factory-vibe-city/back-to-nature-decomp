@@ -578,6 +578,46 @@ An assembler-emulation gap is proven only by assembling identical compiler
 output through the reference and replacement assemblers and comparing objects.
 Failure to find a C shape is not proof of an assembler bug.
 
+## 11. Flag hypothesis: probe early, escalate on evidence
+
+Per-file flag overrides remain a governed workaround, not a matching tool.
+But when a target carries a structural fingerprint that is hard or impossible
+to reach from natural C under the baseline flags, run
+`npx tsx tools/agent/flagProbe.ts <func>` EARLY — before deep source
+archaeology — and read its three evidence sources: target fingerprints
+(decoded from original bytes, no source needed), a flag-matrix score of the
+current source, and nearby overrides (flags are per-TU, so neighbors share
+them). The escalation bar for proposing an override: a fingerprint, plus a
+flag column that dominates baseline, plus no contrary witness in the same
+region. A probe that shows baseline equal to the flag delta means the flag
+is NOT the answer and the source shape is (func_8001FF98: the probe's matrix
+exposed exactly this, killing a wrong override within minutes).
+
+## 12. Period idiom priors (validated 2026-07-31)
+
+When choosing candidate source shapes, prefer what 1999 corpora actually
+show (PSY-Q samples, matched Silent Hill/ESA/soul-re, Net Yaroze, libsnd):
+
+- Count-up indexed `for` loops (`for (i = 0; i < N; i++) a[i] = x;`).
+  Countdown loops in targets are check_dbra_loop reversals of count-up
+  source, not source-level countdowns.
+- Naive indexed bodies; walking pointers are strength-reduction products.
+  Do not hand-write the post-transformation shape.
+- ONE counter variable reused across sequential loops. This is also a
+  NATURAL PRE isolation shield: the later loop's `i + 1` is a post-loop
+  occurrence that isolates the earlier loop's bottom increment under gcse.
+  If the target's last loop's counter register equals an earlier loop
+  counter's register, write one shared variable.
+- True multidimensional types even when a dimension is 1 (libsnd
+  `[s_max][t_max]` tables with t_max == 1 for SEQ-only sound code); put the
+  type in the globals override header.
+- Literal bounds or simple `#define`s; plain signed int counters; `-1`
+  sentinels; "max+1" constants for minimum scans.
+- Codegen no-ops on GCC 2.95 (do not waste turns): `register`, declaration
+  order, init-statement order, `if (var) {}` dead refs on locals,
+  `do { } while (0)` fences. A named constant local (`s32 neg1 = -1;`)
+  does shift materialization order and is clean C.
+
 ## Final checklist
 
 Before accepting a function:
@@ -587,6 +627,9 @@ Before accepting a function:
 3. every nontrivial edit followed a classified diff or compiler trace;
 4. no forbidden workaround, generated-global redeclaration, `_D_` symbol, or
    C99 construct was introduced;
-5. the exact function diff is 100%; and
+5. the exact function diff is 100% AND byte-verified — a masked 100% cannot
+   see symbol identity (two same-shaped globals transposed between registers
+   still scores 100%); `diffFunc` auto-escalates to the linked-binary byte
+   verdict and only "VERIFIED" counts; and
 6. context export, the full binary check, modification-scope check, and
    clean-source gate pass.

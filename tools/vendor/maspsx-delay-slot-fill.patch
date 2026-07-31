@@ -1,0 +1,29 @@
+diff --git a/maspsx/__init__.py b/maspsx/__init__.py
+index 19284f2..4d57841 100644
+--- a/maspsx/__init__.py
++++ b/maspsx/__init__.py
+@@ -1050,7 +1050,23 @@ class MaspsxProcessor:
+         elif op in branch_mnemonics or op in jump_mnemonics:
+             res.append(line)
+             if self.is_reorder:
+-                res.append("nop  # DEBUG: branch/jump")
++                # Check if next instruction is a single-instruction li (lui-only)
++                # that can safely fill the delay slot, matching real ASPSX behavior
++                next_i = self.line_index + 1
++                fill_delay = False
++                if next_i < len(self.lines):
++                    next_line = self.lines[next_i].strip()
++                    if next_line.startswith("li\t") or next_line.startswith("li "):
++                        parts = next_line.split(",")
++                        if len(parts) == 2:
++                            try:
++                                val = int(parts[1].strip().split("#")[0].strip())
++                                if val != 0 and (val & 0xFFFF) == 0:
++                                    fill_delay = True  # lui-only value, safe for delay slot
++                            except ValueError:
++                                pass
++                if not fill_delay:
++                    res.append("nop  # DEBUG: branch/jump")
+ 
+         elif op == "move":
+             # expand move $2,$16 to addu $2,$16,$zero

@@ -4,7 +4,14 @@
  * Usage: npx tsx tools/agent/diffFunc.ts func_8001FE00
  *        npx tsx tools/agent/diffFunc.ts func_8001FE00 --watch
  *        npx tsx tools/agent/diffFunc.ts func_8001FE00 --columns   (side-by-side diff)
+ *        npx tsx tools/agent/diffFunc.ts func_8001FE00 --bytes     (linked-binary bytes only)
  *        npx tsx tools/agent/diffFunc.ts src/func_8001FE00.c build/src/func_8001FE00.c.o
+ *
+ * The instruction diff masks relocation fields, so it cannot distinguish
+ * same-shaped accesses to different symbols (see
+ * notes/retros/2026-07-31-func_8001FF98-retro.md: a "100%" with two array
+ * bases transposed). A masked 100% therefore auto-escalates to a real-byte
+ * comparison of the linked binary; only "VERIFIED" is a match.
  */
 
 import { execSync } from "child_process";
@@ -140,13 +147,64 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
       if (targetInstrs[i]?.trim() === compiledInstrs[i]?.trim()) matches++;
     }
     const pct = total > 0 ? ((matches / total) * 100).toFixed(1) : "0.0";
-    console.log(`\nMatch: ${matches}/${total} instructions (${pct}%)`);
+    console.log(`\nMasked match: ${matches}/${total} instructions (${pct}%)`);
     if (targetInstrs.length !== compiledInstrs.length) {
       console.log(`  target: ${targetInstrs.length} instrs, compiled: ${compiledInstrs.length} instrs`);
+    }
+    if (total > 0 && matches === total && funcName) {
+      verifyLinkedBytes(funcName);
+    } else if (total > 0 && matches === total) {
+      console.log("NOTE: masked-only result (no function name given); relocation fields");
+      console.log("      are not compared. Re-run with the function name for a byte verdict.");
     }
   } catch (e: any) {
     console.error("Compile error:", e.stderr || e.message);
   }
+}
+
+/** Real-byte verdict: rebuild the linked binary and compare the function's
+ *  raw bytes against the original executable. This is the only comparison
+ *  that sees relocation values (symbol identity), and it has parity with
+ *  `make check` at function granularity. */
+function verifyLinkedBytes(funcName: string): boolean {
+  const info = getFuncInfo(funcName);
+  if (!info) {
+    console.log(`BYTE VERIFY SKIPPED: ${funcName} not found in configs/splat.yaml`);
+    return false;
+  }
+  try {
+    run("make -j1 build/slus_011.bin");
+  } catch (e: any) {
+    console.log("BYTE VERIFY UNAVAILABLE: full build failed (fix the build, then re-run):");
+    console.log((e.stderr || e.message || "").trim().split("\n").slice(-4).join("\n"));
+    return false;
+  }
+  const payloadOffset = 0x800;
+  const loadAddr = 0x80010000;
+  const off = payloadOffset + (info.vram - loadAddr);
+  const orig = readFileSync(join(ROOT, "extracted/iso/slus_011.15")).subarray(off, off + info.size);
+  const built = readFileSync(join(ROOT, "build/slus_011.bin")).subarray(off, off + info.size);
+  if (orig.equals(built)) {
+    console.log("VERIFIED: byte-identical in linked binary (relocations included).");
+    return true;
+  }
+  console.log("MASKED-ONLY MATCH — linked-binary bytes differ. This is NOT a match.");
+  let immediateOnly = true;
+  for (let w = 0; w + 4 <= info.size; w += 4) {
+    const ow = orig.readUInt32LE(w);
+    const bw = built.readUInt32LE(w);
+    if (ow === bw) continue;
+    const vram = info.vram + w;
+    console.log(`  0x${vram.toString(16).toUpperCase()}: original ${ow.toString(16).padStart(8, "0")}  built ${bw.toString(16).padStart(8, "0")}`);
+    if ((ow >>> 16) !== (bw >>> 16)) immediateOnly = false;
+  }
+  if (immediateOnly) {
+    console.log("  All differences are in 16-bit immediate fields on otherwise identical");
+    console.log("  instructions: almost certainly a SYMBOL TRANSPOSITION (two same-shaped");
+    console.log("  globals swapped between registers). Fix by swapping the order of the");
+    console.log("  corresponding accesses in the C source, not by changing structure.");
+  }
+  return false;
 }
 
 /** Assemble a nonmatchings .s file into a .o for diffing.
@@ -324,13 +382,19 @@ function resolveArgs(args: string[]): { src: string; target: string | null; func
 const rawArgs = process.argv.slice(2);
 const watchMode = rawArgs.includes("--watch");
 const columnsMode = rawArgs.includes("--columns");
-const filteredArgs = rawArgs.filter((a) => a !== "--watch" && a !== "--columns");
+const bytesMode = rawArgs.includes("--bytes");
+const filteredArgs = rawArgs.filter((a) => a !== "--watch" && a !== "--columns" && a !== "--bytes");
 
 const { src, target, funcName } = resolveArgs(filteredArgs);
 if (!existsSync(src)) { console.error(`Not found: ${src}`); process.exit(1); }
 if (target && !existsSync(target)) { console.error(`Not found: ${target}`); process.exit(1); }
 
-doDiff(src, target, funcName);
+if (bytesMode && funcName) {
+  compile(src);
+  verifyLinkedBytes(funcName);
+} else {
+  doDiff(src, target, funcName);
+}
 
 if (watchMode) {
   watchFile(src, { interval: 500 }, () => {
