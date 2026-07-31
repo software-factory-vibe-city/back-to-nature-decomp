@@ -1,5 +1,37 @@
 # func_80019070 — remaining prologue scheduler-state mismatch
 
+## Final disposition: narrowly allowlisted hybrid assembly exception
+
+After the clean-C work documented below, an additional manual campaign tested
+complete source mechanisms for header-constant recurrences, CLUT address webs,
+strict-low-part forms, aliases, local lifetimes, return and primitive-tag reuse,
+postincrement forms, statement birth order, and diagnostic phantom conflicts.
+The key diagnostic result was that artificial zero-width live ranges could
+recover individual target allocation families, proving that missing address
+pseudos were responsible for the allocation cascade, but no phantom-only form
+recovered all scheduler and allocator requirements simultaneously.
+
+The accepted hybrid is in `src/func_80019070.c`; the former clean-C body remains
+archived there under `#if 0`. The hybrid keeps the semantic sprite setup, palette
+clamp, CLUT computation, RGB setup, and semitransparency branch in C, while
+hard-register extended-assembly windows encode the compiler state that could
+not be reproduced naturally. This is a function-specific exception, recorded
+as `register-asm` and `embedded-asm` under `sourcePolicy.allowlist` in
+`.pi/autodecomp.json`, not a general relaxation of source policy.
+
+Verification of the final form:
+
+- exact function diff: **81/81 instructions**;
+- candidate and target `.text`: **324 bytes**, byte-for-byte identical;
+- candidate and target `.text` SHA-256:
+  `c7e4d9feeff42a008265849c9603b591b6ad0d567b21866693e76316b57deb2d`;
+- complete `make check`: original executable payload matched.
+
+The exception was chosen only after the compiler/driver/assembler/SDK/ABI and
+translation-unit audits below, the independent 72/81 clean-C convergence, and
+the later manual recurrence and phantom campaigns all converged on the same
+scheduler-state obstruction.
+
 **Archived best-template status: 72/81 instructions (88.9%).** Instructions
 10–80, register allocation, both delay slots, and the former arg9 branch/store
 window matched; the remaining nine instructions were an order-only block-0

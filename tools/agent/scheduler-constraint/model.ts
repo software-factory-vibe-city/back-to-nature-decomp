@@ -188,7 +188,10 @@ function selectUid(state: ConcreteSchedulerState, runtime: RuntimeState, uid: nu
     if (!runtime.unscheduled.has(edge.fromUid)) continue;
     const remainsBlocked = edges.some((item) => item.fromUid === edge.fromUid && runtime.unscheduled.has(item.toUid));
     if (remainsBlocked) continue;
-    if (edge.cost > 1) runtime.queuedUntil.set(edge.fromUid, Math.max(runtime.queuedUntil.get(edge.fromUid) || 0, cycle + edge.cost - 1));
+    /* sched.c queue_insn: the released predecessor matures at clock + cost,
+     * so a 2-cycle load re-enters the ready list one clock later than a
+     * 1-cycle instruction released by the same selection. */
+    if (edge.cost > 1) runtime.queuedUntil.set(edge.fromUid, Math.max(runtime.queuedUntil.get(edge.fromUid) || 0, cycle + edge.cost));
     else runtime.ready.add(edge.fromUid);
   }
 }
@@ -310,10 +313,18 @@ export function solveLuidForForcedOrder(
   const constraints = [...domainConstraints];
   const edges = activeEdges(concrete);
 
+  let clock = 0;
   for (let index = 0; index < forcedOrder.length; index++) {
-    const cycle = index + 1;
     const desiredUid = forcedOrder[index]!;
+    let cycle = clock + 1;
     releaseQueued(runtime, cycle);
+    /* sched.c advances the clock without selecting while the ready list is
+     * empty and queued instructions have not matured. */
+    while (runtime.ready.size === 0 && runtime.queuedUntil.size > 0) {
+      cycle++;
+      releaseQueued(runtime, cycle);
+    }
+    clock = cycle;
     const ready = [...runtime.ready];
     if (!runtime.ready.has(desiredUid)) {
       const blockers = edges.filter((edge) => edge.fromUid === desiredUid && runtime.unscheduled.has(edge.toUid)).map((edge) => edge.toUid);

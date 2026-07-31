@@ -43,6 +43,7 @@ import {
   parseRtlNotes,
 } from "./compiler-trace/rtl-parser.js";
 import { parseScheduler } from "./compiler-trace/scheduler-dag.js";
+import { spliceSplitProducts } from "./compiler-trace/scheduler-order.js";
 import { findTargetRegisterRecurrences } from "./compiler-trace/target-recurrence.js";
 import type {
   CompilerTraceReport,
@@ -207,7 +208,7 @@ export function buildTraceReportFromArtifacts(options: ExistingTraceArtifacts): 
       "sched",
       schedContent,
       schedInstructions,
-      schedInput,
+      spliceSplitProducts(schedInput, schedInstructions, caveats),
     ));
   }
   const sched2Content = parsed.contents.get("sched2");
@@ -218,7 +219,7 @@ export function buildTraceReportFromArtifacts(options: ExistingTraceArtifacts): 
       "sched2",
       sched2Content,
       sched2Instructions,
-      sched2Input,
+      spliceSplitProducts(sched2Input, sched2Instructions, caveats),
     ));
   }
   for (const scheduler of schedulers) caveats.push(...scheduler.caveats);

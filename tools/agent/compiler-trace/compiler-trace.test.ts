@@ -7,6 +7,7 @@ import { buildPseudoProvenance } from "./pseudo-provenance.js";
 import { reconstructRtlMetadata } from "./rtl-notes.js";
 import { parseRtlInstructions, parseRtlNotes } from "./rtl-parser.js";
 import { parseScheduler } from "./scheduler-dag.js";
+import { reconstructLuid, spliceSplitProducts } from "./scheduler-order.js";
 import { findTargetRegisterRecurrences } from "./target-recurrence.js";
 import type { DisassembledInstruction } from "../decompToolchain.js";
 
@@ -248,4 +249,29 @@ test("reports a useful error for a truncated RTL dump", () => {
     () => parseRtlNotes('(note 20 0 0 "" NOTE_INSN_LOOP_BEG', "rtl"),
     /RTL parse error in \.rtl at line 1: unterminated note form/,
   );
+});
+
+test("splices pre-scheduling split products at their deleted origin's chain position", () => {
+  const insn = (uid: number, order: number, registers: number[]): any => ({
+    uid, kind: "insn", stage: "combine", order, chainOrder: order, text: "",
+    sets: registers.map((register) => ({ register })), uses: [], deaths: [],
+    memoryRead: false, memoryWrite: false, control: false, dependencies: [],
+  });
+  const input = [insn(10, 0, [3]), insn(12, 1, [4]), insn(14, 2, [7]), insn(16, 3, [9])];
+  const stage = [insn(10, 0, [3]), insn(256, 1, [4]), insn(257, 2, [4]),
+    insn(258, 3, [7]), insn(259, 4, [7]), insn(16, 5, [9])];
+  const caveats: string[] = [];
+  const spliced = spliceSplitProducts(input, stage, caveats);
+  assert.deepEqual(spliced.map((item) => item.uid), [10, 256, 257, 258, 259, 16]);
+  assert.equal(caveats.length, 0);
+  const luid = reconstructLuid(spliced);
+  assert.ok(luid["256"]! < luid["257"]!);
+  assert.ok(luid["257"]! < luid["258"]!);
+  assert.ok(luid["259"]! < luid["16"]!);
+
+  const ambiguous: string[] = [];
+  const twin = [...input, insn(18, 4, [4])];
+  const kept = spliceSplitProducts(twin, stage, ambiguous);
+  assert.deepEqual(kept.map((item) => item.uid).includes(256), false);
+  assert.ok(ambiguous.some((caveat) => caveat.includes("no unique split origin")));
 });

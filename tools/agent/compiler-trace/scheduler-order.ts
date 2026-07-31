@@ -20,6 +20,73 @@ function blockOf(instruction: RtlInstruction): number {
 }
 
 /**
+ * GCC's pre-scheduling splitter replaces one instruction with several fresh
+ * ones (new, higher UIDs) at the same chain position, so stage-input dumps
+ * that predate the split have no entry for the product UIDs and their LUIDs
+ * would stay unreconstructed. Splice each product group into the input order
+ * at the position of the unique deleted input instruction that set the same
+ * registers; when no unique origin exists the products are left unspliced and
+ * downstream consumers keep failing closed.
+ */
+export function spliceSplitProducts(
+  input: RtlInstruction[],
+  stageInstructions: RtlInstruction[],
+  caveats: string[],
+): RtlInstruction[] {
+  if (input.length === 0) return input;
+  const inputUids = new Set(input.map((instruction) => instruction.uid));
+  const stageUids = new Set(stageInstructions.map((instruction) => instruction.uid));
+  const products = stageInstructions
+    .filter((instruction) => !inputUids.has(instruction.uid))
+    .sort((left, right) => left.uid - right.uid);
+  if (products.length === 0) return input;
+  const deleted = input.filter((instruction) => !stageUids.has(instruction.uid));
+  const signatureOf = (instruction: RtlInstruction): string =>
+    instruction.sets.map((reference) => reference.register).sort((a, b) => a - b).join(",");
+  const originsBySignature = new Map<string, RtlInstruction[]>();
+  for (const origin of deleted) {
+    if (origin.sets.length === 0) continue;
+    const signature = signatureOf(origin);
+    originsBySignature.set(signature, [...(originsBySignature.get(signature) ?? []), origin]);
+  }
+  let result = input;
+  const unclaimed: number[] = [];
+  const groups = new Map<string, RtlInstruction[]>();
+  for (const product of products) {
+    if (product.sets.length === 0) {
+      unclaimed.push(product.uid);
+      continue;
+    }
+    const signature = signatureOf(product);
+    groups.set(signature, [...(groups.get(signature) ?? []), product]);
+  }
+  for (const [signature, group] of groups) {
+    const origins = originsBySignature.get(signature) ?? [];
+    if (origins.length !== 1) {
+      caveats.push(
+        `Scheduler stage input has no unique split origin for product UIDs ${group.map((item) => item.uid).join(", ")}; their LUIDs stay unreconstructed.`,
+      );
+      unclaimed.push(...group.map((item) => item.uid));
+      continue;
+    }
+    const origin = origins[0]!;
+    const at = result.findIndex((instruction) => instruction.uid === origin.uid);
+    const placed = group.map((instruction) => {
+      const clone: RtlInstruction = { ...instruction };
+      if (origin.block === undefined) delete clone.block;
+      else clone.block = origin.block;
+      return clone;
+    });
+    result = [...result.slice(0, at), ...placed, ...result.slice(at + 1)];
+  }
+  if (result === input) return input;
+  if (unclaimed.length > 0) {
+    caveats.push(`Split products without a reconstructed chain position: ${unclaimed.join(", ")}.`);
+  }
+  return result.map((instruction, index) => ({ ...instruction, order: index, chainOrder: index }));
+}
+
+/**
  * GCC 2.95.2's legacy sched.c resets luid in sched_analyze for each block
  * and increments it for every RTL chain node. chainOrder includes notes, so
  * differences preserve the comparator's original-order relation.

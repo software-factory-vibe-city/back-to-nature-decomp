@@ -30,7 +30,9 @@
     "allowedRoots": [
       "src",
       "include",
-      "configs"
+      "configs",
+      ".pi/autodecomp.json",
+      "notes/research/func_80019070-prologue-allocation-and-arg2-truncation.md"
     ]
   },
   "budgets": {
@@ -40,6 +42,11 @@
   },
   "sourcePolicy": {
     "allowEmptyMemoryBarrier": true,
-    "allowlist": {}
+    "allowlist": {
+      "func_80019070": [
+        "register-asm",
+        "embedded-asm"
+      ]
+    }
   }
 }
