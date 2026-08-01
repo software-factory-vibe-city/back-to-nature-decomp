@@ -66,6 +66,18 @@ evidence yet — recorded to mark the boundary question.
 Members: func_8001E04C (s), func_8001E088 (s), func_8001E0B8 (s),
 func_8001E158 (m), func_8001E160 (s), func_8001E26C (s).
 
+## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: low)
+
+D-pad cursor movement on a 14-column grid (menu/keyboard screen?).
+Fingerprints: func_800241EC (m) directly calls func_800243D0 (s) as its
+default vertical-move handler (call graph + address adjacency, 0x800243D0
+begins just past 0x800241EC's end); shared absolute-addressed parallel
+table cluster D_80055994/D_800559BC (bounds byte-table bases) and
+D_800559C4 (handler function pointers). func_80023DBC (s)(?) is the sole
+caller. Handlers stored in D_800559C4 are unidentified — resolving them
+would extend the group.
+Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
+
 ## candidates to investigate
 
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count

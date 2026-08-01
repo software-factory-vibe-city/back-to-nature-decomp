@@ -7,6 +7,7 @@ import { parseCc1Assembly } from "../variant-lab/compile.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
 import { projectPath } from "../variant-lab/artifacts.js";
 import { deriveAllocationRequirements } from "./allocation-requirements.js";
+import { applyWebParityGate } from "./web-parity-gate.js";
 import { analyzeTargetOrderReplay } from "./counterfactual-replay.js";
 import { analyzeDelaySlots } from "./delay-slot.js";
 import { deriveSchedulingRequirements } from "./intervention-search.js";
@@ -108,6 +109,8 @@ export function analyzeTargetScheduleFromArtifacts(
       .filter((value): value is number => value !== undefined);
   }
 
+  const parityGate = applyWebParityGate(target, candidate, allocation.allocation, allocation.requirements);
+
   const delay = analyzeDelaySlots(target, candidate, alignment.correspondence);
   const scheduling = deriveSchedulingRequirements(
     target,
@@ -203,6 +206,7 @@ export function analyzeTargetScheduleFromArtifacts(
     preservationRanges: exactRanges(target, candidate),
     caveats: [
       ...uidResult.caveats,
+      ...(parityGate.caveat ? [parityGate.caveat] : []),
       "Scheduler comparator provenance models GCC 2.95.2 legacy sched.c: displayed priority, relation to the last scheduled instruction, then block-local LUID.",
       "Target-side statements are limited to observed machine order and candidate-DAG legality; target RTL dependencies are never inferred.",
       "Abstract interventions are diagnostic compiler-state hypotheses, not source edits or completion gates.",

@@ -20,6 +20,15 @@ import {
   normalizeFunctionName,
   resolveSource,
 } from "./decompToolchain.js";
+import {
+  alignByShape,
+  bagDelta,
+  compareWebs,
+  computeWebs,
+  formatBagDelta,
+  provenanceAudit,
+  summarizeWeb,
+} from "./webAnalysis.js";
 
 export type DiffCategory =
   | "exact"
@@ -36,6 +45,24 @@ export interface InstructionDifference {
   target: string;
   compiled: string;
   kind: string;
+}
+
+export interface WebParitySummary {
+  parity: boolean;
+  matched: number;
+  targetOnly: string[];
+  compiledOnly: string[];
+  looseMatches: string[];
+  entryOnlyTarget: string[];
+  entryOnlyCompiled: string[];
+}
+
+export interface ProvenanceFinding {
+  targetIndex: number;
+  compiledIndex: number;
+  register: string;
+  reason: string;
+  detail: string;
 }
 
 export interface StructuralDiffReport {
@@ -55,6 +82,12 @@ export interface StructuralDiffReport {
   dependentOrderInversions: number;
   differences: InstructionDifference[];
   evidence: string[];
+  /* Semantic gates (see webAnalysis.ts): a failing web parity or any
+     provenance divergence means source semantics differ from the target;
+     allocator/scheduler work is premature until both are clean. */
+  webParity: WebParitySummary;
+  provenanceDivergences: ProvenanceFinding[];
+  structuralDelta: string[];
 }
 
 interface RegisterUse {
@@ -572,10 +605,62 @@ export function analyzeInstructionSets(
     summary = "Opcode sequence differs; investigate types, idioms, control flow, or pass-level allocation/reload effects.";
   }
 
+  /* Semantic gates: web parity and value provenance (webAnalysis.ts). */
+  const parity = compareWebs(computeWebs(target), computeWebs(compiled));
+  const webParity: WebParitySummary = {
+    parity: parity.parity,
+    matched: parity.matchedCount,
+    targetOnly: parity.targetOnly.map(summarizeWeb),
+    compiledOnly: parity.compiledOnly.map(summarizeWeb),
+    looseMatches: parity.looseMatches.map((pair) =>
+      `${summarizeWeb(pair.target)} ~ ${summarizeWeb(pair.compiled)}`),
+    entryOnlyTarget: parity.entryOnlyTarget.map(summarizeWeb),
+    entryOnlyCompiled: parity.entryOnlyCompiled.map(summarizeWeb),
+  };
+  const shapePairs = alignByShape(target, compiled);
+  const provenanceDivergences: ProvenanceFinding[] = provenanceAudit(target, compiled, shapePairs)
+    .slice(0, 8)
+    .map((finding) => ({
+      targetIndex: finding.targetIndex,
+      compiledIndex: finding.compiledIndex,
+      register: finding.register,
+      reason: finding.reason,
+      detail: `at target[${finding.targetIndex}] ${finding.targetText} ~ compiled[${finding.compiledIndex}] ` +
+        `${finding.compiledText}: $${finding.register} last def target=[${finding.targetDefIndex < 0 ? "entry" : finding.targetDefIndex}] ` +
+        `${finding.targetDefText} vs compiled=[${finding.compiledDefIndex < 0 ? "entry" : finding.compiledDefIndex}] ${finding.compiledDefText}`,
+    }));
+  const structuralDelta = target.length !== compiled.length
+    ? formatBagDelta(bagDelta(target, compiled))
+    : [];
+
+  if (!webParity.parity && (category === "scheduling" || category === "scheduling-and-operands" ||
+      category === "mixed-operands" || category === "instruction-selection")) {
+    summary += " WEB-PARITY FAILURE: the register-web sets differ — the source pseudo population does not" +
+      " match the target. Fix source semantics (missing/extra temporaries, wrong value provenance) before" +
+      " any allocator or scheduler work.";
+  }
+
   const evidence = [
     `${exactMatches}/${Math.max(target.length, compiled.length)} instructions match exactly by index.`,
     `${opcodeMatches}/${Math.max(target.length, compiled.length)} opcodes match by index; opcode LCS is ${opcodeLcs}.`,
   ];
+  if (structuralDelta.length > 0) {
+    evidence.push(`STRUCTURAL DELTA (count ${target.length} vs ${compiled.length}): ${structuralDelta.join(" | ")}`);
+  }
+  if (!webParity.parity) {
+    const parts: string[] = [];
+    if (webParity.targetOnly.length > 0) parts.push(`${webParity.targetOnly.length} target-only web(s): ${webParity.targetOnly.slice(0, 4).join("; ")}`);
+    if (webParity.compiledOnly.length > 0) parts.push(`${webParity.compiledOnly.length} compiled-only web(s): ${webParity.compiledOnly.slice(0, 4).join("; ")}`);
+    if (webParity.entryOnlyTarget.length > 0) parts.push(`entry-liveness only in target: ${webParity.entryOnlyTarget.join("; ")}`);
+    if (webParity.entryOnlyCompiled.length > 0) parts.push(`entry-liveness only in compiled: ${webParity.entryOnlyCompiled.join("; ")}`);
+    evidence.push(`WEB-PARITY FAILURE: ${parts.join(" — ")}.`);
+  }
+  for (const finding of provenanceDivergences.slice(0, 3)) {
+    evidence.push(`PROVENANCE (${finding.reason}): ${finding.detail}.`);
+  }
+  if (provenanceDivergences.length > 3) {
+    evidence.push(`PROVENANCE: ${provenanceDivergences.length - 3} further divergence(s); see provenanceDivergences.`);
+  }
   const nonIdentity = mapToObject(registerMap, true);
   const nonIdentityWebs = mapToObject(webMap, true);
   if (Object.keys(nonIdentity).length > 0) {
@@ -607,6 +692,9 @@ export function analyzeInstructionSets(
     dependentOrderInversions: inversions.dependent,
     differences,
     evidence,
+    webParity,
+    provenanceDivergences,
+    structuralDelta,
   };
 }
 
@@ -619,6 +707,29 @@ function printHuman(funcName: string, source: string, report: StructuralDiffRepo
   console.log(`Classification: ${report.category}`);
   console.log(report.summary);
   for (const item of report.evidence) console.log(`  - ${item}`);
+
+  console.log(`\nWeb parity: ${report.webParity.parity ? "OK" : "FAIL"} (${report.webParity.matched} webs matched)`);
+  if (!report.webParity.parity) {
+    for (const web of report.webParity.targetOnly) console.log(`  target-only:    ${web}`);
+    for (const web of report.webParity.compiledOnly) console.log(`  compiled-only:  ${web}`);
+    for (const web of report.webParity.entryOnlyTarget) console.log(`  entry-liveness only in target:   ${web}`);
+    for (const web of report.webParity.entryOnlyCompiled) console.log(`  entry-liveness only in compiled: ${web}`);
+    console.log("  Unmatched webs mean the source pseudo set differs from the target;");
+    console.log("  fix source semantics before allocator/scheduler work.");
+  }
+  if (report.webParity.looseMatches.length > 0) {
+    console.log("  loose matches (same def shape, different use count):");
+    for (const pair of report.webParity.looseMatches.slice(0, 4)) console.log(`    ${pair}`);
+  }
+
+  if (report.provenanceDivergences.length > 0) {
+    console.log("\nValue-provenance divergences (same slot, different defining instruction):");
+    for (const finding of report.provenanceDivergences) {
+      console.log(`  [${finding.reason}] ${finding.detail}`);
+    }
+    console.log("  A register NAME matching while its defining instruction differs means the");
+    console.log("  compared values are different — re-derive the source expression at that site.");
+  }
 
   if (report.differences.length > 0) {
     console.log("\nFirst differences:");
@@ -668,6 +779,55 @@ function selfTest(): void {
   const scheduleOurs = [synthetic("sll", ["a0", "a0", "2"]), synthetic("lui", ["v0", "0x8006"]), synthetic("jr", ["ra"])];
   if (analyzeInstructionSets(scheduleTarget, scheduleOurs).category !== "scheduling") {
     throw new Error("scheduling classification failed");
+  }
+
+  /* Web parity + provenance: the func_800241EC signature in miniature.
+     Target masks a value into $a1 before using it; the compiled side uses the
+     stale entry $a1 — same register name, different defining instruction. */
+  const provenanceTarget = [
+    synthetic("lw", ["v1", "0(sp)"]),
+    synthetic("andi", ["a1", "v1", "0xffff"]),
+    synthetic("addu", ["v0", "a2", "a1"]),
+    synthetic("jr", ["ra"]),
+  ];
+  const provenanceOurs = [
+    synthetic("lw", ["v1", "0(sp)"]),
+    synthetic("addu", ["v0", "a2", "a1"]),
+    synthetic("jr", ["ra"]),
+  ];
+  const provenanceReport = analyzeInstructionSets(provenanceTarget, provenanceOurs);
+  if (provenanceReport.webParity.parity) throw new Error("web parity should fail on a missing andi web");
+  if (!provenanceReport.webParity.targetOnly.some((web) => web.includes("andi"))) {
+    throw new Error("web parity should name the target-only andi web");
+  }
+  if (!provenanceReport.provenanceDivergences.some((finding) =>
+    finding.register === "a1" && finding.reason === "entry-vs-defined")) {
+    throw new Error("provenance audit should flag $a1 entry-vs-defined divergence");
+  }
+  if (provenanceReport.structuralDelta.length === 0) {
+    throw new Error("structural delta should decompose the count mismatch");
+  }
+
+  const cleanReport = analyzeInstructionSets(provenanceTarget, provenanceTarget);
+  if (!cleanReport.webParity.parity || cleanReport.provenanceDivergences.length > 0) {
+    throw new Error("identical streams must have clean web parity and provenance");
+  }
+
+  /* A pure allocation rotation must NOT trip either gate. */
+  const rotationTarget = [
+    synthetic("andi", ["a1", "v1", "0xffff"]),
+    synthetic("addu", ["v0", "a2", "a1"]),
+    synthetic("jr", ["ra"]),
+  ];
+  const rotationOurs = [
+    synthetic("andi", ["t0", "v1", "0xffff"]),
+    synthetic("addu", ["v0", "a2", "t0"]),
+    synthetic("jr", ["ra"]),
+  ];
+  const rotationReport = analyzeInstructionSets(rotationTarget, rotationOurs);
+  if (!rotationReport.webParity.parity) throw new Error("allocation rotation must keep web parity");
+  if (rotationReport.provenanceDivergences.length > 0) {
+    throw new Error("allocation rotation must not trip the provenance audit");
   }
   console.log("explainDiff self-test: OK");
 }

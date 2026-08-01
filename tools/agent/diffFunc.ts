@@ -62,7 +62,8 @@ function runStep(label: string, cmd: string): string {
 }
 
 function compile(src: string): string {
-  const stem = src.replace(/^src\//, "").replace(/\.c$/, "");
+  /* Basename stem so arbitrary paths (scratchpad experiments) compile too. */
+  const stem = src.replace(/\.c$/, "").replace(/^.*\//, "");
   const dir = "build/diffFunc";
   const i = `${dir}/${stem}.i`;
   const s = `${dir}/${stem}.s`;
@@ -80,6 +81,11 @@ function objdump(obj: string): string {
   return run(`${OBJDUMP} -d --no-show-raw-insn ${obj}`);
 }
 
+const LOCAL_BRANCH_MNEMONICS = new Set([
+  "b", "beq", "beql", "beqz", "beqzl", "bgez", "bgezl", "bgtz", "bgtzl",
+  "blez", "blezl", "bltz", "bltzl", "bne", "bnel", "bnez", "bnezl",
+]);
+
 /**
  * Extract comparable instruction lines from objdump output.
  *
@@ -91,20 +97,118 @@ function objdump(obj: string): string {
  * can identify a meaningful relocation target.
  */
 function instrLines(dump: string): string[] {
-  const localBranchMnemonics = new Set([
-    "b", "beq", "beql", "beqz", "beqzl", "bgez", "bgezl", "bgtz", "bgtzl",
-    "blez", "blezl", "bltz", "bltzl", "bne", "bnel", "bnez", "bnezl",
-  ]);
-
   return dump.split("\n")
     .filter((line) => /^\s+[0-9a-f]+:\s/.test(line))
     .map((line) => {
       const trimmed = line.trim();
       const mnemonic = trimmed.match(/^[0-9a-f]+:\s+([^\s]+)/)?.[1].toLowerCase();
-      return mnemonic && localBranchMnemonics.has(mnemonic)
+      return mnemonic && LOCAL_BRANCH_MNEMONICS.has(mnemonic)
         ? trimmed.replace(/\s+<[^>]+>$/, "")
         : trimmed;
     });
+}
+
+interface DiffLine {
+  addr: string;
+  body: string;
+  /** Alignment key: PC-relative branch targets so a single inserted
+   *  instruction shifts addresses without desynchronizing every later line. */
+  key: string;
+  mnemonic: string;
+}
+
+function parseDiffLine(line: string): DiffLine {
+  const match = line.match(/^([0-9a-f]+):\s+(.*)$/);
+  const addr = match ? match[1] : "";
+  const body = (match ? match[2] : line).trim();
+  const mnemonic = body.match(/^(\S+)/)?.[1].toLowerCase() ?? "";
+  let key = body;
+  /* Same-function j targets are relativized like branches: an inserted
+     instruction shifts every downstream absolute target, and positional
+     noise from that shift would drown the actual difference. Jumps that
+     span the insertion still differ, and the linked-byte verdict remains
+     the oracle for absolute values. */
+  if ((LOCAL_BRANCH_MNEMONICS.has(mnemonic) || mnemonic === "j") && addr) {
+    const stripped = key.replace(/\s+<[^>]+>$/, "");
+    const branch = stripped.match(/^(.*[,\s])([0-9a-f]+)$/);
+    if (branch) {
+      const delta = parseInt(branch[2], 16) - parseInt(addr, 16);
+      key = `${branch[1]}pc${delta >= 0 ? "+" : "-"}0x${Math.abs(delta).toString(16)}`;
+    }
+  }
+  return { addr, body, key, mnemonic };
+}
+
+function lcsPairs(left: string[], right: string[]): Array<[number, number]> {
+  const table: Uint32Array[] = Array.from(
+    { length: left.length + 1 },
+    () => new Uint32Array(right.length + 1),
+  );
+  for (let i = left.length - 1; i >= 0; i--) {
+    for (let j = right.length - 1; j >= 0; j--) {
+      table[i][j] = left[i] === right[j]
+        ? table[i + 1][j + 1] + 1
+        : Math.max(table[i + 1][j], table[i][j + 1]);
+    }
+  }
+  const pairs: Array<[number, number]> = [];
+  let i = 0;
+  let j = 0;
+  while (i < left.length && j < right.length) {
+    if (left[i] === right[j]) pairs.push([i++, j++]);
+    else if (table[i + 1][j] >= table[i][j + 1]) i++;
+    else j++;
+  }
+  return pairs;
+}
+
+/** Render an LCS-aligned diff (insertions/deletions localized, matched lines
+ *  kept in step even when addresses shift) and return the aligned match count. */
+function renderAlignedDiff(target: DiffLine[], compiled: DiffLine[]): number {
+  const RED = "\x1b[31m";
+  const GREEN = "\x1b[32m";
+  const DIM = "\x1b[2m";
+  const RESET = "\x1b[0m";
+  const pairs = lcsPairs(target.map((line) => line.key), compiled.map((line) => line.key));
+  let ti = 0;
+  let ci = 0;
+  const flushTo = (pt: number, pc: number) => {
+    while (ti < pt) {
+      console.log(`${RED}-${target[ti].addr}: ${target[ti].body}${RESET}`);
+      ti++;
+    }
+    while (ci < pc) {
+      console.log(`${GREEN}+${compiled[ci].addr}: ${compiled[ci].body}${RESET}`);
+      ci++;
+    }
+  };
+  for (const [pt, pc] of pairs) {
+    flushTo(pt, pc);
+    console.log(`${DIM} ${target[pt].addr}: ${target[pt].body}${RESET}`);
+    ti++;
+    ci++;
+  }
+  flushTo(target.length, compiled.length);
+  return pairs.length;
+}
+
+/** Mnemonic-level multiset difference — names the missing/extra instructions
+ *  behind an instruction-count delta instead of leaving a wall of ± lines. */
+function mnemonicDelta(target: DiffLine[], compiled: DiffLine[]): string | null {
+  const counts = new Map<string, number>();
+  for (const line of target) counts.set(line.mnemonic, (counts.get(line.mnemonic) || 0) + 1);
+  for (const line of compiled) counts.set(line.mnemonic, (counts.get(line.mnemonic) || 0) - 1);
+  const targetOnly: string[] = [];
+  const compiledOnly: string[] = [];
+  for (const [mnemonic, count] of [...counts.entries()].sort()) {
+    if (count > 0) targetOnly.push(count > 1 ? `${count}× ${mnemonic}` : mnemonic);
+    else if (count < 0) compiledOnly.push(count < -1 ? `${-count}× ${mnemonic}` : mnemonic);
+  }
+  if (targetOnly.length === 0 && compiledOnly.length === 0) return null;
+  const parts: string[] = [];
+  if (targetOnly.length > 0) parts.push(`target has ${targetOnly.join(", ")} the compiled side lacks`);
+  if (compiledOnly.length > 0) parts.push(`compiled has extra ${compiledOnly.join(", ")}`);
+  return parts.join("; ");
 }
 
 function doDiff(src: string, target: string | null, funcName?: string): void {
@@ -124,32 +228,47 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
     const right = objdump(compiled);
     const targetInstrs = instrLines(left);
     const compiledInstrs = instrLines(right);
+    const targetLines = targetInstrs.map(parseDiffLine);
+    const compiledLines = compiledInstrs.map(parseDiffLine);
 
     const ltmp = "/tmp/diffFunc-target.txt";
     const rtmp = "/tmp/diffFunc-compiled.txt";
     writeFileSync(ltmp, targetInstrs.join("\n") + "\n");
     writeFileSync(rtmp, compiledInstrs.join("\n") + "\n");
 
-    const diffFlags = columnsMode ? "-y -W 120" : "-u";
-    try {
-      const out = execSync(`diff --color=always ${diffFlags} ${ltmp} ${rtmp}`, {
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      process.stdout.write(out);
-    } catch (e: any) {
-      if (e.stdout) process.stdout.write(e.stdout);
+    let matches: number;
+    if (columnsMode) {
+      /* Side-by-side view via GNU diff over alignment keys. */
+      writeFileSync(ltmp + ".keys", targetLines.map((line) => line.key).join("\n") + "\n");
+      writeFileSync(rtmp + ".keys", compiledLines.map((line) => line.key).join("\n") + "\n");
+      try {
+        const out = execSync(`diff --color=always -y -W 120 ${ltmp}.keys ${rtmp}.keys`, {
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+        process.stdout.write(out);
+      } catch (e: any) {
+        if (e.stdout) process.stdout.write(e.stdout);
+      }
+      matches = lcsPairs(
+        targetLines.map((line) => line.key),
+        compiledLines.map((line) => line.key),
+      ).length;
+    } else {
+      matches = renderAlignedDiff(targetLines, compiledLines);
     }
 
-    const total = Math.max(targetInstrs.length, compiledInstrs.length);
-    let matches = 0;
-    for (let i = 0; i < total; i++) {
-      if (targetInstrs[i]?.trim() === compiledInstrs[i]?.trim()) matches++;
-    }
+    const total = Math.max(targetLines.length, compiledLines.length);
     const pct = total > 0 ? ((matches / total) * 100).toFixed(1) : "0.0";
-    console.log(`\nMasked match: ${matches}/${total} instructions (${pct}%)`);
-    if (targetInstrs.length !== compiledInstrs.length) {
-      console.log(`  target: ${targetInstrs.length} instrs, compiled: ${compiledInstrs.length} instrs`);
+    console.log(`\nMasked match: ${matches}/${total} instructions (${pct}%, LCS-aligned)`);
+    if (targetLines.length !== compiledLines.length) {
+      console.log(`  target: ${targetLines.length} instrs, compiled: ${compiledLines.length} instrs`);
+      const delta = mnemonicDelta(targetLines, compiledLines);
+      if (delta) {
+        console.log(`  count delta: ${delta}`);
+        console.log("  A count delta is STRUCTURAL — allocation/scheduling cannot add or remove");
+        console.log("  instructions (except entry moves). Fix source semantics first.");
+      }
     }
     if (total > 0 && matches === total && funcName) {
       verifyLinkedBytes(funcName);

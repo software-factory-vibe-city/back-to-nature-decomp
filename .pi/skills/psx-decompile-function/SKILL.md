@@ -23,6 +23,10 @@ Before editing, read completely:
    Same-file membership carries TU-level priors (shared register-variable
    quirks, idioms, global clusters, declaration-order effects). Update the
    ledger in the same session if you find grouping evidence.
+7. Run `npx tsx tools/agent/scanReadBeforeDef.ts <target>` once. A finding
+   means the function belongs to the register-variable / handwritten
+   fingerprint class (policy-exception territory — see the research notes
+   it cites); a clean scan rules that class out before you hypothesize it.
 
 ## Prepare the target
 
@@ -34,11 +38,24 @@ resume/fix mode, preserve the source and begin from its current diff.
 
 1. Call `psx_explain_diff` before editing.
 2. Apply only the fix class reported by the classifier and described in the
-   mandatory style guide.
+   mandatory style guide. Treat the classifier's WEB-PARITY and PROVENANCE
+   sections as gates: unmatched register webs or a value-provenance
+   divergence mean the SOURCE SEMANTICS differ from the target (missing
+   masks/temporaries, an operand read from the wrong value behind a
+   coincidentally matching register name). Fix those before any
+   allocation or scheduling interpretation — an "allocation swap" with
+   failing web parity is a symptom, not a cause. Any instruction-count
+   delta beyond entry moves is structural; read the reported count-delta
+   decomposition instead of treating it as allocation noise.
 3. For allocation, scheduling, operand-order that survives source-order swaps,
    or mixed categories, call `psx_compiler_trace` before further perturbation.
    Tie the next edit to a pseudo birth, death, lifetime, conflict, assignment
-   pass, canonicalization rule, or scheduler decision.
+   pass, canonicalization rule, or scheduler decision. For statement-order
+   questions (which global is touched first, where a pointer assignment
+   sits in a branch), run
+   `npx tsx tools/agent/mineStatementOrder.ts <target>` — per-block
+   emission-order evidence (hi16 formation order, store order, delay-slot
+   occupant) constrains source statement order directly.
 4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
    the mismatch signature changes or its cause becomes unclear.
 5. If the mismatch is order-only inside a block of constant/pointer stores,

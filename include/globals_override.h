@@ -153,6 +153,14 @@ extern u8 D_8005E025[9];
  * Array size ensures >8 byte declaration for absolute addressing */
 extern s32 D_8005F0C8[4096];
 
+/* D_80055994, D_800559BC - arrays of s32 pointers (byte table bases),
+ * D_800559C4 - array of s32 function pointers.
+ * All absolute-addressed (lui+addiu). Array size 3 ensures >8 bytes
+ * to avoid GP-relative small-data addressing. */
+extern s32 D_80055994[3];
+extern s32 D_800559BC[3];
+extern s32 D_800559C4[3];
+
 
 
 /* D_8005E870 - struct accessed with sb at offsets 0x36 and 0x37 */
