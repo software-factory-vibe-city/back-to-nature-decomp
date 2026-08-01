@@ -19,6 +19,10 @@ Before editing, read completely:
    optional reference
 4. the target source and original assembly
 5. the target call-graph entry and relevant generated/shared declarations
+6. `notes/file-groupings.md` — the target's suspected source-file group.
+   Same-file membership carries TU-level priors (shared register-variable
+   quirks, idioms, global clusters, declaration-order effects). Update the
+   ledger in the same session if you find grouping evidence.
 
 ## Prepare the target
 

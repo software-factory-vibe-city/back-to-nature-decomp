@@ -18,7 +18,9 @@ instructions. It is not a function-decompilation prompt.
 
 - Matching or repairing one function: load
   `.pi/skills/psx-decompile-function/SKILL.md` and follow its mandatory
-  matching guide.
+  matching guide. Check `notes/file-groupings.md` for the target's
+  suspected source-file group and update it when you find grouping
+  evidence.
 - Refining an already-matching function: load
   `.pi/skills/psx-refine-function/SKILL.md`.
 - Performing a conservative cross-file cleanup batch: load

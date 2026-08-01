@@ -80,6 +80,58 @@ extern u16 D_80049050[5];
 /* D_8005E43C - GP-relative update flag */
 extern s32 D_8005E43C;
 
+/* D_8005E500..D_8005E528 - GP-relative scalars used by func_8001E878
+ * D_8005E500, D_8005E504, D_8005E508: cross-product results (sw gp_rel)
+ * D_8005E50C, D_8005E510: bounds coordinates (sw gp_rel)
+ * D_8005E514: average/difference (sw gp_rel, written twice)
+ * D_8005E518: pointer to bounds struct (lw gp_rel, dereferenced at +0,+4,+8)
+ * D_8005E51C: threshold value (lw gp_rel)
+ * D_8005E528: flag (sw gp_rel)
+ *
+ * UNVERIFIED semantic hypotheses (2026-07-31) - floor/surface collision
+ * query. func_8001E878 reads as a point-in-triangle test in the horizontal
+ * plane plus a vertical tolerance check; the triangle vertices stride by 8
+ * bytes in callers and use s16 fields at +0/+2/+4, i.e. SVECTOR-shaped
+ * {vx, vy, vz, pad} with the cross products taken over (vx, vz) and vy
+ * averaged as height (research note S5.4/S9).
+ *   D_8005E500/504/508: edge cross products of query point vs triangle
+ *     in the x-z plane
+ *   D_8005E50C/510: cached query x and z ("bounds coords" = projected
+ *     query position)
+ *   D_8005E514: kept value is queryY - triangleAvgY, the signed height
+ *     delta to the candidate triangle (avg written transiently first)
+ *   D_8005E518: query position record {s32 x@0, y@4, z@8}, VECTOR-shaped;
+ *     installed from a saved register by the driver func_8001E4C0
+ *     (0x8001E534: sw s5) before the scan
+ *   D_8005E51C: max |height delta| to accept (step-height tolerance)
+ *   D_8005E528: hit flag - cleared by func_8001E4C0 (0x8001E508),
+ *     set to 1 by func_8001E878, early-out guard in func_8001E38C
+ *     (0x8001E38C reads it, then loads the three hit-triangle vertex
+ *     pointers from the array at 0x80061EF8 and calls func_80038674
+ *     with the query pointer)
+ * Related, not declared here (addresses written 0x-style on purpose:
+ * classifyGlobals treats any D_-token in this file as overridden):
+ *   0x80061EF8: SVECTOR *[3], the hit triangle's vertex pointers
+ *   0x8005E524: second flag cleared alongside the hit flag by the driver
+ * Evidence: src/func_8001E878.c;
+ * build/asm/nonmatchings/func_8001E4C0/func_8001E4C0.s (0x8001E504-538);
+ * build/asm/nonmatchings/func_8001E38C/func_8001E38C.s (0x8001E38C-43C);
+ * notes/research/func_8001E878-dead-spill-allocation.md */
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+} BoundsStruct_8001E878;
+extern s32 D_8005E500;
+extern s32 D_8005E504;
+extern s32 D_8005E508;
+extern s32 D_8005E50C;
+extern s32 D_8005E510;
+extern s32 D_8005E514;
+extern BoundsStruct_8001E878 *D_8005E518;
+extern s32 D_8005E51C;
+extern s32 D_8005E528;
+
 /* D_8005E540, D_8005E550, D_8005E554, D_8005E560 - GP-relative s32 scalars
  * Accessed by func_8001FF98 with sw %gp_rel */
 extern s32 D_8005E540;
