@@ -119,6 +119,13 @@ typedef struct {
     s32 z;
 } Vec3;
 
+typedef struct {
+    u16 field_00;
+    u16 field_02;
+    s16 field_04;
+    s16 field_06;
+} Vertex;
+
 void ClearPairS32(PairS32 *obj);
 void ClearVal8005E2CC(void);
 void ClearVal8005E2D4(void);
@@ -141,6 +148,7 @@ void func_80015880(SomeStruct *arg0, s32 arg1, s32 arg2);
 void func_8001588C(void);
 void func_80015894(SomeStruct *arg0, s32 arg1);
 void func_800158E4(Struct_S *arg0);
+void func_80015E3C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, u8 arg5, s16 arg6, s16 arg7);
 void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);
