@@ -44,7 +44,8 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
    from this exact file. If a 5+-arg sibling matches fully, 80016280's
    prologue anomaly is a lone island (hand-tuning plausible); if another
    sibling sticks the same way, it is a file-level phenomenon.
-5. **The multi-set mechanism in vivo** — func_800165D8 increments a primitive
+5. **Packet lifecycle helpers** — the setup/teardown wrappers (EE8, F80, 160C8, 161AC) call `func_80011F5C(0)` for packet init (returns s32 stored on stack) and `func_80011FD8(s32)` for teardown. Thin wrappers (5E3C, 5E78) don't. Confirmed by func_80015EE8 match.
+6. **The multi-set mechanism in vivo** — func_800165D8 increments a primitive
    pointer through a parameter (naturally multi-set), which dodges the sched1
    single-set birth boost. Matching it shows the compiler producing the
    early-parameter-copy behavior 80016280's target demands, from real source.
@@ -56,7 +57,7 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 | func_80015704 | stub | adjacent, shares CAPTURE_RA; hook pre-solved; FntPrint + busy-wait body — cheapest next match |
 | func_80015E3C | matched | thin func_80016280 wrapper |
 | func_80015E78 | matched | thin func_800165D8 wrapper |
-| func_80015EE8 | stub | packet setup/teardown around func_80016280 |
+| func_80015EE8 | matched | packet setup/teardown around func_80016280; uses func_80011F5C/func_80011FD8 |
 | func_80015F80 | stub | packet setup/teardown around func_800165D8 |
 | func_80016054 | **matched, natural C** | CAPTURE_RA hook wrapper; see research note |
 | func_800160C8 | stub | packet setup/teardown around func_800165D8 |
