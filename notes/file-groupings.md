@@ -106,13 +106,32 @@ Members (address order):
 - func_80015F80 (m) — packet setup/teardown around func_800165D8
 - func_80016054 (m) — func_800165D8 wrapper with CAPTURE_RA caller-log hook
   (include/debughook.h)
-- func_800160C8 (s) — packet setup/teardown around func_800165D8
+- func_800160C8 (m) — packet setup/teardown around func_800165D8
+  (13 params: s32,s32,s32,s32,s16,s16,s32,s32,u16,s16,s16,s16,s16;
+  frame 0x70, saves $s0-$s7+$fp+$ra+$a0+$a1;
+  nested func_80011FD8(func_800165D8(..., func_80011F5C(0), ...));
+  passes arg6 twice at func_800165D8 positions 6–7)
 - func_800161AC (s) — packet setup/teardown around func_800165D8
 - func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid (214/214;
   see research/func_80016280-web-parity-and-register-recurrence.md)
 - func_800165D8 (s) — larger direct-primitive renderer
 - func_80016B7C (?) — address-adjacent possible file tail; no positive semantic
   evidence collected yet
+
+Debugging notes (packet wrappers 15E78–161AC):
+- GCC 2.95 frame size is a strong signal for argument count. The packet
+  setup/teardown wrappers share the same structure (func_80011F5C +
+  func_800165D8 + func_80011FD8) but differ in parameter counts:
+  func_80015F80 has 9 params/frame 0x68; func_800160C8 has 13 params/frame 0x70.
+  The 0x08 frame difference equals exactly 2 extra saved registers ($s2 and
+  $a1) — the outgoing argument area is shared regardless of param count.
+  If your compiled frame is 0x68 but the target is 0x70, you have too few
+  declared arguments (or wrong types causing GCC to pack them differently).
+- func_80015F80's matched source claims to pass (s32)arg4/(s32)arg5 at
+  func_800165D8 positions 6–7, but the assembly actually stores arg6 twice
+  there. The source is semantically wrong but byte-matches because
+  func_800165D8 likely ignores those positions. Do not trust func_80015F80's
+  C source for argument semantics — use its assembly instead.
 
 ## candidates to investigate
 
