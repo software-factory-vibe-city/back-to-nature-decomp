@@ -31,6 +31,12 @@ After a prologue allocates `frame_size` bytes, an incoming stack argument at
 callee's full arity and argument mapping before diagnosing instruction-count,
 web-parity, allocation, or scheduling differences.
 
+GCC 2.95 places the first incoming stack argument at offset **16** from old
+`$sp`, not 8 (the standard MIPS O32 ABI). The slot at offset 8 is unused.
+Always use the `frame_size + 16 + 4*n` formula; applying the standard ABI
+offset produces an argument count that is 2 too high (func_80015F80: 11
+versus the correct 9).
+
 ### Sign extension fused with element scaling
 
 Around an array access, this pattern usually combines a cast with element

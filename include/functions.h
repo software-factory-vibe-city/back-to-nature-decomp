@@ -151,6 +151,7 @@ void func_800158E4(Struct_S *arg0);
 void func_80015E3C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, u8 arg5, s16 arg6, s16 arg7);
 void func_80015E78(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, s16 arg5, s16 arg6, s32 arg7, s32 arg8, u16 arg9, s16 arg10, s16 arg11);
 void func_80015EE8(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5);
+void func_80015F80(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, u16 arg8);
 void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);
