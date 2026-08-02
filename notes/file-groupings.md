@@ -111,7 +111,7 @@ Members (address order):
   frame 0x70, saves $s0-$s7+$fp+$ra+$a0+$a1;
   nested func_80011FD8(func_800165D8(..., func_80011F5C(0), ...));
   passes arg6 twice at func_800165D8 positions 6–7)
-- func_800161AC (s) — packet setup/teardown around func_800165D8
+- func_800161AC (m) — packet setup/teardown around func_800165D8
 - func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid (214/214;
   see research/func_80016280-web-parity-and-register-recurrence.md)
 - func_800165D8 (s) — larger direct-primitive renderer
