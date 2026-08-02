@@ -81,7 +81,9 @@ Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 ## sprite renderers — 0x80015E3C–0x80016B7C (confidence: high)
 
 Two contiguous wrapper/renderer families for drawing source-data entries as
-PSY-Q primitives.
+PSY-Q primitives. An active campaign is decompiling the remaining members —
+see `notes/sprite-renderer-family-campaign.md` for status, working order, and
+the evidence each match feeds back into the func_80016280 hybrid audit.
 
 Fingerprints:
 - internal call graph: func_80015E3C and func_80015EE8 call func_80016280;
@@ -91,17 +93,23 @@ Fingerprints:
   `field_24`, `field_28`, and `field_2C`), use the same 0xFFFE header guard,
   and walk the same 12-byte entry records;
 - address adjacency and wrapper forwarding preserve the same byte/halfword
-  argument roles and bracket both renderers with no unrelated function.
+  argument roles and bracket both renderers with no unrelated function;
+- func_80016054 and func_80015704 (before this range) both expand the same
+  CAPTURE_RA caller-log asm idiom (`addu $8,<addr>,$0; sw $31,0($8)`),
+  suggesting a shared studio debug header or the same TU — see
+  `notes/research/caller-capture-debug-hook.md`.
 
 Members (address order):
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)
 - func_80015E78 (m) — thin func_800165D8 wrapper
 - func_80015EE8 (s) — packet setup/teardown around func_80016280
 - func_80015F80 (s) — packet setup/teardown around func_800165D8
-- func_80016054 (s) — func_800165D8 wrapper
+- func_80016054 (m) — func_800165D8 wrapper with CAPTURE_RA caller-log hook
+  (include/debughook.h)
 - func_800160C8 (s) — packet setup/teardown around func_800165D8
 - func_800161AC (s) — packet setup/teardown around func_800165D8
-- func_80016280 — nonmatching clean-C SPRT/DR_MODE renderer
+- func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid (214/214;
+  see research/func_80016280-web-parity-and-register-recurrence.md)
 - func_800165D8 (s) — larger direct-primitive renderer
 - func_80016B7C (?) — address-adjacent possible file tail; no positive semantic
   evidence collected yet

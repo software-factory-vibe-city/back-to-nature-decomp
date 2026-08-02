@@ -456,3 +456,34 @@ As of 2026-08-02:
    direct primitive pointer and therefore naturally has a multi-set parameter;
    that explanation does not transfer to this function's unchanged
    pointer-to-pointer parameters without a corresponding source mechanism.
+
+## 2026-08-02 addendum — deferred prune-to-natural audit
+
+Two developments bound this exception more tightly and schedule future work:
+
+- **The toolchain axis is now closed with direct evidence** (see
+  `notes/sprite-renderer-family-campaign.md`): the clean-C candidate was
+  compiled under vendored GCC 2.7.2/2.8.0/2.8.1/2.91.66 (global allocation
+  rotates; 2.8.x emits `lhu` for the s16 stack args), under a purpose-built
+  2.95.1-psx with `-fno-strict-aliasing` (residual identical to 2.95.2, frame
+  worse), and with `-fstrict-aliasing` (wildly wrong shape). 2.95.0/1/3
+  patchlevel sources differ from 2.95.2 only in ways that are inert or
+  regressive here, and the community psx patchset touches no optimizer files.
+  maspsx output was byte-compared against real ASPSX 2.77 and 2.86 under wine:
+  identical modulo link-resolved jump words. The residual is therefore a pure
+  source-shape question against exactly this toolchain.
+- **The hybrid itself is owed a prune-to-natural audit.** The func_80016054
+  case (`notes/research/caller-capture-debug-hook.md`) showed a stuck hybrid
+  whose residual was caused by its own constraints — volatile blocks, a
+  `"+r"($sp)` operand, a `"memory"` clobber — and whose true source was
+  natural C plus a two-instruction asm macro. This function's asm region uses
+  the same constructs (volatile guard block, `"memory"` clobber, `$sp`-free
+  but multi-block structure built incrementally under pre-audit assumptions).
+  The 39-instruction asm region may be wider than the irreducible core.
+
+**Deferred action (after the sprite-renderer family is matched):** re-derive
+this function from the most natural C spelling outward, applying the
+null-case rule and the family's recovered dialect/macro/type evidence, and
+either shrink the asm region to a demonstrated-irreducible core or retire it.
+Do not start this before the family evidence is in — the family was the
+cheapest source of new constraints last time, and it will be again.
