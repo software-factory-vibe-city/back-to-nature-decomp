@@ -18,6 +18,19 @@ Do not fuzz syntax around a misread computation. If many different source
 shapes diverge at the same early instruction, stop and recompute the target's
 arithmetic, constants, signedness, and address.
 
+### Call wrappers and unchanged argument registers
+
+Reconstruct a call from the complete ABI argument state at the `jal`, not only
+from registers explicitly defined in the wrapper. Untouched `$a0`–`$a3` remain
+live incoming arguments and may be forwarded directly to the callee. Their
+absence from the wrapper's instruction stream does not mean they are unused.
+
+After a prologue allocates `frame_size` bytes, an incoming stack argument at
+`frame_size + 16 + 4*n($sp)` is argument `4+n`. Outgoing stores beginning at
+`16($sp)` are callee arguments 4 onward. Use both facts to determine the
+callee's full arity and argument mapping before diagnosing instruction-count,
+web-parity, allocation, or scheduling differences.
+
 ### Sign extension fused with element scaling
 
 Around an array access, this pattern usually combines a cast with element
