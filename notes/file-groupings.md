@@ -102,7 +102,7 @@ Fingerprints:
 Members (address order):
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)
 - func_80015E78 (m) — thin func_800165D8 wrapper
-- func_80015EE8 (s) — packet setup/teardown around func_80016280
+- func_80015EE8 (m) — packet setup/teardown around func_80016280
 - func_80015F80 (s) — packet setup/teardown around func_800165D8
 - func_80016054 (m) — func_800165D8 wrapper with CAPTURE_RA caller-log hook
   (include/debughook.h)
