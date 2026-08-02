@@ -55,8 +55,14 @@ function parseCli(args: string[]): AnalyzeTargetScheduleOptions {
 }
 
 export function analyzeTargetSchedule(options: AnalyzeTargetScheduleOptions): TargetScheduleAnalysis {
-  const trace = buildTraceReport(options.functionName);
   const outputDirectory = join(ROOT, "build/targetSchedule", options.functionName);
+  /* Keep target-schedule traces isolated from interactive compilerTrace runs. */
+  const trace = buildTraceReport(
+    options.functionName,
+    undefined,
+    true,
+    join(outputDirectory, "trace"),
+  );
   const targetObject = assembleTarget(options.functionName, outputDirectory);
   const target = normalizeDisassembly(disassembleObject(targetObject));
   const input = {

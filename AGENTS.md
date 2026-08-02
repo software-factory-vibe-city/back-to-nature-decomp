@@ -53,7 +53,7 @@ instructions. It is not a function-decompilation prompt.
 - Preserve the clean-source policy. For ordinary compiled functions, embedded
   assembly, hard-register pinning, new assembly stubs, and per-file flag hacks
   are not valid decompilation solutions. Honor only exceptions established by
-  the active project's classification and policy.
+  the active project's classification and policy. Unless explicitly specified by the user.
 - Keep edits scoped to the requested task. Do not opportunistically rewrite
   unrelated files.
 

@@ -3,6 +3,16 @@ import type { AutodecompConfig, DiffResult, GateResult, WorkMode } from "./types
 import { runCommand } from "./process.ts";
 import { checkSourcePolicy } from "./source-policy.ts";
 
+export function parseFunctionDiffSummary(output: string): Pick<DiffResult, "matchedInstructions" | "totalInstructions" | "matchPercent"> {
+  const matches = [...output.matchAll(/(?:Masked match|Match):\s*(\d+)\/(\d+)\s+instructions\s+\(([\d.]+)%/gi)];
+  const match = matches.at(-1);
+  return {
+    matchedInstructions: match ? Number.parseInt(match[1], 10) : 0,
+    totalInstructions: match ? Number.parseInt(match[2], 10) : 0,
+    matchPercent: match ? Number.parseFloat(match[3]) : 0,
+  };
+}
+
 export async function runFunctionDiff(projectRoot: string, functionName: string, timeoutMs = 60_000, signal?: AbortSignal): Promise<DiffResult> {
   const command = await runCommand("npx", ["tsx", "tools/agent/diffFunc.ts", functionName], {
     cwd: projectRoot,
@@ -11,11 +21,7 @@ export async function runFunctionDiff(projectRoot: string, functionName: string,
     signal,
   });
   const output = [command.stdout, command.stderr].filter(Boolean).join("\n");
-  const matches = [...output.matchAll(/Match:\s*(\d+)\/(\d+)\s+instructions\s+\(([\d.]+)%\)/g)];
-  const match = matches.at(-1);
-  const matchedInstructions = match ? Number.parseInt(match[1], 10) : 0;
-  const totalInstructions = match ? Number.parseInt(match[2], 10) : 0;
-  const matchPercent = match ? Number.parseFloat(match[3]) : 0;
+  const { matchedInstructions, totalInstructions, matchPercent } = parseFunctionDiffSummary(output);
   const countLine = output.match(/target:\s*(\d+)\s+instrs,\s*compiled:\s*(\d+)\s+instrs/);
   const instructionCountDelta = countLine
     ? Number.parseInt(countLine[2], 10) - Number.parseInt(countLine[1], 10)

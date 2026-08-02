@@ -78,6 +78,34 @@ caller. Handlers stored in D_800559C4 are unidentified — resolving them
 would extend the group.
 Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 
+## sprite renderers — 0x80015E3C–0x80016B7C (confidence: high)
+
+Two contiguous wrapper/renderer families for drawing source-data entries as
+PSY-Q primitives.
+
+Fingerprints:
+- internal call graph: func_80015E3C and func_80015EE8 call func_80016280;
+  func_80015E78, func_80015F80, func_80016054, func_800160C8, and
+  func_800161AC call func_800165D8;
+- both renderers decode the same source-data layout (`field_1C`, `field_20`,
+  `field_24`, `field_28`, and `field_2C`), use the same 0xFFFE header guard,
+  and walk the same 12-byte entry records;
+- address adjacency and wrapper forwarding preserve the same byte/halfword
+  argument roles and bracket both renderers with no unrelated function.
+
+Members (address order):
+- func_80015E3C (s) — thin func_80016280 wrapper
+- func_80015E78 (s) — thin func_800165D8 wrapper
+- func_80015EE8 (s) — packet setup/teardown around func_80016280
+- func_80015F80 (s) — packet setup/teardown around func_800165D8
+- func_80016054 (s) — func_800165D8 wrapper
+- func_800160C8 (s) — packet setup/teardown around func_800165D8
+- func_800161AC (s) — packet setup/teardown around func_800165D8
+- func_80016280 — nonmatching clean-C SPRT/DR_MODE renderer
+- func_800165D8 (s) — larger direct-primitive renderer
+- func_80016B7C (?) — address-adjacent possible file tail; no positive semantic
+  evidence collected yet
+
 ## candidates to investigate
 
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count

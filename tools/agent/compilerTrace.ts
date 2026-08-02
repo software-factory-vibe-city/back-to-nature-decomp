@@ -21,7 +21,7 @@ import {
   rmSync,
   writeFileSync,
 } from "fs";
-import { basename, join, relative } from "path";
+import { basename, isAbsolute, join, relative } from "path";
 import {
   ROOT,
   assembleCompilerOutput,
@@ -286,9 +286,12 @@ export function buildTraceReport(
   funcName: string,
   requestedSource?: string,
   useOverrides: boolean = true,
+  requestedOutputDirectory?: string,
 ): CompilerTraceReport {
   const source = resolveSource(funcName, requestedSource);
-  const outputDirectory = join(ROOT, "build/compilerTrace", funcName);
+  const outputDirectory = requestedOutputDirectory
+    ? (isAbsolute(requestedOutputDirectory) ? requestedOutputDirectory : join(ROOT, requestedOutputDirectory))
+    : join(ROOT, "build/compilerTrace", funcName);
   rmSync(outputDirectory, { recursive: true, force: true });
   const artifacts = compileSource(source, outputDirectory, funcName, {
     dumps: true,

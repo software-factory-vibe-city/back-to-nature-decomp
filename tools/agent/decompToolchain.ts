@@ -7,6 +7,10 @@ import { fileURLToPath } from "url";
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const CC = join(ROOT, "tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1");
+
+export function configuredCompilerPath(): string {
+  return CC;
+}
 const MASPSX = join(ROOT, "tools/vendor/maspsx/maspsx.py");
 const CPP = "mips-linux-gnu-cpp";
 const AS = "mips-linux-gnu-as";

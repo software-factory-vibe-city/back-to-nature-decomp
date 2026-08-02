@@ -164,8 +164,16 @@ instructions with reconstructed loop depth, and normalize loop regions by their
 enclosed semantic instructions. Its bounded text report also connects observed
 pseudo SET/use/death provenance, reconstructed lifetime endpoints,
 local/global allocation, sched1/sched2 ready-list decisions,
-allocation-created hard-register hazards, and inferred target-register recurrence experiments. Focus difficult
-reports without changing compilation:
+allocation-created hard-register hazards, and inferred target-register recurrence experiments.
+`analyzeAllocatorCounterfactual.ts` then refines target hard-register roles to
+UID-local pre-allocation pseudos, verifies GCC 2.95.2 allocno priorities, and
+emits explicit-hard-lifetime, overlapping-local-pseudo, and global-order
+requirements. For private local-allocation state that `-da` cannot expose, the
+diagnostic compiler oracle builds an isolated instrumented `cc1` under
+`build/compilerOracle/`, verifies that its baseline output equals the production
+compiler, records exact local quantities and `find_free_reg` candidate order,
+and runs legal forced-assignment/dependency counterfactuals. Its local minimizer
+reduces target assignments to verified hard-register occupancy requirements:
 
 ```bash
 npx tsx tools/agent/compilerTrace.ts <function> --pseudo 106
@@ -185,6 +193,12 @@ allocation-order, and delay-slot requirements to
 
 ```bash
 npx tsx tools/agent/analyzeTargetSchedule.ts <function> [--block 0]
+npx tsx tools/agent/analyzeAllocatorCounterfactual.ts <function>
+npx tsx tools/agent/instrumentCompilerOracle.ts <function>
+npx tsx tools/agent/analyzeLocalAllocationOracle.ts <function>
+npx tsx tools/agent/minimizeLocalAllocation.ts <function>
+npx tsx tools/agent/solveLocalAllocationState.ts <function>
+npx tsx tools/agent/inspectLocalAllocationVariant.ts <function> <variant.c> [--block N]
 ```
 
 `searchSchedulerState.ts` converts one validated scheduler block into a typed,
@@ -351,7 +365,7 @@ so `make split` runs a choreographed sequence:
 | Directory | Contents |
 |-----------|----------|
 | `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
-| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `searchResidualSourceSpace.ts` (automatic exhaustive residual source-space search), `contextExport.ts`, and `sourcePolicy.ts` |
+| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `analyzeAllocatorCounterfactual.ts` (allocator/lifetime counterfactuals), `instrumentCompilerOracle.ts` plus `analyzeLocalAllocationOracle.ts` / `minimizeLocalAllocation.ts` / `solveLocalAllocationState.ts` (isolated instrumented-GCC, exact local-allocation replay, and bounded phantom-quantity solver), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `searchResidualSourceSpace.ts` (automatic exhaustive residual source-space search), `contextExport.ts`, and `sourcePolicy.ts` |
 | `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |
