@@ -115,8 +115,15 @@ Members (address order):
 - func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid (214/214;
   see research/func_80016280-web-parity-and-register-recurrence.md)
 - func_800165D8 (s) — larger direct-primitive renderer
-- func_80016B7C (?) — address-adjacent possible file tail; no positive semantic
-  evidence collected yet
+- func_80016B7C (s) — sprite data size calculator; calls func_80015B24 (entry
+  search/bcmp) + func_8001782C (tile load/LoadImage); sole caller is
+  func_80016C08 which iterates sprite entries and accumulates results;
+  accesses same struct field_0x18 as family members; writes T_8005E438
+  global in shared cluster; HIGH confidence family member
+  (see notes/research/func_80016B7C-research.md)
+- func_80016C08 (s) — sprite entry loop driver; calls func_80016B7C twice
+  per iteration; accesses field_0x18/0x1C/0x20/0x24/0x28/0x2C from same
+  struct layout; 0x594 bytes, frame 0x88; HIGH confidence family member
 
 Debugging notes (packet wrappers 15E78–161AC):
 - GCC 2.95 frame size is a strong signal for argument count. The packet

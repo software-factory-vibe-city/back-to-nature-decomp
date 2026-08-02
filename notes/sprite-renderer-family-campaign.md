@@ -64,7 +64,8 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 | func_800161AC | stub | packet setup/teardown around func_800165D8 |
 | func_80016280 | matched (hybrid) | SPRT/DR_MODE renderer; 214/214; exception under deferred audit |
 | func_800165D8 | stub | larger direct-primitive renderer; the heavyweight |
-| func_80016B7C | unknown | possible file tail; no semantic evidence yet |
+| func_80016B7C | stub | sprite data size calculator (calls 15B24 + 1782C); HIGH confidence family member; see research/func_80016B7C-research.md |
+| func_80016C08 | stub | sprite entry loop driver (calls 6B7C twice/iteration); HIGH confidence; 0x594 bytes |
 
 ## Working order
 
