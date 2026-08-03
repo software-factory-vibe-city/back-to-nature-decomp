@@ -30,15 +30,36 @@ Before editing, read completely:
    fingerprint class (policy-exception territory — see the research notes
    it cites); a clean scan rules that class out before you hypothesize it.
 8. Run `npx tsx tools/agent/triage.ts <target>` once, before authoring or
-   perturbing source, and again whenever the signature changes. It matches
-   the target and your current source against symptom classes this project
-   has already diagnosed — argument count versus frame and outgoing-argument
-   area, incoming stack arguments, the CAPTURE_RA debug-hook signature, and
-   source-policy violations — and cites the note covering each hit. Read
-   those notes when it fires. A `blocker` finding means the current direction
-   cannot ship regardless of its diff score: fix the premise, do not proceed
-   and file paperwork later. Detectors are cheap and incomplete; silence is
-   not a certificate.
+   perturbing source, and again after every structural edit. It works on a
+   bare `INCLUDE_ASM` stub, so run it before you write the first line. It
+   reports:
+
+   - `frame-map` — the exact frame decomposition (outgoing argument area,
+     locals, saved registers) and the signature the ABI implies. Stack
+     parameter types are read off load width and signedness and are exact;
+     take them, do not re-derive them. Do not report a frame size you did
+     not get from here.
+   - `sdk-idiom` — the PSY-Q primitive type and macro expansions present in
+     the target. If it names a type, use that type and
+     `#include "psyq/libgpu.h"`; the field map it prints names every offset
+     the function touches. Hand-rolled bitfield arithmetic where the SDK has
+     a macro is a reconstruction error, not a style choice.
+   - `inventory` — memory offsets, constants, and shift amounts as multisets,
+     target versus your compiled source. These are invariant to scheduling
+     and register allocation, so anything marked TARGET ONLY is a **semantic**
+     defect: a field you never write, a mask you never apply. Fix every one
+     before any allocation or ordering work. An empty inventory is a
+     precondition for that work, not a nice-to-have.
+   - `arity-frame`, `arity-stack`, `capture-ra`, `asm-policy`, `asm-dead` —
+     the signature, ABI, debug-hook, and source-policy symptom classes.
+
+   Each finding cites the note covering it; read those when they fire. A
+   `blocker` finding means the current direction cannot ship regardless of its
+   diff score: fix the premise, do not proceed and file paperwork later.
+   Detectors are cheap and incomplete; silence is not a certificate.
+
+   `frameMap.ts`, `sdkIdioms.ts`, and `inventory.ts` also run standalone when
+   you want one of them in full detail without the rest.
 
 ## Prepare the target
 
@@ -173,3 +194,19 @@ same session; a wrong note propagates into every attempt that follows.
 If still stuck, leave the best clean-C state and report the category, first
 remaining divergence, compiler-pass evidence, and structural hypotheses
 tested. Do not commit.
+
+## Reporting discipline
+
+Every claim about the target must be traceable to the assembly line it came
+from or the tool that measured it. Frame sizes, instruction counts, shift
+amounts, and register assignments come from the tools, not from recollection;
+report each one once and consistently.
+
+The failure this prevents is describing your own compiled output and
+labelling it the target — proposing that target structure be removed because
+your version came out degenerate, or citing an instruction the target does
+not contain. A claim you cannot point at does not go in the report.
+
+Two corollaries. Register allocation is not a root cause while web parity or
+the inventory is failing; it is a symptom of one. And a fix C cannot express
+is not a work item.
