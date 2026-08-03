@@ -6,7 +6,10 @@
 ## Function facts
 
 - **Address:** 0x80016B7C, ROM 0x737C, size 0x8C (140 bytes)
-- **Parameters:** 3 register args ($a0 pointer, $a1 s32, $a2 s32) — no stack args
+- **Parameters:** 5 — `$a0` pointer, `$a1`/`$a2`/`$a3` s32, and `arg4` on the
+  stack (read at `0x40($sp)` = `caller_sp+0x10`). *Corrected 2026-08-10: this
+  line previously read "3 register args — no stack args", which was wrong and
+  cost roughly 20 variants. See `notes/retros/func_80016B7C.md`.*
 - **Frame:** 0x30, saves $s0-$s3 + $ra
 - **Return:** s32
 - **Tier:** 3 (game callers), priority 83
@@ -45,12 +48,15 @@ $a2 = $a1 & 0xFFFF /* width/height, truncated to u16 */
 **Phase 1 — entry search via func_80015B24:**
 
 ```
-$a0 = lw(0x18($s2))   /* struct->field_0x18: entry data base pointer */
-$a1 = $a1 & 0xFFFF     /* from prologue */
-$a2 = $a2 & 0xFFFF     /* from prologue */
+$a0 = arg0             /* unchanged: the struct pointer itself */
+$a1 = lw(0x18($s2))    /* struct->field_0x18: entry data base pointer */
+$a2 = arg1 & 0xFFFF    /* u16 parameter of the callee */
 $v0 = func_80015B24($a0, $a1, $a2)
-$s1 = $v0              /* search result index */
+$s1 = arg3             /* delay-slot save, NOT the call result */
 ```
+
+*Corrected 2026-08-10: this block previously showed `$a0 = lw(0x18($s2))`,
+transposing the first two arguments, and read `$s1` as the call's result.*
 
 func_80015B24 iterates through entries (lhu at offset 2 gives count),
 comparing 8-byte chunks with bcmp against data from `struct->field_0x1C`.
