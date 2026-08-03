@@ -9,15 +9,18 @@
  *
  * Each finding cites the note that covers it, so the knowledge is pulled in
  * by symptom rather than by title. Companion to flagProbe.ts (per-file flag
- * hypotheses) and scanReadBeforeDef.ts (register-variable fingerprints);
- * this one covers signature, ABI, and source-policy symptoms.
+ * hypotheses) and scanReadBeforeDef.ts (register-variable fingerprints).
  *
  * Born from func_80016B7C, where ~20 variants were spent on a phantom inline
  * asm block because the frame-size signal for a missing parameter was never
- * read (notes/retros/func_80016B7C.md).
+ * read (notes/retros/func_80016B7C.md). Extended after a session was spent
+ * hand-deriving a GPU primitive emitter that the SDK header names outright.
  *
  * Detectors:
- *   arity-frame     compiled frame/arg-area vs target — missing parameters
+ *   frame-map       exact frame decomposition and the signature it implies
+ *   sdk-idiom       PSY-Q primitive types and macro expansions in the target
+ *   inventory       order-independent content diff (offsets/constants/shifts)
+ *   arity-frame     compiled frame decomposition vs target, component-wise
  *   arity-stack     loads from the incoming stack-argument region
  *   capture-ra      the CAPTURE_RA debug-hook signature in the target
  *   asm-policy      embedded asm without a sourcePolicy allowlist entry
@@ -29,23 +32,27 @@
  *   npx tsx tools/agent/triage.ts func_80016B7C --src /tmp/experiment.c
  */
 
-import { execSync } from "child_process";
-import { existsSync, readFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
-
-const ROOT = new URL("../..", import.meta.url).pathname;
-
-/* Toolchain — kept in sync with diffFunc.ts. Only cpp+cc1 are needed here;
- * the .frame directive in cc1 output carries the whole frame decomposition,
- * so there is no reason to pay for maspsx and the assembler. */
-const GCC_VERSION = "2.95.2";
-const CC = `tools/vendor/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
-const CPP = "mips-linux-gnu-cpp";
-const CPPFLAGS =
-  "-Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c";
-const CC1FLAGS =
-  "-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse " +
-  "-fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet";
+import {
+  ROOT,
+  type DisassembledInstruction,
+  assembleTarget,
+  compileSource,
+  disassembleObject,
+  normalizeFunctionName,
+  resolveSource,
+} from "./decompToolchain.js";
+import {
+  type FrameMap,
+  analyzeFrame,
+  argSlotRange,
+  minimumArity,
+  renderMap,
+  renderSignature,
+} from "./frameMap.js";
+import { recognizeIdioms } from "./sdkIdioms.js";
+import { compareInventories, renderReport } from "./inventory.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -54,18 +61,6 @@ const CALL_CLOBBERED = new Set([
   "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
   "12", "13", "14", "15", "24", "25",
 ]);
-
-/**
- * GCC rounds the outgoing argument area up to a multiple of 8 and never
- * emits less than 16 bytes, so an area of A bytes is consistent with a
- * widest call of n arguments for n in (A/4 - 2, A/4]. Report the range
- * rather than a false-precision single number.
- */
-function argSlotRange(areaBytes: number): string {
-  const high = Math.floor(areaBytes / 4);
-  const low = Math.max(1, high - 1);
-  return areaBytes <= 16 ? `up to ${high}` : `${low}-${high}`;
-}
 
 type Severity = "blocker" | "signal" | "info";
 
@@ -77,29 +72,17 @@ interface Finding {
   see: string[];
 }
 
+/* --- target-side facts --- */
+
 interface TargetFacts {
-  frameSize: number;
-  /** Offsets of true save slots (sw+lw pair for the same register). */
-  saveSlots: Map<number, string>;
-  /** Outgoing argument area size, inferred from the lowest save slot. */
-  argAreaSize: number | null;
-  /** Loads from the incoming argument region, keyed by caller-frame offset. */
-  incomingLoads: { callerOffset: number; text: string; mnemonic: string }[];
+  frame: FrameMap;
+  instructions: DisassembledInstruction[];
   /** `sw $ra, 0(reg)` with a non-$sp base — the CAPTURE_RA seam. */
   raStores: string[];
-  lines: string[];
 }
-
-/* --- assembly parsing --- */
 
 function stripComment(line: string): string {
   return line.replace(/\/\*.*?\*\//g, " ").trim();
-}
-
-function parseHex(value: string): number {
-  return value.startsWith("-")
-    ? -parseInt(value.slice(1), value.slice(1).startsWith("0x") ? 16 : 10)
-    : parseInt(value, value.startsWith("0x") ? 16 : 10);
 }
 
 function resolveTargetAsm(name: string): string | null {
@@ -110,94 +93,48 @@ function resolveTargetAsm(name: string): string | null {
   return candidates.find((path) => existsSync(path)) ?? null;
 }
 
-function readTarget(name: string): TargetFacts | null {
+/**
+ * The CAPTURE_RA seam is read from the original assembly text rather than the
+ * disassembly, because the handwritten-assembly spelling
+ * (`sw $ra, %lo(SYM)($at)`) is an assembler pseudo-op that no longer looks
+ * like itself after assembly.
+ */
+function readRaStores(name: string): string[] {
   const path = resolveTargetAsm(name);
-  if (!path) return null;
-
-  const lines = readFileSync(path, "utf-8").split("\n").map(stripComment).filter(Boolean);
-
-  let frameSize = 0;
-  for (const line of lines) {
-    const m = line.match(/^addiu\s+\$sp,\s*\$sp,\s*(-(?:0x)?[0-9a-fA-F]+)/);
-    if (m) { frameSize = -parseHex(m[1]); break; }
-  }
-
-  /* A slot is a register save iff the same register is both stored to it and
-   * reloaded from it. That discriminates prologue saves from outgoing
-   * argument stores, which may also use callee-saved registers. */
-  const stores = new Map<string, number>();
-  const loads = new Set<string>();
-  const incomingLoads: TargetFacts["incomingLoads"] = [];
+  if (!path) return [];
   const raStores: string[] = [];
-
-  for (const line of lines) {
-    const store = line.match(/^(sw|sh|sb)\s+\$(\w+),\s*((?:0x)?[0-9a-fA-F]+)\(\$sp\)/);
-    if (store) stores.set(`${store[2]}@${parseHex(store[3])}`, parseHex(store[3]));
-
-    const load = line.match(/^(lw|lh|lhu|lb|lbu)\s+\$(\w+),\s*((?:0x)?[0-9a-fA-F]+)\(\$sp\)/);
-    if (load) {
-      const offset = parseHex(load[3]);
-      loads.add(`${load[2]}@${offset}`);
-      if (frameSize > 0 && offset >= frameSize) {
-        incomingLoads.push({ callerOffset: offset - frameSize, text: line, mnemonic: load[1] });
-      }
-    }
-
-    /* CAPTURE_RA seam: $ra stored through a register that is not $sp. */
-    const raStore = line.match(/^sw\s+\$ra,\s*((?:0x)?0)\(\$(\w+)\)/);
-    if (raStore && raStore[2] !== "sp") raStores.push(line);
+  for (const raw of readFileSync(path, "utf-8").split("\n")) {
+    const line = stripComment(raw);
+    const store = line.match(/^sw\s+\$ra,\s*((?:0x)?0)\(\$(\w+)\)/);
+    if (store && store[2] !== "sp") raStores.push(line);
     if (/^sw\s+\$ra,\s*%lo\(/.test(line)) raStores.push(line);
   }
-
-  const saveSlots = new Map<number, string>();
-  for (const [key, offset] of stores) {
-    if (loads.has(key)) saveSlots.set(offset, key.split("@")[0]);
-  }
-
-  const argAreaSize = saveSlots.size > 0 ? Math.min(...saveSlots.keys()) : null;
-
-  return { frameSize, saveSlots, argAreaSize, incomingLoads, raStores, lines };
+  return raStores;
 }
 
-/* --- compiling the current source --- */
+/* --- compiled-side facts --- */
 
 interface CompiledFacts {
   frameSize: number;
   argAreaSize: number;
   savedRegs: number;
   varsSize: number;
+  instructions: DisassembledInstruction[];
   /** Each embedded asm block with the instructions that follow it. */
   asmBlocks: { insns: string[]; after: string[] }[];
 }
 
-function loadFlagOverrides(): Map<string, string> {
-  const overrides = new Map<string, string>();
-  const path = join(ROOT, "configs/flag_overrides.mk");
-  if (!existsSync(path)) return overrides;
-  for (const line of readFileSync(path, "utf-8").split("\n")) {
-    const m = line.match(/^CC1FLAGS_(\S+)\s*:=\s*(.+)$/);
-    if (m) overrides.set(m[1], m[2].trim());
-  }
-  return overrides;
-}
-
-function compileSource(name: string, src: string): CompiledFacts | null {
-  const dir = join(ROOT, "build/triage");
-  mkdirSync(dir, { recursive: true });
-  const i = `build/triage/${name}.i`;
-  const s = `build/triage/${name}.s`;
-  const extra = loadFlagOverrides().get(name) || "";
+function readCompiled(name: string, source: string, scratch: string): CompiledFacts | null {
+  let artifacts;
   try {
-    execSync(`${CPP} ${CPPFLAGS} ${src} -o ${i}`, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
-    execSync(`${CC} ${CC1FLAGS} ${extra} ${i} -o ${s}`, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
+    artifacts = compileSource(source, scratch, name, { assemble: true });
   } catch {
     return null;
   }
 
-  const lines = readFileSync(join(ROOT, s), "utf-8").split("\n");
+  const lines = readFileSync(artifacts.assembly, "utf-8").split("\n");
   const frame = lines.find((line) => /\.frame\s+\$sp/.test(line));
   if (!frame) return null;
-
   const size = frame.match(/\.frame\s+\$sp,(\d+),/);
   const detail = frame.match(/vars=\s*(\d+),\s*regs=\s*(\d+)\/(\d+),\s*args=\s*(\d+)/);
   if (!size || !detail) return null;
@@ -225,6 +162,7 @@ function compileSource(name: string, src: string): CompiledFacts | null {
     argAreaSize: parseInt(detail[4], 10),
     savedRegs: parseInt(detail[2], 10),
     varsSize: parseInt(detail[1], 10),
+    instructions: artifacts.object ? disassembleObject(artifacts.object) : [],
     asmBlocks,
   };
 }
@@ -232,71 +170,143 @@ function compileSource(name: string, src: string): CompiledFacts | null {
 /* --- detectors --- */
 
 function hex(value: number): string {
-  return `0x${value.toString(16).toUpperCase()}`;
+  return `${value < 0 ? "-" : ""}0x${Math.abs(value).toString(16).toUpperCase()}`;
+}
+
+/**
+ * Always reported. This is transcription, not diagnosis: the frame layout and
+ * the load widths at the incoming slots determine the parameter list exactly,
+ * and an agent that derives them by hand gets one wrong.
+ */
+function detectFrameMap(name: string, target: TargetFacts): Finding[] {
+  return [{
+    detector: "frame-map",
+    severity: "info",
+    summary:
+      `target frame decomposition and the signature it implies ` +
+      `(minimum arity ${minimumArity(target.frame)})`,
+    evidence: [
+      ...renderMap(name, target.frame),
+      "",
+      `signature: ${renderSignature(name, target.frame)}`,
+      "stack parameter types are exact (load width and signedness); register parameters default to s32",
+    ],
+    see: ["notes/research/frame-size-arity-diagnostic.md"],
+  }];
+}
+
+/**
+ * The field map is the payload, and it is only worth printing while the
+ * source has not adopted the type. Once it has, one confirming line is
+ * enough — the rest would be wallpaper, and wallpaper gets skimmed.
+ */
+function detectSdkIdioms(target: TargetFacts, sourceText?: string): Finding[] {
+  const report = recognizeIdioms(target.instructions, sourceText);
+  if (!report.primitive) return [];
+
+  const knowsType = sourceText ? new RegExp(`\\b${report.primitive.name}\\b`).test(sourceText) : false;
+  const relevant = knowsType
+    ? report.findings.filter((finding) => finding.kind === "sdk-primitive")
+    : report.findings;
+
+  return relevant.map((finding) => ({
+    detector: "sdk-idiom",
+    severity: (finding.kind === "sdk-primitive" && !knowsType ? "signal" : "info") as Severity,
+    summary: finding.summary,
+    evidence: knowsType ? [`source already uses ${report.primitive!.name}`] : finding.evidence,
+    see: ["include/psyq/libgpu.h"],
+  }));
+}
+
+function detectInventory(target: TargetFacts, compiled: CompiledFacts): Finding[] {
+  if (compiled.instructions.length === 0) return [];
+  const report = compareInventories(target.instructions, compiled.instructions);
+  const total = report.memory.length + report.constants.length + report.shifts.length;
+  if (total === 0) return [];
+
+  const targetOnly = [...report.memory, ...report.constants, ...report.shifts]
+    .filter((delta) => delta.compiled === 0).length;
+
+  return [{
+    detector: "inventory",
+    severity: targetOnly > 0 ? "signal" : "info",
+    summary:
+      `${total} order-independent content difference(s)` +
+      (targetOnly > 0
+        ? `, ${targetOnly} of them present in the target and absent from your source. ` +
+          "These multisets are invariant to scheduling and allocation, so a " +
+          "difference here is a SEMANTIC defect — fix it before any ordering work."
+        : ". Counts differ but nothing is missing outright."),
+    evidence: [
+      ...renderReport(report, 10),
+      "",
+      "target struct access, by base register:",
+      ...[...report.targetByBase]
+        .filter(([, offsets]) => offsets.size >= 2)
+        .map(([base, offsets]) =>
+          `  $${base}: ${[...offsets].sort((a, b) => a - b).map(hex).join(" ")}`),
+    ],
+    see: ["prompts/c-style-guide.md"],
+  }];
 }
 
 function detectArityFrame(target: TargetFacts, compiled: CompiledFacts): Finding[] {
-  const findings: Finding[] = [];
-  if (compiled.frameSize === target.frameSize) return findings;
+  const frame = target.frame;
+  const varsMatch = frame.varsSize === null || frame.varsSize === compiled.varsSize;
+  const argsMatch = frame.argAreaSize === compiled.argAreaSize;
+  const savesMatch = frame.saveSlots.length === compiled.savedRegs;
+  if (varsMatch && argsMatch && savesMatch && frame.frameSize === compiled.frameSize) return [];
 
   const evidence = [
-    `target frame ${hex(target.frameSize)}, compiled frame ${hex(compiled.frameSize)}`,
+    `frame        target ${hex(frame.frameSize)}   yours ${hex(compiled.frameSize)}`,
+    `outgoing args target ${hex(frame.argAreaSize)}   yours ${hex(compiled.argAreaSize)}` +
+      `   (widest call: ${frame.outgoingArgs} vs ${argSlotRange(compiled.argAreaSize)} slots)`,
+    `locals/spills target ${frame.varsSize === null ? "?" : hex(frame.varsSize)}   yours ${hex(compiled.varsSize)}`,
+    `saved regs   target ${frame.saveSlots.length}   yours ${compiled.savedRegs}`,
   ];
-  if (target.argAreaSize !== null) {
-    evidence.push(
-      `target outgoing arg area ${hex(target.argAreaSize)} ` +
-      `(lowest save slot), compiled ${hex(compiled.argAreaSize)}`
-    );
+
+  const causes: string[] = [];
+  if (!argsMatch) {
+    causes.push(compiled.argAreaSize < frame.argAreaSize
+      ? "outgoing argument area too narrow — a CALLEE prototype is short"
+      : "outgoing argument area too wide — a CALLEE prototype has too many parameters");
   }
-  evidence.push(
-    `target saves ${target.saveSlots.size} register(s) ` +
-    `[${[...target.saveSlots.entries()].sort((a, b) => a[0] - b[0]).map(([o, r]) => `$${r}@${hex(o)}`).join(" ")}], ` +
-    `compiled saves ${compiled.savedRegs}`
-  );
+  if (!varsMatch) {
+    causes.push(compiled.varsSize < (frame.varsSize ?? 0)
+      ? "too few locals — a local array or spilled temporary is missing"
+      : "too many locals — spurious temporaries, or a local that should be a register value");
+  }
+  if (!savesMatch) {
+    causes.push(compiled.savedRegs < frame.saveSlots.length
+      ? "too few saved registers — fewer live values than the target carries"
+      : "too many saved registers — more live values than the target carries");
+  }
 
-  const argAreaShort =
-    target.argAreaSize !== null && compiled.argAreaSize < target.argAreaSize;
-  const summary = argAreaShort
-    ? "frame too small AND outgoing argument area too narrow — a CALLEE prototype is short " +
-      `(target's widest call takes ${argSlotRange(target.argAreaSize!)} arguments, ` +
-      `yours takes ${argSlotRange(compiled.argAreaSize)})`
-    : compiled.frameSize < target.frameSize
-      ? "frame too small — too few declared parameters, or missing locals"
-      : "frame too large — too many declared parameters, or spurious locals";
-
-  findings.push({
+  return [{
     detector: "arity-frame",
     severity: "signal",
-    summary,
+    summary: causes.join("; ") || "frame decomposition differs",
     evidence,
     see: [
       "notes/research/frame-size-arity-diagnostic.md",
       "notes/retros/func_80016B7C.md",
     ],
-  });
-  return findings;
+  }];
 }
 
 function detectArityStack(target: TargetFacts): Finding[] {
-  const stackArgs = target.incomingLoads.filter((load) => load.callerOffset >= 0x10);
-  if (stackArgs.length === 0) return [];
-
-  const maxOffset = Math.max(...stackArgs.map((load) => load.callerOffset));
-  const minArity = maxOffset / 4 + 1;
+  const incoming = target.frame.incoming;
+  if (incoming.length === 0) return [];
 
   return [{
     detector: "arity-stack",
     severity: "signal",
     summary:
-      `target reads incoming stack argument(s) — minimum arity ${minArity}. ` +
+      `target reads incoming stack argument(s) — minimum arity ${minimumArity(target.frame)}. ` +
       "In O32 a load from $sp + framesize + 0x10 or above IS an incoming " +
       "stack parameter; it is never the caller's saved $ra.",
-    evidence: stackArgs
-      .sort((a, b) => a.callerOffset - b.callerOffset)
-      .map((load) =>
-        `${load.text}  ->  caller_sp+${hex(load.callerOffset)} = parameter #${load.callerOffset / 4 + 1}` +
-        (load.mnemonic === "lw" ? "" : ` (${load.mnemonic}: narrow type)`)
-      ),
+    evidence: incoming.map((argument) =>
+      `${argument.evidence}  ->  caller_sp+${hex(argument.callerOffset)} = arg${argument.index} : ${argument.type}`),
     see: [
       "notes/research/frame-size-arity-diagnostic.md",
       "notes/retros/func_80016B7C.md",
@@ -490,7 +500,7 @@ function main(): void {
   const args = process.argv.slice(2);
   const json = args.includes("--json");
   const srcFlag = args.indexOf("--src");
-  const srcOverride = srcFlag >= 0 ? args[srcFlag + 1] : null;
+  const srcOverride = srcFlag >= 0 ? args[srcFlag + 1] : undefined;
   const positional = args.filter(
     (a, i) => !a.startsWith("--") && !(srcFlag >= 0 && i === srcFlag + 1)
   );
@@ -499,31 +509,45 @@ function main(): void {
     process.exit(1);
   }
 
-  const name = positional[0].replace(/^src\//, "").replace(/\.c$/, "");
-  const target = readTarget(name);
-  if (!target) {
-    console.error(`triage: no target assembly found for ${name} (run the split/build first)`);
+  const name = normalizeFunctionName(positional[0]);
+  const scratch = join(ROOT, "build/triage", name);
+
+  let target: TargetFacts;
+  try {
+    const instructions = disassembleObject(assembleTarget(name, scratch));
+    target = { frame: analyzeFrame(instructions), instructions, raStores: readRaStores(name) };
+  } catch (error) {
+    rmSync(scratch, { recursive: true, force: true });
+    console.error(`triage: no usable target assembly for ${name} — ${(error as Error).message}`);
     process.exit(1);
   }
 
   const findings: Finding[] = [];
-  findings.push(...detectArityStack(target));
-  findings.push(...detectCaptureRa(target));
-
   const srcPath = srcOverride ?? join(ROOT, "src", `${name}.c`);
-  let sourceState: "missing" | "stub" | "c" = "missing";
-  if (existsSync(srcPath)) {
-    const srcText = readFileSync(srcPath, "utf-8");
-    sourceState = /INCLUDE_ASM/.test(srcText) ? "stub" : "c";
-    if (sourceState === "c") {
-      findings.push(...detectAsmPolicy(name, srcText));
-      const compiled = compileSource(name, srcOverride ?? `src/${name}.c`);
-      if (compiled) {
-        findings.push(...detectArityFrame(target, compiled));
-        findings.push(...detectDeadAsm(compiled, srcText));
-      }
+  const srcText = existsSync(srcPath) ? readFileSync(srcPath, "utf-8") : undefined;
+  const sourceState: "missing" | "stub" | "c" =
+    srcText === undefined ? "missing" : /INCLUDE_ASM/.test(srcText) ? "stub" : "c";
+
+  let frameConverged = false;
+  if (sourceState === "c" && srcText !== undefined) {
+    findings.push(...detectAsmPolicy(name, srcText));
+    const compiled = readCompiled(name, resolveSource(name, srcOverride), scratch);
+    if (compiled) {
+      const arity = detectArityFrame(target, compiled);
+      frameConverged = arity.length === 0;
+      findings.push(...arity);
+      findings.push(...detectInventory(target, compiled));
+      findings.push(...detectDeadAsm(compiled, srcText));
     }
   }
+
+  /* The frame map is reference data for authoring. Once the compiled frame
+   * decomposes exactly like the target's, it has nothing left to tell you. */
+  if (!frameConverged) findings.push(...detectFrameMap(name, target));
+  findings.push(...detectArityStack(target));
+  findings.push(...detectCaptureRa(target));
+  findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
+  rmSync(scratch, { recursive: true, force: true });
 
   if (json) {
     console.log(JSON.stringify({ function: name, sourceState, findings }, null, 2));
@@ -533,7 +557,7 @@ function main(): void {
   const order: Severity[] = ["blocker", "signal", "info"];
   findings.sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
 
-  console.log(`triage ${name} — target frame ${hex(target.frameSize)}, source: ${sourceState}`);
+  console.log(`triage ${name} — target frame ${hex(target.frame.frameSize)}, source: ${sourceState}`);
   if (findings.length === 0) {
     console.log("\nno findings. No known symptom class matched; proceed with the normal loop.");
     return;
