@@ -153,6 +153,7 @@ export function assembleCompilerOutput(assembly: string, object: string): string
     MASPSX,
     "--aspsx-version", "2.77",
     "--dont-force-G0",
+    "--use-comm-section",
     "--run-assembler",
     "--gnu-as-path", AS,
     "-o", object,
@@ -220,7 +221,7 @@ export async function compileSourceAsync(
   await runToolAsync(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput, options.signal);
   if (options.assemble) {
     await runToolAsync("python3", [
-      MASPSX, "--aspsx-version", "2.77", "--dont-force-G0", "--run-assembler",
+      MASPSX, "--aspsx-version", "2.77", "--dont-force-G0", "--use-comm-section", "--run-assembler",
       "--gnu-as-path", AS, "-o", object, ...AS_FLAGS, assembly,
     ], ROOT, options.signal);
   }

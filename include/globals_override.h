@@ -206,4 +206,15 @@ extern s32 _D_8006C088[6][1] __asm__("D_8006C088");
 extern s32 _D_8006C0A8[6][1] __asm__("D_8006C0A8");
 #define D_8006C0A8 (_D_8006C0A8)
 
+/* D_8005E3C0 - large struct at absolute address, accessed via pointer at field 0x118 */
+typedef struct {
+    /* 0x000 */ char pad_0[0x118];
+    /* 0x118 */ s32  field_118;
+} struct_8005E3C0;
+extern struct_8005E3C0 *_D_8005E3C0[3] __asm__("D_8005E3C0");
+#define D_8005E3C0 ((_D_8005E3C0[0]))
+
+/* D_8005E438 - GP-relative u16, sprite tile/entry ID storage */
+extern u16 D_8005E438;
+
 #endif /* GLOBALS_OVERRIDE_H */

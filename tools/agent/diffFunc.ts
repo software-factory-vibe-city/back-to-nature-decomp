@@ -73,7 +73,7 @@ function compile(src: string): string {
   const cc1flags = extraFlags ? `${CC1FLAGS} ${extraFlags}` : CC1FLAGS;
   runStep("cpp", `${CPP} ${CPPFLAGS} ${src} -o ${i}`);
   runStep("cc1", `${CC} ${cc1flags} ${i} -o ${s}`);
-  runStep("maspsx", `${MASPSX} --aspsx-version 2.77 --dont-force-G0 --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
+  runStep("maspsx", `${MASPSX} --aspsx-version 2.77 --dont-force-G0 --use-comm-section --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
   return o;
 }
 

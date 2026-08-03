@@ -23,7 +23,7 @@ ASFLAGS     := -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iin
 # Appends any per-file overrides from flag_overrides.mk.
 define FlagsSwitch
 CC1FLAGS   := -O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet $(CC1FLAGS_$(basename $(notdir $(1))))
-MASPSX_FLAGS := --aspsx-version 2.77 --dont-force-G0 --run-assembler
+MASPSX_FLAGS := --aspsx-version 2.77 --dont-force-G0 --use-comm-section --run-assembler
 endef
 
 # Paths

@@ -120,7 +120,11 @@ Members (address order):
 - func_80016B7C (m) — sprite data size calculator; calls func_80015B24 (entry
   search/bcmp) + func_8001782C (tile load/LoadImage); sole caller is
   func_80016C08
-- func_80016C08 (s) — sprite entry loop driver; calls func_80016B7C twice
+- func_80016C08 (s) — sprite entry loop driver; calls func_80016B7C twice.
+  Declares D_8005E438: the target reaches it gp-relatively, and ASPSX only
+  emits gp-relative for symbols the file itself declares. That rule makes any
+  gp-relative access in the original a TU-membership signal — see
+  `notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md`
   per iteration
 
 Technique and per-function detail for this group live in

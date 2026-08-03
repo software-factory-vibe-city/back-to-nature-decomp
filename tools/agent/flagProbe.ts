@@ -173,7 +173,7 @@ function compileScore(name: string, extraFlags: string, target: string[]): strin
   try {
     run(`${CROSS}cpp ${CPPFLAGS} ${src} -o ${dir}/${name}.i`);
     run(`${CC} ${CC1FLAGS} ${extraFlags} ${dir}/${name}.i -o ${dir}/${name}.s`);
-    run(`${MASPSX} --aspsx-version 2.77 --dont-force-G0 --run-assembler --gnu-as-path ${CROSS}as -o ${dir}/${name}.o ${ASFLAGS} ${dir}/${name}.s`);
+    run(`${MASPSX} --aspsx-version 2.77 --dont-force-G0 --use-comm-section --run-assembler --gnu-as-path ${CROSS}as -o ${dir}/${name}.o ${ASFLAGS} ${dir}/${name}.s`);
   } catch (e: any) {
     return "compile failed";
   }
