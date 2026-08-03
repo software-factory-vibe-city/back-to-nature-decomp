@@ -23,6 +23,12 @@ Rules:
 - Match status notation: (m) matched in src/, (s) stub, (?) membership
   uncertain.
 
+Scope: membership and evidence only. A member's role gets one line — what it
+appears to do and how it relates to its neighbours. Matching technique,
+debugging advice, and per-function solve detail belong in
+`notes/research/` or `notes/retros/`; an active decompilation effort belongs
+in its campaign note. Keep this file readable as a map.
+
 ---
 
 ## "collision.c" — 0x8001E334–0x8001EFA4 (confidence: high)
@@ -106,39 +112,21 @@ Members (address order):
 - func_80015F80 (m) — packet setup/teardown around func_800165D8
 - func_80016054 (m) — func_800165D8 wrapper with CAPTURE_RA caller-log hook
   (include/debughook.h)
-- func_800160C8 (m) — packet setup/teardown around func_800165D8
-  (13 params: s32,s32,s32,s32,s16,s16,s32,s32,u16,s16,s16,s16,s16;
-  frame 0x70, saves $s0-$s7+$fp+$ra+$a0+$a1;
-  nested func_80011FD8(func_800165D8(..., func_80011F5C(0), ...));
-  passes arg6 twice at func_800165D8 positions 6–7)
+- func_800160C8 (m) — packet setup/teardown around func_800165D8 (13 params)
 - func_800161AC (m) — packet setup/teardown around func_800165D8
-- func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid (214/214;
-  see research/func_80016280-web-parity-and-register-recurrence.md)
+- func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid
+  (see research/func_80016280-web-parity-and-register-recurrence.md)
 - func_800165D8 (s) — larger direct-primitive renderer
-- func_80016B7C (s) — sprite data size calculator; calls func_80015B24 (entry
+- func_80016B7C (m) — sprite data size calculator; calls func_80015B24 (entry
   search/bcmp) + func_8001782C (tile load/LoadImage); sole caller is
-  func_80016C08 which iterates sprite entries and accumulates results;
-  accesses same struct field_0x18 as family members; writes T_8005E438
-  global in shared cluster; HIGH confidence family member
-  (see notes/research/func_80016B7C-research.md)
+  func_80016C08
 - func_80016C08 (s) — sprite entry loop driver; calls func_80016B7C twice
-  per iteration; accesses field_0x18/0x1C/0x20/0x24/0x28/0x2C from same
-  struct layout; 0x594 bytes, frame 0x88; HIGH confidence family member
+  per iteration
 
-Debugging notes (packet wrappers 15E78–161AC):
-- GCC 2.95 frame size is a strong signal for argument count. The packet
-  setup/teardown wrappers share the same structure (func_80011F5C +
-  func_800165D8 + func_80011FD8) but differ in parameter counts:
-  func_80015F80 has 9 params/frame 0x68; func_800160C8 has 13 params/frame 0x70.
-  The 0x08 frame difference equals exactly 2 extra saved registers ($s2 and
-  $a1) — the outgoing argument area is shared regardless of param count.
-  If your compiled frame is 0x68 but the target is 0x70, you have too few
-  declared arguments (or wrong types causing GCC to pack them differently).
-- func_80015F80's matched source claims to pass (s32)arg4/(s32)arg5 at
-  func_800165D8 positions 6–7, but the assembly actually stores arg6 twice
-  there. The source is semantically wrong but byte-matches because
-  func_800165D8 likely ignores those positions. Do not trust func_80015F80's
-  C source for argument semantics — use its assembly instead.
+Technique and per-function detail for this group live in
+`notes/sprite-renderer-family-campaign.md`; the frame-size/arity diagnostic
+these wrappers illustrate is in
+`notes/research/frame-size-arity-diagnostic.md`.
 
 ## candidates to investigate
 

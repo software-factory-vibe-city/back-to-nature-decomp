@@ -64,7 +64,7 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 | func_800161AC | stub | packet setup/teardown around func_800165D8 |
 | func_80016280 | matched (hybrid) | SPRT/DR_MODE renderer; 214/214; exception under deferred audit |
 | func_800165D8 | stub | larger direct-primitive renderer; the heavyweight |
-| func_80016B7C | stub | sprite data size calculator (calls 15B24 + 1782C); HIGH confidence family member; see research/func_80016B7C-research.md |
+| func_80016B7C | **matched, natural C** | sprite data size calculator (calls 15B24 + 1782C); 5 params, `arg4` on the stack; see retros/func_80016B7C.md |
 | func_80016C08 | stub | sprite entry loop driver (calls 6B7C twice/iteration); HIGH confidence; 0x594 bytes |
 
 ## Working order
@@ -78,8 +78,40 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
    prune-to-natural audit of the hybrid, then a dialect-informed re-attack on
    the clean-C residual.
 
+## Per-member notes
+
+Detail accumulated from matched members. Kept here rather than in
+`notes/file-groupings.md`, which is a membership map.
+
+- **func_800160C8** — 13 params
+  (`s32,s32,s32,s32,s16,s16,s32,s32,u16,s16,s16,s16,s16`); frame 0x70, saves
+  `$s0`–`$s7`+`$fp`+`$ra`+`$a0`+`$a1`; nested
+  `func_80011FD8(func_800165D8(..., func_80011F5C(0), ...))`; passes arg6
+  twice at `func_800165D8` positions 6–7.
+- **func_80015F80** — its matched source claims to pass `(s32)arg4`/`(s32)arg5`
+  at `func_800165D8` positions 6–7, but the assembly stores arg6 twice there.
+  The source is semantically wrong and byte-matches anyway, presumably because
+  `func_800165D8` ignores those positions. **Do not read argument semantics
+  off this file** — use its assembly. The same caution applies to any wrapper
+  whose "match" was reached without checking that each argument's value
+  provenance is right.
+- **Packet wrapper arity signal** — the setup/teardown wrappers share one
+  structure (`func_80011F5C` + `func_800165D8` + `func_80011FD8`) and differ
+  only in parameter count, so frame size reads out arity directly:
+  func_80015F80 has 9 params/frame 0x68, func_800160C8 has 13 params/frame
+  0x70, and the 0x08 delta is exactly two more saved registers. Run
+  `npx tsx tools/agent/triage.ts <target>` to get this comparison
+  automatically; mechanism in
+  `notes/research/frame-size-arity-diagnostic.md`.
+- **func_80016B7C** — matched; 5 params with `arg4` on the stack. Cost ~20
+  variants to a phantom inline-asm reading of an ordinary stack-argument
+  load. See `notes/retros/func_80016B7C.md`.
+
 ## Method doctrine (short form; details in the debug-hook note)
 
+- Run `npx tsx tools/agent/triage.ts <target>` first; it checks the
+  arity/frame, stack-argument, CAPTURE_RA, and source-policy symptoms and
+  cites the note for each hit.
 - Compile the null case (no asm) before building or fighting any hybrid.
 - Prune to natural after any match; every deviation from natural C must
   justify itself instruction by instruction.
