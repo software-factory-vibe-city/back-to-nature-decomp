@@ -19,14 +19,26 @@ Before editing, read completely:
    optional reference
 4. the target source and original assembly
 5. the target call-graph entry and relevant generated/shared declarations
-6. `notes/file-groupings.md` — the target's suspected source-file group.
-   Same-file membership carries TU-level priors (shared register-variable
-   quirks, idioms, global clusters, declaration-order effects). Update the
-   ledger in the same session if you find grouping evidence.
+6. `notes/file-groupings.md` — the target's suspected source-file group, and
+   any campaign or research note it points to. Same-file membership carries
+   TU-level priors (shared register-variable quirks, idioms, global clusters,
+   declaration-order effects). Update the ledger in the same session if you
+   find grouping evidence — membership and one-line roles only; technique and
+   per-function detail belong in `notes/research/` or `notes/retros/`.
 7. Run `npx tsx tools/agent/scanReadBeforeDef.ts <target>` once. A finding
    means the function belongs to the register-variable / handwritten
    fingerprint class (policy-exception territory — see the research notes
    it cites); a clean scan rules that class out before you hypothesize it.
+8. Run `npx tsx tools/agent/triage.ts <target>` once, before authoring or
+   perturbing source, and again whenever the signature changes. It matches
+   the target and your current source against symptom classes this project
+   has already diagnosed — argument count versus frame and outgoing-argument
+   area, incoming stack arguments, the CAPTURE_RA debug-hook signature, and
+   source-policy violations — and cites the note covering each hit. Read
+   those notes when it fires. A `blocker` finding means the current direction
+   cannot ship regardless of its diff score: fix the premise, do not proceed
+   and file paperwork later. Detectors are cheap and incomplete; silence is
+   not a certificate.
 
 ## Prepare the target
 
@@ -128,13 +140,35 @@ substitute for diagnosis.
 
 ## Targeted deep research
 
-The style guide already contains the mandatory distilled findings. If the
-function remains stuck after traced, mechanism-directed attempts, inspect the
-titles and opening summaries under the project's research directory and select
-only the case study whose documented mismatch signature matches the current
-one. Do not load every research note indiscriminately. For a suspected
+The style guide already contains the mandatory distilled findings, and
+`triage.ts` cites the note for every symptom it recognizes. Beyond those, the
+project's written knowledge lives in four places, and lookup is by **symptom**,
+not by title — a note named after one function routinely carries the general
+mechanism that explains another:
+
+- `notes/research/` — mechanism case studies, one per diagnosed phenomenon
+- `notes/retros/` — solved-function post-mortems, including what was tried
+  and rejected and why
+- `notes/file-groupings.md` — TU membership and the campaign notes it links
+- `prompts/c-style-guide.md` — the distilled, always-applicable doctrine
+
+Search these by the signature you are actually looking at (frame size, an
+unexpected stack load, `$ra` stored through a non-`$sp` base, a store-block
+ordering gap, an allocation swap that survives source-order swaps), not by
+the target's name. Grep across all four rather than browsing one directory's
+titles. Select only the case study whose documented mismatch signature matches
+the current one; do not load every note indiscriminately. For a suspected
 compiler/assembler boundary, select the project's boundary-analysis note
 rather than an unrelated allocator case study.
+
+Do not defer this until stuck. The cheapest signals — frame size, argument
+area, stack-argument offsets — are readable from the first compile, and a
+wrong structural premise cannot be recovered by scheduling or allocation
+work downstream.
+
+When a note's structural claim (an arity, a register assignment, an argument
+mapping) contradicts the assembly, the assembly wins. Correct the note in the
+same session; a wrong note propagates into every attempt that follows.
 
 If still stuck, leave the best clean-C state and report the category, first
 remaining divergence, compiler-pass evidence, and structural hypotheses
