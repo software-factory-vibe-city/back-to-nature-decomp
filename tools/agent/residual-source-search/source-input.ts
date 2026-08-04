@@ -14,7 +14,7 @@ import { renderTargetSchedule } from "../target-schedule/render-text.js";
 import type { TargetScheduleAnalysis } from "../target-schedule/types.js";
 import { sha256, stableJson } from "../variant-lab/artifacts.js";
 import { normalizeDisassembly, parseCc1Assembly } from "../variant-lab/compile.js";
-import { findEmptyMemoryBarriers, validateVariantSource } from "../variant-lab/manifest.js";
+import { findEmptyMemoryBarriers, findGeneratedGlobalDefinitions, validateVariantSource } from "../variant-lab/manifest.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
 import {
   RESIDUAL_SEARCH_SCHEMA_VERSION,
@@ -102,7 +102,10 @@ export function establishBaseline(options: BaselineOptions): BaselineResult {
     };
     return result;
   }
-  const findings = validateVariantSource(source, { allowEmptyMemoryBarriers: true });
+  const findings = validateVariantSource(source, {
+    allowEmptyMemoryBarriers: true,
+    inheritedGeneratedGlobals: findGeneratedGlobalDefinitions(source).map((definition) => definition.symbol),
+  });
   if (findings.length > 0) {
     result.refusal = {
       status: "unsupported-source",

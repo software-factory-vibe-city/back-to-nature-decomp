@@ -102,6 +102,31 @@ test("semantic graph models nested blocks, casts, macros, pointer fields, and C8
   assert.equal(tVariable.supported, true);
 });
 
+test("the function definition is located past comment mentions and forward prototypes", () => {
+  /* A banner comment that names the function and carries braces and parentheses
+   * used to misdirect the raw indexOf scan into parsing the wrong region. */
+  const source = [
+    "/* fixture - see notes/research/fixture-and-friends.md",
+    " * {count, byte offset} pair used to locate a sub-table (4 bytes)",
+    " */",
+    "int fixture(int a);",
+    "",
+    "int fixture(int a)",
+    "{",
+    "    int t;",
+    "    t = a;",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  assert.equal(graph.variables.filter((variable) => variable.kind === "parameter").length, 1);
+  assert.deepEqual(graph.nodes.filter((node) => node.kind === "declaration").map((node) => node.declName), ["t"]);
+  assert.equal(graph.nodes.some((node) => node.kind === "unknown"), false);
+
+  assert.throws(() => graphOf("/* fixture lives elsewhere */\nint other(void) { return 0; }\n"), /was not found/);
+});
+
 test("memory read extraction distinguishes loads, address-of, and derefs", () => {
   const variables = new Set(["p", "q", "i", "x"]);
   assert.deepEqual(memoryReadTokens("q[0] + 3", variables), ["element:q[]"]);

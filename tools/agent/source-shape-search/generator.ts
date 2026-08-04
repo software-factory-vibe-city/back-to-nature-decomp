@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findEmptyMemoryBarriers, validateVariantSource } from "../variant-lab/manifest.js";
+import { findEmptyMemoryBarriers, findGeneratedGlobalDefinitions, validateVariantSource } from "../variant-lab/manifest.js";
 import { applyExactEdits } from "../variant-lab/transformations.js";
 import { writeStableJson } from "../variant-lab/artifacts.js";
 import type { SourceShapeSearchSpec, VariantLineage } from "./types.js";
@@ -73,6 +73,7 @@ export function generateVariantBatch(options: {
   const sourceRepresentatives = new Map<string, string>();
   const preserveBarriers = options.spec.constraints.preserveExistingEmptyMemoryBarriers;
   const baselineBarriers = preserveBarriers ? findEmptyMemoryBarriers(options.baseSource) : [];
+  const inheritedGeneratedGlobals = findGeneratedGlobalDefinitions(options.baseSource).map((definition) => definition.symbol);
   let productIndex = options.startProductIndex;
   while (productIndex < total && variants.length < options.budget) {
     const alternatives = choicesAt(options.spec, productIndex);
@@ -101,7 +102,7 @@ export function generateVariantBatch(options: {
           throw new Error("candidate did not preserve the baseline empty memory barriers exactly and in order");
         }
       }
-      const findings = validateVariantSource(source, { allowEmptyMemoryBarriers: preserveBarriers });
+      const findings = validateVariantSource(source, { allowEmptyMemoryBarriers: preserveBarriers, inheritedGeneratedGlobals });
       if (findings.length > 0) {
         policyPassed = false;
         policyError = `line ${findings[0]!.line}: ${findings[0]!.message}`;

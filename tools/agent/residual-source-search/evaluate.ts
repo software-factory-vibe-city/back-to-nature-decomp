@@ -6,7 +6,7 @@ import { runWorkerPool } from "../source-shape-search/worker-pool.js";
 import type { TargetScheduleAnalysis } from "../target-schedule/types.js";
 import { projectPath, sha256, stableJson, writeStableJson } from "../variant-lab/artifacts.js";
 import { compareNormalized, normalizeDisassembly, parseCc1Assembly } from "../variant-lab/compile.js";
-import { findEmptyMemoryBarriers, validateVariantSource } from "../variant-lab/manifest.js";
+import { findEmptyMemoryBarriers, findGeneratedGlobalDefinitions, validateVariantSource } from "../variant-lab/manifest.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
 import { canonicalSourceHash, type CanonicalContext } from "./canonicalize.js";
 import { candidateAt, shardRank, shardSize, type DomainRuntime, type ShardSpec } from "./enumerate.js";
@@ -100,6 +100,16 @@ export async function evaluateDomain(options: EvaluateRunOptions): Promise<StopR
       barriers.every((barrier, index) => barrier.normalized === baselineBarriers[index]!.normalized);
   };
 
+  /* A TU-owned generated-global definition is part of the baseline mechanism:
+   * dropping one changes how the assembler addresses the symbol, which would
+   * move instructions outside the residual under test. */
+  const inheritedGeneratedGlobals = findGeneratedGlobalDefinitions(options.source).map((definition) => definition.symbol);
+  const generatedGlobalsPreserved = (candidate: string): boolean => {
+    const present = findGeneratedGlobalDefinitions(candidate).map((definition) => definition.symbol).sort();
+    const expected = [...inheritedGeneratedGlobals].sort();
+    return present.length === expected.length && present.every((symbol, index) => symbol === expected[index]);
+  };
+
   const retainClass = (classId: string, sourceText: string, workDirectory: string, full: boolean): string => {
     const directory = join(options.runRoot, "classes", classId);
     mkdirSync(directory, { recursive: true });
@@ -156,12 +166,17 @@ export async function evaluateDomain(options: EvaluateRunOptions): Promise<StopR
       if (state.canonicalSeen.size < canonicalCap) state.canonicalSeen.set(canonicalHash, record.globalRank);
       else state.caveats.add(`canonical-duplicate detection stopped after ${canonicalCap} entries; later duplicates recompile without affecting coverage`);
 
-      const findings = validateVariantSource(sourceText, { allowEmptyMemoryBarriers: baselineBarriers.length > 0 });
-      if (findings.length > 0 || !barrierPreserved(sourceText)) {
+      const findings = validateVariantSource(sourceText, {
+        allowEmptyMemoryBarriers: baselineBarriers.length > 0,
+        inheritedGeneratedGlobals,
+      });
+      if (findings.length > 0 || !barrierPreserved(sourceText) || !generatedGlobalsPreserved(sourceText)) {
         record.stage = "policy-failed";
         record.policyError = findings.length > 0
           ? `line ${findings[0]!.line}: ${findings[0]!.message}`
-          : "candidate did not preserve the inherited empty memory barriers exactly and in order";
+          : !barrierPreserved(sourceText)
+            ? "candidate did not preserve the inherited empty memory barriers exactly and in order"
+            : "candidate did not preserve the inherited translation-unit-owned generated-global definitions";
         records.push(record);
         continue;
       }

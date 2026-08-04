@@ -63,7 +63,7 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 | func_800160C8 | stub | packet setup/teardown around func_800165D8 |
 | func_800161AC | stub | packet setup/teardown around func_800165D8 |
 | func_80016280 | matched (hybrid) | SPRT/DR_MODE renderer; 214/214; exception under deferred audit |
-| func_800165D8 | stub | larger direct-primitive renderer; the heavyweight |
+| func_800165D8 | in-progress clean C (204/361) | larger direct-primitive renderer; the heavyweight; instruction-selection solved, code region matches; residue is a register-pressure/allocation permutation; analysis in notes/research/func_800165D8-code-region-fold-and-allocation.md |
 | func_80016B7C | **matched, natural C** | sprite data size calculator (calls 15B24 + 1782C); 5 params, `arg4` on the stack; see retros/func_80016B7C.md |
 | func_80016C08 | stub | sprite entry loop driver (calls 6B7C twice/iteration); HIGH confidence; 0x594 bytes |
 
@@ -106,6 +106,34 @@ Detail accumulated from matched members. Kept here rather than in
 - **func_80016B7C** — matched; 5 params with `arg4` on the stack. Cost ~20
   variants to a phantom inline-asm reading of an ordinary stack-argument
   load. See `notes/retros/func_80016B7C.md`.
+- **func_800165D8** — the heavyweight, decompiled to clean C (15 params,
+  POLY_FT4 renderer). Decoded fully: setPolyFT4 + semi-trans ternary code
+  (0x2C/0x2E) + setRGB0(0x80) + setShadeTex(0); getClut/getTPage from uv0/uv1
+  with arg11/arg13 override sentinel -1; 4-way uv flip on `field_08 & 3`;
+  coordinate path with fixed-point `*arg7 / 4096` scaling when
+  `arg7+arg8 != 0x2000`, else plain offsets; 0x18/0x8/0x10 corner select;
+  addPrim vs 0x9000000 tag-insert + `D_8005E3C0->field_118 += 0x28`.
+  Source uses explicit `s32 tpageYIn = arg12; s32 clutYIn = arg14;` locals —
+  the target copies arg12/arg14 into frame slots 0x0/0x4 at entry and reloads
+  them in the loop. Status: opcode LCS 347/361 (instruction selection done);
+  remaining diff is a whole-function register-allocation permutation plus ONE
+  semantic fold: CSE forwards the setShadeTex getcode load onto the ternary
+  code pseudo (REG_EQUAL 44/46), combine proves `&0xFE` identity via
+  nonzero_bits, and merges the shade-store into the ternary store — the target
+  keeps both stores plus the `lbu`/`andi 0xFE`. Tested: ternary vs if/else
+  code forms (if/else keeps the reload but folds the redundant 0x2C store;
+  ternary keeps the merge store but folds the reload — target keeps BOTH),
+  switch vs if/else for the flip chain, setShadeTex-before-setRGB0 reorder,
+  and the arg12/arg14 locals. None reproduces the target's coexistence of the
+  merge store and the non-forwarded reload; the target's compiler simply did
+  not forward that load. Believed to need exact global register pressure to
+  defeat constant hoisting (target rematerializes 44/0xff00 in-loop; the
+  candidate hoists them into callee-saved regs, displacing arg5-arg8).
+  Work-in-progress clean-C source in `src/func_800165D8.c`; mechanism
+  analysis + resume checklist in
+  `notes/research/func_800165D8-code-region-fold-and-allocation.md`.
+  Not byte-matching yet, so revert `src/func_800165D8.c` to an INCLUDE_ASM
+  stub if a green build is needed before the allocation residue is closed.
 
 ## Method doctrine (short form; details in the debug-hook note)
 

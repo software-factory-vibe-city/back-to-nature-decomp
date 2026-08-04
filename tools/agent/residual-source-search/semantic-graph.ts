@@ -24,10 +24,11 @@ function span(source: string, start: number, end: number): SourceSpan {
   return { start, end, lineStart: lineAt(source, start), lineEnd: lineAt(source, Math.max(start, end - 1)) };
 }
 
+/** Blank comments in place: byte offsets stay valid against the original source. */
 export function stripComments(value: string): string {
   return value
     .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "))
-    .replace(/\/\/[^\n]*/g, "");
+    .replace(/\/\/[^\n]*/g, (comment) => comment.replace(/[^\n]/g, " "));
 }
 
 function stripLiterals(value: string): string {
@@ -799,19 +800,50 @@ function collectVariableNames(source: string, bodyOpen: number, bodyClose: numbe
   return names;
 }
 
+/**
+ * Locate the definition of `functionName` rather than any mention of it.
+ *
+ * The name scan runs over a comment- and literal-masked copy, so a reference in
+ * a banner comment — a research-note path, for example — cannot misdirect the
+ * parse. Masking preserves byte offsets, so the result indexes the original
+ * source. An occurrence is a definition only when its parameter list is
+ * followed by a body, which skips forward prototypes.
+ */
+function findFunctionDefinition(
+  source: string,
+  functionName: string,
+): { nameOffset: number; parameterOpen: number; parameterClose: number; bodyOpen: number } | undefined {
+  const masked = stripLiterals(stripComments(source));
+  const pattern = new RegExp(`\\b${functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g");
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(masked)) !== null) {
+    const parameterOpen = skipTrivia(masked, match.index + functionName.length, masked.length);
+    if (masked[parameterOpen] !== "(") continue;
+    let parameterClose: number;
+    try {
+      parameterClose = matchingDelimiter(masked, parameterOpen, "(", ")");
+    } catch {
+      continue;
+    }
+    /* Anything but ';' may separate ')' from '{': old-style parameter
+     * declarations are still a definition, a ';' means a prototype. */
+    let cursor = parameterClose + 1;
+    while (cursor < masked.length && masked[cursor] !== "{" && masked[cursor] !== ";") cursor++;
+    if (masked[cursor] !== "{") continue;
+    return { nameOffset: match.index, parameterOpen, parameterClose, bodyOpen: cursor };
+  }
+  return undefined;
+}
+
 export function buildSemanticGraph(
   functionName: string,
   sourcePath: string,
   source: string,
   registry: MacroRegistry,
 ): SemanticGraph {
-  const nameOffset = source.indexOf(functionName);
-  if (nameOffset < 0) throw new Error(`function symbol ${functionName} was not found in ${sourcePath}`);
-  const parameterOpen = source.indexOf("(", nameOffset + functionName.length);
-  if (parameterOpen < 0) throw new Error(`function ${functionName} has no parameter list`);
-  const parameterClose = matchingDelimiter(source, parameterOpen, "(", ")");
-  const bodyOpen = source.indexOf("{", parameterClose);
-  if (bodyOpen < 0) throw new Error(`function ${functionName} has no body`);
+  const definition = findFunctionDefinition(source, functionName);
+  if (!definition) throw new Error(`function definition ${functionName} was not found in ${sourcePath}`);
+  const { nameOffset, parameterOpen, parameterClose, bodyOpen } = definition;
   const bodyClose = matchingDelimiter(source, bodyOpen, "{", "}");
   const parsedParameters = parameters(source, parameterOpen, parameterClose);
   const variables = collectVariableNames(source, bodyOpen, bodyClose, parsedParameters.map((parameter) => parameter.name));

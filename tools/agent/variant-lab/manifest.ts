@@ -107,9 +107,39 @@ function lineNumber(source: string, offset: number): number {
 
 export interface VariantSourceValidationOptions {
   allowEmptyMemoryBarriers?: boolean;
+  /**
+   * Generated-global symbols the baseline source already defines in-file.
+   *
+   * A translation unit that owns a generated global sometimes has to carry its
+   * own tentative definition: some assemblers emit a gp-relative access only
+   * for a symbol the file itself declares, so the in-file declaration is the
+   * mechanism under test rather than a stray redeclaration. Like an inherited
+   * empty memory barrier, such a definition is protected when it comes from
+   * the baseline and is still rejected when a candidate introduces a new one.
+   */
+  inheritedGeneratedGlobals?: readonly string[];
 }
 
 const EMPTY_MEMORY_BARRIER = /\b(?:__asm__|__asm)\s*(?:volatile\s*)?\(\s*""\s*:\s*:\s*:\s*"memory"\s*\)\s*;/g;
+
+const GENERATED_GLOBAL = /^[ \t]*(?:extern[ \t]+)?(?:static[ \t]+)?(?:const[ \t]+)?(?:signed[ \t]+|unsigned[ \t]+)?(?:struct[ \t]+\w+|union[ \t]+\w+|enum[ \t]+\w+|[A-Za-z_]\w*)[ \t]+\**[ \t]*(D_[0-9A-Fa-f]{8})\b[ \t]*(?:\[|;|=)/gm;
+
+/**
+ * Generated-global definitions the file makes itself, excluding plain `extern`
+ * redeclarations: only a definition changes code generation, so only a
+ * definition can be an inherited mechanism worth protecting.
+ */
+export function findGeneratedGlobalDefinitions(source: string): Array<{ start: number; end: number; symbol: string }> {
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
+  const result: Array<{ start: number; end: number; symbol: string }> = [];
+  GENERATED_GLOBAL.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = GENERATED_GLOBAL.exec(code)) !== null) {
+    if (/^[ \t]*extern\b/.test(match[0])) continue;
+    result.push({ start: match.index, end: match.index + match[0].length, symbol: match[1]! });
+  }
+  return result;
+}
 
 export function findEmptyMemoryBarriers(source: string): Array<{ start: number; end: number; text: string; normalized: string }> {
   const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "));
@@ -140,7 +170,18 @@ export function validateVariantSource(source: string, options: VariantSourceVali
     }
     code = characters.join("");
   }
-  const patterns: Array<{ pattern: RegExp; kind: SourceFinding["kind"]; message: string; raw?: boolean }> = [
+  if (options.inheritedGeneratedGlobals?.length) {
+    const inherited = new Set(options.inheritedGeneratedGlobals);
+    const characters = code.split("");
+    for (const definition of findGeneratedGlobalDefinitions(source)) {
+      if (!inherited.has(definition.symbol)) continue;
+      for (let index = definition.start; index < definition.end; index++) {
+        if (characters[index] !== "\n") characters[index] = " ";
+      }
+    }
+    code = characters.join("");
+  }
+  const patterns: Array<{ pattern: RegExp; kind: SourceFinding["kind"]; message: string; raw?: boolean; symbolGroup?: number }> = [
     { pattern: /\bINCLUDE_ASM\s*\(/g, kind: "forbidden-construct", message: "assembly stubs are forbidden" },
     { pattern: /\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/g, kind: "forbidden-construct", message: "embedded assembly is forbidden" },
     { pattern: /\bregister\b[^;\n]*\b(?:__asm__|__asm)\s*\(/g, kind: "forbidden-construct", message: "hard-register pinning is forbidden" },
@@ -148,14 +189,21 @@ export function validateVariantSource(source: string, options: VariantSourceVali
     { pattern: /\/\//g, kind: "c99", message: "C++ line comments are not valid project C89 style", raw: true },
     { pattern: /\bfor\s*\(\s*(?:const\s+)?(?:char|short|int|long|signed|unsigned|s\d+|u\d+)\s+[A-Za-z_]/g, kind: "c99", message: "for-loop declarations require C99" },
     { pattern: /\b(?:inline|restrict|_Bool)\b/g, kind: "c99", message: "C99-only keyword is forbidden" },
-    { pattern: /^\s*(?:extern\s+)?(?:static\s+)?(?:const\s+)?(?:signed\s+|unsigned\s+)?(?:struct\s+\w+|union\s+\w+|enum\s+\w+|[A-Za-z_]\w*)\s+\**\s*D_[0-9A-Fa-f]{8}\b\s*(?:\[|;|=)/gm, kind: "generated-global", message: "generated globals must come from the designated header" },
+    { pattern: GENERATED_GLOBAL, kind: "generated-global", message: "generated globals must come from the designated header", symbolGroup: 1 },
   ];
   for (const rule of patterns) {
     rule.pattern.lastIndex = 0;
     const input = rule.raw ? source : code;
     let match: RegExpExecArray | null;
     while ((match = rule.pattern.exec(input)) !== null) {
-      findings.push({ line: lineNumber(input, match.index), kind: rule.kind, message: rule.message });
+      /* Report the symbol itself, not the start of the leading whitespace run. */
+      const symbol = rule.symbolGroup === undefined ? undefined : match[rule.symbolGroup];
+      const offset = symbol === undefined ? match.index : match.index + match[0].indexOf(symbol);
+      findings.push({
+        line: lineNumber(input, offset),
+        kind: rule.kind,
+        message: symbol === undefined ? rule.message : `${rule.message}: ${symbol}`,
+      });
       if (match[0].length === 0) rule.pattern.lastIndex++;
     }
   }

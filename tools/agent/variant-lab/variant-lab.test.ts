@@ -5,7 +5,7 @@ import test from "node:test";
 import { ROOT } from "../decompToolchain.js";
 import { deterministicRunId, hashDirectoryFiles, preserveSource, stableJson, writeStableJson } from "./artifacts.js";
 import { classifyHypothesis } from "./classify-hypothesis.js";
-import { validateManifest, validateVariantSource } from "./manifest.js";
+import { findGeneratedGlobalDefinitions, validateManifest, validateVariantSource } from "./manifest.js";
 import { comparePassSnapshots, snapshotPassContent } from "./pass-diff.js";
 import { generateTransformationVariants } from "./transformations.js";
 import { PASS_STAGES, type PassSnapshot, type PassStage, type ToolIdentity, type VariantHypothesis } from "./types.js";
@@ -189,6 +189,30 @@ test("rejects forbidden and non-C89 variant constructs before compilation", () =
   assert.match(validateVariantSource("void f(void) { for (int i = 0; i < 1; i++) {} }\n")[0].message, /C99/);
   assert.match(validateVariantSource("int D_80001234;\n")[0].message, /generated globals/);
   assert.equal(validateVariantSource("void f(void)\n{\n    int i;\n    i = 0;\n}\n").length, 0);
+});
+
+test("protects inherited translation-unit-owned generated-global definitions", () => {
+  const owned = "#include \"common.h\"\n\nu16 D_8005E438;\n\nvoid f(void)\n{\n    D_8005E438 = 0;\n}\n";
+  assert.match(validateVariantSource(owned)[0].message, /generated globals/);
+  assert.equal(validateVariantSource(owned, { inheritedGeneratedGlobals: ["D_8005E438"] }).length, 0);
+
+  /* An inherited symbol never licenses a different one. */
+  const extra = owned.replace("u16 D_8005E438;", "u16 D_8005E438;\nu16 D_8005E43A;");
+  const findings = validateVariantSource(extra, { inheritedGeneratedGlobals: ["D_8005E438"] });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /D_8005E43A/);
+
+  /* A plain extern redeclaration changes no code generation and stays refused. */
+  assert.equal(findGeneratedGlobalDefinitions("extern u16 D_8005E438;\n").length, 0);
+  assert.match(validateVariantSource("extern u16 D_8005E438;\n", { inheritedGeneratedGlobals: ["D_8005E438"] })[0].message, /generated globals/);
+});
+
+test("reports a generated global at its own line, not at the start of the leading blank run", () => {
+  const source = "#include \"common.h\"\n\n/* a long\n * banner comment\n */\nu16 D_8005E438;\n";
+  const findings = validateVariantSource(source);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.line, 6);
+  assert.match(findings[0]!.message, /D_8005E438/);
 });
 
 test("curated transformation templates emit complete policy-clean C89 files under build", () => {
