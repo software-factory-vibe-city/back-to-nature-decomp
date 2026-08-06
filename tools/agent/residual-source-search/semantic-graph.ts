@@ -1,284 +1,39 @@
+import { readFileSync, readdirSync, type Dirent } from "node:fs";
+import { join } from "node:path";
+import { CPP_FLAGS } from "../decompToolchain.js";
 import { sha256 } from "../variant-lab/artifacts.js";
 import type { MacroRegistry } from "./macro-forms.js";
 import {
+  declaratorIsArray,
+  declaratorIsPointer,
+  declaratorName,
+  field,
+  namedChildren,
+  parseC,
+  type Node,
+} from "./tree-sitter-c.js";
+import {
+  REORDERABLE_BLOCK_KINDS,
   RESIDUAL_SEARCH_SCHEMA_VERSION,
   type GraphParameter,
   type GraphVariable,
+  type SemanticBlock,
   type SemanticGraph,
   type SemanticNode,
   type SourceSpan,
 } from "./types.js";
 
-const KEYWORDS = new Set([
-  "auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum",
-  "extern", "float", "for", "goto", "if", "int", "long", "register", "return", "short", "signed",
-  "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while",
-  "s8", "u8", "s16", "u16", "s32", "u32", "s64", "u64", "u_char", "u_short", "u_long", "u_int",
-]);
+export { C_FRONTEND_IDENTITY } from "./tree-sitter-c.js";
 
-function lineAt(source: string, offset: number): number {
-  return source.slice(0, offset).split("\n").length;
-}
-
-function span(source: string, start: number, end: number): SourceSpan {
-  return { start, end, lineStart: lineAt(source, start), lineEnd: lineAt(source, Math.max(start, end - 1)) };
-}
+/* ------------------------------------------------------------------ */
+/* Text helpers used by rendering and canonicalization                 */
+/* ------------------------------------------------------------------ */
 
 /** Blank comments in place: byte offsets stay valid against the original source. */
 export function stripComments(value: string): string {
   return value
     .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "))
     .replace(/\/\/[^\n]*/g, (comment) => comment.replace(/[^\n]/g, " "));
-}
-
-function stripLiterals(value: string): string {
-  return value
-    .replace(/"(?:[^"\\\n]|\\.)*"/g, (text) => text.replace(/[^\n]/g, " "))
-    .replace(/'(?:[^'\\\n]|\\.)*'/g, (text) => text.replace(/[^\n]/g, " "));
-}
-
-export function matchingDelimiter(source: string, start: number, open: string, close: string): number {
-  let depth = 0;
-  let state: "code" | "string" | "char" | "line-comment" | "block-comment" = "code";
-  for (let index = start; index < source.length; index++) {
-    const character = source[index]!;
-    const next = source[index + 1];
-    if (state === "line-comment") {
-      if (character === "\n") state = "code";
-      continue;
-    }
-    if (state === "block-comment") {
-      if (character === "*" && next === "/") { state = "code"; index++; }
-      continue;
-    }
-    if (state === "string" || state === "char") {
-      if (character === "\\") { index++; continue; }
-      if ((state === "string" && character === '"') || (state === "char" && character === "'")) state = "code";
-      continue;
-    }
-    if (character === "/" && next === "/") { state = "line-comment"; index++; continue; }
-    if (character === "/" && next === "*") { state = "block-comment"; index++; continue; }
-    if (character === '"') { state = "string"; continue; }
-    if (character === "'") { state = "char"; continue; }
-    if (character === open) depth++;
-    else if (character === close) {
-      depth--;
-      if (depth === 0) return index;
-    }
-  }
-  throw new Error(`unterminated ${open}${close} region at byte ${start}`);
-}
-
-export function skipTrivia(source: string, start: number, end: number): number {
-  let cursor = start;
-  while (cursor < end) {
-    const character = source[cursor]!;
-    if (/\s/.test(character)) { cursor++; continue; }
-    if (source.startsWith("/*", cursor)) {
-      const close = source.indexOf("*/", cursor + 2);
-      if (close < 0 || close + 2 > end) return cursor;
-      cursor = close + 2;
-      continue;
-    }
-    if (source.startsWith("//", cursor)) {
-      const newline = source.indexOf("\n", cursor + 2);
-      if (newline < 0 || newline >= end) return end;
-      cursor = newline + 1;
-      continue;
-    }
-    break;
-  }
-  return cursor;
-}
-
-/** Find the end (exclusive, past ';') of a simple statement, or -1 when a '{' opens first. */
-function simpleStatementEnd(source: string, start: number, end: number): number {
-  let parentheses = 0;
-  let state: "code" | "string" | "char" | "line-comment" | "block-comment" = "code";
-  for (let index = start; index < end; index++) {
-    const character = source[index]!;
-    const next = source[index + 1];
-    if (state === "line-comment") { if (character === "\n") state = "code"; continue; }
-    if (state === "block-comment") {
-      if (character === "*" && next === "/") { state = "code"; index++; }
-      continue;
-    }
-    if (state === "string" || state === "char") {
-      if (character === "\\") { index++; continue; }
-      if ((state === "string" && character === '"') || (state === "char" && character === "'")) state = "code";
-      continue;
-    }
-    if (character === "/" && next === "/") { state = "line-comment"; index++; continue; }
-    if (character === "/" && next === "*") { state = "block-comment"; index++; continue; }
-    if (character === '"') { state = "string"; continue; }
-    if (character === "'") { state = "char"; continue; }
-    if (character === "(") parentheses++;
-    else if (character === ")") parentheses--;
-    else if (character === "{" && parentheses === 0) return -1;
-    else if (character === ";" && parentheses === 0) return index + 1;
-  }
-  throw new Error(`unterminated statement at byte ${start}`);
-}
-
-/**
- * Remove sizeof expressions and type casts so identifier extraction sees only
- * value reads. A parenthesized single identifier is treated as a cast only
- * when it is not a known variable and is followed by the start of an operand.
- */
-export function stripTypeSyntax(code: string, variables: Set<string>): string {
-  let result = code.replace(/\bsizeof\s*\([^()]*\)/g, " 0 ");
-  const cast = /\(\s*(?:const\s+)?(?:volatile\s+)?(?:unsigned\s+|signed\s+)?(?:struct\s+|union\s+|enum\s+)?([A-Za-z_]\w*)((?:\s+[A-Za-z_]\w*)*)\s*(\**)\s*\)/g;
-  let previous: string;
-  do {
-    previous = result;
-    result = result.replace(cast, (whole, first: string, rest: string, stars: string, offset: number, text: string) => {
-      if (variables.has(first)) return whole;
-      if (KEYWORDS.has(first) || rest.trim().length > 0 || stars.length > 0) return " ";
-      const following = text.slice(offset + whole.length).match(/^\s*(.)/)?.[1];
-      if (following !== undefined && /[A-Za-z_0-9(&~!\-+*"']/.test(following)) return " ";
-      return whole;
-    });
-  } while (result !== previous);
-  return result;
-}
-
-function stripFieldSelectors(code: string): string {
-  return code.replace(/(?:->|\.)\s*[A-Za-z_]\w*/g, " ");
-}
-
-/** Variable reads plus non-variable object identifiers (candidate globals). */
-export function extractReads(code: string, variables: Set<string>): { reads: string[]; globals: string[] } {
-  const cleaned = stripFieldSelectors(stripTypeSyntax(stripLiterals(stripComments(code)), variables));
-  const reads = new Set<string>();
-  const globals = new Set<string>();
-  for (const match of cleaned.matchAll(/\b[A-Za-z_]\w*\b/g)) {
-    const name = match[0]!;
-    if (KEYWORDS.has(name)) continue;
-    if (variables.has(name)) reads.add(name);
-    else globals.add(name);
-  }
-  return { reads: [...reads].sort(), globals: [...globals].sort() };
-}
-
-export function immediateValues(text: string): number[] {
-  return [...new Set([...stripComments(text).matchAll(/\b0x[0-9a-f]+\b|\b\d+\b/gi)]
-    .map((match) => Number(match[0]))
-    .filter((value) => Number.isFinite(value)))].sort((left, right) => left - right);
-}
-
-function hasCall(code: string, variables: Set<string>): boolean {
-  const cleaned = stripTypeSyntax(stripLiterals(stripComments(code)), variables);
-  return /[A-Za-z_]\w*\s*\(/.test(cleaned) || /\)\s*\(/.test(cleaned);
-}
-
-export function hasUnsafeEffect(code: string, variables: Set<string>): boolean {
-  const stripped = stripComments(code)
-    .replace(/<<=|>>=/g, " ")
-    .replace(/[=!<>]=/g, " ")
-    .replace(/[+\-*/%&|^]=/g, " ");
-  return hasCall(code, variables) || /\+\+|--|\bvolatile\b|=/.test(stripped);
-}
-
-/** Canonical object key for a memory-effect expression: parens, casts, and whitespace removed. */
-export function objectKey(expression: string, variables: Set<string>): string {
-  let text = stripTypeSyntax(stripComments(expression), variables).trim();
-  let previous: string;
-  do {
-    previous = text;
-    text = text.trim();
-    if (text.startsWith("(") && text.endsWith(")")) {
-      try {
-        if (matchingDelimiter(text, 0, "(", ")") === text.length - 1) text = text.slice(1, -1);
-      } catch {
-        break;
-      }
-    }
-    if (text.startsWith("&")) text = text.slice(1);
-  } while (text !== previous);
-  return text.replace(/\s+/g, "");
-}
-
-/** Variable names appearing inside a memory-effect token's object key. */
-export function baseVariablesOfToken(token: string, variables: Set<string>): string[] {
-  const match = token.match(/^(field|object|element):(.*?)(?::[A-Za-z_]\w*)?$/);
-  const key = match ? match[2]! : token;
-  return [...new Set([...key.matchAll(/\b[A-Za-z_]\w*\b/g)]
-    .map((item) => item[0]!)
-    .filter((name) => variables.has(name)))].sort();
-}
-
-interface LvalueSegment {
-  kind: "field" | "index";
-  name?: string;
-}
-
-interface Lvalue {
-  base: string;
-  segments: LvalueSegment[];
-  raw: string;
-  end: number;
-}
-
-function parseLvalue(code: string): Lvalue | undefined {
-  const match = code.match(/^\s*([A-Za-z_]\w*)/);
-  if (!match) return undefined;
-  const base = match[1]!;
-  let cursor = match[0]!.length;
-  const segments: LvalueSegment[] = [];
-  while (cursor < code.length) {
-    const rest = code.slice(cursor);
-    const field = rest.match(/^\s*(->|\.)\s*([A-Za-z_]\w*)/);
-    if (field) {
-      segments.push({ kind: "field", name: field[2]! });
-      cursor += field[0]!.length;
-      continue;
-    }
-    if (/^\s*\[/.test(rest)) {
-      const open = cursor + rest.indexOf("[");
-      const close = matchingDelimiter(code, open, "[", "]");
-      segments.push({ kind: "index" });
-      cursor = close + 1;
-      continue;
-    }
-    break;
-  }
-  return { base, segments, raw: code.slice(0, cursor), end: cursor };
-}
-
-/**
- * Memory-read tokens for a value expression: field, element, and deref loads
- * through named bases. Address-of paths compute addresses and read nothing.
- */
-export function memoryReadTokens(code: string, variables: Set<string>): string[] {
-  const cleaned = stripTypeSyntax(stripLiterals(stripComments(code)), variables);
-  const tokens = new Set<string>();
-  const identifier = /[A-Za-z_]\w*/g;
-  let match: RegExpExecArray | null;
-  while ((match = identifier.exec(cleaned)) !== null) {
-    const name = match[0];
-    let before = match.index - 1;
-    while (before >= 0 && /\s/.test(cleaned[before]!)) before--;
-    const previous = before >= 0 ? cleaned[before]! : "";
-    if (previous === "." || (previous === ">" && cleaned[before - 1] === "-")) continue;
-    const lvalue = parseLvalue(cleaned.slice(match.index));
-    if (lvalue && lvalue.segments.length > 0) {
-      identifier.lastIndex = match.index + lvalue.end;
-      if (previous === "&") continue;
-      if (!variables.has(name)) {
-        if (!KEYWORDS.has(name)) tokens.add(`global:${name}`);
-        continue;
-      }
-      tokens.add(storeToken(lvalue, variables));
-      continue;
-    }
-    if (previous === "*" && variables.has(name)) {
-      let deeper = before - 1;
-      while (deeper >= 0 && /\s/.test(cleaned[deeper]!)) deeper--;
-      const beforeStar = deeper >= 0 ? cleaned[deeper]! : "";
-      if (beforeStar === "" || /[-(=+*/%&|^<>!~?:,[{;]/.test(beforeStar)) tokens.add(`object:${name}`);
-    }
-  }
-  return [...tokens].sort();
 }
 
 export function splitTopLevel(value: string): string[] {
@@ -301,22 +56,10 @@ export function splitTopLevel(value: string): string[] {
   return result;
 }
 
-/** Classify one synthesized statement outside any parsed function body. */
-export function classifySyntheticStatement(
-  text: string,
-  variables: Set<string>,
-  registry: MacroRegistry,
-): SemanticNode {
-  const state: ParseState = {
-    source: text,
-    variables,
-    registry,
-    nodes: [],
-    blocks: [{ index: 0, kind: "entry", nodeIds: [] }],
-    caveats: [],
-    nextNode: 0,
-  };
-  return classifySimple(state, 0, { start: 0, end: text.length, lineStart: 1, lineEnd: 1 }, false);
+export function immediateValues(text: string): number[] {
+  return [...new Set([...stripComments(text).matchAll(/\b0x[0-9a-f]+\b|\b\d+\b/gi)]
+    .map((match) => Number(match[0]))
+    .filter((value) => Number.isFinite(value)))].sort((left, right) => left - right);
 }
 
 /** Web and reaching lookups for synthetic component nodes resolve via their parent. */
@@ -324,65 +67,486 @@ export function webLookupId(nodeId: string): string {
   return nodeId.split("::")[0]!;
 }
 
-function parameters(source: string, open: number, close: number): GraphParameter[] {
-  const text = source.slice(open + 1, close);
-  let relativeOffset = 0;
-  return splitTopLevel(text).flatMap((raw, index) => {
-    const localOffset = text.indexOf(raw, relativeOffset);
-    relativeOffset = localOffset + raw.length;
-    const value = stripComments(raw).trim();
-    if (!value || value === "void") return [];
-    const match = value.match(/^([\s\S]*?[\s*])([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?$/);
-    if (!match) return [];
-    const start = open + 1 + localOffset + raw.indexOf(value.split(/\s/)[0]!);
-    return [{
-      name: match[2]!,
-      typeText: match[1]!.trim().replace(/\s+/g, " "),
-      index,
-      pointer: match[1]!.includes("*") || /\[[^\]]*\]\s*$/.test(value),
-      span: span(source, start, start + value.length),
-    }];
-  });
+function lineAt(source: string, offset: number): number {
+  return source.slice(0, offset).split("\n").length;
 }
+
+function span(source: string, start: number, end: number): SourceSpan {
+  return { start, end, lineStart: lineAt(source, start), lineEnd: lineAt(source, Math.max(start, end - 1)) };
+}
+
+function nodeSpan(source: string, node: Node): SourceSpan {
+  return span(source, node.startIndex, node.endIndex);
+}
+
+/* ------------------------------------------------------------------ */
+/* Expression model                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Node types that carry no runtime value: types, type qualifiers, and struct
+ * or union specifiers appearing inside a cast or a declaration.
+ */
+const TYPE_NODES = new Set([
+  "type_descriptor", "type_identifier", "primitive_type", "sized_type_specifier",
+  "struct_specifier", "union_specifier", "enum_specifier", "type_qualifier",
+  "storage_class_specifier", "macro_type_specifier",
+]);
+
+/** The operator token of a unary, update, binary, or field expression. */
+function operatorOf(node: Node): string {
+  const operator = field(node, "operator");
+  if (operator) return operator.text;
+  for (let index = 0; index < node.childCount; index++) {
+    const child = node.child(index);
+    if (child && !child.isNamed) return child.text;
+  }
+  return "";
+}
+
+/** Strip parentheses, casts, and address-of down to the value being named. */
+function unwrapValue(node: Node): Node {
+  let current = node;
+  for (;;) {
+    if (current.type === "parenthesized_expression") {
+      const inner = namedChildren(current).find((child) => child.type !== "comment");
+      if (!inner) return current;
+      current = inner;
+      continue;
+    }
+    if (current.type === "cast_expression") {
+      const value = field(current, "value");
+      if (!value) return current;
+      current = value;
+      continue;
+    }
+    if (current.type === "pointer_expression" && operatorOf(current) === "&") {
+      const argument = field(current, "argument");
+      if (!argument) return current;
+      current = argument;
+      continue;
+    }
+    return current;
+  }
+}
+
+/**
+ * Canonical object key for a memory-effect expression: parentheses, casts,
+ * address-of, whitespace, and subscript indexes erased, so two spellings of
+ * the same object compare equal.
+ */
+function objectKeyOf(node: Node): string {
+  const inner = unwrapValue(node);
+  switch (inner.type) {
+    case "identifier":
+      return inner.text;
+    case "field_expression": {
+      const argument = field(inner, "argument");
+      const name = field(inner, "field");
+      if (!argument || !name) break;
+      return `${objectKeyOf(argument)}${operatorOf(inner)}${name.text}`;
+    }
+    case "subscript_expression": {
+      const argument = field(inner, "argument");
+      if (!argument) break;
+      return `${objectKeyOf(argument)}[]`;
+    }
+    case "pointer_expression": {
+      const argument = field(inner, "argument");
+      if (!argument) break;
+      return `*${objectKeyOf(argument)}`;
+    }
+    default:
+      break;
+  }
+  return stripComments(inner.text).replace(/\s+/g, "");
+}
+
+/** The base identifier a field or subscript chain hangs off, when there is one. */
+function chainBase(node: Node): Node | undefined {
+  let current = unwrapValue(node);
+  for (;;) {
+    if (current.type === "identifier") return current;
+    if (current.type === "field_expression" || current.type === "subscript_expression") {
+      const argument = field(current, "argument");
+      if (!argument) return undefined;
+      current = unwrapValue(argument);
+      continue;
+    }
+    return undefined;
+  }
+}
+
+/**
+ * The memory-effect token a whole lvalue chain names. A trailing subscript is
+ * an element of the array, a trailing member is a field of the object it hangs
+ * off, and a bare name that is not a local is a named global object.
+ */
+function accessToken(node: Node, variables: Set<string>): string | undefined {
+  const inner = unwrapValue(node);
+  if (inner.type === "subscript_expression") {
+    return `element:${objectKeyOf(inner)}`;
+  }
+  if (inner.type === "field_expression") {
+    const argument = field(inner, "argument");
+    const name = field(inner, "field");
+    if (!argument || !name) return undefined;
+    return `field:${objectKeyOf(argument)}:${name.text}`;
+  }
+  if (inner.type === "pointer_expression" && operatorOf(inner) === "*") {
+    const base = unwrapValue(field(inner, "argument") ?? inner);
+    if (base.type === "identifier" && variables.has(base.text)) return `object:${base.text}`;
+    return undefined;
+  }
+  if (inner.type === "identifier" && !variables.has(inner.text)) return `global:${inner.text}`;
+  return undefined;
+}
+
+export interface ExpressionEffects {
+  /** Local and parameter names read for their value. */
+  reads: string[];
+  /** Identifiers that are not locals: candidate globals and enum constants. */
+  globals: string[];
+  memoryReads: string[];
+  /** A call, a nested assignment, an increment, or a volatile access. */
+  unsafe: boolean;
+}
+
+interface EffectSink {
+  reads: Set<string>;
+  globals: Set<string>;
+  memoryReads: Set<string>;
+  unsafe: boolean;
+}
+
+/**
+ * `(T)(x)` and `f(x)` are the same shape to a context-free grammar. The names
+ * that are types in this translation unit come from the tree itself — every
+ * `type_identifier` the parser committed to elsewhere in the file — so the
+ * decision is evidence, not the guess the hand-rolled parser had to make.
+ */
+export interface AnalysisContext {
+  variables: Set<string>;
+  typeNames: Set<string>;
+}
+
+const PRIMITIVE_TYPE_NAMES = [
+  "char", "short", "int", "long", "float", "double", "signed", "unsigned", "void",
+];
+
+function collectTypeNamesInto(root: Node, names: Set<string>): void {
+  const visit = (node: Node): void => {
+    if (node.type === "type_identifier" || node.type === "primitive_type") names.add(node.text);
+    for (const child of namedChildren(node)) visit(child);
+  };
+  visit(root);
+}
+
+let cachedIncludeTypeNames: Set<string> | undefined;
+
+/**
+ * Type names the compiler sees through the configured include path. A
+ * translation unit keeps its `#include` lines, so `u16` is only a type because
+ * a configured header says so; reading those headers is how the front end
+ * knows, rather than guessing from the shape of `(u16)(x)`.
+ */
+function includeTypeNames(): Set<string> {
+  if (cachedIncludeTypeNames) return cachedIncludeTypeNames;
+  const names = new Set<string>(PRIMITIVE_TYPE_NAMES);
+  const seen = new Set<string>();
+  const scan = (directory: string, depth: number): void => {
+    if (depth > 4) return;
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        scan(path, depth + 1);
+        continue;
+      }
+      if (!entry.name.endsWith(".h") || seen.has(path)) continue;
+      seen.add(path);
+      try {
+        collectTypeNamesInto(parseC(readFileSync(path, "utf8")).rootNode, names);
+      } catch {
+        /* An unreadable or unparsable header contributes no names. */
+      }
+    }
+  };
+  for (const flag of CPP_FLAGS) {
+    if (flag.startsWith("-I")) scan(flag.slice(2), 0);
+  }
+  cachedIncludeTypeNames = names;
+  return names;
+}
+
+export function collectTypeNames(root: Node): Set<string> {
+  const names = new Set<string>(includeTypeNames());
+  collectTypeNamesInto(root, names);
+  return names;
+}
+
+/** The lone identifier a parenthesized expression names, when there is one. */
+function parenthesizedName(node: Node): string | undefined {
+  if (node.type !== "parenthesized_expression") return undefined;
+  const inner = namedChildren(node).filter((child) => child.type !== "comment");
+  return inner.length === 1 && inner[0]!.type === "identifier" ? inner[0]!.text : undefined;
+}
+
+function namesAType(node: Node | undefined, context: AnalysisContext): boolean {
+  const name = node ? parenthesizedName(node) : undefined;
+  return name !== undefined && context.typeNames.has(name) && !context.variables.has(name);
+}
+
+/**
+ * The value of a cast the context-free grammar could not see as one.
+ *
+ * `(T)(x)` reads as a call and `(T)&x` reads as a bitwise and, because only a
+ * type name distinguishes them and the grammar has none. The configured
+ * headers supply the type names, so the resolution is evidence rather than the
+ * shape-based guess the hand-rolled parser had to make.
+ */
+function castValueOf(node: Node, context: AnalysisContext): Node | undefined {
+  if (node.type === "call_expression") {
+    if (!namesAType(field(node, "function"), context)) return undefined;
+    const args = field(node, "arguments");
+    if (!args) return undefined;
+    const values = namedChildren(args).filter((child) => child.type !== "comment");
+    return values.length === 1 ? values[0]! : undefined;
+  }
+  if (node.type === "binary_expression") {
+    if (!["&", "*", "-", "+"].includes(operatorOf(node))) return undefined;
+    if (!namesAType(field(node, "left"), context)) return undefined;
+    return field(node, "right");
+  }
+  return undefined;
+}
+
+/** A declaration the context-free grammar read as a call, such as `T (*f)(int);`. */
+export function isTypeNamedCall(node: Node, context: AnalysisContext): boolean {
+  let current: Node | undefined = node;
+  while (current && current.type === "call_expression") {
+    const callee: Node | undefined = field(current, "function");
+    if (callee?.type === "identifier") {
+      return context.typeNames.has(callee.text) && !context.variables.has(callee.text);
+    }
+    current = callee;
+  }
+  return false;
+}
+
+/**
+ * Value reads. A field name is a member selector, a cast names a type, a
+ * `sizeof` operand is never loaded, and a callee is not a variable unless the
+ * call goes through a function pointer that is one.
+ */
+function collectReads(node: Node, context: AnalysisContext, sink: EffectSink): void {
+  if (node.type === "comment" || TYPE_NODES.has(node.type)) return;
+  if (node.type === "sizeof_expression" || node.type === "offsetof_expression") return;
+  const castValue = castValueOf(node, context);
+  if (castValue) {
+    collectReads(castValue, context, sink);
+    return;
+  }
+  if (node.type === "identifier") {
+    if (context.variables.has(node.text)) sink.reads.add(node.text);
+    else sink.globals.add(node.text);
+    return;
+  }
+  if (node.type === "gnu_asm_expression") {
+    sink.unsafe = true;
+    return;
+  }
+  if (node.type === "call_expression") {
+    sink.unsafe = true;
+    const callee = field(node, "function");
+    /* A call through a function-pointer variable really does read it. */
+    if (callee && !(callee.type === "identifier" && !context.variables.has(callee.text))) {
+      collectReads(callee, context, sink);
+    }
+    const args = field(node, "arguments");
+    if (args) collectReads(args, context, sink);
+    return;
+  }
+  if (node.type === "assignment_expression" || node.type === "update_expression") sink.unsafe = true;
+  if (node.type === "cast_expression") {
+    const value = field(node, "value");
+    if (value) collectReads(value, context, sink);
+    return;
+  }
+  for (const child of namedChildren(node)) collectReads(child, context, sink);
+}
+
+/**
+ * Memory-read tokens for a value expression. Only the outermost access of a
+ * chain is recorded — the model names the object a statement touches, not
+ * every intermediate load — and an address-of path computes an address without
+ * reading through it.
+ */
+function collectMemoryReads(node: Node, context: AnalysisContext, sink: EffectSink): void {
+  if (node.type === "comment" || TYPE_NODES.has(node.type)) return;
+  if (node.type === "sizeof_expression" || node.type === "offsetof_expression") return;
+  const castValue = castValueOf(node, context);
+  if (castValue) {
+    collectMemoryReads(castValue, context, sink);
+    return;
+  }
+  if (node.type === "cast_expression") {
+    const value = field(node, "value");
+    if (value) collectMemoryReads(value, context, sink);
+    return;
+  }
+  if (node.type === "pointer_expression" && operatorOf(node) === "&") return;
+  if (node.type === "field_expression" || node.type === "subscript_expression") {
+    const base = chainBase(node);
+    if (base && !context.variables.has(base.text)) sink.memoryReads.add(`global:${base.text}`);
+    else {
+      const token = accessToken(node, context.variables);
+      if (token) sink.memoryReads.add(token);
+    }
+    return;
+  }
+  if (node.type === "pointer_expression") {
+    const token = accessToken(node, context.variables);
+    if (token) sink.memoryReads.add(token);
+    return;
+  }
+  for (const child of namedChildren(node)) collectMemoryReads(child, context, sink);
+}
+
+function analyzeExpression(node: Node | undefined, context: AnalysisContext): ExpressionEffects {
+  const sink: EffectSink = { reads: new Set(), globals: new Set(), memoryReads: new Set(), unsafe: false };
+  if (node) {
+    collectReads(node, context, sink);
+    collectMemoryReads(node, context, sink);
+  }
+  return {
+    reads: [...sink.reads].sort(),
+    globals: [...sink.globals].sort(),
+    memoryReads: [...sink.memoryReads].sort(),
+    unsafe: sink.unsafe,
+  };
+}
+
+/** Memory-read tokens of one expression, by text. Exposed for tests. */
+export function memoryReadTokens(code: string, variables: Set<string>): string[] {
+  const expression = parseExpression(code);
+  if (!expression) return [];
+  const sink: EffectSink = { reads: new Set(), globals: new Set(), memoryReads: new Set(), unsafe: false };
+  collectMemoryReads(expression, { variables, typeNames: new Set(PRIMITIVE_TYPE_NAMES) }, sink);
+  return [...sink.memoryReads].sort();
+}
+
+/** Parse a bare expression by wrapping it in a statement the grammar accepts. */
+function parseExpression(code: string): Node | undefined {
+  const tree = parseC(`void __e(void){(${code});}`);
+  const definition = namedChildren(tree.rootNode).find((node) => node.type === "function_definition");
+  const body = definition ? field(definition, "body") : undefined;
+  const statement = body ? namedChildren(body).find((node) => node.type === "expression_statement") : undefined;
+  const outer = statement ? namedChildren(statement)[0] : undefined;
+  return outer ? unwrapParentheses(outer) : undefined;
+}
+
+function unwrapParentheses(node: Node): Node {
+  if (node.type !== "parenthesized_expression") return node;
+  const inner = namedChildren(node).find((child) => child.type !== "comment");
+  return inner ?? node;
+}
+
+/* ------------------------------------------------------------------ */
+/* Statement model                                                     */
+/* ------------------------------------------------------------------ */
 
 const EMPTY_BARRIER = /^(?:__asm__|__asm)\s*(?:volatile\s*)?\(\s*""\s*:\s*:\s*:\s*"memory"\s*\)\s*;$/;
 
-const DECLARATION = /^((?:(?:const|static|volatile|signed|unsigned|struct\s+\w+|union\s+\w+|enum\s+\w+|[A-Za-z_]\w*)\s+)+\**\s*)([A-Za-z_]\w*)\s*(?:=\s*([\s\S]*?))?;$/;
-
-interface ParseState {
+interface BuildState {
   source: string;
-  variables: Set<string>;
+  context: AnalysisContext;
   registry: MacroRegistry;
   nodes: SemanticNode[];
-  blocks: SemanticGraph["blocks"];
+  blocks: SemanticBlock[];
   caveats: string[];
   nextNode: number;
+  /** Locals declared with an array declarator; their name is an address. */
+  arrayLocals: Set<string>;
 }
 
-function newNodeId(state: ParseState): string {
+function newNodeId(state: BuildState): string {
   return `n${state.nextNode++}`;
 }
 
-function storeToken(lvalue: Lvalue, variables: Set<string>): string {
-  const last = lvalue.segments[lvalue.segments.length - 1];
-  if (!last) {
-    /* Scalar name that is not a local/parameter: a named global object. */
-    return `global:${lvalue.base}`;
+/** Expression forms that stand alone as a statement in a `for` header. */
+const EXPRESSION_TYPES = new Set([
+  "assignment_expression", "update_expression", "call_expression", "gnu_asm_expression",
+]);
+
+/** Statement forms this grammar version freezes verbatim. */
+const CONTROL_CONSTRUCTS = new Set([
+  "for_statement", "while_statement", "do_statement", "switch_statement",
+  "goto_statement", "break_statement", "continue_statement", "labeled_statement",
+  "case_statement",
+]);
+
+/** Names the construct a frozen node stands for, for the caveat line. */
+function constructLabel(node: Node): string {
+  switch (node.type) {
+    case "for_statement": return "for loop";
+    case "while_statement": return "while loop";
+    case "do_statement": return "do/while loop";
+    case "switch_statement": return "switch";
+    case "goto_statement": return "goto";
+    case "break_statement": return "break";
+    case "continue_statement": return "continue";
+    case "labeled_statement": return "label";
+    case "compound_statement": return "bare compound statement";
+    case "ERROR": return "unparsable region";
+    default: return node.type.replace(/_/g, " ");
   }
-  if (last.kind === "index") {
-    return `element:${objectKey(lvalue.raw.replace(/\[[^\]]*\]/g, "[]"), variables)}`;
-  }
-  const objectText = lvalue.raw.slice(0, lvalue.raw.lastIndexOf(last.name!)).replace(/(?:->|\.)\s*$/, "");
-  return `field:${objectKey(objectText.replace(/\[[^\]]*\]/g, "[]"), variables)}:${last.name}`;
 }
 
-function classifySimple(state: ParseState, blockIndex: number, statementSpan: SourceSpan, allowDeclaration: boolean): SemanticNode {
-  const { source, variables } = state;
-  const id = newNodeId(state);
-  const text = source.slice(statementSpan.start, statementSpan.end);
-  const code = stripComments(text).trim();
+function frozenNode(state: BuildState, blockIndex: number, node: Node, evidence: string): SemanticNode {
+  const effects = analyzeExpression(node, state.context);
+  return {
+    id: newNodeId(state),
+    kind: "unknown",
+    block: blockIndex,
+    span: nodeSpan(state.source, node),
+    text: node.text,
+    reads: effects.reads,
+    writes: effects.reads,
+    killingWrite: false,
+    memoryReads: ["*unknown*"],
+    memoryWrites: ["*unknown*"],
+    movable: false,
+    evidence: [evidence],
+  };
+}
+
+/** The write token of an assignment target. */
+function storeToken(target: Node, variables: Set<string>): string {
+  return accessToken(target, variables) ?? `global:${objectKeyOf(target)}`;
+}
+
+/**
+ * Classify one statement node. `allowDeclaration` is false past the first
+ * executable statement of a block: a declaration there is not a C89 block-top
+ * declaration, and the conservative model freezes it.
+ */
+function classifyStatement(
+  state: BuildState,
+  blockIndex: number,
+  node: Node,
+  allowDeclaration: boolean,
+): SemanticNode {
+  const { source, context } = state;
+  const variables = context.variables;
+  const statementSpan = nodeSpan(source, node);
+  const text = node.text;
   const base = {
-    id,
     block: blockIndex,
     span: statementSpan,
     text,
@@ -394,9 +558,10 @@ function classifySimple(state: ParseState, blockIndex: number, statementSpan: So
     evidence: [] as string[],
   };
 
-  if (EMPTY_BARRIER.test(code)) {
+  if (EMPTY_BARRIER.test(stripComments(text).trim())) {
     return {
       ...base,
+      id: newNodeId(state),
       kind: "barrier",
       movable: false,
       memoryReads: ["*unknown*"],
@@ -404,352 +569,574 @@ function classifySimple(state: ParseState, blockIndex: number, statementSpan: So
       evidence: ["Inherited empty memory barrier: immutable position, orders all memory effects."],
     };
   }
-  if (/^\b(?:__asm__|__asm|asm)\b/.test(code)) {
-    return {
-      ...base,
-      kind: "unknown",
-      movable: false,
-      memoryReads: ["*unknown*"],
-      memoryWrites: ["*unknown*"],
-      evidence: ["Non-empty embedded assembly is outside the semantic model."],
-    };
-  }
 
-  if (allowDeclaration) {
-    const declaration = code.match(DECLARATION);
-    if (declaration) {
-      const typeText = declaration[1]!.trim();
-      const firstToken = typeText.split(/\s+/)[0]!.replace(/\*+$/, "");
-      const isDeclaration = !/[,()[\]]/.test(typeText) &&
-        (KEYWORDS.has(firstToken) || /^(?:struct|union|enum)$/.test(firstToken) || !variables.has(firstToken));
-      if (isDeclaration) {
-        const initializer = declaration[3]?.trim();
-        const effects = initializer !== undefined ? extractReads(initializer, variables) : { reads: [], globals: [] };
-        const node: SemanticNode = {
-          ...base,
-          kind: "declaration",
-          movable: false,
-          declName: declaration[2]!,
-          declType: typeText.replace(/\s+/g, " "),
-          reads: effects.reads,
-          writes: initializer !== undefined ? [declaration[2]!] : [],
-          killingWrite: initializer !== undefined,
-          memoryReads: initializer !== undefined
-            ? [...new Set([...effects.globals.map((name) => `global:${name}`), ...memoryReadTokens(initializer, variables)])].sort()
-            : [],
-          evidence: ["C89 block-top declaration."],
-        };
-        if (initializer !== undefined) {
-          node.initializer = initializer;
-          if (hasUnsafeEffect(initializer, variables)) {
-            node.memoryReads = ["*unknown*"];
-            node.memoryWrites = ["*unknown*"];
-            node.evidence.push("Initializer contains a call or side effect; treated as an unknown-effect definition.");
-          }
-        }
-        return node;
-      }
+  if (node.type === "declaration") {
+    const declarators = namedChildren(node).filter((child) =>
+      child.type === "init_declarator" || child.type.endsWith("declarator") || child.type === "identifier");
+    const only = declarators.length === 1 ? declarators[0]! : undefined;
+    const name = only ? declaratorName(only) : undefined;
+    /* `register T *p __asm__("v0");` binds storage to a hard register. That is
+     * not an ordinary local, so the model refuses to reason about it. */
+    if (namedChildren(node).some((child) => child.type === "gnu_asm_expression")) {
+      return frozenNode(state, blockIndex, node,
+        "Declaration pinned to a hard register; storage identity is outside the model.");
     }
+    if (allowDeclaration && only && name) {
+      const initializer = only.type === "init_declarator" ? field(only, "value") : undefined;
+      const effects = analyzeExpression(initializer, context);
+      const declType = source.slice(node.startIndex, name.startIndex).trim().replace(/\s+/g, " ");
+      const declaration: SemanticNode = {
+        ...base,
+        id: newNodeId(state),
+        kind: "declaration",
+        movable: false,
+        declName: name.text,
+        declType,
+        reads: effects.reads,
+        writes: initializer ? [name.text] : [],
+        killingWrite: Boolean(initializer),
+        memoryReads: initializer
+          ? [...new Set([...effects.globals.map((item) => `global:${item}`), ...effects.memoryReads])].sort()
+          : [],
+        evidence: ["C89 block-top declaration."],
+      };
+      if (declaratorIsArray(only)) state.arrayLocals.add(name.text);
+      if (initializer) {
+        declaration.initializer = initializer.text;
+        if (effects.unsafe) {
+          declaration.memoryReads = ["*unknown*"];
+          declaration.memoryWrites = ["*unknown*"];
+          declaration.evidence.push("Initializer contains a call or side effect; treated as an unknown-effect definition.");
+        }
+      }
+      return declaration;
+    }
+    return frozenNode(state, blockIndex, node, declarators.length > 1
+      ? "A declaration of more than one name is outside the flat variable model."
+      : "A declaration past the first executable statement is not a C89 block-top declaration.");
   }
 
-  if (/^return\b/.test(code)) {
-    const expression = code.slice("return".length).replace(/;$/, "").trim();
-    const effects = expression ? extractReads(expression, variables) : { reads: [], globals: [] };
+  if (node.type === "return_statement") {
+    const expression = namedChildren(node).find((child) => child.type !== "comment");
+    const effects = analyzeExpression(expression, context);
     return {
       ...base,
+      id: newNodeId(state),
       kind: "return",
       movable: false,
       reads: effects.reads,
-      memoryReads: expression && hasUnsafeEffect(expression, variables)
+      memoryReads: effects.unsafe
         ? ["*unknown*"]
-        : [...new Set([...effects.globals.map((name) => `global:${name}`), ...(expression ? memoryReadTokens(expression, variables) : [])])].sort(),
-      memoryWrites: expression && hasUnsafeEffect(expression, variables) ? ["*unknown*"] : [],
+        : [...new Set([...effects.globals.map((item) => `global:${item}`), ...effects.memoryReads])].sort(),
+      memoryWrites: effects.unsafe ? ["*unknown*"] : [],
       evidence: ["Function return anchors the end of its block."],
     };
   }
 
-  /* Known macro or unknown call statement: name(...) ; */
-  const call = code.match(/^([A-Za-z_]\w*)\s*\(([\s\S]*)\)\s*;$/);
-  if (call) {
-    const rebuilt = `(${call[2]})`;
-    let balanced = false;
-    try {
-      balanced = matchingDelimiter(rebuilt, 0, "(", ")") === rebuilt.length - 1;
-    } catch {
-      balanced = false;
+  if (node.type === "expression_statement" || EXPRESSION_TYPES.has(node.type)) {
+    /* A `for` header holds bare expressions where a block holds statements. */
+    const expression = node.type === "expression_statement"
+      ? namedChildren(node).find((child) => child.type !== "comment")
+      : node;
+    if (!expression) {
+      return frozenNode(state, blockIndex, node, "The conservative statement model could not classify this statement.");
     }
-    if (balanced) {
-      const name = call[1]!;
-      const args = splitTopLevel(call[2]!).map((argument) => argument.trim()).filter((argument) => argument.length > 0);
-      const macro = state.registry.active.get(name);
-      if (macro && macro.argCount === args.length && !args.some((argument) => hasUnsafeEffect(argument, variables))) {
-        const reads = new Set<string>();
-        const memoryReads = new Set<string>();
-        const memoryWrites = new Set<string>();
-        for (const argument of args) {
-          const extracted = extractReads(argument, variables);
-          for (const value of extracted.reads) reads.add(value);
-          for (const globalName of extracted.globals) memoryReads.add(`global:${globalName}`);
-          for (const token of memoryReadTokens(argument, variables)) memoryReads.add(token);
-        }
-        for (const effect of macro.effects) {
-          const argument = args[effect.argIndex];
-          if (argument === undefined) continue;
-          const key = objectKey(argument, variables);
-          if (effect.kind === "whole-object-write") memoryWrites.add(`object:${key}`);
-          else if (effect.kind === "field-write") memoryWrites.add(`field:${key}:${effect.field}`);
-          else memoryReads.add(`field:${key}:${effect.field}`);
-        }
-        return {
-          ...base,
-          kind: "known-macro",
-          movable: true,
-          macro: name,
-          reads: [...reads].sort(),
-          memoryReads: [...memoryReads].sort(),
-          memoryWrites: [...memoryWrites].sort(),
-          evidence: [
-            `${name} effects verified against ${macro.header} (definition hash ${macro.definitionHash.slice(0, 12)}).`,
-            macro.evidence,
-          ],
-        };
-      }
-      const effects = extractReads(code, variables);
+    if (expression.type === "gnu_asm_expression") {
       return {
         ...base,
-        kind: "call",
+        id: newNodeId(state),
+        kind: "unknown",
         movable: false,
-        reads: effects.reads,
-        writes: effects.reads,
         memoryReads: ["*unknown*"],
         memoryWrites: ["*unknown*"],
-        evidence: [macro
-          ? `${name} is registered but the call shape or argument purity did not match; treated as unknown effect.`
-          : `${name} is not in the configured known-macro registry; treated as an unknown-effect call.`],
+        evidence: ["Non-empty embedded assembly is outside the semantic model."],
       };
     }
-  }
-
-  /* Assignment, compound assignment, store, or increment/decrement. */
-  const prefixIncrement = code.match(/^(\+\+|--)\s*([A-Za-z_]\w*)\s*;$/);
-  const lvalue = prefixIncrement ? parseLvalue(`${prefixIncrement[2]!};`) : parseLvalue(code);
-  if (lvalue) {
-    const rest = prefixIncrement ? ";" : code.slice(lvalue.end);
-    const operator = prefixIncrement
-      ? prefixIncrement[1]!
-      : rest.match(/^\s*(>>=|<<=|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|\+\+|--|=(?![=]))/)?.[1];
-    if (operator) {
-      const isIncrement = operator === "++" || operator === "--";
-      const rhs = isIncrement ? "" : rest.slice(rest.indexOf(operator) + operator.length).replace(/;\s*$/, "").trim();
-      const rhsEffects = rhs ? extractReads(rhs, variables) : { reads: [], globals: [] };
-      const unsafe = rhs ? hasUnsafeEffect(rhs, variables) : false;
-      const reads = new Set(rhsEffects.reads);
-      const memoryReads = new Set([
-        ...rhsEffects.globals.map((name) => `global:${name}`),
-        ...(rhs ? memoryReadTokens(rhs, variables) : []),
-      ]);
-      const memoryWrites = new Set<string>();
-      const writes = new Set<string>();
-      let kind: SemanticNode["kind"] = "assign";
-      let killing = false;
-      const scalar = lvalue.segments.length === 0 && variables.has(lvalue.base);
-      if (scalar) {
-        writes.add(lvalue.base);
-        if (operator === "=") killing = true;
-        else reads.add(lvalue.base);
-      } else {
-        kind = "store";
-        const lvalueEffects = extractReads(lvalue.raw, variables);
-        for (const value of lvalueEffects.reads) reads.add(value);
-        const token = storeToken(lvalue, variables);
-        memoryWrites.add(token);
-        if (operator !== "=") memoryReads.add(token);
+    if (expression.type === "call_expression") {
+      /* `T (*fn)(int);` is a declaration a context-free grammar has to read as
+       * a call. The type name gives it away, and the model freezes it. */
+      if (isTypeNamedCall(expression, context)) {
+        return frozenNode(state, blockIndex, node,
+          "A function-pointer or unsupported declarator is outside the flat variable model.");
       }
-      const node: SemanticNode = {
+      return classifyCall(state, blockIndex, node, expression, base);
+    }
+    if (expression.type === "assignment_expression" || expression.type === "update_expression") {
+      return classifyAssignment(state, blockIndex, expression, base);
+    }
+    return frozenNode(state, blockIndex, node, "The conservative statement model could not classify this statement.");
+  }
+
+  if (node.type === "compound_statement") {
+    return frozenNode(state, blockIndex, node, "Bare compound statement introduces a scope; frozen verbatim.");
+  }
+  if (LOOP_TYPES.has(node.type)) return buildLoop(state, blockIndex, node);
+  if (node.type === "switch_statement") return buildSwitch(state, blockIndex, node);
+  return frozenNode(state, blockIndex, node, CONTROL_CONSTRUCTS.has(node.type)
+    ? `A ${constructLabel(node)} is frozen verbatim in this grammar version.`
+    : `A ${constructLabel(node)} is outside the conservative statement model.`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Loops and switches: structure without capability                    */
+/* ------------------------------------------------------------------ */
+
+const LOOP_TYPES = new Set(["for_statement", "while_statement", "do_statement"]);
+
+const LOOP_FORMS: Record<string, "for" | "while" | "do-while"> = {
+  for_statement: "for",
+  while_statement: "while",
+  do_statement: "do-while",
+};
+
+/** Flatten a comma expression: `i--, ent--` is two statements in a header. */
+function commaOperands(node: Node): Node[] {
+  if (node.type !== "comma_expression") return [node];
+  const left = field(node, "left");
+  const right = field(node, "right");
+  if (!left || !right) return [node];
+  return [...commaOperands(left), ...commaOperands(right)];
+}
+
+/**
+ * A `continue` belonging to this loop. It skips the body tail but still runs a
+ * `for` header's update, so it decides whether an update statement may move
+ * between the two — which is why the loop records it.
+ */
+function containsOwnContinue(node: Node): boolean {
+  let found = false;
+  const visit = (item: Node): void => {
+    if (found) return;
+    if (item.type === "continue_statement") {
+      found = true;
+      return;
+    }
+    /* A nested loop owns its own continues. */
+    if (item !== node && LOOP_TYPES.has(item.type)) return;
+    for (const child of namedChildren(item)) visit(child);
+  };
+  visit(node);
+  return found;
+}
+
+/**
+ * Model one header expression as a statement node in its own block. `for`
+ * headers hold bare expressions rather than statements, so the span is the
+ * expression's own.
+ */
+function buildHeaderBlock(
+  state: BuildState,
+  parent: number,
+  owner: string,
+  kind: "loop-init" | "loop-update",
+  expression: Node | undefined,
+): number {
+  const index = state.blocks.length;
+  state.blocks.push({ index, parent, kind, nodeIds: [], controllingConstruct: owner });
+  if (!expression) return index;
+  for (const operand of commaOperands(expression)) {
+    const node = classifyStatement(state, index, operand, false);
+    state.nodes.push({ ...node, movable: false });
+    state.blocks[index]!.nodeIds.push(node.id);
+  }
+  return index;
+}
+
+function buildBodyBlock(state: BuildState, parent: number, owner: string, body: Node | undefined): number {
+  const index = state.blocks.length;
+  state.blocks.push({ index, parent, kind: "loop-body", nodeIds: [], controllingConstruct: owner });
+  if (body) buildBlockBody(state, index, branchStatements(body));
+  return index;
+}
+
+/**
+ * A loop keeps the conservative whole-construct summary it has always had —
+ * unknown effects, immovable — and gains the structure a later grammar version
+ * needs: its header blocks, its body block, and whether a `continue` pins the
+ * update. Nothing inside it is reorderable until loop-carried dependencies can
+ * constrain it.
+ */
+function buildLoop(state: BuildState, blockIndex: number, statement: Node): SemanticNode {
+  const { source } = state;
+  const id = newNodeId(state);
+  const form = LOOP_FORMS[statement.type]!;
+  const initializer = statement.type === "for_statement" ? field(statement, "initializer") : undefined;
+  const update = statement.type === "for_statement" ? field(statement, "update") : undefined;
+  const condition = field(statement, "condition");
+  const conditionInner = condition ? unwrapParentheses(condition) : undefined;
+
+  const initBlock = statement.type === "for_statement"
+    ? buildHeaderBlock(state, blockIndex, id, "loop-init", initializer)
+    : undefined;
+  const bodyBlock = buildBodyBlock(state, blockIndex, id, field(statement, "body"));
+  const updateBlock = statement.type === "for_statement"
+    ? buildHeaderBlock(state, blockIndex, id, "loop-update", update)
+    : undefined;
+
+  /* The loop node is the test. Its header and body are modelled as blocks of
+   * their own, so the node carries only the condition's effects — and stays
+   * immovable, which keeps it a barrier in the block that contains it. */
+  const effects = analyzeExpression(conditionInner, state.context);
+  const node: SemanticNode = {
+    id,
+    kind: "unknown",
+    block: blockIndex,
+    span: nodeSpan(source, statement),
+    text: statement.text,
+    reads: effects.reads,
+    writes: [],
+    killingWrite: false,
+    memoryReads: [...new Set([...effects.globals.map((item) => `global:${item}`), ...effects.memoryReads])].sort(),
+    memoryWrites: [],
+    movable: false,
+    evidence: [`A ${form} loop's header and body are modelled; the construct itself is never moved or reshaped.`],
+    loopForm: form,
+    bodyBlock,
+    hasContinue: containsOwnContinue(statement),
+  };
+  if (effects.unsafe) {
+    node.memoryReads = ["*unknown*"];
+    node.memoryWrites = ["*unknown*"];
+    node.evidence.push("Loop condition contains a call or side effect; treated as an unknown-effect read.");
+  }
+  if (conditionInner) {
+    node.condition = stripComments(conditionInner.text).trim();
+    node.condSpan = nodeSpan(source, conditionInner);
+  }
+  if (initBlock !== undefined) node.initBlock = initBlock;
+  if (updateBlock !== undefined) node.updateBlock = updateBlock;
+  return node;
+}
+
+/**
+ * A switch keeps its conservative summary and gains one block per case, so a
+ * later grammar version can weigh a jump table against a compare chain.
+ */
+function buildSwitch(state: BuildState, blockIndex: number, statement: Node): SemanticNode {
+  const { source } = state;
+  const id = newNodeId(state);
+  const condition = field(statement, "condition");
+  const conditionInner = condition ? unwrapParentheses(condition) : undefined;
+  const body = field(statement, "body");
+  const caseBlocks: number[] = [];
+  for (const item of body ? namedChildren(body) : []) {
+    if (item.type !== "case_statement") continue;
+    const index = state.blocks.length;
+    const label = field(item, "value");
+    const block: SemanticBlock = {
+      index,
+      parent: blockIndex,
+      kind: "case",
+      nodeIds: [],
+      controllingConstruct: id,
+    };
+    if (label) block.caseLabel = stripComments(label.text).trim();
+    state.blocks.push(block);
+    caseBlocks.push(index);
+    const statements = namedChildren(item).filter((child) => child.type !== "comment" && child.id !== label?.id);
+    buildBlockBody(state, index, statements);
+  }
+
+  const effects = analyzeExpression(statement, state.context);
+  const node: SemanticNode = {
+    id,
+    kind: "unknown",
+    block: blockIndex,
+    span: nodeSpan(source, statement),
+    text: statement.text,
+    reads: effects.reads,
+    writes: effects.reads,
+    killingWrite: false,
+    memoryReads: ["*unknown*"],
+    memoryWrites: ["*unknown*"],
+    movable: false,
+    evidence: ["A switch is frozen verbatim in this grammar version; its cases are modelled but not its effects."],
+    bodyBlock: caseBlocks[0],
+    caseBlocks,
+  };
+  if (conditionInner) {
+    node.condition = stripComments(conditionInner.text).trim();
+    node.condSpan = nodeSpan(source, conditionInner);
+  }
+  return node;
+}
+
+type NodeBase = Omit<SemanticNode, "id" | "kind" | "movable">;
+
+function classifyCall(
+  state: BuildState,
+  blockIndex: number,
+  statement: Node,
+  call: Node,
+  base: NodeBase,
+): SemanticNode {
+  const { context } = state;
+  const variables = context.variables;
+  const callee = field(call, "function");
+  const argumentList = field(call, "arguments");
+  const args = argumentList
+    ? namedChildren(argumentList).filter((child) => child.type !== "comment")
+    : [];
+  const name = callee?.type === "identifier" ? callee.text : undefined;
+  const macro = name !== undefined ? state.registry.active.get(name) : undefined;
+
+  if (macro && macro.argCount === args.length) {
+    const perArgument = args.map((argument) => analyzeExpression(argument, context));
+    if (!perArgument.some((effects) => effects.unsafe)) {
+      const reads = new Set<string>();
+      const memoryReads = new Set<string>();
+      const memoryWrites = new Set<string>();
+      for (const effects of perArgument) {
+        for (const value of effects.reads) reads.add(value);
+        for (const value of effects.globals) memoryReads.add(`global:${value}`);
+        for (const token of effects.memoryReads) memoryReads.add(token);
+      }
+      for (const effect of macro.effects) {
+        const argument = args[effect.argIndex];
+        if (argument === undefined) continue;
+        const key = objectKeyOf(argument);
+        if (effect.kind === "whole-object-write") memoryWrites.add(`object:${key}`);
+        else if (effect.kind === "field-write") memoryWrites.add(`field:${key}:${effect.field}`);
+        else memoryReads.add(`field:${key}:${effect.field}`);
+      }
+      return {
         ...base,
-        kind,
-        movable: !unsafe,
+        id: newNodeId(state),
+        kind: "known-macro",
+        movable: true,
+        macro: name,
         reads: [...reads].sort(),
-        writes: [...writes].sort(),
-        killingWrite: killing,
-        memoryReads: unsafe ? ["*unknown*"] : [...memoryReads].sort(),
-        memoryWrites: unsafe ? ["*unknown*"] : [...memoryWrites].sort(),
-        operator,
-        lhs: lvalue.raw.trim(),
-        evidence: unsafe
-          ? ["The right-hand side contains a call, nested assignment, increment, decrement, or volatile token; position frozen."]
-          : ["Single-destination statement with a side-effect-free token expression."],
+        memoryReads: [...memoryReads].sort(),
+        memoryWrites: [...memoryWrites].sort(),
+        evidence: [
+          `${name} effects verified against ${macro.header} (definition hash ${macro.definitionHash.slice(0, 12)}).`,
+          macro.evidence,
+        ],
       };
-      if (!isIncrement) node.rhs = rhs;
-      return node;
     }
   }
 
-  const effects = extractReads(code, variables);
+  const effects = analyzeExpression(statement, context);
   return {
     ...base,
-    kind: "unknown",
+    id: newNodeId(state),
+    kind: "call",
     movable: false,
     reads: effects.reads,
     writes: effects.reads,
     memoryReads: ["*unknown*"],
     memoryWrites: ["*unknown*"],
-    evidence: ["The conservative statement model could not classify this statement."],
+    evidence: [macro
+      ? `${name} is registered but the call shape or argument purity did not match; treated as unknown effect.`
+      : `${name ?? "the callee"} is not in the configured known-macro registry; treated as an unknown-effect call.`],
   };
 }
 
-function parseBlockBody(state: ParseState, blockIndex: number, start: number, end: number): void {
-  const { source } = state;
+function classifyAssignment(
+  state: BuildState,
+  blockIndex: number,
+  expression: Node,
+  base: NodeBase,
+): SemanticNode {
+  const { context } = state;
+  const variables = context.variables;
+  const increment = expression.type === "update_expression";
+  const target = increment ? field(expression, "argument") : field(expression, "left");
+  const rhs = increment ? undefined : field(expression, "right");
+  if (!target) {
+    return frozenNode(state, blockIndex, expression, "The conservative statement model could not classify this statement.");
+  }
+  const operator = operatorOf(expression);
+  const rhsEffects = analyzeExpression(rhs, context);
+  const reads = new Set(rhsEffects.reads);
+  const memoryReads = new Set([
+    ...rhsEffects.globals.map((item) => `global:${item}`),
+    ...rhsEffects.memoryReads,
+  ]);
+  const memoryWrites = new Set<string>();
+  const writes = new Set<string>();
+  let kind: SemanticNode["kind"] = "assign";
+  let killing = false;
+
+  const inner = unwrapValue(target);
+  const scalar = inner.type === "identifier" && variables.has(inner.text);
+  if (scalar) {
+    writes.add(inner.text);
+    if (operator === "=") killing = true;
+    else reads.add(inner.text);
+  } else {
+    kind = "store";
+    const targetEffects = analyzeExpression(target, context);
+    for (const value of targetEffects.reads) reads.add(value);
+    const token = storeToken(target, variables);
+    memoryWrites.add(token);
+    if (operator !== "=") memoryReads.add(token);
+  }
+
+  const node: SemanticNode = {
+    ...base,
+    id: newNodeId(state),
+    kind,
+    movable: !rhsEffects.unsafe,
+    reads: [...reads].sort(),
+    writes: [...writes].sort(),
+    killingWrite: killing,
+    memoryReads: rhsEffects.unsafe ? ["*unknown*"] : [...memoryReads].sort(),
+    memoryWrites: rhsEffects.unsafe ? ["*unknown*"] : [...memoryWrites].sort(),
+    operator,
+    lhs: target.text,
+    evidence: rhsEffects.unsafe
+      ? ["The right-hand side contains a call, nested assignment, increment, decrement, or volatile token; position frozen."]
+      : ["Single-destination statement with a side-effect-free token expression."],
+  };
+  if (!increment && rhs) node.rhs = rhs.text;
+  return node;
+}
+
+/** Classify one synthesized statement outside any parsed function body. */
+export function classifySyntheticStatement(
+  text: string,
+  variables: Set<string>,
+  registry: MacroRegistry,
+): SemanticNode {
+  const wrapper = `void __s(void){\n${text}\n}`;
+  const tree = parseC(wrapper);
+  const definition = namedChildren(tree.rootNode).find((node) => node.type === "function_definition");
+  const body = definition ? field(definition, "body") : undefined;
+  const statement = body ? namedChildren(body).find((node) => node.type !== "comment") : undefined;
+  const state: BuildState = {
+    source: wrapper,
+    context: { variables, typeNames: collectTypeNames(tree.rootNode) },
+    registry,
+    nodes: [],
+    blocks: [{ index: 0, kind: "entry", nodeIds: [] }],
+    caveats: [],
+    nextNode: 0,
+    arrayLocals: new Set(),
+  };
+  if (!statement) {
+    return {
+      id: "n0",
+      kind: "unknown",
+      block: 0,
+      span: { start: 0, end: text.length, lineStart: 1, lineEnd: 1 },
+      text,
+      reads: [],
+      writes: [],
+      killingWrite: false,
+      memoryReads: ["*unknown*"],
+      memoryWrites: ["*unknown*"],
+      movable: false,
+      evidence: ["The conservative statement model could not classify this statement."],
+    };
+  }
+  const node = classifyStatement(state, 0, statement, false);
+  /* Synthetic statements have no place in the original source. */
+  return { ...node, span: { start: 0, end: text.length, lineStart: 1, lineEnd: 1 }, text };
+}
+
+/* ------------------------------------------------------------------ */
+/* Block structure                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * True when the block sits inside a loop or a case, directly or through an
+ * enclosing `if`. Everything under a frozen construct is frozen with it.
+ */
+export function blockIsFrozen(blocks: SemanticBlock[], index: number): boolean {
+  let current: SemanticBlock | undefined = blocks[index];
+  while (current) {
+    if (!REORDERABLE_BLOCK_KINDS.has(current.kind)) return true;
+    current = current.parent === undefined ? undefined : blocks[current.parent];
+  }
+  return false;
+}
+
+function buildBlockBody(state: BuildState, blockIndex: number, statements: Node[]): void {
   const block = state.blocks[blockIndex]!;
-  let cursor = skipTrivia(source, start, end);
-  let sawExecutable = false;
-  while (cursor < end) {
-    const rest = source.slice(cursor);
-
-    if (/^if\b/.test(rest)) {
-      parseIf(state, blockIndex, cursor, end);
-      const ifNode = state.nodes.find((node) => node.id === block.nodeIds[block.nodeIds.length - 1]!)!;
+  /* A loop body or a case is recorded structurally but stays inert: nothing in
+   * it may be reordered until loop-carried dependencies can constrain it, and
+   * a declaration there opens a scope the flat variable model does not have. */
+  const inert = blockIsFrozen(state.blocks, blockIndex);
+  let sawExecutable = inert;
+  for (const statement of statements) {
+    if (statement.type === "comment") continue;
+    if (statement.type === "if_statement") {
+      buildIf(state, blockIndex, statement);
       sawExecutable = true;
-      cursor = skipTrivia(source, ifNode.span.end, end);
       continue;
     }
-
-    if (/^(?:while|for|do|switch|goto|break|continue)\b/.test(rest) || (/^[A-Za-z_]\w*\s*:(?!=)/.test(rest) && !/^default\b/.test(rest))) {
-      const constructEnd = consumeUnsupportedConstruct(source, cursor, end);
-      const text = source.slice(cursor, constructEnd);
-      const effects = extractReads(text, state.variables);
-      const id = newNodeId(state);
-      state.nodes.push({
-        id,
-        kind: "unknown",
-        block: blockIndex,
-        span: span(source, cursor, constructEnd),
-        text,
-        reads: effects.reads,
-        writes: effects.reads,
-        killingWrite: false,
-        memoryReads: ["*unknown*"],
-        memoryWrites: ["*unknown*"],
-        movable: false,
-        evidence: ["Loop, switch, jump, or label constructs are frozen verbatim in this grammar version."],
-      });
-      block.nodeIds.push(id);
-      state.caveats.push(`Unsupported control construct frozen at line ${lineAt(source, cursor)}.`);
-      sawExecutable = true;
-      cursor = skipTrivia(source, constructEnd, end);
-      continue;
-    }
-
-    if (source[cursor] === "{") {
-      const close = matchingDelimiter(source, cursor, "{", "}");
-      const text = source.slice(cursor, close + 1);
-      const effects = extractReads(text, state.variables);
-      const id = newNodeId(state);
-      state.nodes.push({
-        id,
-        kind: "unknown",
-        block: blockIndex,
-        span: span(source, cursor, close + 1),
-        text,
-        reads: effects.reads,
-        writes: effects.reads,
-        killingWrite: false,
-        memoryReads: ["*unknown*"],
-        memoryWrites: ["*unknown*"],
-        movable: false,
-        evidence: ["Bare compound statement introduces a scope; frozen verbatim."],
-      });
-      block.nodeIds.push(id);
-      state.caveats.push(`Bare compound statement frozen at line ${lineAt(source, cursor)}.`);
-      sawExecutable = true;
-      cursor = skipTrivia(source, close + 1, end);
-      continue;
-    }
-
-    const statementEnd = simpleStatementEnd(source, cursor, end);
-    if (statementEnd < 0) throw new Error(`unexpected compound statement at line ${lineAt(source, cursor)}`);
-    const node = classifySimple(state, blockIndex, span(source, cursor, statementEnd), !sawExecutable);
+    const node = classifyStatement(state, blockIndex, statement, !sawExecutable);
     if (node.kind !== "declaration") sawExecutable = true;
-    state.nodes.push(node);
+    if (!inert) {
+      const line = lineAt(state.source, statement.startIndex);
+      if (node.loopForm !== undefined) {
+        state.caveats.push(`${constructLabel(statement)} at line ${line}: header and body modelled, the construct itself immovable.`);
+      } else if (node.kind === "unknown" && CONTROL_CONSTRUCTS.has(statement.type)) {
+        state.caveats.push(`${constructLabel(statement)} frozen at line ${line}.`);
+      } else if (statement.type === "compound_statement") {
+        state.caveats.push(`Bare compound statement frozen at line ${line}.`);
+      }
+    }
+    state.nodes.push(inert ? { ...node, movable: false } : node);
     block.nodeIds.push(node.id);
-    cursor = skipTrivia(source, statementEnd, end);
   }
 }
 
-function parseIf(state: ParseState, blockIndex: number, start: number, end: number): void {
+/** The statements of a branch: a braced block's children, or the lone statement. */
+function branchStatements(node: Node): Node[] {
+  return node.type === "compound_statement"
+    ? namedChildren(node).filter((child) => child.type !== "comment")
+    : [node];
+}
+
+function buildIf(state: BuildState, blockIndex: number, statement: Node): void {
   const { source } = state;
   const block = state.blocks[blockIndex]!;
-  const condOpen = source.indexOf("(", start + 2);
-  const condClose = matchingDelimiter(source, condOpen, "(", ")");
-  const condition = source.slice(condOpen + 1, condClose);
-  const conditionReads = extractReads(condition, state.variables);
+  const condition = field(statement, "condition");
+  const conditionInner = condition ? unwrapParentheses(condition) : undefined;
+  const effects = analyzeExpression(conditionInner, state.context);
+
+  /* Pre-order ids, post-order nodes: the branch bodies are modelled before
+   * the conditional that owns them, exactly as the flow walk expects. */
   const ifId = newNodeId(state);
   const thenIndex = state.blocks.length;
   state.blocks.push({ index: thenIndex, parent: blockIndex, kind: "then", nodeIds: [], controllingIf: ifId });
-
-  let bodyCursor = skipTrivia(source, condClose + 1, end);
-  let constructEnd: number;
-  if (source[bodyCursor] === "{") {
-    const close = matchingDelimiter(source, bodyCursor, "{", "}");
-    parseBlockBody(state, thenIndex, bodyCursor + 1, close);
-    constructEnd = close + 1;
-  } else if (/^if\b/.test(source.slice(bodyCursor))) {
-    parseIf(state, thenIndex, bodyCursor, end);
-    constructEnd = state.nodes[state.nodes.length - 1]!.span.end;
-  } else {
-    const statementEnd = simpleStatementEnd(source, bodyCursor, end);
-    if (statementEnd < 0) throw new Error(`unexpected compound branch statement at line ${lineAt(source, bodyCursor)}`);
-    const node = classifySimple(state, thenIndex, span(source, bodyCursor, statementEnd), false);
-    state.nodes.push(node);
-    state.blocks[thenIndex]!.nodeIds.push(node.id);
-    constructEnd = statementEnd;
-  }
+  const consequence = field(statement, "consequence");
+  if (consequence) buildBranch(state, thenIndex, consequence);
 
   let elseIndex: number | undefined;
-  const afterThen = skipTrivia(source, constructEnd, end);
-  if (/^else\b/.test(source.slice(afterThen))) {
+  const alternative = field(statement, "alternative");
+  if (alternative) {
     elseIndex = state.blocks.length;
     state.blocks.push({ index: elseIndex, parent: blockIndex, kind: "else", nodeIds: [], controllingIf: ifId });
-    const elseCursor = skipTrivia(source, afterThen + 4, end);
-    if (source[elseCursor] === "{") {
-      const close = matchingDelimiter(source, elseCursor, "{", "}");
-      parseBlockBody(state, elseIndex, elseCursor + 1, close);
-      constructEnd = close + 1;
-    } else if (/^if\b/.test(source.slice(elseCursor))) {
-      parseIf(state, elseIndex, elseCursor, end);
-      constructEnd = state.nodes[state.nodes.length - 1]!.span.end;
-    } else {
-      const statementEnd = simpleStatementEnd(source, elseCursor, end);
-      if (statementEnd < 0) throw new Error(`unexpected compound branch statement at line ${lineAt(source, elseCursor)}`);
-      const node = classifySimple(state, elseIndex, span(source, elseCursor, statementEnd), false);
-      state.nodes.push(node);
-      state.blocks[elseIndex]!.nodeIds.push(node.id);
-      constructEnd = statementEnd;
-    }
+    const body = alternative.type === "else_clause"
+      ? namedChildren(alternative).find((child) => child.type !== "comment")
+      : alternative;
+    if (body) buildBranch(state, elseIndex, body);
   }
 
   const node: SemanticNode = {
     id: ifId,
     kind: "if",
     block: blockIndex,
-    span: span(source, start, constructEnd),
-    text: source.slice(start, constructEnd),
-    reads: conditionReads.reads,
+    span: nodeSpan(source, statement),
+    text: statement.text,
+    reads: effects.reads,
     writes: [],
     killingWrite: false,
-    memoryReads: [...new Set([
-      ...conditionReads.globals.map((name) => `global:${name}`),
-      ...memoryReadTokens(condition, state.variables),
-    ])].sort(),
+    memoryReads: [...new Set([...effects.globals.map((item) => `global:${item}`), ...effects.memoryReads])].sort(),
     memoryWrites: [],
     movable: false,
     evidence: ["Conditional region: branch structure is immutable in this grammar version."],
-    condition: stripComments(condition).trim(),
-    condSpan: span(source, condOpen + 1, condClose),
+    condition: conditionInner ? stripComments(conditionInner.text).trim() : "",
+    condSpan: condition
+      ? span(source, condition.startIndex + 1, condition.endIndex - 1)
+      : nodeSpan(source, statement),
     thenBlock: thenIndex,
   };
   if (elseIndex !== undefined) node.elseBlock = elseIndex;
-  if (hasUnsafeEffect(condition, state.variables)) {
+  if (effects.unsafe) {
     node.memoryReads = ["*unknown*"];
     node.memoryWrites = ["*unknown*"];
     node.evidence.push("Branch condition contains a call or side effect; treated as an unknown-effect read.");
@@ -758,81 +1145,118 @@ function parseIf(state: ParseState, blockIndex: number, start: number, end: numb
   block.nodeIds.push(ifId);
 }
 
-function consumeUnsupportedConstruct(source: string, start: number, end: number): number {
-  /* Consume through the construct's braces and any do-while tail. */
-  let cursor = start;
-  const isDo = /^do\b/.test(source.slice(start));
-  while (cursor < end) {
-    const character = source[cursor]!;
-    if (character === "{") {
-      cursor = matchingDelimiter(source, cursor, "{", "}") + 1;
-      if (isDo) {
-        const tail = skipTrivia(source, cursor, end);
-        if (/^while\b/.test(source.slice(tail))) {
-          const open = source.indexOf("(", tail);
-          const close = matchingDelimiter(source, open, "(", ")");
-          const semi = skipTrivia(source, close + 1, end);
-          return source[semi] === ";" ? semi + 1 : close + 1;
-        }
-      }
-      return cursor;
-    }
-    if (character === ";") return cursor + 1;
-    if (character === "(") {
-      cursor = matchingDelimiter(source, cursor, "(", ")") + 1;
-      continue;
-    }
-    cursor++;
+function buildBranch(state: BuildState, blockIndex: number, body: Node): void {
+  if (body.type === "if_statement") {
+    buildIf(state, blockIndex, body);
+    return;
   }
-  return end;
+  buildBlockBody(state, blockIndex, branchStatements(body));
 }
 
-function collectVariableNames(source: string, bodyOpen: number, bodyClose: number, parameterNames: string[]): Set<string> {
-  /* Pre-pass: parameters plus every block-top declaration name. */
-  const names = new Set(parameterNames);
-  const body = stripLiterals(stripComments(source.slice(bodyOpen + 1, bodyClose)));
-  for (const match of body.matchAll(/(?<=^|[;{])\s*((?:(?:const|static|volatile|signed|unsigned|struct\s+\w+|union\s+\w+|enum\s+\w+|[A-Za-z_]\w*)\s+)+\**\s*)([A-Za-z_]\w*)\s*(?:=[^;]*)?;/g)) {
-    const head = match[1]!.trim().split(/\s+/)[0]!.replace(/\*+$/, "");
-    if (/^(?:return|goto|else|if|while|do)$/.test(head)) continue;
-    if (names.has(head)) continue;
-    names.add(match[2]!);
+/* ------------------------------------------------------------------ */
+/* Declarations and variables                                          */
+/* ------------------------------------------------------------------ */
+
+/** Descend a pointer- or parenthesis-wrapped declarator to the function itself. */
+function functionDeclarator(node: Node | undefined): Node | undefined {
+  let current = node;
+  while (current) {
+    if (current.type === "function_declarator") return current;
+    const next = field(current, "declarator");
+    if (!next || next.id === current.id) return undefined;
+    current = next;
   }
+  return undefined;
+}
+
+function parameterList(source: string, declarator: Node | undefined): GraphParameter[] {
+  const signature = functionDeclarator(declarator);
+  const list = signature ? field(signature, "parameters") : undefined;
+  if (!list) return [];
+  const entries = namedChildren(list).filter((child) => child.type !== "comment");
+  const parameters: GraphParameter[] = [];
+  entries.forEach((entry, index) => {
+    if (entry.type === "identifier") {
+      /* An old-style parameter list names the parameter; its type arrives in a
+       * separate declaration between the list and the body. */
+      parameters.push({
+        name: entry.text,
+        typeText: "",
+        index,
+        pointer: false,
+        span: nodeSpan(source, entry),
+      });
+      return;
+    }
+    if (entry.type !== "parameter_declaration") return;
+    const name = declaratorName(field(entry, "declarator"));
+    if (!name) return;
+    parameters.push({
+      name: name.text,
+      typeText: source.slice(entry.startIndex, name.startIndex).trim().replace(/\s+/g, " "),
+      index,
+      pointer: declaratorIsPointer(field(entry, "declarator")),
+      span: nodeSpan(source, entry),
+    });
+  });
+  return parameters;
+}
+
+/** Every declaration name in the body, in document order. */
+function collectDeclaredNames(body: Node, known: Set<string>): Set<string> {
+  const names = new Set(known);
+  const visit = (node: Node): void => {
+    if (node.type === "declaration" && !namedChildren(node).some((child) => child.type === "gnu_asm_expression")) {
+      const typeNode = field(node, "type");
+      const head = typeNode?.text.trim().split(/\s+/)[0];
+      /* `a * b;` is a declaration to the grammar and a multiplication to a
+       * reader when `a` is already a name in scope. Keep the reader's view. */
+      if (!head || !names.has(head)) {
+        for (const child of namedChildren(node)) {
+          const name = child.type === "init_declarator" || child.type.endsWith("declarator") || child.type === "identifier"
+            ? declaratorName(child)
+            : undefined;
+          if (name) names.add(name.text);
+        }
+      }
+    }
+    for (const child of namedChildren(node)) visit(child);
+  };
+  visit(body);
   return names;
 }
 
-/**
- * Locate the definition of `functionName` rather than any mention of it.
- *
- * The name scan runs over a comment- and literal-masked copy, so a reference in
- * a banner comment — a research-note path, for example — cannot misdirect the
- * parse. Masking preserves byte offsets, so the result indexes the original
- * source. An occurrence is a definition only when its parameter list is
- * followed by a body, which skips forward prototypes.
- */
-function findFunctionDefinition(
-  source: string,
-  functionName: string,
-): { nameOffset: number; parameterOpen: number; parameterClose: number; bodyOpen: number } | undefined {
-  const masked = stripLiterals(stripComments(source));
-  const pattern = new RegExp(`\\b${functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g");
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(masked)) !== null) {
-    const parameterOpen = skipTrivia(masked, match.index + functionName.length, masked.length);
-    if (masked[parameterOpen] !== "(") continue;
-    let parameterClose: number;
-    try {
-      parameterClose = matchingDelimiter(masked, parameterOpen, "(", ")");
-    } catch {
-      continue;
+function addressEscapingNames(body: Node, variables: Set<string>): Set<string> {
+  const escaped = new Set<string>();
+  const visit = (node: Node): void => {
+    if (node.type === "pointer_expression" && operatorOf(node) === "&") {
+      const argument = field(node, "argument");
+      if (argument && argument.type === "identifier" && variables.has(argument.text)) escaped.add(argument.text);
     }
-    /* Anything but ';' may separate ')' from '{': old-style parameter
-     * declarations are still a definition, a ';' means a prototype. */
-    let cursor = parameterClose + 1;
-    while (cursor < masked.length && masked[cursor] !== "{" && masked[cursor] !== ";") cursor++;
-    if (masked[cursor] !== "{") continue;
-    return { nameOffset: match.index, parameterOpen, parameterClose, bodyOpen: cursor };
-  }
-  return undefined;
+    for (const child of namedChildren(node)) visit(child);
+  };
+  visit(body);
+  return escaped;
+}
+
+/**
+ * The definition of `functionName`, never a mention of it. A banner comment is
+ * a comment node, and a forward prototype is a declaration rather than a
+ * function definition, so neither can misdirect the search.
+ */
+function findFunctionDefinition(root: Node, functionName: string): Node | undefined {
+  const visit = (node: Node): Node | undefined => {
+    if (node.type === "function_definition") {
+      const name = declaratorName(field(node, "declarator"));
+      if (name?.text === functionName) return node;
+    }
+    for (const child of namedChildren(node)) {
+      const found = visit(child);
+      if (found) return found;
+    }
+    return undefined;
+  };
+  return visit(root);
 }
 
 export function buildSemanticGraph(
@@ -841,23 +1265,28 @@ export function buildSemanticGraph(
   source: string,
   registry: MacroRegistry,
 ): SemanticGraph {
-  const definition = findFunctionDefinition(source, functionName);
+  const tree = parseC(source);
+  const definition = findFunctionDefinition(tree.rootNode, functionName);
   if (!definition) throw new Error(`function definition ${functionName} was not found in ${sourcePath}`);
-  const { nameOffset, parameterOpen, parameterClose, bodyOpen } = definition;
-  const bodyClose = matchingDelimiter(source, bodyOpen, "{", "}");
-  const parsedParameters = parameters(source, parameterOpen, parameterClose);
-  const variables = collectVariableNames(source, bodyOpen, bodyClose, parsedParameters.map((parameter) => parameter.name));
+  const declarator = field(definition, "declarator");
+  const nameNode = declaratorName(declarator)!;
+  const body = field(definition, "body");
+  if (!body) throw new Error(`function definition ${functionName} has no body in ${sourcePath}`);
 
-  const state: ParseState = {
+  const parsedParameters = parameterList(source, declarator);
+  const variables = collectDeclaredNames(body, new Set(parsedParameters.map((parameter) => parameter.name)));
+
+  const state: BuildState = {
     source,
-    variables,
+    context: { variables, typeNames: collectTypeNames(tree.rootNode) },
     registry,
     nodes: [],
     blocks: [{ index: 0, kind: "entry", nodeIds: [] }],
     caveats: [],
     nextNode: 0,
+    arrayLocals: new Set(),
   };
-  parseBlockBody(state, 0, bodyOpen + 1, bodyClose);
+  buildBlockBody(state, 0, namedChildren(body).filter((child) => child.type !== "comment"));
 
   const declarationNodes = state.nodes.filter((node) => node.kind === "declaration" && node.declName);
   const duplicateNames = new Set<string>();
@@ -870,15 +1299,33 @@ export function buildSemanticGraph(
     state.caveats.push(`Shadowed declarations frozen: ${[...duplicateNames].sort().join(", ")}.`);
   }
 
-  const escaped = new Set<string>();
-  const bodyCode = stripLiterals(stripComments(source.slice(bodyOpen, bodyClose + 1)));
-  for (const match of bodyCode.matchAll(/&\s*([A-Za-z_]\w*)\b(?!\s*(?:->|\.|\[))/g)) {
-    if (variables.has(match[1]!)) escaped.add(match[1]!);
-  }
+  /* An array's name is its address, so an array local can never be renamed
+   * into another web or merged with a scalar. */
+  const escaped = addressEscapingNames(body, variables);
+  for (const name of state.arrayLocals) escaped.add(name);
   const unsupportedTouch = new Set<string>();
   for (const node of state.nodes) {
     if (node.kind === "unknown" || node.kind === "call") {
       for (const name of [...node.reads, ...node.writes]) unsupportedTouch.add(name);
+    }
+  }
+
+  /* Old-style definitions type their parameters between the list and the body. */
+  const parameterTypes = new Map<string, { typeText: string; pointer: boolean }>();
+  for (const child of namedChildren(definition)) {
+    if (child.type !== "declaration") continue;
+    const name = declaratorName(namedChildren(child)[namedChildren(child).length - 1]);
+    if (!name) continue;
+    parameterTypes.set(name.text, {
+      typeText: source.slice(child.startIndex, name.startIndex).trim().replace(/\s+/g, " "),
+      pointer: declaratorIsPointer(field(child, "declarator")),
+    });
+  }
+  for (const parameter of parsedParameters) {
+    const typed = parameterTypes.get(parameter.name);
+    if (typed && parameter.typeText.length === 0) {
+      parameter.typeText = typed.typeText;
+      parameter.pointer = typed.pointer;
     }
   }
 
@@ -935,8 +1382,8 @@ export function buildSemanticGraph(
     function: functionName,
     sourcePath,
     sourceHash: sha256(source),
-    functionSpan: span(source, nameOffset, bodyClose + 1),
-    bodySpan: span(source, bodyOpen, bodyClose + 1),
+    functionSpan: span(source, nameNode.startIndex, definition.endIndex),
+    bodySpan: nodeSpan(source, body),
     parameters: parsedParameters,
     variables: graphVariables.sort((left, right) => left.name.localeCompare(right.name)),
     blocks: state.blocks,
@@ -959,30 +1406,59 @@ export function buildFlow(graph: SemanticGraph): GraphFlow {
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const blockOf = new Map(graph.blocks.map((block) => [block.index, block]));
   const successors = new Map<string, string[]>(graph.nodes.map((node) => [node.id, []]));
+  const isLoop = (node: SemanticNode): boolean => node.loopForm !== undefined;
+  const firstOf = (index: number | undefined): string | undefined =>
+    index === undefined ? undefined : blockOf.get(index)!.nodeIds[0];
+
+  /**
+   * Control enters a `for` through its initialiser, which runs once, and only
+   * then reaches the test. Every other statement is entered directly.
+   */
+  const entryOf = (id: string | undefined): string | undefined => {
+    if (id === undefined) return undefined;
+    const node = byId.get(id)!;
+    return isLoop(node) ? firstOf(node.initBlock) ?? id : id;
+  };
 
   const followerOf = (blockIndex: number, position: number): string | undefined => {
     const block = blockOf.get(blockIndex)!;
-    if (position + 1 < block.nodeIds.length) return block.nodeIds[position + 1];
+    if (position + 1 < block.nodeIds.length) return entryOf(block.nodeIds[position + 1]);
     if (block.parent === undefined) return undefined;
+    const owner = block.controllingConstruct ? byId.get(block.controllingConstruct) : undefined;
+    if (owner) {
+      /* The initialiser falls into the test; the body falls into the update
+       * and the update back into the test. That back edge is what makes a
+       * loop-carried definition reach the top of the body. */
+      if (block.kind === "loop-init") return owner.id;
+      if (block.kind === "loop-body") return firstOf(owner.updateBlock) ?? owner.id;
+      if (block.kind === "loop-update") return owner.id;
+    }
     const parent = blockOf.get(block.parent)!;
-    return followerOf(block.parent, parent.nodeIds.indexOf(block.controllingIf!));
+    return followerOf(block.parent, parent.nodeIds.indexOf(block.controllingIf ?? block.controllingConstruct ?? ""));
   };
 
+  /* A case block is structure, not flow: fall-through and `break` are control
+   * this schema does not model, so a switch stays a summary node. */
   for (const block of graph.blocks) {
+    if (blockIsFrozen(graph.blocks, block.index)) continue;
     for (let position = 0; position < block.nodeIds.length; position++) {
       const id = block.nodeIds[position]!;
       const node = byId.get(id)!;
+      const follower = followerOf(block.index, position);
       if (node.kind === "if") {
-        const follower = followerOf(block.index, position);
         const targets: Array<string | undefined> = [];
-        targets.push(blockOf.get(node.thenBlock!)!.nodeIds[0] ?? follower);
-        if (node.elseBlock !== undefined) targets.push(blockOf.get(node.elseBlock)!.nodeIds[0] ?? follower);
+        targets.push(firstOf(node.thenBlock) ?? follower);
+        if (node.elseBlock !== undefined) targets.push(firstOf(node.elseBlock) ?? follower);
         else targets.push(follower);
+        successors.set(id, [...new Set(targets.filter((target): target is string => target !== undefined))]);
+      } else if (isLoop(node)) {
+        /* A do/while always runs its body once; treating the exit as reachable
+         * from the test as well only widens the reaching-definition sets. */
+        const targets = [firstOf(node.bodyBlock) ?? firstOf(node.updateBlock) ?? follower, follower];
         successors.set(id, [...new Set(targets.filter((target): target is string => target !== undefined))]);
       } else if (node.kind === "return") {
         successors.set(id, []);
       } else {
-        const follower = followerOf(block.index, position);
         successors.set(id, follower !== undefined ? [follower] : []);
       }
     }
@@ -990,17 +1466,21 @@ export function buildFlow(graph: SemanticGraph): GraphFlow {
 
   /* Deterministic program order: block-structured pre-order walk. */
   const order: string[] = [];
-  const walk = (blockIndex: number): void => {
+  const walkBlock = (blockIndex: number): void => {
     for (const id of blockOf.get(blockIndex)!.nodeIds) {
       order.push(id);
       const node = byId.get(id)!;
       if (node.kind === "if") {
-        walk(node.thenBlock!);
-        if (node.elseBlock !== undefined) walk(node.elseBlock);
+        walkBlock(node.thenBlock!);
+        if (node.elseBlock !== undefined) walkBlock(node.elseBlock);
+      } else if (isLoop(node)) {
+        if (node.initBlock !== undefined) walkBlock(node.initBlock);
+        if (node.bodyBlock !== undefined) walkBlock(node.bodyBlock);
+        if (node.updateBlock !== undefined) walkBlock(node.updateBlock);
       }
     }
   };
-  walk(0);
+  walkBlock(0);
 
   const flow: GraphFlow = { successors, order };
   const entry = blockOf.get(0)!.nodeIds[0];

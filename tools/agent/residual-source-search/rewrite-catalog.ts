@@ -1,5 +1,5 @@
 import { splitComponents, type MacroRegistry } from "./macro-forms.js";
-import { buildFlow, classifySyntheticStatement, splitTopLevel, stripComments } from "./semantic-graph.js";
+import { blockIsFrozen, buildFlow, classifySyntheticStatement, splitTopLevel, stripComments } from "./semantic-graph.js";
 import { memoryEffectsConflict, parseMemoryToken, MAX_REGION_NODES } from "./topological-orders.js";
 import { baselinePartition, enumeratePartitions, nameGroups, websCompatible, type WebView } from "./web-partitions.js";
 import type { DiscoveredWitness } from "./witness.js";
@@ -14,6 +14,7 @@ import {
   type SemanticGraph,
   type SemanticNode,
   type SuppressedRule,
+  type SwitchFormSite,
   type ValueWeb,
   type WebGroup,
 } from "./types.js";
@@ -50,6 +51,8 @@ export interface DerivedGrammar {
   regions: OrderRegion[];
   /** All rule 4.3 sites in canonical order; mask bit k selects sites[k]. */
   sites: MaterializationSite[];
+  /** Switches with an admissible chain form; mask bit k selects switchForms[k]. */
+  switchForms: SwitchFormSite[];
   /** One entry per materialization mask, ascending; mask 0 is first. */
   materializations: MaterializationChoice[];
   partitionComplete: boolean;
@@ -73,6 +76,16 @@ const SUPPRESSED_BASE: SuppressedRule[] = [
     evidence: [],
   },
   {
+    rule: "compound-assignment-form",
+    reason: "measured, not assumed: `x op= e` and `x = x op (e)` reach identical assembly through the configured compiler on scalar, pointer, element, field, shift, multiply, divide, modulo, and increment fixtures, so the stratum would only enlarge the domain without reaching a new representation",
+    evidence: ["tools/agent/residual-source-search/residual-source-search.test.ts: compound assignment and its expansion compile identically"],
+  },
+  {
+    rule: "loop-form",
+    reason: "measured, not assumed: `for (init; c; )` with the update at the body tail and `init; while (c)` reach identical assembly through the configured compiler, and `do`/`while` is not an equivalence at all unless the body provably runs at least once, which the tree cannot establish",
+    evidence: ["tools/agent/residual-source-search/residual-source-search.test.ts: the for and while spellings compile identically"],
+  },
+  {
     rule: "type-cast-representation",
     reason: "not implemented in grammar schema 4; fresh materialized temps use one canonical type and local type/cast forms are not searched",
     evidence: [],
@@ -81,6 +94,83 @@ const SUPPRESSED_BASE: SuppressedRule[] = [
 
 const MAX_MATERIALIZATION_SITES = 6;
 const MAX_ADMIN_REGIONS_PER_PHANTOM = 4;
+const MAX_MOVABLE_UPDATES = 3;
+
+const MAX_SWITCH_FORM_SITES = 3;
+
+/** The indentation of the line an offset sits on. */
+function lineIndentAt(source: string, offset: number): string {
+  const start = source.lastIndexOf("\n", offset - 1) + 1;
+  return source.slice(start, offset).match(/^[ \t]*/)?.[0] ?? "";
+}
+
+/**
+ * The if/else-if chain that runs the same statements as a switch, or undefined
+ * with the reason it cannot.
+ *
+ * A switch and a compare chain are only the same program when every case is a
+ * distinct constant, no case falls through, and no `break` inside a case means
+ * anything but "leave the switch". All three come from the parse tree, so the
+ * side conditions are checked rather than assumed.
+ */
+export function switchChainForm(
+  graph: SemanticGraph,
+  source: string,
+  node: SemanticNode,
+): { site: SwitchFormSite } | { refusal: string } {
+  if (node.caseBlocks === undefined || node.condSpan === undefined) return { refusal: "not a modelled switch" };
+  const blocks = node.caseBlocks.map((index) => graph.blocks[index]!);
+  if (blocks.length < 2) return { refusal: "fewer than two cases" };
+  const nodeById = new Map(graph.nodes.map((item) => [item.id, item]));
+  const condition = source.slice(node.condSpan.start, node.condSpan.end).trim();
+
+  const labels: Array<string | null> = [];
+  const bodies: string[][] = [];
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index]!;
+    const label = block.caseLabel ?? null;
+    if (label === null && index !== blocks.length - 1) return { refusal: "the default case is not last" };
+    if (label !== null && !/^(?:0x[0-9a-fA-F]+|-?\d+)$/.test(label)) {
+      return { refusal: `case label ${label} is not an integer constant` };
+    }
+    if (label !== null && labels.includes(label)) return { refusal: `duplicate case label ${label}` };
+    const statements = block.nodeIds.map((id) => nodeById.get(id)!);
+    if (statements.length === 0) return { refusal: `case ${label ?? "default"} falls through` };
+    const last = statements[statements.length - 1]!;
+    const terminates = /^break\s*;$/.test(last.text.trim()) || last.kind === "return";
+    if (!terminates) return { refusal: `case ${label ?? "default"} falls through` };
+    const body = /^break\s*;$/.test(last.text.trim()) ? statements.slice(0, -1) : statements;
+    if (body.some((item) => /\bbreak\s*;/.test(stripComments(item.text)))) {
+      return { refusal: `case ${label ?? "default"} contains a break that is not its terminator` };
+    }
+    labels.push(label);
+    bodies.push(body.map((item) => item.text));
+  }
+
+  if (labels[0] === null) return { refusal: "the switch has no case to open the chain with" };
+  const indent = lineIndentAt(source, node.span.start);
+  const inner = `${indent}    `;
+  const clauses: string[] = [];
+  labels.forEach((label, index) => {
+    const statements = bodies[index]!.map((text) => `${inner}${text}`).join("\n");
+    const head = label === null
+      ? "else"
+      : `${index === 0 ? "if" : "else if"} (${condition} == ${label})`;
+    clauses.push(`${head} {\n${statements}${statements.length > 0 ? "\n" : ""}${indent}}`);
+  });
+
+  return {
+    site: {
+      nodeId: node.id,
+      chainText: clauses.join(" "),
+      labels,
+      evidence: [
+        `Every case of the switch at line ${node.span.lineStart} is a distinct constant that terminates without falling through.`,
+        "A jump table and a compare chain reach the machine by different paths in this compiler.",
+      ],
+    },
+  };
+}
 
 function canonicalFreshType(value: number): string {
   if (value >= 0 && value <= 255) return "u8";
@@ -259,7 +349,8 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
   const namePartitionSet = (webs: ValueWeb[]): NamedPartitionRuntime[] => {
     const enumeration = enumeratePartitions(webs, websCompatible, options.partitionCap ?? 20000);
     if (!enumeration.complete) {
-      tooLarge = `admissible web partitions exceed the materialization cap (${options.partitionCap ?? 20000}); shard planning requires an explicit larger cap`;
+      tooLarge = `admissible web partitions exceed the enumerable bound of ${options.partitionCap ?? 20000}; ` +
+        "the web-partition axis alone is beyond exhaustion for this causal closure";
     }
     /* Baseline always renders with the original (or canonical fresh) names. */
     const baselineRgs = baselinePartition(webs);
@@ -317,11 +408,21 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
   const regions: OrderRegion[] = [];
   const frozenNodeIds = new Set(graph.nodes.map((node) => node.id));
   for (const block of graph.blocks) {
+    /* Loop and case blocks are modelled but not reorderable in this version. */
+    if (blockIsFrozen(graph.blocks, block.index)) continue;
     let run: string[] = [];
     let regionIndex = 0;
     const flush = (): void => {
       if (run.length >= 1) {
-        regions.push({ id: `r${block.index}-${regionIndex++}`, block: block.index, nodeIds: run, birthEligible: [], splittable: [], materializable: [] });
+        regions.push({
+          id: `r${block.index}-${regionIndex++}`,
+          block: block.index,
+          nodeIds: run,
+          birthEligible: [],
+          splittable: [],
+          movableUpdates: [],
+          materializable: [],
+        });
       }
       run = [];
     };
@@ -346,7 +447,59 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     }
     flush();
   }
-  const keptRegions = regions.filter((region) => region.nodeIds.length >= 2 || regionHasBirthCandidate(region, options));
+  /* ---------------------------------------------------------------- */
+  /* Loop update placement: header versus body tail.                   */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * `for (i = 0; c; u) { body }` and `for (i = 0; c; ) { body u }` run the
+   * same statements in the same order — unless a `continue` skips the body
+   * tail while still running the header update. tree-sitter reports the
+   * `continue` directly, so the side condition is checked, not assumed.
+   */
+  const updateOwnerOfRegion = new Map<string, string>();
+  for (const loop of graph.nodes) {
+    if (loop.loopForm === undefined || loop.updateBlock === undefined || loop.bodyBlock === undefined) continue;
+    const updateBlock = graph.blocks[loop.updateBlock]!;
+    const updates = updateBlock.nodeIds.filter((id) => {
+      const node = nodeById.get(id)!;
+      return closureNodes.has(id) && (node.kind === "assign" || node.kind === "store");
+    });
+    if (updates.length === 0) continue;
+    if (loop.hasContinue) {
+      caveats.push(`Loop at line ${loop.span.lineStart} has a continue; its header updates stay in the header.`);
+      continue;
+    }
+    if (updates.length !== updateBlock.nodeIds.length) {
+      caveats.push(`Loop at line ${loop.span.lineStart} has header updates outside the causal closure; its update placement stays fixed.`);
+      continue;
+    }
+    /* Only the last region of the body can carry the update at its tail. */
+    const bodyRegions = regions.filter((region) => region.block === loop.bodyBlock);
+    const tail = bodyRegions[bodyRegions.length - 1];
+    if (!tail) {
+      caveats.push(`Loop at line ${loop.span.lineStart} has no reorderable body region; its update placement stays fixed.`);
+      continue;
+    }
+    const lastBodyNode = graph.blocks[loop.bodyBlock]!.nodeIds[graph.blocks[loop.bodyBlock]!.nodeIds.length - 1];
+    if (tail.nodeIds[tail.nodeIds.length - 1] !== lastBodyNode) {
+      caveats.push(`Loop at line ${loop.span.lineStart} ends its body with an immovable statement; its update placement stays fixed.`);
+      continue;
+    }
+    tail.movableUpdates = updates.slice(0, MAX_MOVABLE_UPDATES);
+    if (updates.length > MAX_MOVABLE_UPDATES) {
+      caveats.push(`Loop at line ${loop.span.lineStart} has ${updates.length} header updates; only the first ${MAX_MOVABLE_UPDATES} are enumerated and the domain is reported incomplete.`);
+    }
+    updateOwnerOfRegion.set(tail.id, loop.id);
+  }
+  /* An update region whose statements the body may carry is not its own
+   * region: its statements belong to exactly one order region. */
+  const absorbedUpdateBlocks = new Set([...updateOwnerOfRegion.values()]
+    .map((loopId) => nodeById.get(loopId)!.updateBlock!));
+
+  const keptRegions = regions.filter((region) =>
+    !absorbedUpdateBlocks.has(region.block) &&
+    (region.nodeIds.length >= 2 || region.movableUpdates.length > 0 || regionHasBirthCandidate(region, options)));
   for (const region of keptRegions) {
     for (const id of region.nodeIds) frozenNodeIds.delete(id);
     if (region.nodeIds.length > MAX_REGION_NODES) {
@@ -588,6 +741,25 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     caveats.push(`Rule 4.7 is active but ${adminRefusals.length} phantom binding(s) were refused: ${adminRefusals.join("; ")}`);
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Switch form: jump table against compare chain.                    */
+  /* ---------------------------------------------------------------- */
+
+  const switchForms: SwitchFormSite[] = [];
+  for (const node of graph.nodes) {
+    if (node.caseBlocks === undefined || !closureNodes.has(node.id)) continue;
+    const outcome = switchChainForm(graph, source, node);
+    if ("refusal" in outcome) {
+      caveats.push(`Switch at line ${node.span.lineStart} keeps its form: ${outcome.refusal}.`);
+      continue;
+    }
+    if (switchForms.length >= MAX_SWITCH_FORM_SITES) {
+      caveats.push(`More than ${MAX_SWITCH_FORM_SITES} switches have a chain form; only the first ${MAX_SWITCH_FORM_SITES} are enumerated and the domain is reported incomplete.`);
+      break;
+    }
+    switchForms.push(outcome.site);
+  }
+
   const grammar: ResidualGrammar = {
     schemaVersion: RESIDUAL_SEARCH_SCHEMA_VERSION,
     grammarSchemaVersion: RESIDUAL_GRAMMAR_SCHEMA_VERSION,
@@ -595,6 +767,8 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     activeRules: [
       "web-partition", "statement-order", "declaration-birth", "known-macro-form", "expression-materialization",
       ...(adminSites.length > 0 ? ["administrative-form" as const] : []),
+      ...(keptRegions.some((region) => region.movableUpdates.length > 0) ? ["loop-update-placement" as const] : []),
+      ...(switchForms.length > 0 ? ["switch-form" as const] : []),
     ],
     suppressedRules,
     assumptions: [...GRAMMAR_ASSUMPTIONS],
@@ -605,6 +779,7 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     caveats,
   };
   if (adminSites.length > 0) grammar.administrativeSites = adminSites;
+  if (switchForms.length > 0) grammar.switchFormSites = switchForms;
   if (witness) {
     grammar.witness = {
       runId: witness.runId,
@@ -621,6 +796,7 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     partitions,
     regions: keptRegions,
     sites,
+    switchForms,
     materializations,
     partitionComplete: tooLarge === undefined,
     registry: options.registry,

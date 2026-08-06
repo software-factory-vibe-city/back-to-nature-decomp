@@ -126,9 +126,60 @@ export function regionDependencies(views: RegionNodeView[]): RegionDependency[] 
   return edges;
 }
 
+/**
+ * Edges a loop's back edge adds to a body region.
+ *
+ * A permutation of a loop body cannot move a statement across the iteration
+ * boundary: every instance of the body still runs after the previous one in
+ * full. So a conflict between statement `a` in iteration *i* and statement `b`
+ * in iteration *i+1* is preserved by construction, and it constrains the
+ * permutation only through the pair's own within-iteration order.
+ *
+ * `nodesConflict` is symmetric in the pair — it tests both directions of the
+ * scalar and memory effects — so every loop-carried conflict is also an
+ * intra-iteration conflict, and the intra-iteration edge already orders it.
+ * This function checks that rather than assuming it: any loop-carried conflict
+ * without a corresponding intra-iteration edge is returned as a real
+ * precedence edge, which can only shrink the domain, never enlarge it.
+ */
+export function loopCarriedDependencies(
+  views: RegionNodeView[],
+  intra: RegionDependency[],
+): RegionDependency[] {
+  const ordered = new Set(intra.map((edge) => `${edge.from}->${edge.to}`));
+  const extra: RegionDependency[] = [];
+  for (let left = 0; left < views.length; left++) {
+    for (let right = left + 1; right < views.length; right++) {
+      const carried = nodesConflict(views[right]!, views[left]!);
+      if (!carried.conflict) continue;
+      const key = `${views[left]!.id}->${views[right]!.id}`;
+      if (ordered.has(key)) continue;
+      extra.push({ from: views[left]!.id, to: views[right]!.id, kind: `loop-carried:${carried.kind}` });
+    }
+  }
+  return extra;
+}
+
 export class RegionTooLargeError extends Error {
   constructor(readonly nodeCount: number) {
     super(`region with ${nodeCount} reorderable nodes exceeds the exact-counting bound of ${MAX_REGION_NODES}`);
+  }
+}
+
+/**
+ * Counting tables are `2^n` entries and one is built per region variant, of
+ * which a domain can hold hundreds of thousands. Only the most recently used
+ * ones stay resident; the rest rebuild on demand, which costs time on a rank
+ * lookup and bounds memory in exchange.
+ */
+const RESIDENT_TABLES = 64;
+const residentTables: RegionOrderModel[] = [];
+
+function retainTable(model: RegionOrderModel): void {
+  residentTables.push(model);
+  while (residentTables.length > RESIDENT_TABLES) {
+    const evicted = residentTables.shift();
+    if (evicted && evicted !== model) evicted.dropTable();
   }
 }
 
@@ -197,7 +248,13 @@ export class RegionOrderModel {
       counts[mask] = sum;
     }
     this.counts = counts;
+    retainTable(this);
     return counts;
+  }
+
+  /** Release the counting table; it rebuilds on the next count or rank. */
+  dropTable(): void {
+    this.counts = undefined;
   }
 
   count(): bigint {

@@ -113,7 +113,28 @@ export function renderCandidate(
     const emittedIds = (plan.regionOrders.get(region.region.id) ?? originalIds)
       .filter((id) => !plan.birthNodes.has(id));
     const renamed = new Map(emittedIds.map((id) => [id, renameMapOf(resolveNode(id))]));
+
+    /* A `for` header keeps only the updates this coordinate left behind. */
+    const movable = region.region.movableUpdates;
+    const moved = new Set(plan.movedUpdates.get(region.region.id) ?? []);
+    if (movable.length > 0 && moved.size > 0) {
+      const retained = movable.filter((id) => !moved.has(id));
+      const nodes = movable.map((id) => nodeById.get(id)!);
+      const text = retained
+        .map((id) => {
+          const node = nodeById.get(id)!;
+          return renameIdentifiers(node.text, renameMapOf(node));
+        })
+        .join(", ");
+      replacements.push({
+        start: nodes[0]!.span.start,
+        end: nodes[nodes.length - 1]!.span.end,
+        text,
+      });
+    }
+
     const identical =
+      moved.size === 0 &&
       emittedIds.join(",") === originalIds.join(",") &&
       [...renamed.values()].every((map) => map.size === 0);
     if (identical) continue;
@@ -152,6 +173,17 @@ export function renderCandidate(
     if (renames.size > 0) {
       replacements.push({ start: node.span.start, end: node.span.end, text: renameIdentifiers(node.text, renames) });
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Switch form: the compare chain replaces the whole construct.      */
+  /* ---------------------------------------------------------------- */
+
+  for (const nodeId of plan.coordinate.switchForms ?? []) {
+    const site = plan.switchForms.get(nodeId);
+    const node = nodeById.get(nodeId);
+    if (!site || !node) continue;
+    replacements.push({ start: node.span.start, end: node.span.end, text: site.chainText });
   }
 
   /* ---------------------------------------------------------------- */

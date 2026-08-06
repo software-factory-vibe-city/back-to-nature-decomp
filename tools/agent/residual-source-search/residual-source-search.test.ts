@@ -1,33 +1,39 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { ROOT, compileSource } from "../decompToolchain.js";
+import { ROOT, compileSource, configuredCompilerPath } from "../decompToolchain.js";
 import { parseCc1Assembly } from "../variant-lab/compile.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
+import { compareResidual, residualIsExact, residualKey } from "./align.js";
 import { canonicalContext, canonicalSourceHash } from "./canonicalize.js";
 import { validateSearchCheckpoint } from "./checkpoint.js";
+import { domainAxes, median, pilotRanks, projectWallMs } from "./cost-report.js";
 import { deriveCausalClosure } from "./compiler-closure.js";
 import { buildDomain, candidateAt, shardRank, shardSize } from "./enumerate.js";
 import { loadMacroRegistry, splitComponents } from "./macro-forms.js";
 import { renderCandidate, renameIdentifiers } from "./render.js";
 import { deriveGrammar, macroComponents } from "./rewrite-catalog.js";
 import { runResidualSourceSearch } from "./run.js";
-import { buildSemanticGraph, memoryReadTokens } from "./semantic-graph.js";
+import { blockIsFrozen, buildSemanticGraph, memoryReadTokens } from "./semantic-graph.js";
 import {
   MAX_REGION_NODES,
   RegionOrderModel,
   RegionTooLargeError,
+  loopCarriedDependencies,
   memoryEffectsConflict,
   parseMemoryToken,
+  regionDependencies,
 } from "./topological-orders.js";
 import { analyzeWebs, enumeratePartitions, websCompatible } from "./web-partitions.js";
+import { mismatchedIndexes } from "./source-input.js";
 import { discoverWitness, type DiscoveredWitness } from "./witness.js";
 import { RESIDUAL_SEARCH_SCHEMA_VERSION, type CausalClosure, type ValueWeb } from "./types.js";
 
 const registry = loadMacroRegistry();
-const compilerAvailable = existsSync(join(ROOT, "tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1"));
+const compilerAvailable = existsSync(configuredCompilerPath());
 
 function graphOf(source: string, functionName = "fixture") {
   return buildSemanticGraph(functionName, `${functionName}.c`, source, registry);
@@ -127,6 +133,692 @@ test("the function definition is located past comment mentions and forward proto
   assert.throws(() => graphOf("/* fixture lives elsewhere */\nint other(void) { return 0; }\n"), /was not found/);
 });
 
+test("a banner comment naming the function cannot misdirect the parse", () => {
+  /* Braces, parentheses, and the function's own name inside a comment used to
+     misdirect the character scan into parsing the comment as a body. */
+  const source = [
+    "/* fixture — see notes/research/fixture.md",
+    " * int fixture(int a) { return a; }  <- the shape this used to match",
+    " * {count, byte offset} pair used to locate a sub-table (4 bytes)",
+    " */",
+    "int fixture(int a);",
+    "",
+    "int fixture(int a)",
+    "{",
+    "    int t;",
+    "    t = a;",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  assert.deepEqual(graph.nodes.map((node) => node.kind), ["declaration", "assign", "return"]);
+  assert.equal(graph.parameters.length, 1);
+  assert.equal(graph.functionSpan.lineStart, 7);
+});
+
+test("an unparsable region freezes a node instead of throwing", () => {
+  const source = [
+    "int fixture(int a) {",
+    "    int t;",
+    "    t = a;",
+    "    @@@ this is not C @@@",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  assert.ok(graph.nodes.some((node) => node.kind === "unknown"));
+  const frozen = graph.nodes.find((node) => node.kind === "unknown")!;
+  assert.deepEqual(frozen.memoryReads, ["*unknown*"]);
+  assert.deepEqual(frozen.memoryWrites, ["*unknown*"]);
+  assert.equal(frozen.movable, false);
+  /* The statements around it are still modelled. */
+  assert.ok(graph.nodes.some((node) => node.kind === "assign"));
+  assert.ok(graph.nodes.some((node) => node.kind === "return"));
+});
+
+test("a return is a return, not a declaration of the value it returns", () => {
+  /* The character-scan front end matched `return X;` against its declaration
+     pattern and invented a local named X with type "return". */
+  const graph = graphOf("s32 fixture(void) {\n    return D_8005E29C;\n}\n");
+  assert.deepEqual(graph.nodes.map((node) => node.kind), ["return"]);
+  assert.deepEqual(graph.nodes[0]!.memoryReads, ["global:D_8005E29C"]);
+  assert.deepEqual(graph.variables, []);
+});
+
+test("an array local is a declaration whose name is an address", () => {
+  const source = [
+    "int fixture(int n) {",
+    "    s16 list[12];",
+    "    int t;",
+    "    t = n;",
+    "    list[0] = t;",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  /* An array declarator used to defeat the declaration pattern, which froze it
+     and every declaration after it. */
+  assert.deepEqual(graph.nodes.map((node) => node.kind), ["declaration", "declaration", "assign", "store", "return"]);
+  const list = graph.variables.find((variable) => variable.name === "list")!;
+  assert.equal(list.addressEscapes, true);
+  const store = graph.nodes.find((node) => node.kind === "store")!;
+  assert.deepEqual(store.memoryWrites, ["element:list[]"]);
+});
+
+test("a hard-register-pinned declaration is frozen, not modelled as a local", () => {
+  const source = [
+    "void fixture(int a) {",
+    "    register int *p __asm__(\"v0\");",
+    "    p[0] = a;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const declaration = graph.nodes[0]!;
+  assert.equal(declaration.kind, "unknown");
+  assert.match(declaration.evidence[0]!, /hard register/);
+  /* The pinned name never becomes a renameable local. */
+  assert.equal(graph.variables.some((variable) => variable.name === "p"), false);
+});
+
+test("a cast the grammar reads as a call is resolved by the configured type names", () => {
+  const source = [
+    "int fixture(int a, int *out) {",
+    "    s16 t;",
+    "    t = (s16)(a - 0x41);",
+    "    out[0] = (s32)&D_8004B1A4;",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const cast = graph.nodes.find((node) => node.text.includes("0x41"))!;
+  /* `(s16)(x)` is a call and `(s32)&x` is a bitwise and to a context-free
+     grammar; only the type name tells them apart. */
+  assert.equal(cast.kind, "assign");
+  assert.equal(cast.movable, true);
+  assert.deepEqual(cast.reads, ["a"]);
+  assert.deepEqual(cast.memoryReads, []);
+  const address = graph.nodes.find((node) => node.text.includes("D_8004B1A4"))!;
+  assert.equal(address.kind, "store");
+  assert.deepEqual(address.memoryReads, ["global:D_8004B1A4"]);
+});
+
+test("a store through a dereferenced pointer is modelled, not frozen", () => {
+  const source = [
+    "void fixture(int *p, int *q, int x) {",
+    "    *p = x;",
+    "    *(s32 *)q = x + 1;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  assert.deepEqual(graph.nodes.map((node) => node.kind), ["store", "store"]);
+  assert.deepEqual(graph.nodes[0]!.memoryWrites, ["object:p"]);
+  assert.deepEqual(graph.nodes[1]!.memoryWrites, ["object:q"]);
+});
+
+/* ------------------------------------------------------------------ */
+/* Loop and switch structure                                           */
+/* ------------------------------------------------------------------ */
+
+test("a for loop models its init, body, and update as blocks", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int i;",
+    "    int t;",
+    "    t = n;",
+    "    for (i = 0; i < 4; i++) {",
+    "        out[i] = t;",
+    "        t = t + 1;",
+    "    }",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const loop = graph.nodes.find((node) => node.loopForm !== undefined)!;
+  assert.equal(loop.loopForm, "for");
+  assert.equal(loop.condition, "i < 4");
+  assert.equal(loop.hasContinue, false);
+
+  const kindOf = (index: number) => graph.blocks[index]!.kind;
+  assert.equal(kindOf(loop.initBlock!), "loop-init");
+  assert.equal(kindOf(loop.bodyBlock!), "loop-body");
+  assert.equal(kindOf(loop.updateBlock!), "loop-update");
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const textsIn = (index: number) => graph.blocks[index]!.nodeIds.map((id) => byId.get(id)!.text);
+  assert.deepEqual(textsIn(loop.initBlock!), ["i = 0"]);
+  assert.deepEqual(textsIn(loop.updateBlock!), ["i++"]);
+  assert.deepEqual(textsIn(loop.bodyBlock!), ["out[i] = t;", "t = t + 1;"]);
+
+  /* The construct itself is never moved or reshaped, and its node carries the
+     condition's effects now that the header and body are modelled. */
+  assert.equal(loop.movable, false);
+  assert.deepEqual(loop.reads, ["i"]);
+  assert.deepEqual(loop.writes, []);
+  assert.deepEqual(loop.memoryReads, []);
+  assert.deepEqual(loop.memoryWrites, []);
+  /* The body statements are real, movable statements with real effects. */
+  const body = graph.blocks[loop.bodyBlock!]!.nodeIds.map((id) => byId.get(id)!);
+  assert.deepEqual(body.map((node) => node.kind), ["store", "assign"]);
+  assert.deepEqual(body.map((node) => node.movable), [true, true]);
+  assert.deepEqual(body[0]!.memoryWrites, ["element:out[]"]);
+});
+
+test("a comma-separated for update becomes one node per statement", () => {
+  const source = "void fixture(int *p, int n) {\n    int i;\n    for (i = 0; i < n; i++, p++) {\n        p[0] = i;\n    }\n}\n";
+  const graph = graphOf(source);
+  const loop = graph.nodes.find((node) => node.loopForm === "for")!;
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  assert.deepEqual(graph.blocks[loop.updateBlock!]!.nodeIds.map((id) => byId.get(id)!.text), ["i++", "p++"]);
+});
+
+test("while and do/while model a body block and no header blocks", () => {
+  const whileGraph = graphOf("void fixture(int u) {\n    while (u > 0) {\n        u = u - 1;\n    }\n}\n");
+  const loop = whileGraph.nodes.find((node) => node.loopForm !== undefined)!;
+  assert.equal(loop.loopForm, "while");
+  assert.equal(loop.initBlock, undefined);
+  assert.equal(loop.updateBlock, undefined);
+  assert.equal(whileGraph.blocks[loop.bodyBlock!]!.kind, "loop-body");
+  assert.equal(whileGraph.blocks[loop.bodyBlock!]!.nodeIds.length, 1);
+
+  const doGraph = graphOf("void fixture(int k) {\n    do {\n        k++;\n    } while (k < 3);\n}\n");
+  const doLoop = doGraph.nodes.find((node) => node.loopForm !== undefined)!;
+  assert.equal(doLoop.loopForm, "do-while");
+  assert.equal(doLoop.condition, "k < 3");
+  assert.equal(doGraph.blocks[doLoop.bodyBlock!]!.nodeIds.length, 1);
+});
+
+test("a continue that belongs to the loop is recorded and a nested one is not", () => {
+  const own = graphOf("void fixture(int n) {\n    int i;\n    for (i = 0; i < n; i++) {\n        if (i == 2) { continue; }\n        n = n - 1;\n    }\n}\n");
+  assert.equal(own.nodes.find((node) => node.loopForm === "for")!.hasContinue, true);
+
+  const nested = graphOf("void fixture(int n) {\n    int i;\n    int j;\n    for (i = 0; i < n; i++) {\n        for (j = 0; j < n; j++) {\n            continue;\n        }\n    }\n}\n");
+  const loops = nested.nodes.filter((node) => node.loopForm === "for");
+  assert.equal(loops.length, 2);
+  const outer = loops.find((node) => node.span.start < loops[0]!.span.start || node.text.includes("i++"))!;
+  assert.equal(outer.hasContinue, false);
+});
+
+test("a switch models one block per case, labels included", () => {
+  const source = [
+    "int fixture(int i) {",
+    "    int t;",
+    "    t = 0;",
+    "    switch (i) {",
+    "        case 1:",
+    "            t = 2;",
+    "            break;",
+    "        case 5:",
+    "            t = 3;",
+    "            break;",
+    "        default:",
+    "            break;",
+    "    }",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const node = graph.nodes.find((item) => item.caseBlocks !== undefined)!;
+  assert.equal(node.condition, "i");
+  assert.equal(node.caseBlocks!.length, 3);
+  const blocks = node.caseBlocks!.map((index) => graph.blocks[index]!);
+  assert.deepEqual(blocks.map((block) => block.kind), ["case", "case", "case"]);
+  assert.deepEqual(blocks.map((block) => block.caseLabel), ["1", "5", undefined]);
+  assert.deepEqual(blocks.map((block) => block.nodeIds.length), [2, 2, 1]);
+  assert.equal(node.movable, false);
+  assert.deepEqual(node.memoryWrites, ["*unknown*"]);
+  assert.equal(graph.caveats.some((line) => /switch frozen at line 4/.test(line)), true);
+});
+
+test("a case block never becomes an order region", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int a;",
+    "    int b;",
+    "    a = n;",
+    "    b = n + 1;",
+    "    switch (n) {",
+    "        case 1:",
+    "            out[0] = a;",
+    "            out[1] = b;",
+    "            break;",
+    "        default:",
+    "            break;",
+    "    }",
+    "    return a + b;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  /* Fall-through and `break` are control this schema does not model, so the
+     statements of a case stay outside every order region. */
+  const frozenBlocks = new Set(graph.blocks
+    .filter((block) => blockIsFrozen(graph.blocks, block.index))
+    .map((block) => block.index));
+  assert.ok(frozenBlocks.size >= 2);
+  for (const region of derived.regions) assert.equal(frozenBlocks.has(region.block), false);
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  for (const region of derived.regions) {
+    for (const id of region.nodeIds) assert.equal(byId.get(id)!.block, region.block);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* Loop-carried dependencies                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The tail of func_80016C08, where its whole residual lives. Three statements
+ * form a forced chain and two are free, so a loop body of five statements has
+ * 5!/3! = 20 dependency-valid orders.
+ */
+const LOOP_TAIL_SOURCE = [
+  "typedef struct { int tag; } Poly;",
+  "typedef struct { int field_118; } Gfx;",
+  "extern Gfx *D_8005E3C0;",
+  "int fixture(u32 *ot, Poly *poly, int size, int count) {",
+  "    int total;",
+  "    int i;",
+  "    total = 0;",
+  "    for (i = 0; i < count; i++) {",
+  "        poly->tag = (*ot & 0xFFFFFF) | 0x09000000;",
+  "        *ot = (s32) poly & 0xFFFFFF;",
+  "        total += size;",
+  "        poly++;",
+  "        D_8005E3C0->field_118 += 0x28;",
+  "    }",
+  "    return total;",
+  "}",
+  "",
+].join("\n");
+
+/** The variant with every Phase 5 form axis at its baseline choice. */
+function baselineVariant(runtime: { variants: Array<{ splitMask: number; updateMask: number; birthMask: number; count: bigint }> }) {
+  return runtime.variants.find((variant) =>
+    variant.splitMask === 0 && variant.updateMask === 0 && variant.birthMask === 0)!;
+}
+
+function loopBodyRegion(source: string) {
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  const loop = graph.nodes.find((node) => node.loopForm !== undefined)!;
+  const region = derived.regions.find((item) => item.block === loop.bodyBlock)!;
+  return { graph, view, derived, loop, region };
+}
+
+test("a loop body is an order region with a hand-verified number of orders", () => {
+  const { graph, view, derived, region } = loopBodyRegion(LOOP_TAIL_SOURCE);
+  assert.equal(region.nodeIds.length, 5);
+  const domain = buildDomain({ graph, view, derived });
+  const runtime = domain.partitions[0]!.regions.find((item) => item.region.id === region.id)!;
+  /* statement 1 reads *ot and statement 2 writes it; both read poly and
+     statement 4 writes it: a three-statement chain and two free statements. */
+  assert.equal(baselineVariant(runtime).count, 20n);
+  /* The region's own size is the sum over every form and placement variant. */
+  assert.equal(runtime.size, runtime.variants.reduce((total, variant) => total + variant.count, 0n));
+});
+
+test("a loop-carried anti-dependence keeps the read before the write", () => {
+  const source = [
+    "int fixture(int *b, int n, int c) {",
+    "    int a;",
+    "    int i;",
+    "    a = 0;",
+    "    for (i = 0; i < n; i++) {",
+    "        a = b[i];",
+    "        b[i] = c;",
+    "    }",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const { graph, view, derived, region } = loopBodyRegion(source);
+  assert.equal(region.nodeIds.length, 2);
+  const domain = buildDomain({ graph, view, derived });
+  const runtime = domain.partitions[0]!.regions.find((item) => item.region.id === region.id)!;
+  /* Swapping would make the read see this iteration's store instead of the
+     previous iteration's value, so the region has exactly one order. */
+  assert.equal(baselineVariant(runtime).count, 1n);
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  assert.deepEqual(region.nodeIds.map((id) => byId.get(id)!.kind), ["assign", "store"]);
+});
+
+test("a loop-carried conflict is always an intra-iteration conflict too", () => {
+  /* nodesConflict is symmetric in the pair, so the back edge can never order
+     two statements the within-iteration edges left free. */
+  const check = (source: string) => {
+    const { graph, view, derived, region } = loopBodyRegion(source);
+    const variableNames = new Set(graph.variables.map((variable) => variable.name));
+    const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+    const views = region.nodeIds.map((id) => {
+      const node = byId.get(id)!;
+      const webAt = (variable: string) =>
+        view.reaching.get(id)?.get(variable) ?? view.defWebs.get(id)?.get(variable);
+      return {
+        id,
+        node,
+        reads: new Set(node.reads),
+        writes: new Set(node.writes),
+        memoryReads: node.memoryReads.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
+        memoryWrites: node.memoryWrites.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
+      };
+    });
+    return loopCarriedDependencies(views, regionDependencies(views));
+  };
+  assert.deepEqual(check(LOOP_TAIL_SOURCE), []);
+  assert.deepEqual(check([
+    "int fixture(int *b, int n, int c) {",
+    "    int a;",
+    "    int i;",
+    "    a = 0;",
+    "    for (i = 0; i < n; i++) {",
+    "        a = b[i];",
+    "        b[i] = c;",
+    "    }",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n")), []);
+});
+
+test("exact counting agrees with brute-force enumeration on loop bodies", () => {
+  const permutations = <T>(items: T[]): T[][] => {
+    if (items.length <= 1) return [items];
+    return items.flatMap((item, index) =>
+      permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]));
+  };
+  for (const source of [LOOP_TAIL_SOURCE, [
+    "int fixture(int *p, int *q, int n) {",
+    "    int t;",
+    "    int u;",
+    "    int i;",
+    "    t = 0;",
+    "    u = 0;",
+    "    for (i = 0; i < n; i++) {",
+    "        t = p[i];",
+    "        u = q[i];",
+    "        p[i] = u;",
+    "    }",
+    "    return t + u;",
+    "}",
+    "",
+  ].join("\n")]) {
+    const { graph, view, derived, region } = loopBodyRegion(source);
+    const domain = buildDomain({ graph, view, derived });
+    const runtime = domain.partitions[0]!.regions.find((item) => item.region.id === region.id)!;
+    const variableNames = new Set(graph.variables.map((variable) => variable.name));
+    const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+    const views = region.nodeIds.map((id) => {
+      const node = byId.get(id)!;
+      const webAt = (variable: string) =>
+        view.reaching.get(id)?.get(variable) ?? view.defWebs.get(id)?.get(variable);
+      return {
+        id,
+        node,
+        reads: new Set(node.reads),
+        writes: new Set(node.writes),
+        memoryReads: node.memoryReads.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
+        memoryWrites: node.memoryWrites.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
+      };
+    });
+    const edges = [...regionDependencies(views), ...loopCarriedDependencies(views, regionDependencies(views))];
+    const legal = permutations(region.nodeIds).filter((order) => {
+      const at = new Map(order.map((id, index) => [id, index]));
+      return edges.every((edge) => at.get(edge.from)! < at.get(edge.to)!);
+    });
+    assert.equal(baselineVariant(runtime).count, BigInt(legal.length));
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* Grammar strata: compound assignment and loop update placement       */
+/* ------------------------------------------------------------------ */
+
+test("the compound-assignment stratum stays removed while it changes nothing", { skip: !compilerAvailable }, () => {
+  /* The plan's rule: a stratum that cannot be shown to change generated
+     assembly on at least one fixture is removed rather than kept. If this ever
+     fails, the configured compiler started distinguishing the two spellings
+     and the stratum should be reinstated. */
+  const scratch = mkdtempSync(join(tmpdir(), "rss-compound-"));
+  try {
+    const assemblyOf = (name: string, text: string): string => {
+      const path = join(scratch, `${name}.c`);
+      writeFileSync(path, text);
+      return JSON.stringify(parseCc1Assembly(compileSource(path, join(scratch, name), "fixture").assembly));
+    };
+    const pairs: Array<[string, string, string]> = [
+      ["scalar", "int fixture(int a, int n){int t;int i;t=0;for(i=0;i<n;i++){t+=a;}return t;}",
+        "int fixture(int a, int n){int t;int i;t=0;for(i=0;i<n;i++){t=t+(a);}return t;}"],
+      ["pointer", "int fixture(int *p,int n){int i;int t;t=0;for(i=0;i<n;i++){p+=2;t+=p[0];}return t;}",
+        "int fixture(int *p,int n){int i;int t;t=0;for(i=0;i<n;i++){p=p+(2);t=t+(p[0]);}return t;}"],
+      ["field", "typedef struct{int a;int b;}S;void fixture(S*s,int x){s->a+=x;s->b+=x;}",
+        "typedef struct{int a;int b;}S;void fixture(S*s,int x){s->a=s->a+(x);s->b=s->b+(x);}"],
+      ["shift", "int fixture(int a,int b){int t;t=a;t<<=b;t|=b;return t;}",
+        "int fixture(int a,int b){int t;t=a;t=t<<(b);t=t|(b);return t;}"],
+      ["increment", "void fixture(int*p,int n){int i;i=0;p[0]=n;i++;p[1]=i;}",
+        "void fixture(int*p,int n){int i;i=0;p[0]=n;i=i+1;p[1]=i;}"],
+      ["element", "void fixture(int*p,int n,int x){int i;for(i=0;i<n;i++){p[i]+=x;}}",
+        "void fixture(int*p,int n,int x){int i;for(i=0;i<n;i++){p[i]=p[i]+(x);}}"],
+    ];
+    for (const [name, compound, expanded] of pairs) {
+      assert.equal(assemblyOf(`${name}-c`, compound), assemblyOf(`${name}-e`, expanded),
+        `${name}: the two spellings reached different assembly; reinstate compound-assignment-form`);
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("the removed stratum is recorded as suppressed with its measurement", () => {
+  const source = "int fixture(int a){\n    int t;\n    t = 0;\n    t += a;\n    return t;\n}\n";
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  assert.equal(derived.grammar.activeRules.includes("compound-assignment-form"), false);
+  const suppressed = derived.grammar.suppressedRules.find((rule) => rule.rule === "compound-assignment-form")!;
+  assert.match(suppressed.reason, /measured, not assumed/);
+  assert.ok(suppressed.evidence.length > 0);
+});
+
+test("a for header's updates may sit at the body tail instead", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int i;",
+    "    int t;",
+    "    t = 0;",
+    "    for (i = 0; i < n; i++) {",
+    "        out[0] = t;",
+    "        out[1] = t;",
+    "    }",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  assert.ok(derived.grammar.activeRules.includes("loop-update-placement"));
+  const loop = graph.nodes.find((node) => node.loopForm === "for")!;
+  const body = derived.regions.find((item) => item.block === loop.bodyBlock)!;
+  assert.equal(body.movableUpdates.length, 1);
+  /* The update block is absorbed: its statement belongs to exactly one region. */
+  assert.equal(derived.regions.some((item) => item.block === loop.updateBlock), false);
+
+  const domain = buildDomain({ graph, view, derived });
+  const renders = [...Array(Number(domain.total)).keys()]
+    .map((rank) => renderCandidate(source, graph, view, candidateAt(domain, BigInt(rank))));
+  assert.equal(renders[0], source);
+  const moved = renders.find((text) => text.includes("for (i = 0; i < n; )"))!;
+  assert.ok(moved, "some coordinate moves the update into the body");
+  assert.ok(moved.includes("i++;"));
+  /* Exactly one `i++` survives: the header lost what the body gained. */
+  assert.equal(moved.split("i++").length - 1, 1);
+  const context = canonicalContext(graph, source);
+  assert.equal(new Set(renders.map((text) => canonicalSourceHash(text, context))).size, renders.length);
+});
+
+test("a continue pins the header update where it is", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int i;",
+    "    int t;",
+    "    t = 0;",
+    "    for (i = 0; i < n; i++) {",
+    "        if (i == 2) { continue; }",
+    "        out[0] = t;",
+    "        out[1] = t;",
+    "    }",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  /* A continue skips the body tail but still runs the header update, so the
+     two placements are not the same program. */
+  assert.equal(derived.regions.some((region) => region.movableUpdates.length > 0), false);
+  assert.equal(derived.grammar.activeRules.includes("loop-update-placement"), false);
+  assert.ok(derived.grammar.caveats.some((line) => /has a continue; its header updates stay/.test(line)));
+});
+
+const SWITCH_SOURCE = [
+  "int fixture(int i) {",
+  "    int t;",
+  "    t = 0;",
+  "    switch (i) {",
+  "        case 1:",
+  "            t = 2;",
+  "            break;",
+  "        case 5:",
+  "            t = 3;",
+  "            break;",
+  "        default:",
+  "            t = 9;",
+  "            break;",
+  "    }",
+  "    return t;",
+  "}",
+  "",
+].join("\n");
+
+test("a switch with distinct, terminated cases also has a compare-chain form", () => {
+  const graph = graphOf(SWITCH_SOURCE);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source: SWITCH_SOURCE, registry });
+  assert.ok(derived.grammar.activeRules.includes("switch-form"));
+  assert.equal(derived.switchForms.length, 1);
+  assert.deepEqual(derived.switchForms[0]!.labels, ["1", "5", null]);
+
+  const domain = buildDomain({ graph, view, derived });
+  const renders = [...Array(Number(domain.total)).keys()]
+    .map((rank) => renderCandidate(SWITCH_SOURCE, graph, view, candidateAt(domain, BigInt(rank))));
+  assert.equal(renders[0], SWITCH_SOURCE);
+  const chain = renders.find((text) => text.includes("if (i == 1)"))!;
+  assert.ok(chain, "some coordinate spells the switch as a chain");
+  assert.ok(chain.includes("} else if (i == 5) {"));
+  assert.ok(chain.includes("} else {"));
+  assert.equal(chain.includes("switch"), false);
+  assert.equal(chain.includes("break;"), false);
+  /* The chain runs the same statements. */
+  for (const statement of ["t = 2;", "t = 3;", "t = 9;"]) assert.ok(chain.includes(statement));
+  const context = canonicalContext(graph, SWITCH_SOURCE);
+  assert.equal(new Set(renders.map((text) => canonicalSourceHash(text, context))).size, renders.length);
+});
+
+test("a switch the chain cannot reproduce keeps its form with an exact reason", () => {
+  const refuse = (source: string, pattern: RegExp) => {
+    const graph = graphOf(source);
+    const view = analyzeWebs(graph);
+    const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+    assert.equal(derived.switchForms.length, 0, source);
+    assert.ok(derived.grammar.caveats.some((line) => pattern.test(line)), `${source}\n${derived.grammar.caveats.join("\n")}`);
+  };
+  /* Fall-through is not a compare chain. */
+  refuse(SWITCH_SOURCE.replace("            t = 2;\n            break;\n", "            t = 2;\n"), /falls through/);
+  /* A non-constant label cannot be compared against. */
+  refuse(SWITCH_SOURCE.replace("case 5:", "case LIMIT:"), /not an integer constant/);
+  /* A default before the last case changes which clause wins. */
+  refuse([
+    "int fixture(int i) {",
+    "    int t;",
+    "    t = 0;",
+    "    switch (i) {",
+    "        default:",
+    "            t = 9;",
+    "            break;",
+    "        case 1:",
+    "            t = 2;",
+    "            break;",
+    "    }",
+    "    return t;",
+    "}",
+    "",
+  ].join("\n"), /default case is not last/);
+});
+
+test("integration: the switch chain form compiles and changes generated assembly", { skip: !compilerAvailable }, () => {
+  const scratch = mkdtempSync(join(tmpdir(), "rss-switch-"));
+  try {
+    const graph = graphOf(SWITCH_SOURCE);
+    const view = analyzeWebs(graph);
+    const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source: SWITCH_SOURCE, registry });
+    const domain = buildDomain({ graph, view, derived });
+    const chain = [...Array(Number(domain.total)).keys()]
+      .map((rank) => renderCandidate(SWITCH_SOURCE, graph, view, candidateAt(domain, BigInt(rank))))
+      .find((text) => text.includes("if (i == 1)"))!;
+    const assemblyOf = (name: string, text: string): string => {
+      const path = join(scratch, `${name}.c`);
+      writeFileSync(path, text);
+      return JSON.stringify(parseCc1Assembly(compileSource(path, join(scratch, name), "fixture").assembly));
+    };
+    /* The rendered chain is real C, and the compiler treats the two forms
+       differently: a balanced compare tree against a chain. */
+    assert.notEqual(assemblyOf("sbase", SWITCH_SOURCE), assemblyOf("schain", chain));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("integration: loop update placement changes generated assembly", { skip: !compilerAvailable }, () => {
+  /* A stratum earns its place by changing what the compiler emits. */
+  const scratch = mkdtempSync(join(tmpdir(), "rss-strata-"));
+  try {
+    const assemblyOf = (name: string, text: string): string => {
+      const path = join(scratch, `${name}.c`);
+      writeFileSync(path, text);
+      return JSON.stringify(parseCc1Assembly(compileSource(path, join(scratch, name), "fixture").assembly));
+    };
+    const base = [
+      "typedef struct { int a; int b; } Pair;",
+      "void fixture(Pair *s, int n) {",
+      "    int i;",
+      "    for (i = 0; i < n; i++, s++) {",
+      "        s->a = i;",
+      "        s->b = i + 1;",
+      "    }",
+      "}",
+      "",
+    ].join("\n");
+    const moved = base
+      .replace("for (i = 0; i < n; i++, s++) {", "for (i = 0; i < n; i++) {")
+      .replace("        s->b = i + 1;\n", "        s->b = i + 1;\n        s++;\n");
+    assert.notEqual(base, moved);
+    assert.notEqual(assemblyOf("ubase", base), assemblyOf("uform", moved));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test("memory read extraction distinguishes loads, address-of, and derefs", () => {
   const variables = new Set(["p", "q", "i", "x"]);
   assert.deepEqual(memoryReadTokens("q[0] + 3", variables), ["element:q[]"]);
@@ -136,6 +828,94 @@ test("memory read extraction distinguishes loads, address-of, and derefs", () =>
   assert.deepEqual(memoryReadTokens("*q + 1", variables), ["object:q"]);
   assert.deepEqual(memoryReadTokens("x * q", variables), []);
   assert.deepEqual(memoryReadTokens("D_80049044[i]", variables), ["global:D_80049044"]);
+});
+
+/* ------------------------------------------------------------------ */
+/* Residual alignment                                                  */
+/* ------------------------------------------------------------------ */
+
+function instruction(canonical: string, relocation?: string): NormalizedInstruction {
+  const [mnemonic, rest] = canonical.split(/\s+(.*)/);
+  const operands = rest ? rest.split(",") : [];
+  return { mnemonic: mnemonic!, operands, canonical, ...(relocation ? { relocation } : {}) };
+}
+
+test("the residual key closes the differences the assembler and linker introduce", () => {
+  const same = (left: NormalizedInstruction, right: NormalizedInstruction, why: string) =>
+    assert.equal(residualKey(left), residualKey(right), why);
+
+  /* $30 has two names. */
+  same(instruction("sw s8,128(sp)"), instruction("sw fp,128(sp)"), "register alias");
+  same(instruction("addu s8,v1,v0"), instruction("addu fp,v1,v0"), "register alias in a result");
+  same(instruction("lhu a0,0(s8)"), instruction("lhu a0,0(fp)"), "register alias in a base");
+
+  /* The assembler rewrites a subtract of a constant. */
+  same(instruction("addiu sp,sp,-136"), instruction("subu sp,sp,136"), "assembler macro");
+
+  /* A generated symbol carries its own address, and small-data addressing is
+     a choice the assembler makes that the cc1 stream does not encode. */
+  same(instruction("sh v1,%lo(8005e438)(gp)"), instruction("sh v1,d_8005e438"), "gp-relative form");
+  same(instruction("lw v1,%lo(8005e3c0)(v0)"), instruction("lw v1,%lo(d_8005e3c0)(v0)"), "symbol name or address");
+
+  /* An unresolved call target resolves through its own relocation record. */
+  same(instruction("jal 0<func_80016c08>", "%lo(80016b7c)"), instruction("jal func_80016b7c"), "call relocation");
+
+  /* Real differences survive: this pair is the residual of func_80016C08. */
+  assert.notEqual(
+    residualKey(instruction("lui v1,%hi(8005e3c0)")),
+    residualKey(instruction("lui v0,%hi(8005e3c0)")));
+  assert.notEqual(residualKey(instruction("lw v1,%lo(8005e3c0)(v1)")), residualKey(instruction("lw v1,%lo(8005e3c0)(v0)")));
+  /* A different callee is still a difference. */
+  assert.notEqual(residualKey(instruction("jal 0<encl>", "%lo(80016b7c)")), residualKey(instruction("jal func_80019070")));
+});
+
+test("delay-slot fills are aligned away, not charged to the source", () => {
+  /* The target has been through the assembler; the cc1 stream has not. */
+  const target = ["addiu sp,sp,-8", "jal func_80016b7c", "nop", "lw v0,0(a0)", "nop", "jr ra"].map((text) => instruction(text));
+  const candidate = ["subu sp,sp,8", "jal func_80016b7c", "lw v0,0(a0)", "jr ra"].map((text) => instruction(text));
+  const result = compareResidual(target, candidate);
+  assert.equal(result.assemblerFill, 2);
+  assert.equal(result.exact, 4);
+  assert.equal(result.total, 4);
+  assert.deepEqual(result.mismatchedTargetIndexes, []);
+  assert.equal(result.category, "exact");
+  assert.equal(residualIsExact(result), true);
+  /* The positional comparison this replaced saw five differences in a stream
+     that has none: the first nop desynchronizes everything after it. */
+  assert.equal(mismatchedIndexes(target, candidate).length, 5);
+});
+
+test("one inserted instruction does not desynchronize the rest of the stream", () => {
+  const body = Array.from({ length: 40 }, (_unused, index) => instruction(`addiu v0,v0,${index}`));
+  const target = [...body];
+  const candidate = [instruction("lui v1,4"), ...body];
+  const result = compareResidual(target, candidate);
+  assert.equal(result.exact, 40);
+  assert.deepEqual(result.unpairedTargetIndexes, []);
+  assert.deepEqual(result.unpairedCandidateIndexes, [0]);
+  /* A pure insertion still seeds the closure. */
+  assert.deepEqual(result.mismatchedTargetIndexes, [0]);
+  assert.equal(result.category, "instruction-count");
+  assert.equal(residualIsExact(result), false);
+});
+
+test("a substitution seeds once, from the target side", () => {
+  const target = ["lw v0,0(a0)", "addiu a0,a0,4", "jr ra"].map((text) => instruction(text));
+  const candidate = ["lw v0,0(a0)", "addiu a0,a0,9", "jr ra"].map((text) => instruction(text));
+  const result = compareResidual(target, candidate);
+  assert.deepEqual(result.unpairedTargetIndexes, [1]);
+  assert.deepEqual(result.unpairedCandidateIndexes, [1]);
+  /* The cc1 side sits in the same gap, so it adds no second seed. */
+  assert.deepEqual(result.mismatchedTargetIndexes, [1]);
+  assert.equal(result.category, "allocation-or-operands");
+});
+
+test("a permutation of the same instructions is reported as scheduling", () => {
+  const target = ["lw v0,0(a0)", "lw v1,4(a0)", "jr ra"].map((text) => instruction(text));
+  const candidate = ["lw v1,4(a0)", "lw v0,0(a0)", "jr ra"].map((text) => instruction(text));
+  const result = compareResidual(target, candidate);
+  assert.equal(result.category, "scheduling-permutation");
+  assert.equal(residualIsExact(result), false);
 });
 
 /* ------------------------------------------------------------------ */
@@ -306,6 +1086,111 @@ test("shards are disjoint and their union covers the whole domain", () => {
     }
     assert.equal(sum, total);
     assert.equal(seen.size, Number(total));
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* Cost report                                                         */
+/* ------------------------------------------------------------------ */
+
+test("the pilot sample is deterministic, stratified, and inside the domain", () => {
+  assert.deepEqual(pilotRanks(0n), []);
+  assert.deepEqual(pilotRanks(3n).map(String), ["0", "1", "2"]);
+  const ranks = pilotRanks(1000n);
+  assert.equal(ranks.length, 64);
+  assert.deepEqual(ranks, pilotRanks(1000n));
+  assert.equal(new Set(ranks.map(String)).size, 64);
+  assert.equal(ranks[0], 0n);
+  assert.ok(ranks.every((rank) => rank >= 0n && rank < 1000n));
+  /* Even spacing: no two neighbours differ by more than one step. */
+  const steps = ranks.slice(1).map((rank, index) => rank - ranks[index]!);
+  assert.equal(new Set(steps.map(String)).size <= 2, true);
+  /* A domain smaller than the sample is covered exhaustively. */
+  assert.equal(pilotRanks(9n).length, 9);
+});
+
+test("the per-axis breakdown bounds the domain and puts the largest axis first", () => {
+  const { domain } = syntheticDomain();
+  const axes = domainAxes(domain);
+  assert.ok(axes.length >= 2);
+  for (let index = 1; index < axes.length; index++) {
+    assert.ok(BigInt(axes[index - 1]!.radix) >= BigInt(axes[index]!.radix));
+  }
+  /* The domain is a sum over sections of a product over regions, so the
+     radices bound it rather than multiplying out to it exactly. */
+  const bound = axes.reduce((product, axis) => product * BigInt(axis.radix), 1n);
+  assert.ok(bound >= domain.total);
+  const section = axes.find((axis) => axis.kind === "section")!;
+  assert.equal(section.radix, String(domain.partitions.length));
+  assert.equal(axes.filter((axis) => axis.kind === "region").length, domain.partitions[0]!.regions.length);
+});
+
+test("the projection is N x (1 - d) x c / jobs and degrades instead of lying", () => {
+  assert.equal(median([5, 1, 3]), 3);
+  assert.equal(median([4, 1, 3, 2]), 2.5);
+  assert.equal(median([]), 0);
+  assert.equal(projectWallMs(1000n, 0.5, 40, 4), 5000);
+  assert.equal(projectWallMs(1000n, 0, 40, 1), 40000);
+  /* A domain beyond double precision reports no projection rather than one
+     that silently saturates. */
+  assert.equal(projectWallMs(10n ** 400n, 0, 40, 1), null);
+});
+
+test("the CLI surface is one function name plus --derive-only, --source, and --json", () => {
+  const cli = join(ROOT, "tools/agent/searchResidualSourceSpace.ts");
+  for (const removed of ["--jobs", "--shard", "--start", "--resume", "--max-candidates", "--max-partitions"]) {
+    const result = spawnSync("npx", ["tsx", cli, "fixture", removed, "2"], { cwd: ROOT, encoding: "utf8" });
+    assert.equal(result.status, 1, `${removed} should no longer be accepted`);
+    assert.match(result.stderr, new RegExp(`unknown option: ${removed}`));
+  }
+  const noName = spawnSync("npx", ["tsx", cli, "--derive-only"], { cwd: ROOT, encoding: "utf8" });
+  assert.equal(noName.status, 1);
+  assert.match(noName.stderr, /missing function name/);
+});
+
+test("integration: --derive-only prices the run and a full run reuses and reports against it", { skip: !compilerAvailable }, async () => {
+  const setup = prepareFixture("estimate", STORE_BASE, STORE_VARIANT);
+  try {
+    /* Perturb one immediate so the run has to go all the way to exhaustion. */
+    const target = setup.target.map((instruction) =>
+      instruction.canonical === "addiu a1,a1,1"
+        ? { ...instruction, operands: ["a1", "a1", "9"], canonical: "addiu a1,a1,9" }
+        : instruction);
+    const shared = {
+      functionName: "fixture",
+      sourcePath: join(setup.scratch, "base.c"),
+      runRootOverride: join(setup.scratch, "run"),
+      target,
+      jobs: 2,
+    } as const;
+
+    const derived = await runResidualSourceSearch({ ...shared, deriveOnly: true });
+    assert.equal(derived.status, "derived");
+    const estimate = derived.estimate!;
+    assert.equal(estimate.totalCandidates, derived.domain!.totalCandidates);
+    assert.equal(estimate.pilot.size, Number(derived.domain!.totalCandidates));
+    assert.deepEqual(estimate.pilot.ranks, ["0", "1"]);
+    assert.equal(estimate.calibrationSamplesMs.length, 5);
+    assert.ok(estimate.perCandidateMs > 0);
+    assert.ok(estimate.duplicateRate >= 0 && estimate.duplicateRate <= 1);
+    assert.ok(estimate.projectedMs !== null && estimate.projectedMs > 0);
+    assert.ok(estimate.axes.length >= 2);
+    assert.match(derived.statusDetail, /2 coordinate\(s\) were sampled/);
+    assert.ok(derived.caveats.some((line) => /lever on this cost is the residual/.test(line)));
+
+    /* The full run resolves the sampled coordinates from the pilot instead of
+       compiling them again, and reports its real time against the projection. */
+    const full = await runResidualSourceSearch(shared);
+    assert.equal(full.status, "exhausted-no-exact");
+    assert.equal(full.coverage?.complete, true);
+    assert.equal(full.timing?.projectedMs, estimate.projectedMs);
+    assert.ok(full.timing!.ratio! > 0);
+    assert.ok(full.caveats.some((line) => /reused \d+ assembly class/.test(line)));
+    assert.deepEqual(
+      full.classes.map((item) => [item.classId, item.representativeRank, item.members]),
+      derived.classes.map((item) => [item.classId, item.representativeRank, item.members]));
+  } finally {
+    rmSync(setup.scratch, { recursive: true, force: true });
   }
 });
 
@@ -663,10 +1548,11 @@ test("integration: an interrupted run resumes to the same outcome", { skip: !com
       target: setup.target,
       targetObjectPath: setup.targetObject,
       jobs: 1,
-      maxCandidates: 1,
+      interruptAfter: 1,
     });
     assert.equal(first.status, "incomplete-budget");
     assert.equal(first.coverage?.complete, false);
+    /* Resume is automatic: the same command picks up from the checkpoint. */
     const resumed = await runResidualSourceSearch({
       functionName: "fixture",
       sourcePath: join(setup.scratch, "base.c"),
@@ -674,7 +1560,6 @@ test("integration: an interrupted run resumes to the same outcome", { skip: !com
       target: setup.target,
       targetObjectPath: setup.targetObject,
       jobs: 1,
-      resume: true,
     });
     assert.equal(resumed.status, "exact-candidate-found");
     assert.equal(resumed.coverage?.complete, true);

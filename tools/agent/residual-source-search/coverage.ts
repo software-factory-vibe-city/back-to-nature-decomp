@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { checkpointPath, loadSearchCheckpoint } from "./checkpoint.js";
 import { shardSize, type ShardSpec } from "./enumerate.js";
 import type { EvaluationState, StopReason } from "./evaluate.js";
-import type { CoverageReport, TerminalStatus } from "./types.js";
+import { RESIDUAL_GRAMMAR_SCHEMA_VERSION, type CoverageReport, type TerminalStatus } from "./types.js";
 
 export function coverageReport(total: bigint, shard: ShardSpec, state: EvaluationState): CoverageReport {
   const ownSize = shardSize(total, shard);
@@ -53,23 +53,24 @@ export function terminalStatus(options: {
       detail: `${state.exacts.length} candidate(s) produced a byte-identical configured object`,
     };
   }
-  if (stop === "budget") {
-    return { status: "incomplete-budget", detail: "the candidate budget ended before the shard completed; resume with --resume" };
-  }
-  if (stop === "aborted") {
-    return { status: "incomplete-budget", detail: "the run was interrupted before the shard completed; resume with --resume" };
+  if (stop === "budget" || stop === "aborted") {
+    return {
+      status: "incomplete-budget",
+      detail: "the run stopped before the domain was covered; rerun the same command to resume from the checkpoint",
+    };
   }
   if (shard.count === 1) {
     return {
       status: "exhausted-no-exact",
-      detail: "every coordinate in the serialized domain was evaluated and no exact object exists in grammar schema 1",
+      detail: "every coordinate in the serialized domain was evaluated and no exact object exists in " +
+        `grammar schema ${RESIDUAL_GRAMMAR_SCHEMA_VERSION}`,
     };
   }
   const complete = completedShards(options.runRoot, options.total, shard.count);
   if (complete.length === shard.count) {
     return {
       status: "exhausted-no-exact",
-      detail: `all ${shard.count} shards completed and no exact object exists in grammar schema 1`,
+      detail: `all ${shard.count} shards completed and no exact object exists in grammar schema ${RESIDUAL_GRAMMAR_SCHEMA_VERSION}`,
     };
   }
   const missing = Array.from({ length: shard.count }, (_unused, index) => index + 1)

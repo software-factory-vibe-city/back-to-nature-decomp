@@ -17,11 +17,13 @@
 import { execSync } from "child_process";
 import { watchFile, existsSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from "fs";
 import { join } from "path";
+import { configuredGccVersion } from "./decompToolchain.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
 // Toolchain (from Makefile)
-const GCC_VERSION = "2.95.2";
+/* Version is project configuration (Makefile GCC_VERSION), not a constant. */
+const GCC_VERSION = configuredGccVersion();
 const CC = `tools/vendor/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
 const MASPSX = "python3 tools/vendor/maspsx/maspsx.py";
 const CROSS = "mips-linux-gnu-";

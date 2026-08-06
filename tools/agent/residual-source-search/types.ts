@@ -14,9 +14,13 @@ export const RESIDUAL_SEARCH_SCHEMA_VERSION = 2 as const;
  * the administrative-form stratum: bounded coalescible typed copies of a
  * never-redefined parameter, activated only by a SAT scheduler-constraint
  * witness whose phantom requirements bind to that parameter, with all reads
- * after the copy region redirected to the fresh copy variable.
+ * after the copy region redirected to the fresh copy variable. Schema 5 adds
+ * loop structure: a loop's header and body are modelled and reorderable under
+ * loop-carried dependencies, the loop-update-placement stratum searches a
+ * `for` header's updates against the same statements at the body tail, and the
+ * switch-form stratum searches a jump table against a compare chain.
  */
-export const RESIDUAL_GRAMMAR_SCHEMA_VERSION = 4 as const;
+export const RESIDUAL_GRAMMAR_SCHEMA_VERSION = 5 as const;
 
 export interface SourceSpan {
   start: number;
@@ -68,17 +72,46 @@ export interface SemanticNode {
   condSpan?: SourceSpan;
   thenBlock?: number;
   elseBlock?: number;
+  /* ---- loop and switch structure (schema 3) ---------------------- */
+  /** `for`, `while`, or `do`/`while` as written. */
+  loopForm?: "for" | "while" | "do-while";
+  /** For `for` loops: the header's initialiser and update blocks. */
+  initBlock?: number;
+  updateBlock?: number;
+  /** For loops: the body block. For switches: the block holding the cases. */
+  bodyBlock?: number;
+  /** For switches: the case block indexes in source order. */
+  caseBlocks?: number[];
+  /**
+   * True when the body contains a `continue` that belongs to this loop. A
+   * `continue` skips the body tail but not the header update, so it pins where
+   * an update statement may legally sit.
+   */
+  hasContinue?: boolean;
 }
 
 export interface SemanticBlock {
   index: number;
   parent?: number;
-  kind: "entry" | "then" | "else";
+  kind: "entry" | "then" | "else" | "loop-init" | "loop-update" | "loop-body" | "case";
   /** Node ids in program order, including nested if nodes. */
   nodeIds: string[];
   /** For then/else blocks: the controlling if node. */
   controllingIf?: string;
+  /** For loop and case blocks: the loop or switch node that owns them. */
+  controllingConstruct?: string;
+  /** For case blocks: the label text, or absent for `default`. */
+  caseLabel?: string;
 }
+
+/**
+ * Blocks whose statements the reordering grammar reasons about. A loop's
+ * header and body joined once loop-carried dependencies could constrain them.
+ * A `case` block still cannot: fall-through and `break` are control flow this
+ * schema does not model, so a switch remains a summary node.
+ */
+export const REORDERABLE_BLOCK_KINDS: ReadonlySet<SemanticBlock["kind"]> =
+  new Set<SemanticBlock["kind"]>(["entry", "then", "else", "loop-init", "loop-update", "loop-body"]);
 
 export interface GraphParameter {
   name: string;
@@ -250,7 +283,11 @@ export type RewriteRuleId =
   | "expression-materialization"
   | "type-cast-representation"
   | "known-macro-form"
-  | "administrative-form";
+  | "administrative-form"
+  | "compound-assignment-form"
+  | "loop-form"
+  | "loop-update-placement"
+  | "switch-form";
 
 export interface SuppressedRule {
   rule: RewriteRuleId;
@@ -313,6 +350,21 @@ export interface AdministrativeCopySite {
   evidence: string[];
 }
 
+/**
+ * One switch this grammar may also spell as an if/else-if chain. The two reach
+ * the machine by different paths — a balanced `slti` tree against a compare
+ * chain — which is the only reason both are in the grammar.
+ */
+export interface SwitchFormSite {
+  /** The switch node this site replaces. */
+  nodeId: string;
+  /** Full replacement text for the switch's span. */
+  chainText: string;
+  /** Case labels in source order; the default is recorded as null. */
+  labels: Array<string | null>;
+  evidence: string[];
+}
+
 export interface OrderRegion {
   id: string;
   block: number;
@@ -322,12 +374,19 @@ export interface OrderRegion {
   birthEligible: string[];
   /** Composite known-macro nodes whose registered components may be split out. */
   splittable: string[];
+  /**
+   * Loop updates this region may carry at its tail instead of the `for`
+   * header. Present only on a loop-body region whose loop has no `continue`.
+   */
+  movableUpdates: string[];
   /** Constant-argument materialization sites hosted in this region. */
   materializable: MaterializationSite[];
 }
 
 export interface RegionVariantDomain {
   splitMask: number;
+  /** Bit k moves `movableUpdates[k]` from the `for` header into this region. */
+  updateMask: number;
   birthMask: number;
   /** Birth definitions materialized as declaration initializers. */
   removedNodes: string[];
@@ -350,6 +409,8 @@ export interface PartitionDomain {
   partitionIndex: number;
   /** Site ids materialized in this section of the domain. */
   materializedSites: string[];
+  /** Switch node ids spelled as an if/else-if chain in this section. */
+  switchForms?: string[];
   /** Administrative copy site ids active in this section (rule 4.7). */
   administrativeCopies?: string[];
   partition: WebPartition;
@@ -371,6 +432,8 @@ export interface ResidualGrammar {
   frozenNodeIds: string[];
   /** Rule 4.7 sites; present only when a witness activated the stratum. */
   administrativeSites?: AdministrativeCopySite[];
+  /** Switches this grammar may also spell as an if/else-if chain. */
+  switchFormSites?: SwitchFormSite[];
   /** Citation of the scheduler-constraint witness that activated rule 4.7. */
   witness?: {
     runId: string;
@@ -397,10 +460,17 @@ export interface Coordinate {
   partitionIndex: number;
   /** Site ids materialized under this coordinate. */
   materializedSites: string[];
+  /** Switch node ids spelled as an if/else-if chain under this coordinate. */
+  switchForms?: string[];
   /** Administrative copy site ids active under this coordinate (rule 4.7). */
   administrativeCopies?: string[];
   /** Per region (in grammar order): chosen split mask, birth mask, and order rank. */
-  regionChoices: Array<{ splitMask: number; birthMask: number; orderRank: string }>;
+  regionChoices: Array<{
+    splitMask: number;
+    updateMask: number;
+    birthMask: number;
+    orderRank: string;
+  }>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -462,6 +532,65 @@ export interface CoverageReport {
   complete: boolean;
 }
 
+/* ------------------------------------------------------------------ */
+/* Cost report                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One independent choice axis of the mixed-radix domain. Region axes carry the
+ * largest radix they reach across sections; the section axis carries the
+ * grammar selections and web partitions that precede them.
+ */
+export interface DomainAxisReport {
+  id: string;
+  kind: "section" | "region";
+  /** Largest number of choices this axis offers, as a decimal string. */
+  radix: string;
+  detail: string;
+}
+
+/**
+ * The projection `--derive-only` publishes before a run starts. `c` is the
+ * median of five baseline compiles through cc1, maspsx, and the assembler;
+ * `d` is the canonical-duplicate rate observed by the deterministic pilot.
+ */
+export interface CostEstimate {
+  totalCandidates: string;
+  /** Largest axis first. */
+  axes: DomainAxisReport[];
+  /** `c`: median per-candidate compile cost in milliseconds. */
+  perCandidateMs: number;
+  calibrationSamplesMs: number[];
+  /** `d`: canonical duplicates divided by sampled coordinates, 0..1. */
+  duplicateRate: number;
+  pilot: {
+    size: number;
+    /** The stratified sample, recorded so the estimate is reproducible. */
+    ranks: string[];
+    wallMs: number;
+    duplicates: number;
+    compiled: number;
+    /** Real wall cost per non-duplicate coordinate, for drift against `c`. */
+    observedPerCandidateMs: number;
+  };
+  jobs: number;
+  /** `T = N x (1 - d) x c / jobs`, milliseconds; null when N overflows. */
+  projectedMs: number | null;
+}
+
+/** A finished run's real wall time next to the projection for the same domain. */
+export interface RunTiming {
+  /** Whole run, including baseline, trace, closure, and derivation. */
+  actualMs: number;
+  /** Coordinate evaluation only — the part `T` projects. */
+  evaluationMs: number;
+  projectedMs?: number;
+  /** evaluationMs / projectedMs; a repeatedly wrong projection is a defect. */
+  ratio?: number;
+  /** Run id of the `--derive-only` estimate the projection came from. */
+  projectionFrom?: string;
+}
+
 export interface ResidualSearchSummary {
   schemaVersion: typeof RESIDUAL_SEARCH_SCHEMA_VERSION;
   function: string;
@@ -487,6 +616,10 @@ export interface ResidualSearchSummary {
     totalCandidates: string;
   };
   coverage?: CoverageReport;
+  /** Present on `--derive-only` runs and on any run that projected its cost. */
+  estimate?: CostEstimate;
+  /** Present on runs that evaluated the domain. */
+  timing?: RunTiming;
   classes: CandidateClass[];
   exactCandidates: Array<{ globalRank: string; canonicalHash: string; artifacts: string }>;
   caveats: string[];

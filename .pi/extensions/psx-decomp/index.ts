@@ -4,6 +4,7 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerAnalyzeTargetScheduleTool } from "./tools/analyze-target-schedule.ts";
 import { registerCallGraphTool } from "./tools/call-graph.ts";
 import { registerCompilerTraceTool } from "./tools/compiler-trace.ts";
+import { registerDiagnosticTools } from "./tools/diagnostics.ts";
 import { registerDiffFunctionTool } from "./tools/diff-function.ts";
 import { registerExplainDiffTool } from "./tools/explain-diff.ts";
 import { registerExportContextTool } from "./tools/export-context.ts";
@@ -173,6 +174,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerAnalyzeTargetScheduleTool(pi);
   registerCallGraphTool(pi);
   registerCompilerTraceTool(pi);
+  registerDiagnosticTools(pi);
   registerDiffFunctionTool(pi);
   registerExplainDiffTool(pi);
   registerExportContextTool(pi);

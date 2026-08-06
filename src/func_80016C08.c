@@ -1,67 +1,6 @@
-#include "common.h"
-#include "include_asm.h"
-
-/* func_80016C08 — sprite entry loop driver (sprite-renderer family,
- * notes/file-groupings.md). Walks the entry list of one animation frame,
- * emits a POLY_FT4 per entry, accumulates texture upload sizes through two
- * func_80016B7C calls, and prepends each primitive to an ordering table.
- *
- * STATUS: reverted to assembly on 2026-08-03. The C reconstruction below
- * reached 355/357 (LCS-aligned); it is preserved under `#if 0` and is NOT a
- * dead end — it is correct as far as it goes. Every instruction except the
- * two-instruction D_8005E3C0 address materialization at the loop tail is
- * exact, and all 211 register webs match.
- *
- * WHY IT IS NOT MATCHED YET
- * The target materializes the global with one register:
- *     lui $v1,%hi(D_8005E3C0) ; lw $v1,%lo(D_8005E3C0)($v1)
- * Our build uses two. This is decided in local-alloc, not in the C. The
- * address value is a loop invariant with no register operands, so GCSE PRE
- * always moves it to the loop preheader; it then gets no hard register and
- * reload rematerializes it, and reload never selects the destination
- * register of the load. Verified against the real Sony CC1PSX.EXE: it
- * produces the same code from this source, so neither the compiler build
- * nor the source spelling is at fault.
- *
- * FULL EVIDENCE, INCLUDING NINE FALSIFIED HYPOTHESES:
- *   notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
- * Read section 11 (assumption audit) before spending any effort here.
- *
- * NEXT IMMEDIATE STEPS, IN ORDER
- *  1. Decompile func_800165D8 first. It is the witness: same file group,
- *     same D_8005E3C0 `+= 0x28` tail, and it DOES compile to the
- *     one-register form — because there the update sits inside one arm of
- *     an if/else inside the loop, so PRE cannot hoist the address value.
- *     Matching it recovers the source idiom we are missing here.
- *  2. Apply that idiom to this function. The standing suspect assumption is
- *     that this loop tail is unconditional in the original source.
- *  3. If step 2 does not close it, satisfy the allocator requirement
- *     directly (research note section 10): the address value must stay in
- *     the loop, and the field-value quantity must be allocated before it so
- *     that $v0 is already taken. Priority is
- *     floor_log2(refs) * refs * size / (death - birth); lengthening the
- *     address value's live range lowers its priority below the field
- *     value's.
- *  4. Do NOT re-run these: per-file -mno-split-addresses (falsified by
- *     func_80016054 in the same file), -fno-gcse, -fno-schedule-insns,
- *     -fno-schedule-insns2, tail statement reordering, or small inline-asm
- *     wrappers. All are recorded as measured failures in the note.
- *
- * NOTE ON D_8005E438: the reconstruction below carries a tentative
- * definition of that global, which is required for the gp-relative access
- * ASPSX emits only for in-file declarations. It is inert while this
- * function is assembly (the extracted .sdata already defines the symbol),
- * but it must come back with the C. See the research note, section 3.
+/* Research, evidence, and falsified hypotheses:
+ * notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
  */
-
-INCLUDE_ASM("build/asm/nonmatchings/func_80016C08", func_80016C08);
-
-#if 0
-/* ---------------------------------------------------------------------- *
- * Preserved reconstruction — 355/357 (LCS-aligned), 357/357 instructions,
- * 211/211 register webs. Restore this verbatim when step 1 or 2 above
- * yields the missing idiom.
- * ---------------------------------------------------------------------- */
 
 #include "common.h"
 #include "globals_override.h"
@@ -73,13 +12,28 @@ INCLUDE_ASM("build/asm/nonmatchings/func_80016C08", func_80016C08);
  * emits a POLY_FT4 per entry, accumulating texture upload sizes through
  * func_80016B7C.
  *
- * NON-MATCHING: 353/357 indexed (355/357 LCS-aligned). The remaining
- * scheduling mismatch is the D_8005E3C0 address materialization at the loop
- * tail: the target stores both links before a self-clobbering $v1 lui/lw,
- * while cc1 reloads the hoisted HIGH through $v0 and sched2 advances it.
- * Reconstruction history, the required ASPSX gp-relative rule, and the
- * compiler-state experiments are in
- * notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
+ * MATCHING (byte-verified), with two tracked debts recorded in
+ * notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md:
+ *
+ * 1. CC1FLAGS_func_80016C08 := -mno-split-addresses (configs/flag_overrides.mk,
+ *    owner-approved). Without it the loop-tail D_8005E3C0 load compiles as
+ *    lui $v0 / lw $v1,lo($v0): GCSE PRE hoists HIGH(D_8005E3C0) out of the
+ *    loop, reload rematerializes it into an independent spill register, and
+ *    sched2 advances it above the two link stores. The target instead has the
+ *    one-register self-clobbering pair lui $v1 / lw $v1,lo($v1) after the
+ *    stores, which only arises when the assembler expands an unsplit load.
+ *
+ * 2. The redundant `found = nclut;` at the top of the entry loop. Tracked
+ *    debt, not a semantic statement: under the override, reload assigns spill
+ *    slots in ascending pseudo-register order, and GCSE PRE allocates those
+ *    pseudo numbers in expression-hash-table iteration order. Without the
+ *    extra store the clutList base gets the highest number and slot 88
+ *    instead of the target's 72 (rotating all five spill slots). The extra
+ *    pre-GCSE store restores the target's reaching-register numbering and
+ *    hence the target slot layout (clutList 72, ent-12 76, i-1 80, poly+0x28
+ *    84, flags&0x18 88). Verified by the variant run in
+ *    build/fuzz/func_80016C08/4ba081e1a0b45a7e (p1/p2/p3 all restore the
+ *    layout; only the displacements change).
  */
 
 /* Owned by this translation unit. The target reaches this global
@@ -142,7 +96,7 @@ typedef struct {
     /* 0x2C */ u8 *unk2C;
 } SpriteSourceData;
 
-POLY_FT4 *func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
+POLY_FT4* func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
                         s16 ox, s16 oy, u16 flags, s32 total, s32 texBase,
                         s16 subst, s16 substFrom, s16 substTo) {
     s16 clutList[12];
@@ -187,6 +141,11 @@ POLY_FT4 *func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
         i = last;
         for (; i >= 0; i--, ent--) {
             size = 0;
+            /* Tracked debt: this redundant store only shifts GCSE
+             * pseudo-register numbering so reload assigns the target's spill
+             * slot layout; see the file header comment. Do not remove
+             * without re-checking the 72/76/80/84/88 slot map. */
+            found = nclut;
             found = 0;
             cel = &src->unk1C[ent->unk0];
             tex = &((SpriteTex *) texBase)[ent->unk9 - 0x80];
@@ -266,5 +225,3 @@ POLY_FT4 *func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
     }
     return poly;
 }
-
-#endif

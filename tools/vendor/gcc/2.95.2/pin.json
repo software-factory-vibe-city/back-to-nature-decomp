@@ -1,0 +1,65 @@
+{
+  "name": "gcc-2.95.2-psx",
+  "gccVersion": "2.95.2",
+  "configKey": "Makefile GCC_VERSION; tools/vendor/gcc/<gccVersion> is resolved from it",
+  "description": "The exact source cc1 is built from, after the old-gcc build recipe's sed and patches. This is the compiler that compiles src/, so it is the authority on every pass-level question.",
+  "correspondsTo": {
+    "binary": "tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1",
+    "binarySha256": "2aa85925dfa10855107c78e29ec36965b953976a45b1a47fb68beb5a74096079",
+    "recipe": "tools/vendor/old-gcc/gcc-2.95.2-psx.Dockerfile",
+    "target": "mips-sony-psx"
+  },
+  "upstream": {
+    "url": "https://ftp.gnu.org/gnu/gcc/gcc-2.95.2.tar.gz",
+    "sha256": "064e1cb06ea5d2f4a07ec46c1c64d771f74d04f404b6a6766bca2477f7d72482"
+  },
+  "transforms": [
+    {
+      "step": 1,
+      "kind": "sed",
+      "command": "sed -i -- 's/include <varargs.h>/include <stdarg.h>/g' **/*.c",
+      "note": "Run by the Dockerfile under /bin/sh (dash), where ** globs as a single level, so it rewrites */*.c only."
+    },
+    {
+      "step": 2,
+      "kind": "patch",
+      "command": "patch -u -p1 include/obstack.h -i patches/obstack-2.95.2.h.patch",
+      "patch": "tools/vendor/old-gcc/patches/obstack-2.95.2.h.patch",
+      "sha256": "08b6a1169717ade3401063ba3d3fc9b45260557117a3a00a9f7179190b6cfd14"
+    },
+    {
+      "step": 3,
+      "kind": "patch",
+      "command": "patch -u -p1 gcc/config/mips/mips.h -i patches/mips.patch",
+      "patch": "tools/vendor/old-gcc/patches/mips.patch",
+      "sha256": "98e20e8d853aa18bf4915dabdca544c0e54770a98c33d997fd928785f6edcfcf"
+    },
+    {
+      "step": 4,
+      "kind": "patch",
+      "command": "patch -su -p1 < patches/psx-2.91.patch",
+      "patch": "tools/vendor/old-gcc/patches/psx-2.91.patch",
+      "sha256": "8cbbd4ac657d0fb6765de8417c8e6e8415c03b72dc6fd128c3797439558feeb4",
+      "note": "Creates gcc/config/mips/psx.h, whose line 24 sets TARGET_DEFAULT (MASK_GAS+MASK_SOFT_FLOAT+MASK_GPOPT+MASK_SPLIT_ADDR). The 2.95.2-psx recipe applies psx-2.91.patch, NOT psx.patch; cite the applied header, not a patch file."
+    }
+  ],
+  "tree": {
+    "root": "src",
+    "sha256": "10e9345add3f472a9b646879aa71293b23a37dc3b81b7e257982ee0d61686ab0",
+    "algorithm": "sha256 over LC_ALL=C-sorted lines of '<file sha256>  <path relative to src>\\n'",
+    "files": 470
+  },
+  "included": [
+    "src/gcc/*             \u2014 every regular file directly under gcc/: the passes, the C front end, the RTL machinery, tm.texi, invoke.texi, and the ChangeLogs",
+    "src/gcc/config/mips/* \u2014 the whole MIPS backend, including mips.md, mips.c, mips.h and psx.h",
+    "src/include/*         \u2014 shared headers, including the patched obstack.h",
+    "src/libiberty/*       \u2014 linked into cc1"
+  ],
+  "excluded": [
+    "gcc/cp, gcc/f, gcc/java, gcc/ch, gcc/objc \u2014 front ends for other languages; cc1 is not built from them",
+    "gcc/config/<97 other targets> \u2014 only mips-sony-psx is built",
+    "gcc/testsuite, gcc/po, gcc/fixinc, gcc/ginclude, gcc/intl \u2014 not compiled into cc1",
+    "libio, libstdc++, libf2c, libchill, libobjc, texinfo \u2014 runtime libraries and doc tooling"
+  ],
+  "exclusionRisk": "A search over this tree is complete for cc1 and incomplete for everything else. compilerSource.ts prints this exclusion list with every result count so an empty result is never read as 'not in GCC'."
+}

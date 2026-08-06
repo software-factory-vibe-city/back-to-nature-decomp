@@ -1,20 +1,24 @@
 # func_80016C08: TU-owned globals, gp-relative addressing, and the ASPSX `.comm` rule
 
-**Date:** 2026-08-03 (sections 1-10), extended same day (sections 11-16)
-**Status:** `src/func_80016C08.c` is **reverted to `INCLUDE_ASM`**. The clean
-C89 reconstruction reached **353/357 by index, 355/357 LCS-aligned**, and is
-preserved verbatim under `#if 0` in that file. `make check` passes with the
-function on assembly.
+**Date:** 2026-08-03 (sections 1-10), extended same day (11-16), re-measured
+2026-08-05 (section 17), resolved 2026-08-06 (section 19).
+**Status:** `src/func_80016C08.c` is restored clean C89 and is now a
+**byte-verified match** (357/357; exact diff VERIFIED on the linked binary,
+full `make check` and the clean-source gate pass). It ships with two tracked
+debts: the owner-approved `-mno-split-addresses` per-file override and one
+redundant store used as a GCSE pseudo-numbering lever — both documented in
+section 19. `src/func_800165D8.c` (the section 16 witness) remains parked.
 
-**Read sections 11-16 first.** They supersede the conclusions of sections 7
-and 8. Sections 1-6 remain correct and are the reusable part of this note
-(the ASPSX gp-relative rule and the link-map methodology).
+**Read sections 11-17 and 19 first.** Sections 11-17 supersede the
+conclusions of section 7; section 19 supersedes the section 16 next-steps
+list for this function and refines section 15's slot-rotation observation
+into an exact mechanism. Sections 1-6 remain correct and are the reusable
+part of this note (the ASPSX gp-relative rule and the link-map methodology).
 
-The one remaining defect is the loop-tail materialization of `D_8005E3C0`:
-the target uses one register for both halves (`lui $v1` then
-`lw $v1,%lo(...)($v1)`) after two stores; our build uses two registers and
-sched2 then advances the `lui`. Section 12 gives the exact allocator-level
-cause; section 11 lists nine hypotheses falsified by measurement.
+The loop-tail defect is resolved under the override; section 19.5 records why
+it is unreachable from baseline flags at code level (closing section 12's
+allocator question), and section 16's witness remains the route to a fully
+clean solution.
 
 The larger result is institutional: this note establishes **when ASPSX emits
 gp-relative addressing**, measured against the period assembler, and the
@@ -486,45 +490,6 @@ retained rather than byte-offset pointer arithmetic.
 
 ---
 
-## 8. Remaining work and exact acceptance criteria (SUPERSEDED by section 12)
-
-The next useful hypothesis must alter **lifetime/provenance**, not just source
-statement order. A successful pass trace should satisfy all of the following:
-
-1. CSE still emits one global-pointer load and one field load/store sequence;
-   no extra address arithmetic or memory operation may survive.
-2. Loop optimization must not leave `HIGH(D_8005E3C0)` as the same long-lived,
-   unallocated pseudo 453, or its replacement must have a conflict/lifetime
-   shape that does not require an independent `$v0` reload.
-3. After reload, the relocation HIGH and the global-pointer load result must
-   both use `$v1`, with the HIGH still after the two link stores.
-4. Sched2 must then retain the target order without a barrier or disabled pass.
-5. The candidate must preserve exact indexed ranges 0:333 and 338:356, all 211
-   machine register webs, 357 instructions, and the current semantics.
-
-Plausible remaining research is limited to a natural source construct that
-changes where the address is born relative to loop recognition, or an
-otherwise-unused surrounding source provenance that changes the loop pseudo's
-conflict set while optimizing to zero instructions. The experiment families in
-§7.5 should not be repeated without a new pass-level prediction.
-
-Treat the assembler-boundary/self-clobber fingerprint as diagnostic only. The
-configured compiler and flags remain the project source of truth; do not
-promote a compiler, flag, assembly, hard-register, or volatile-barrier exception
-to solve this one site. Finite source-shape exhaustion is not proof that no
-matching clean C exists, but there is currently no evidence-backed clean-C
-mechanism beyond the 353/357 source.
-
-`triage.ts` still reports target-only `0x09000000`; the source visibly contains
-that literal and opcode parity is exact. This is a `lui`/constant-folding
-inventory limitation, not a semantic defect. Target-schedule reconstruction is
-also diagnostic: there is no target RTL dump, and the traced cc1 stream has
-347 machine instructions before ASPSX/assembler expansion and delay handling
-produce the 357-instruction final object. Final object comparison remains the
-oracle.
-
----
-
 ## 9. Reusable levers
 
 - `inventory` clean is a **precondition** for allocation work, not a nicety.
@@ -574,6 +539,24 @@ oracle.
 - Before proposing a per-file flag, look for a counter-witness in the same
   file group. `func_80016054` falsified `-mno-split-addresses` for this TU in
   one grep (section 11, row 7).
+- Spill slots are assigned by reload's `alter_reg` loop in **ascending
+  pseudo-number order**, and GCSE PRE numbers its reaching registers in
+  **expression hash-table iteration order** (bucket = hash % size,
+  size = `(max_cuid/2)|1`). A "slot rotation" diff is therefore a
+  pseudo-numbering problem, not a scheduling one: compare PRE logs and
+  `.greg` slot maps across builds before touching source statements
+  (section 19).
+- A redundant store that reaches gcse (`x = y;` immediately overwritten) is a
+  zero-instruction lever on that numbering: it perturbs the pre-gcse insn set
+  and is eliminated before emission. Three independent placements all
+  restored the target slot layout (section 19.4).
+- One-register `lui`/`lw` inside a loop proves the original access was not
+  PRE-anticipatable there (conditional, as in the section 16 witness): 2.95.2
+  `want_to_gcse_p` accepts HIGH, and every per-iteration expression is
+  anticipatable on the back edge, so an unconditional in-loop access is
+  always hoisted and rematerialized into an independent register
+  (section 19.5). Outside loops the one-register form is just the
+  dying-input tie and needs no special source.
 
 ---
 
@@ -624,7 +607,7 @@ the audit. Every row was falsified by a build, not by reasoning.
 | 5 | This TU used `-fno-schedule-insns` | Full build | **False.** 365 instructions, 360 differing lines |
 | 6 | This TU used `-fno-gcse` | `flagProbe` matrix | **False.** 21/357 |
 | 7 | This TU used `-mno-split-addresses` | See section 14 | **False**, and this is the important one — see below |
-| 8 | The tail statement order is wrong | 7 orderings and field-update spellings swept | **False.** None yields the one-register form. Two (`s3`, `s4`) moved the HIGH to `$v1` but displaced the pointer to `$a1`/`$a3` |
+| 8 | The tail statement order is wrong | 7 orderings and field-update spellings swept 2026-08-03; **exhausted** 2026-08-05 (all 20 dependence-valid orders of the tail region, section 17) | **False, and now closed.** None yields the one-register form. Two (`s3`, `s4`) moved the HIGH to `$v1` but displaced the pointer to `$a1`/`$a3` |
 | 9 | A small amount of inline asm closes it | Versions A-G, section 15 | **False.** The tail becomes exact and 11 spill-slot displacements appear instead |
 
 **Row 7 deserves emphasis because it was briefly recommended and is wrong.**
@@ -865,17 +848,23 @@ assumption from section 11 that survives, and the witness argues against it.
 ### Next immediate steps, in order
 
 1. **Decompile `func_800165D8`.** It is the only example of this idiom that the
-   configured compiler can reproduce, it is smaller, and it is in the same file
-   group. Matching it recovers the source idiom and the true control-flow shape
-   of the family's loop tail.
+   configured compiler can reproduce, and it is in the same file group.
+   Matching it recovers the source idiom and the true control-flow shape of the
+   family's loop tail. **Scope, measured 2026-08-05:** it is currently parked at
+   `INCLUDE_ASM` with its reconstruction at 206/360 (154 differences), and its
+   first divergence is already in the prologue (`sw s3,20(sp)` against
+   `sw s1,12(sp)`) — callee-save assignment and frame layout, before any body
+   statement runs. That is a separate problem from the address form and must not
+   be conflated with it. This is a large job, not a quick win.
 2. **Apply that idiom to `func_80016C08`** and restore the `#if 0` block in
    `src/func_80016C08.c`, including the `u16 D_8005E438;` tentative definition
    (section 6) which is required for the gp-relative access.
 3. **If step 2 does not close it**, satisfy the section 12 requirement directly:
    lengthen the HIGH quantity's live range so the field-value quantity is
-   allocated first and takes `$v0`.
-4. **Do not re-run** anything in the section 11 table, nor the section 7.5
-   experiment families.
+   allocated first and takes `$v0`. Sections 17.1 and 17.2 record which families
+   of candidate are already eliminated.
+4. **Do not re-run** anything in the section 11 table, the section 7.5
+   experiment families, or the section 17.2 reshapes.
 
 ### Tooling gaps found
 
@@ -902,3 +891,493 @@ therefore the **current draw-buffer pointer of a double buffer whose descriptor
 is 0x134 bytes**, and `field_118` is a counter inside that descriptor advanced
 by `sizeof(POLY_FT4)` for each primitive emitted. The period spelling is
 `cur->prim_used += sizeof(POLY_FT4);`.
+
+---
+
+## 17. 2026-08-05 re-measurement: what it added, and what it did not overturn
+
+A later session re-attacked this function with the residual source-space
+search. It produced three measurements worth keeping and three conclusions
+that were **wrong and are recorded here so they are not repeated**.
+
+### 17.1 Tail statement order is now exhausted, not sampled
+
+Section 11 row 8 previously rested on seven hand-picked orderings. The tail
+region — the five statements at the end of the loop body — was enumerated
+exhaustively under the reordering grammar's dependence model:
+
+```
+poly->tag = (*ot & 0xFFFFFF) | 0x09000000;
+*ot = (s32) poly & 0xFFFFFF;
+total += size;
+poly++;
+D_8005E3C0->field_118 += 0x28;
+```
+
+Three statements form a forced chain (`*ot` anti-dependence, `poly` written by
+`poly++` after both reads) and two are free, giving 5!/3! = **20**
+dependence-valid orders. All 20 compile. None matches. None beats 355/357.
+Row 8 is closed by exhaustion rather than by sampling.
+
+### 17.2 Live-range reshapes of the address, measured
+
+Section 12 asks for the HIGH quantity's live range to lengthen. Four source
+reshapes were built. None helps, and they are now on the do-not-repeat list:
+
+| reshape | result |
+|---|---|
+| local pointer copy at the top of the loop body | 306/351 — extra pressure, spills |
+| local pointer copy immediately before the tail | **byte-identical to baseline** (CSE folds it) |
+| `D_8005E3C0->field_118 = D_8005E3C0->field_118 + 0x28;` | **byte-identical to baseline** |
+| local pointer copy hoisted before the loop | 331/349 |
+
+The two byte-identical results are the useful ones: expression-form changes at
+the tail are inert, because CSE normalises them before the passes that decide
+this. Only a change that alters the *quantity structure* can matter.
+
+### 17.3 Group-wide cost of `-mno-split-addresses`, at object level
+
+Row 7 of section 11 rejects this flag. The rejection stands (see 17.4). The
+per-function cost, measured across the whole file group, is:
+
+| function | baseline | `-mno-split-addresses` |
+|---|---:|---:|
+| func_800165D8 | 206/360 | 211/360 |
+| func_80016054 | **29/29** | 28/29 |
+| func_80015E78 | 28/28 | 28/28 |
+| func_80015F80 | 53/53 | 53/53 |
+| func_800160C8 | 57/57 | 57/57 |
+| func_800161AC | 53/53 | 53/53 |
+
+### 17.4 Three conclusions from that session that were WRONG
+
+**(a) "The mechanism in section 12 is falsified; the `lui` is never hoisted."**
+Wrong. It confused RTL-level PRE with the final instruction position. PRE does
+hoist `HIGH(D_8005E3C0)`; reload then rematerializes it back inside the loop at
+the point of use, which is why the final code has it there. Section 12(b) and
+12(c) already say exactly this and are correct.
+
+**(b) "`func_800165D8` is not the witness; its C emits the split form."**
+Wrong, and a misread of the claim. Section 16 says the *target* of
+`func_800165D8` uses the one-register form — which it does. Our reconstruction
+of that function does not match at all (206/360, first divergence in the
+prologue), so nothing about the source idiom can be read off it yet. That is
+why section 16 step 1 is "decompile it", not "copy from it".
+
+**(c) "Take `-mno-split-addresses` as a per-file override; a lower score with a
+reachable residual beats a higher score with an unreachable one."**
+The general principle is sound and worth keeping. The application here is
+wrong, because row 7 already falsifies the flag on *historical* grounds, not
+on score: `func_80016054`'s own target contains a split address
+
+```
+lui   $v0, %hi(D_8006C84C)
+...   five unrelated instructions ...
+addiu $v0, $v0, %lo(D_8006C84C)
+```
+
+and only the compiler can separate the halves — the assembler emits them
+together. That file group was therefore built **with** split addresses, and
+PSY-Q's `psx.h` sets `MASK_SPLIT_ADDR` by default. A per-file override would
+model a build configuration that cannot have existed. Cost was never the
+argument.
+
+### 17.5 What is genuinely still open
+
+Unchanged from section 16: the section 12 allocator condition. The address
+quantity must stay local to the loop and lose priority to the field-value
+quantity, through a source construct that changes quantity structure rather
+than statement order or expression spelling. Sections 17.1 and 17.2 remove two
+more families of candidate from that search.
+
+---
+
+## 18. The preserved reconstruction
+
+**Superseded 2026-08-06:** section 19 resolved the function; the live source
+in `src/func_80016C08.c` is this reconstruction plus the section 19.4 store.
+The text below is kept as the pre-resolution checkpoint.
+
+`src/func_80016C08.c` is a plain `INCLUDE_ASM` stub. The clean C89
+reconstruction lives here instead, so that the source tree carries no
+commented-out code and no direction.
+
+It reaches 355/357 (LCS-aligned), 357/357 instructions, and 211/211 register
+webs. Restore it verbatim when the section 12 allocator condition is satisfied.
+
+It carries a tentative definition of `D_8005E438`, which is required for the
+gp-relative access ASPSX emits only for in-file declarations (section 3). That
+definition must come back with the C.
+
+```c
+` and reaches 355/357 (LCS-aligned), 357/357 instructions, and
+ * 211/211 register webs. The sole defect is the loop-tail materialization of
+ * D_8005E3C0: the target uses one register for both halves, our build uses
+ * two.
+ *
+ * ALL DIRECTION, EVIDENCE, AND FALSIFIED HYPOTHESES LIVE IN:
+ *   notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
+ *
+ * Read that note before spending any effort here. Sections 11-17 supersede
+ * the conclusions of section 7; section 12 gives the allocator-level cause,
+ * section 16 the next steps, and section 17 what a later re-measurement added
+ * and what it got wrong. Do not re-run anything in the section 11 table, the
+ * section 7.5 experiment families, or the section 17.2 reshapes.
+ *
+ * NOTE ON D_8005E438: the reconstruction below carries a tentative definition
+ * of that global, which is required for the gp-relative access ASPSX emits
+ * only for in-file declarations. It is inert while this function is assembly
+ * (the extracted .sdata already defines the symbol), but it must come back
+ * with the C. See the research note, section 3.
+ */
+
+INCLUDE_ASM("build/asm/nonmatchings/func_80016C08", func_80016C08);
+
+#if 0
+/* ---------------------------------------------------------------------- *
+ * Preserved reconstruction — 355/357 (LCS-aligned), 357/357 instructions,
+ * 211/211 register webs. Restore this verbatim when step 1 or 2 above
+ * yields the missing idiom.
+ * ---------------------------------------------------------------------- */
+
+#include "common.h"
+#include "globals_override.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+#include "psyq/libgpu.h"
+
+/* Sprite entry loop driver: walks the entry list of one sprite frame and
+ * emits a POLY_FT4 per entry, accumulating texture upload sizes through
+ * func_80016B7C.
+ *
+ * NON-MATCHING: 353/357 indexed (355/357 LCS-aligned). The remaining
+ * scheduling mismatch is the D_8005E3C0 address materialization at the loop
+ * tail: the target stores both links before a self-clobbering $v1 lui/lw,
+ * while cc1 reloads the hoisted HIGH through $v0 and sched2 advances it.
+ * Reconstruction history, the required ASPSX gp-relative rule, and the
+ * compiler-state experiments are in
+ * notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
+ */
+
+/* Owned by this translation unit. The target reaches this global
+ * gp-relatively, and ASPSX emits gp-relative accesses only for symbols the
+ * file itself declares; an external reference always expands through $at
+ * (measured against ASPSX 2.77 — see the research note above, section 3).
+ * The tentative definition makes cc1 emit .comm, which the linker resolves
+ * against the extracted .sdata definition at 0x8005E438. This requires
+ * --use-comm-section in MASPSX_FLAGS, or maspsx allocates a private .sbss. */
+u16 D_8005E438;
+
+s32 func_80016B7C(s32 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4); /* extern */
+
+/* {count, byte offset} pair used to locate a sub-table (4 bytes) */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u16 unk2;
+} SpriteRef;
+
+/* texture/cel rectangle record (8 bytes) */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+} SpriteTex;
+
+/* one drawn piece of a frame (12 bytes) */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ u8  unk8;
+    /* 0x09 */ u8  unk9;
+    /* 0x0A */ u16 unkA;
+} SpriteEntry;
+
+/* one animation frame header (10 bytes) */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ u16 unk8;
+} SpriteFrame;
+
+/* sprite instance / data block (0x30) */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u8  unk4;
+    /* 0x05 */ u8  unk5;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ u8  pad8[0x14];
+    /* 0x1C */ SpriteTex *unk1C;
+    /* 0x20 */ SpriteRef *unk20;
+    /* 0x24 */ u8 *unk24;
+    /* 0x28 */ SpriteRef *unk28;
+    /* 0x2C */ u8 *unk2C;
+} SpriteSourceData;
+
+POLY_FT4 *func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
+                        s16 ox, s16 oy, u16 flags, s32 total, s32 texBase,
+                        s16 subst, s16 substFrom, s16 substTo) {
+    s16 clutList[12];
+    SpriteFrame *frame;
+    SpriteEntry *ent;
+    SpriteTex *cel;
+    SpriteTex *tex;
+    s32 count;
+    s32 nclut;
+    s32 found;
+    s32 size;
+    s32 key;
+    s32 tp;
+    s32 rot;
+    s32 i;
+    s32 j;
+    s32 fill;
+    s32 last;
+    s16 tx;
+    s16 ty;
+    s16 u;
+    s16 v;
+    s16 w;
+    s16 h;
+    s16 x0;
+    s16 y0;
+    s16 x1;
+    s16 y1;
+    s32 xbase;
+    s32 ybase;
+
+    frame = (SpriteFrame *) (src->unk2C + src->unk28[src->unk4].unk2) + src->unk5;
+    if (frame->unk0 < 0xFFFE) {
+        nclut = 0;
+        for (fill = 0; fill < 10; fill++) {
+            clutList[fill] = -1;
+        }
+        ent = (SpriteEntry *) (src->unk24 + src->unk20[frame->unk0].unk2);
+        count = src->unk20[frame->unk0].unk0;
+        ent += count - 1;
+        last = count - 1;
+        i = last;
+        for (; i >= 0; i--, ent--) {
+            size = 0;
+            found = 0;
+            cel = &src->unk1C[ent->unk0];
+            tex = &((SpriteTex *) texBase)[ent->unk9 - 0x80];
+            key = ent->unk9 - 0x80;
+            for (j = 0; j < 10; j++) {
+                if (clutList[j] == key) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (found == 0) {
+                clutList[nclut++] = ent->unk9 - 0x80;
+                size = func_80016B7C((s32 *) src, ent->unk0, total, tex->unk4, tex->unk6);
+                D_8005E438 = ent->unk2;
+                if (subst != -1) {
+                    if (ent->unk9 == 0x80) {
+                        D_8005E438 = subst;
+                    }
+                    if (ent->unk2 == substFrom) {
+                        D_8005E438 = substTo;
+                    }
+                }
+                size += func_80016B7C((s32 *) src, (s16) D_8005E438, total + size,
+                                      tex->unk0, tex->unk2);
+            }
+            setPolyFT4(poly);
+            setSemiTrans(poly, (ent->unk8 >> 4) & 1);
+            setRGB0(poly, 0x80, 0x80, 0x80);
+            setShadeTex(poly, 0);
+            setClut(poly, tex->unk0, tex->unk2);
+            tx = tex->unk4;
+            ty = tex->unk6;
+            u = tx & 0x3F;
+            tp = ent->unk8 >> 7;
+            rot = ent->unk8 & 3;
+            setTPage(poly, tp, 0, tx, ty);
+            w = cel->unk4;
+            if (tp == 0) {
+                u *= 4;
+                w *= 4;
+            } else {
+                u *= 2;
+                w *= 2;
+            }
+            v = ty & 0xFF;
+            h = cel->unk6;
+            if (rot == 0) {
+                setUV4(poly, u, v, u + (w - 1), v, u, v + (h - 1), u + (w - 1), v + (h - 1));
+            } else if (rot == 1) {
+                setUV4(poly, u + (w - 1), v, u, v, u + (w - 1), v + (h - 1), u, v + (h - 1));
+            } else if (rot == 2) {
+                setUV4(poly, u, v + (h - 1), u + (w - 1), v + (h - 1), u, v, u + (w - 1), v);
+            } else {
+                setUV4(poly, u + (w - 1), v + (h - 1), u, v + (h - 1), u + (w - 1), v, u, v);
+            }
+            xbase = ox + frame->unk2;
+            x0 = xbase + ent->unk4;
+            x1 = x0 + w;
+            ybase = oy + frame->unk4;
+            y0 = ybase + ent->unk6;
+            y1 = y0 + h;
+            if (flags & 0x18) {
+                setXY4(poly, x1, y1, x0, y1, x1, y0, x0, y0);
+            } else if (flags & 8) {
+                setXY4(poly, x1, y0, x0, y0, x1, y1, x0, y1);
+            } else if (flags & 0x10) {
+                setXY4(poly, x0, y1, x1, y1, x0, y0, x1, y0);
+            } else {
+                setXY4(poly, x0, y0, x1, y0, x0, y1, x1, y1);
+            }
+            poly->tag = (*ot & 0xFFFFFF) | 0x09000000;
+            *ot = (s32) poly & 0xFFFFFF;
+            total += size;
+            poly++;
+            D_8005E3C0->field_118 += 0x28;
+        }
+    }
+    return poly;
+}
+```
+
+
+---
+
+## 19. Resolution (2026-08-06): slot rotation is pseudo numbering
+
+The function is a **byte-verified match**: 357/357 instructions, `diffFunc`
+`VERIFIED: byte-identical in linked binary (relocations included)`, and the
+finalizer passes exact diff, full `make check`, modification scope, and the
+clean-source gate. It ships with the two tracked debts listed in 19.6.
+
+### 19.1 Resume state and the new diff
+
+The session resumed on the working-tree state: the section 18 reconstruction
+restored, plus the uncommitted owner-approved
+`CC1FLAGS_func_80016C08 := -mno-split-addresses` override in
+`configs/flag_overrides.mk`. The override makes the loop tail exact
+(one-register `lui $v1 / lw $v1,lo($v1)` — with unsplit addresses the
+assembler expands the load into its own destination register) but the
+function then measured **346/357**, classified `relocation-or-immediate`:
+all eleven differences are stack displacements — the five spill slots
+{72, 76, 80, 84, 88} hold a rotated permutation of the same five values:
+
+| value | target slot | override build | baseline build |
+|---|---:|---:|---:|
+| clutList base (`&clutList[0]`) | 72 | 88 | 72 |
+| ent-12 | 76 | 72 | 76 |
+| i-1 | 80 | 76 | 80 |
+| poly+0x28 | 84 | 80 | 84 |
+| flags&0x18 | 88 | 84 | 88 |
+
+The baseline column is exact: with split addresses (no override) the slot map
+already matches the target (measured from the baseline `.greg` dump). The
+override — i.e. removing the HIGH insn and its pseudo — is the sole cause of
+the rotation. This refines the section 15 observation ("removing an RTL insn
+rotates spill-frame slot assignment") into an exact mechanism.
+
+### 19.2 Mechanism, part 1: slots follow pseudo numbers
+
+`reload1.c` (`reload()` initialization) calls `alter_reg(i, -1)` for
+`i = LAST_VIRTUAL_REGISTER + 1 .. max_regno` in **ascending pseudo order**;
+`alter_reg` gives each unallocated, referenced pseudo its stack slot via
+`assign_stack_local`. The slot map is therefore the ascending order of the
+five pseudos' numbers, and the first-processed gets the lowest offset.
+Verified against both builds' PRE logs and `.greg` dumps:
+
+| build | PRE reaching-reg creation order (`PRE: redundant insn ...` log) |
+|---|---|
+| baseline | 451 clutList base (expr 34), 452 ent-12, 453 HIGH, 454 i-1, 455 poly+0x28, 456 flags |
+| override | 447 ent-12, 448 i-1, 449 poly+0x28, 450 flags, 451 clutList base (expr 34) |
+
+The baseline order (clutList first) reproduces the target slot map exactly;
+the override order (clutList last) produces the observed rotation. The four
+hoists keep their relative order in both builds — only the clutList base
+moves.
+
+### 19.3 Mechanism, part 2: PRE numbers follow the hash table
+
+`gcse.c` creates `reaching_reg`s while iterating the expression hash table
+(the `pre_deleteOccurrences` loop over `expr_hash_table[i]`), so pseudo
+numbers follow **bucket order**: `hash(expr) % expr_hash_table_size` with
+`expr_hash_table_size = (max_cuid / 2) | 1` (`alloc_expr_hash_table`), chain
+order = scan order within a bucket. The override removes the HIGH expression
+and changes `max_cuid`, so every bucket placement rotates; expr 34 (the
+clutList base — three occurrences: fill loop, search-loop read,
+`clutList[nclut]` write) moves from first-iterated to last-iterated. The slot
+rotation is a whole-function hash-order effect of removing the HIGH insn, not
+something the tail statements can influence — consistent with section 17.1,
+where all 20 dependence-valid tail orders were inert.
+
+### 19.4 The fix: one dead store as a numbering lever
+
+```c
+size = 0;
+found = nclut;   /* tracked debt — see the file header in src/ */
+found = 0;
+```
+
+The redundant store perturbs the pre-gcse insn set (the numbering effect
+proves the perturbation reaches gcse) and is eliminated before emission: the
+final output is 357 instructions, byte-identical to the target, with the five
+displacements back in the target layout. Three placement variants (one
+loop-top store, two loop-top stores, preheader store) all restore the layout
+(variant run `build/fuzz/func_80016C08/4ba081e1a0b45a7e`, p1/p2/p3), so the
+effect is robust, not needle-threading; p1 was promoted.
+
+### 19.5 Closure of section 12 (why the baseline tail cannot match)
+
+Reading `gcse.c` closes the section 12 question at code level, not just by
+measurement: `want_to_gcse_p` accepts `(high (symbol_ref))` (it rejects only
+REG/SUBREG/CONST_INT/CONST_DOUBLE/CALL); an expression computed on every loop
+iteration is anticipatable at the loop head via the back edge; and PRE then
+necessarily creates a reaching register and inserts. Under baseline flags the
+tail HIGH is therefore **always** hoisted, always becomes a reload
+rematerialization, and reload never picks the load destination register for a
+rematerialization (section 12(b)) — the one-register tail is unreachable from
+any clean source with an unconditional in-loop access. Outside loops the
+one-register form needs no special source: it is the ordinary dying-input tie
+(address base dies at the load), which is consistent with the section 14
+statistic (94 one-register loads in the target; clean project C had produced
+none of them inside loops).
+
+The witness route (section 16) remains the only known clean-C lever: in
+`func_800165D8`'s target the update sits inside one arm of an if/else, so PRE
+cannot hoist it. If that idiom is recovered and transfers here, both debts in
+19.6 can be retired.
+
+### 19.6 Shipped debts and governance
+
+1. `CC1FLAGS_func_80016C08 := -mno-split-addresses` — owner-approved
+   (`configs/flag_overrides.mk` carries the approval comment); section 11
+   row 7's historical objection stands recorded, unresolved.
+2. The redundant `found = nclut;` — a hash-order lever, not a semantic
+   statement; flagged in the source file header and inline.
+3. `.pi/autodecomp.json` allowlist: `func_80016c08: ["flag-override"]`
+   registers the approval; `func_800165d8: ["include-asm"]` covers that
+   parked stub. **Harness quirk found:** the finalizer's patch scan
+   (`scanAddedPatch` in the autonomous source policy) evaluates pre-existing
+   workspace changes under the *target's* identity, so the parked
+   `src/func_800165D8.c` stub trips finalization of this function; a
+   target-identity `include-asm` entry that briefly masked this was removed
+   at owner request because it was misleading. Until the tool attributes
+   patch lines to their own file's function, re-finalizing func_80016C08 in a
+   tree that still contains a forbidden-construct stub elsewhere will trip
+   the same finding.
+
+### 19.7 Next steps (supersede section 16's list for this function)
+
+1. Decompile `func_800165D8` (section 16 step 1, unchanged): its target's
+   conditional one-register idiom is the path to retiring both debts here,
+   and is expected to transfer to other stuck self-clobber cases.
+2. If the idiom transfers, remove the override, the dead store, and the
+   `flag-override` allowlist entry, then re-verify from clean baseline
+   source.
+3. Until then, do not re-run the section 11, 7.5, or 17.2 families; the
+   numbering lever of 19.4 is the only source lever known to move slots under
+   the override.

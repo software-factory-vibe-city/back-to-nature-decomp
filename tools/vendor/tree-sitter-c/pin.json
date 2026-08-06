@@ -1,0 +1,10 @@
+{
+  "name": "tree-sitter-c",
+  "version": "0.24.1",
+  "source": "https://registry.npmjs.org/tree-sitter-c/-/tree-sitter-c-0.24.1.tgz",
+  "file": "tree-sitter-c.wasm",
+  "sha256": "c852c2a85ebf2beb636aa3b0ef7f7e70458684d74f6741b20dcb296885bed9f9",
+  "languageAbi": 15,
+  "license": "MIT",
+  "note": "Prebuilt grammar shipped in the npm tarball. The hash is verified at load time and enters the residual-source-search run identity, so a grammar change cannot silently change a result."
+}

@@ -1,6 +1,7 @@
 import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildTraceReportFromArtifacts, type CompilerTraceReport } from "../compilerTrace.js";
+import { compareResidual, residualIsExact } from "./align.js";
 import {
   assembleTarget,
   compileSource,
@@ -54,6 +55,12 @@ export function preprocessedSemanticHash(path: string): string {
   return sha256(content);
 }
 
+/**
+ * Deprecated positional comparison, kept only to show what it measured. The
+ * target has been through the assembler and the linker and the candidate has
+ * not, so comparing by position charges every stage difference to the source
+ * and one inserted instruction desynchronizes the rest. Use `compareResidual`.
+ */
 export function mismatchedIndexes(target: NormalizedInstruction[], candidate: NormalizedInstruction[]): number[] {
   const total = Math.max(target.length, candidate.length);
   const result: number[] = [];
@@ -61,29 +68,6 @@ export function mismatchedIndexes(target: NormalizedInstruction[], candidate: No
     if (target[index]?.canonical !== candidate[index]?.canonical) result.push(index);
   }
   return result;
-}
-
-export function classifyMismatch(
-  target: NormalizedInstruction[],
-  candidate: NormalizedInstruction[],
-  mismatched: number[],
-): MismatchCategory {
-  if (mismatched.length === 0) return "exact";
-  if (target.length !== candidate.length) return "instruction-count";
-  const canonicalMultiset = (instructions: NormalizedInstruction[], indexes: number[]): string =>
-    indexes.map((index) => instructions[index]!.canonical).sort().join("\n");
-  if (canonicalMultiset(target, mismatched) === canonicalMultiset(candidate, mismatched)) {
-    return "scheduling-permutation";
-  }
-  if (mismatched.every((index) => target[index]!.mnemonic === candidate[index]!.mnemonic)) {
-    return "allocation-or-operands";
-  }
-  const mnemonicMultiset = (instructions: NormalizedInstruction[], indexes: number[]): string =>
-    indexes.map((index) => instructions[index]!.mnemonic).sort().join("\n");
-  if (mnemonicMultiset(target, mismatched) === mnemonicMultiset(candidate, mismatched)) {
-    return "scheduling-and-operands";
-  }
-  return "mixed";
 }
 
 /**
@@ -151,8 +135,7 @@ export function establishBaseline(options: BaselineOptions): BaselineResult {
   if (targetObject !== undefined) result.targetObject = targetObject;
 
   const candidate = parseCc1Assembly(compile.assembly);
-  const mismatched = mismatchedIndexes(target, candidate);
-  const category = classifyMismatch(target, candidate, mismatched);
+  const residual = compareResidual(target, candidate);
 
   /* Diagnostic -g compile: -g adds source-line notes to the pass dumps
      without changing GCC 2.95 codegen. Note uids shift instruction uids, so
@@ -226,6 +209,11 @@ export function establishBaseline(options: BaselineOptions): BaselineResult {
   }
   result.analysis = analysis;
 
+  if (residual.assemblerFill > 0) {
+    caveats.push(`${residual.assemblerFill} target instruction(s) are assembler delay-slot fills that cc1 never emits; ` +
+      "they are aligned away rather than charged to the source.");
+  }
+
   const toolchain = configuredToolchainIdentity();
   const bundle: BaselineBundle = {
     schemaVersion: RESIDUAL_SEARCH_SCHEMA_VERSION,
@@ -238,10 +226,10 @@ export function establishBaseline(options: BaselineOptions): BaselineResult {
     compilerFlags: compile.cc1Flags,
     target,
     candidate,
-    mismatchedTargetIndexes: mismatched,
-    exactInstructions: Math.max(target.length, candidate.length) - mismatched.length,
-    totalInstructions: Math.max(target.length, candidate.length),
-    category,
+    mismatchedTargetIndexes: residual.mismatchedTargetIndexes,
+    exactInstructions: residual.exact,
+    totalInstructions: residual.total,
+    category: residual.category,
     emptyMemoryBarriers: findEmptyMemoryBarriers(source).length,
     traceArtifact: join(baselineDirectory, "trace", "compiler-trace-report.json"),
     analysisArtifact: join(baselineDirectory, "target-schedule", "analysis.json"),
@@ -249,7 +237,7 @@ export function establishBaseline(options: BaselineOptions): BaselineResult {
   };
   result.bundle = bundle;
 
-  if (mismatched.length === 0) {
+  if (residualIsExact(residual)) {
     result.refusal = {
       status: "exact",
       reason: "no residual source search required: the cc1 stream already matches the target",

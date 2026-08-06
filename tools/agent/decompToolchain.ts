@@ -6,11 +6,24 @@ import { fileURLToPath } from "url";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-const CC = join(ROOT, "tools/vendor/old-gcc/build-gcc-2.95.2-psx/cc1");
+/**
+ * The compiler version is project configuration, not a constant: the Makefile
+ * names it in one place and says to change it to experiment with 2.7.2 or
+ * 2.8.1. Anything that resolves a compiler path or its vendored source reads
+ * it from there, so switching versions does not mean editing tools.
+ */
+export function configuredGccVersion(): string {
+  const makefile = readFileSync(join(ROOT, "Makefile"), "utf-8");
+  const version = makefile.match(/^GCC_VERSION\s*:=\s*(\S+)/m)?.[1];
+  if (!version) throw new Error("Makefile does not define GCC_VERSION; cannot resolve the configured compiler.");
+  return version;
+}
 
 export function configuredCompilerPath(): string {
-  return CC;
+  return join(ROOT, `tools/vendor/old-gcc/build-gcc-${configuredGccVersion()}-psx/cc1`);
 }
+
+const CC = configuredCompilerPath();
 const MASPSX = join(ROOT, "tools/vendor/maspsx/maspsx.py");
 const CPP = "mips-linux-gnu-cpp";
 const AS = "mips-linux-gnu-as";

@@ -8,6 +8,11 @@ typedef signed short s16;
 typedef signed int s32;
 
 typedef struct {
+    s16 field_00;
+    u16 field_02;
+} Group;
+
+typedef struct {
     /* 0x00 */ char pad_00[0x02];
     /* 0x02 */ u16 field_2;     /* flags/status word */
     /* 0x04 */ s8 field_4;      /* state identifier */
@@ -30,6 +35,53 @@ typedef struct {
     /* 0x18 */ s32 field_0x18;
     /* 0x1C */ s32 field_0x1C;
 } SomeStruct;
+
+typedef struct {
+    u16 field_00;
+    u16 field_02;
+    u16 field_04;
+    u16 field_06;
+    u16 field_08;
+    u16 field_0A;
+    s16 field_0C;
+    s16 field_0E;
+    s16 field_10;
+    s16 field_12;
+    u32 pad_14;
+    u32 pad_18;
+    Vertex *field_1C;
+    Group *field_20;
+    u8 *field_24;
+    Group *field_28;
+    u8 *field_2C;
+    s32 field_30;
+} SourceData;
+
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u16 unk2;
+} SpriteRef;
+
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u8  unk4;
+    /* 0x05 */ u8  unk5;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ u8  pad8[0x14];
+    /* 0x1C */ SpriteTex *unk1C;
+    /* 0x20 */ SpriteRef *unk20;
+    /* 0x24 */ u8 *unk24;
+    /* 0x28 */ SpriteRef *unk28;
+    /* 0x2C */ u8 *unk2C;
+} SpriteSourceData;
+
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+} SpriteTex;
 
 typedef struct {
     /* 0x00 */ s8 field_0;
@@ -120,8 +172,8 @@ typedef struct {
 } Vec3;
 
 typedef struct {
-    u16 field_00;
-    u16 field_02;
+    s16 field_00;
+    s16 field_02;
     s16 field_04;
     s16 field_06;
 } Vertex;
@@ -155,6 +207,9 @@ void func_80015F80(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s
 void func_800160C8(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, u16 arg8, s16 arg9, s16 arg10, s16 arg11, s16 arg12);
 void func_800161AC(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, u16 arg8);
 s32 func_80016B7C(s32 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
+POLY_FT4* func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
+                        s16 ox, s16 oy, u16 flags, s32 total, s32 texBase,
+                        s16 subst, s16 substFrom, s16 substTo);
 void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);

@@ -43,8 +43,15 @@ committing, and rolls back a failed trunk gate.
 
 ## tools/agent/ — decompilation support tools
 
-These tools are called directly by humans, Pi skills, and future custom Pi tool
-wrappers.
+Every CLI here is registered as a Pi tool. The one-tool-per-file wrappers live
+in `.pi/extensions/psx-decomp/tools/`; the rest are registered from the
+`TOOL_SPECS` table in that directory's `diagnostics.ts`. One CLI is one tool —
+a tool's subcommands stay parameters of that tool. `registration.test.ts`
+fails if any CLI under `tools/agent/` is left unregistered, because a tool
+reachable only as an `npx tsx` line is invisible to anything reading the tool
+list, which is how a diagnostic gets built and then never used.
+
+They are still runnable by hand as `npx tsx tools/agent/<file>.ts`.
 
 | File | Role | Entry point? |
 |---|---|---|
@@ -80,11 +87,10 @@ Data flow:
 specification (or small `fuzzVariants.ts` set) → `diffFunc.ts` → full project
 check → `contextExport.ts`.
 
-The Pi extension exposes bounded wrappers as `psx_analyze_target_schedule`,
-`psx_synthesize_source_shapes`, and `psx_search_source_shapes`. They accept only
-function names, project-relative JSON paths, focused block/budget/depth/job
-controls, derive/resume modes; none can supply shell fragments or promote
-generated source.
+All wrappers are bounded the same way: they accept function names,
+project-relative paths, and focused block/budget/depth/version controls, and
+derive/resume modes. None can supply shell fragments or promote generated
+source.
 
 ## tools/build/ — what `make split` runs
 
@@ -140,7 +146,8 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 
 | Dir | Origin | Role |
 |---|---|---|
-| `old-gcc/` | github.com/decompals/old-gcc | Dockerfiles for old GCC cross-compilers. **Only `build-gcc-2.95.2-psx/cc1` is used** (Makefile). The other four build dirs (`2.7.2-psx`, `2.8.0`, `2.8.0-psx`, `2.8.1-psx`) are compiler-identification-era artifacts. |
+| `old-gcc/` | github.com/decompals/old-gcc | Dockerfiles for old GCC cross-compilers, and the built binaries. The live one is `build-gcc-$(GCC_VERSION)-psx/cc1`, resolved from the Makefile; the other build dirs are compiler-identification-era artifacts. Submodule — this repo cannot add files to it. |
+| `gcc/<version>/` | ftp.gnu.org + `old-gcc/patches` | **The source of the compiler in the build path**, one directory per version, patched exactly as the old-gcc recipe patches it and pinned by a tree hash. Which version is live comes from the Makefile's `GCC_VERSION`, so tools resolve the path rather than hardcoding it. Read it with `psx_compiler_source`; it is the authority on every pass-level question and the only way to answer one with a proof instead of an experiment. |
 | `maspsx/` | github.com/mkst/maspsx | ASPSX 2.77 shim: translates GNU-as mnemonics and expands `$gp` relocs/macros exactly as the original assembler. In every compile. |
 | `splat_ext/` | local (not git) | `o.py` — splat extension enabling `o` (precompiled object) segments; wired via `extensions_path` in `splat.yaml`. Tiny but load-bearing. |
 | `m2c/` | github.com/matt-kempster/m2c | asm→C decompiler producing agent first drafts (via `agent/m2cFunc.ts`). |

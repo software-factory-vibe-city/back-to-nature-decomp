@@ -8,6 +8,7 @@ import {
 import {
   RegionOrderModel,
   RegionTooLargeError,
+  loopCarriedDependencies,
   parseMemoryToken,
   regionDependencies,
   type RegionNodeView,
@@ -24,10 +25,26 @@ import {
   type ResidualDomain,
   type SemanticGraph,
   type SemanticNode,
+  type SwitchFormSite,
 } from "./types.js";
+
+/**
+ * The serialized domain is built entry by entry, so its structure has to fit
+ * in memory even when its candidate count does not. Crossing this bound is a
+ * `domain-too-large` result with an exact reason, never an exhausted process.
+ */
+export const MAX_DOMAIN_ENTRIES = 400_000;
+
+export class DomainTooLargeError extends Error {
+  constructor(readonly entries: number) {
+    super(`the serialized domain needs more than ${entries} section/region entries to describe, ` +
+      "beyond what can be enumerated; reduce the residual so the causal closure is smaller");
+  }
+}
 
 export interface VariantRuntime {
   splitMask: number;
+  updateMask: number;
   birthMask: number;
   /** Effective node ids after split/materialization, births removed, canonical order. */
   keptIds: string[];
@@ -50,6 +67,8 @@ export interface PartitionRuntime {
   index: number;
   named: NamedPartitionRuntime;
   materializedSites: string[];
+  /** Switch node ids spelled as an if/else-if chain in this section. */
+  switchForms: string[];
   /** Rule 4.7 copy site ids active in this section. */
   administrativeCopies: string[];
   regions: RegionRuntime[];
@@ -63,6 +82,8 @@ export interface DomainRuntime {
   partitions: PartitionRuntime[];
   total: bigint;
   domain: ResidualDomain;
+  /** Every admissible switch chain form, by switch node id. */
+  switchFormSites: Map<string, SwitchFormSite>;
   caveats: string[];
 }
 
@@ -192,7 +213,22 @@ export function buildDomain(options: {
   const orderIndex = new Map(graph.nodes.map((node, index) => [node.id, index]));
   const caveats: string[] = [];
 
-  /* Split components are mask-independent. */
+  /* Regions whose statements repeat, so the back edge is a dependence channel. */
+  const loopBlocks = new Set(graph.blocks
+    .filter((block) => block.kind === "loop-init" || block.kind === "loop-update" || block.kind === "loop-body")
+    .map((block) => block.index));
+  const enclosingLoopBlock = (index: number): boolean => {
+    let current = graph.blocks[index];
+    while (current) {
+      if (loopBlocks.has(current.index)) return true;
+      current = current.parent === undefined ? undefined : graph.blocks[current.parent];
+    }
+    return false;
+  };
+  const loopRegions = new Set(derived.regions.filter((region) => enclosingLoopBlock(region.block)).map((region) => region.id));
+
+  /* Split components, expanded spellings, and moved header updates are all
+   * mask-independent: the masks only choose between them. */
   const componentsOf = new Map<string, SemanticNode[]>();
   const componentById = new Map<string, SemanticNode>();
   for (const region of derived.regions) {
@@ -203,12 +239,27 @@ export function buildDomain(options: {
         for (const component of components) componentById.set(component.id, component);
       }
     }
+    for (const id of region.movableUpdates) {
+      /* A `for` header holds an expression; the body holds a statement. */
+      const update = nodeById.get(id)!;
+      componentById.set(`${id}::s`, { ...update, id: `${id}::s`, text: `${update.text};` });
+    }
   }
 
   const partitions: PartitionRuntime[] = [];
   let offset = 0n;
   let partitionIndex = 0;
+  let entries = 0;
 
+  /* Each switch with an admissible chain form doubles the sections: the two
+   * spellings reach the machine by different paths, and nothing else about a
+   * section changes with the choice. */
+  const switchSelections: string[][] = [];
+  for (let mask = 0; mask < (1 << derived.switchForms.length); mask++) {
+    switchSelections.push(derived.switchForms.filter((_site, index) => (mask & (1 << index)) !== 0).map((site) => site.nodeId));
+  }
+
+  for (const switchForms of switchSelections) {
   for (const materialization of derived.materializations) {
     /* Per-choice synthetic statements: defs, copies, and arg-adjusted hosts. */
     const syntheticNodes = new Map<string, SemanticNode>(componentById);
@@ -258,7 +309,13 @@ export function buildDomain(options: {
         const regionCopies = copyDefsByRegion.get(region.id) ?? [];
         const variants: VariantRuntime[] = [];
         let cumulative = 0n;
+        const masks: Array<{ splitMask: number; updateMask: number }> = [];
         for (let splitMask = 0; splitMask < (1 << region.splittable.length); splitMask++) {
+          for (let updateMask = 0; updateMask < (1 << region.movableUpdates.length); updateMask++) {
+            masks.push({ splitMask, updateMask });
+          }
+        }
+        for (const { splitMask, updateMask } of masks) {
           const effective: SemanticNode[] = [];
           const addedNodes: string[] = [];
           for (const id of region.nodeIds) {
@@ -280,6 +337,13 @@ export function buildDomain(options: {
               effective.push(syntheticNodes.get(id) ?? nodeById.get(id)!);
             }
           }
+          /* A header update selected into the body joins this region's order. */
+          region.movableUpdates.forEach((id, index) => {
+            if ((updateMask & (1 << index)) === 0) return;
+            const moved = syntheticNodes.get(`${id}::s`)!;
+            effective.push(moved);
+            addedNodes.push(moved.id);
+          });
           for (const def of regionCopies) {
             effective.push(def);
             addedNodes.push(def.id);
@@ -291,9 +355,20 @@ export function buildDomain(options: {
           let base: RegionOrderModel;
           try {
             const views = effective.map((node) => regionNodeView(graph, view, namedWithSynthetic, node));
-            base = RegionOrderModel.fromDependencies(effective.map((node) => node.id), regionDependencies(views));
+            const edges = regionDependencies(views);
+            /* Inside a loop the back edge is a second dependence channel. */
+            if (loopRegions.has(region.id)) {
+              const carried = loopCarriedDependencies(views, edges);
+              for (const edge of carried) {
+                edges.push(edge);
+                const note = `region ${region.id}: loop-carried ${edge.kind} orders ${edge.from} before ${edge.to} beyond the intra-iteration edges`;
+                if (!caveats.includes(note)) caveats.push(note);
+              }
+            }
+            base = RegionOrderModel.fromDependencies(effective.map((node) => node.id), edges);
           } catch (error) {
-            const skippable = splitMask !== 0 || materialization.mask !== 0 || materialization.copySites.length !== 0;
+            const skippable = splitMask !== 0 || updateMask !== 0 ||
+              materialization.mask !== 0 || materialization.copySites.length !== 0;
             if (error instanceof RegionTooLargeError && skippable) {
               const dropped = `region ${region.id} mask (${materialization.mask}/${splitMask}) has ${effective.length} statements, beyond the exact bound; its forms are excluded from the serialized domain`;
               if (!caveats.includes(dropped)) caveats.push(dropped);
@@ -330,8 +405,9 @@ export function buildDomain(options: {
             const projected = base.withRemoved(removeMask);
             const keptIds = projected.kept.map((position) => effective[position]!.id);
             const count = projected.model.count();
-            variants.push({ splitMask, birthMask, keptIds, removedNodes, addedNodes, model: projected.model, count, cumulative });
+            variants.push({ splitMask, updateMask, birthMask, keptIds, removedNodes, addedNodes, model: projected.model, count, cumulative });
             cumulative += count;
+            if (++entries > MAX_DOMAIN_ENTRIES) throw new DomainTooLargeError(MAX_DOMAIN_ENTRIES);
           }
         }
         regions.push({ region, nodeIds: region.nodeIds, birthEligible: region.birthEligible, variants, size: cumulative });
@@ -341,6 +417,7 @@ export function buildDomain(options: {
         index: partitionIndex++,
         named: namedWithSynthetic,
         materializedSites: materialization.sites.map((site) => site.siteId),
+        switchForms,
         administrativeCopies: materialization.copySites.map((site) => site.siteId),
         regions,
         syntheticNodes,
@@ -349,6 +426,7 @@ export function buildDomain(options: {
       });
       offset += size;
     }
+  }
   }
 
   const domain: ResidualDomain = {
@@ -359,6 +437,7 @@ export function buildDomain(options: {
     partitions: partitions.map((partition): PartitionDomain => ({
       partitionIndex: partition.index,
       materializedSites: partition.materializedSites,
+      ...(partition.switchForms.length > 0 ? { switchForms: partition.switchForms } : {}),
       ...(partition.administrativeCopies.length > 0 ? { administrativeCopies: partition.administrativeCopies } : {}),
       partition: {
         rgs: partition.named.rgs,
@@ -369,6 +448,7 @@ export function buildDomain(options: {
         regionId: region.region.id,
         variants: region.variants.map((variant) => ({
           splitMask: variant.splitMask,
+          updateMask: variant.updateMask,
           birthMask: variant.birthMask,
           removedNodes: variant.removedNodes,
           addedNodes: variant.addedNodes,
@@ -379,11 +459,17 @@ export function buildDomain(options: {
       size: partition.size.toString(),
     })),
     totalCandidates: offset.toString(),
-    coordinateSchema: "globalRank = sectionOffset + mixedRadix(regions, digit = variantCumulative + orderRank); sections ordered by (administrativeSelection, materializationMask, partition), variants by (splitMask, birthMask)",
+    coordinateSchema: "globalRank = sectionOffset + mixedRadix(regions, digit = variantCumulative + orderRank); sections ordered by (switchFormMask, administrativeSelection, materializationMask, partition), variants by (splitMask, updateMask, birthMask)",
     caveats: [...(derived.tooLarge ? [derived.tooLarge] : []), ...caveats],
   };
 
-  return { partitions, total: offset, domain, caveats };
+  return {
+    partitions,
+    total: offset,
+    domain,
+    switchFormSites: new Map(derived.switchForms.map((site) => [site.nodeId, site])),
+    caveats,
+  };
 }
 
 export interface CandidatePlan {
@@ -392,6 +478,10 @@ export interface CandidatePlan {
   partition: PartitionRuntime;
   regionOrders: Map<string, string[]>;
   birthNodes: Set<string>;
+  /** regionId -> header update node ids this coordinate moved into the body. */
+  movedUpdates: Map<string, string[]>;
+  /** Switch node id -> its chain form, for the switches this coordinate spells that way. */
+  switchForms: Map<string, SwitchFormSite>;
   syntheticNodes: Map<string, SemanticNode>;
 }
 
@@ -418,6 +508,7 @@ export function candidateAt(domain: DomainRuntime, globalRank: bigint): Candidat
 
   const regionOrders = new Map<string, string[]>();
   const birthNodes = new Set<string>();
+  const movedUpdates = new Map<string, string[]>();
   const regionChoices: Coordinate["regionChoices"] = [];
   for (let index = 0; index < partition.regions.length; index++) {
     const region = partition.regions[index]!;
@@ -434,12 +525,20 @@ export function candidateAt(domain: DomainRuntime, globalRank: bigint): Candidat
     const order = variant.model.unrank(orderRank);
     regionOrders.set(region.region.id, order.map((compressed) => variant!.keptIds[compressed]!));
     for (const removed of variant.removedNodes) birthNodes.add(removed);
-    regionChoices.push({ splitMask: variant.splitMask, birthMask: variant.birthMask, orderRank: orderRank.toString() });
+    regionChoices.push({
+      splitMask: variant.splitMask,
+      updateMask: variant.updateMask,
+      birthMask: variant.birthMask,
+      orderRank: orderRank.toString(),
+    });
+    const moved = region.region.movableUpdates.filter((_id, index) => (variant.updateMask & (1 << index)) !== 0);
+    if (moved.length > 0) movedUpdates.set(region.region.id, moved);
   }
 
   const coordinate: Coordinate = {
     partitionIndex: partition.index,
     materializedSites: partition.materializedSites,
+    ...(partition.switchForms.length > 0 ? { switchForms: partition.switchForms } : {}),
     regionChoices,
   };
   if (partition.administrativeCopies.length > 0) coordinate.administrativeCopies = partition.administrativeCopies;
@@ -449,6 +548,8 @@ export function candidateAt(domain: DomainRuntime, globalRank: bigint): Candidat
     partition,
     regionOrders,
     birthNodes,
+    movedUpdates,
+    switchForms: domain.switchFormSites,
     syntheticNodes: partition.syntheticNodes,
   };
 }

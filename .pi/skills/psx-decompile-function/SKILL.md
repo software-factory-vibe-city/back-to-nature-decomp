@@ -25,11 +25,11 @@ Before editing, read completely:
    declaration-order effects). Update the ledger in the same session if you
    find grouping evidence — membership and one-line roles only; technique and
    per-function detail belong in `notes/research/` or `notes/retros/`.
-7. Run `npx tsx tools/agent/scanReadBeforeDef.ts <target>` once. A finding
+7. Run `psx_scan_read_before_def` once. A finding
    means the function belongs to the register-variable / handwritten
    fingerprint class (policy-exception territory — see the research notes
    it cites); a clean scan rules that class out before you hypothesize it.
-8. Run `npx tsx tools/agent/triage.ts <target>` once, before authoring or
+8. Run `psx_triage` once, before authoring or
    perturbing source, and again after every structural edit. It works on a
    bare `INCLUDE_ASM` stub, so run it before you write the first line. It
    reports:
@@ -58,8 +58,8 @@ Before editing, read completely:
    diff score: fix the premise, do not proceed and file paperwork later.
    Detectors are cheap and incomplete; silence is not a certificate.
 
-   `frameMap.ts`, `sdkIdioms.ts`, and `inventory.ts` also run standalone when
-   you want one of them in full detail without the rest.
+   `psx_frame_map`, `psx_sdk_idioms`, and `psx_inventory` also run standalone
+   when you want one of them in full detail without the rest.
 
 ## Prepare the target
 
@@ -86,13 +86,13 @@ resume/fix mode, preserve the source and begin from its current diff.
    pass, canonicalization rule, or scheduler decision. For statement-order
    questions (which global is touched first, where a pointer assignment
    sits in a branch), run
-   `npx tsx tools/agent/mineStatementOrder.ts <target>` — per-block
+   `psx_mine_statement_order` — per-block
    emission-order evidence (hi16 formation order, store order, delay-slot
    occupant) constrains source statement order directly.
 4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
    the mismatch signature changes or its cause becomes unclear.
 5. If the mismatch is order-only inside a block of constant/pointer stores,
-   run `npx tsx tools/agent/analyzeStoreBlock.ts <target>` BEFORE any
+   run `psx_analyze_store_block` BEFORE any
    scheduler analysis. Mine the stored values for arithmetic structure
    (parallel arrays, pool-carving running sums, repeated constants) and check
    the constant birth-order fingerprint; statement order in natural data
@@ -110,7 +110,7 @@ resume/fix mode, preserve the source and begin from its current diff.
    by the intervention set. If an order-only block remains stuck after bounded
    mechanism-directed shapes, or the replay requires several coupled hidden
    state changes, run
-   `npx tsx tools/agent/searchSchedulerState.ts <target> --block <n>`. Require
+   `psx_search_scheduler_state` (block <n>). Require
    its candidate replay gate to be exact. Treat SAT as a web/boost/LUID/phantom
    specification for a small complete-source experiment, scoped UNSAT as a
    reason to stop only that serialized domain, and INCONCLUSIVE or
@@ -135,7 +135,13 @@ resume/fix mode, preserve the source and begin from its current diff.
 
 If a source change has no effect, locate the first divergent compiler dump and
 read that exact pass in the vendored compiler source before trying another
-shape.
+shape. `psx_compiler_source` searches the vendored source of the exact compiler
+this project builds with: its `pass` command names the passes a dump's contents
+came from and the flag that gates them, `def`/`body` print a function or macro with its file and
+line, and `pattern` prints a machine-description pattern. The tree is
+`tools/vendor/gcc/<version>`, resolved from the Makefile's `GCC_VERSION`. Prefer one read of the
+pass that decides the thing over another round of source shapes; a proof that
+a form is unreachable ends a search, and a failed experiment does not.
 
 ## Finish
 

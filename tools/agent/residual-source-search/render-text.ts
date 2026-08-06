@@ -1,3 +1,4 @@
+import { formatDuration } from "./cost-report.js";
 import type { ResidualSearchSummary } from "./types.js";
 
 export function renderResidualSummary(summary: ResidualSearchSummary): string {
@@ -22,6 +23,32 @@ export function renderResidualSummary(summary: ResidualSearchSummary): string {
       : "";
     lines.push(`Coverage: ${summary.coverage.evaluatedCandidates} evaluated of ${summary.coverage.totalCandidates}${shard}` +
       (summary.coverage.complete ? " [complete]" : " [incomplete]"));
+  }
+  if (summary.estimate) {
+    const estimate = summary.estimate;
+    lines.push("", `Cost of exhausting ${estimate.totalCandidates} candidate(s):`);
+    if (estimate.pilot.size > 0) {
+      lines.push(`  projected wall time: ${estimate.projectedMs === null
+        ? "beyond double precision"
+        : formatDuration(estimate.projectedMs)} at ${estimate.jobs} job(s)`);
+      lines.push(`  c = ${estimate.perCandidateMs.toFixed(1)} ms per candidate ` +
+        `(median of ${estimate.calibrationSamplesMs.length} baseline compiles; ` +
+        `pilot observed ${estimate.pilot.observedPerCandidateMs.toFixed(1)} ms)`);
+      lines.push(`  d = ${(estimate.duplicateRate * 100).toFixed(1)}% canonical duplicates ` +
+        `(${estimate.pilot.duplicates} of ${estimate.pilot.size} sampled coordinates)`);
+    }
+    lines.push("  Axes, largest first:");
+    for (const axis of estimate.axes) {
+      lines.push(`    ${axis.id}: ${axis.radix} — ${axis.detail}`);
+    }
+  }
+  if (summary.timing) {
+    const timing = summary.timing;
+    lines.push(`Wall time: ${formatDuration(timing.actualMs)} total, ` +
+      `${formatDuration(timing.evaluationMs)} evaluating coordinates` +
+      (timing.projectedMs !== undefined
+        ? ` against a projection of ${formatDuration(timing.projectedMs)} (${timing.ratio!.toFixed(2)}x)`
+        : " (no --derive-only projection exists for this domain)"));
   }
   if (summary.classes.length > 0) {
     lines.push("", "Distinct assembly classes (best first):");

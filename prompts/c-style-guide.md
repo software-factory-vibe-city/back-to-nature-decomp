@@ -198,7 +198,7 @@ statement order, and the correct order is the natural DATA order.
   order: that chases an invariant the scheduler does not preserve while
   silently destroying the ones it does.
 - Before any scheduler forensics, run
-  `npx tsx tools/agent/analyzeStoreBlock.ts <func>`. It mines the target for
+  `psx_analyze_store_block`. It mines the target for
   parallel arrays, arithmetic relations among stored values (e.g. pointers
   that are running sums of a parallel count array times an element size —
   a pool-carving table), repeated constants (one CSE web per distinct
@@ -291,11 +291,11 @@ instead.
 Use tools in layers:
 
 ```bash
-npx tsx tools/agent/explainDiff.ts <func>
-npx tsx tools/agent/compilerTrace.ts <func>
-npx tsx tools/agent/analyzeTargetSchedule.ts <func> [--block <n>]
-npx tsx tools/agent/searchSchedulerState.ts <func> [--block <n>]
-npx tsx tools/agent/diffFunc.ts <func>
+psx_explain_diff <func>
+psx_compiler_trace <func>
+psx_analyze_target_schedule <func> [block <n>]
+psx_search_scheduler_state <func> [block <n>]
+psx_diff_function <func>
 ```
 
 `diffFunc.ts` is the exact oracle, not the diagnosis. Route the next edit from
@@ -632,7 +632,7 @@ Failure to find a C shape is not proof of an assembler bug.
 Per-file flag overrides remain a governed workaround, not a matching tool.
 But when a target carries a structural fingerprint that is hard or impossible
 to reach from natural C under the baseline flags, run
-`npx tsx tools/agent/flagProbe.ts <func>` EARLY — before deep source
+`psx_flag_probe` EARLY — before deep source
 archaeology — and read its three evidence sources: target fingerprints
 (decoded from original bytes, no source needed), a flag-matrix score of the
 current source, and nearby overrides (flags are per-TU, so neighbors share

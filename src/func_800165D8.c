@@ -1,4 +1,39 @@
 #include "common.h"
+#include "include_asm.h"
+
+/* func_800165D8 — larger direct-primitive renderer (sprite-renderer family,
+ * notes/file-groupings.md). Called by func_80015E78, func_80015F80,
+ * func_80016054, func_800160C8, and func_800161AC.
+ *
+ * STATUS: parked as assembly. The reconstruction below is preserved verbatim
+ * under `#if 0` and reaches 206/360 instructions at object level (154
+ * differences). It is kept for its structure, not its score: the overall shape
+ * corresponds to the target, but the first divergence is already in the
+ * prologue (`sw s3,20(sp)` against `sw s1,12(sp)`), so callee-save assignment
+ * and frame layout differ before any body statement runs.
+ *
+ * WHY THIS FUNCTION MATTERS BEYOND ITSELF
+ * Its target is the one place in this file group where the D_8005E3C0 address
+ * materializes into a single register, which is the defect blocking
+ * func_80016C08. Decompiling this function is step 1 of that function's
+ * roadmap. Direction and evidence live in:
+ *   notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
+ * Section 16 states what its target proves; section 16 step 1 records the
+ * scope measured here.
+ *
+ * Its own frame and callee-save problem is separate from the address form and
+ * should not be conflated with it.
+ */
+
+INCLUDE_ASM("build/asm/nonmatchings/func_800165D8", func_800165D8);
+
+#if 0
+/* ---------------------------------------------------------------------- *
+ * Preserved reconstruction — 206/360 instructions at object level.
+ * Restore this verbatim when the address form and the prologue are settled.
+ * ---------------------------------------------------------------------- */
+
+#include "common.h"
 #include "psyq/stddef.h"
 #include "psyq/libgte.h"
 #include "psyq/libgpu.h"
@@ -248,3 +283,5 @@ POLY_FT4 *func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3,
     }
     return p;
 }
+
+#endif

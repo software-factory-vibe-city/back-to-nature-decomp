@@ -4,7 +4,7 @@ import type { CompilerTraceReport } from "../compilerTrace.js";
 import type { TraceConfidence } from "../compiler-trace/types.js";
 import type { TargetScheduleAnalysis } from "../target-schedule/types.js";
 import type { MacroRegistry } from "./macro-forms.js";
-import { immediateValues } from "./semantic-graph.js";
+import { blockIsFrozen, immediateValues } from "./semantic-graph.js";
 import { parseMemoryToken, memoryEffectsConflict } from "./topological-orders.js";
 import { websCompatible, type WebView } from "./web-partitions.js";
 import {
@@ -103,13 +103,18 @@ export function deriveCausalClosure(inputs: ClosureInputs): CausalClosure {
   }
   const pseudoRecords = new Map(trace.pseudos.map((pseudo) => [pseudo.pseudo, pseudo]));
 
+  /* Statements the search can act on. A frozen construct is represented by its
+   * own summary node, so binding a mismatch to a statement buried inside one
+   * would name something the grammar cannot move. */
+  const reachable = graph.nodes.filter((node) => !blockIsFrozen(graph.blocks, node.block));
+
   const uidLines = bindUidLines(inputs.dumpDirectory, bundle.function, inputs.sourceFileName);
-  const nodesByLine = (line: number) => graph.nodes
+  const nodesByLine = (line: number) => reachable
     .filter((node) => node.span.lineStart <= line && node.span.lineEnd >= line)
     .sort((left, right) => (left.span.end - left.span.start) - (right.span.end - right.span.start));
 
   const nodeConstants = new Map<string, Set<number>>();
-  for (const node of graph.nodes) {
+  for (const node of reachable) {
     if (node.kind === "if") continue;
     const constants = new Set(immediateValues(node.text));
     if (node.kind === "known-macro" && node.macro) {
@@ -352,7 +357,7 @@ export function deriveCausalClosure(inputs: ClosureInputs): CausalClosure {
       /* Memory-order anchors: same-block statements whose effects cannot commute. */
       if (node.memoryReads.length > 0 || node.memoryWrites.length > 0) {
         const own = memoryEffectsOf(nodeId);
-        for (const other of graph.nodes) {
+        for (const other of reachable) {
           if (other.id === nodeId || other.block !== node.block) continue;
           if (other.memoryReads.length === 0 && other.memoryWrites.length === 0) continue;
           const theirs = memoryEffectsOf(other.id);
@@ -412,7 +417,7 @@ export function deriveCausalClosure(inputs: ClosureInputs): CausalClosure {
   const webIds = [...items.keys()].filter((id) => id.startsWith("web:")).map((id) => id.slice(4));
   const uids = [...items.keys()].filter((id) => id.startsWith("uid:")).map((id) => Number(id.slice(4))).sort((a, b) => a - b);
   const pseudos = [...items.keys()].filter((id) => id.startsWith("pseudo:")).map((id) => Number(id.slice(7))).sort((a, b) => a - b);
-  const movable = graph.nodes.filter((node) => node.movable);
+  const movable = reachable.filter((node) => node.movable);
   const nodeSet = new Set(nodeIds);
   const orderIndex = new Map(graph.nodes.map((node, index) => [node.id, index]));
 
