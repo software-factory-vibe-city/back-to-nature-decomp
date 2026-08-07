@@ -250,7 +250,7 @@ void func_80013F90(Struct80013F90 *arg0);
 s32 func_80014CB0(void);
 void * func_800153BC(Struct_800153BC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9, s16 arg10);
 void * func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7);
-void func_80015704(SpriteSourceData *out, SpriteDataHeader *header,
+void func_80015704(SpriteSourceData *out, SpriteDataHeader *header, s32 arg2, s32 arg3);
 void func_80015840(ObjectState *obj, s8 arg1);
 void func_8001585C(ObjectState *obj, s8 arg1);
 void func_80015880(SpriteSourceData *src, s32 header, s32 field_18);
@@ -261,13 +261,13 @@ void func_80015E3C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, u8 arg5, s16
 void func_80015E78(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, s16 arg5, s16 arg6, s32 arg7, s32 arg8, u16 arg9, s16 arg10, s16 arg11);
 void func_80015EE8(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5);
 void func_80015F80(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, u16 arg8);
-void func_80016054(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, s16 arg5,
+void func_80016054(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, s16 arg5, s16 arg6, s32 arg7, s32 arg8, u16 arg9);
 void func_800160C8(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, u16 arg8, s16 arg9, s16 arg10, s16 arg11, s16 arg12);
 void func_800161AC(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, u16 arg8);
-void func_80016280(u_long *arg0, SPRT **arg1, DR_MODE **arg2, SourceData *arg3,
-POLY_FT4 * func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3,
+void func_80016280(u_long *arg0, SPRT **arg1, DR_MODE **arg2, SourceData *arg3, u8 arg4, u8 arg5, s16 arg6, s16 arg7);
+POLY_FT4 * func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3, u8 arg4, s16 arg5, s16 arg6, s32 arg7, s32 arg8, s32 arg9, u16 arg10, s16 arg11, s16 arg12, s16 arg13, s16 arg14);
 s32 func_80016B7C(s32 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
-POLY_FT4 * func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src,
+POLY_FT4 * func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src, s16 ox, s16 oy, u16 flags, s32 total, s32 texBase, s16 subst, s16 substFrom, s16 substTo);
 void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);
@@ -278,7 +278,7 @@ s16 func_80017B30(void);
 u16 func_80017C24(void);
 u16 func_80017C30(void);
 void func_80017C3C(s32 arg0);
-void * func_80019070(s32 *ordering_table, u8 *packet, u32 glyph,
+void * func_80019070(s32 *ordering_table, u8 *packet, u32 glyph, s32 x, s16 y, u8 red, u8 green, u8 blue, u32 palette, s32 semitransparent);
 u16 func_800195F4(void);
 void func_80019600(void);
 s32 func_800198E0(u16 *arg0, s32 arg1, s16 arg2);

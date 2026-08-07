@@ -65,8 +65,8 @@ export function extractSignatures(cFilePath: string): string[] {
     const funcName = match[3];
     const params = match[4].trim();
 
-    // Normalize empty params to void
-    const normalizedParams = params === "" ? "void" : params;
+    // Normalize empty params to void; collapse multi-line params to single line
+    const normalizedParams = params === "" ? "void" : params.replace(/\s+/g, " ").trim();
     signatures.push(`${returnType}${stars ? ` ${stars}` : ""} ${funcName}(${normalizedParams});`);
   }
 
@@ -157,19 +157,21 @@ function collectAllStructDefs(srcDir: string): Map<string, string> {
 
 /**
  * Read the current include/functions.h and return a map of funcName -> signature line.
+ * Uses a regex over the full file content to correctly handle multi-line signatures.
  */
 function readExistingHeader(headerPath: string): Map<string, string> {
   const map = new Map<string, string>();
   if (!existsSync(headerPath)) return map;
 
   const content = readFileSync(headerPath, "utf-8");
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    // Match signature lines: "type funcname(...);" (star on either side)
-    const m = trimmed.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
-    if (m) {
-      map.set(m[1], trimmed);
-    }
+  // Match complete signatures: "type funcname(params);" — [
+  const sigRe = /^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\([^)]*\)\s*;\s*/gm;
+  let m;
+  while ((m = sigRe.exec(content)) !== null) {
+    const funcName = m[1];
+    // Normalize to single line: collapse whitespace inside params
+    const sig = m[0].replace(/\s+/g, " ").trim();
+    map.set(funcName, sig);
   }
   return map;
 }
