@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { detectBackendPacket, type TargetFacts } from "./triage.js";
+import { detectBackendPacket, detectLoopNesting, type TargetFacts } from "./triage.js";
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
 import type { DisassembledInstruction } from "./decompToolchain.js";
@@ -122,6 +122,77 @@ test("backend-packet: ordinary code produces no finding", () => {
     "sw $ra, 0x14($sp)",
     "jal func_80011370",
     "addu $a0, $s0, $zero",
+    "lw $ra, 0x14($sp)",
+    "jr $ra",
+    "addiu $sp, $sp, 0x18",
+  ]));
+  assert.deepEqual(findings, []);
+});
+
+/* func_80013B04's shape: an outer port loop and an inner retry loop. The three
+ * expressions between the two headers are invariant in the inner loop, which
+ * is the whole reason the nesting is not a style choice. */
+test("loop-nesting: nested back-edge ranges are reported", () => {
+  const findings = detectLoopNesting(facts([
+    "addu $s1, $zero, $zero",   /* 0x00 */
+    "addiu $s3, $zero, 0x1",    /* 0x04 */
+    "sll $s2, $s1, 3",          /* 0x08  outer header */
+    "addiu $s6, $s1, 0x1",      /* 0x0c */
+    "addu $v0, $s5, $s1",       /* 0x10 */
+    "lbu $a0, 0x0($v0)",        /* 0x14  inner header */
+    "jal PadGetState",          /* 0x18 */
+    "nop",                      /* 0x1c */
+    "beq $s3, $v0, 14",         /* 0x20  back-edge -> inner */
+    "addu $s1, $s6, $zero",     /* 0x24 */
+    "bnez $v0, 8",              /* 0x28  back-edge -> outer */
+    "jr $ra",                   /* 0x2c */
+  ]));
+
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].detector, "loop-nesting");
+  assert.ok(findings[0].summary.includes("nested loops"));
+  assert.ok(
+    findings[0].evidence.some((line) => line.includes("sll") && line.includes("invariant")),
+    "the invariant expressions between the headers must be listed",
+  );
+});
+
+/* A flattened loop with `continue` also has two back-edges — but to the SAME
+ * header. Firing here would send an agent after nesting that is not there. */
+test("loop-nesting: two back-edges to one header are one loop", () => {
+  const findings = detectLoopNesting(facts([
+    "addu $s1, $zero, $zero",   /* 0x00 */
+    "lbu $a0, 0x0($s5)",        /* 0x04  header */
+    "jal PadGetState",          /* 0x08 */
+    "nop",                      /* 0x0c */
+    "beq $s3, $v0, 4",          /* 0x10  continue -> header */
+    "addiu $s1, $s1, 0x1",      /* 0x14 */
+    "bnez $v0, 4",              /* 0x18  loop  -> header */
+    "jr $ra",                   /* 0x1c */
+  ]));
+  assert.deepEqual(findings, []);
+});
+
+/* Two loops one after the other are not nested; their ranges are disjoint. */
+test("loop-nesting: sequential loops are not reported as nested", () => {
+  const findings = detectLoopNesting(facts([
+    "addu $s1, $zero, $zero",   /* 0x00 */
+    "addiu $s1, $s1, 0x1",      /* 0x04  header A */
+    "bnez $s1, 4",              /* 0x08  back-edge -> A */
+    "addu $s2, $zero, $zero",   /* 0x0c */
+    "addiu $s2, $s2, 0x1",      /* 0x10  header B */
+    "bnez $s2, 10",             /* 0x14  back-edge -> B */
+    "jr $ra",                   /* 0x18 */
+  ]));
+  assert.deepEqual(findings, []);
+});
+
+test("loop-nesting: straight-line code produces no finding", () => {
+  const findings = detectLoopNesting(facts([
+    "addiu $sp, $sp, -0x18",
+    "sw $ra, 0x14($sp)",
+    "jal func_80011370",
+    "nop",
     "lw $ra, 0x14($sp)",
     "jr $ra",
     "addiu $sp, $sp, 0x18",

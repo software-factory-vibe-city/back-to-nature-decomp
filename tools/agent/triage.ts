@@ -59,7 +59,7 @@ import {
 } from "./frameMap.js";
 import { recognizeIdioms } from "./sdkIdioms.js";
 import { compareInventories, renderReport } from "./inventory.js";
-import { defUse } from "./webAnalysis.js";
+import { BRANCH_MNEMONICS, defUse } from "./webAnalysis.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -354,6 +354,67 @@ function detectUndeclaredCallee(compiled: CompiledFacts): Finding[] {
     see: [
       "prompts/c-style-guide.md",
       "notes/retros/2026-08-06-func_80022738-retro.md",
+    ],
+  }];
+}
+
+/**
+ * Loop structure is readable from the target alone: a branch to an earlier
+ * address is a back-edge, and each one closes a loop whose header is that
+ * address. Two back-edges whose ranges nest are two nested loops, and the
+ * source must nest too — a flattened loop with `continue` reaches the same
+ * behaviour but not the same code, because it changes which expressions are
+ * loop-invariant and therefore where they can be hoisted to.
+ *
+ * This is cheap and needs no candidate source, so it runs on a bare stub
+ * before any variant is written.
+ */
+export function detectLoopNesting(target: TargetFacts): Finding[] {
+  const instructions = target.instructions;
+  const indexOfAddress = new Map<number, number>();
+  instructions.forEach((insn, index) => indexOfAddress.set(insn.address, index));
+
+  const loops: { header: number; latch: number }[] = [];
+  instructions.forEach((insn, index) => {
+    if (!BRANCH_MNEMONICS.has(insn.mnemonic.toLowerCase())) return;
+    const last = insn.operands[insn.operands.length - 1];
+    const matched = last?.trim().match(/^(?:0x)?([0-9a-f]+)\b/i);
+    if (!matched) return;
+    const header = indexOfAddress.get(parseInt(matched[1]!, 16));
+    if (header === undefined || header >= index) return;
+    loops.push({ header, latch: index });
+  });
+  if (loops.length < 2) return [];
+
+  /* One header reached by several latches is still one loop. */
+  const byHeader = new Map<number, number>();
+  for (const loop of loops) byHeader.set(loop.header, Math.max(byHeader.get(loop.header) ?? 0, loop.latch));
+  const distinct = [...byHeader.entries()].map(([header, latch]) => ({ header, latch }))
+    .sort((a, b) => a.header - b.header);
+  if (distinct.length < 2) return [];
+
+  const nested = distinct.some((outer) => distinct.some((inner) =>
+    inner !== outer && outer.header < inner.header && inner.latch < outer.latch));
+  if (!nested) return [];
+
+  return [{
+    detector: "loop-nesting",
+    severity: "signal",
+    summary:
+      `target has ${distinct.length} back-edges to ${distinct.length} distinct headers, and their ` +
+      "ranges nest — the source needs nested loops, not one loop with `continue`. " +
+      "Expressions computed between the outer and inner header are invariant in the inner " +
+      "loop; flattening makes them vary, and no source reordering recovers the position.",
+    evidence: [
+      ...distinct.map((loop) =>
+        `header ${hex(instructions[loop.header]!.address)} <- back-edge ${hex(instructions[loop.latch]!.address)}  ${instructions[loop.latch]!.raw.trim()}`),
+      ...(distinct.length >= 2 && distinct[0]!.header + 1 < distinct[1]!.header
+        ? instructions.slice(distinct[0]!.header, distinct[1]!.header)
+            .map((insn) => `  invariant in inner loop: ${insn.raw.trim()}`)
+        : []),
+    ],
+    see: [
+      "notes/retros/2026-08-07-func_80013B04-retro.md",
     ],
   }];
 }
@@ -764,6 +825,7 @@ function main(): void {
   if (!frameConverged) findings.push(...detectFrameMap(name, target));
   findings.push(...detectArityStack(target));
   findings.push(...detectBackendPacket(target));
+  findings.push(...detectLoopNesting(target));
   findings.push(...detectCaptureRa(target));
   findings.push(...detectFlagFingerprint(name));
   findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));

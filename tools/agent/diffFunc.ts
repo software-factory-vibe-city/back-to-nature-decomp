@@ -63,6 +63,33 @@ function runStep(label: string, cmd: string): string {
   }
 }
 
+/**
+ * A masked score only means something if the real oracle can eventually run.
+ * The known way for that to be impossible is a compiled jump table the build
+ * does not own: GCC emits the table into this object's .rdata while splat
+ * still emits the extracted `jtbl_*` copy, whose `.L` labels stop existing the
+ * moment the function becomes C. The link then fails, `--bytes` reports BYTE
+ * VERIFY UNAVAILABLE, and every masked number printed until someone notices is
+ * a proxy with nothing behind it.
+ *
+ * Checked from the compiled assembly and configs/splat.yaml, so it costs
+ * nothing and reports during iteration rather than only at 100%.
+ */
+function reportOracleAvailability(assemblyPath: string, funcName: string | undefined): void {
+  if (!funcName || !existsSync(assemblyPath)) return;
+  const assembly = readFileSync(assemblyPath, "utf-8");
+  if (!/^\s*\.word\s+\$L\d+/m.test(assembly)) return;
+  const splat = readFileSync(join(ROOT, "configs/splat.yaml"), "utf-8");
+  if (new RegExp(`\\.rodata,\\s*${funcName}\\s*\\]`).test(splat)) return;
+  console.log("");
+  console.log("ORACLE UNAVAILABLE: this source compiles its switch to a jump table, but");
+  console.log(`  configs/splat.yaml has no '.rodata, ${funcName}' subsegment. The extracted`);
+  console.log("  jtbl_* is still emitted and references labels that no longer exist, so the");
+  console.log("  link fails and byte verification cannot run.");
+  console.log("  The score above is a masked proxy with no oracle behind it. Do not rank");
+  console.log("  variants on it until the build links.");
+}
+
 function compile(src: string): string {
   /* Basename stem so arbitrary paths (scratchpad experiments) compile too. */
   const stem = src.replace(/\.c$/, "").replace(/^.*\//, "");
@@ -272,6 +299,7 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
         console.log("  instructions (except entry moves). Fix source semantics first.");
       }
     }
+    reportOracleAvailability(compiled.replace(/\.c\.o$/, ".s"), funcName);
     if (total > 0 && matches === total && funcName) {
       verifyLinkedBytes(funcName);
     } else if (total > 0 && matches === total) {
