@@ -20,6 +20,16 @@ typedef struct {
 } CoordTri;
 
 typedef struct {
+    u16 field_00;
+    u16 field_02;
+    s16 field_04;
+    s16 field_06;
+    u8 field_08;
+    u8 pad_09;
+    u16 pad_0A;
+} Entry;
+
+typedef struct {
     s16 field_00;
     u16 field_02;
 } Group;
@@ -31,26 +41,6 @@ typedef struct {
     s16 field_06;
     s16 field_08;
 } Header;
-
-typedef struct {
-    /* 0x00 */ u16 field_0;
-    /* 0x02 */ u16 field_2;
-    /* 0x04 */ u8  field_4;
-    /* 0x05 */ u8  field_5;
-    /* 0x06 */ u16 field_6;
-    /* 0x08 */ s32 field_8;
-    /* 0x0C */ u16 field_C;
-    /* 0x0E */ u16 field_E;
-    /* 0x10 */ u16 field_10;
-    /* 0x12 */ u16 field_12;
-    /* 0x14 */ s32 field_14;
-    /* 0x18 */ s32 field_18;
-    /* 0x1C */ s32 field_1C;
-    /* 0x20 */ s32 field_20;
-    /* 0x24 */ s32 field_24;
-    /* 0x28 */ s32 field_28;
-    /* 0x2C */ s32 field_2C;
-} InitStruct;
 
 typedef struct {
     /* 0x00 */ char pad_00[0x02];
@@ -119,15 +109,51 @@ typedef struct {
 typedef struct {
     /* 0x00 */ u16 unk0;
     /* 0x02 */ u16 unk2;
-    /* 0x04 */ u8  unk4;
-    /* 0x05 */ u8  unk5;
+    /* 0x04 */ u16 unk4;
     /* 0x06 */ u16 unk6;
-    /* 0x08 */ u8  pad8[0x14];
-    /* 0x1C */ SpriteTex *unk1C;
-    /* 0x20 */ SpriteRef *unk20;
-    /* 0x24 */ u8 *unk24;
-    /* 0x28 */ SpriteRef *unk28;
-    /* 0x2C */ u8 *unk2C;
+    /* 0x08 */ u8  unk8;
+    /* 0x09 */ u8  unk9;
+    /* 0x0A */ u16 unkA;
+} SpriteEntry;
+
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ u16 unk8;
+} SpriteFrame;
+
+typedef struct {
+    /* 0x00 */ s32 tag;          /* magic value 0xE */
+    /* 0x04 */ s32 field_4;
+    /* 0x08 */ s32 field_8;
+    /* 0x0C */ s32 field_C;
+    /* 0x10 */ s32 offset_tex;   /* -> SpriteTex[] (cel/texture rectangles) */
+    /* 0x14 */ s32 offset_ref;   /* -> SpriteRef[] (sprite entry indices) */
+    /* 0x18 */ s32 offset_18;    /* -> entry data (SpriteEntry[]) */
+    /* 0x1C */ s32 offset_anim;  /* -> SpriteRef[] (animation frame index table) */
+    /* 0x20 */ s32 offset_frame; /* -> frame data (SpriteFrame[] / control bytes) */
+} SpriteDataHeader;
+
+typedef struct {
+    /* 0x00 */ u16 field_0;     /* bit-flags (bit 2 = pause guard in func_800158E4) */
+    /* 0x02 */ u16 field_2;     /* loop/pause flags (0x100 = loop, 0x200 = pause) */
+    /* 0x04 */ u8  field_4;     /* current animation index */
+    /* 0x05 */ u8  field_5;     /* current frame index within animation */
+    /* 0x06 */ u16 field_6;     /* frame counter / timer */
+    /* 0x08 */ s32 field_8;     /* initialized to 0x1000 (capacity / size hint) */
+    /* 0x0C */ u16 field_C;     /* zeroed on init, purpose unknown */
+    /* 0x0E */ u16 field_E;     /* zeroed on init, purpose unknown */
+    /* 0x10 */ u16 field_10;    /* zeroed on init, purpose unknown */
+    /* 0x12 */ u16 field_12;    /* zeroed on init, purpose unknown */
+    /* 0x14 */ s32 field_14;    /* header pointer (set by func_80015880) */
+    /* 0x18 */ s32 field_18;    /* reserved, cleared on init (set by func_80015880) */
+    /* 0x1C */ s32 field_1C;    /* header + offset_tex  (SpriteTex * in func_80016C08) */
+    /* 0x20 */ s32 field_20;    /* header + offset_ref  (SpriteRef * in func_80016C08) */
+    /* 0x24 */ s32 field_24;    /* header + offset_18   (entry data base) */
+    /* 0x28 */ s32 field_28;    /* header + offset_anim (animation index table) */
+    /* 0x2C */ s32 field_2C;    /* header + offset_frame (frame data / control bytes) */
 } SpriteSourceData;
 
 typedef struct {
@@ -202,29 +228,6 @@ typedef struct {
 } Struct_8001F39C;
 
 typedef struct {
-    /* 0x00 */ u16 field_0;
-    /* 0x02 */ u16 field_2;
-    /* 0x04 */ u8 field_4;
-    /* 0x05 */ u8 field_5;
-    /* 0x06 */ u16 field_6;
-    /* 0x08 */ char pad_8[0x20];
-    /* 0x28 */ u8 *field_28;
-    /* 0x2C */ u8 *field_2C;
-} Struct_S;
-
-typedef struct {
-    /* 0x00 */ s32 field_0;
-    /* 0x04 */ s32 field_4;
-    /* 0x08 */ s32 field_8;
-    /* 0x0C */ s32 field_C;
-    /* 0x10 */ s32 field_10;
-    /* 0x14 */ s32 field_14;
-    /* 0x18 */ s32 field_18;
-    /* 0x1C */ s32 field_1C;
-    /* 0x20 */ s32 field_20;
-} TableHeader;
-
-typedef struct {
     s32 x;
     s32 y;
     s32 z;
@@ -246,7 +249,8 @@ void func_80013F90(Struct80013F90 *arg0);
 s32 func_80014CB0(void);
 void * func_800153BC(Struct_800153BC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9, s16 arg10);
 void * func_800154CC(Struct_800154CC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7);
-void func_80015704(InitStruct *out, TableHeader *header, s32 arg2, s32 arg3);
+void func_80015704(SpriteSourceData *out, SpriteDataHeader *header,
+                   s32 arg2, s32 arg3);
 void func_80015840(ObjectState *obj, s8 arg1);
 void func_8001585C(ObjectState *obj, s8 arg1);
 void func_80015880(SomeStruct *arg0, s32 arg1, s32 arg2);

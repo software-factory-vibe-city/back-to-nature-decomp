@@ -87,16 +87,62 @@ typedef struct {
     /* 0x34 */ s16 field_0x34;
 } Struct80013F90;
 
-/* Animation state with table and frame-data pointers. */
+/* Sprite data header: tag + offsets into the sprite's sub-tables.
+ * Tag 0xE is the expected magic value (func_80015704 validates this).
+ * Offsets at 0x10–0x20 are added to the header base to produce the
+ * table pointers stored in SpriteSourceData. */
 typedef struct {
-    /* 0x00 */ u16 field_0;
-    /* 0x02 */ u16 field_2;
-    /* 0x04 */ u8 field_4;
-    /* 0x05 */ u8 field_5;
-    /* 0x06 */ u16 field_6;
-    /* 0x08 */ char pad_8[0x20];
-    /* 0x28 */ u8 *field_28;
-    /* 0x2C */ u8 *field_2C;
-} Struct_S;
+    /* 0x00 */ s32 tag;          /* magic value 0xE */
+    /* 0x04 */ s32 field_4;
+    /* 0x08 */ s32 field_8;
+    /* 0x0C */ s32 field_C;
+    /* 0x10 */ s32 offset_tex;   /* -> SpriteTex[] (cel/texture rectangles) */
+    /* 0x14 */ s32 offset_ref;   /* -> SpriteRef[] (sprite entry indices) */
+    /* 0x18 */ s32 offset_18;    /* -> entry data (SpriteEntry[]) */
+    /* 0x1C */ s32 offset_anim;  /* -> SpriteRef[] (animation frame index table) */
+    /* 0x20 */ s32 offset_frame; /* -> frame data (SpriteFrame[] / control bytes) */
+} SpriteDataHeader;
+
+/* Sprite source-data / animation object (0x30 bytes).
+ * Initialized by func_80015704 from a SpriteDataHeader, updated by
+ * func_800158E4 (animation advance), and consumed by the renderer
+ * wrappers (func_80016C08, func_800165D8, func_80016280).
+ *
+ * func_80015704 validates the header (alignment + tag == 0xE), zeroes
+ * the state, sets field_8 to 0x1000, computes five table pointers from
+ * header offsets, then calls func_80015880 to store the header pointer
+ * at field_14 and clear field_18.
+ *
+ * func_800158E4 advances animation: field_4 indexes the animation table
+ * (field_28), field_5 indexes frames within the selected animation,
+ * field_6 is a frame-counter/timer, and field_2 holds loop/pause flags
+ * (0x100 = loop, 0x200 = pause/hold).
+ *
+ * func_80016C08 reads field_24 (entry data), field_20 (sprite refs),
+ * field_1C (texture cels), field_28 (animation index table), and
+ * field_2C (frame data) to render one animation frame as POLY_FT4
+ * primitives. */
+typedef struct {
+    /* 0x00 */ u16 field_0;     /* bit-flags (bit 2 = pause guard in func_800158E4) */
+    /* 0x02 */ u16 field_2;     /* loop/pause flags (0x100 = loop, 0x200 = pause) */
+    /* 0x04 */ u8  field_4;     /* current animation index */
+    /* 0x05 */ u8  field_5;     /* current frame index within animation */
+    /* 0x06 */ u16 field_6;     /* frame counter / timer */
+    /* 0x08 */ s32 field_8;     /* initialized to 0x1000 (capacity / size hint) */
+    /* 0x0C */ u16 field_C;     /* zeroed on init, purpose unknown */
+    /* 0x0E */ u16 field_E;     /* zeroed on init, purpose unknown */
+    /* 0x10 */ u16 field_10;    /* zeroed on init, purpose unknown */
+    /* 0x12 */ u16 field_12;    /* zeroed on init, purpose unknown */
+    /* 0x14 */ s32 field_14;    /* header pointer (set by func_80015880) */
+    /* 0x18 */ s32 field_18;    /* reserved, cleared on init (set by func_80015880) */
+    /* 0x1C */ s32 field_1C;    /* header + offset_tex  (SpriteTex * in func_80016C08) */
+    /* 0x20 */ s32 field_20;    /* header + offset_ref  (SpriteRef * in func_80016C08) */
+    /* 0x24 */ s32 field_24;    /* header + offset_18   (entry data base) */
+    /* 0x28 */ s32 field_28;    /* header + offset_anim (animation index table) */
+    /* 0x2C */ s32 field_2C;    /* header + offset_frame (frame data / control bytes) */
+} SpriteSourceData;
+
+/* Backward-compatibility alias for func_800158E4. */
+typedef SpriteSourceData Struct_S;
 
 #endif /* GAME_TYPES_H */
