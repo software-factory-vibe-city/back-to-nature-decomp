@@ -306,6 +306,7 @@ s32 func_8001E7DC(s32 *arg0, s32 *arg1);
 s32 func_8001E878(CoordTri *p0, CoordTri *p1, CoordTri *p2);
 s32 func_8001E9F8(s32 i0, s32 i1, s32 i2, s32 i3);
 void func_8001F038(s32 arg0, s32 arg1, s32 arg2);
+void func_8001F1E0(s32 *arg0, s32 arg1, s32 arg2, s32 arg3);
 void func_8001F39C(Struct_8001F39C *arg0, Struct_8001F39C *arg1);
 s32 func_8001FAB4(void);
 s32 func_8001FB08(void);
