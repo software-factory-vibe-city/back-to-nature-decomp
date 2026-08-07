@@ -269,6 +269,7 @@ void func_80016280(u_long *arg0, SPRT **arg1, DR_MODE **arg2, SourceData *arg3, 
 POLY_FT4 * func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3, u8 arg4, s16 arg5, s16 arg6, s32 arg7, s32 arg8, s32 arg9, u16 arg10, s16 arg11, s16 arg12, s16 arg13, s16 arg14);
 s32 func_80016B7C(s32 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 POLY_FT4 * func_80016C08(s32 *ot, POLY_FT4 *poly, SpriteSourceData *src, s16 ox, s16 oy, u16 flags, s32 total, s32 texBase, s16 subst, s16 substFrom, s16 substTo);
+void func_800179E8(void);
 void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);
