@@ -1,863 +1,603 @@
-# Plan: backend-packet recognition and aggregate-copy source recovery
+# Plan: backend packet attribution and frame decomposition repair
 
-**Status: proposed.**
+**Status: revised and partly delivered, 2026-08-07.** This supersedes the first
+proposal, which was written before the mechanism was measured. Every claim
+below was verified against the pinned compiler; the measurements are recorded
+inline so the reasoning can be rechecked rather than retold.
+
+Phases 0, 1 and 3 are delivered. Phase 2 is delivered except for its
+enforcement clause. Phase 4 is designed but not built. The per-phase status
+blocks below say exactly what landed, and `Next steps` collects what did not.
+
+## Delivered
+
+| Phase | Status |
+|---|---|
+| 0 — frame decomposition | done, 4 regression tests |
+| 1 — `-dp` emission attribution | done, 9 tests, wired into the trace path |
+| 2.1 — stop fabricating BLK canonicals | done, 1 test |
+| 2.2 — `exactCount` load-bearing | done, surfaced in the report |
+| 2.3 — one-to-many links | done, 2 tests, attribution is authoritative |
+| 2.4 — packet members excluded from scheduling participants | **not done** — reported, not enforced |
+| 3 — triage signal and testability | done, 7 tests |
+| 4 — mechanism grid | **not started** |
+
+`npm test` is 188 passing, up from 165. `make check` reports the payload
+byte-identical.
 
 ## Purpose
 
-Automate the class of decompilation failure exposed by `func_800140C8`: a
-semantically correct scalar reconstruction cannot reproduce the target because
-several target machine instructions were emitted from one aggregate/block-copy
-RTL instruction.
+Automate the class of decompilation failure exposed by `func_800140C8`: several
+target machine instructions were emitted from one RTL instruction, so a
+semantically correct scalar reconstruction could not reproduce the target and
+no amount of allocator or scheduler search could close the gap.
 
-The initial vertical slice should detect target sequences compatible with
-MIPS `movstrsi_internal`, keep multi-instruction RTL packets intact in compiler
-analysis, and generate whole-object clean-C experiments instead of exhausting
-member-wise scalar rewrites.
+The goal is to make the **operation boundary** mechanically visible before
+source search begins, and to stop the frame detector from emitting a false
+signal that sends the investigation the wrong way.
 
-The intended workflow is:
+---
 
-```text
-target assembly
-      |
-      v
-backend packet detector
-      |
-      +-- target copy geometry and declaration constraints
-      +-- compatible GCC pattern and scratch requirements
-      +-- confidence-labelled clean-C operation-family recipes
-      |
-      v
-aggregate-aware source synthesis with isolated header overlays
-      |
-      v
-exact compile + trace
-      |
-      v
-one RTL UID <-> multi-instruction machine packet confirmation
+# What changed from the first proposal, and why
+
+The first proposal was correct about the failure and wrong about the remedy.
+Five findings moved it.
+
+## 1. `-dp` already prints the RTL-to-machine attribution
+
+GCC 2.95.2 has `-dp` (`toplev.c:5015`, `final.c:3334-3352`). Compiling the
+motivating case with the project's exact flags:
+
+```
+	subu	$sp,$sp,32	 # 43	subsi3_internal	[length = 1]
+	lui	$2,%hi(g) # high	 # 10	high	[length = 1]
+	sw	$31,24($sp)	 # 45	movsi_internal2/7	[length = 1]
+	addiu	$7,$2,%lo(g)	 # 16	movstrsi_internal	[length = 20]
+	lb	$3,0($7)
+	lb	$5,1($7)
+	sb	$3,16($sp)
+	sb	$5,17($sp)
+	addu	$3,$sp,16	 # 13	addsi3_internal	[length = 1]
 ```
 
-This is diagnostic and synthesis support, not a source promoter. Exact function
-and full-build verification remain the acceptance oracle.
+The annotation lands on the **first** line of each RTL instruction's emission;
+following unannotated lines belong to it. That is the one-to-many mapping the
+first proposal set out to reconstruct by modelling the backend. It comes from
+the same hash-pinned `cc1` the build uses, for every pattern at once.
 
-## Motivating case
+Verified end to end: **maspsx passes the annotations through unchanged** and
+marks its own inserted nops with `# DEBUG:` comments, so attribution survives
+to assembler input.
 
-The target prefix of `func_800140C8` contains:
+Consequence: the first proposal's Phase 1.3 (a TypeScript model of
+`output_block_move`) and most of Phase 2.1 (a machine-pattern metadata index
+built to supply widths) are deleted.
 
-```asm
-lui    v0,%hi(D_8005E2AC)
-sw     ra,32(sp)
-sw     s1,28(sp)
-sw     s0,24(sp)
-addiu  a3,v0,%lo(D_8005E2AC)
-lb     v1,0(a3)
-lb     a1,1(a3)
-sb     v1,16(sp)
-sb     a1,17(sp)
-```
+## 2. Declared `length` is neither bytes nor a width
 
-The plausible scalar source had the right semantics, offsets, calls, frame,
-instruction count, and suffix:
+The first proposal read `(set_attr "length" "20")` as 20 bytes and derived
+emission width as `length / 4`. Both are wrong.
 
-```c
-base = D_8005E2AC;
-tmp0 = base[0];
-tmp1 = base[1];
-ports[0] = (s8)tmp0;
-ports[1] = (s8)tmp1;
-```
+`length` here is in **instructions** — the default at `mips.md:70` is
+`(const_int 1)`, and `-dp` reports `[length = 1]` for a single `subu`. It is
+also an unrefined upper bound: `movstrsi_internal` declares 20 and emitted 5 in
+the case above. Declared length cannot predict emission width and is not used
+for that purpose anywhere in this plan.
 
-CSE replaced the scalar offset-zero load with a direct `lo_sum` memory
-address. That changed register-web parity, allocation, and scheduling. A
-707-candidate residual search exhausted scalar representation forms without
-being capable of expressing the missing operation family.
+## 3. Modelling `output_block_move` is ill-posed, not merely expensive
 
-The matching source was one whole-object assignment:
+`mips.c:3234-3572` is 339 lines, and its output is not a function of
+`(size, alignment, address class)`:
 
-```c
-PadPortPair ports;
+- the trailing `%#` nop is conditional on `set_noreorder`, a mutable file-scope
+  counter that *other* patterns increment (`mips.c:4681`);
+- a `safe_regs` self-recursion (`mips.c:3262-3280`) branches on which hard
+  registers reload actually assigned;
+- `use_lwl_lwr` is set per chunk but cleared per **batch** (`mips.c:3567`), so
+  one unaligned chunk changes every chunk beside it;
+- the `NOT_LAST`/`LAST` split (`mips.md:6230`) carries a scratch address
+  register across two RTL instructions.
 
-ports = D_8005E2AC[0];
-```
+Three movstr patterns are live here, not one: `movstrsi_internal`,
+`movstrsi_internal2` (NOT_LAST), `movstrsi_internal3` (LAST, declared
+length 1).
 
-GCC retained this as one `movstrsi_internal` BLKmode instruction through
-`.dbr`. Its MIPS output routine expanded the one RTL instruction into:
+## 4. The corpus does not support a block-copy-first slice
 
-```asm
-addiu  a3,v0,%lo(D_8005E2AC)
-lb     v1,0(a3)
-lb     a1,1(a3)
-sb     v1,16(sp)
-sb     a1,17(sp)
-```
+A scan of all 302 remaining non-matching functions for the load-batch/store-batch
+signature finds four windows:
 
-The pattern declares four early-clobber scratch registers. Allocation selected
-`$v1`, `$a1`, `$a2`, and `$a3`; the two-byte emitter printed the first two as
-values and the last as the `LO_SUM` source base. What appeared to be five
-independently allocated and scheduled instructions was one compiler packet.
+| function | shape | status |
+|---|---|---|
+| `func_800140C8` | 2x1B straight-line | already matched |
+| `func_80013B04` | 2x1B straight-line | stub |
+| `func_80019610` | 4x4B **loop body** | stub |
+| `func_80019AD0` | 4x4B **loop body** | stub |
 
-A preliminary corpus scan found similar all-loads-then-all-stores windows in at
-least seven functions, including `func_80013B04`, `func_80019610`, and
-`func_80019AD0`. The mechanism is therefore worth supporting as a reusable
-class rather than a function-specific exception.
-
-Full account:
-`notes/retros/2026-08-07-func_800140C8-retro.md` and
+The last two are the same function structurally (both 123 instructions) and are
+loop-form, which the first proposal explicitly deferred. So the proposed
+vertical slice bought exactly one remaining function — and that function's
+prefix is the same idiom against the same symbol, already solved in
 `notes/research/func_800140C8-aggregate-copy.md`.
 
-## Existing-tool relationship
+The wider class is much more common. Measured on the same corpus: 11 functions
+contain the division trap packet, 30 contain `mult`. `-dp` on the project's
+flags shows why that matters:
 
-This plan extends existing tools rather than introducing parallel compilers,
-parsers, or search engines.
+```
+	div	$0,$4,$5	 # 11	divmodsi4_internal	[length = 1]
+	mflo	$2	 # 28	movsi_internal2/12	[length = 1]
+	bne	$5,$0,1f	 # 13	div_trap_normal	[length = 3]
+	nop
+	break	7
+1:
+```
 
-| Existing component | Reused or extended responsibility |
-|---|---|
-| `decompToolchain.ts` | Target assembly, configured compilation, dumps, object comparison |
-| `frameMap.ts` | Correct stack-local versus outgoing-argument decomposition |
-| `triage.ts` | Early target-side backend-packet signal |
-| `explainDiff.ts` | Route operation-family defects before allocator/scheduler analysis |
-| `compilerTrace.ts` | Preserve pattern names, UIDs, allocation, and final RTL evidence |
-| `target-schedule/emission-alignment.ts` | Support one RTL UID emitting multiple machine instructions |
-| `synthesizeSourceShapes.ts` | Derive aggregate-copy recipes from a scalar copy candidate |
-| `searchResidualSourceSpace.ts` | Add whole-object assignment as an operation-family grammar axis |
-| `source-shape-search/` | Evaluate complete source and header-overlay candidate bundles |
-| `fuzzVariants.ts` | Confirm first-pass mechanism divergence and exact final candidates |
-| `sourcePolicy.ts` | Keep generated and promoted forms clean; no asm/register pins/flags |
-| `diffFunc.ts` | Exact linked-byte oracle |
-| `compilerSource.ts` | Cite the exact vendored machine pattern and output routine |
+`div_trap_normal` emits three instructions **including a label**, so any tool
+that derives a control-flow graph from target assembly sees a phantom basic
+block there. A general attribution mechanism covers this; a block-copy detector
+does not.
 
-`analyzeStoreBlock.ts` is not the right home for the core detector. It mines
-store-dominated initializer blocks and deliberately excludes stack stores. The
-new detector pairs loads with stores, includes stack-local destinations, and
-models compiler packet boundaries.
+## 5. There is an active misattribution bug, not just a missing feature
 
-## Design principles
+`emission-alignment.ts:70-140` synthesizes a canonical string for
+`(set (mem:BLK ...) (mem:BLK ...))` — BLK is neither `QI` nor `HI`, so it falls
+through and emits a `sw` form. If that collides with a real machine `sw`,
+Tier 1 binds it as a score-100 "exact" anchor and propagates a wrong UID into
+delay-slot and scheduler-constraint reasoning. The `exactCount` field that
+would flag the disagreement is computed at three return sites and consumed by
+nothing.
 
-1. **Report compatibility, not historical proof.** A machine sequence can be
-   compatible with a block mover without proving the original source used
-   aggregate assignment. Exact source compilation and trace confirmation settle
-   the reconstruction.
-2. **Target-side before source search.** Packet detection must work on a bare
-   `INCLUDE_ASM` stub so the operation family is considered before m2c output
-   anchors the search to scalar statements.
-3. **Compiler-backed explanations.** Pattern names, lengths, clobbers, and
-   emission rules come from the configured hash-pinned compiler tree.
-4. **Preserve packet boundaries.** Scheduler and allocator tools must never
-   model instructions inside a proven multi-instruction RTL packet as separate
-   RTL decisions.
+---
+
+# Design principles
+
+Carried forward from the first proposal, which had these right:
+
+1. **Report compatibility, not historical proof.** A machine sequence
+   compatible with a block mover does not prove the original source used
+   aggregate assignment. Exact compilation settles reconstruction.
+2. **Target-side before source search.** Detection must work on a bare
+   `INCLUDE_ASM` stub, before m2c output anchors the search to scalar
+   statements.
+3. **Ask the compiler, do not model it.** Pattern names, widths, and emission
+   boundaries come from running the pinned compiler, never from a
+   reimplementation of its logic.
+4. **Preserve packet boundaries.** Scheduler and allocator tools must not model
+   instructions inside one RTL packet as separate RTL decisions.
 5. **Type shape and operation shape are separate axes.** A struct with
    member-wise assignments is not an aggregate-copy experiment.
-6. **Header context is part of source.** Global declaration size/completeness
-   can change `-G8` addressing and must be testable without mutating live
-   headers.
-7. **Generated variants remain under `build/`.** No automatic source/header
+6. **Fail closed.** Where attribution is ambiguous, say so; never emit a
+   confident wrong link.
+7. **Generated artifacts stay under `build/`.** No automatic source or header
    promotion.
-8. **No new workaround channels.** The system does not emit inline asm,
-   register pins, pragmas, volatility perturbations, stubs, or flag overrides.
-9. **Honest finite search.** Exhaustion reports name whether the aggregate and
-   declaration strata were searched or suppressed.
-10. **One registered CLI per tool.** Any new `tools/agent/` entry point gets a
-    bounded Pi wrapper and registration test coverage.
+8. **No new workaround channels.** No inline asm, register pins, pragmas,
+   volatility perturbations, stubs, or flag overrides.
 
 ---
 
 # Phase 0: repair frame decomposition
 
+**Status: done.** `frameMap.ts` now requires a word-size, four-byte-aligned
+store for an outgoing argument candidate and excludes bytes covered by an
+address-taken local. Regression tests are inline instruction literals in
+`tools/agent/frame-map.test.ts`.
+
+Two already-matched functions were being misread and are now correct:
+
+```
+func_800140C8  before: args 0x18 + vars 0x0, "5-6 argument slots"
+               after:  args 0x10 + vars 0x8, "up to 4"
+func_80012A68  before: args 0x18 + vars 0x0, "5-6 argument slots"
+               after:  args 0x10 + vars 0x8, "up to 4"
+```
+
+`func_80012A68` is the independent confirmation: its source calls `ClearImage`
+with four arguments and holds an 8-byte `RECT`, so both numbers are checkable
+against C rather than against the assembly that produced them.
+
+A sweep found 32 functions whose partition the rule change could move. None
+produced a negative or impossible local region. Only those two had ground
+truth, so the rest are unverified rather than confirmed — see `Next steps`.
+
 ## Problem
 
-`frameMap.ts` currently misclassifies `func_800140C8`'s byte stores at
-`sp+0x10` and `sp+0x11` as evidence of outgoing fifth/sixth argument slots.
-That inflates the target outgoing area from the ABI minimum 0x10 to 0x18 and
-reports zero locals even on the exact matching source.
+`frameMap.ts` misclassifies `func_800140C8`'s byte stores at `sp+0x10` and
+`sp+0x11` as outgoing fifth/sixth argument slots. Verified by running the tool
+against the now-matching function:
 
-The current outgoing-store scan accepts any store at or above 0x10. It then
-uses the presence of offset 0x10 as the beginning of a dense four-byte argument
-run, even when the actual stores are `sb` at offsets 0x10 and 0x11 and the
-value is later read through an indexed pointer derived from `sp+0x10`.
+```
+frame 0x28 = args 0x18 + vars 0x0 + saves 0xC (3 registers)
+widest outgoing call: 5-6 argument slots
+0x10  address taken -> array or by-reference local   [28:	addiu	v1,sp,16]
+```
+
+The report contradicts itself in adjacent lines. Truth is `args 0x10 +
+vars 0x8`; the callees take one and two arguments.
+
+The defect is narrower than the first proposal described. The scan at
+`frameMap.ts:313-329` is already windowed to 12 instructions around a call and
+already excludes offsets read back by this function. What it lacks is any
+notion of **slot width** or of the address-taken local it already detects six
+lines earlier at `frameMap.ts:272-277`, which is currently print-only.
 
 ## Change
 
-Extend `frameMap.ts` so an outgoing stack-argument candidate must satisfy:
+Two rules in `analyzeFrame`:
 
-- a word-size slot under O32 unless exact callee evidence establishes a narrow
-  stack parameter convention;
-- four-byte alignment;
-- placement immediately before a call or in its delay slot;
-- dataflow consistent with call argument setup;
-- no overlap with an address-taken local range.
+- **Width.** An outgoing stack-argument candidate must be a word store at a
+  four-byte-aligned offset. Under O32 a stack argument occupies a word slot;
+  `sb`/`sh` into that region is a local.
+- **Address-taken exclusion.** Compute local regions from the existing
+  `addressTaken` offsets, extending each by the contiguous run of stack stores
+  from that offset under their access widths. Offsets inside such a region are
+  never outgoing arguments.
 
-Infer address-taken local ranges from:
-
-- `addiu reg,sp,offset` inside the frame;
-- stack stores into that region;
-- later loads through the derived pointer, including indexed pointers;
-- access width and maximum observed offset.
-
-If outgoing/local partitioning remains ambiguous, report unknown components
-rather than assigning the entire region below saves to outgoing arguments.
+Where the partition stays ambiguous, report unknown rather than assigning the
+whole region below the saves to outgoing arguments.
 
 ## Tests
 
-- `func_800140C8`: 0x10 outgoing, 0x08 padded locals, three saves.
-- Existing five-argument fixtures such as `func_80016B7C`: preserve 0x18
-  outgoing classification.
+- `func_800140C8`: 0x10 outgoing, 0x08 locals, three saves, no false arity
+  signal.
 - Byte local at `sp+0x10` immediately before a call: local, not outgoing.
-- Aligned `sw ...,0x10(sp)` in a call delay slot with no local reload: outgoing.
-- Address-taken local plus a real fifth argument in the same function.
+- Aligned `sw` at `0x10(sp)` in a call delay slot with no reload: outgoing.
+- Address-taken local above a real fifth argument: both classified correctly.
 
 ## Acceptance
 
-`psx_triage(func_800140C8)` must no longer emit the false short-callee signal.
+`frameMap` on `func_800140C8` reports `args 0x10 + vars 0x8` and drops the
+5-6 argument claim. No other function's classification changes without a
+recorded reason.
 
 ---
 
-# Phase 1: target-side block-copy packet detector
+# Phase 1: emission attribution from `-dp`
 
-## New files
+**Status: done.** `tools/agent/compiler-trace/emission-attribution.ts` parses
+the annotations; `compileSource` takes an opt-in `emissionAttribution` flag;
+`compilerTrace.ts` sets it, so every trace now carries attribution. The
+production build in the `Makefile` is untouched. The annotations are comments
+and every consumer strips from `#` onward, so they are transparent to
+instruction parsing.
+
+On the exact `func_800140C8` source:
+
+```
+uid 16  movstrsi_internal  -> 5 line(s), declared length 20 (upper bound, instructions)
+    | addiu	$7,$2,%lo(D_8005E2AC)
+    | lb	$3,0($7)   | lb	$5,1($7)
+    | sb	$3,16($sp) | sb	$5,17($sp)
+```
+
+## Change
+
+Add `-dp` to the diagnostic compile path only. The production build in the
+`Makefile` is untouched.
+
+New module `tools/agent/compiler-trace/emission-attribution.ts` parsing the
+annotation format:
+
+```
+<asm text>\t # <uid>\t<pattern_name>[/<alternative>]\t[length = <n>]
+```
+
+into a packet list: for each RTL UID, the pattern name, alternative index,
+declared length, and the **contiguous run of emitted assembly lines** it owns
+(the annotated line plus every following unannotated line).
+
+Rules:
+
+- an annotated line opens a packet; unannotated lines extend the open packet;
+- lines maspsx marks `# DEBUG:` are recorded as assembler insertions, not
+  compiler emission;
+- a label between annotations belongs to the open packet — this is what makes
+  `div_trap_normal` legible;
+- an assembly line before any annotation is reported as unattributed rather
+  than assigned to a neighbour.
+
+This yields exact one-to-many attribution for every pattern with no modelling.
+
+## Tests
+
+- `movstrsi_internal` owning five lines from one UID.
+- `div_trap_normal` owning three lines including the local label.
+- `mulsi3_internal` and a following `mflo` as two distinct single-line packets,
+  proving the parser does not merge on adjacency alone.
+- Unattributed leading lines reported, not absorbed.
+
+## Acceptance
+
+On the exact `func_800140C8` source, attribution maps the `addiu`/`lb`/`lb`/
+`sb`/`sb` run to one UID with pattern `movstrsi_internal`.
+
+---
+
+# Phase 2: correct the alignment path
+
+**Status: 2.1, 2.2 and 2.3 done; 2.4 not done.**
+
+With attribution available, `func_800140C8` went from 21/29 machine
+instructions linked with 8 ambiguous, to 29/29 with none, and the report now
+names the packet:
+
+```
+- Emission links come from cc1 -dp, not from canonical matching.
+- RTL insn 16 (movstrsi_internal) emitted 5 machine instructions; its members
+  are one compiler decision and cannot be reordered through source statement order.
+```
+
+That statement is currently prose. Nothing enforces it — see 2.4.
+
+## 2.1 Stop fabricating BLK canonicals
+
+`rtlCanonical` must refuse to synthesize a machine-instruction canonical for a
+BLKmode memory-to-memory set. Such an instruction is a packet whose width comes
+from attribution, never from a guessed mnemonic.
+
+## 2.2 Make `exactCount` load-bearing
+
+`exactCount` is currently dead. Surface it: when final RTL and machine counts
+disagree after proven skips, the renderer must say so, and downstream consumers
+must treat inferred links as inferred.
+
+## 2.3 One-to-many links
+
+Represent attribution as machine index to UID (many-to-one), which fits the
+existing scalar `uid` field on `MachineInstructionRef` and avoids reworking
+`scheduler-constraint/derive.ts`'s reverse map. Where `-dp` attribution is
+available it is authoritative and replaces canonical matching.
+
+## 2.4 Scheduler and allocator behaviour — NOT DONE
+
+Instructions inside one attributed packet must not create independent
+scheduling participants. A request to reorder two members of one packet must be
+reported as unreachable through source statement ordering.
+
+The caveat says this; no code enforces it. `intervention-search.ts`,
+`counterfactual-replay.ts`, `scheduler-replay.ts` and `scheduler-constraint/`
+have no notion of a packet. The links now carry the grouping — every machine
+index in a packet shares one UID — so the enforcement has the data it needs and
+is a consumer change, not a new analysis.
+
+## Acceptance — not demonstrated
+
+`analyzeTargetSchedule` on the exact aggregate candidate reports one packet for
+the copy region rather than five independent participants.
+
+The obvious witness is unusable: `func_800140C8` is matched, so its
+`Prioritized requirements` section is empty and there are no participants to
+group. Demonstrating this needs a function that both generates scheduling
+requirements and contains a packet. `func_80013B04` is the nearest candidate
+once it has a candidate source.
+
+---
+
+# Phase 3: triage signal
+
+**Status: done.** `triage.ts` exports its detectors and guards `main()`, so it
+is importable by tests for the first time. `detectBackendPacket` runs
+target-side on a bare stub. Seven tests, four of them negative.
+
+On a bare `func_80013B04` stub the signal now leads the report:
+
+```
+[signal] backend-packet
+  target instructions 14..17 are compatible with ONE block-move RTL instruction
+  (2 bytes, 2 x 1-byte chunks), not 4 independent loads and stores. Test a
+  whole-object assignment before allocator or scheduler work ...
+    | compatibility only: this geometry does not prove the original source used
+      an aggregate copy
+```
+
+## 3.1 Make `triage.ts` testable
+
+The file has zero exports and an unguarded `main()` at line 695, so no detector
+can be unit tested. Add `export` to the detectors and guard `main()` with the
+`import.meta.url` check `frameMap.ts:733` already uses.
+
+## 3.2 Target-side packet signal
+
+A target-side detector for the load-batch/store-batch geometry, reported as
+compatibility and never as proof, citing the aggregate-copy research. It must
+carry the measured threshold, because without it the signal is noise:
+
+- `bytes <= 32 && align == 4` is `move_by_pieces` — interleaved `lw`/`sw`, no
+  packet, and member-wise scalar C compiles **byte-identically** to
+  `*dst = *src`. Measured; there is nothing to detect.
+- `bytes <= 32 && align < 4` is one `movstrsi_internal`.
+- `bytes > 32` is a loop, with a runtime alignment test above 32 at align 1.
+- non-constant size is a `memcpy`/`bcopy` call.
+
+Since fixtures must be inline (`build/` is gitignored, so no target assembly is
+committed), the detector is tested against transcribed instruction literals.
+
+## Acceptance
+
+Triage on a bare `func_80013B04` stub recommends the two-byte aggregate-copy
+experiment before source-shape, allocator, or scheduler work.
+
+---
+
+# Phase 4: mechanism grid — NOT STARTED
+
+## What it is for
+
+Phase 1 and Phase 4 are inverses. `-dp` attribution is a **forward** map: given
+source you already wrote, which RTL instruction emitted which lines. It needs a
+candidate to exist. Phase 4 is the **reverse** map: given a target shape you
+cannot yet produce, which source construct emits it.
+
+The reverse map is what was missing. The 707-candidate search was an attempt to
+answer it by force over a grammar that could not express the answer.
+
+## What it unlocks
+
+1. **Named recipes instead of hints.** The detector currently says "compatible
+   with one block move, test a whole-object assignment", which still requires
+   knowing what to write. A grid makes it a lookup. This matters most for
+   shapes nobody has solved: `func_80019610`/`func_80019AD0` are loop-form
+   copies at 36+ bytes and alignment 4, a different recipe (four-word loop body
+   plus a residual tail) that no note records.
+2. **Negative knowledge, the more valuable half.** At alignment 4 and 32 bytes
+   or less, member-wise scalar C compiles byte-identically to `*dst = *src`, so
+   an aggregate experiment there is provably wasted. Recording where an axis
+   *cannot* change the output is what lets the residual search shrink. That
+   matters because `MAX_DOMAIN_ENTRIES = 400_000` is already exceeded on real
+   functions, and because the project already removes strata on exactly this
+   evidence standard.
+3. **Declaration shape read off the target.** `extern P g[]` produced
+   `lui`+`addiu` with a shared base; `g[1]` and `g[4]` produced the `lb $2,g`
+   macro form. Gridding declaration completeness against size and `-G8`
+   generalizes past block copies to every global in the project.
+4. **Coverage across the class.** Block copies are 3 remaining functions; the
+   division trap packet is in 11, `mult` in 30. Switch lowering, bitfields,
+   64-bit operations, soft-float and constant materialization are unmeasured.
+   The grid scales to all of them because it is "compile probes, record
+   shapes", with no per-pattern engineering.
+5. **Honest exhaustion.** A named inventory of operation families lets a search
+   report which families it covered and which it never had.
+
+## Tooling
 
 ```text
-tools/agent/analyzeBackendPackets.ts
-
-tools/agent/backend-packets/
-├── assembly.ts
-├── copy-geometry.ts
-├── mips-block-move.ts
-├── pattern-index.ts
+tools/agent/mechanismGrid.ts          CLI: build | query | show
+tools/agent/mechanism-grid/
+├── probes.ts          axis definitions and C probe generation
+├── run.ts             compile each probe, attribute it, record the result
+├── shape.ts           normalize assembly to a register-independent signature
+├── query.ts           match a target window against recorded cells
+├── identity.ts        compiler hash + probe-set hash keying
+├── types.ts           versioned schema
 ├── render-text.ts
-├── types.ts
-└── backend-packets.test.ts
+└── mechanism-grid.test.ts
 ```
 
-The CLI:
+Artifacts under `build/mechanismGrid/<identity>/`, regenerated rather than
+checked in — the treatment `compiler-source` already gives its index.
 
-```bash
-npx tsx tools/agent/analyzeBackendPackets.ts <function>
-npx tsx tools/agent/analyzeBackendPackets.ts <function> --json
-```
+Probes are generated from axis tuples, not checked in as `.c` files. Axes:
+construct family, size, alignment, address class, storage class. That is a few
+hundred to a couple of thousand `cc1` runs at tens of milliseconds each, so a
+full rebuild is a minute or two.
 
-Artifacts:
+Reuse, not rebuild:
 
-```text
-build/backendPackets/<function>/
-├── report.json
-└── report.txt
-```
+| Existing | Reused for |
+|---|---|
+| `compileSource(..., { emissionAttribution: true })` | probe compilation with `-dp` |
+| `parseEmissionAttribution` | pattern names and packet spans per probe |
+| `configuredToolchainIdentity()` | keying the grid to the pinned compiler |
+| `parseCc1Assembly` | instruction normalization |
+| `compilerSource.ts pattern <name>` | citing the `define_insn` behind a cell |
 
-## 1.1 Assembly dataflow and copy geometry
+## The one hard piece, and its failure mode
 
-Parse target instructions through shared `decompToolchain` types. For bounded
-windows, identify copy candidates where:
+`shape.ts` decides whether this works. Matching a target window against a cell
+needs a register-independent signature: opcode sequence, access widths,
+relative offset geometry, address class, and load-result-to-store dataflow,
+with registers alpha-renamed.
 
-- N loads use one source base;
-- N later stores use one destination base;
-- each loaded register feeds the corresponding store without redefinition;
-- source and destination offsets are contiguous under the access widths;
-- all loads precede all stores, as `output_block_move` emits them;
-- source/destination base registers are not clobbered in the window;
-- optional source/destination address formation can be traced immediately
-  outside the window.
+The hazard is specific. A loose signature becomes a second canonical-matching
+heuristic — which is exactly what produced the BLK misattribution bug fixed in
+2.1, where a fabricated `sw` canonical could bind as a confident wrong anchor.
+`shape.ts` must fail closed: report "no cell matches" rather than the nearest
+plausible neighbour, and never label a partial match exact.
 
-Initial supported chunks:
+## A schema requirement that is easy to miss
 
-- `lb`/`lbu` + `sb`;
-- `lh`/`lhu` + `sh`;
-- `lw` + `sw`;
-- `lwl`/`lwr` + `swl`/`swr` grouped as one unaligned word chunk.
+Cells must record indistinguishability as a **result**, not as an absence. "At
+alignment 4 and <= 32 bytes, member-wise scalar and whole-object assignment
+produce identical bytes" is one cell holding two constructs. That is the
+negative knowledge from unlock 2, and it only exists if the schema is a
+many-to-many map between shapes and constructs rather than a lookup keyed on
+shape.
 
-Start with N=2..4, matching GCC 2.95.2 MIPS's four scratch operands. Looping
-block-copy packets may be reported as repeated fixed-size chunks but are not
-required for the first acceptance slice.
+## Policy obligations
 
-## 1.2 Address-formation recognition
+- A bounded Pi wrapper, e.g. `psx_query_mechanism_grid`, taking an exact
+  function name and optional instruction range. No shell fragments, no
+  arbitrary compiler flags, no source-promotion controls. Registration test
+  coverage per `notes/tools-directory-structure.md`.
+- `package.json`'s test list is an explicit path list, not a recursive glob.
+  `tools/agent/mechanism-grid/*.test.ts` must be added there or the tests
+  silently never run.
+- Probe generation emits clean C89 under the same source policy as everything
+  else: no asm, no pragmas, no flag overrides.
 
-Recognize:
-
-- `lui high,%hi(symbol)` + `addiu base,high,%lo(symbol)`;
-- GP-relative source/destination bases;
-- `sp+offset` locals;
-- register source/destination pointers;
-- symbol plus constant addends.
-
-Record target address class and declaration implications. For example:
-
-```text
-absolute HI16/LO16 access to a two-byte logical unit under -G8
-  -> a known-size two-byte extern would normally be GP-relative
-  -> test an incomplete outer array or larger containing aggregate
-```
-
-These are hypothesis constraints, not declarations to promote automatically.
-
-## 1.3 Replay `output_block_move`
-
-Implement a small read-only model of the relevant configured MIPS backend
-logic, derived from vendored `mips.c`:
-
-- width selection from remaining bytes and alignment;
-- all loads before stores for each scratch batch;
-- maximum four chunks per batch;
-- `LO_SUM` source/destination handling via a scratch address register;
-- expected printed instruction count;
-- scratch count and consumption order.
-
-The model must cite the configured compiler version/hash and source locations
-in its JSON evidence. It should not execute or patch compiler code.
-
-Given the target window, enumerate compatible `(size, alignment, address
-class)` tuples and retain only exact packet replays after alpha-renaming hard
-registers.
-
-## 1.4 Report
-
-Example:
-
-```text
-Backend packet candidate: high confidence
-  target range:       instructions 5..9
-  compatible pattern: movstrsi_internal (declared length 20 bytes)
-  source:             D_8005E2AC + 0
-  destination:        sp + 0x10
-  copy size:          2 bytes
-  alignment:          1 byte
-  chunks:             lb/lb -> sb/sb
-  scratch operands:   4 (one consumed by LO_SUM source address)
-
-Suggested operation families:
-  1. whole assignment of a two-byte, alignment-one record
-  2. fixed-size compiler-recognized block copy, if period source evidence exists
-
-Declaration check:
-  test an incomplete outer array; a fixed one-element two-byte object is
-  expected to select GP-relative addressing under -G8.
-```
-
-Confidence levels:
-
-- `exact-replay`: packet geometry and backend replay both exact;
-- `compatible`: copy geometry exact but multiple backend tuples remain;
-- `suggestive`: load/store geometry only;
-- `none`.
-
-No result may say the original source is proven to be a struct assignment.
-
-## 1.5 Integration
-
-Add the detector to `triage.ts`:
-
-- signal on a bare stub when an exact or compatible packet is found;
-- cite the aggregate-copy research and compiler pattern;
-- keep output bounded to the strongest few candidates.
-
-Add routing to `explainDiff.ts`:
-
-When inventory is clean, web parity fails, the target has an exact copy packet,
-and the candidate expresses corresponding scalar loads/stores, report:
-
-```text
-operation-family mismatch
-Target is compatible with one multi-instruction block-copy RTL packet;
-candidate scalarization changes CSE and web structure. Do not proceed to
-allocator or scheduler work until a whole-object copy has been tested.
-```
-
-This finding should outrank scheduling/allocation classifications.
-
-## Phase 1 tests
-
-Positive fixtures:
-
-- `func_800140C8`: two-byte absolute-to-stack packet.
-- `func_80013B04`: same pad-record packet under different registers.
-- `func_80019610` and `func_80019AD0`: repeated four-word copy candidates.
-- synthetic aligned halfword and unaligned word packets.
-
-Negative fixtures:
-
-- adjacent loads and stores with mismatched value registers;
-- a loaded value transformed before storage;
-- interleaved unrelated memory operations;
-- coincidental load/store run with noncontiguous offsets;
-- scalar code that is packet-compatible: report `compatible`, never `proven`.
-
-## Phase 1 acceptance
-
-Running triage on a bare `func_800140C8` stub must recommend a two-byte
-aggregate-copy experiment before source-shape, allocator, or scheduler work.
+Estimated 600–900 lines excluding tests, most of it `shape.ts` and `types.ts`.
+An order of magnitude less than the `output_block_move` model the first
+proposal wanted, and unlike that model it covers division, multiply, switch
+lowering and the rest without further per-pattern work.
 
 ---
 
-# Phase 2: multi-instruction RTL emission alignment
+# Deferred
 
-## Problem
+The first proposal's Phase 3 (aggregate-aware source synthesis, header
+overlays, residual-grammar axes) is deferred, on evidence:
 
-`target-schedule/emission-alignment.ts` primarily supports zero-width or
-one-machine-instruction RTL forms. It cannot represent:
+- `residual-source-search` is 6,180 lines and `MAX_DOMAIN_ENTRIES = 400_000` is
+  already exceeded on real functions; both proposed axes are multiplicative.
+- `CPP_FLAGS` is a module-level constant with no hook, and `semantic-graph.ts`
+  scans the include path for type names into a **process-global cache**, so
+  per-candidate overlays are a correctness hazard rather than plumbing.
+- Run identity hashes the compiler and tools but not headers, so two overlays
+  collide on one `runId` and checkpoint directory.
+- `source-shape-synthesis` still uses a regex parser whose assignment matcher
+  requires a bare identifier on the left, so it cannot see `a->x = b->x` — the
+  exact shape the detection step needs.
 
-```text
-UID 16 movstrsi_internal
-  -> addiu
-  -> lb
-  -> lb
-  -> sb
-  -> sb
-```
-
-That causes final RTL/machine count disagreement and encourages later tools to
-model packet members as independent scheduler nodes.
-
-## 2.1 Machine-pattern metadata index
-
-Add shared metadata extraction under `backend-packets/pattern-index.ts`.
-Resolve the configured vendored compiler tree and parse the relevant MIPS
-machine descriptions for:
-
-- pattern name;
-- recognizer code when available in dumps;
-- declared length;
-- output template versus output function;
-- scratch/clobber operands and constraints;
-- constant or variable emission width.
-
-The initial supported variable emitter is `movstrsi_internal`; unknown dynamic
-emitters remain unknown rather than guessed.
-
-Cache the generated index under `build/compilerPatternIndex/<compiler-hash>/`.
-The checked-in code is the parser/model, not generated compiler artifacts.
-
-## 2.2 Variable-width alignment
-
-Change final RTL-to-machine alignment from one-to-one matching to bounded
-segmentation. Each final RTL instruction gets an emission-width domain:
-
-- proven zero-width: `{0}`;
-- ordinary known pattern: `{1}`;
-- constant multi-insn pattern: `{declared length / 4}`;
-- modeled `movstrsi_internal`: exact width from size/alignment/address form;
-- unsupported dynamic form: bounded unknown with an explicit caveat.
-
-Use dynamic programming to align RTL packets monotonically to candidate machine
-instructions. Packet scoring should consider the whole emitted subsequence, not
-only the first opcode.
-
-Represent links as one-to-many:
-
-```text
-rtl UID 16 -> candidate machine indexes [5,6,7,8,9]
-```
-
-Transfer packet grouping through target/candidate machine correspondence when
-the target packet matches exactly or by a confidence-labelled compatible
-alignment.
-
-## 2.3 Scheduler and allocator behavior
-
-- Scheduler replay treats the packet as one UID/node.
-- Instructions inside the packet do not create independent priority or LUID
-  requirements.
-- Scratch hard registers remain operands/clobbers of the one UID.
-- Allocation reports identify printed register roles such as source-base
-  scratch versus value scratch.
-- A target request to reorder two members inside one proven packet is reported
-  as unreachable through source statement ordering; it requires a different
-  backend operation family.
-
-## Phase 2 tests
-
-- Existing one-to-one and zero-width alignment fixtures remain unchanged.
-- Synthetic one-UID/five-machine-instruction movstr fixture.
-- Exact aggregate `func_800140C8` trace links target indexes 5..9 to one UID.
-- Scalar candidate does not invent packet grouping merely because opcodes are
-  similar.
-- Unsupported dynamic output fails closed with a caveat.
-
-## Phase 2 acceptance
-
-On the exact aggregate candidate, `analyzeTargetSchedule` must report one
-20-byte packet rather than five independent scheduling participants.
+Repeated target-idiom indexing is also deferred; with three sibling functions in
+the corpus it does not yet pay for itself.
 
 ---
 
-# Phase 3: aggregate-aware source synthesis
-
-## 3.1 Detect scalar-copy source regions
-
-Extend the semantic graph to recognize candidate source regions equivalent to
-a bounded memory copy:
-
-```c
-t0 = source[0];
-t1 = source[1];
-destination[0] = t0;
-destination[1] = t1;
-```
-
-Required proof conditions:
-
-- source expressions refer to one base and contiguous offsets;
-- destination expressions refer to one object and contiguous offsets;
-- intermediate values are not otherwise observed;
-- no volatile access;
-- no aliasing write intervenes;
-- copied widths and casts preserve the stored low bits;
-- replacing the statements with an object copy preserves later destination
-  reads.
-
-Ambiguous regions remain frozen.
-
-## 3.2 New operation-family recipes
-
-Add versioned recipes distinct from type/cast forms:
-
-1. member-wise scalar copy;
-2. whole-record assignment;
-3. record containing a byte array, copied as one object;
-4. fixed-size block-copy idiom only when known period/compiler support and
-   clean-source policy permit it.
-
-The primary C89 recipe is:
-
-```c
-typedef struct SynthCopy2 {
-    u8 byte0;
-    u8 byte1;
-} SynthCopy2;
-
-SynthCopy2 destination;
-destination = source[0];
-```
-
-Enumerate only layouts compatible with target copy geometry:
-
-- exact total size;
-- alignment candidates admitted by backend replay;
-- field widths that cover the copied bytes;
-- no gratuitous packing attributes unless target evidence requires them.
-
-Do not infer C signedness from `lb` inside `output_block_move`; byte signedness
-may be varied or left semantically unresolved.
-
-## 3.3 Candidate bundle and header overlays
-
-A matching operation may require a global declaration change:
-
-```c
-extern Pair D_8005E2AC[];
-```
-
-Extend source-shape evaluation from one `.c` file to a candidate bundle:
-
-```text
-build/sourceShapeSearch/<function>/<candidate>/
-├── source.c
-├── include-overlay/
-│   └── globals_override.h
-├── manifest.json
-└── compiler artifacts...
-```
-
-The overlay is generated from the active header plus exact, typed replacements.
-It must:
-
-- shadow only the candidate compile's include path;
-- preserve every unrelated declaration byte-for-byte;
-- record exact replacement ranges and hashes;
-- reject duplicate/conflicting declarations;
-- never modify `include/`;
-- remain diagnostic until a human translates an exact candidate into the
-  designated shared header.
-
-Candidate declaration axes:
-
-- incomplete outer array;
-- fixed-count outer array where supported by target address class;
-- containing aggregate only when neighboring access evidence permits it;
-- element size/alignment from packet geometry;
-- `const`/`volatile` only when semantically established, never as codegen
-  perturbations.
-
-## 3.4 Residual-search coverage reporting
-
-The residual grammar must explicitly report:
-
-```text
-aggregate operation family: searched | inapplicable | suppressed(reason)
-header declaration forms:   searched | inapplicable | suppressed(reason)
-```
-
-An exhausted scalar-only domain must never be summarized as exhausting clean C
-when an exact target packet makes aggregate forms applicable but unsupported.
-
-## 3.5 Requirement-guided ranking
-
-When Phase 1 reports an exact backend packet and the candidate has a proven
-scalar-copy region, aggregate recipes rank before:
-
-- pointer volatility;
-- dead administrative references;
-- allocator phantoms;
-- scheduler-state searches;
-- flag hypotheses.
-
-This is deterministic mechanism ordering, not score hill climbing.
-
-## Phase 3 tests
-
-- End-to-end scalar-to-whole-object rewrite for `func_800140C8` under an
-  isolated header overlay reaches exact output.
-- The rewrite is not offered when an intermediate loaded value has another use.
-- Known `Pair[1]` selects the expected small-data form; incomplete `Pair[]`
-  selects the target absolute form.
-- No generated candidate edits live source or headers.
-- Policy rejects asm, pins, pragmas, and new flag overrides in candidate
-  bundles.
-- Search terminal status distinguishes scalar exhaustion from aggregate/header
-  coverage.
-
-## Phase 3 acceptance
-
-Starting from the clean scalar `func_800140C8` candidate, automatic synthesis
-must generate and exactly compile the whole-record candidate without an
-operator-authored manifest.
-
----
-
-# Phase 4: repeated target-idiom index
-
-This phase is useful but not required for the first vertical slice.
-
-Add a normalized target subsequence index that alpha-renames registers while
-preserving:
-
-- opcode sequence;
-- memory widths;
-- relative offset geometry;
-- symbol/address class;
-- load-result-to-store dataflow;
-- branch/control boundaries.
-
-Given a current residual window, report sibling target occurrences and link to
-matched source where available.
-
-Example:
-
-```text
-Equivalent copy packet also occurs in:
-  func_80013B04  target-only, same D_8005E2AC source
-  func_80019610  16-byte register-to-register-base copy loop
-```
-
-This can expose shared source macros, types, aggregate declarations, and TU
-families before source archaeology. Repeated machine syntax alone remains
-supporting evidence, not proof of shared source.
-
-Suggested files:
-
-```text
-tools/agent/indexTargetIdioms.ts
-tools/agent/target-idioms/
-```
-
-The index belongs under `build/targetIdioms/` and should be regenerated from
-active target assembly.
-
----
-
-# Phase 5: compiler mechanism corpus
-
-This is the strategic generalization after the block-copy slice proves useful.
-
-## Goal
-
-Build a compiler-hash-pinned catalog connecting clean-C operation families to
-RTL patterns and emitted machine packets.
-
-Curated probe families:
-
-- aggregate copies over sizes/alignment 1, 2, 4, 8, 16, and small residuals;
-- aggregate return and parameter passing;
-- unaligned copies;
-- fixed-size clears;
-- bitfields;
-- division/modulo;
-- switch lowering;
-- initializer and compound assignment forms;
-- address forms affected by `-G8` and incomplete declarations.
-
-For each probe preserve:
-
-```text
-clean C
-preprocessed input
-initial RTL
-first relevant pass
-final pattern name/UID
-scratch and clobber constraints
-machine packet
-flags/compiler hash
-```
-
-## Instrumentation
-
-Prefer extending the isolated compiler oracle so each `output_asm_insn` event
-is associated with:
-
-- current RTL UID;
-- recognizer/pattern code and name;
-- operand hard registers;
-- emitted assembly lines.
-
-Never instrument the production compiler or modify vendored source in place.
-Generated instrumented trees and corpus artifacts remain under `build/`.
-
-## Query
-
-A future target query can rank compatible mechanisms:
-
-```text
-window lb/lb/sb/sb
-  exact corpus matches:
-    two-byte aggregate assignment, align 1
-  incompatible:
-    two scalar assignments (offset-zero CSE form differs)
-```
-
-The corpus is a hypothesis index. Exact compilation in the real function
-context remains required because surrounding register pressure and scheduling
-can change final output.
-
----
-
-# Pi integration
-
-Register the Phase 1 CLI as a bounded Pi tool, for example:
-
-```text
-psx_analyze_backend_packets
-```
-
-Parameters:
-
-- exact function name;
-- optional basic-block focus;
-- optional JSON output.
-
-The wrapper must not accept shell fragments, arbitrary compiler flags, or
-source promotion controls.
-
-Update the decompilation skill ordering:
-
-1. triage/frame/SDK/global checks;
-2. backend-packet detection;
-3. inventory and structural source recovery;
-4. only then allocation/scheduler analysis when web parity permits it.
-
-Registration tests must fail if the new CLI is not exposed through the Pi tool
-table, following `notes/tools-directory-structure.md`.
-
----
-
-# Artifacts and schemas
-
-Use versioned typed JSON. Suggested Phase 1 shape:
-
-```ts
-interface BackendPacketCandidate {
-  schemaVersion: number;
-  functionName: string;
-  block: number;
-  targetIndexes: number[];
-  mechanism: "mips-block-move";
-  patternNames: string[];
-  confidence: "exact-replay" | "compatible" | "suggestive";
-  source: MemoryRegion;
-  destination: MemoryRegion;
-  sizeBytes: number;
-  alignments: number[];
-  chunks: CopyChunk[];
-  scratchCount: number;
-  addressScratchCount: number;
-  declarationRequirements: DeclarationRequirement[];
-  sourceRecipes: SourceRecipeHint[];
-  evidence: EvidenceCitation[];
-  caveats: string[];
-}
-```
-
-Every result records:
-
-- target assembly hash;
-- configured compiler version and tree hash;
-- detector schema version;
-- exact instruction range;
-- whether backend replay was exact;
-- unsupported features and ambiguity.
-
----
-
-# Delivery order
-
-## Vertical slice A — immediate pain reduction
-
-1. Fix `frameMap.ts` outgoing/local classification.
-2. Implement block-copy geometry and MIPS backend replay.
-3. Add `analyzeBackendPackets.ts` and Pi registration.
-4. Integrate the signal into triage and diff explanation.
-
-This slice should have redirected `func_800140C8` before scalar source search.
-
-## Vertical slice B — correct compiler analysis
-
-5. Build the machine-pattern metadata index.
-6. Add one-to-many RTL emission alignment.
-7. Keep packet members out of scheduler participant searches.
-
-This slice makes the causal explanation mechanically visible after an
-aggregate hypothesis is compiled.
-
-## Vertical slice C — automatic clean-C recovery
-
-8. Detect scalar-copy regions in the semantic graph.
-9. Add whole-object operation-family recipes.
-10. Add isolated header overlays and declaration forms.
-11. Extend residual coverage and terminal reporting.
-
-This slice should solve the motivating function automatically from its scalar
-candidate.
-
-## Later generalization
-
-12. Add repeated target-idiom indexing.
-13. Build the instrumented compiler mechanism corpus.
-
----
+# Non-goals
+
+- Proving the original typedef or field names from machine code.
+- Automatically promoting generated declarations into shared headers.
+- Modelling any backend output routine in TypeScript.
+- Treating every load/store run as a block move.
+- Adding compiler flags to the production build or source-policy exceptions.
+
+# Next steps
+
+Ordered by how much each one changes what an agent actually does.
+
+1. **Route the signal through `explainDiff`.** The operation-family finding
+   lives only in `triage` today. `explainDiff` is the structural classifier
+   consulted mid-investigation, and it is where "do not proceed to allocator or
+   scheduler work until a whole-object copy has been tested" has to outrank the
+   scheduling and allocation classifications. Without this the detector is a
+   capability nobody reaches for — the same failure the retro complained about.
+2. **Update the decompilation skill ordering.** Put backend-packet detection
+   between the triage/frame/SDK checks and structural source recovery, ahead of
+   allocation and scheduler analysis.
+3. **Enforce 2.4.** Make the packet grouping suppress independent scheduling
+   participants rather than only describing them. The links already carry the
+   grouping, so this is a consumer change in `intervention-search.ts`,
+   `counterfactual-replay.ts` and `scheduler-constraint/`.
+4. **Build Phase 4.** Design and obligations above.
+5. **Record the Phase 0 sweep.** 32 functions can move under the new rule and
+   only two had ground truth. Either check the remainder against callee arity
+   or record the sweep as a note so the claim is auditable.
+
+Two things worth attempting once 1 and 2 land, because they are the practical
+test of whether any of this helps:
+
+- `func_80013B04` — straight-line two-byte packet, same idiom and same symbol
+  as the solved function. Should fall to the existing research note.
+- `func_80019610`/`func_80019AD0` — loop-form copies, a recipe nothing records
+  yet. These are the honest test of Phase 4's value.
 
 # Acceptance criteria
 
-The first three phases are complete when all of the following hold:
-
-1. A bare-stub triage of `func_800140C8` reports a compatible two-byte
-   `movstrsi_internal` packet and recommends whole-object assignment.
-2. Frame mapping reports the 0x10 ABI outgoing area and address-taken local at
-   `sp+0x10`, without the false five/six-argument signal.
-3. An exact aggregate candidate maps target machine indexes 5..9 to one final
-   RTL UID.
-4. Scheduler analysis treats that region as one packet.
-5. Starting from the scalar candidate, source synthesis generates a complete
-   aggregate candidate plus isolated declaration overlay.
-6. Full candidate evaluation reaches the byte-identical 29/29 object without
-   inline asm, register pins, flags, or source mutation.
-7. Exhaustion reports state whether aggregate and header forms were actually
-   covered.
-8. Positive and negative tests prevent packet compatibility from being stated
-   as proof of original source.
-9. Every new CLI is registered and bounded for Pi.
-10. `npm test`, exact function verification, and `make check` pass.
-
-## Non-goals
-
-- Proving the exact original typedef or field names from machine code.
-- Automatically promoting generated declarations into shared headers.
-- Searching arbitrary struct layouts unrelated to target geometry.
-- Treating every load/store run as a block move.
-- Replacing exact compilation with corpus similarity.
-- Adding compiler flags or source-policy exceptions.
-- General-purpose binary lifting or decompilation.
+| # | Criterion | Status |
+|---|---|---|
+| 1 | `frameMap` on `func_800140C8` reports the 0x10 outgoing area and 0x08 locals, with no false arity signal | met |
+| 2 | `-dp` attribution maps the copy region to one UID and pattern name | met |
+| 3 | Alignment no longer fabricates a canonical for a BLKmode set, and count disagreement is surfaced | met |
+| 4 | Scheduler analysis treats an attributed packet as one participant | **not met** — reported, not enforced, and not demonstrated |
+| 5 | Triage on a bare stub recommends the aggregate experiment for the remaining sibling | met |
+| 6 | `npm test` and `make check` pass | met — 188 tests, payload byte-identical |

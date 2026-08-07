@@ -1,4 +1,5 @@
 import type { PseudoProvenance, RtlInstruction } from "../compiler-trace/types.js";
+import type { EmissionAttribution } from "../compiler-trace/emission-attribution.js";
 import { alignFinalRtlToMachine, type EmissionAlignmentResult } from "./emission-alignment.js";
 import type {
   InstructionCorrespondence,
@@ -6,12 +7,18 @@ import type {
   RegisterRoleMap,
 } from "./types.js";
 
-/** Map final RTL UIDs through proven zero-width forms without forcing unknowns. */
+/**
+ * Map final RTL UIDs through proven zero-width forms without forcing unknowns.
+ * When `-dp` attribution is available it is authoritative — it is the
+ * compiler's own record of which RTL instruction emitted which lines, so it
+ * settles multi-instruction packets that canonical matching can only guess at.
+ */
 export function attachFinalUids(
   candidate: MachineInstructionRef[],
   finalInstructions: RtlInstruction[],
+  attribution?: EmissionAttribution,
 ): EmissionAlignmentResult {
-  return alignFinalRtlToMachine(candidate, finalInstructions);
+  return alignFinalRtlToMachine(candidate, finalInstructions, attribution);
 }
 
 export function attachCorrespondenceUids(

@@ -59,6 +59,7 @@ import {
 } from "./frameMap.js";
 import { recognizeIdioms } from "./sdkIdioms.js";
 import { compareInventories, renderReport } from "./inventory.js";
+import { defUse } from "./webAnalysis.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -70,7 +71,7 @@ const CALL_CLOBBERED = new Set([
 
 type Severity = "blocker" | "signal" | "info";
 
-interface Finding {
+export interface Finding {
   detector: string;
   severity: Severity;
   summary: string;
@@ -80,7 +81,7 @@ interface Finding {
 
 /* --- target-side facts --- */
 
-interface TargetFacts {
+export interface TargetFacts {
   frame: FrameMap;
   instructions: DisassembledInstruction[];
   returnValue: ReturnValue;
@@ -355,6 +356,102 @@ function detectUndeclaredCallee(compiled: CompiledFacts): Finding[] {
       "notes/retros/2026-08-06-func_80022738-retro.md",
     ],
   }];
+}
+
+/** Bytes moved by each load/store mnemonic in a block-copy chunk. */
+const COPY_WIDTHS: Record<string, number> = {
+  lb: 1, lbu: 1, sb: 1, lh: 2, lhu: 2, sh: 2, lw: 4, sw: 4,
+};
+
+function copyOperand(operand: string): { offset: number; base: string } | null {
+  const m = operand.trim().match(/^(-?(?:0x)?[0-9a-fA-F]+)?\(\$?(\w+)\)$/);
+  if (!m) return null;
+  const raw = m[1];
+  const offset = !raw ? 0 : /^-?0x/i.test(raw) ? parseInt(raw, 16) : parseInt(raw, 10);
+  return { offset, base: m[2]! };
+}
+
+/**
+ * A run of N loads from one base at contiguous offsets, followed by N stores
+ * to one base at contiguous offsets, carrying the same registers in order, is
+ * what GCC's MIPS block mover emits: `output_block_move` issues every load of
+ * a batch before any store of it, up to four chunks at a time.
+ *
+ * This reports compatibility, never provenance. The measured thresholds matter
+ * as much as the shape, because outside them the geometry proves nothing:
+ * at four-byte alignment a copy of 32 bytes or less is `move_by_pieces`, whose
+ * interleaved output a member-wise scalar source reproduces byte-for-byte. So
+ * an all-loads-then-all-stores run is only informative where `move_by_pieces`
+ * would not have been chosen.
+ */
+export function detectBackendPacket(target: TargetFacts): Finding[] {
+  const instructions = target.instructions;
+  const findings: Finding[] = [];
+
+  const isCopyLoad = (insn: DisassembledInstruction | undefined): boolean =>
+    insn !== undefined && COPY_WIDTHS[insn.mnemonic.toLowerCase()] !== undefined
+    && defUse(insn).isLoad && copyOperand(insn.operands[1] ?? "") !== null;
+
+  for (let index = 0; index < instructions.length; index++) {
+    let end = index;
+    while (end < instructions.length && isCopyLoad(instructions[end])) end++;
+    const count = end - index;
+    if (count < 2) continue;
+    if (end + count > instructions.length) continue;
+
+    const loads = instructions.slice(index, end);
+    const stores = instructions.slice(end, end + count);
+    if (!stores.every((insn) => COPY_WIDTHS[insn.mnemonic.toLowerCase()] !== undefined
+                             && defUse(insn).isStore && copyOperand(insn.operands[1] ?? ""))) continue;
+    if (!loads.every((load, slot) => load.operands[0] === stores[slot]!.operands[0])) continue;
+
+    const width = COPY_WIDTHS[loads[0]!.mnemonic.toLowerCase()]!;
+    if (loads.some((insn) => COPY_WIDTHS[insn.mnemonic.toLowerCase()] !== width)) continue;
+    if (stores.some((insn) => COPY_WIDTHS[insn.mnemonic.toLowerCase()] !== width)) continue;
+
+    const source = loads.map((insn) => copyOperand(insn.operands[1] ?? "")!);
+    const destination = stores.map((insn) => copyOperand(insn.operands[1] ?? "")!);
+    const contiguous = (parts: { offset: number; base: string }[]) =>
+      parts.every((part, slot) => part.base === parts[0]!.base
+        && (slot === 0 || part.offset === parts[slot - 1]!.offset + width));
+    if (!contiguous(source) || !contiguous(destination)) continue;
+    /* A base redefined by one of the loads is not one base. */
+    if (loads.some((insn) => insn.operands[0]?.replace("$", "") === source[0]!.base
+                          || insn.operands[0]?.replace("$", "") === destination[0]!.base)) continue;
+
+    const bytes = count * width;
+    /* At word alignment this size would have been move_by_pieces, whose
+     * interleaved output scalar source reproduces exactly — so a packet here
+     * is only meaningful if the record is under-aligned. */
+    const alignmentNote = width === 4 && bytes <= 32
+      ? "word-aligned and 32 bytes or less would normally be move_by_pieces; " +
+        "this run is a loop body or an under-aligned record"
+      : `alignment below ${width === 1 ? "2" : "4"} is what selects byte/halfword chunks here`;
+
+    findings.push({
+      detector: "backend-packet",
+      severity: "signal",
+      summary:
+        `target instructions ${index}..${end + count - 1} are compatible with ONE block-move RTL ` +
+        `instruction (${bytes} bytes, ${count} x ${width}-byte chunks), not ${count * 2} independent ` +
+        "loads and stores. Test a whole-object assignment before allocator or scheduler work — " +
+        "scalarizing this instruction makes its registers and schedule unreachable from any source order.",
+      evidence: [
+        ...loads.map((insn) => insn.raw.trim()),
+        ...stores.map((insn) => insn.raw.trim()),
+        `source ${source[0]!.base}+${source[0]!.offset}, destination ${destination[0]!.base}+${destination[0]!.offset}`,
+        alignmentNote,
+        "compatibility only: this geometry does not prove the original source used an aggregate copy",
+      ],
+      see: [
+        "notes/research/func_800140C8-aggregate-copy.md",
+        "notes/retros/2026-08-07-func_800140C8-retro.md",
+        "plans/backend-packet-and-aggregate-copy-automation.md",
+      ],
+    });
+    index = end + count - 1;
+  }
+  return findings;
 }
 
 function detectArityStack(target: TargetFacts): Finding[] {
@@ -666,6 +763,7 @@ function main(): void {
    * decomposes exactly like the target's, it has nothing left to tell you. */
   if (!frameConverged) findings.push(...detectFrameMap(name, target));
   findings.push(...detectArityStack(target));
+  findings.push(...detectBackendPacket(target));
   findings.push(...detectCaptureRa(target));
   findings.push(...detectFlagFingerprint(name));
   findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
@@ -692,4 +790,6 @@ function main(): void {
   }
 }
 
-main();
+/* Guarded so the detectors above can be imported by tests; an unguarded call
+ * here runs the CLI on import and exits on the missing argument. */
+if (import.meta.url === `file://${process.argv[1]}`) main();

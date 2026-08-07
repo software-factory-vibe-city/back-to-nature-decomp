@@ -57,6 +57,11 @@ const LOAD_TYPES: Record<string, string> = {
   lw: "s32", lh: "s16", lhu: "u16", lb: "s8", lbu: "u8",
 };
 
+/** Bytes written by each store mnemonic. */
+const STORE_WIDTHS: Record<string, number> = {
+  sb: 1, sh: 2, sw: 4, swl: 4, swr: 4, swc1: 4, sdc1: 8, sd: 8,
+};
+
 export interface IncomingArgument {
   /** Zero-based parameter index, matching the repo's argN naming. */
   index: number;
@@ -262,6 +267,8 @@ export function analyzeFrame(instructions: DisassembledInstruction[]): FrameMap 
   const incomingLoads = new Map<number, { mnemonic: string; raw: string }>();
   const homeSpills = new Set<number>();
   const addressTaken: FrameMap["addressTaken"] = [];
+  /** Every sp-based store, by offset, with the bytes it writes. */
+  const stackStoreWidths = new Map<number, number>();
 
   instructions.forEach((insn, index) => {
     const mnemonic = insn.mnemonic.toLowerCase();
@@ -278,6 +285,10 @@ export function analyzeFrame(instructions: DisassembledInstruction[]): FrameMap 
 
     if (!memory || memory.base !== "sp" || !register) return;
     if (isStore) {
+      const width = STORE_WIDTHS[mnemonic];
+      if (width !== undefined) {
+        stackStoreWidths.set(memory.offset, Math.max(stackStoreWidths.get(memory.offset) ?? 0, width));
+      }
       stores.set(`${register}@${memory.offset}`, memory.offset);
       if (index < prologueEnd) prologueStores.add(`${register}@${memory.offset}`);
       if (frameSize > 0 && memory.offset >= frameSize &&
@@ -305,11 +316,30 @@ export function analyzeFrame(instructions: DisassembledInstruction[]): FrameMap 
   }
   saveSlots.sort((a, b) => a.offset - b.offset);
 
+  /* An `addiu rX,sp,N` proves an object at N whose address escapes into a
+   * pointer, so its bytes are a local no matter where they sit. Its extent is
+   * the contiguous run of stack stores from N under their own widths — the
+   * only bound the assembly actually establishes. This outranks the heuristic
+   * below, which would otherwise read a byte-initialized local at the argument
+   * boundary as fifth and sixth arguments (func_800140C8). */
+  const addressTakenBytes = new Set<number>();
+  for (const { offset } of addressTaken) {
+    let cursor = offset;
+    for (;;) {
+      const width = stackStoreWidths.get(cursor);
+      if (width === undefined) break;
+      for (let byte = 0; byte < width; byte++) addressTakenBytes.add(cursor + byte);
+      cursor += width;
+    }
+  }
+
   /* Outgoing argument stores: written just before the call, commonly in the
    * delay slot, and — the discriminating property — never read back by this
    * function, because it is the callee that reads them. A local spilled near
    * the same call is always reloaded somewhere, so it cannot be confused for
-   * one. Argument slots are dense from 0x10, so take the contiguous run. */
+   * one. Under O32 an argument occupies a whole word slot, so a narrow or
+   * misaligned store into that region is a local rather than an argument.
+   * Argument slots are dense from 0x10, so take the contiguous run. */
   const loadedOffsets = new Set([...loads].map((key) => Number(key.split("@")[1])));
   const outgoing = new Set<number>();
   let previousCall = -1;
@@ -318,12 +348,14 @@ export function analyzeFrame(instructions: DisassembledInstruction[]): FrameMap 
     const start = Math.max(previousCall + 1, index - 12);
     for (let scan = start; scan <= index + 1 && scan < instructions.length; scan++) {
       const candidate = instructions[scan];
-      if (!defUse(candidate).isStore) continue;
+      if (!candidate || !defUse(candidate).isStore) continue;
       const memory = memoryOperand(candidate.operands[candidate.operands.length - 1] ?? "");
       if (!memory || memory.base !== "sp") continue;
-      if (memory.offset >= 0x10 && !loadedOffsets.has(memory.offset)) {
-        outgoing.add(memory.offset);
-      }
+      if (memory.offset < 0x10 || memory.offset % 4 !== 0) continue;
+      if (STORE_WIDTHS[candidate.mnemonic.toLowerCase()] !== 4) continue;
+      if (loadedOffsets.has(memory.offset)) continue;
+      if (addressTakenBytes.has(memory.offset)) continue;
+      outgoing.add(memory.offset);
     }
     previousCall = index;
   });

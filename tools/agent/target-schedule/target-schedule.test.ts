@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { deriveAllocationRequirements } from "./allocation-requirements.js";
 import { analyzeDelaySlots } from "./delay-slot.js";
-import { alignFinalRtlToMachine } from "./emission-alignment.js";
+import { alignFinalRtlToMachine, isBlockMode, rtlCanonical } from "./emission-alignment.js";
 import { analyzeTargetOrderReplay } from "./counterfactual-replay.js";
 import { alignMachineInstructions, machineRefs } from "./machine-alignment.js";
 import { replayScheduler } from "./scheduler-replay.js";
 import { parseRtlInstructions } from "../compiler-trace/rtl-parser.js";
+import { parseEmissionAttribution } from "../compiler-trace/emission-attribution.js";
 import type { SchedulerStage } from "../compiler-trace/types.js";
 import { assertTargetScheduleAnalysis, TARGET_SCHEDULE_SCHEMA_VERSION } from "./types.js";
 import { compareScheduleMechanismProfiles } from "./compare-profiles.js";
@@ -69,6 +70,78 @@ test("maps emitted UIDs through a proven zero-width memory barrier", () => {
   assert.equal(aligned.alignment.filter((item) => item.kind === "zero-width").length, 1);
   assert.deepEqual(aligned.links.map((link) => link.uid), [10, 12]);
   assert.deepEqual(machine.map((item) => item.uid), [10, 12]);
+});
+
+/* func_800140C8's block move. A BLKmode set has no single mnemonic: the
+ * backend's output routine decides both the mnemonics and how many there are.
+ * Naming it `sw` from the mode used to let it bind to an unrelated store as an
+ * exact anchor and carry a wrong UID into delay-slot and scheduler reasoning,
+ * so the correct answer here is no canonical at all. */
+test("a BLKmode block move yields no canonical and binds to no store", () => {
+  const rtl = parseRtlInstructions(`
+(insn 16 14 18 (parallel[ (set (mem/s:BLK (plus:SI (reg:SI 29 sp) (const_int 16 [0x10])) 0) (mem/s:BLK (lo_sum:SI (reg:SI 2 v0) (symbol_ref:SI ("D_8005E2AC"))) 0)) (clobber (reg:SI 3 v1)) (clobber (reg:SI 5 a1)) (clobber (reg:SI 6 a2)) (clobber (reg:SI 7 a3)) (use (const_int 2 [0x2])) (use (const_int 1 [0x1])) (use (const_int 0 [0x0])) ]) 293 {movstrsi_internal} (nil) (nil))
+`, "mach");
+
+  assert.equal(rtl.length, 1);
+  assert.ok(isBlockMode(rtl[0]!), "the parallel carries BLKmode memory operands");
+  assert.equal(rtlCanonical(rtl[0]!), undefined, "no mnemonic may be invented for a block move");
+
+  /* An unrelated word store must not be claimed by it. */
+  const machine = machineRefs([instruction("sw", ["v1", "16(sp)"])]);
+  const aligned = alignFinalRtlToMachine(machine, rtl);
+  assert.notEqual(
+    aligned.links.find((link) => link.machineIndex === 0)?.confidence,
+    "exact",
+    "a block move must never anchor a store as an exact match",
+  );
+});
+
+/* With -dp available, five machine instructions share the one UID that emitted
+ * them instead of being guessed at one-to-one. This is the link that stops a
+ * scheduler search from trying to reorder members of a single instruction. */
+test("cc1 -dp attribution links a block-move span to one UID", () => {
+  const attribution = parseEmissionAttribution([
+    "\tsubu\t$sp,$sp,32\t # 43\tsubsi3_internal\t[length = 1]",
+    "\taddiu\t$7,$2,%lo(g)\t # 16\tmovstrsi_internal\t[length = 20]",
+    "\tlb\t$3,0($7)",
+    "\tlb\t$5,1($7)",
+    "\tsb\t$3,16($sp)",
+    "\tsb\t$5,17($sp)",
+  ].join("\n"));
+
+  const machine = machineRefs([
+    instruction("subu", ["sp", "sp", "32"]),
+    instruction("addiu", ["a3", "v0", "%lo(g)"]),
+    instruction("lb", ["v1", "0(a3)"]),
+    instruction("lb", ["a1", "1(a3)"]),
+    instruction("sb", ["v1", "16(sp)"]),
+    instruction("sb", ["a1", "17(sp)"]),
+  ]);
+
+  const aligned = alignFinalRtlToMachine(machine, [], attribution);
+  assert.deepEqual(machine.map((item) => item.uid), [43, 16, 16, 16, 16, 16]);
+  assert.equal(aligned.exactCount, true);
+  assert.ok(
+    aligned.caveats.some((caveat) => caveat.includes("movstrsi_internal") && caveat.includes("5 machine")),
+    "the packet's span must be stated, not just linked",
+  );
+});
+
+/* If the annotated line count and the machine stream disagree, attribution is
+ * about a different stream and must not be forced onto this one. */
+test("cc1 -dp attribution is refused when it does not cover the stream", () => {
+  const attribution = parseEmissionAttribution(
+    "\tsubu\t$sp,$sp,32\t # 43\tsubsi3_internal\t[length = 1]",
+  );
+  const machine = machineRefs([
+    instruction("subu", ["sp", "sp", "32"]),
+    instruction("nop", []),
+  ]);
+  const aligned = alignFinalRtlToMachine(machine, [], attribution);
+  assert.ok(
+    !aligned.caveats.some((caveat) => caveat.includes("cc1 -dp")),
+    "a partial attribution must fall back rather than mislabel",
+  );
 });
 
 test("recomputes readiness for a bounded target-order counterfactual", () => {

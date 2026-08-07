@@ -293,8 +293,14 @@ export function buildTraceReport(
     ? (isAbsolute(requestedOutputDirectory) ? requestedOutputDirectory : join(ROOT, requestedOutputDirectory))
     : join(ROOT, "build/compilerTrace", funcName);
   rmSync(outputDirectory, { recursive: true, force: true });
+  /* -dp annotates the first assembly line of each RTL instruction with its UID
+   * and pattern name, which is the only sound source for where one RTL
+   * instruction emitted several machine instructions. The annotations are
+   * comments, and every consumer of this assembly strips from `#` onward, so
+   * they are transparent to instruction parsing. */
   const artifacts = compileSource(source, outputDirectory, funcName, {
     dumps: true,
+    emissionAttribution: true,
     useOverrides,
   });
   return buildTraceReportFromArtifacts({

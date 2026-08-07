@@ -203,6 +203,13 @@ export interface TargetScheduleAnalysis {
   registerRoles: RegisterRoleMap[];
   emissionAlignment: EmissionAlignmentEntry[];
   machineUidLinks: MachineUidLink[];
+  /**
+   * Whether final RTL and machine instruction counts agreed after proven
+   * zero-width skips. False means at least one RTL instruction emitted a
+   * number of machine instructions other than one — a block move or a trap
+   * packet — so every link below is inferred rather than established.
+   */
+  emissionCountExact: boolean;
   schedulerSelections: SchedulerSelectionExplanation[];
   schedulerReplay: SchedulerReplayResult[];
   baselineReplay: BaselineReplayResult[];
@@ -235,6 +242,7 @@ export function assertTargetScheduleAnalysis(value: unknown): TargetScheduleAnal
       schemaVersion: TARGET_SCHEDULE_SCHEMA_VERSION,
       emissionAlignment: [],
       machineUidLinks: [],
+      emissionCountExact: false,
       schedulerSelections: [],
       baselineReplay: [],
       targetOrderConstraints: [],

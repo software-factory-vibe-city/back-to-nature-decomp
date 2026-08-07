@@ -203,11 +203,24 @@ export function detectImplicitDeclarations(preprocessed: string, stem: string): 
   return parseImplicitDeclarationWarnings(result.stderr ?? "");
 }
 
+/**
+ * `-dp` annotates the first assembly line of each RTL instruction with its
+ * UID, pattern name and declared length, which is the only sound way to learn
+ * where one RTL instruction emitted several machine instructions. It is
+ * opt-in: it appends text to instruction lines, and the production build in
+ * the Makefile must stay byte-for-byte what it was.
+ */
 export function compileSource(
   source: string,
   outputDir: string,
   stem: string,
-  options: { dumps?: boolean; assemble?: boolean; useOverrides?: boolean; extraCc1Flags?: string[] } = {},
+  options: {
+    dumps?: boolean;
+    assemble?: boolean;
+    useOverrides?: boolean;
+    extraCc1Flags?: string[];
+    emissionAttribution?: boolean;
+  } = {},
 ): CompileArtifacts {
   const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
   const absoluteOutput = isAbsolute(outputDir) ? outputDir : join(ROOT, outputDir);
@@ -224,6 +237,7 @@ export function compileSource(
     : (loadFlagOverrides().get(stem) || []);
   const cc1Flags = [...CC1_FLAGS, ...overrides, ...(options.extraCc1Flags || [])];
   if (options.dumps) cc1Flags.push("-da");
+  if (options.emissionAttribution) cc1Flags.push("-dp");
 
   /* Running cc1 in the artifact directory keeps all -da files together. */
   runTool(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput);

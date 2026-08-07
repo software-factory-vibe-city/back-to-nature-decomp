@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT } from "../decompToolchain.js";
 import { parseRtlInstructions } from "../compiler-trace/rtl-parser.js";
+import { parseEmissionAttribution } from "../compiler-trace/emission-attribution.js";
 import type { CompilerTraceReport } from "../compiler-trace/types.js";
 import { parseCc1Assembly } from "../variant-lab/compile.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
@@ -92,7 +93,11 @@ export function analyzeTargetScheduleFromArtifacts(
 
   const target = machineRefs(options.target);
   const candidate = machineRefs(options.candidate || parseCc1Assembly(join(ROOT, trace.assembly)));
-  const uidResult = attachFinalUids(candidate, finalInstructions);
+  /* Traces are compiled with -dp, so the assembly carries the compiler's own
+   * RTL-instruction-to-line attribution. Older traces without it fall back to
+   * canonical matching. */
+  const attribution = parseEmissionAttribution(readFileSync(join(ROOT, trace.assembly), "utf8"));
+  const uidResult = attachFinalUids(candidate, finalInstructions, attribution);
   const alignment = alignMachineInstructions(target, candidate);
   attachCorrespondenceUids(alignment.correspondence, candidate);
   attachRolePseudos(alignment.registerRoles, trace.pseudos);
@@ -194,6 +199,7 @@ export function analyzeTargetScheduleFromArtifacts(
     registerRoles: alignment.registerRoles,
     emissionAlignment: uidResult.alignment,
     machineUidLinks: uidResult.links,
+    emissionCountExact: uidResult.exactCount,
     schedulerSelections: trace.schedulers.flatMap((scheduler) => scheduler.selectionExplanations),
     schedulerReplay,
     baselineReplay,

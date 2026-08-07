@@ -1,4 +1,5 @@
 import { classifyRtlEmission, hardRegisterName } from "../compiler-trace/rtl-parser.js";
+import type { EmissionAttribution } from "../compiler-trace/emission-attribution.js";
 import type { RtlInstruction } from "../compiler-trace/types.js";
 import type {
   EmissionAlignmentEntry,
@@ -66,11 +67,28 @@ function memoryAddress(instruction: RtlInstruction): { base?: string; offset: nu
   return result;
 }
 
+/**
+ * True for an RTL instruction operating in BLKmode — a block move, which emits
+ * a multi-instruction packet rather than one machine instruction.
+ */
+export function isBlockMode(instruction: RtlInstruction): boolean {
+  if (instruction.sets.some((operand) => operand.mode === "BLK")) return true;
+  if (instruction.uses.some((operand) => operand.mode === "BLK")) return true;
+  return /\(mem[^)]*:BLK/.test(instruction.text);
+}
+
 /** Canonical forms for final one-insn MIPS patterns; unknown expansions return none. */
 export function rtlCanonical(instruction: RtlInstruction): string | undefined {
   const destination = registerName(instruction.sets[0]);
   const uses = instruction.uses.map(registerName).filter((value): value is string => Boolean(value));
   const constant = integer(instruction);
+  /* A BLKmode set is a block move: one RTL instruction that emits a whole run
+   * of machine instructions whose mnemonics and count come from the backend's
+   * output routine, not from the mode. Naming it `sw` here would let it bind
+   * to an unrelated store as a score-100 anchor and propagate a wrong UID into
+   * delay-slot and scheduler reasoning. Emission attribution answers this; a
+   * canonical cannot. */
+  if (isBlockMode(instruction)) return undefined;
   if (instruction.memoryWrite) {
     const address = memoryAddress(instruction);
     const source = uses.find((value) => value !== address.base) || uses.at(-1);
@@ -160,11 +178,75 @@ export interface EmissionAlignmentResult {
   exactCount: boolean;
 }
 
+/**
+ * Attach UIDs straight from the compiler's own `-dp` attribution. Each packet
+ * names the RTL instruction that emitted a run of machine instructions, so a
+ * block move or trap packet links its whole span to one UID — many machine
+ * indexes to one UID — instead of being guessed at one-to-one.
+ *
+ * Machine refs are matched to packets by order: `-dp` annotates in emission
+ * order and the machine stream is that same stream reparsed, so the k-th
+ * emitted line is the k-th ref. Anything left over is reported rather than
+ * forced.
+ */
+function linkFromAttribution(
+  machine: MachineInstructionRef[],
+  attribution: EmissionAttribution,
+): { links: MachineUidLink[]; caveats: string[] } | undefined {
+  const emitted: number[] = [];
+  for (const packet of attribution.packets) {
+    for (let line = 0; line < packet.lines.length; line++) emitted.push(packet.uid);
+  }
+  if (emitted.length !== machine.length) return undefined;
+
+  const links: MachineUidLink[] = [];
+  const spans = new Map<number, number>();
+  for (const uid of emitted) spans.set(uid, (spans.get(uid) ?? 0) + 1);
+
+  emitted.forEach((uid, index) => {
+    machine[index]!.uid = uid;
+    machine[index]!.candidateUids = [uid];
+    const span = spans.get(uid) ?? 1;
+    links.push({
+      machineIndex: index,
+      uid,
+      confidence: "exact",
+      candidateUids: [uid],
+      evidence: span > 1
+        ? [`cc1 -dp attributes this line to RTL insn ${uid}, one of ${span} it emitted; the run is one instruction, not ${span} scheduling participants.`]
+        : [`cc1 -dp attributes this line to RTL insn ${uid}.`],
+    });
+  });
+
+  const packets = attribution.packets.filter((packet) => packet.lines.length > 1);
+  const caveats = packets.map((packet) =>
+    `RTL insn ${packet.uid} (${packet.pattern}) emitted ${packet.lines.length} machine instructions; ` +
+    "its members are one compiler decision and cannot be reordered through source statement order.");
+  return { links, caveats };
+}
+
 /** Align final RTL forms to emitted instructions without discarding unknown forms. */
 export function alignFinalRtlToMachine(
   machine: MachineInstructionRef[],
   finalInstructions: RtlInstruction[],
+  attribution?: EmissionAttribution,
 ): EmissionAlignmentResult {
+  /* The compiler's own attribution outranks every heuristic below it. */
+  if (attribution && attribution.packets.length > 0) {
+    const attributed = linkFromAttribution(machine, attribution);
+    if (attributed) {
+      return {
+        alignment: [],
+        links: attributed.links,
+        caveats: [
+          "Emission links come from cc1 -dp, not from canonical matching.",
+          ...attributed.caveats,
+        ],
+        exactCount: true,
+      };
+    }
+  }
+
   const emissions = finalInstructions.map((instruction) => ({
     instruction,
     emission: classifyRtlEmission(instruction),

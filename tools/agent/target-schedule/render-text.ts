@@ -12,6 +12,14 @@ export function renderTargetSchedule(analysis: TargetScheduleAnalysis): string {
   const ambiguousLinks = analysis.machineUidLinks.filter((item) => item.uid === undefined);
   lines.push("", "Emission alignment:");
   lines.push(`  ${uniqueLinks.length}/${analysis.candidate.length} machine instructions have unique final UIDs; ${zeroWidth.length} proven zero-width RTL node(s); ${ambiguousLinks.length} ambiguous link(s)`);
+  if (!analysis.emissionCountExact) {
+    lines.push(
+      "  final RTL and machine counts DISAGREE — at least one RTL instruction emitted",
+      "  a number of machine instructions other than one (a block move or trap packet).",
+      "  Every link above is inferred; recompile with -dp for the compiler's own attribution",
+      "  before treating this region as independent scheduling or allocation decisions.",
+    );
+  }
   for (const item of zeroWidth.slice(0, 6)) lines.push(`  zero-width UID ${item.rtlUid ?? "unknown"}: ${item.evidence[0] ?? "recognized"}`);
   if (analysis.firstDivergence) {
     lines.push("", `First divergence [${analysis.firstDivergence.targetIndex}] (${analysis.firstDivergence.stage}): ${analysis.firstDivergence.description}`);
