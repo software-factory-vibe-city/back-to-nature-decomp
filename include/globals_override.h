@@ -227,4 +227,13 @@ extern s32 D_8005E5CC;
 extern s32 _D_800100A0[3] __asm__("D_800100A0");
 #define D_800100A0 ((char*)_D_800100A0)
 
+/* D_8005E9C8, D_8005EA18 - pad state buffers accessed with absolute addressing
+ * (lui+addiu). Array size 3 forces >8-byte declaration to avoid GP-relative
+ * small-data addressing under -G8. Evidence: func_80014064 target uses
+ * lui/addiu for both symbols, not %gp_rel. */
+extern s32 _D_8005E9C8[3] __asm__("D_8005E9C8");
+#define D_8005E9C8 (*((s32*)_D_8005E9C8))
+extern s32 _D_8005EA18[3] __asm__("D_8005EA18");
+#define D_8005EA18 (*((s32*)_D_8005EA18))
+
 #endif /* GLOBALS_OVERRIDE_H */
