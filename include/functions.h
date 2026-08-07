@@ -245,6 +245,7 @@ void func_80011EE8(void);
 s32 func_800129E8(void);
 void func_800129F4(void);
 void func_80012A14(void);
+void func_80012A68(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, u8 arg5, u8 arg6);
 void func_800132B8(s32 arg0, s32 arg1, s32 arg2);
 s32 func_800134B8(void);
 void func_80013F90(Struct80013F90 *arg0);
