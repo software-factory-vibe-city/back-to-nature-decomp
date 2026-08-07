@@ -58,25 +58,26 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 | func_80015E3C | matched | thin func_80016280 wrapper |
 | func_80015E78 | matched | thin func_800165D8 wrapper |
 | func_80015EE8 | matched | packet setup/teardown around func_80016280; uses func_80011F5C/func_80011FD8 |
-| func_80015F80 | stub | packet setup/teardown around func_800165D8 |
+| func_80015F80 | matched | packet setup/teardown around func_800165D8; argument-provenance caveat (see per-member note) |
 | func_80016054 | **matched, natural C** | CAPTURE_RA hook wrapper; see research note |
-| func_800160C8 | stub | packet setup/teardown around func_800165D8 |
-| func_800161AC | stub | packet setup/teardown around func_800165D8 |
-| func_80016280 | matched (hybrid) | SPRT/DR_MODE renderer; 214/214; exception under deferred audit |
-| func_800165D8 | in-progress clean C (204/361) | larger direct-primitive renderer; the heavyweight; instruction-selection solved, code region matches; residue is a register-pressure/allocation permutation; analysis in notes/research/func_800165D8-code-region-fold-and-allocation.md |
+| func_800160C8 | matched | packet setup/teardown around func_800165D8 (13 params) |
+| func_800161AC | matched | packet setup/teardown around func_800165D8 |
+| func_80016280 | matched (hybrid) | SPRT/DR_MODE renderer; 214/214; dialect re-attack executed 2026-08-07 — hybrid retained, block-0 mechanism mapped (see research note 2026-08-07 addendum) |
+| func_800165D8 | **matched, clean C** | byte-verified 2026-08-06 with the TU-level `-mno-split-addresses` override; solution mechanics in notes/research/func_800165D8-code-region-fold-and-allocation.md §RESOLVED |
 | func_80016B7C | **matched, natural C** | sprite data size calculator (calls 15B24 + 1782C); 5 params, `arg4` on the stack; see retros/func_80016B7C.md |
-| func_80016C08 | stub | sprite entry loop driver (calls 6B7C twice/iteration); HIGH confidence; 0x594 bytes |
+| func_80016C08 | matched | sprite entry loop driver (calls 6B7C twice); carries `-mno-split-addresses`; gp-rel TU-ownership evidence in its research note |
 
 ## Working order
 
-1. func_80015704 (hook pre-solved, small).
-2. The four setup/teardown stubs (EE8, F80, 160C8, 161AC) — expected to share
-   packet idioms; watch for further hook sites and struct-field evidence.
-3. func_800165D8 — the second renderer; budget for a real fight, but arrive
-   with the family dialect in hand.
-4. Revisit func_80016280 per the 2026-08-02 addendum in its research note:
-   prune-to-natural audit of the hybrid, then a dialect-informed re-attack on
-   the clean-C residual.
+1. func_80015704 (hook pre-solved, small) — the only remaining stub.
+2. ~~The four setup/teardown stubs~~ — done (EE8, F80, 160C8, 161AC matched).
+3. ~~func_800165D8~~ — done (byte-verified 2026-08-06, TU flag).
+4. ~~Revisit func_80016280~~ — dialect re-attack executed 2026-08-07. Outcome:
+   hybrid retained; the block-0 residual's mechanism is now mapped
+   (parameter-scratch reuse pins the copies but combine's block-local merge
+   severs the anchors; see the research note's 2026-08-07 addendum before any
+   further attempt). Flag probe: no fingerprint, `-mno-split-addresses`
+   byte-inert for this symbol-free member.
 
 ## Per-member notes
 

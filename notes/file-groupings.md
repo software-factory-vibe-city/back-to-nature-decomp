@@ -109,7 +109,9 @@ Fingerprints:
   D_8005E3C0 assembler-macro load — adjacent lui/lw self-clobber plus an
   unfillable load-delay nop — is unreachable under baseline split
   addresses). Treat the flag as a property of this TU when matching its
-  remaining members.
+  remaining members. Probe-verified byte-inert for func_80016280 (no
+  symbolic references), so symbol-free members' existing matches stand
+  unchanged under the TU flag.
 
 Members (address order):
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)

@@ -487,3 +487,81 @@ null-case rule and the family's recovered dialect/macro/type evidence, and
 either shrink the asm region to a demonstrated-irreducible core or retire it.
 Do not start this before the family evidence is in — the family was the
 cheapest source of new constraints last time, and it will be again.
+
+## 2026-08-07 addendum — family-dialect re-attack and block-0 mechanism map
+
+The deferred dialect-informed re-attack was executed after func_800165D8's
+byte-verified solve. The hybrid remains the shipped state (214/214 VERIFIED,
+`make check` green at session end). What changed is the depth of the causal
+model; the next attempt should start here, not from the 2026-08 ledger.
+
+### Flag axis for this member: closed, inert
+
+`flagProbe` on the clean-C 202 baseline: no structural fingerprints in the
+target (its only `lui`s are the constants 0xFFFFFF/0xFF000000 — no symbolic
+refs), and `-mno-split-addresses` compiles byte-identically to baseline
+(192/214 indexed, 214 instrs). The TU-level flag carried by func_800165D8 and
+func_80016C08 is therefore *consistent* with this member (a symbol-free
+function compiles identically under it) and no override is warranted — the
+escalation bar is correctly unmet. `-fno-schedule-insns2` (new matrix column)
+regresses to 12/214: both schedulers stay on.
+
+### Variant ledger (masked LCS vs 202 baseline, single-shot each)
+
+| Shape | Score | What it proves |
+|---|---:|---|
+| `entrybase-only.c` baseline reinstalled | 202/214 | Historical result reproduces exactly. |
+| Named `count` before the ent lines (C1) | 202/214 | Naming is RTL-neutral; CSE already merged the inline field_00 reads. |
+| 165D8 direct sum, no entryBase (B2) | 152/214 | Dropping `off`'s second set rotates block 0 (off self-clobbers `$v1`, base/hdr coalesce) — but the `src` copy hoists to position 1, proving copy placement responds to web shapes. |
+| B2 + entryBase kept (B1) | 152/214 | Same driver; the rotation is off-web-driven, not count-naming-driven. |
+| Fresh `base`/`off` reused for count/entryBase (D) | 144/214 | Same-register pairing via ordinary locals extends web lengths and rotates the global ranking (`work` loses `$v1`). |
+| Full param-scratch reuse (u32 params; arg0→base+count, arg1→off+entryBase, arg2→offset, arg3→hdr, saved to ot/sprt/mode/src) | 121/214 | See mechanism map — copies hoist, anchors sever. |
+| arg2-only reuse, `mode` saved inside the guard | 134/215 | Cross-block save survives combine but then coexists with the entry copy: one extra move. |
+
+### Block-0/block-1 mechanism map (dump-verified on these candidates)
+
+1. **The target's residual registers are exactly the four incoming-parameter
+   registers.** base=`$a0` (block 0) and count=`$a0` (block 1); off=`$a1`
+   (block 0) and entryBase=`$a1` (block 1); block-1 offset=`$a2`; hdr=`$a3`;
+   with the four moves landing in `$s1/$t1/$s0/$t3`. This is the register
+   story of parameter variables reused as scratch after saving their values.
+2. **Param reuse pins the copies by pure dependencies.** A reused (multi-set)
+   parameter pseudo escapes sched1's birthing boost (`birthing_insn_p`
+   requires `REG_N_SETS==1`); its entry copy is output-dep pinned and its
+   save anti-dep pinned before the redefinition. In the full-reuse build all
+   four copies scheduled at BB0 positions 1–3 plus the delay slot — the
+   placement the counterfactual demands (UID 4 < 55, UID 6 < 58) from source
+   alone.
+3. **combine severs same-block save+reuse.** LOG_LINKS are block-local; when
+   the save is the parameter's last use in the same block, combine merges the
+   entry copy into it (observed in `.combine`: `(set save (reg aN))`),
+   deleting the entry copy. That severs both the preference anchor and the
+   anti-dep; the merged save becomes an unlaunched leaf (no in-block
+   consumer, never passes `adjust_priority`) and sinks to the block bottom
+   (post-sched1 BB0 order `54 57 14 67 62 64 70 20 73 ... 45 48 51 ...`
+   recorded), keeping `$a0/$a1` live across the guard births — recreating
+   the exact blockage of the plain source.
+4. **Early-iff-consumed.** The only save that stayed at position 1 was
+   `src`'s, whose dest the field_28 chain consumes in-block. ot/sprt have no
+   BB0 consumer in the target's semantics. arg2's save can move to BB1
+   legally (the target's delay-slot `move s0,a2` is BB1's first insn under
+   reorg — consistent), but cross-block separation keeps the entry copy
+   alive as a second move (215 instrs).
+5. **Net.** Within this verified model of cse/combine/sched1/alloc, block-0
+   exactness needs an un-mergeable save (no semantic second use of the
+   original parameter value exists to provide one) or an in-block consumer
+   for the copy dests (none exists). This converges with the historical
+   229k/290k-candidate exhaustion — now with the mechanism identified rather
+   than only the fixpoint observed. The hybrid exception stands.
+
+### Open question for any future attempt
+
+What made the original compile place the `$a0/$a1` copies before the
+base/off births is still not source-reproduced: multi-set spellings that
+survive flow, boost-eligibility toggles, and dependency-pinning via reuse
+each either rotate global allocation or add a move. Unexplored levers worth
+one look each: expand-time differences in entry-copy RTL from unprototyped
+K&R integer parameters (the earlier K&R test was type-identical, not
+unprototyped), and REG_EQUIV/param-home interactions in reload. Scores above
+are single-shot per shape — the reuse-family neighborhood is mapped, not
+exhausted.
