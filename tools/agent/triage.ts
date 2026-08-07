@@ -46,8 +46,11 @@ import {
 } from "./decompToolchain.js";
 import {
   type FrameMap,
+  type ReturnValue,
   analyzeFrame,
+  analyzeReturnValue,
   argSlotRange,
+  maximumArity,
   minimumArity,
   renderMap,
   renderSignature,
@@ -78,6 +81,7 @@ interface Finding {
 interface TargetFacts {
   frame: FrameMap;
   instructions: DisassembledInstruction[];
+  returnValue: ReturnValue;
   /** `sw $ra, 0(reg)` with a non-$sp base — the CAPTURE_RA seam. */
   raStores: string[];
 }
@@ -180,17 +184,23 @@ function hex(value: number): string {
  * and an agent that derives them by hand gets one wrong.
  */
 function detectFrameMap(name: string, target: TargetFacts): Finding[] {
+  const minimum = minimumArity(target.frame);
+  const maximum = maximumArity(target.frame);
   return [{
     detector: "frame-map",
     severity: "info",
     summary:
-      `target frame decomposition and the signature it implies ` +
-      `(minimum arity ${minimumArity(target.frame)})`,
+      `target frame decomposition and the signature it establishes ` +
+      (minimum === maximum ? `(arity ${minimum})` : `(arity ${minimum}..${maximum})`),
     evidence: [
       ...renderMap(name, target.frame),
       "",
-      `signature: ${renderSignature(name, target.frame)}`,
+      `return value (${target.returnValue.basis}): ${target.returnValue.type}`,
+      ...target.returnValue.evidence.map((line) => `  ${line}`),
+      "",
+      `signature: ${renderSignature(name, target.frame, target.returnValue)}`,
       "stack parameter types are exact (load width and signedness); register parameters default to s32",
+      "arity counts only parameters whose incoming value is read — an unused parameter is invisible here",
     ],
     see: ["notes/research/frame-size-arity-diagnostic.md"],
   }];
@@ -568,7 +578,12 @@ function main(): void {
   let target: TargetFacts;
   try {
     const instructions = disassembleObject(assembleTarget(name, scratch));
-    target = { frame: analyzeFrame(instructions), instructions, raStores: readRaStores(name) };
+    target = {
+      frame: analyzeFrame(instructions),
+      instructions,
+      returnValue: analyzeReturnValue(name, instructions),
+      raStores: readRaStores(name),
+    };
   } catch (error) {
     rmSync(scratch, { recursive: true, force: true });
     console.error(`triage: no usable target assembly for ${name} — ${(error as Error).message}`);
