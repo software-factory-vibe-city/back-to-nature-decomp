@@ -84,12 +84,14 @@ caller. Handlers stored in D_800559C4 are unidentified — resolving them
 would extend the group.
 Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 
-## sprite renderers — 0x80015E3C–0x80016B7C (confidence: high)
+## sprite data, animation, and renderers — 0x80015704–0x80016C08
 
-Two contiguous wrapper/renderer families for drawing source-data entries as
-PSY-Q primitives. An active campaign is decompiling the remaining members —
-see `notes/sprite-renderer-family-campaign.md` for status, working order, and
-the evidence each match feeds back into the func_80016280 hybrid audit.
+Family confidence: high. Exact TU boundary confidence: medium. The current
+best split is after func_800161AC: source-data initialization, animation
+helpers, dispatchers, and renderer wrappers at 0x80015704–0x800161AC, then
+the two renderers and entry driver at 0x80016280–0x80016C08. This supersedes
+the earlier assumption that the whole family was one TU. See
+`notes/sprite-renderer-family-campaign.md` for per-function detail.
 
 Fingerprints:
 - internal call graph: func_80015E3C and func_80015EE8 call func_80016280;
@@ -100,20 +102,34 @@ Fingerprints:
   and walk the same 12-byte entry records;
 - address adjacency and wrapper forwarding preserve the same byte/halfword
   argument roles and bracket both renderers with no unrelated function;
-- func_80016054 and func_80015704 (before this range) both expand the same
-  CAPTURE_RA caller-log asm idiom (`addu $8,<addr>,$0; sw $31,0($8)`),
-  suggesting a shared studio debug header or the same TU — see
+- func_80015704 initializes the same source-data/animation object consumed
+  by the family: header-relative pointers at `field_1C`, `field_20`,
+  `field_24`, `field_28`, and `field_2C`; adjacent func_800158E4 advances
+  animation through `field_28`/`field_2C`, and the 0x80015BF0–0x80015D6C
+  dispatchers call it before selecting renderer wrappers.
+- func_80016054 and func_80015704 both expand the exact split-statement
+  CAPTURE_RA macro (`addu $8,<addr>,$0`; `sw $31,0($8)`). This proves a
+  shared studio header and strengthens their pre-render-module grouping,
+  but a shared header alone is not same-TU proof — see
   `notes/research/caller-capture-debug-hook.md`.
-- TU-level flag: `-mno-split-addresses` is carried independently by
-  func_80016C08 and func_800165D8 (both byte-verified with it; the unsplit
-  D_8005E3C0 assembler-macro load — adjacent lui/lw self-clobber plus an
-  unfillable load-delay nop — is unreachable under baseline split
-  addresses). Treat the flag as a property of this TU when matching its
-  remaining members. Probe-verified byte-inert for func_80016280 (no
-  symbolic references), so symbol-free members' existing matches stand
-  unchanged under the TU flag.
+- TU-boundary flag evidence: `-mno-split-addresses` is carried independently
+  by func_800165D8 and func_80016C08. In contrast, applying it to the exact
+  sources for func_80015704 and func_80016054 regresses them from 68/68 to
+  16/68 and from 29/29 to 23/29. Since flags are per TU, those functions
+  cannot share the renderer/driver TU. func_80016280 is byte-inert under the
+  flag because it has no symbolic references; its adjacency and semantic
+  twin relationship with func_800165D8 place the most likely boundary
+  between func_800161AC and func_80016280.
 
 Members (address order):
+- func_80015704 (m) — validates a table header and initializes the shared
+  source-data/animation object; calls adjacent func_80015880
+- func_80015814–func_800158D8 (mixed) — flag/state setters and source-data
+  accessors over the object initialized by func_80015704
+- func_800158E4 (m) — animation-state/frame-timing update using the source
+  object's `field_28` and `field_2C` tables
+- func_80015A18–func_80015DD4 (mixed) — source-data accessors and dispatchers;
+  func_80015BF0–func_80015D6C bridge func_800158E4 to the wrappers below
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)
 - func_80015E78 (m) — thin func_800165D8 wrapper
 - func_80015EE8 (m) — packet setup/teardown around func_80016280
@@ -122,7 +138,9 @@ Members (address order):
   (include/debughook.h)
 - func_800160C8 (m) — packet setup/teardown around func_800165D8 (13 params)
 - func_800161AC (m) — packet setup/teardown around func_800165D8
-- func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid
+- func_80016280 (m)(?) — SPRT/DR_MODE renderer, active C/asm hybrid; likely
+  first member of the `-mno-split-addresses` renderer/driver TU, but its lack
+  of symbolic references makes the flag byte-inert
   (see research/func_80016280-web-parity-and-register-recurrence.md)
 - func_800165D8 (m) — larger direct-primitive renderer; matched with the
   same -mno-split-addresses per-file flag as func_80016C08 (independent

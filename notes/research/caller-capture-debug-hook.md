@@ -1,10 +1,9 @@
 # Caller-Capture Debug Hook (CAPTURE_RA)
 
-**Status:** func_80016054 matched 29/29, byte-verified in the linked binary
-(`make check` payload match). The idiom is abstracted into
-`include/debughook.h`. A second retail site, func_80015704, is identified but
-not yet matched.
-**Updated:** 2026-08-02
+**Status:** func_80016054 matched 29/29 and func_80015704 matched 68/68,
+both byte-verified in the linked binary (`make check` payload match). The
+idiom is abstracted into `include/debughook.h`.
+**Updated:** 2026-08-06
 
 ## What it is
 
@@ -19,19 +18,23 @@ The reconstructed macro (`include/debughook.h`):
 
 ```c
 #define CAPTURE_RA(dst) \
-    __asm__ volatile("addu $8,%0,$0\n\tsw $31,0($8)" : : "r"(dst) : "$8")
+    __asm__ volatile("addu $8,%0,$0" : : "r"(dst) : "$8"); \
+    __asm__ volatile("sw $31,0($8)")
 ```
 
 Hardcoded `$8` scratch with a clobber, address as a compiler-computed `"r"`
-input. This exact form byte-matches; the pin/register-variable alternatives do
-not (see the experiment ledger below).
+input. The two machine instructions must remain separate asm statements:
+GCC models each statement as one RTL instruction, and combining both into one
+template changes local-allocation lifetime boundaries in func_80015704. The
+split form byte-matches both sites; pin/register-variable alternatives do not
+(see the experiment ledger below).
 
 ## Retail sites and evidence
 
 | Site | dst | Address materialization | Status |
 |---|---|---|---|
 | func_80016054 (0x006854) | `&D_8006C84C` (s32[3] global) | `lui`/`addiu` pair (12-byte object, excluded from `-G8` sdata) | matched, uses the header |
-| func_80015704 (0x005F04) | stack local at `sp+0x10` | `addiu $v0,$sp,0x10` | stub; hook pre-solved |
+| func_80015704 (0x005F04) | stack local at `sp+0x10` | `addiu $v0,$sp,0x10` | matched, uses the header |
 
 Both sites show the identical asm fingerprint — `addu $8,<addr>,$0` followed
 by `sw $31,0($8)` — with *different* compiler-generated address computations
@@ -162,11 +165,10 @@ reason four prior hybrid attempts plateaued at 27–28/29 on func_80016054:
 | V14 | clobber-form macro, no pins, staged args | 29/29 byte-verified (still carried staging locals) |
 | natural | hook first, args passed directly, mask in call expr | 28/29-order: only `andi` late (idx 13 vs 2) |
 | natural+mask | + `arg3 &= 0xFF;` statement before hook | **29/29 byte-verified — final form, plain C** |
+| split hook | represent `addu` and `sw` as separate asm statements | **func_80016054 remains 29/29; func_80015704 reaches 68/68 without an empty barrier** |
 
 ## Open items
 
-- Match func_80015704 using the header (hook pre-solved; body has FntPrint
-  calls and a busy-wait on func_800129E8).
 - Semantics of `D_8006C84C[3]`: only word 0 is written by known code; words
   1–2 may be written by unfound code or read by a display routine. Naming
   deferred until usage is known.

@@ -54,7 +54,7 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 
 | Function | Status | Notes |
 |---|---|---|
-| func_80015704 | stub | adjacent, shares CAPTURE_RA; hook pre-solved; FntPrint + busy-wait body — cheapest next match |
+| func_80015704 | **matched, natural C plus CAPTURE_RA** | 68/68 byte-verified; initializes the shared source-data/animation object; split-statement hook removed the temporary empty barrier |
 | func_80015E3C | matched | thin func_80016280 wrapper |
 | func_80015E78 | matched | thin func_800165D8 wrapper |
 | func_80015EE8 | matched | packet setup/teardown around func_80016280; uses func_80011F5C/func_80011FD8 |
@@ -69,7 +69,7 @@ matching doctrine (null-case rule, prune-to-natural, wall constructs).
 
 ## Working order
 
-1. func_80015704 (hook pre-solved, small) — the only remaining stub.
+1. ~~func_80015704~~ — done (68/68 byte-verified; split CAPTURE_RA macro).
 2. ~~The four setup/teardown stubs~~ — done (EE8, F80, 160C8, 161AC matched).
 3. ~~func_800165D8~~ — done (byte-verified 2026-08-06, TU flag).
 4. ~~Revisit func_80016280~~ — dialect re-attack executed 2026-08-07. Outcome:
