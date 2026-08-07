@@ -247,4 +247,12 @@ extern PadPortPair D_8005E2AC[];
 /* Pad actuator alignment data passed to PadSetActAlign. */
 extern u8 D_80048B14[];
 
+/* D_8005E2A4 — GP-relative s32, per-port state flags (func_80013B04)
+ * Size 2 keeps declaration <= 8 bytes for GP-relative addressing under -G8. */
+extern s32 D_8005E2A4[2];
+
+/* D_8005E3E8 — GP-relative s16, per-port actuator data (func_80013B04)
+ * Size 2 keeps declaration <= 8 bytes for GP-relative addressing under -G8. */
+extern s16 D_8005E3E8[2];
+
 #endif /* GLOBALS_OVERRIDE_H */
