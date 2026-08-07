@@ -175,7 +175,75 @@ function readExistingHeader(headerPath: string): Map<string, string> {
 }
 
 /**
+ * Build a dependency graph of struct types: for each struct, find which other
+ * struct names appear in its body. Returns a map name -> Set of dependency names.
+ */
+function buildStructDeps(
+  structDefs: Map<string, string>,
+): Map<string, Set<string>> {
+  const deps = new Map<string, Set<string>>();
+  for (const [name, body] of structDefs) {
+    const depSet = new Set<string>();
+    for (const candidate of structDefs.keys()) {
+      if (candidate !== name && body.includes(candidate)) {
+        depSet.add(candidate);
+      }
+    }
+    deps.set(name, depSet);
+  }
+  return deps;
+}
+
+/**
+ * Topological sort of struct typedefs so that dependencies are emitted first.
+ * Falls back to alphabetical order for any remaining ties or cycles.
+ */
+function topologicalSortStructs(
+  structDefs: Map<string, string>,
+  referenced: Set<string>,
+): string[] {
+  const filtered = new Map<string, string>();
+  for (const name of referenced) {
+    if (structDefs.has(name)) {
+      filtered.set(name, structDefs.get(name)!);
+    }
+  }
+
+  const deps = buildStructDeps(filtered);
+  const result: string[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(name: string): void {
+    if (visited.has(name)) return;
+    if (visiting.has(name)) {
+      // Cycle detected — skip to avoid infinite recursion
+      return;
+    }
+    visiting.add(name);
+    const depSet = deps.get(name) ?? new Set();
+    for (const dep of depSet) {
+      if (filtered.has(dep)) {
+        visit(dep);
+      }
+    }
+    visiting.delete(name);
+    visited.add(name);
+    result.push(name);
+  }
+
+  // Visit in alphabetical order for deterministic tie-breaking
+  const names = [...filtered.keys()].sort();
+  for (const name of names) {
+    visit(name);
+  }
+
+  return result;
+}
+
+/**
  * Write include/functions.h with sorted signatures and any referenced struct typedefs.
+ * Structs are emitted in dependency order (topological sort) so forward references work.
  */
 function writeHeader(
   headerPath: string,
@@ -187,9 +255,7 @@ function writeHeader(
 
   // Filter to only structs referenced in signatures
   const referenced = findReferencedTypes(signatures, structDefs);
-  const sortedStructs = [...structDefs.entries()]
-    .filter(([name]) => referenced.has(name))
-    .sort((a, b) => a[0].localeCompare(b[0]));
+  const orderedStructNames = topologicalSortStructs(structDefs, referenced);
 
   // No preprocessor directives — m2c parses this as plain C context
   const lines = [
@@ -202,11 +268,18 @@ function writeHeader(
     "typedef signed short s16;",
     "typedef signed int s32;",
     "",
+    // PSY-Q GPU types used in function signatures (opaque stubs for m2c context)
+    "typedef unsigned long u_long;",
+    "typedef struct { unsigned long pad[4]; } POLY_FT4;",
+    "typedef struct { unsigned long pad[2]; } SPRT;",
+    "typedef struct { unsigned long pad[1]; } DR_MODE;",
+    "typedef struct { unsigned short x; unsigned short y; } RECT;",
+    "",
   ];
 
-  if (sortedStructs.length > 0) {
-    for (const [_, def] of sortedStructs) {
-      lines.push(def);
+  if (orderedStructNames.length > 0) {
+    for (const name of orderedStructNames) {
+      lines.push(structDefs.get(name)!);
       lines.push("");
     }
   }
@@ -360,13 +433,11 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
         }
       }
       const referenced = findReferencedTypes(allSigs, allStructDefs);
-      const referencedDefs = [...allStructDefs.entries()]
-        .filter(([name]) => referenced.has(name))
-        .sort((a, b) => a[0].localeCompare(b[0]));
-      if (referencedDefs.length > 0) {
+      const orderedNames = topologicalSortStructs(allStructDefs, referenced);
+      if (orderedNames.length > 0) {
         console.log("/* Struct typedefs */");
-        for (const [_, def] of referencedDefs) {
-          console.log(def);
+        for (const name of orderedNames) {
+          console.log(allStructDefs.get(name)!);
           console.log();
         }
       }
