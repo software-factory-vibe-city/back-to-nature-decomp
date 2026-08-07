@@ -5,11 +5,19 @@
 #
 # These flags are APPENDED to the base CC1FLAGS in the FlagsSwitch macro.
 #
-# POLICY: flag overrides are GOVERNED WORKAROUNDS, not a decompilation tool.
-# The compiler is proven byte-identical to the original CC1PSX.EXE, so a
-# flag override means the C source is (probably) still wrong. New entries
-# require explicit human approval and a comment explaining why clean C
-# cannot match. The two entries below are legacy and pending re-validation
+# POLICY (softened 2026-08-06, owner-approved): flag overrides are a
+# legitimate, evidence-gated matching tool — original TUs really were built
+# with per-file flags, and a flag can be the TU's true state rather than a
+# workaround (proof: -mno-split-addresses on func_80016C08/func_800165D8).
+# An agent may add an entry itself when the psx_flag_probe escalation bar is
+# met: a target fingerprint, a flag column that dominates baseline, and no
+# contrary witness in the same region. Every entry must carry a comment
+# stating that evidence, and the matching allowlist entry in
+# .pi/autodecomp.json (sourcePolicy.allowlist, kind "flag-override") must be
+# added in the same change — the allowlist is the audit trail, and the gate
+# enforces that it exists. Speculative flag-shopping without a fingerprint
+# remains forbidden. The two -fno-schedule-insns entries below are legacy
+# and pending re-validation
 # (see notes/next-steps-for-revisiting-the-project.md).
 #
 # The pattern they work around: self-clobbering loads — the target binary
@@ -40,3 +48,14 @@ CC1FLAGS_SetGfxOffset := -fno-schedule-insns -fno-schedule-insns2
 # Section 11 row 7 objects to this override on historical grounds; that
 # objection is recorded and overridden, not resolved.
 CC1FLAGS_func_80016C08 := -mno-split-addresses
+
+# func_800165D8: same TU as func_80016C08 (sprite-renderer group). The
+# D_8005E3C0 pointer load in the tag-insert arm is the unsplit assembler
+# macro form: lui a0 / lw a0,%lo(a0) adjacent with an unfillable load-delay
+# nop. Under -msplit-addresses the lui is a separate insn with no a0
+# anti-dependence, so sched2 always lifts it into the load shadow; the
+# adjacent self-clobber pair is unreachable. flagProbe fingerprint:
+# self-clobber at words 323-324 (reg $4). Same-TU witness: func_80016C08.
+# Owner-approved and allowlisted 2026-08-06; byte-verified (diffFunc
+# VERIFIED + make check).
+CC1FLAGS_func_800165D8 := -mno-split-addresses

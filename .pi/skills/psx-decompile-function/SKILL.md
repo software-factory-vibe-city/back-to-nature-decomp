@@ -52,6 +52,11 @@ Before editing, read completely:
      precondition for that work, not a nice-to-have.
    - `arity-frame`, `arity-stack`, `capture-ra`, `asm-policy`, `asm-dead` —
      the signature, ABI, debug-hook, and source-policy symptom classes.
+   - `flag-fingerprint` — symbolic lui/lw self-clobber pairs in the target:
+     the per-file flag class (unsplit macro load / scheduling). When it
+     fires, run `psx_flag_probe` before deep source archaeology and apply
+     the style guide's flag-hypothesis bar; flags are per-TU facts, so
+     check the file group first.
 
    Each finding cites the note covering it; read those when they fire. A
    `blocker` finding means the current direction cannot ship regardless of its
@@ -65,7 +70,15 @@ Before editing, read completely:
 
 In fresh mode, inspect `src/<target>.c`. Call `psx_m2c` only if it is missing
 or still an assembly stub. Never overwrite an existing clean-C attempt. In
-resume/fix mode, preserve the source and begin from its current diff.
+resume/fix mode, preserve the source and begin from its current diff — but
+re-derive the classification yourself (triage, then `psx_explain_diff`)
+before adopting any prior session's causal model. A research note's
+quantitative allocator story (web counts, priority thresholds, live-range
+figures) is one solution of an inequality, not a measurement of the
+original; verify it against the current dumps before searching for the
+shape it predicts, and prefer the visible diff's own structure (copy
+directions, fresh-vs-reused destinations, spill-slot owners) as the primary
+evidence. The style guide's resume section is mandatory here.
 
 ## Evidence-driven matching loop
 
@@ -159,11 +172,15 @@ concrete finalizer failure; do not report success early.
 ## Clean-source gate
 
 For an ordinary compiled function, a byte match is failure if it introduces
-register pinning, embedded/top-level assembly, a new assembly stub, a flag
-override, or a copied legacy workaround. Honor only handwritten-assembly
-exceptions established by project classification. A zero-instruction
-scheduling barrier is a documented last resort under the style guide, not a
-substitute for diagnosis.
+register pinning, embedded/top-level assembly, a new assembly stub, or a
+copied legacy workaround. Honor only handwritten-assembly exceptions
+established by project classification. A per-file flag override is
+acceptable when the style guide's flag-hypothesis evidence bar is met
+(fingerprint + dominant flag column + no contrary regional witness) and the
+override ships with its evidence comment and allowlist entry in the same
+change; an override without a fingerprint is still failure. A
+zero-instruction scheduling barrier is a documented last resort under the
+style guide, not a substitute for diagnosis.
 
 ## Targeted deep research
 

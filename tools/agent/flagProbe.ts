@@ -17,8 +17,11 @@
  *      - nested loop with an in-place bottom-of-loop counter increment
  *        (unreachable from natural C under -fgcse: 2.95.2 loop-PRE splits it;
  *        signals -fno-gcse)
- *      - sequential lui/lw self-clobbering loads (signals
- *        -fno-schedule-insns -fno-schedule-insns2; SetGfxClip precedent)
+ *      - sequential lui/lw self-clobbering loads: symbolic %hi/%lo pairs
+ *        signal -mno-split-addresses (unsplit assembler-macro load;
+ *        func_800165D8/func_80016C08 precedent); non-symbolic or
+ *        lui-grouping shapes signal -fno-schedule-insns
+ *        -fno-schedule-insns2 (SetGfxClip precedent)
  *   2. Flag-matrix compile of the current src/<name>.c (if present): masked
  *      score + instruction count per candidate flag set.
  *   3. Regional context: existing overrides near this function's VRAM
@@ -45,8 +48,10 @@ const FLAG_MATRIX: [string, string][] = [
   ["baseline", ""],
   ["-fno-gcse", "-fno-gcse"],
   ["-fno-schedule-insns{,2}", "-fno-schedule-insns -fno-schedule-insns2"],
+  ["-fno-schedule-insns2", "-fno-schedule-insns2"],
   ["-fno-gcse -fno-schedule-insns{,2}", "-fno-gcse -fno-schedule-insns -fno-schedule-insns2"],
   ["-fno-rerun-cse-after-loop", "-fno-rerun-cse-after-loop"],
+  ["-mno-split-addresses", "-mno-split-addresses"],
 ];
 
 function run(cmd: string): string {
@@ -226,9 +231,17 @@ if (f1.length) {
   console.log("  delta is the fallback, gated by the escalation bar below.");
 }
 if (f2.length) {
-  console.log("  self-clobber shape: scheduling-override candidate class (SetGfxClip/");
-  console.log("  SetGfxOffset precedent). Calibration 2026-07-31: on the decompiled");
-  console.log("  corpus this fires only on documented hard cases and pinned files.");
+  console.log("  self-clobber shape: two distinct remedies, decided by the lui's operand.");
+  console.log("  If the pair is a SYMBOLIC address (lui %hi / lw %lo of a global), it is");
+  console.log("  the unsplit assembler-macro load: -mno-split-addresses candidate");
+  console.log("  (func_800165D8/func_80016C08 precedent — under split addresses the lui");
+  console.log("  is an independent insn and sched2 lifts it away; no source shape or");
+  console.log("  allocation can pin it unless an intervening insn touches its register).");
+  console.log("  If the pairs are non-symbolic or the issue is lui GROUPING across");
+  console.log("  consecutive loads, it is the scheduling class (SetGfxClip/SetGfxOffset");
+  console.log("  precedent: -fno-schedule-insns{,2}). Calibration 2026-07-31: on the");
+  console.log("  decompiled corpus this fires only on documented hard cases and pinned");
+  console.log("  files.");
 }
 
 console.log("\nNearby/existing flag overrides:");

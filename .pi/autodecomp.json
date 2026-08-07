@@ -32,7 +32,7 @@
       "include",
       "configs",
       ".pi/autodecomp.json",
-      "notes/research/func_80019070-prologue-allocation-and-arg2-truncation.md"
+      "notes"
     ]
   },
   "budgets": {
@@ -54,10 +54,10 @@
       "func_80016054": [
         "embedded-asm"
       ],
-      "func_800165d8": [
-        "include-asm"
-      ],
       "func_80016c08": [
+        "flag-override"
+      ],
+      "func_800165d8": [
         "flag-override"
       ]
     }

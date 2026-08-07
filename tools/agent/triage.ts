@@ -23,6 +23,7 @@
  *   arity-frame     compiled frame decomposition vs target, component-wise
  *   arity-stack     loads from the incoming stack-argument region
  *   capture-ra      the CAPTURE_RA debug-hook signature in the target
+ *   flag-fingerprint  symbolic lui/lw self-clobber pairs (per-file flag class)
  *   asm-policy      embedded asm without a sourcePolicy allowlist entry
  *   asm-dead        an embedded asm block whose output is clobbered unused
  *
@@ -314,6 +315,58 @@ function detectArityStack(target: TargetFacts): Finding[] {
   }];
 }
 
+/**
+ * Symbolic lui/lw self-clobber pairs in the target: `lui $r, %hi(SYM)`
+ * immediately followed by a load into $r through %lo(SYM)($r). Under the
+ * baseline split-addresses codegen the lui is an independent insn that
+ * sched2 lifts away from its load whenever the destination register has no
+ * intervening hazard, so the ADJACENT pair is usually the unsplit
+ * assembler-macro load — a per-file -mno-split-addresses fingerprint, and a
+ * per-TU fact (func_800165D8/func_80016C08). Sequential pairs over several
+ * registers can instead be the scheduling class (SetGfxClip precedent).
+ * psx_flag_probe's matrix now carries both columns; it settles which.
+ */
+function detectFlagFingerprint(name: string): Finding[] {
+  const path = resolveTargetAsm(name);
+  if (!path) return [];
+  const insns = readFileSync(path, "utf-8")
+    .split("\n")
+    .map(stripComment)
+    .filter((line) => line && !line.startsWith(".") && !line.endsWith(":"));
+  const pairs: string[] = [];
+  for (let i = 0; i + 1 < insns.length; i++) {
+    const hi = insns[i].match(/^lui\s+\$(\w+),\s*%hi\(([^)]+)\)/);
+    if (!hi) continue;
+    const lo = insns[i + 1].match(/^l\w+\s+\$(\w+),\s*%lo\(([^)]+)\)\(\$(\w+)\)/);
+    if (lo && lo[1] === hi[1] && lo[3] === hi[1] && lo[2] === hi[2]) {
+      pairs.push(`${insns[i]}  /  ${insns[i + 1]}`);
+    }
+  }
+  if (pairs.length === 0) return [];
+
+  const overrides = join(ROOT, "configs/flag_overrides.mk");
+  const hasOverride = existsSync(overrides) &&
+    new RegExp(`^CC1FLAGS_${name}\\s*:?=`, "m").test(readFileSync(overrides, "utf-8"));
+  return [{
+    detector: "flag-fingerprint",
+    severity: hasOverride ? "info" : "signal",
+    summary: hasOverride
+      ? "symbolic lui/lw self-clobber pair(s); a per-file flag override already covers this function"
+      : "symbolic lui/lw self-clobber pair(s) — likely the unsplit assembler-macro " +
+        "load, unreachable under baseline split addresses (no source shape or " +
+        "allocation pins the lui against sched2 unless another insn touches its " +
+        "register). Run psx_flag_probe: its matrix carries -mno-split-addresses " +
+        "and the scheduling columns, and file-groupings.md may record the flag " +
+        "as this TU's fact. Apply per the style guide flag-hypothesis bar.",
+    evidence: pairs,
+    see: [
+      "prompts/c-style-guide.md",
+      "notes/research/func_800165D8-code-region-fold-and-allocation.md",
+      "notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md",
+    ],
+  }];
+}
+
 function detectCaptureRa(target: TargetFacts): Finding[] {
   if (target.raStores.length === 0) return [];
   const handwritten = target.raStores.filter((line) => line.includes("%lo("));
@@ -546,6 +599,7 @@ function main(): void {
   if (!frameConverged) findings.push(...detectFrameMap(name, target));
   findings.push(...detectArityStack(target));
   findings.push(...detectCaptureRa(target));
+  findings.push(...detectFlagFingerprint(name));
   findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
   rmSync(scratch, { recursive: true, force: true });
 

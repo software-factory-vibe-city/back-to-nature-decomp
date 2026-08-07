@@ -834,6 +834,24 @@ expression is therefore not anticipatable on every path, PRE cannot hoist it,
 and it stays a local quantity that the allocator can place — satisfying
 condition 1 of section 12.
 
+**CORRECTED 2026-08-06 — the witness proves the opposite.** func_800165D8
+was byte-verified that day, and its one-register form required
+`-mno-split-addresses`: it is the **unsplit assembler-macro load** (one RTL
+insn; maspsx expands it with the destination register as the hi temp), not
+an allocator-placed split pair. Under split addresses the conditional-arm
+HIGH is indeed a local quantity — but the lui is then an independent insn
+whose destination has no intervening reader/writer in that arm, so sched2
+always lifts it into the preceding load shadow (the 12(c) anti-dependence
+pin has nothing to attach to; every candidate allocation was measured with
+the lui hoisted). The adjacent self-clobber pair plus the unfillable
+load-delay nop after it is reachable only as the macro. Consequence: this
+file's `-mno-split-addresses` override is the TU's true flag, carried
+independently by two members (see notes/file-groupings.md, TU-level flag),
+and the section 12 allocator conditions do not need to be satisfiable under
+split addresses. Section 19's roadmap items that assume a no-override idiom
+are void. Evidence:
+notes/research/func_800165D8-code-region-fold-and-allocation.md §RESOLVED.
+
 That same function also settles a separate question: it contains **both** the
 hand-rolled folded tag write used in `func_80016C08` and a genuine `addPrim`
 expansion (with the `0xFF000000` read-modify-write) in the other arm. So the

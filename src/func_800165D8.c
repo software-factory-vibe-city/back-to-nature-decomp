@@ -1,42 +1,35 @@
 #include "common.h"
-#include "include_asm.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+#include "psyq/libgpu.h"
 
 /* func_800165D8 — larger direct-primitive renderer (sprite-renderer family,
  * notes/file-groupings.md). Called by func_80015E78, func_80015F80,
  * func_80016054, func_800160C8, and func_800161AC.
  *
- * STATUS: parked as assembly. The reconstruction below is preserved verbatim
- * under `#if 0` and reaches 206/360 instructions at object level (154
- * differences). It is kept for its structure, not its score: the overall shape
- * corresponds to the target, but the first divergence is already in the
- * prologue (`sw s3,20(sp)` against `sw s1,12(sp)`), so callee-save assignment
- * and frame layout differ before any body statement runs.
+ * MATCHING (byte-verified 2026-08-06). Requires the same per-file
+ * -mno-split-addresses override func_80016C08 ships: the D_8005E3C0 load in
+ * the tag-insert arm is the unsplit assembler-macro form (adjacent
+ * lui a0 / lw a0 self-clobber with an unfillable load-delay nop). Under
+ * split addresses the lui is an independent insn with no a0 hazard, so
+ * sched2 always lifts it into the load shadow. Two functions in this TU now
+ * carry the flag independently; it is a TU-level fact, not a per-function
+ * workaround. Owner-approved and allowlisted (.pi/autodecomp.json) 2026-08-06.
  *
- * WHY THIS FUNCTION MATTERS BEYOND ITSELF
- * Its target is the one place in this file group where the D_8005E3C0 address
- * materializes into a single register, which is the defect blocking
- * func_80016C08. Decompiling this function is step 1 of that function's
- * roadmap. Direction and evidence live in:
- *   notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md
- * Section 16 states what its target proves; section 16 step 1 records the
- * scope measured here.
- *
- * Its own frame and callee-save problem is separate from the address form and
- * should not be conflated with it.
+ * Web-shape choices that are load-bearing (do not "simplify"):
+ * - flip2 = flip; flip = 0;  — the dead redefinition blocks CSE in-block
+ *   copy forwarding and gcse copy-prop, so the copy survives to allocation
+ *   (the target's `move a0,t6`); flow deletes the dead store. Same idiom as
+ *   func_80016280's work-variable kill.
+ * - sx is ONE variable reused for both texture sums (X then Y). Its single
+ *   local web keeps a1 busy through both halves, which steers u/u2/v into
+ *   the target's registers via set_preference.
+ * - u2/v2 are fresh variables for the post-getTPage masks; the bodies read
+ *   them, so u/v die at the masks like the target's webs do.
+ * - grp is an integer sum (index first) because pointer_int_sum would
+ *   canonicalize the pointer operand first; ent is built in place.
+ * See notes/research/func_800165D8-code-region-fold-and-allocation.md.
  */
-
-INCLUDE_ASM("build/asm/nonmatchings/func_800165D8", func_800165D8);
-
-#if 0
-/* ---------------------------------------------------------------------- *
- * Preserved reconstruction — 206/360 instructions at object level.
- * Restore this verbatim when the address form and the prologue are settled.
- * ---------------------------------------------------------------------- */
-
-#include "common.h"
-#include "psyq/stddef.h"
-#include "psyq/libgte.h"
-#include "psyq/libgpu.h"
 
 typedef struct {
     s16 field_00;
@@ -104,12 +97,15 @@ POLY_FT4 *func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3,
     s16 tpageY;
     s16 u;
     s16 v;
+    s16 u2;
+    s16 v2;
     s16 w;
     s16 h;
     s32 sx;
     s32 sy;
     s32 tp;
     s32 flip;
+    s32 flip2;
     s32 xBase;
     s32 xFar;
     s32 yBase;
@@ -127,9 +123,10 @@ POLY_FT4 *func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3,
         return p;
     }
 
-    grp = &arg2->field_20[hdr->field_00];
+    grp = (Group *)(hdr->field_00 * 4 + (u32)arg2->field_20);
     count = grp->field_00;
-    ent = (Entry *)(arg2->field_24 + grp->field_02) + (count - 1);
+    ent = (Entry *)(arg2->field_24 + grp->field_02);
+    ent += count - 1;
     i = count - 1;
     while (i >= 0) {
         uv0 = &arg2->field_1C[ent->field_00];
@@ -152,67 +149,69 @@ POLY_FT4 *func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3,
         flip = ent->field_08 & 3;
         if (arg11 == -1) {
             sx = uv0->field_00 + arg2->field_0C;
-            sy = uv0->field_02 + arg2->field_0E;
             tpageX = sx & ~0x3F;
-            tpageY = sy & ~0xFF;
             u = sx & 0x3F;
-            v = sy & 0xFF;
+            sx = uv0->field_02 + arg2->field_0E;
+            tpageY = sx & ~0xFF;
+            v = sx & 0xFF;
         } else {
-            tpageX = arg11;
-            tpageY = arg12;
             u = arg11;
             v = arg12;
+            tpageX = arg11;
+            tpageY = arg12;
         }
         p->tpage = getTPage(tp, 0, tpageX, tpageY);
 
-        u = u & 0x3F;
-        v = v & 0xFF;
+        u2 = u & 0x3F;
+        v2 = v & 0xFF;
         w = uv0->field_04;
         h = uv0->field_06;
         if (tp == 0) {
-            u *= 4;
+            u2 *= 4;
             w *= 4;
         } else {
-            u *= 2;
+            u2 *= 2;
             w *= 2;
         }
 
-        if (flip == 0) {
-            p->u0 = u;
-            p->v0 = v;
-            p->u1 = u + (w - 1);
-            p->v1 = v;
-            p->u2 = u;
-            p->v2 = v + (h - 1);
-            p->u3 = u + (w - 1);
-            p->v3 = v + (h - 1);
-        } else if (flip == 1) {
-            p->u0 = u + (w - 1);
-            p->v0 = v;
-            p->u1 = u;
-            p->v1 = v;
-            p->u2 = u + (w - 1);
-            p->v2 = v + (h - 1);
-            p->u3 = u;
-            p->v3 = v + (h - 1);
-        } else if (flip == 2) {
-            p->u0 = u;
-            p->v0 = v + (h - 1);
-            p->u1 = u + (w - 1);
-            p->v1 = v + (h - 1);
-            p->u2 = u;
-            p->v2 = v;
-            p->u3 = u + (w - 1);
-            p->v3 = v;
+        flip2 = flip;
+        flip = 0;
+        if (flip2 == 0) {
+            p->u0 = u2;
+            p->v0 = v2;
+            p->u1 = u2 + (w - 1);
+            p->v1 = v2;
+            p->u2 = u2;
+            p->v2 = v2 + (h - 1);
+            p->u3 = u2 + (w - 1);
+            p->v3 = v2 + (h - 1);
+        } else if (flip2 == 1) {
+            p->u0 = u2 + (w - 1);
+            p->v0 = v2;
+            p->u1 = u2;
+            p->v1 = v2;
+            p->u2 = u2 + (w - 1);
+            p->v2 = v2 + (h - 1);
+            p->u3 = u2;
+            p->v3 = v2 + (h - 1);
+        } else if (flip2 == 2) {
+            p->u0 = u2;
+            p->v0 = v2 + (h - 1);
+            p->u1 = u2 + (w - 1);
+            p->v1 = v2 + (h - 1);
+            p->u2 = u2;
+            p->v2 = v2;
+            p->u3 = u2 + (w - 1);
+            p->v3 = v2;
         } else {
-            p->u0 = u + (w - 1);
-            p->v0 = v + (h - 1);
-            p->u1 = u;
-            p->v1 = v + (h - 1);
-            p->u2 = u + (w - 1);
-            p->v2 = v;
-            p->u3 = u;
-            p->v3 = v;
+            p->u0 = u2 + (w - 1);
+            p->v0 = v2 + (h - 1);
+            p->u1 = u2;
+            p->v1 = v2 + (h - 1);
+            p->u2 = u2 + (w - 1);
+            p->v2 = v2;
+            p->u3 = u2;
+            p->v3 = v2;
         }
 
         if (arg9 == 0) {
@@ -283,5 +282,3 @@ POLY_FT4 *func_800165D8(u_long *arg0, POLY_FT4 *arg1, SourceData *arg2, u8 arg3,
     }
     return p;
 }
-
-#endif

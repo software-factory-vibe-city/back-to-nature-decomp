@@ -51,9 +51,15 @@ instructions. It is not a function-decompilation prompt.
   local types in the designated shared type header and global type overrides
   in the designated override header.
 - Preserve the clean-source policy. For ordinary compiled functions, embedded
-  assembly, hard-register pinning, new assembly stubs, and per-file flag hacks
-  are not valid decompilation solutions. Honor only exceptions established by
-  the active project's classification and policy. Unless explicitly specified by the user.
+  assembly, hard-register pinning, and new assembly stubs are not valid
+  decompilation solutions. Honor only exceptions established by the active
+  project's classification and policy. Unless explicitly specified by the user.
+- Per-file compiler flag overrides are permitted when the flag-probe evidence
+  bar is met (target fingerprint + dominant flag column + no contrary regional
+  witness): add the override with its evidence comment and the matching
+  allowlist entry in the same change. Flags are per-TU facts of the original
+  build, not hacks. Speculative flag-shopping without a fingerprint remains
+  forbidden. See the style guide's flag-hypothesis section.
 - Keep edits scoped to the requested task. Do not opportunistically rewrite
   unrelated files.
 

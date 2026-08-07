@@ -16,9 +16,12 @@ import { join } from "path";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
-// Match a C function definition: return type, name, params, opening brace
-// Handles pointer return types (int *), multi-word types (unsigned int), etc.
-const FUNC_DEF_RE = /^([\w][\w\s]*\*?)\s+([\w]+)\s*\(([^)]*)\)\s*\{/gm;
+// Match a C function definition: return type, name, params, opening brace.
+// Handles pointer return types with the star on either side (`int* f`,
+// `int *f`), multi-word types (unsigned int), and multi-line parameter
+// lists. The separator group must contain a star or whitespace so that
+// single-word statements (`if (x) {`) cannot match.
+const FUNC_DEF_RE = /^([\w][\w\s]*?)(\s*\*+\s*|\s+)([\w]+)\s*\(([^)]*)\)\s*\{/gm;
 
 // Lines that are not function definitions
 const SKIP_RE = /^(?:#include|\/\/|\/\*|\*|$)/;
@@ -58,12 +61,13 @@ export function extractSignatures(cFilePath: string): string[] {
 
   while ((match = FUNC_DEF_RE.exec(source)) !== null) {
     const returnType = match[1].trim();
-    const funcName = match[2];
-    const params = match[3].trim();
+    const stars = (match[2].match(/\*+/) ?? [""])[0];
+    const funcName = match[3];
+    const params = match[4].trim();
 
     // Normalize empty params to void
     const normalizedParams = params === "" ? "void" : params;
-    signatures.push(`${returnType} ${funcName}(${normalizedParams});`);
+    signatures.push(`${returnType}${stars ? ` ${stars}` : ""} ${funcName}(${normalizedParams});`);
   }
 
   return signatures;
@@ -161,8 +165,8 @@ function readExistingHeader(headerPath: string): Map<string, string> {
   const content = readFileSync(headerPath, "utf-8");
   for (const line of content.split("\n")) {
     const trimmed = line.trim();
-    // Match signature lines: "type funcname(...);"
-    const m = trimmed.match(/^[\w][\w\s]*\*?\s+([\w]+)\s*\(/);
+    // Match signature lines: "type funcname(...);" (star on either side)
+    const m = trimmed.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
     if (m) {
       map.set(m[1], trimmed);
     }
@@ -229,12 +233,30 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
     return { signatures: [], skipped: true, reason: "no function definitions (stub?)" };
   }
 
+  /* A matched caller may carry its own local prototype for this function
+   * (period style: per-file declarations, often with all-s32 parameter
+   * lists that the caller's byte match depends on). Publishing a
+   * conflicting prototype in functions.h would break those TUs, so skip
+   * and report instead of writing. */
+  const srcDirGuard = join(rootDir, "src");
+  const declRe = new RegExp(`^[^/]*\\b${funcName}\\s*\\([^)]*\\)\\s*;`, "m");
+  const conflicting = readdirSync(srcDirGuard)
+    .filter((f) => f.endsWith(".c") && f !== `${funcName}.c`)
+    .filter((f) => declRe.test(readFileSync(join(srcDirGuard, f), "utf-8")));
+  if (conflicting.length > 0) {
+    return {
+      signatures: sigs,
+      skipped: true,
+      reason: `local prototype(s) exist in ${conflicting.join(", ")}; not publishing to functions.h (reconcile manually if desired)`,
+    };
+  }
+
   const headerPath = join(rootDir, "include/functions.h");
   const existing = readExistingHeader(headerPath);
 
   // Merge new signatures into existing
   for (const sig of sigs) {
-    const m = sig.match(/^[\w][\w\s]*\*?\s+([\w]+)\s*\(/);
+    const m = sig.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
     if (m) {
       existing.set(m[1], sig);
     }
@@ -281,7 +303,7 @@ export function exportAll(rootDir: string = ROOT): { exported: string[]; skipped
     }
 
     for (const sig of sigs) {
-      const m = sig.match(/^[\w][\w\s]*\*?\s+([\w]+)\s*\(/);
+      const m = sig.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
       if (m) {
         allSigs.set(m[1], sig);
       }
@@ -329,7 +351,7 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
         const cFile = join(srcDir, file);
         const sigs = extractSignatures(cFile);
         for (const sig of sigs) {
-          const m = sig.match(/^[\w][\w\s]*\*?\s+([\w]+)\s*\(/);
+          const m = sig.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
           if (m) allSigs.set(m[1], sig);
         }
         const defs = extractStructTypedefs(cFile);
@@ -380,6 +402,8 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
       const result = exportContext(funcName!);
       if (!result.skipped) {
         console.log(`Updated include/functions.h`);
+      } else if (result.reason) {
+        console.log(`Skipped: ${result.reason}`);
       }
     }
   }

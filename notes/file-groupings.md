@@ -104,6 +104,12 @@ Fingerprints:
   CAPTURE_RA caller-log asm idiom (`addu $8,<addr>,$0; sw $31,0($8)`),
   suggesting a shared studio debug header or the same TU — see
   `notes/research/caller-capture-debug-hook.md`.
+- TU-level flag: `-mno-split-addresses` is carried independently by
+  func_80016C08 and func_800165D8 (both byte-verified with it; the unsplit
+  D_8005E3C0 assembler-macro load — adjacent lui/lw self-clobber plus an
+  unfillable load-delay nop — is unreachable under baseline split
+  addresses). Treat the flag as a property of this TU when matching its
+  remaining members.
 
 Members (address order):
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)
@@ -116,16 +122,18 @@ Members (address order):
 - func_800161AC (m) — packet setup/teardown around func_800165D8
 - func_80016280 (m) — SPRT/DR_MODE renderer, active C/asm hybrid
   (see research/func_80016280-web-parity-and-register-recurrence.md)
-- func_800165D8 (s) — larger direct-primitive renderer
+- func_800165D8 (m) — larger direct-primitive renderer; matched with the
+  same -mno-split-addresses per-file flag as func_80016C08 (independent
+  evidence: unsplit D_8005E3C0 macro load in its tag-insert arm), making the
+  flag a TU-level fact for this group
 - func_80016B7C (m) — sprite data size calculator; calls func_80015B24 (entry
   search/bcmp) + func_8001782C (tile load/LoadImage); sole caller is
   func_80016C08
-- func_80016C08 (s) — sprite entry loop driver; calls func_80016B7C twice.
+- func_80016C08 (m) — sprite entry loop driver; calls func_80016B7C twice.
   Declares D_8005E438: the target reaches it gp-relatively, and ASPSX only
   emits gp-relative for symbols the file itself declares. That rule makes any
   gp-relative access in the original a TU-membership signal — see
   `notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md`
-  per iteration
 
 Technique and per-function detail for this group live in
 `notes/sprite-renderer-family-campaign.md`; the frame-size/arity diagnostic
