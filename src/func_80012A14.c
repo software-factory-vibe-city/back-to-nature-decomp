@@ -1,4 +1,7 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80012A14", func_80012A14);
+void SetDispMask(s32);
+
+void func_80012A14(void) {
+    SetDispMask(0);
+}
