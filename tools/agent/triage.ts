@@ -22,6 +22,7 @@
  *   inventory       order-independent content diff (offsets/constants/shifts)
  *   arity-frame     compiled frame decomposition vs target, component-wise
  *   arity-stack     loads from the incoming stack-argument region
+ *   undeclared-callee  calls with no declaration in scope (implicit int)
  *   capture-ra      the CAPTURE_RA debug-hook signature in the target
  *   flag-fingerprint  symbolic lui/lw self-clobber pairs (per-file flag class)
  *   asm-policy      embedded asm without a sourcePolicy allowlist entry
@@ -40,6 +41,7 @@ import {
   type DisassembledInstruction,
   assembleTarget,
   compileSource,
+  detectImplicitDeclarations,
   disassembleObject,
   normalizeFunctionName,
   resolveSource,
@@ -127,6 +129,8 @@ interface CompiledFacts {
   instructions: DisassembledInstruction[];
   /** Each embedded asm block with the instructions that follow it. */
   asmBlocks: { insns: string[]; after: string[] }[];
+  /** Callees the TU never declares — C89 implicit int at each call site. */
+  implicitCallees: string[];
 }
 
 function readCompiled(name: string, source: string, scratch: string): CompiledFacts | null {
@@ -169,6 +173,7 @@ function readCompiled(name: string, source: string, scratch: string): CompiledFa
     varsSize: parseInt(detail[1], 10),
     instructions: artifacts.object ? disassembleObject(artifacts.object) : [],
     asmBlocks,
+    implicitCallees: detectImplicitDeclarations(artifacts.preprocessed, name),
   };
 }
 
@@ -301,6 +306,53 @@ function detectArityFrame(target: TargetFacts, compiled: CompiledFacts): Finding
     see: [
       "notes/research/frame-size-arity-diagnostic.md",
       "notes/retros/func_80016B7C.md",
+    ],
+  }];
+}
+
+/**
+ * Look up a callee's known-good declaration so the finding is actionable.
+ * include/functions.h accumulates the signature of every matched function.
+ */
+function knownDeclaration(callee: string): string | undefined {
+  const path = join(ROOT, "include/functions.h");
+  if (!existsSync(path)) return undefined;
+  const pattern = new RegExp(`[\\s\\*]${callee}\\s*\\(.*\\)\\s*;`);
+  return readFileSync(path, "utf-8")
+    .split("\n")
+    .find((line) => pattern.test(line))
+    ?.trim();
+}
+
+/**
+ * An undeclared callee is C89 implicit int: the call defines `$v0`, and local
+ * allocation then excludes `$v0` for every temporary born between that call
+ * and the next explicit `$v0` write. The defect sits in the TU's
+ * declarations, outside the function body, so no body rewrite can undo the
+ * rotation it causes — and the target itself usually proves the real
+ * signature (post-call `$v0` scratch use means the callee returns nothing).
+ */
+function detectUndeclaredCallee(compiled: CompiledFacts): Finding[] {
+  if (compiled.implicitCallees.length === 0) return [];
+
+  return [{
+    detector: "undeclared-callee",
+    severity: "blocker",
+    summary:
+      `${compiled.implicitCallees.length} callee(s) have no declaration in scope — C89 ` +
+      "implicit int, so each call defines $v0 and poisons post-call scratch " +
+      "allocation from outside the function body. Declare every callee with " +
+      "its evidenced signature before any shape or allocation work.",
+    evidence: compiled.implicitCallees.map((callee) => {
+      const declaration = knownDeclaration(callee);
+      return declaration
+        ? `${callee} — declare:  ${declaration}`
+        : `${callee} — no known signature; read its matched source, or its target ` +
+          "(post-call $v0 scratch use = void; $v0 consumed = value-returning)";
+    }),
+    see: [
+      "prompts/c-style-guide.md",
+      "notes/retros/2026-08-06-func_80022738-retro.md",
     ],
   }];
 }
@@ -601,6 +653,7 @@ function main(): void {
     findings.push(...detectAsmPolicy(name, srcText));
     const compiled = readCompiled(name, resolveSource(name, srcOverride), scratch);
     if (compiled) {
+      findings.push(...detectUndeclaredCallee(compiled));
       const arity = detectArityFrame(target, compiled);
       frameConverged = arity.length === 0;
       findings.push(...arity);

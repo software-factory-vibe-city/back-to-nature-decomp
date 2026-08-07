@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from "child_process";
+import { execFileSync, spawn, spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { basename, dirname, isAbsolute, join, resolve } from "path";
@@ -174,6 +174,33 @@ export function assembleCompilerOutput(assembly: string, object: string): string
     assembly,
   ]);
   return object;
+}
+
+export function parseImplicitDeclarationWarnings(stderr: string): string[] {
+  const callees = new Set<string>();
+  for (const line of stderr.split("\n")) {
+    const warning = line.match(/warning: implicit declaration of function `(.+)'/);
+    if (warning) callees.add(warning[1]);
+  }
+  return [...callees];
+}
+
+/**
+ * A call to an undeclared function is C89 implicit int, so the call defines
+ * `$v0` even though nothing reads it — a TU-context fact that reshapes
+ * register allocation from outside the function body. The front end is the
+ * authority on which calls lack a declaration, so ask it: re-run cc1 on the
+ * already-preprocessed unit with -Wimplicit and read the warnings.
+ */
+export function detectImplicitDeclarations(preprocessed: string, stem: string): string[] {
+  const flags = [...CC1_FLAGS, ...(loadFlagOverrides().get(stem) || []), "-Wimplicit"];
+  const result = spawnSync(CC, [...flags, preprocessed, "-o", "/dev/null"], {
+    cwd: ROOT,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return parseImplicitDeclarationWarnings(result.stderr ?? "");
 }
 
 export function compileSource(

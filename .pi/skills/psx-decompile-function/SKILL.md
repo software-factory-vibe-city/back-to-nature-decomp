@@ -52,6 +52,10 @@ Before editing, read completely:
      precondition for that work, not a nice-to-have.
    - `arity-frame`, `arity-stack`, `capture-ra`, `asm-policy`, `asm-dead` —
      the signature, ABI, debug-hook, and source-policy symptom classes.
+   - `undeclared-callee` — a call with no declaration in scope (C89 implicit
+     int). Blocker: the call defines `$v0` and rotates post-call scratch
+     allocation from outside the function body. The finding prints the
+     known-good declaration when `include/functions.h` has one.
    - `flag-fingerprint` — symbolic lui/lw self-clobber pairs in the target:
      the per-file flag class (unsplit macro load / scheduling). When it
      fires, run `psx_flag_probe` before deep source archaeology and apply
