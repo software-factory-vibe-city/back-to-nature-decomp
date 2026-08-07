@@ -207,6 +207,132 @@ function findExternalBranchTargets(
   return referenced;
 }
 
+/**
+ * A function compiled from C emits its own jump table into its object, so the
+ * extracted `jtbl_*` copy must be dropped from the monolithic rodata segment or
+ * the link fails on `.L` labels that no longer exist. While the function is
+ * still an INCLUDE_ASM stub the opposite holds: the included assembly supplies
+ * those labels, so the extracted table must stay.
+ *
+ * Ownership is independent of fall-through merging — a function can own a jump
+ * table without absorbing any fragment — so this is driven by the jtbl owner
+ * map rather than by merge groups.
+ */
+function collectJumpTableRodataInserts(
+  jtblByOwnerFunc: Map<number, { romStart: number; romEnd: number }[]>,
+  nameOfAddr: Map<number, string>,
+): { romStart: number; romEnd: number; name: string }[] {
+  const inserts: { romStart: number; romEnd: number; name: string }[] = [];
+  for (const [ownerAddr, jtbls] of jtblByOwnerFunc) {
+    const owner = nameOfAddr.get(ownerAddr);
+    if (!owner) continue;
+    const sourcePath = join(SRC_DIR, `${owner}.c`);
+    if (!existsSync(sourcePath)) continue;
+    if (/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"))) continue;
+    for (const jtbl of jtbls) {
+      if (jtbl.romStart > 0) inserts.push({ romStart: jtbl.romStart, romEnd: jtbl.romEnd, name: owner });
+    }
+  }
+  return inserts.sort((a, b) => a.romStart - b.romStart);
+}
+
+/**
+ * Rewrite splat.yaml's subsegment list: drop entries for absorbed fragments and
+ * re-derive the `.rodata` splits for C-owned jump tables. The strip-then-insert
+ * shape makes it idempotent, so it is safe to run when nothing has changed.
+ */
+function syncSplatSubsegments(options: {
+  absorbedVrams: Set<number>;
+  payloadOffset: number;
+  loadAddr: number;
+  rodataInserts: { romStart: number; romEnd: number; name: string }[];
+  write: boolean;
+}): void {
+  if (!existsSync(SPLAT_YAML)) return;
+  const { absorbedVrams, payloadOffset, loadAddr, write } = options;
+  let rodataInserts = options.rodataInserts;
+
+  const filteredYaml: string[] = [];
+  let removedYaml = 0;
+  for (const line of readFileSync(SPLAT_YAML, "utf-8").split("\n")) {
+    const segMatch = line.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*c\s*,/);
+    if (segMatch) {
+      const vram = parseInt(segMatch[1]!, 16) - payloadOffset + loadAddr;
+      if (absorbedVrams.has(vram)) { removedYaml++; continue; }
+    }
+    filteredYaml.push(line);
+  }
+
+  /* Lift out the existing .rodata entries with their continuation segments,
+   * then merge rather than re-derive.
+   *
+   * Re-deriving does not work and is not safe: once an entry exists, splat
+   * routes that table into the owning object and stops emitting it into the
+   * monolithic rodata assembly, so the detector that found it can no longer
+   * see it. Stripping and re-deriving therefore deletes every entry on the
+   * run after the one that created it. An entry is only dropped when its
+   * function has gone back to being an INCLUDE_ASM stub, which is the one
+   * case where the extracted table genuinely has to come back. */
+  const merged = new Map<number, { romStart: number; romEnd: number; name: string }>();
+  const stripped: string[] = [];
+  for (let k = 0; k < filteredYaml.length; k++) {
+    const existing = filteredYaml[k]!.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*\.rodata\s*,\s*(\w+)\s*\]/);
+    if (existing) {
+      const romStart = parseInt(existing[1]!, 16);
+      const name = existing[2]!;
+      let romEnd = romStart;
+      if (k + 1 < filteredYaml.length) {
+        const continuation = filteredYaml[k + 1]!.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/);
+        if (continuation) { romEnd = parseInt(continuation[1]!, 16); k++; }
+      }
+      const sourcePath = join(SRC_DIR, `${name}.c`);
+      const stillC = existsSync(sourcePath) && !/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"));
+      if (stillC) merged.set(romStart, { romStart, romEnd, name });
+      continue;
+    }
+    stripped.push(filteredYaml[k]!);
+  }
+  for (const insert of rodataInserts) merged.set(insert.romStart, insert);
+  rodataInserts = [...merged.values()].sort((a, b) => a.romStart - b.romStart);
+
+  let addedRodata = 0;
+  const finalYaml: string[] = [];
+  for (let i = 0; i < stripped.length; i++) {
+    const line = stripped[i]!;
+    const rodataMatch = line.match(/^(\s*)-\s*\[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/);
+    if (rodataMatch && rodataInserts.length > 0) {
+      const indent = rodataMatch[1]!;
+      const rodataStart = parseInt(rodataMatch[2]!, 16);
+      let rodataEnd = 0xFFFFFFFF;
+      for (let j = i + 1; j < stripped.length; j++) {
+        const nextSeg = stripped[j]!.match(/\[\s*0x([0-9A-Fa-f]+)\s*,/);
+        if (nextSeg) { rodataEnd = parseInt(nextSeg[1]!, 16); break; }
+      }
+      const insertsHere = rodataInserts.filter((ins) => ins.romStart >= rodataStart && ins.romStart < rodataEnd);
+      if (insertsHere.length > 0) {
+        finalYaml.push(line);
+        for (const ins of insertsHere) {
+          finalYaml.push(`${indent}- [0x${ins.romStart.toString(16).toUpperCase()}, .rodata, ${ins.name}]`);
+          finalYaml.push(`${indent}- [0x${ins.romEnd.toString(16).toUpperCase()}, rodata]`);
+          addedRodata++;
+        }
+        continue;
+      }
+    }
+    finalYaml.push(line);
+  }
+
+  const before = readFileSync(SPLAT_YAML, "utf-8");
+  const after = finalYaml.join("\n");
+  if (before === after) return;
+  if (!write) {
+    console.log(`Would update splat.yaml: -${removedYaml} subsegment(s), ${addedRodata} .rodata split(s)`);
+    return;
+  }
+  writeFileSync(SPLAT_YAML, after);
+  console.log(`Updated splat.yaml: -${removedYaml} subsegment(s), ${addedRodata} .rodata split(s) for jump tables`);
+}
+
 function main() {
   const writeMode = process.argv.includes("--write");
   const info = loadPsxExeInfo();
@@ -301,7 +427,11 @@ function main() {
             continue;
           }
           if (line.match(/^enddlabel jtbl_/)) {
-            if (currentJtbl && currentJtbl.targets.length > 0) {
+            /* A table whose entries are all `.L` internal labels still owns
+             * its rodata even though none of its targets are registered
+             * symbols. Requiring resolvable targets here hid precisely the
+             * C-owned case, so gate on having parsed any words at all. */
+            if (currentJtbl && currentJtbl.romStart > 0) {
               jumpTables.push(currentJtbl);
             }
             currentJtbl = null;
@@ -324,7 +454,14 @@ function main() {
             if (wordFunc) {
               currentJtbl.targets.push(parseInt(wordFunc[1], 16));
             }
-            // .word .LXXXXXXXX is already an internal label, skip
+            /* `.word .LXXXXXXXX` is an internal label rather than a registered
+             * symbol, but it is still an address, and it is the only thing that
+             * identifies the owning function when that function is already C
+             * and so has no extracted assembly left to scan for %hi(jtbl). */
+            const wordLabel = line.match(/\.word\s+\.L([0-9A-Fa-f]{8})/i);
+            if (wordLabel) {
+              currentJtbl.targets.push(parseInt(wordLabel[1]!, 16));
+            }
           }
         }
       }
@@ -332,8 +469,12 @@ function main() {
 
     // Step 2: For each jump table, find the owning function (references jtbl in its asm)
     for (const jtbl of jumpTables) {
+      /* Absorption needs targets that are registered symbols, but ownership
+       * does not: the `%hi(jtbl_name)` scan below names the owner on its own.
+       * Bailing here on an empty target set hid every jump table whose `.L`
+       * labels spimdisasm never registered, which is all of them in practice,
+       * so no rodata subsegment was ever emitted for a C-owned table. */
       const uniqueTargets = [...new Set(jtbl.targets)].filter((t) => allKnownAddrs.has(t));
-      if (uniqueTargets.length === 0) continue;
 
       // Find the owning function by scanning asm files for %hi(jtbl_name)
       let ownerAddr: number | null = null;
@@ -356,7 +497,10 @@ function main() {
 
       // Fallback: if no asm file found (function compiled as C), find the owner
       // by checking which function with size: encompasses the jtbl targets
-      if (ownerAddr === null) {
+      /* Uses the raw targets, not the symbol-filtered ones: an owner that is
+       * already decompiled has no extracted assembly to scan, and its table's
+       * `.L` targets are never registered symbols. */
+      if (ownerAddr === null && jtbl.targets.length > 0) {
         const symContent = readFileSync(SYMBOL_ADDRS, "utf-8");
         for (const symLine of symContent.split("\n")) {
           const sizeMatch = symLine.match(/^(?:func_|_)([0-9A-Fa-f]+)\s*=\s*(0x[0-9A-Fa-f]+).*size:0x([0-9A-Fa-f]+)/i);
@@ -365,7 +509,7 @@ function main() {
             const funcSize = parseInt(sizeMatch[3], 16);
             const funcEnd = funcAddr + funcSize;
             // Check if any jtbl target falls within this function's range
-            if (uniqueTargets.some((t) => t >= funcAddr && t < funcEnd)) {
+            if (jtbl.targets.some((t) => t >= funcAddr && t < funcEnd)) {
               ownerAddr = funcAddr;
               break;
             }
@@ -377,6 +521,7 @@ function main() {
       // Track jtbl ownership for rodata migration
       if (!jtblByOwnerFunc.has(ownerAddr)) jtblByOwnerFunc.set(ownerAddr, []);
       jtblByOwnerFunc.get(ownerAddr)!.push(jtbl);
+      if (uniqueTargets.length === 0) continue;
 
       // Step 3: Absorb targets that are separate functions not externally called
       for (const targetAddr of uniqueTargets) {
@@ -392,30 +537,17 @@ function main() {
   }
 
   if (isFragment.size === 0 && jtblAbsorbed.size === 0) {
-    // Even with no fragments, strip orphaned .rodata entries from prior runs
-    if (writeMode && existsSync(SPLAT_YAML)) {
-      const yaml = readFileSync(SPLAT_YAML, "utf-8");
-      const yamlLines = yaml.split("\n");
-      const cleanedLines: string[] = [];
-      let stripped = 0;
-      for (let k = 0; k < yamlLines.length; k++) {
-        const line = yamlLines[k];
-        if (line.match(/\[\s*0x[0-9A-Fa-f]+\s*,\s*\.rodata\s*,\s*\w+\s*\]/)) {
-          // Also strip continuation rodata line immediately after
-          if (k + 1 < yamlLines.length && yamlLines[k + 1].match(/\[\s*0x[0-9A-Fa-f]+\s*,\s*rodata\s*\]/)) {
-            k++;
-          }
-          stripped++;
-          continue;
-        }
-        cleanedLines.push(line);
-      }
-      if (stripped > 0) {
-        writeFileSync(SPLAT_YAML, cleanedLines.join("\n"));
-        console.log(`Stripped ${stripped} orphaned .rodata entry/entries from splat.yaml`);
-      }
-    }
     console.log("No fragments detected.");
+    /* Jump-table rodata ownership is independent of fragment merging, so it
+     * still has to be reconciled — this is the common path once a project has
+     * no fragments left to absorb. */
+    syncSplatSubsegments({
+      absorbedVrams: new Set<number>(),
+      payloadOffset: info.payloadOffset,
+      loadAddr: info.loadAddr,
+      rodataInserts: collectJumpTableRodataInserts(jtblByOwnerFunc, new Map(allSorted.map((e) => [e.addr, e.name]))),
+      write: writeMode,
+    });
     return;
   }
 
@@ -600,113 +732,13 @@ function main() {
   writeFileSync(SYMBOL_ADDRS, outputLines.join("\n"));
   console.log(`\nWrote symbol_addrs.txt: ${changedSize} size attrs, ${changedLabel} → type:label`);
 
-  // Remove splat.yaml subsegments for ALL absorbed fragments (label or func)
-  // Match by ROM offset since names may differ (func_ vs _)
-  const allAbsorbedAddrsForYaml = new Set(merges.flatMap((m) => m.absorbed.map((a) => a.addr)));
-  const allAbsorbedNames = new Set(merges.flatMap((m) => m.absorbed.map((a) => a.name)));
-  if (existsSync(SPLAT_YAML)) {
-    const yaml = readFileSync(SPLAT_YAML, "utf-8");
-    const yamlLines = yaml.split("\n");
-    const filteredYaml: string[] = [];
-    let removedYaml = 0;
-    for (const line of yamlLines) {
-      const segMatch = line.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*c\s*,/);
-      if (segMatch) {
-        const romOffset = parseInt(segMatch[1], 16);
-        const vram = romOffset - info.payloadOffset + info.loadAddr;
-        if (allAbsorbedAddrsForYaml.has(vram)) {
-          removedYaml++;
-          continue;
-        }
-      }
-      filteredYaml.push(line);
-    }
-    // Insert .rodata subsegments for merge-group heads that own jump tables.
-    // These must be inserted within the rodata section (in ROM order), splitting
-    // the monolithic rodata segment. After the jtbl, add a continuation rodata segment.
-    let addedRodata = 0;
-    const rodataInserts: { romStart: number; romEnd: number; name: string }[] = [];
-    for (const m of merges) {
-      const jtbls = jtblByOwnerFunc.get(m.headAddr);
-      if (jtbls && jtbls.length > 0) {
-        for (const jtbl of jtbls) {
-          if (jtbl.romStart > 0) {
-            rodataInserts.push({ romStart: jtbl.romStart, romEnd: jtbl.romEnd, name: m.head });
-          }
-        }
-      }
-    }
-
-    // Sort by ROM offset
-    rodataInserts.sort((a, b) => a.romStart - b.romStart);
-
-    // Insert rodata splits in ROM-offset order among existing subsegments.
-    // Find any line matching [0xNNN, rodata] that covers a jtbl range and split it.
-    const finalYaml: string[] = [];
-    // First, strip any previously-inserted .rodata entries and their continuation
-    // rodata segments for idempotency. This must work even when rodataInserts is
-    // empty (e.g. function already decomped as C, no merge groups detected).
-    const stripped: string[] = [];
-    for (let k = 0; k < filteredYaml.length; k++) {
-      const line = filteredYaml[k];
-      // Match a .rodata entry with a function name: [0xNNN, .rodata, func_name]
-      const dotRodataMatch = line.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*\.rodata\s*,\s*(\w+)\s*\]/);
-      if (dotRodataMatch) {
-        // Also strip the continuation rodata line immediately after, if present
-        if (k + 1 < filteredYaml.length) {
-          const nextLine = filteredYaml[k + 1];
-          if (nextLine.match(/\[\s*0x[0-9A-Fa-f]+\s*,\s*rodata\s*\]/)) {
-            k++; // skip the continuation line too
-          }
-        }
-        continue; // remove the .rodata entry
-      }
-      stripped.push(line);
-    }
-
-    for (let i = 0; i < stripped.length; i++) {
-      const line = stripped[i];
-      // Match monolithic rodata: [0xNNN, rodata] (not .rodata, not o with .rdata)
-      const rodataMatch = line.match(/^(\s*)-\s*\[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/);
-      if (rodataMatch && rodataInserts.length > 0) {
-        const indent = rodataMatch[1];
-        const rodataStart = parseInt(rodataMatch[2], 16);
-        // Find the end of this rodata segment (next subsegment's ROM offset)
-        let rodataEnd = 0xFFFFFFFF;
-        for (let j = i + 1; j < stripped.length; j++) {
-          const nextSeg = stripped[j].match(/\[\s*0x([0-9A-Fa-f]+)\s*,/);
-          if (nextSeg) {
-            rodataEnd = parseInt(nextSeg[1], 16);
-            break;
-          }
-        }
-
-        // Check if any jtbl falls within this rodata segment
-        const insertsHere = rodataInserts.filter(
-          (ins) => ins.romStart >= rodataStart && ins.romStart < rodataEnd
-        );
-        if (insertsHere.length > 0) {
-          // Emit: [rodataStart, rodata] (part before first jtbl)
-          finalYaml.push(line);
-          for (const ins of insertsHere) {
-            finalYaml.push(`${indent}- [0x${ins.romStart.toString(16).toUpperCase()}, .rodata, ${ins.name}]`);
-            finalYaml.push(`${indent}- [0x${ins.romEnd.toString(16).toUpperCase()}, rodata]`);
-            addedRodata++;
-          }
-          continue;
-        }
-      }
-      finalYaml.push(line);
-    }
-
-    if (removedYaml > 0 || addedRodata > 0) {
-      writeFileSync(SPLAT_YAML, finalYaml.join("\n"));
-      console.log(`Removed ${removedYaml} subsegment(s) from splat.yaml`);
-      if (addedRodata > 0) {
-        console.log(`Added ${addedRodata} .rodata split(s) for jump tables`);
-      }
-    }
-  }
+  syncSplatSubsegments({
+    absorbedVrams: new Set(merges.flatMap((m) => m.absorbed.map((a) => a.addr))),
+    payloadOffset: info.payloadOffset,
+    loadAddr: info.loadAddr,
+    rodataInserts: collectJumpTableRodataInserts(jtblByOwnerFunc, new Map(allSorted.map((e) => [e.addr, e.name]))),
+    write: writeMode,
+  });
 
   // Delete stale source files for absorbed fragments (check both func_ and _ prefixes)
   let deletedSrc = 0;

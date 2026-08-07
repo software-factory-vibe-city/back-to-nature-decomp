@@ -71,6 +71,13 @@ interface SectionEntry {
   size: number;
   oPath: string;
   sectionArg: string;
+  /**
+   * Set when this range is a jump table owned by a decompiled C function
+   * rather than a prebuilt library object. Both are the same kind of thing —
+   * a ROM range in the rodata region supplied by an object file — so they
+   * belong in one ordered walk; only the rendered form differs.
+   */
+  ownedByFunc?: string;
 }
 
 /** Load function addresses from symbol_addrs.txt within a VRAM range */
@@ -154,7 +161,9 @@ function interleaveEntries(
       lines.push(`${indent}- [${romHex(cursor)}, ${regionType}]`);
     }
     lines.push(
-      `${indent}- [${romHex(entry.rom)}, o, ${oSegPath(entry.oPath)}, ${entry.sectionArg}] # ${entry.oPath}`
+      entry.ownedByFunc
+        ? `${indent}- [${romHex(entry.rom)}, .rodata, ${entry.ownedByFunc}]`
+        : `${indent}- [${romHex(entry.rom)}, o, ${oSegPath(entry.oPath)}, ${entry.sectionArg}] # ${entry.oPath}`
     );
     cursor = entry.rom + entry.size;
   }
@@ -180,7 +189,22 @@ function stripNonTextPatches(lines: string[], dataRomStart: number, sdataRomStar
   let seenData = false;
   let seenSdata = false;
 
-  for (const line of lines) {
+  /* C-owned jump-table splits are re-emitted by the rodata walk in ROM order,
+   * so drop the incoming copies here or they appear twice — once in place and
+   * once stranded after the library block, which splat rejects as out of
+   * order. The continuation segment that follows each one goes with it. */
+  const ownedRodataRe = /^\s+- \[\s*0x[0-9A-Fa-f]+\s*,\s*\.rodata\s*,\s*\w+\s*\]/;
+  const skip = new Set<number>();
+  lines.forEach((line, index) => {
+    if (!ownedRodataRe.test(line)) return;
+    skip.add(index);
+    if (lines[index + 1] && /^\s+- \[\s*0x[0-9A-Fa-f]+\s*,\s*rodata\s*\]/i.test(lines[index + 1])) {
+      skip.add(index + 1);
+    }
+  });
+
+  for (const [index, line] of lines.entries()) {
+    if (skip.has(index)) continue;
     if (libONonTextRe.test(line)) continue;
     if (/# text-gap/.test(line)) continue;
     if (/^\s+- \[0x[0-9A-Fa-f]+, bss\]/i.test(line)) continue;
@@ -420,6 +444,33 @@ function main() {
     (a, b) => a.textRom - b.textRom
   );
   let insertIdx = 0;
+
+  /* Jump-table splits placed by mergeFragments must survive this rebuild.
+   * Detection is not repeated here — the entries are read back out of the
+   * incoming YAML and folded into the same ordered walk as the library
+   * chunks, so the cursor emits them in ROM order with the correct
+   * continuation segments between. Preserving them as raw lines does not
+   * work: the walk below regenerates the whole region from 0x800. */
+  const ownedRodata: SectionEntry[] = [];
+  const yamlLines = rawYaml.split("\n");
+  yamlLines.forEach((line, index) => {
+    const owned = line.match(/^\s+- \[\s*0x([0-9A-Fa-f]+)\s*,\s*\.rodata\s*,\s*(\w+)\s*\]/);
+    if (!owned) return;
+    const rom = parseInt(owned[1], 16);
+    const next = yamlLines[index + 1]?.match(/^\s+- \[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/i);
+    if (!next) return;
+    ownedRodata.push({
+      rom,
+      size: parseInt(next[1], 16) - rom,
+      oPath: "",
+      sectionArg: ".rodata",
+      ownedByFunc: owned[2],
+    });
+  });
+  if (ownedRodata.length > 0) {
+    console.log(`Preserving ${ownedRodata.length} C-owned jump-table rodata split(s)`);
+    rdataEntries.push(...ownedRodata);
+  }
 
   for (const line of stripped) {
     // === Rodata region ===
