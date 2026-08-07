@@ -4,11 +4,11 @@
 `arity-stack` detectors in `tools/agent/triage.ts`.
 **Updated:** 2026-08-10
 
-GCC 2.95.2's frame layout is fully determined by facts you control from the
-source: how many parameters the function declares, and how many arguments its
-widest outgoing call takes. That makes a frame-size mismatch one of the
-cheapest and most reliable signals available — it costs one compile, needs no
-diff classification, and points at a specific class of source defect.
+GCC 2.95.2's frame layout is determined by facts you control from the source:
+how many parameters the function declares, how many arguments its widest
+outgoing call takes, and its locals/spills. That makes a frame-size mismatch a
+cheap signal, but only after the stack region below the saves has been split
+between outgoing arguments and locals.
 
 ## Frame decomposition
 
@@ -30,8 +30,10 @@ Two independent quantities to compare against the target:
 - **Outgoing argument area** = 4 × (arguments of the *widest call this
   function makes*), floored at 16 bytes and rounded up to a multiple of 8.
   It is shared across all calls — it does not grow with the number of calls,
-  only with the widest one. In target assembly it is the region below the
-  lowest register save slot.
+  only with the widest one. The region below the lowest register save slot is
+  outgoing arguments **plus locals/spills**, not necessarily arguments alone.
+  Address formation into that region and local stores/loads must be separated
+  before inferring outgoing arity.
 - **Saved-register count** — driven by how many values must survive calls,
   which tracks this function's own parameter count and live locals.
 
@@ -52,6 +54,17 @@ Identifying a save slot: a stack offset is a register save iff the same
 register is both stored to it and reloaded from it. Filtering by register
 class does not work — outgoing argument stores routinely use callee-saved
 registers (`sw $s0, 0x10($sp)` is an argument store, not a save).
+
+### Counterexample — locals can begin at the minimum argument boundary
+
+`func_800140C8` has a 0x28 frame and saves beginning at 0x18, but 0x10 and
+0x11 are a two-byte address-taken local array: the target stores both bytes,
+forms `sp+0x10`, indexes it, and reloads the selected byte as `PadGetState`'s
+first argument. Its SDK calls take one and two arguments, so the outgoing area
+is the 0x10 ABI minimum and 0x10..0x17 is the padded local region. Treating the
+entire 0x18 below the saves as outgoing space falsely reports a 5–6 argument
+callee and zero locals. The assembly's address-taken local wins over that
+heuristic decomposition.
 
 ## Incoming stack arguments are determinate
 

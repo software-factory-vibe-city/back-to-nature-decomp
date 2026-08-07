@@ -236,4 +236,15 @@ extern s32 _D_8005E9C8[3] __asm__("D_8005E9C8");
 extern s32 _D_8005EA18[3] __asm__("D_8005EA18");
 #define D_8005EA18 (*((s32*)_D_8005EA18))
 
+/* Pad port IDs copied by func_800140C8. The incomplete aggregate type keeps
+ * the object out of small data and preserves the two-byte object copy. */
+typedef struct PadPortPair {
+    s8 port0;
+    s8 port1;
+} PadPortPair;
+extern PadPortPair D_8005E2AC[];
+
+/* Pad actuator alignment data passed to PadSetActAlign. */
+extern u8 D_80048B14[];
+
 #endif /* GLOBALS_OVERRIDE_H */

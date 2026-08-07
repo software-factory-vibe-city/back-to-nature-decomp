@@ -108,6 +108,23 @@ caller. Handlers stored in D_800559C4 are unidentified — resolving them
 would extend the group.
 Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 
+## pad initialization and state — 0x80013B04–0x80014388 (confidence: medium)
+
+Pad setup, per-port state polling, and decoded controller input.
+Fingerprints: func_80014064 initializes D_8005E9C8 through PadInitDirect;
+adjacent func_8001413C reads the same buffer and calls func_80014388;
+func_800140C8 is between them, calls PadGetState/PadSetActAlign, and its sole
+caller func_80013B04 also calls adjacent func_80013F90 while processing pad
+state.
+Members: func_80013B04 (s) — pad-state driver; func_80013F90 (m) — clears a
+per-port state object; func_80014064 (m) — initializes pad buffers and starts
+communication; func_800140C8 (m) — polls one port and aligns its actuators;
+func_8001413C (s) — decodes one D_8005E9C8 port record; func_80014388 (s) —
+input decoder called by func_8001413C.
+
+References: notes/research/func_800140C8-aggregate-copy.md;
+notes/retros/2026-08-07-func_800140C8-retro.md.
+
 ## sprite data, animation, and renderers — 0x80015704–0x80016C08
 
 Family confidence: high. Exact TU boundary confidence: medium. The current
