@@ -72,6 +72,30 @@ evidence yet — recorded to mark the boundary question.
 Members: func_8001E04C (s), func_8001E088 (s), func_8001E0B8 (s),
 func_8001E158 (m), func_8001E160 (s), func_8001E26C (s).
 
+## unknown group B — around 0x80022738–0x80022F1C (confidence: low)
+
+Game-state/flags readers over the D_8006C838 struct array.
+
+Fingerprints:
+- both members walk D_8006C838 through a `char *base = (char *)&D_8006C838`
+  pointer variable (byte-verified idiom in both);
+- func_80022738's target reaches D_8005E5CC and D_8005E5B4 gp-relatively,
+  so the original TU declares both (ASPSX gp-rel rule — see the
+  func_80016C08 entry);
+- SetVal8005E2BC and SetVal8005E334 are void-returning: func_80022738
+  matches only with void prototypes (an implicit-int/s32 declaration adds a
+  dead `$v0` call def that blocks the target's `$v0` scratch allocation).
+
+Members (address order):
+- func_80022738 (m) — flag-slot state check/advance (byte at +0xCC, 4 -> 5)
+- func_80022F1C (m) — u16 threshold bucketing at a large computed offset
+
+The GetVal8005E5B4/GetVal8005E5B8 accessors are natural same-TU candidates
+via the gp-rel declarations; membership unverified.
+
+References: notes/retros/2026-08-06-func_80022738-retro.md,
+notes/research/func_80022F1C-shift-fusion-and-address-legitimization.md.
+
 ## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: low)
 
 D-pad cursor movement on a 14-column grid (menu/keyboard screen?).

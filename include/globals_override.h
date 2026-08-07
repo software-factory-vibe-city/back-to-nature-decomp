@@ -217,6 +217,10 @@ extern struct_8005E3C0 *_D_8005E3C0[3] __asm__("D_8005E3C0");
 /* D_8005E438 - GP-relative u16, sprite tile/entry ID storage */
 extern u16 D_8005E438;
 
+/* D_8005E5B4, D_8005E5CC - GP-relative s32 scalars (func_80022738) */
+extern s32 D_8005E5B4;
+extern s32 D_8005E5CC;
+
 /* D_800100A0 - string embedded in func_80010000 at offset 0xA0 ("INIT ERROR\n")
  * Referenced by func_80015704 for FntPrint error messages.
  * s32 array of 3 forces >8 byte declaration for absolute addressing (lui+lw) */

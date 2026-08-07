@@ -678,9 +678,30 @@ show (PSY-Q samples, matched Silent Hill/ESA/soul-re, Net Yaroze, libsnd):
 - Literal bounds or simple `#define`s; plain signed int counters; `-1`
   sentinels; "max+1" constants for minimum scans.
 - Codegen no-ops on GCC 2.95 (do not waste turns): `register`, declaration
-  order, init-statement order, `if (var) {}` dead refs on locals,
-  `do { } while (0)` fences. A named constant local (`s32 neg1 = -1;`)
-  does shift materialization order and is clean C.
+  order, init-statement order, `if (var) {}` dead refs on locals. A named
+  constant local (`s32 neg1 = -1;`) does shift materialization order and is
+  clean C.
+- `do { } while (0)` is NOT an allocation no-op: loop depth scales
+  register-reference weights, so a degenerate loop reorders quantity
+  priorities and can rotate local and global assignments block-wide while
+  leaving the instruction shape unchanged. Never write one as an
+  allocation fence — it is not period-plausible as a forcing device, and
+  any score it buys is an allocation coincidence layered on an undiagnosed
+  cause.
+- An inline constant-address access (`*(T *)((char *)&SYM + OFF)`) folds
+  at the front end into a per-use address constant: offset in the reloc,
+  no `addiu`, no shared base register, and the pointer web gone. If the
+  target materializes a base address once (`lui`/`addiu` of the bare
+  symbol) and reuses it with plain offsets, the source needs a real
+  pointer variable; the two forms differ in instruction structure and web
+  population, not just allocation.
+- Declare every callee with its evidenced signature before any shape or
+  allocation work. An undeclared callee defaults to implicit int, and its
+  dead `$v0` definition at each call site excludes `$v0` from block-local
+  temporaries born after the call (until the next `$v0` write) — an
+  allocation rotation no source shape can undo. A target that uses `$v0`
+  as scratch immediately after a call is positive evidence the callee is
+  void.
 - Flat-initialized lookup tables written in natural ascending offset order:
   parallel arrays (e.g. a pointer run adjacent to a u16 count run) whose
   values are arithmetically related — each pointer the running sum of the
