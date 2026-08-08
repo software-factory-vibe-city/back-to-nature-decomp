@@ -6,6 +6,7 @@ import { ROOT } from "../decompToolchain.js";
 import { deterministicRunId, hashDirectoryFiles, preserveSource, stableJson, writeStableJson } from "./artifacts.js";
 import { classifyHypothesis } from "./classify-hypothesis.js";
 import { findGeneratedGlobalDefinitions, resolveHypotheses, validateManifest, validateVariantSource } from "./manifest.js";
+import { normalizeDisassembly, parseCc1Assembly } from "./compile.js";
 import { comparePassSnapshots, snapshotPassContent } from "./pass-diff.js";
 import { generateTransformationVariants } from "./transformations.js";
 import { PASS_STAGES, type PassSnapshot, type PassStage, type ToolIdentity, type VariantHypothesis } from "./types.js";
@@ -314,4 +315,26 @@ test("func_800154CC regression explains tag-result web reuse and branch-join mas
   const maskPlacement = comparePassSnapshots(snapshots(), snapshots({ sched: scheduled }));
   assert.equal(maskPlacement.firstDivergence?.stage, "sched");
   assert.match(maskPlacement.firstDivergence?.summary || "", /instruction 0 changed/);
+});
+
+test("cc1's base-instruction negation and the disassembler's alias canonicalize alike", () => {
+  const directory = mkdtempSync(join(ROOT, "build/variant-alias-test-"));
+  try {
+    const path = join(directory, "negate.s");
+    writeFileSync(path, ["\tsubu\t$8,$0,$5", "\tsubu\t$4,$4,$6"].join("\n"));
+    const compiled = parseCc1Assembly(path);
+    const disassembled = normalizeDisassembly([
+      { address: 0, mnemonic: "negu", operands: ["t0", "a1"], operandText: "t0,a1", raw: "negu t0,a1" },
+      { address: 4, mnemonic: "subu", operands: ["a0", "a0", "a2"], operandText: "a0,a0,a2", raw: "subu a0,a0,a2" },
+    ]);
+
+    /* The same encoding, spelled two ways, must not read as a divergence. */
+    assert.deepEqual(compiled.map((one) => one.canonical), ["negu t0,a1", "subu a0,a0,a2"]);
+    assert.deepEqual(disassembled.map((one) => one.canonical), ["negu t0,a1", "subu a0,a0,a2"]);
+
+    /* A genuine three-operand subtraction keeps its own identity. */
+    assert.notEqual(compiled[0]!.canonical, compiled[1]!.canonical);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

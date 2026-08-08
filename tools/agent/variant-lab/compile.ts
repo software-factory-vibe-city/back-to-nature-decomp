@@ -48,6 +48,18 @@ function normalizeBranch(mnemonic: string, operands: string[]): { mnemonic: stri
   return { mnemonic: normalizedMnemonic, operands: normalizedOperands };
 }
 
+/* cc1 spells negation as the base instruction (`subu $t0,$zero,$a1`) while the
+ * disassembler prints the alias (`negu t0,a1`) for the identical encoding, so a
+ * byte-exact candidate reads as a divergence unless both sides collapse. Only
+ * aliases with exactly one encoding belong here: `negu`/`neg` qualify, `move`
+ * does not (it is `addu` or `or`, which are different words). */
+function normalizeAlias(mnemonic: string, operands: string[]): { mnemonic: string; operands: string[] } {
+  if ((mnemonic === "subu" || mnemonic === "sub") && operands.length === 3 && operands[1] === "zero") {
+    return { mnemonic: mnemonic === "subu" ? "negu" : "neg", operands: [operands[0], operands[2]] };
+  }
+  return { mnemonic, operands };
+}
+
 export function parseCc1Assembly(path: string): NormalizedInstruction[] {
   const instructions: NormalizedInstruction[] = [];
   for (const rawLine of readFileSync(path, "utf8").split("\n")) {
@@ -75,8 +87,9 @@ export function parseCc1Assembly(path: string): NormalizedInstruction[] {
       return relocation ? `%${relocation[1]}(${canonicalSymbol(relocation[2])})` : canonicalNumbers(operand);
     });
     const branch = normalizeBranch(mnemonic, operands);
-    mnemonic = branch.mnemonic;
-    operands = branch.operands;
+    const alias = normalizeAlias(branch.mnemonic, branch.operands);
+    mnemonic = alias.mnemonic;
+    operands = alias.operands;
     if (mnemonic === "li" && operands.length === 2 && /^-?\d+$/.test(operands[1])) {
       const value = Number(operands[1]);
       if (value < -32768 || value > 65535) {
@@ -113,11 +126,12 @@ export function normalizeDisassembly(instructions: DisassembledInstruction[]): N
     }
     operands = operands.map((operand) => operand.startsWith("%") ? operand : canonicalNumbers(operand));
     const branch = normalizeBranch(instruction.mnemonic, operands);
+    const alias = normalizeAlias(branch.mnemonic, branch.operands);
     return {
-      mnemonic: branch.mnemonic,
-      operands: branch.operands,
+      mnemonic: alias.mnemonic,
+      operands: alias.operands,
       relocation,
-      canonical: `${branch.mnemonic} ${branch.operands.join(",")}`,
+      canonical: `${alias.mnemonic} ${alias.operands.join(",")}`,
     };
   });
 }
