@@ -1,5 +1,8 @@
 #include "common.h"
 
+s32 D_8005E5B4;
+s32 D_8005E5CC;
+
 void SetVal8005E2BC(s32); /* extern */
 void SetVal8005E334(s32); /* extern */
 

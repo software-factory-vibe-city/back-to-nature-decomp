@@ -1,7 +1,7 @@
 #include "common.h"
 #include "psyq/libpad.h"
 
-extern s32 D_8005E3EC;
+s32 D_8005E3EC;
 
 void func_80014064(void) {
     PadInitDirect((unsigned char *)&D_8005E9C8, (unsigned char *)&D_8005E9C8 + 0x22);

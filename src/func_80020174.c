@@ -1,6 +1,6 @@
 #include "common.h"
 
-extern s32 D_8005E550;
+s32 D_8005E550;
 
 s32 func_80020174(s32 arg0, s32 arg1) {
     s32 idx;

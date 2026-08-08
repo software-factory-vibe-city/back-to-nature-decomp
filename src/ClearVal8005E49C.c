@@ -1,6 +1,7 @@
 #include "common.h"
 
-extern s16 D_8005E49C;
+s16 D_8005E49C;
+s16 D_8005E49E;
 
 void ClearVal8005E49C(void) {
     D_8005E49C = 0;

@@ -1,5 +1,15 @@
 #include "common.h"
 
+s32 D_8005E500;
+s32 D_8005E504;
+s32 D_8005E508;
+s32 D_8005E50C;
+s32 D_8005E510;
+s32 D_8005E514;
+BoundsStruct_8001E878 *D_8005E518;
+s32 D_8005E51C;
+s32 D_8005E528;
+
 /* Three s16 fields accessed at offsets 0, 2, 4 */
 typedef struct {
     s16 field_0;

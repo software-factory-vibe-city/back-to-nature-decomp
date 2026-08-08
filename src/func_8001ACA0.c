@@ -1,8 +1,8 @@
 #include "common.h"
 
-extern s16 D_8005E454;
-extern s16 D_8005E460;
-extern s16 D_8005E468;
+s16 D_8005E454;
+s16 D_8005E460;
+s16 D_8005E468;
 
 void func_8001ACA0(void) {
     s16 temp_v1;

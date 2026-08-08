@@ -1,7 +1,7 @@
 #include "common.h"
 
 void func_8001E878(s32, s32, s32);
-extern s32 D_8005E4F0;
+s32 D_8005E4F0;
 
 /* POLICY EXCEPTION (user-approved 2026-07-31): file-scope register variable
  * pinned to $2/$v0. GCC never deletes stores to a global register variable

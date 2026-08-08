@@ -36,13 +36,6 @@
  *    layout; only the displacements change).
  */
 
-/* Owned by this translation unit. The target reaches this global
- * gp-relatively, and ASPSX emits gp-relative accesses only for symbols the
- * file itself declares; an external reference always expands through $at
- * (measured against ASPSX 2.77 — see the research note above, section 3).
- * The tentative definition makes cc1 emit .comm, which the linker resolves
- * against the extracted .sdata definition at 0x8005E438. This requires
- * --use-comm-section in MASPSX_FLAGS, or maspsx allocates a private .sbss. */
 u16 D_8005E438;
 
 s32 func_80016B7C(s32 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4); /* extern */

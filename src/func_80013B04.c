@@ -11,6 +11,9 @@
  * vary, and no amount of source rearrangement recovers the position.
  */
 
+s32 D_8005E2A4[2];
+s16 D_8005E3E8[2];
+
 void func_80013F90(Struct80013F90 *arg0);
 s32 func_800140C8(s32 arg0);
 void func_80013CD0(void *arg0, s32 arg1);

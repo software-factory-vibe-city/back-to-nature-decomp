@@ -1,10 +1,10 @@
 #include "common.h"
 
-extern s32 D_8005E5A8;
-extern s32 D_8005E5AC;
-extern s32 D_8005E5B4;
-extern s32 D_8005E5C4;
-extern s32 D_8005E5C8;
+s32 D_8005E5A8;
+s32 D_8005E5AC;
+s32 D_8005E5B4;
+s32 D_8005E5C4;
+s32 D_8005E5C8;
 
 s32 func_8002261C(s32 arg0, s32 arg1) {
     s32 var_a2;

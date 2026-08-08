@@ -21,6 +21,11 @@
 
 #include "common.h"
 
+s32 D_8005E540;
+s32 D_8005E550;
+s32 D_8005E554;
+s32 D_8005E560;
+
 void func_8001FF98(void) {
     s32 row;
     s32 col;

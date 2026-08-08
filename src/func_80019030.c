@@ -1,7 +1,6 @@
 #include "common.h"
 
-/* Full asm block: lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2.
- * Use PSX GCC style symbol names -- GNU as with -G8 + .extern handles GP-relative. */
+/* Full asm block: lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2. */
 __asm__(
 "\n"
 "\t.set\tnoreorder\n"
@@ -27,8 +26,8 @@ __asm__(
 "\taddu\t$2,$5,$0\n"
 "\t.set\treorder\n"
 "\t.end\tfunc_80019030\n"
-"\t.extern\tD_8005E47A,2\n"
-"\t.extern\tD_8005E444,2\n"
-"\t.extern\tD_8005E4A8,4\n"
-"\t.extern\tD_8005E2BA,2\n"
+"\t.comm\tD_8005E47A,2\n"
+"\t.comm\tD_8005E444,2\n"
+"\t.comm\tD_8005E4A8,4\n"
+"\t.comm\tD_8005E2BA,2\n"
 );

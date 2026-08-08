@@ -43,5 +43,5 @@ __asm__(
 "_80017AC4:\n"
 "\tj\t$31\n"
 "\t.end\tfunc_80017AA0\n"
-"\t.extern\tD_8005E44C, 2\n"
+"\t.comm\tD_8005E44C,2\n"
 );

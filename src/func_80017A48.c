@@ -1,6 +1,6 @@
 #include "common.h"
 
-extern u32 D_8005E450;
+u32 D_8005E450;
 
 void func_80017A48(u32 arg0) {
     u32 var_a0;

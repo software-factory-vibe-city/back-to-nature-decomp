@@ -1,6 +1,7 @@
 #include "common.h"
 
-extern u16 D_8005E444;
+u16 D_8005E444;
+u16 D_8005E446;
 
 /* Commits/ends the event tracked by D_8005E446: if the flag is 1 (started) or
  * 3 (another active state), clears the flag back to 0 (idle) and increments

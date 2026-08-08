@@ -69,15 +69,19 @@ void func_80021FD0(void);
    R_MIPS_GPREL16. */
 extern s32 D_80010098;
 extern s32 D_8001009C;
-extern s32 D_8005E27C;
-extern s32 D_8005E284;
-extern s32 D_8005E288;
-extern s32 *D_8005E384;
-extern s32 D_8005E388;
-extern s32 D_8005E398;
-extern u32 D_8005E39C;
-extern s32 D_8005E3A4;
-extern s32 *D_8005E3B4;
+s32 D_8005E27C;
+s32 D_8005E284;
+s32 D_8005E288;
+s32 *D_8005E384;
+s32 D_8005E388;
+s32 D_8005E398;
+u32 D_8005E39C;
+s32 D_8005E3A4;
+struct GfxObj *D_8005E3A8;
+struct GfxObj *D_8005E3AC;
+s32 *D_8005E3B4;
+struct_8005E3C0 *D_8005E3C0;
+
 /* D_8005E5D8 and D_8005E5E8 declared in globals_override.h as large arrays
    for absolute lui/lw addressing under -G8 */
 

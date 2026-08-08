@@ -24,5 +24,5 @@ __asm__ (
     "\t.end\tfunc_8001205C\n"
     "\n"
     "\t.sdata\n"
-    "\t.extern\tD_8005E3B0,4\n"
+    "\t.comm\tD_8005E3B0,4\n"
 );

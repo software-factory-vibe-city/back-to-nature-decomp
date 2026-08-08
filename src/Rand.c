@@ -1,6 +1,6 @@
 #include "common.h"
 
-extern u32 D_8005E290;
+u32 D_8005E290;
 
 /*
  * Linear congruential generator (LCG) matching the glibc/ANSI C rand() parameters:

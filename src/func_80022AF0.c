@@ -1,7 +1,7 @@
 #include "common.h"
 
 extern s16 D_8005597C[];
-extern u32 D_8005E5AC;
+u32 D_8005E5AC;
 
 s16 func_80022AF0(void) {
     u32 var_v1;

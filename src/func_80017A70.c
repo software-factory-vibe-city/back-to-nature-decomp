@@ -1,5 +1,7 @@
 #include "common.h"
 
+u16 D_8005E44C;
+
 /*
  * Sets D_8005E44C (a mode/state s16) by looking up arg0 in the table D_80049050.
  * arg0 is clamped to 2 if it is >= 3 (i.e. out-of-range values are treated as

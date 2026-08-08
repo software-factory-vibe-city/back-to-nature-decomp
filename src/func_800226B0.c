@@ -1,6 +1,6 @@
 #include "common.h"
 
-extern s32 D_8005E5B4;
+s32 D_8005E5B4;
 
 s32 func_800226B0(void) {
     s32 temp_v1;

@@ -1,11 +1,11 @@
 #include "common.h"
 
-extern s16 D_8005E294;
-extern s32 D_8005E298;
-extern s16 D_8005E2A0;
-extern s16 D_8005E3CC;
-extern s16 D_8005E3CE;
-extern s32 D_8005E3D0;
+s16 D_8005E294;
+s32 D_8005E298;
+s16 D_8005E2A0;
+s16 D_8005E3CC;
+s16 D_8005E3CE;
+s32 D_8005E3D0;
 
 void func_800132B8(s32 arg0, s32 arg1, s32 arg2) {
     s32 temp_v0;

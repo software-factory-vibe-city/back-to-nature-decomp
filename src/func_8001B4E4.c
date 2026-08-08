@@ -1,9 +1,9 @@
 #include "common.h"
 
-extern s32 D_8005E4C8;
-extern s16 D_8005E4C4;
-extern s16 D_8005E4D0;
-extern s16 D_8005E4C0;
+s16 D_8005E4C0;
+s16 D_8005E4C4;
+s32 D_8005E4C8;
+s16 D_8005E4D0;
 
 void func_8001B4E4(s32 arg0) {
     struct_8005E870 *ep;

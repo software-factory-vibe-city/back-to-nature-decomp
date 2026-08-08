@@ -1,12 +1,14 @@
 #include "common.h"
 
-extern s16 D_8005E344;
-extern s32 D_8005E348;
-extern s16 D_8005E34C;
-extern s32 D_8005E350;
-extern s16 D_8005E354;
-extern s16 D_8005E358;
-extern s32 D_8005E35C;
+s16 D_8005E344;
+s32 D_8005E348;
+s16 D_8005E34C;
+u16 D_8005E34E;
+s32 D_8005E350;
+s16 D_8005E354;
+u16 D_8005E356;
+s16 D_8005E358;
+s32 D_8005E35C;
 
 void func_80023100(void) {
     D_8005E344 = 0;

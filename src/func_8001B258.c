@@ -1,7 +1,7 @@
 #include "common.h"
 
 extern void (*D_8001021C[])(s32);
-extern s16 D_8005E4C4;
+s16 D_8005E4C4;
 
 void func_8001B258(void) {
     s32 var_s0 = 0;

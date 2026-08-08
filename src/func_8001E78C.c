@@ -37,5 +37,5 @@ __asm__(
 "\t.set\tmacro\n"
 "\t.set\treorder\n"
 "\t.end\tfunc_8001E78C\n"
-"\t.extern\tD_8005E520, 4\n"
+"\t.comm\tD_8005E520,4\n"
 );

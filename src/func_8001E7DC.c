@@ -1,6 +1,6 @@
 #include "common.h"
 
-extern s32 D_8005E520;
+s32 D_8005E520;
 
 s32 func_8001E7DC(s32 *arg0, s32 *arg1) {
     s32 bound;

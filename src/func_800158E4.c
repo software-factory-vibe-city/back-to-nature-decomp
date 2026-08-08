@@ -21,6 +21,8 @@
 #include "common.h"
 #include "game_types.h"
 
+s32 D_8005E43C;
+
 /* {count, byte offset} pair from the animation index table (field_28) */
 typedef struct {
     /* 0x00 */ s16 count;   /* number of frames in this animation */
