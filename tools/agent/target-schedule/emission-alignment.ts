@@ -235,8 +235,22 @@ export function alignFinalRtlToMachine(
   if (attribution && attribution.packets.length > 0) {
     const attributed = linkFromAttribution(machine, attribution);
     if (attributed) {
+      /* Attribution supplies the links, but the zero-width classification is
+       * separate evidence about the RTL itself. Returning an empty alignment
+       * made the report claim zero proven zero-width nodes where the trace
+       * still contains them. */
+      const zeroWidthOnly: EmissionAlignmentEntry[] = finalInstructions
+        .map((instruction) => ({ instruction, emission: classifyRtlEmission(instruction) }))
+        .filter((item) => item.emission.classification === "zero-width")
+        .map((item) => ({
+          rtlUid: item.instruction.uid,
+          rtlOrder: item.instruction.order,
+          kind: "zero-width" as const,
+          confidence: item.emission.confidence,
+          evidence: item.emission.evidence,
+        }));
       return {
-        alignment: [],
+        alignment: zeroWidthOnly,
         links: attributed.links,
         caveats: [
           "Emission links come from cc1 -dp, not from canonical matching.",
