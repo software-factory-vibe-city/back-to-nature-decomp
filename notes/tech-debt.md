@@ -1,9 +1,10 @@
 # Tech debt: functions that are assembly, not C
 
 **Re-measured 2026-08-08** against the tree at that date, after retiring
-`func_80017EE4`. Regenerate the inventory before acting on it — the counts
+`func_8001205C`. Regenerate the inventory before acting on it — the counts
 below are a snapshot, and every hand-maintained version of them has gone stale
-(see "Corrections" at the end).
+(see "Corrections" at the end). The previous "19 whole-body / 15 debt" figures
+had already drifted by five retirements when this measurement was taken.
 
 This note covers **functions whose body is a raw `__asm__` block**. It does not
 cover `INCLUDE_ASM` stubs, which are honest not-yet-decompiled work and are
@@ -85,6 +86,41 @@ Once merged, `func_80017EE4` matched as ordinary C89 on the first shape that
 respected GCC 2.95's `expand_end_loop` rotation — no asm, no flag override, no
 register pinning. The source comment records which shape and why.
 
+## Check the declaration before concluding "the allocator won't do it"
+
+`func_8001205C` was the second entry retired for a reason that was not codegen,
+and it cost a capable agent a whole session of doc-reading. Its residual was one
+word: the target reads `D_8005E328` with the single-register self-clobber pair
+`lui $a1,%hi(sym)` / `lw $a1,%lo(sym)($a1)`, the candidate emitted the split
+two-register form. ADR-0001 §4 says recovering that pair by reshaping the C is
+*proven unreachable*, so the obstacle read as a wall.
+
+It was not. The pair was unreachable **because the declaration was wrong**.
+`D_8005E328` had been over-declared as `s32 [3]` to "force absolute addressing
+under -G8" — reasoning that was correct before ADR-0001 §2.4 and is backwards
+after it. Since §2.4 the two decisions are independent:
+
+| Question | Decided by |
+|---|---|
+| GP-relative or absolute? | whether **this TU defines** the symbol — size is irrelevant |
+| unsplit macro (self-clobber) or split pair? | the **declared size** against `-G8` |
+
+Widening bought nothing, because absolute addressing never depended on size,
+and cost the match, because cc1 then split the address. A scalar declaration
+fixed it with no change to the C at all.
+
+**The general rule: when the target uses a form the allocator "cannot"
+produce, check what the symbol is declared as before believing the
+impossibility result.** Same shape as the boundary case above — a fact outside
+the function makes the function look inexpressible. Two cheap checks:
+
+- **Does the same file already contradict you?** `func_8001205C` reads
+  `D_8001009C` (scalar) as the matching self-clobber pair and `D_8007AFF4`
+  (genuinely 12 bytes) as a genuine split, three lines apart.
+- **Is the declaration's comment older than 2026-08-08?** Comments claiming a
+  size controls the addressing mode predate §2.4 and are now false. ADR-0001
+  §4.1 states the current rule.
+
 ## Inventory
 
 Measured by classifying every `src/*.c` containing `__asm__`. The distinction
@@ -92,7 +128,7 @@ matters and earlier counts blurred it:
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 19 | 15 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 16 | 14 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
 | Register pins / scheduling barriers | 3 | other note |
@@ -128,7 +164,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
 | Function | Instrs | Owns | Stated reason |
 |---|---:|---|---|
-| `func_8001205C` | 15 | `D_8005E3B0` | none |
 | `func_80019030` | 16 | `D_8005E2BA` `D_8005E444` `D_8005E47A` `D_8005E4A8` | **stale** — "lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2" |
 | `func_80024408` | 16 | — | none |
 | `func_8001E78C` | 20 | `D_8005E520` | none |
@@ -144,7 +179,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none |
 
-**None of the 15 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 14 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -156,15 +191,13 @@ nothing today asserts they are supposed to be assembly.
 | `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
 | `func_8001FD74` | 2026-08-10 | 4-instruction Boolean getter: `return D_80061F1C != 0;`. Matched as clean C89 on first shape. `make check` passes. |
 | `func_80017AA0` | 2026-08-13 | 11-instruction mode encoder: loads `D_8005E44C` as `s16`, returns 0/2/1 depending on value. Matched as clean C89 on first shape. Required changing `D_8005E44C` from `u16` to `s16` in `globals_override.h` to emit `lh` instead of `lhu`. `make check` passes. |
+| `func_8001205C` | 2026-08-08 | 15-instruction arithmetic expression over four globals. Not a codegen problem: `D_8005E328` had been over-declared as `s32 [3]` in `globals_override.h`, which forces the split two-register address where the target uses the unsplit self-clobber pair. Declaring it as a scalar took it from 12/15 to 15/15 on the existing C. `make check` passes. |
 | `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones first.** `func_8001205C` (15),
-
-**Then the small ones with a known shape** — `func_8001205C`,
-`func_80019030`, `func_8001E78C`,
-`func_80024408` (15–20 instructions).
+**The smallest ones with a known shape first** — `func_80019030` (16),
+`func_80024408` (16), `func_8001E78C` (20).
 
 `func_80019030` is the sharpest test in the set: its recorded obstacle is a
 concrete, falsifiable codegen claim (`lh` where the candidate emits `lhu`),
@@ -181,7 +214,8 @@ handling rather than by the source statement order. Read
 
 **Then the rest** (22–44 instructions), ordinary decompilation work.
 
-**Carry the GP-relative facts across.** Five of the sixteen own globals. In C
+**Carry the GP-relative facts across.** Three of the fourteen own globals
+(`func_80019030`, `func_80013394`, `func_8001E78C`). In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`
 reports any file that reaches a global through `$gp` but addresses it
@@ -218,6 +252,27 @@ permission outlived what it was granted for. `func_80019070` and
 barrier respectively and are *not* listed — the allowlist under-describes the
 tree in both directions.
 
+**The linker script can go stale silently, and it looks like a source bug.**
+`Makefile:106` lists `$(LD_SCRIPT)` as a link prerequisite but **nothing has a
+rule to build it** — only `make split` produces it, and the four symbol
+`INCLUDE` lines are appended by shell *after* splat runs:
+
+```make
+@printf 'INCLUDE "build/undefined_funcs_auto.txt"\nINCLUDE "build/undefined_syms_auto.txt"\n' >> $(LD_SCRIPT)
+```
+
+So a bare `splat split`, or a `make split` interrupted in its last few lines,
+leaves a linker script missing 146 undefined-symbol definitions plus the lib
+bss set. Every `.bss` symbol at or above `0x8005E850` then goes undefined —
+984 errors that name `func_80011370` and read as a decompilation defect, hours
+after the actual event. This happened on 2026-08-08 and cost a full
+investigation. **Symptom to recognise:** mass `undefined reference to D_…` for
+bss addresses, while `build/undefined_syms_auto.txt` still contains them —
+check `tail -4 build/slus_011.ld` for the `INCLUDE` lines, and re-run
+`make split`. Two fixes, neither applied yet: a fast guard in `make check`
+that fails with "run make split" when the includes are absent, or a real Make
+rule for `$(LD_SCRIPT)` so an incomplete script cannot survive.
+
 **Boundary artifacts beyond the merged case.** A binary-wide scan found nine
 symbol pairs with a conditional branch crossing between them and three symbols
 with no terminator. Most resolve to the two merge groups `make split` now
@@ -229,8 +284,8 @@ do not feed them to `mergeFragments` expectations.
 
 `notes/next-steps-for-revisiting-the-project.md` lists "Raw `__asm__` embeds
 (bad) | 5" naming `func_8001205C`, `func_80015AAC`, `func_80017E34`,
-`func_80021604`, `func_80022014`. All five are real and are in the table above,
-but the count is not 5.
+`func_80021604`, `func_80022014`. Four of the five are real and are in the
+table above; `func_8001205C` has since been retired. The count is not 5.
 
 This note's own previous count — "20 files, 18 debt" — was also wrong, in the
 other direction: it missed `func_8001D2D8` and `func_8001F278` (both
