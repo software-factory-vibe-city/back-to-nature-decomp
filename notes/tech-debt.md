@@ -92,7 +92,7 @@ matters and earlier counts blurred it:
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 21 | 19 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 21 | 18 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
 | Register pins / scheduling barriers | 3 | other note |
@@ -128,7 +128,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
 | Function | Instrs | Owns | Stated reason |
 |---|---:|---|---|
-| `func_80021D64` | 3 | — | none |
 | `func_8001FD74` | 4 | — | none |
 | `func_80017AA0` | 11 | `D_8005E44C` | none (comment describes behaviour) |
 | `func_80017A70` | 12 | `D_8005E44C` | none (comment describes behaviour) |
@@ -148,7 +147,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none |
 
-**None of the 19 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 18 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -157,26 +156,15 @@ nothing today asserts they are supposed to be assembly.
 | Function | Retired | Result |
 |---|---|---|
 | `func_80017EE4` | 2026-08-08 | Symbol boundary was wrong; three symbols merged into one 0x4C function, then matched as clean C89. `make check` passes. |
+| `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
 
 ## What research each group needs
 
-**The two tiny ones first.** They are small enough to read whole and they are
-not the same problem:
-
-- `func_8001FD74` (4) — `lui`/`lw` of `D_80061F1C`, then `sltu $v0,$zero,$v0`.
-  That is `return D_80061F1C != 0;`. The symbol is outside the `$gp` window and
-  already declared absolute in `globals.h`, so nothing about addressing is in
-  play. This one should simply be written.
-- `func_80021D64` (3) — `addiu $sp,$sp,-16` / `jr $ra` / `addiu $sp,$sp,16`: a
-  function that allocates a 16-byte frame and does nothing with it. GCC 2.95
-  gives an empty function no frame at all, and 16 bytes is exactly the o32
-  minimum outgoing-argument area, so the question to answer is *what made the
-  original allocate one* — a call that was compiled out, or a stubbed body.
-  Do not guess; find the shape that produces the frame.
-
-**Run the boundary check on both before anything else.** That is what the
-third member of this group turned out to need, and `func_80021D64` in
-particular — three instructions with no body — has the shape that warrants it.
+**The smallest one first.** `func_8001FD74` (4) — `lui`/`lw` of
+`D_80061F1C`, then `sltu $v0,$zero,$v0`. That is `return D_80061F1C != 0;`.
+The symbol is outside the `$gp` window and already declared absolute in
+`globals.h`, so nothing about addressing is in play. This one should simply
+be written.
 
 **Then the small ones with a known shape** — `func_80017AA0`,
 `func_80017A70`, `func_8001205C`, `func_80019030`, `func_8001E78C`,
