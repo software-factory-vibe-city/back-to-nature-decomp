@@ -5,7 +5,7 @@ build/
 !tools/build/
 tools/build/*
 !tools/build/genProjectProfile.ts
-!tools/build/fixSmallDataExterns.ts
+!tools/build/deriveTuOwnedGlobals.ts
 tools/vendor/old-gcc/build-gcc-*/
 tools/vendor/homebrew-psyq/
 # Logs
