@@ -1,6 +1,6 @@
 #include "common.h"
 
-u16 D_8005E44C;
+s16 D_8005E44C;
 
 /*
  * Sets D_8005E44C (a mode/state s16) by looking up arg0 in the table D_80049050.

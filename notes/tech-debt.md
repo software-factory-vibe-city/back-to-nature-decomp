@@ -92,7 +92,7 @@ matters and earlier counts blurred it:
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 20 | 17 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 19 | 16 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
 | Register pins / scheduling barriers | 3 | other note |
@@ -128,7 +128,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
 | Function | Instrs | Owns | Stated reason |
 |---|---:|---|---|
-| `func_80017AA0` | 11 | `D_8005E44C` | none (comment describes behaviour) |
 | `func_80017A70` | 12 | `D_8005E44C` | none (comment describes behaviour) |
 | `func_8001205C` | 15 | `D_8005E3B0` | none |
 | `func_80019030` | 16 | `D_8005E2BA` `D_8005E444` `D_8005E47A` `D_8005E4A8` | **stale** — "lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2" |
@@ -146,7 +145,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none |
 
-**None of the 17 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 16 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -157,16 +156,17 @@ nothing today asserts they are supposed to be assembly.
 | `func_80017EE4` | 2026-08-08 | Symbol boundary was wrong; three symbols merged into one 0x4C function, then matched as clean C89. `make check` passes. |
 | `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
 | `func_8001FD74` | 2026-08-10 | 4-instruction Boolean getter: `return D_80061F1C != 0;`. Matched as clean C89 on first shape. `make check` passes. |
+| `func_80017AA0` | 2026-08-13 | 11-instruction mode encoder: loads `D_8005E44C` as `s16`, returns 0/2/1 depending on value. Matched as clean C89 on first shape. Required changing `D_8005E44C` from `u16` to `s16` in `globals_override.h` to emit `lh` instead of `lhu`. `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones first.** `func_80017AA0` (11),
+**The smallest ones first.** `func_80017A70` (12),
 
-**Then the small ones with a known shape** — `func_80017AA0`,
-`func_80017A70`, `func_8001205C`, `func_80019030`, `func_8001E78C`,
-`func_80024408` (11–20 instructions). Two of them — `func_80017AA0` and
-`func_80017A70` — already carry a comment describing what they compute, which
-is most of the decompilation work already done.
+**Then the small ones with a known shape** — `func_80017A70`,
+`func_8001205C`, `func_80019030`, `func_8001E78C`,
+`func_80024408` (12–20 instructions). `func_80017A70` already carries a comment
+describing what it computes, which is most of the decompilation work already
+done.
 
 `func_80019030` is the sharpest test in the set: its recorded obstacle is a
 concrete, falsifiable codegen claim (`lh` where the candidate emits `lhu`),
@@ -183,7 +183,7 @@ handling rather than by the source statement order. Read
 
 **Then the rest** (22–44 instructions), ordinary decompilation work.
 
-**Carry the GP-relative facts across.** Six of the nineteen own globals. In C
+**Carry the GP-relative facts across.** Five of the sixteen own globals. In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`
 reports any file that reaches a global through `$gp` but addresses it

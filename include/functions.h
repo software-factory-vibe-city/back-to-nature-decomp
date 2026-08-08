@@ -280,6 +280,7 @@ void func_80017A38(s16 arg0, s16 arg1);
 void func_80017A48(u32 arg0);
 u32 func_80017A64(void);
 void func_80017A70(u32 arg0);
+s32 func_80017AA0(void);
 void func_80017ACC(void);
 void func_80017AE8(void);
 s16 func_80017B30(void);

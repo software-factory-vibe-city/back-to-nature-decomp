@@ -139,8 +139,8 @@ extern s32 D_8005E550;
 extern s32 D_8005E554;
 extern s32 D_8005E560;
 
-/* D_8005E44C - GP-relative u16 scalar */
-extern u16 D_8005E44C;
+/* D_8005E44C - GP-relative s16 scalar (loaded with lh by func_80017AA0) */
+extern s16 D_8005E44C;
 
 /* D_8005E47A - used as signed halfword (lh) */
 extern s16 D_8005E47A_s __asm__("D_8005E47A");
