@@ -241,6 +241,7 @@ void ClearVal8005E49C(void);
 void ClearVal8005E4B0(void);
 void CopyVec3(Vec3 *dest, Vec3 *src);
 void func_80011270(void);
+void func_80011370(void);
 void func_80011EE8(void);
 s32 func_800129E8(void);
 void func_800129F4(void);

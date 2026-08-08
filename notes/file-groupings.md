@@ -183,10 +183,12 @@ Members (address order):
   first member of the `-mno-split-addresses` renderer/driver TU, but its lack
   of symbolic references makes the flag byte-inert
   (see research/func_80016280-web-parity-and-register-recurrence.md)
-- func_800165D8 (m) — larger direct-primitive renderer; matched with the
-  same -mno-split-addresses per-file flag as func_80016C08 (independent
-  evidence: unsplit D_8005E3C0 macro load in its tag-insert arm), making the
-  flag a TU-level fact for this group
+- func_800165D8 (m) — larger direct-primitive renderer; shares the absolute
+  (non-gp-relative) D_8005E3C0 access with func_80016C08, which is the real
+  TU-level fact for this group: neither file owns that symbol. Both were
+  previously matched with a -mno-split-addresses per-file flag; that flag was
+  withdrawn 2026-08-08 and both match under baseline flags
+  (`notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md`)
 - func_80016B7C (m) — sprite data size calculator; calls func_80015B24 (entry
   search/bcmp) + func_8001782C (tile load/LoadImage); sole caller is
   func_80016C08
@@ -195,6 +197,38 @@ Members (address order):
   emits gp-relative for symbols the file itself declares. That rule makes any
   gp-relative access in the original a TU-membership signal — see
   `notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md`
+
+## Boot / main-loop TU (0x80011370 – 0x800128DC)
+
+Confidence: **high** — shared gp-relative cluster, the strongest signal this
+ledger recognises.
+
+Evidence: these functions reach the 0x8005E27C–0x8005E3C0 small-data cluster
+GP-relatively, and every other function in the binary reaches the same symbols
+absolutely. Under the ASPSX rule recorded for func_80016C08 (gp-relative only
+for symbols the file itself declares), that makes them one translation unit —
+the one that owns the cluster. The six symbols observed both ways are
+D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4 and D_8005E3C0;
+40+ functions outside this range use the absolute form.
+
+- func_80011370 (m) — game entry / main loop: init sequence then an infinite
+  loop with a 0x15-entry switch on D_8005E39C (scene id). Owns D_8005E3A8 and
+  D_8005E3AC outright (sole gp-relative accessor). Byte-verified 2026-08-08
+- func_80011C24 (s) — called at the bottom of the main loop every iteration
+- func_80011DB0 (s), func_80011F5C (s), func_80011FD8 (s) — share D_8005E3C0
+  and D_8005E3B4
+- func_8001202C (s), func_80012098 (s), func_8001231C (s), func_80012598 (s) —
+  share D_8005E3B0
+- func_800120C8 (s) — touches the widest set of the cluster; called from
+  func_80011370's init
+- func_800121D4 (s), func_800128DC (s) — share D_8005E3C0; func_800128DC is
+  called from the main loop and from several switch cases
+
+Practical consequence for anyone matching a member: a gp-relative access in
+the target is a membership signal, and a member must *declare* the symbols it
+reaches that way. Non-members must not. See
+`plans/toolchain-native-small-data-addressing.md` for how that is expressed in
+source.
 
 Technique and per-function detail for this group live in
 `notes/sprite-renderer-family-campaign.md`; the frame-size/arity diagnostic

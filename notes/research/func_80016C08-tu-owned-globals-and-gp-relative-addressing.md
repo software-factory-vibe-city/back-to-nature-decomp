@@ -1,5 +1,17 @@
 # func_80016C08: TU-owned globals, gp-relative addressing, and the ASPSX `.comm` rule
 
+> **Superseded in part, 2026-08-08 — see
+> `notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md`.**
+> The `-mno-split-addresses` override this note treats as an owner-approved
+> tracked debt (sections 12, 15, 19) has been **removed**. It was compensating
+> at the wrong stage: `D_8005E3C0` is a 4-byte scalar, so cc1 already left its
+> address unsplit; the self-clobber pair was being broken by GNU as resolving
+> the load GP-relatively, because this TU does not own the symbol.
+> `configs/tu_externs.txt` now records that ownership and both
+> `func_80016C08` and `func_800165D8` match under baseline flags, with
+> `make check` passing and no per-file compiler flag overrides anywhere in the
+> project. Sections 1-6 remain correct and are what the ADR builds on.
+
 **Date:** 2026-08-03 (sections 1-10), extended same day (11-16), re-measured
 2026-08-05 (section 17), resolved 2026-08-06 (section 19).
 **Status:** `src/func_80016C08.c` is restored clean C89 and is now a

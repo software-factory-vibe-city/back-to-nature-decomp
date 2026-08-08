@@ -25,37 +25,28 @@
 # overwrites the base register. GCC's scheduler groups the lui
 # instructions together and uses extra registers, preventing this pattern.
 
-# SetGfxClip: sequential pointer loads with self-clobbering lw pattern
-# Target: lui v0 / lw v0,0(v0) / lui v1 / lw v1,0(v1) (sequential)
-# GCC -O2: lui v0 / lui v1 / lw v0,0(v0) / lw v1,0(v1) (interleaved)
-# Barriers can't fix this because the interleaving happens at the lui level.
-CC1FLAGS_SetGfxClip := -fno-schedule-insns -fno-schedule-insns2
 
-# SetGfxOffset: same pattern as SetGfxClip - sequential lui/lw with self-clobbering loads
-# Target has lui v0 / lw v0,-7252(v0) / lui v1 / lw v1,-7256(v1)
-# Needs scheduling disabled to prevent lui grouping and register __asm__ for v0/v1.
-CC1FLAGS_SetGfxOffset := -fno-schedule-insns -fno-schedule-insns2
 
-# func_80016C08: split-address materialization of D_8005E3C0 at the loop tail.
-# Target: lui v1,%hi(D_8005E3C0) / lw v1,%lo(D_8005E3C0)(v1)  (one register)
-# GCC -O2: lui v0 / sw / sw / lw v1,%lo(...)(v0)              (two registers)
-# The address is emitted as its own RTL insn, so sched2 advances the lui across
-# the two tail stores; once the pair is not adjacent it cannot share a register.
-# Approved by the project owner 2026-08-05 after the clean-C space was measured
-# unreachable: all 20 dependence-valid tail orders, four live-range reshapes,
-# and the nine hypotheses in section 11 of
-# notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md.
-# Section 11 row 7 objects to this override on historical grounds; that
-# objection is recorded and overridden, not resolved.
-CC1FLAGS_func_80016C08 := -mno-split-addresses
 
-# func_800165D8: same TU as func_80016C08 (sprite-renderer group). The
-# D_8005E3C0 pointer load in the tag-insert arm is the unsplit assembler
-# macro form: lui a0 / lw a0,%lo(a0) adjacent with an unfillable load-delay
-# nop. Under -msplit-addresses the lui is a separate insn with no a0
-# anti-dependence, so sched2 always lifts it into the load shadow; the
-# adjacent self-clobber pair is unreachable. flagProbe fingerprint:
-# self-clobber at words 323-324 (reg $4). Same-TU witness: func_80016C08.
-# Owner-approved and allowlisted 2026-08-06; byte-verified (diffFunc
-# VERIFIED + make check).
-CC1FLAGS_func_800165D8 := -mno-split-addresses
+
+# func_80011370: NO override. The -mno-split-addresses entry that used to sit
+# here was withdrawn 2026-08-08 — it was fitted to the 21 self-clobber lui/lw
+# pairs, but the target proves split addresses were ON for this TU:
+#   0x8001143C / 0x80011444  lui $s0,%hi(D_8005E5E8) and addiu $s0,$s0,%lo()
+#                            occupy the delay slots of two *different* jal
+#   0x800116B0               lui $v0,%hi(jtbl_80010008) sits in a beqz slot
+#   0x8001189C               sw $zero,%lo(D_80070CC4)($v1) sits in a j slot
+# A single assembler macro cannot straddle a delay slot, so those lui/%lo
+# halves are separate RTL insns. Removing the override took the exact-index
+# match from 63/566 to 224/557. The self-clobber pairs are an assembler
+# question (see the D_80010098 comment in src/func_80011370.c), not a
+# compiler-flag question.
+
+# func_80016C08 / func_800165D8: the -mno-split-addresses overrides that used
+# to sit here were withdrawn 2026-08-08. They existed to force the unsplit
+# assembler macro for D_8005E3C0 (lui $v1,%hi / lw $v1,%lo($v1), one
+# register). That was the wrong lever: the symbol is a 4-byte scalar, so cc1
+# already leaves it unsplit — the pair was being broken by GNU as resolving it
+# GP-relatively, because this TU does not own it. configs/tu_externs.txt now
+# records that, and both functions match under baseline flags.
+# `make check` passes with no per-file compiler flag overrides in the project.

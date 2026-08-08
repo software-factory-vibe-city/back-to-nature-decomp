@@ -43,11 +43,11 @@ struct struct_80061DE8 {
     s32 field_1C;       /* 0x1C */
 };
 
-/* D_8005E3A8 and D_8005E3AC - graphics display object pointer arrays
- * These appear to be double-buffered display/draw environments.
- * Array size of 3 ensures >8 byte declaration for absolute addressing (lui+lw) */
-extern struct GfxObj *D_8005E3A8[3];
-extern struct GfxObj *D_8005E3AC[3];
+/* D_8005E3A8 and D_8005E3AC - graphics display object pointers
+ * Target uses GP-relative sw (4-byte scalar, within -G8 threshold).
+ * func_80011370 stores pointers here and reads them back. */
+extern struct GfxObj *D_8005E3A8;
+extern struct GfxObj *D_8005E3AC;
 
 /* D_8006C838 - array of 0x3C-byte structs used for flags
  * Accessed with 0x3C stride but accessed in 4-byte s32 words
@@ -206,13 +206,13 @@ extern s32 _D_8006C088[6][1] __asm__("D_8006C088");
 extern s32 _D_8006C0A8[6][1] __asm__("D_8006C0A8");
 #define D_8006C0A8 (_D_8006C0A8)
 
-/* D_8005E3C0 - large struct at absolute address, accessed via pointer at field 0x118 */
+/* D_8005E3C0 - pointer stored by func_80011370, accessed GP-relative.
+   Scalar declaration (4 bytes) keeps it within -G8 threshold for %gp_rel. */
 typedef struct {
     /* 0x000 */ char pad_0[0x118];
     /* 0x118 */ s32  field_118;
 } struct_8005E3C0;
-extern struct_8005E3C0 *_D_8005E3C0[3] __asm__("D_8005E3C0");
-#define D_8005E3C0 ((_D_8005E3C0[0]))
+extern struct_8005E3C0 *D_8005E3C0;
 
 /* D_8005E438 - GP-relative u16, sprite tile/entry ID storage */
 extern u16 D_8005E438;
@@ -254,5 +254,16 @@ extern s32 D_8005E2A4[2];
 /* D_8005E3E8 — GP-relative s16, per-port actuator data (func_80013B04)
  * Size 2 keeps declaration <= 8 bytes for GP-relative addressing under -G8. */
 extern s16 D_8005E3E8[2];
+
+/* D_8005E5E8 — double-buffered DRAWENV/DISPENV pair (func_80011370).
+ * Accessed at offsets 0x0..0x19A via absolute lui/addiu base in $s0.
+ * Array size forces >8-byte declaration for absolute addressing under -G8. */
+extern s32 _D_8005E5E8[104] __asm__("D_8005E5E8");
+#define D_8005E5E8 (*((s32*)_D_8005E5E8))
+
+/* D_8005E5D8 — pointer toggled between two buffer bases (func_80011370).
+ * Target uses absolute lui/lw addressing. Array size forces >8 bytes. */
+extern s32 _D_8005E5D8[3] __asm__("D_8005E5D8");
+#define D_8005E5D8 (*((s32*)_D_8005E5D8))
 
 #endif /* GLOBALS_OVERRIDE_H */

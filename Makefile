@@ -95,6 +95,7 @@ $(BUILD_DIR)/src/%.c.o: src/%.c
 	$(eval $(call FlagsSwitch,$<))
 	$(CPP) $(CPPFLAGS) $< -o $(BUILD_DIR)/src/$*.i
 	$(CC) $(CC1FLAGS) $(BUILD_DIR)/src/$*.i -o $(BUILD_DIR)/src/$*.s
+	npx tsx tools/build/fixSmallDataExterns.ts $(BUILD_DIR)/src/$*.s
 	$(MASPSX) $(MASPSX_FLAGS) --gnu-as-path $(AS) -o $@ $(ASFLAGS) $(BUILD_DIR)/src/$*.s
 
 # Assemble .s files (splat outputs to build/asm/)
