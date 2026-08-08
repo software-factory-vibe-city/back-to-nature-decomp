@@ -2,11 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/tools/homebrew-psyq" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/tools/m2c" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/tools/maspsx" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/tools/old-gcc" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/tools/psx_psyq_signatures" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/tools/silent-hill-decomp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/vendor/m2c" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/vendor/maspsx" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/vendor/old-gcc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/vendor/psx_psyq_signatures" vcs="Git" />
   </component>
 </project>
