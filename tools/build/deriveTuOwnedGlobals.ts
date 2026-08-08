@@ -27,13 +27,25 @@
  *   npx tsx tools/build/deriveTuOwnedGlobals.ts --check         # validate witnesses
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { execFileSync } from "child_process";
 import { loadPsxExeInfo, vramToRom } from "../lib/psxExeInfo.js";
+import {
+  type FunctionSpan,
+  type SymbolIndex,
+  loadFunctionSpans,
+  loadSymbolIndex,
+  resolveAddress,
+} from "../lib/symbolIndex.js";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+/* The symbol/extent readers moved to tools/lib once the per-function oracle
+ * needed them too; re-exported so existing importers keep working. */
+export { loadFunctionSpans, loadSymbolIndex, resolveAddress };
+export type { FunctionSpan, SymbolIndex };
 
 /** $gp is register 28 in the o32 ABI, and is never a scratch register. */
 const GP_REGISTER = 28;
@@ -51,133 +63,6 @@ const GP_BASE_OPCODES = new Set([
   0x2e, /* swr   */
   0x31, /* lwc1  */ 0x32, /* lwc2  */ 0x39, /* swc1  */ 0x3a, /* swc2  */
 ]);
-
-export interface FunctionSpan {
-  name: string;
-  vram: number;
-  rom: number;
-  size: number;
-  /** `c` once splat expects a C implementation, `asm` while it does not. */
-  kind: "c" | "asm";
-}
-
-/**
- * Function extents from configs/splat.yaml.
- *
- * A subsegment's size is the distance to the next subsegment of any kind, so
- * the offsets of every subsegment are collected, not only the function ones.
- */
-export function loadFunctionSpans(): FunctionSpan[] {
-  const yaml = readFileSync(join(ROOT, "configs/splat.yaml"), "utf-8");
-  const offsets: number[] = [];
-  const partial: Array<{ name: string; rom: number; vram: number; kind: "c" | "asm" }> = [];
-
-  for (const line of yaml.split("\n")) {
-    const any = line.match(/^\s*-\s*\[(0x[0-9A-Fa-f]+)/);
-    if (any) offsets.push(Number(any[1]));
-
-    const fn = line.match(
-      /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(asm|c)(?:,\s*([A-Za-z_][A-Za-z0-9_]*))?\]\s*#\s*(0x[0-9A-Fa-f]+)\s+(\S+)/,
-    );
-    if (fn) {
-      partial.push({ name: fn[3] ?? fn[5], rom: Number(fn[1]), vram: Number(fn[4]), kind: fn[2] as "c" | "asm" });
-    }
-  }
-
-  const sorted = [...new Set(offsets)].sort((a, b) => a - b);
-  return partial.map((entry) => {
-    const index = sorted.indexOf(entry.rom);
-    const next = (index >= 0 ? sorted[index + 1] : undefined) ?? entry.rom;
-    return { ...entry, size: next - entry.rom };
-  });
-}
-
-/** Every `.s` file splat generates, so data labels can be indexed by address. */
-function collectAsmFiles(directory: string, accumulator: string[] = []): string[] {
-  if (!existsSync(directory)) return accumulator;
-  for (const entry of readdirSync(directory)) {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) collectAsmFiles(path, accumulator);
-    else if (entry.endsWith(".s")) accumulator.push(path);
-  }
-  return accumulator;
-}
-
-export interface SymbolIndex {
-  /** Exact address -> symbol name. */
-  byAddress: Map<number, string>;
-  /** Ascending addresses, for resolving an interior reference to its base. */
-  addresses: number[];
-}
-
-/**
- * Address -> symbol, from the generated artifacts that already carry it.
- *
- * `dlabel`/`glabel`/`jlabel` in splat's assembly are authoritative for
- * extracted data; the `NAME = 0xADDR;` tables cover symbols that have no
- * extracted bytes. Nothing here is specific to one game.
- */
-export function loadSymbolIndex(): SymbolIndex {
-  const byAddress = new Map<number, string>();
-
-  const assignmentFiles = [
-    join(ROOT, "configs/symbol_addrs.txt"),
-    join(ROOT, "build/undefined_syms_auto.txt"),
-    join(ROOT, "build/undefined_funcs_auto.txt"),
-    join(ROOT, "build/dep_syms.txt"),
-    join(ROOT, "build/lib_bss_syms.txt"),
-  ];
-  for (const file of assignmentFiles) {
-    if (!existsSync(file)) continue;
-    for (const line of readFileSync(file, "utf-8").split("\n")) {
-      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(0x[0-9A-Fa-f]+)/);
-      if (match) byAddress.set(Number(match[2]), match[1]);
-    }
-  }
-
-  /* Data labels win over the assignment tables: they are the extracted
-   * definition, and splat regenerates them from the binary every split. */
-  for (const file of collectAsmFiles(join(ROOT, "build/asm"))) {
-    let pending: string | null = null;
-    for (const line of readFileSync(file, "utf-8").split("\n")) {
-      const label = line.match(/^\s*(?:dlabel|glabel|jlabel)\s+([A-Za-z_][A-Za-z0-9_]*)/);
-      if (label) {
-        pending = label[1];
-        continue;
-      }
-      if (!pending) continue;
-      const located = line.match(/\/\*\s*[0-9A-Fa-f]+\s+([0-9A-Fa-f]{8})\s/);
-      if (located) {
-        byAddress.set(Number(`0x${located[1]}`), pending);
-        pending = null;
-      }
-    }
-  }
-
-  return { byAddress, addresses: [...byAddress.keys()].sort((a, b) => a - b) };
-}
-
-/** The symbol an address falls in: exact name, or base symbol plus offset. */
-export function resolveAddress(index: SymbolIndex, address: number): { symbol: string; offset: number } | null {
-  const exact = index.byAddress.get(address);
-  if (exact) return { symbol: exact, offset: 0 };
-
-  let low = 0;
-  let high = index.addresses.length - 1;
-  let base: number | undefined;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    const candidate = index.addresses[mid];
-    if (candidate === undefined) break;
-    if (candidate <= address) {
-      base = candidate;
-      low = mid + 1;
-    } else high = mid - 1;
-  }
-  if (base === undefined) return null;
-  const symbol = index.byAddress.get(base);
-  return symbol === undefined ? null : { symbol, offset: address - base };
-}
 
 export interface GpAccess {
   /** Address of the instruction that made the access. */

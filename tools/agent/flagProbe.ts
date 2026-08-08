@@ -274,4 +274,4 @@ console.log(`
 Escalation bar (prompts/c-style-guide.md section 11): a fingerprint above
 PLUS a dominant flag column PLUS no contrary regional witness justifies
 proposing a per-file override in configs/flag_overrides.mk. Verify any
-adopted override with the byte verdict (diffFunc auto-verifies at 100%).`);
+adopted override with the byte verdict (\`diffFunc <func>\` must say MATCH).`);

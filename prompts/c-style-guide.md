@@ -736,7 +736,7 @@ the current output before adopting any prior session's model.
   candidate, not a measurement of the target. Verify it against the
   current `.greg` dispositions, conflicts, preferences, and allocno order
   before searching for the shape it predicts.
-- At high match depth the masked score is step-shaped: it can sit flat
+- At high match depth the word count is step-shaped: it can sit flat
   across several correct edits. Once the count delta is small, read
   web-population evidence instead — register dispositions and per-allocno
   conflicts/preferences in the dumps, and in the diff itself the copy
@@ -758,9 +758,11 @@ Before accepting a function:
 3. every nontrivial edit followed a classified diff or compiler trace;
 4. no forbidden workaround, generated-global redeclaration, `_D_` symbol, or
    C99 construct was introduced;
-5. the exact function diff is 100% AND byte-verified — a masked 100% cannot
-   see symbol identity (two same-shaped globals transposed between registers
-   still scores 100%); `diffFunc` auto-escalates to the linked-binary byte
-   verdict and only "VERIFIED" counts; and
+5. `diffFunc` reports `VERDICT: MATCH` — the function's bytes are the
+   original's, relocations included, so two same-shaped globals transposed
+   between registers appear as differing words rather than hiding behind a
+   full score. A word count of N/N is a progress reading, not the verdict:
+   `UNDETERMINED` means a relocation could not be resolved and is neither a
+   match nor a mismatch; and
 6. context export, the full binary check, modification-scope check, and
    clean-source gate pass.

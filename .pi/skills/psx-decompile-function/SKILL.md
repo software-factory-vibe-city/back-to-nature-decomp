@@ -162,11 +162,14 @@ a form is unreachable ends a search, and a failed experiment does not.
 
 ## Finish
 
-An exact instruction diff is provisional: it masks relocation fields and
-cannot distinguish same-shaped accesses to different symbols. `diffFunc`
-auto-escalates a masked 100% to a linked-binary byte comparison — only its
-"VERIFIED" verdict is a match; on a reported symbol transposition, swap the
-order of the corresponding accesses in the source.
+A function is accepted on byte-level evidence: `diffFunc` must report
+`VERDICT: MATCH`, and the full binary must still match. `diffFunc` resolves
+relocations against the original addresses before comparing, so symbol
+identity is visible in the diff itself — two same-shaped accesses to
+different globals show up as differing words, and the fix is to swap the
+order of the corresponding accesses in the source. `UNDETERMINED` is a third
+outcome, not a near-match: a relocation the tool could not resolve, named on
+its own diff line. Resolve it rather than reading past it.
 
 At a byte-verified match, call `psx_export_context` for the target and then
 `psx_finalize_function`. The finalizer independently checks the exact function,

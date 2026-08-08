@@ -55,7 +55,7 @@ They are still runnable by hand as `npx tsx tools/agent/<file>.ts`.
 
 | File | Role | Entry point? |
 |---|---|---|
-| `diffFunc.ts` | **The oracle.** Compiles one function through the configured compiler/assembler pipeline and diffs against the original with an LCS-aligned display (single insertions stay localized instead of desynchronizing every later line; count deltas are decomposed by mnemonic). Flags: `--watch`, `--columns`. | **Yes** — `npx tsx tools/agent/diffFunc.ts <func>` |
+| `diffFunc.ts` | **The per-function oracle.** Compiles one function through the configured compiler/assembler pipeline, then hands the object to `lib/functionOracle.ts`, which relocates it to the original addresses and compares it with the original image's own bytes. Reports an LCS-aligned diff (single insertions stay localized instead of desynchronizing every later line; count deltas are decomposed by mnemonic) and a verdict of MATCH / MISMATCH / UNDETERMINED. Flags: `--watch`, `--columns`, `--src <file.c>`, `--bytes`. | **Yes** — `npx tsx tools/agent/diffFunc.ts <func>` |
 | `explainDiff.ts` | Classifies structural mismatches so matching starts from a fix class rather than random edits. Also runs two semantic gates from `webAnalysis.ts`: register-web parity (missing/extra pseudos ⇒ source-semantics problem, not an allocator problem) and value-provenance auditing (same register NAME, different defining instruction). | **Yes** |
 | `webAnalysis.ts` | Shared def/use, register-web, shape-alignment, provenance, and basic-block library behind the explainDiff gates, the target-schedule web-parity gate, `mineStatementOrder.ts`, and `scanReadBeforeDef.ts`. | Library only |
 | `mineStatementOrder.ts` | Reads suspected source statement order off a target function's emission order per basic block (hi16 address-formation order ≈ first-use order of globals, stack-slot store order ≈ assignment order, delay slot ≈ last-born statement). Generalizes the store-block doctrine. | **Yes** |
@@ -124,11 +124,13 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | `resolveLibSections.ts` | Locates ROM offsets of matched libs' `.data`/`.rdata`/`.bss` sections. |
 | `extractBssSymAddrs.ts` | Computes absolute VRAM addresses of lib BSS symbols from HI16/LO16 relocation pairs. Called by `patchLinkerBss.ts`. |
 
-## tools/lib/ — shared module
+## tools/lib/ — shared modules
 
 | File | Role |
 |---|---|
 | `psxExeInfo.ts` | Single source of truth for binary constants (load addr, entry, offsets, GP) derived from the EXE header + `splat.yaml`, plus section-layout loading. Imported by all build/diagnostics tools — nothing hardcodes addresses. |
+| `symbolIndex.ts` | Address ↔ symbol in both directions, plus splat subsegment extents, read from the generated artifacts (`symbol_addrs.txt`, the auto symbol tables, splat's data labels, the linker script). A name no table covers resolves to the address splat encoded in it, or to nothing — never to a guess. |
+| `functionOracle.ts` | Relocates a compiled object's `.text` to the function's original addresses and compares it word for word with the original image. The diff and the verdict come from that one comparison, so they cannot disagree; an unresolvable relocation is reported as `undetermined` rather than rendered with a guess. Backs `agent/diffFunc.ts`. |
 
 ## tools/diagnostics/ — run by hand
 
@@ -175,7 +177,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
   tools were written when the goal was "get a buildable, verifiable binary" —
   they are solid. The older automation used a byte-only completion gate; the
   project-local Pi skills now make clean-source policy explicit while
-  `agent/diffFunc.ts` remains the exact byte oracle (see
+  `agent/diffFunc.ts` remains the exact per-function byte oracle (see
   `notes/next-steps-for-revisiting-the-project.md`).
 - **Deleted in the reorganization** (verified orphaned — zero references):
   `splitFunctions.ts` (superseded by `bootstrap.ts`),

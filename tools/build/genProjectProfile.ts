@@ -199,7 +199,7 @@ ${verifiedSentence}
 
 - Structural classification: \`npx tsx tools/agent/explainDiff.ts <func>\`
 - GCC pass/allocation trace: \`npx tsx tools/agent/compilerTrace.ts <func>\`
-- Exact per-function oracle: \`npx tsx tools/agent/diffFunc.ts <func>\` (100% = match)
+- Exact per-function oracle: \`npx tsx tools/agent/diffFunc.ts <func>\` (\`VERDICT: MATCH\` = the function's bytes are right; \`UNDETERMINED\` is a third outcome, not a pass)
 - Full binary oracle: \`make check\` (SHA-256 against the original payload)
 `;
 

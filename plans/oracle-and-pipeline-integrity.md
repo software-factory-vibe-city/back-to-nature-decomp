@@ -25,9 +25,33 @@ of finishing this game.
 
 ---
 
-## 1. Rebuild the per-function diff on original bytes (highest priority)
+## 1. Rebuild the per-function diff on original bytes — DONE (2026-08-08)
 
-### What it reports today
+**Landed as `tools/lib/functionOracle.ts`**, with the address/symbol readers it
+needed split out into `tools/lib/symbolIndex.ts` and `tools/agent/diffFunc.ts`
+rebuilt on top of it. The design below is what was built; it is kept as the
+record of why.
+
+Measured after landing: `func_80011370` 557/557 with an empty diff, and every
+one of the 466 functions that have a `src/*.c` file reports MATCH on a tree
+where `make check` passes — no mismatches, no undetermined words. A transposed
+pair of same-shaped globals is caught in the diff itself, with no escalation.
+The default path no longer invokes `make` at all, so a verdict costs ~0.4 s and
+is unaffected by another function being mid-work.
+
+Two things came out of the work that the design did not anticipate:
+
+- **splat writes some subsegments without the `# 0xVRAM name` comment.** The
+  old reader required it and silently dropped those functions. Subsegments are
+  now placed from their segment's own `start`/`vram` pair, which also gained
+  `deriveTuOwnedGlobals` three functions it had been missing.
+- **`objdump -t` hides `.L`-prefixed symbols**, and splat's local labels are
+  exactly those, so relocations against them were unresolvable until
+  `--special-syms` was added. The general fix is that a symbol the object
+  defines itself is placed by its own section, which covers local labels and
+  static helpers without decoding names.
+
+### What it reported before
 
 ```
 -624: j    0 <func_80011370>          <- target
@@ -355,7 +379,7 @@ are what ADR-0001 builds on.
 
 ## Ordering
 
-1. §1 oracle — everything else is measured with it.
+1. ~~§1 oracle — everything else is measured with it.~~ **Done 2026-08-08.**
 2. §3 object/config dependencies — prevents the class of error that produced a
    wrong diagnosis this session.
 3. §2 single cc1 path — `flagProbe` is actively inconsistent right now.
@@ -366,3 +390,7 @@ are what ADR-0001 builds on.
 §5 is **done** — landed 2026-08-08 with
 `plans/toolchain-native-small-data-addressing.md`, which also removed the
 config it was originally going to generate.
+
+One loose end from §1: the header comment of `src/func_80011370.c` still says
+`diffFunc` reports 551/557 and cannot escalate. That is now false. Correcting it
+touches `src/`, so it is left for the owner.

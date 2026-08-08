@@ -66,6 +66,12 @@ export interface DiffResult {
   matchedInstructions: number;
   totalInstructions: number;
   matchPercent: number;
+  /**
+   * The oracle's own verdict. `undetermined` is a real third outcome — a word
+   * whose relocation could not be resolved — and must never be folded into
+   * either of the others.
+   */
+  verdict: "match" | "mismatch" | "undetermined" | "unknown";
   exact: boolean;
   instructionCountDelta: number;
   output: string;

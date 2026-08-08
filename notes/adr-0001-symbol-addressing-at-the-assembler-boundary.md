@@ -36,15 +36,16 @@ The interim mechanism (§2.1/§2.2) is **gone**: no post-cc1 pass, no ownership
 table, and the diagnostic tools no longer restate maspsx flags — they read
 `MASPSX_FLAGS` from the `Makefile` like every other flag set.
 
-**Expect `diffFunc func_80011370` to report 551/557 (98.9%).** That function is
-byte-exact (`--bytes` reports VERIFIED); the six reported differences are
-artifacts of the oracle, not of the code. Do not "fix" them — see
-`plans/oracle-and-pipeline-integrity.md` §1. The same caveat is recorded in the
-header comment of `src/func_80011370.c`.
+**Corrected 2026-08-08.** This section used to say to expect
+`diffFunc func_80011370` to report 551/557 (98.9%) and not to "fix" the six
+reported differences, because they were artifacts of the oracle rather than of
+the code. `plans/oracle-and-pipeline-integrity.md` §1 has since landed: the
+oracle resolves relocations against the original addresses before comparing, so
+those six words are no longer rendered as differences and the tool reports
+`VERDICT: MATCH` at 557/557. The header comment of `src/func_80011370.c` still
+carries the old caveat and is stale.
 
-One follow-on plan remains: `plans/oracle-and-pipeline-integrity.md`, which
-rebuilds the per-function diff and fixes the pipeline-integrity gaps found
-alongside this work.
+The rest of `plans/oracle-and-pipeline-integrity.md` (§2–§4, §6) remains open.
 
 ---
 

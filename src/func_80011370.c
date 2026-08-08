@@ -104,10 +104,6 @@ extern s32 jtbl_80010008[0x15];
  * D_8005E384). Cases 2, 6, 14, 15, 19 and 20 reach a tail that does not clear
  * D_8005E288, so they must not end with that store.
  *
- * Byte-verified: `make check` matches the original payload. diffFunc reports
- * 551/557 masked and cannot escalate, because on the *target* side splat
- * renders three `j` and one `beqz` as label relocations and drops the %hi
- * relocation on two `lui`s; all six resolve to the same words after linking.
  */
 
 void func_80011370(void) {

@@ -3,13 +3,23 @@ import type { AutodecompConfig, DiffResult, GateResult, WorkMode } from "./types
 import { runCommand } from "./process.ts";
 import { checkSourcePolicy } from "./source-policy.ts";
 
-export function parseFunctionDiffSummary(output: string): Pick<DiffResult, "matchedInstructions" | "totalInstructions" | "matchPercent"> {
-  const matches = [...output.matchAll(/(?:Masked match|Match):\s*(\d+)\/(\d+)\s+instructions\s+\(([\d.]+)%/gi)];
+/**
+ * The oracle's summary lines.
+ *
+ * The word count is a progress reading; the verdict is the decision. They come
+ * out of one comparison, so a missing verdict means the tool did not get far
+ * enough to have an opinion — `unknown`, never a silent pass.
+ */
+export function parseFunctionDiffSummary(output: string): Pick<DiffResult, "matchedInstructions" | "totalInstructions" | "matchPercent" | "verdict"> {
+  const matches = [...output.matchAll(/^Match:\s*(\d+)\/(\d+)\s+words\s+\(([\d.]+)%/gim)];
   const match = matches.at(-1);
+  const verdicts = [...output.matchAll(/^VERDICT:\s*(MATCH|MISMATCH|UNDETERMINED)\b/gim)];
+  const verdict = verdicts.at(-1)?.[1].toLowerCase() as DiffResult["verdict"] | undefined;
   return {
     matchedInstructions: match ? Number.parseInt(match[1], 10) : 0,
     totalInstructions: match ? Number.parseInt(match[2], 10) : 0,
     matchPercent: match ? Number.parseFloat(match[3]) : 0,
+    verdict: verdict ?? "unknown",
   };
 }
 
@@ -21,8 +31,8 @@ export async function runFunctionDiff(projectRoot: string, functionName: string,
     signal,
   });
   const output = [command.stdout, command.stderr].filter(Boolean).join("\n");
-  const { matchedInstructions, totalInstructions, matchPercent } = parseFunctionDiffSummary(output);
-  const countLine = output.match(/target:\s*(\d+)\s+instrs,\s*compiled:\s*(\d+)\s+instrs/);
+  const { matchedInstructions, totalInstructions, matchPercent, verdict } = parseFunctionDiffSummary(output);
+  const countLine = output.match(/target:\s*(\d+)\s+instrs,\s*candidate:\s*(\d+)\s+instrs/);
   const instructionCountDelta = countLine
     ? Number.parseInt(countLine[2], 10) - Number.parseInt(countLine[1], 10)
     : 0;
@@ -31,7 +41,10 @@ export async function runFunctionDiff(projectRoot: string, functionName: string,
     matchedInstructions,
     totalInstructions,
     matchPercent,
-    exact: command.code === 0 && totalInstructions > 0 && matchedInstructions === totalInstructions && matchPercent === 100,
+    verdict,
+    /* The verdict decides. A word count of N/N is what the oracle counted, not
+     * what it concluded — an undetermined word leaves the count full. */
+    exact: command.code === 0 && verdict === "match",
     instructionCountDelta,
     output,
     command,
@@ -77,11 +90,11 @@ export async function runGate(options: {
   let diff: DiffResult | undefined;
   if (options.functionName && options.mode !== "project-refinement") {
     diff = await runFunctionDiff(options.projectRoot, options.functionName, 60_000, options.signal);
-    if (!diff.exact) failures.push(`Function diff is not exact (${diff.matchedInstructions}/${diff.totalInstructions})`);
+    if (!diff.exact) failures.push(`Function oracle verdict is ${diff.verdict.toUpperCase()}, not MATCH (${diff.matchedInstructions}/${diff.totalInstructions} words)`);
   } else if (options.mode === "project-refinement") {
     for (const name of scanFunctions) {
       const touched = await runFunctionDiff(options.projectRoot, name, 60_000, options.signal);
-      if (!touched.exact) failures.push(`${name}: function diff is not exact (${touched.matchedInstructions}/${touched.totalInstructions})`);
+      if (!touched.exact) failures.push(`${name}: function oracle verdict is ${touched.verdict.toUpperCase()}, not MATCH (${touched.matchedInstructions}/${touched.totalInstructions} words)`);
     }
   }
 

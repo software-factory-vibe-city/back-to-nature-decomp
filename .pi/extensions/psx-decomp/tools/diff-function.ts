@@ -6,7 +6,7 @@ export function registerDiffFunctionTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "psx_diff_function",
     label: "PSX Function Diff",
-    description: "Compile one function through the configured PlayStation toolchain and compare it with the original assembly. Returns the exact diff and match percentage, truncated to 50 KB or 2000 lines.",
+    description: "Compile one function through the configured PlayStation toolchain, relocate the result to the function's original addresses, and compare it with the original binary's own bytes. Returns the diff and a verdict of MATCH, MISMATCH or UNDETERMINED, truncated to 50 KB or 2000 lines.",
     parameters: Type.Object({
       functionName: Type.String({ description: "Exact function symbol to compile and compare" }),
     }),
