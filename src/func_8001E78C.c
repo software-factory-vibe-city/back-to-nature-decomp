@@ -1,41 +1,34 @@
 #include "common.h"
 
-__asm__(
-"\n"
-"\t.text\n"
-"\t.align\t2\n"
-"\t.globl\tfunc_8001E78C\n"
-"\t.ent\tfunc_8001E78C\n"
-"func_8001E78C:\n"
-"\t.frame\t$sp,0,$31\n"
-"\t.mask\t0x00000000,0\n"
-"\t.fmask\t0x00000000,0\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tmove\t$3,$5\n"
-"\tlw\t$2,D_8005E520\n"
-"\tsubu\t$4,$4,$6\n"
-"\tsra\t$2,$2,1\n"
-"\taddiu\t$5,$2,600\n"
-"\tnegu\t$8,$5\n"
-"\tslt\t$2,$8,$4\n"
-"\tbeqz\t$2,_8001E7B8\n"
-"\tslt\t$2,$4,$5\n"
-"\tbnez\t$2,_8001E7C0\n"
-"\tsubu\t$3,$3,$7\n"
-"_8001E7B8:\n"
-"\tjr\t$31\n"
-"\tmove\t$2,$0\n"
-"_8001E7C0:\n"
-"\tslt\t$2,$8,$3\n"
-"\tbeqz\t$2,_8001E7B8\n"
-"\tslt\t$2,$3,$5\n"
-"\tbeqz\t$2,_8001E7B8\n"
-"\taddiu\t$2,$0,1\n"
-"\tjr\t$31\n"
-"\tnop\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"\t.end\tfunc_8001E78C\n"
-"\t.comm\tD_8005E520,4\n"
-);
+s32 D_8005E520;
+
+/* Proximity test on a 2D pair: returns 1 when both component deltas fall
+ * strictly inside +/-bound, where bound = (D_8005E520 >> 1) + 600. Any
+ * component reaching the bound returns 0. func_8001E7DC is the 3-component
+ * form of the same test over the same tolerance global.
+ *
+ * The subtractions assign back into the parameters. That is load-bearing:
+ * a separate delta variable is a fresh pseudo whose allocno inherits the
+ * argument registers as hard-register preferences, so it lands on $a3 and
+ * forces a second argument copy. Reusing the parameter keeps the delta on
+ * the incoming web, which is what produces the entry `move v1,a1` and the
+ * in-place `subu v1,v1,a3`. */
+s32 func_8001E78C(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+    s32 bound;
+    s32 lower;
+
+    bound = (D_8005E520 >> 1) + 0x258;
+    lower = -bound;
+
+    arg0 = arg0 - arg2;
+    if (arg0 <= lower || arg0 >= bound) {
+        return 0;
+    }
+
+    arg1 = arg1 - arg3;
+    if (arg1 <= lower || arg1 >= bound) {
+        return 0;
+    }
+
+    return 1;
+}

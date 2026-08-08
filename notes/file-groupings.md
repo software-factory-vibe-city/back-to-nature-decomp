@@ -53,8 +53,8 @@ Members (address order):
 - func_8001E38C (s) — post-hit consumer, guards on D_8005E528
 - func_8001E4C0 (s) — driver: clears flags, installs query pointer
 - func_8001E6FC (s) — small; query pointer + D_8005E524
-- func_8001E78C (m)
-- func_8001E7DC (m)
+- func_8001E78C (m) — 2D proximity test; owns D_8005E520 (tolerance)
+- func_8001E7DC (m) — 3D form of E78C, same D_8005E520 tolerance
 - func_8001E878 (m) — point-in-triangle; CAPTURE_PREV_RET policy exception
 - func_8001E9F8 (m) — point-in-quad; file-scope $2 register variable
 - func_8001EAE4 (s) — polygon-list iterator, flag masks D_8005E4FC

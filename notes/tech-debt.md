@@ -121,6 +121,57 @@ the function makes the function look inexpressible. Two cheap checks:
   size controls the addressing mode predate §2.4 and are now false. ADR-0001
   §4.1 states the current rule.
 
+## Check the predicate before researching the codegen
+
+`func_8001E78C` cost a capable agent a session before any compiler question was
+even in play, because **the reconstruction computed the wrong function and
+nobody re-derived it from the target.** The target returns 1 when both deltas
+are strictly inside the tolerance band; the in-progress source returned 0 when
+a delta was inside it — inverted, and with `<=` where the target has `<`.
+
+Everything downstream was then real work aimed at the wrong place: a
+225-candidate residual sweep, 18 source-shape syntheses, three fuzz variants, a
+target-schedule analysis and an allocator counterfactual, all concluding
+"web-parity blocker" and offering macro expansion and hand-written assembly as
+hypotheses. None of it was wrong *as analysis*. It just cannot converge, and
+nothing in the output says so — a residual search reports the domain it was
+given, not whether the domain was worth searching.
+
+**The general rule: a control-flow diff is a semantics question until proven
+otherwise.** An instruction-count delta plus branch-sense differences is the
+signature. Read the branch senses out of the target and state the predicate in
+words before touching allocation or scheduling, and prefer a matched sibling
+over the target's raw disassembly when one exists — `func_8001E7DC` is the
+three-component form of this same test and was matching the whole time.
+
+Two cheap checks, both of which would have caught it in minutes:
+
+- **Say what the function returns, in words, from the target.** Here: `beqz`
+  on `slt lower,delta` jumps to the `return 0` block, so out-of-band returns 0.
+  The header comment asserted the opposite and was never re-checked.
+- **Does a matched neighbour in the same TU disagree with you?**
+
+### Check who owns the delta
+
+Once the predicate was right the residual was a pure register permutation with
+an identical schedule, and the fix was not a codegen trick either. A derived
+value in a **fresh local** is a new allocno that inherits the argument
+registers as hard-register preferences — the `.greg` dump says so directly:
+
+```
+;; 88 preferences: 5 7        (diff1 prefers $a1 and $a3)
+```
+
+With `$a1` already taken by `bound`, the delta landed on `$a3`, and the
+target's entry copy of the argument never happened. Assigning back into the
+parameter (`arg1 = arg1 - arg3;`) keeps the delta on the argument's own web,
+whose only preference is its incoming register — which is what produces the
+`move v1,a1` at entry and the in-place `subu v1,v1,a3`.
+
+**Reusing a parameter is not a hack; it is a statement about which web the
+value lives on.** When a residual is one or two argument copies plus a register
+rotation, try it before reaching for the allocator tooling.
+
 ## Inventory
 
 Measured by classifying every `src/*.c` containing `__asm__`. The distinction
@@ -162,11 +213,10 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**12 remaining** (was 13; `func_80024408` retired 2026-08-20).
+**11 remaining** (was 12; `func_8001E78C` retired 2026-08-08).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
-| `func_8001E78C` | 20 | `D_8005E520` | none                                                   |
 | `func_80022014` | 22 | — | none                                                   |
 | `func_80021604` | 25 | — | none                                                   |
 | `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none                                                   |
@@ -179,7 +229,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none                                                   |
 
-**None of the 13 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 11 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -195,10 +245,12 @@ nothing today asserts they are supposed to be assembly.
 | `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
 | `func_80019030` | 2026-08-19 | 16-instruction conditional arithmetic: loads `D_8005E47A` as `s16`, checks `D_8005E4A8[D_8005E444 - 1] == 0xFFFE`, and if so returns `(s16)(result - 12 - D_8005E2BA)`. Stale obstacle claimed GCC 2.8.1 couldn't emit `lh` vs `lhu`; under 2.95.2 the real issue was front-end reassociation of `result - 12 - D_8005E2BA` into `result - (D_8005E2BA + 12)`. Solved by splitting into two statements with an `s32` intermediate to prevent premature sign-extension. Added `D_8005E444` (u16), `D_8005E4A8` (u16*), and simplified `D_8005E47A` (s16) in `globals_override.h`. `make check` passes. |
 | `func_80024408` | 2026-08-20 | 16-instruction conditional return: three-argument function with nested `if` guards on `arg1 < 2`, `(u32)(arg0 - 10) < 3`, and `arg2 == 0`, returning 9/13/`arg0`/13 depending on the path. Matched as clean C89 on first shape. `make check` passes. |
+| `func_8001E78C` | 2026-08-08 | 20-instruction 2D proximity test against `(D_8005E520 >> 1) + 600`; the 3-component form is the already-matching sibling `func_8001E7DC`. Two independent faults: an in-progress reconstruction had the predicate **inverted** (it returned 0 for in-range, the target returns 1), and once corrected, the deltas had to be assigned back into the parameters rather than into fresh locals — see "Check who owns the delta" below. Owns `D_8005E520` (tentative definition for the GP-relative load). `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones with a known shape first** — `func_8001E78C` (20).
+**The smallest ones with a known shape first** — `func_80022014` (22),
+`func_80021604` (25).
 
 `func_8001D2D8` is the one entry whose stated reason is a *layout* claim
 ("force two separate return blocks"), which is the same family of problem as
@@ -208,8 +260,8 @@ handling rather than by the source statement order. Read
 
 **Then the rest** (22–44 instructions), ordinary decompilation work.
 
-**Carry the GP-relative facts across.** Three of the fourteen own globals
-(`func_80019030`, `func_80013394`, `func_8001E78C`). In C
+**Carry the GP-relative facts across.** One of the eleven owns globals
+(`func_80013394`). In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`
 reports any file that reaches a global through `$gp` but addresses it
@@ -266,6 +318,20 @@ check `tail -4 build/slus_011.ld` for the `INCLUDE` lines, and re-run
 `make split`. Two fixes, neither applied yet: a fast guard in `make check`
 that fails with "run make split" when the includes are absent, or a real Make
 rule for `$(LD_SCRIPT)` so an incomplete script cannot survive.
+
+**A search tool reported "no exact match exists" while holding one.** The
+residual search clusters candidates by canonicalized assembly *text*. cc1
+spells negation as the base instruction (`subu $t0,$zero,$a1`); the
+disassembler prints the identical word as `negu t0,a1`. Nothing collapsed the
+two, so a byte-exact candidate scored 18/19 and the run terminated
+`exhausted-no-exact` — an authoritative-sounding negative result with the
+answer inside it. Fixed 2026-08-08 in `tools/agent/variant-lab/compile.ts`
+(`normalizeAlias`, applied to both the cc1 and disassembly paths, with a
+regression test); the same domain now reports `exact-candidate-found`. Only
+aliases with exactly one encoding may be collapsed this way — `negu`/`neg`
+qualify, `move` does not, since it assembles as either `addu` or `or`. **When
+a search says the domain is empty, spot-check its best class against
+`diffFunc --bytes` before believing it.**
 
 **Boundary artifacts beyond the merged case.** A binary-wide scan found nine
 symbol pairs with a conditional branch crossing between them and three symbols
