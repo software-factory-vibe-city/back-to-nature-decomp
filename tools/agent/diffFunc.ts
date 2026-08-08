@@ -54,15 +54,40 @@ function run(cmd: string): string {
   return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
 }
 
+/**
+ * GCC 2.95 exits 33 whenever it emitted any diagnostic, and it writes a `.s`
+ * even for units it reported errors in. So the status cannot tell a warning
+ * from an error, and the presence of output does not mean the unit compiled.
+ *
+ * Trusting the status let a translation unit through whose `libcd.h`
+ * declaration had been mangled by the `fp` register macro from `asm.h`
+ * (`CdlFILE *CdSearchFile(CdlFILE *$30, ...)`), and diffFunc reported a 70.4%
+ * masked score for a program that does not build. Classify from the
+ * diagnostic text instead.
+ */
+function hasCompileError(output: string): boolean {
+  for (const raw of output.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    /* Context lines locate the next diagnostic; they are not diagnostics. */
+    if (line.startsWith("In file included from")) continue;
+    if (/^from .+:\d+[:,]?$/.test(line)) continue;
+    if (/: In (function|constructor|destructor|member function)\b/.test(line)) continue;
+    if (/\bwarning:\b/.test(line)) continue;
+    /* `file:line: message` with no `warning:` is an error. */
+    if (/^.+:\d+:\s+\S/.test(line)) return true;
+    if (/^cc1: /.test(line)) return true;
+  }
+  return false;
+}
+
 function runStep(label: string, cmd: string): string {
   try {
     return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
   } catch (e: any) {
-    /* GCC 2.95 exits 33 for warnings-only (not an error). Treat cc1 warnings
-     * as non-fatal so the diff can still run. Actual compile errors produce
-     * exit codes like 1 or 4 and no output .s file. */
-    if (label === "cc1" && e.status === 33) {
-      return "";
+    const output = `${e.stderr ?? ""}\n${e.stdout ?? ""}`;
+    if (label === "cc1" && e.status === 33 && !hasCompileError(output)) {
+      return output;
     }
     const msg = (e.stderr || e.stdout || e.message || "").trim();
     throw new Error(`${label}: ${msg}`);
