@@ -59,10 +59,35 @@ test("toolchain parity: no tool restates a flag set literally", () => {
     if (!entry.endsWith(".ts") || entry === "decompToolchain.ts") continue;
     const text = readFileSync(join(dir, entry), "utf-8");
     for (const line of text.split("\n")) {
-      if (/^\s*(export\s+)?const\s+\w*(CPP|CC1|AS)_?FLAGS\s*[:=]/.test(line) && /["'`]-/.test(line)) {
+      if (/^\s*(export\s+)?const\s+\w*(CPP|CC1|AS|MASPSX)_?FLAGS\s*[:=]/.test(line) && /["'`]-/.test(line)) {
         offenders.push(`${entry}: ${line.trim().slice(0, 70)}`);
       }
     }
   }
   assert.deepEqual(offenders, [], "flag sets must come from decompToolchain, not be restated");
+});
+
+/**
+ * The assembler flags drifted the same way the compiler flags did, and cost
+ * more: every tool spelled out `--aspsx-version ... --dont-force-G0 ...`, so
+ * when the build stopped passing `--dont-force-G0` the diagnostics would have
+ * kept assembling under the old small-data rule and reported scores for a
+ * translation unit the build no longer produces. Name the tokens, not just the
+ * variable, because a literal maspsx invocation needs no named constant.
+ */
+test("toolchain parity: no tool spells out a maspsx flag", () => {
+  const offenders: string[] = [];
+  for (const dir of ["tools/agent", "tools/build"]) {
+    const base = join(ROOT, dir);
+    for (const entry of readdirSync(base)) {
+      if (!entry.endsWith(".ts") || entry.endsWith(".test.ts")) continue;
+      for (const line of readFileSync(join(base, entry), "utf-8").split("\n")) {
+        if (/^\s*\*/.test(line.trim())) continue; /* prose, not an invocation */
+        if (/["'`][^"'`]*--(aspsx-version|dont-force-G0|use-comm-section|run-assembler)/.test(line)) {
+          offenders.push(`${dir}/${entry}: ${line.trim().slice(0, 70)}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], "maspsx flags must come from the Makefile via configuredMaspsxFlags");
 });

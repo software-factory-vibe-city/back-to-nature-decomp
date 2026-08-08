@@ -17,8 +17,13 @@
 import { execSync } from "child_process";
 import { watchFile, existsSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from "fs";
 import { join } from "path";
-import { configuredAsFlags, configuredCc1Flags, configuredCppFlags, configuredGccVersion } from "./decompToolchain.js";
-import { fixSmallDataExternsInFile } from "../build/fixSmallDataExterns.js";
+import {
+  configuredAsFlags,
+  configuredCc1Flags,
+  configuredCppFlags,
+  configuredGccVersion,
+  configuredMaspsxFlags,
+} from "./decompToolchain.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
@@ -35,6 +40,7 @@ const OBJDUMP = `${CROSS}objdump`;
 const CPPFLAGS = configuredCppFlags().join(" ");
 const CC1FLAGS = configuredCc1Flags().join(" ");
 const ASFLAGS = configuredAsFlags().join(" ");
+const MASPSXFLAGS = configuredMaspsxFlags().join(" ");
 
 /** Parse configs/flag_overrides.mk for CC1FLAGS_<stem> := <flags> lines */
 function loadFlagOverrides(): Map<string, string> {
@@ -162,10 +168,7 @@ function compile(src: string): string {
   const cc1flags = extraFlags ? `${CC1FLAGS} ${extraFlags}` : CC1FLAGS;
   runStep("cpp", `${CPP} ${CPPFLAGS} ${src} -o ${i}`);
   runStep("cc1", `${CC} ${cc1flags} ${i} -o ${s}`);
-  /* Same post-cc1 correction the Makefile applies, so this oracle
-   * assembles exactly what the build assembles. */
-  fixSmallDataExternsInFile(s);
-  runStep("maspsx", `${MASPSX} --aspsx-version 2.77 --dont-force-G0 --use-comm-section --run-assembler --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
+  runStep("maspsx", `${MASPSX} ${MASPSXFLAGS} --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
   return o;
 }
 

@@ -2,7 +2,6 @@ import { execFileSync, spawn, spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { basename, dirname, isAbsolute, join, resolve } from "path";
-import { fixSmallDataExternsInFile } from "../build/fixSmallDataExterns.js";
 import { fileURLToPath } from "url";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -199,10 +198,7 @@ export function loadFlagOverrides(): Map<string, string[]> {
 export function assembleCompilerOutput(assembly: string, object: string): string {
   runTool("python3", [
     MASPSX,
-    "--aspsx-version", "2.77",
-    "--dont-force-G0",
-    "--use-comm-section",
-    "--run-assembler",
+    ...configuredMaspsxFlags(),
     "--gnu-as-path", AS,
     "-o", object,
     ...AS_FLAGS,
@@ -277,10 +273,6 @@ export function compileSource(
   /* Running cc1 in the artifact directory keeps all -da files together. */
   runTool(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput);
 
-  /* Same post-cc1 correction the Makefile applies; without it the diagnostic
-   * tools would assemble differently from the build they are diagnosing. */
-  fixSmallDataExternsInFile(assembly);
-
   if (options.assemble) assembleCompilerOutput(assembly, object);
 
   const result: CompileArtifacts = {
@@ -312,10 +304,9 @@ export async function compileSourceAsync(
   const cc1Flags = [...CC1_FLAGS, ...overrides];
   if (options.dumps) cc1Flags.push("-da");
   await runToolAsync(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput, options.signal);
-  fixSmallDataExternsInFile(assembly);
   if (options.assemble) {
     await runToolAsync("python3", [
-      MASPSX, "--aspsx-version", "2.77", "--dont-force-G0", "--use-comm-section", "--run-assembler",
+      MASPSX, ...configuredMaspsxFlags(),
       "--gnu-as-path", AS, "-o", object, ...AS_FLAGS, assembly,
     ], ROOT, options.signal);
   }
