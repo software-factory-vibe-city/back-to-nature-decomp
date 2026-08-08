@@ -17,9 +17,14 @@
  *    without an intervening definition (file-scope register variable across
  *    calls, or handwritten assembly; see notes/research/func_8001E9F8.md).
  *
- * Scans splat nonmatchings .s directly (no assembly step), with real basic
- * blocks and a must-defined dataflow — linear scans false-positive on any
- * function whose loop back-edge defines a register above its first read.
+ * Scans target .s directly (no assembly step), with real basic blocks and a
+ * must-defined dataflow — linear scans false-positive on any function whose
+ * loop back-edge defines a register above its first read.
+ *
+ * A named function resolves against splat's nonmatchings tree first and the
+ * disassembler's per-function dump second, so a function that already has C
+ * source — which has no nonmatchings stub at all — still scans. `--all` stays
+ * on the nonmatchings tree, which is the outstanding-work queue.
  *
  * Usage:
  *   npx tsx tools/agent/scanReadBeforeDef.ts func_8001E878
@@ -33,6 +38,19 @@ import { BRANCH_MNEMONICS, buildBlocks, defUse, registersIn } from "./webAnalysi
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 const NONMATCHINGS = join(ROOT, "build/asm/nonmatchings");
+const FUNCTIONS = join(ROOT, "build/functions");
+
+/**
+ * A local branch label. splat's nonmatchings tree spells these `.L80011C50`
+ * and the disassembler's per-function dump spells them `_80017AC0`, but both
+ * forms occur in both trees. Both have to be recognised: an unparsed label
+ * costs a basic-block edge, and a missing back-edge is precisely what makes a
+ * linear scan report the false entry-liveness finding this scanner exists to
+ * avoid.
+ */
+const LOCAL_LABEL = String.raw`(?:\.L[0-9A-Fa-f]+|_[0-9A-Fa-f]{8})`;
+const LABEL_DEFINITION = new RegExp(String.raw`^\s*(${LOCAL_LABEL}):`);
+const LABEL_OPERAND = new RegExp(`^${LOCAL_LABEL}$`);
 
 /** Registers with no defined value at function entry under the MIPS ABI. */
 const WATCHED = new Set(["v0", "v1", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "hi", "lo"]);
@@ -60,12 +78,12 @@ interface Finding {
   kind: "entry-liveness" | "call-clobbered";
 }
 
-function parseAsm(content: string): { name: string; instructions: AsmInstruction[]; labels: Map<string, number> } {
+export function parseAsm(content: string): { name: string; instructions: AsmInstruction[]; labels: Map<string, number> } {
   const instructions: AsmInstruction[] = [];
   const labels = new Map<string, number>();
   let name = "";
   for (const line of content.split("\n")) {
-    const label = line.match(/^\s*(\.L[0-9A-Fa-f]+):/);
+    const label = line.match(LABEL_DEFINITION);
     if (label) {
       labels.set(label[1], instructions.length);
       continue;
@@ -88,7 +106,7 @@ function parseAsm(content: string): { name: string; instructions: AsmInstruction
       vram: instruction[1],
       text: `${mnemonic} ${operandText}`,
     };
-    const target = operands.find((operand) => /^\.L[0-9A-Fa-f]+$/.test(operand));
+    const target = operands.find((operand) => LABEL_OPERAND.test(operand));
     if (target) entry.labelTarget = target;
     instructions.push(entry);
   }
@@ -224,7 +242,17 @@ function scanFile(path: string): Finding[] {
   return scanInstructions(name, parsed.instructions, parsed.labels);
 }
 
-function resolveFunctionAsm(functionName: string): string | null {
+/**
+ * Target assembly for a function, from whichever tree carries it.
+ *
+ * `build/asm/nonmatchings` only holds functions still stubbed with
+ * INCLUDE_ASM, so a function that already has C source has no entry there at
+ * all. `build/functions` is the disassembler's complete per-function dump and
+ * covers matched and unmatched alike, which is what the other diagnostics
+ * read. It is preferred only as a fallback because `make split` refreshes the
+ * former while only `make disassemble` refreshes the latter.
+ */
+export function resolveFunctionAsm(functionName: string): string | null {
   const direct = join(NONMATCHINGS, functionName, `${functionName}.s`);
   if (existsSync(direct)) return direct;
   const directory = join(NONMATCHINGS, functionName);
@@ -232,6 +260,8 @@ function resolveFunctionAsm(functionName: string): string | null {
     const candidates = readdirSync(directory).filter((file) => file.endsWith(".s"));
     if (candidates.length === 1) return join(directory, candidates[0]);
   }
+  const dumped = join(FUNCTIONS, `${functionName}.s`);
+  if (existsSync(dumped)) return dumped;
   return null;
 }
 
@@ -266,7 +296,7 @@ if (isCLI) {
       ? positional[0]
       : resolveFunctionAsm(positional[0].replace(/^src\//, "").replace(/\.c$/, ""));
     if (!path || !existsSync(path)) {
-      console.error(`scanReadBeforeDef: no assembly found for ${positional[0]}`);
+      console.error(`scanReadBeforeDef: no assembly found for ${positional[0]} in build/asm/nonmatchings or build/functions (run make split, or make disassemble)`);
       process.exit(1);
     }
     findings.push(...scanFile(path));
