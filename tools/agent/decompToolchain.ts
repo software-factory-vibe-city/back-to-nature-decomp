@@ -29,25 +29,59 @@ const CPP = "mips-linux-gnu-cpp";
 const AS = "mips-linux-gnu-as";
 const OBJDUMP = "mips-linux-gnu-objdump";
 
-export const CPP_FLAGS = [
-  `-I${join(ROOT, "include")}`,
-  `-I${join(ROOT, "include/psyq")}`,
-  "-undef",
-  "-D__GNUC__=2",
-  "-DINCLUDE_ASM_USE_MACRO_INC=1",
-  "-lang-c",
-];
+/**
+ * Preprocessor flags, read from the Makefile rather than restated here.
+ *
+ * They were duplicated in four places -- this file, diffFunc, flagProbe and the
+ * Makefile -- so adding `-D_LANGUAGE_C` to the build left every diagnostic tool
+ * preprocessing differently from the thing it was diagnosing, and `make check`
+ * could not detect the discrepancy because it only reads the Makefile.
+ *
+ * Include paths are re-anchored to ROOT so a tool can run from any directory;
+ * every other token is taken verbatim.
+ */
+export function configuredCppFlags(): string[] {
+  const makefile = readFileSync(join(ROOT, "Makefile"), "utf-8");
+  const line = makefile.match(/^CPPFLAGS\s*:?=\s*(.*)$/m)?.[1];
+  if (!line) throw new Error("Makefile does not define CPPFLAGS; cannot resolve the configured preprocessor flags.");
+  return line.trim().split(/\s+/).map((flag) =>
+    flag.startsWith("-I") ? `-I${join(ROOT, flag.slice(2))}` : flag);
+}
 
-export const CC1_FLAGS = [
-  "-O2", "-G8", "-mips1", "-mcpu=r3000", "-funsigned-char",
-  "-fpeephole", "-ffunction-cse", "-fpcc-struct-return", "-fcommon",
-  "-fverbose-asm", "-msoft-float", "-mgas", "-fgnu-linker", "-quiet",
-];
+export const CPP_FLAGS = configuredCppFlags();
 
-export const AS_FLAGS = [
-  "-march=r3000", "-mtune=r3000", "-EL", "-G8", "-no-pad-sections",
-  `-I${join(ROOT, "include")}`, `-I${join(ROOT, "include/psyq")}`,
-];
+/** One Makefile variable, tokenised, with `$(...)` expansions dropped. */
+function makefileFlags(name: string): string[] {
+  const makefile = readFileSync(join(ROOT, "Makefile"), "utf-8");
+  const line = makefile.match(new RegExp(`^${name}\\s*:?=\\s*(.*)$`, "m"))?.[1];
+  if (line === undefined) throw new Error(`Makefile does not define ${name}; cannot resolve the configured flags.`);
+  /* CC1FLAGS ends in $(CC1FLAGS_$(basename ...)) for per-file overrides, which
+   * is applied separately by loadFlagOverrides. Strip innermost-first so
+   * nested calls disappear cleanly. */
+  let text = line;
+  while (/\$\([^()]*\)/.test(text)) text = text.replace(/\$\([^()]*\)/g, "");
+  return text.trim().split(/\s+/).filter(Boolean);
+}
+
+const anchorIncludes = (flags: string[]): string[] =>
+  flags.map((flag) => (flag.startsWith("-I") ? `-I${join(ROOT, flag.slice(2))}` : flag));
+
+/** Baseline cc1 flags; per-file overrides come from configs/flag_overrides.mk. */
+export function configuredCc1Flags(): string[] {
+  return makefileFlags("CC1FLAGS");
+}
+
+export function configuredAsFlags(): string[] {
+  return anchorIncludes(makefileFlags("ASFLAGS"));
+}
+
+export function configuredMaspsxFlags(): string[] {
+  return makefileFlags("MASPSX_FLAGS");
+}
+
+export const CC1_FLAGS = configuredCc1Flags();
+
+export const AS_FLAGS = configuredAsFlags();
 
 export interface CompileArtifacts {
   source: string;

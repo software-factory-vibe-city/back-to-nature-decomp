@@ -17,7 +17,7 @@
 import { execSync } from "child_process";
 import { watchFile, existsSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from "fs";
 import { join } from "path";
-import { configuredGccVersion } from "./decompToolchain.js";
+import { configuredAsFlags, configuredCc1Flags, configuredCppFlags, configuredGccVersion } from "./decompToolchain.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
@@ -31,9 +31,9 @@ const AS = `${CROSS}as`;
 const CPP = `${CROSS}cpp`;
 const OBJDUMP = `${CROSS}objdump`;
 
-const CPPFLAGS = "-Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c";
-const CC1FLAGS = "-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet";
-const ASFLAGS = "-march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq";
+const CPPFLAGS = configuredCppFlags().join(" ");
+const CC1FLAGS = configuredCc1Flags().join(" ");
+const ASFLAGS = configuredAsFlags().join(" ");
 
 /** Parse configs/flag_overrides.mk for CC1FLAGS_<stem> := <flags> lines */
 function loadFlagOverrides(): Map<string, string> {
