@@ -11,7 +11,7 @@ OBJCOPY     := $(CROSS)objcopy
 CPP         := $(CROSS)cpp
 
 # Flags — baseline defaults (Silent Hill proven config)
-CPPFLAGS    := -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c
+CPPFLAGS    := -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -DINCLUDE_ASM_USE_MACRO_INC=1 -lang-c -D_LANGUAGE_C
 ASFLAGS     := -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq
 
 # Per-file flag overrides (CC1FLAGS_<stem> := <extra flags>)
