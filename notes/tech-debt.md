@@ -92,7 +92,7 @@ matters and earlier counts blurred it:
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 19 | 16 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 19 | 15 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
 | Register pins / scheduling barriers | 3 | other note |
@@ -128,7 +128,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
 | Function | Instrs | Owns | Stated reason |
 |---|---:|---|---|
-| `func_80017A70` | 12 | `D_8005E44C` | none (comment describes behaviour) |
 | `func_8001205C` | 15 | `D_8005E3B0` | none |
 | `func_80019030` | 16 | `D_8005E2BA` `D_8005E444` `D_8005E47A` `D_8005E4A8` | **stale** — "lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2" |
 | `func_80024408` | 16 | — | none |
@@ -145,7 +144,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none |
 
-**None of the 16 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 15 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -157,16 +156,15 @@ nothing today asserts they are supposed to be assembly.
 | `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
 | `func_8001FD74` | 2026-08-10 | 4-instruction Boolean getter: `return D_80061F1C != 0;`. Matched as clean C89 on first shape. `make check` passes. |
 | `func_80017AA0` | 2026-08-13 | 11-instruction mode encoder: loads `D_8005E44C` as `s16`, returns 0/2/1 depending on value. Matched as clean C89 on first shape. Required changing `D_8005E44C` from `u16` to `s16` in `globals_override.h` to emit `lh` instead of `lhu`. `make check` passes. |
+| `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones first.** `func_80017A70` (12),
+**The smallest ones first.** `func_8001205C` (15),
 
-**Then the small ones with a known shape** — `func_80017A70`,
-`func_8001205C`, `func_80019030`, `func_8001E78C`,
-`func_80024408` (12–20 instructions). `func_80017A70` already carries a comment
-describing what it computes, which is most of the decompilation work already
-done.
+**Then the small ones with a known shape** — `func_8001205C`,
+`func_80019030`, `func_8001E78C`,
+`func_80024408` (15–20 instructions).
 
 `func_80019030` is the sharpest test in the set: its recorded obstacle is a
 concrete, falsifiable codegen claim (`lh` where the candidate emits `lhu`),
@@ -208,7 +206,7 @@ stuck is not that assertion. File the obstacle here instead.
 either with `.comm SYM,n` inside the block or with a C tentative definition
 above it, depending on whether the block uses the assembler macro form or
 writes `%gp_rel(...)` explicitly. Both are correct and the build does not care.
-`func_80017A70` currently carries both belts — an explicit `%gp_rel` store *and*
+`func_80017A70` used to carry both belts — an explicit `%gp_rel` store *and*
 a C definition — which is redundant but true. Worth unifying only when these
 files are rewritten anyway.
 
