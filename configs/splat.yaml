@@ -223,8 +223,6 @@ segments:
       - [0x8634, c, func_80017E34]       # 0x80017E34 func_80017E34
       - [0x86A0, c, func_80017EA0]       # 0x80017EA0 func_80017EA0
       - [0x86E4, c, func_80017EE4]       # 0x80017EE4 func_80017EE4
-      - [0x86EC, c, func_80017EEC]
-      - [0x86F0, c, func_80017EF0]
       - [0x8730, c, func_80017F30]       # 0x80017F30 func_80017F30
       - [0x8788, c, func_80017F88]       # 0x80017F88 func_80017F88
       - [0x8BB8, c, func_800183B8]       # 0x800183B8 func_800183B8

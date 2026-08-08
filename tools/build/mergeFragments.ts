@@ -5,9 +5,12 @@
  * at internal branch targets (e.g. loop labels). This tool:
  *
  * 1. Detects fragments: functions with no jr $ra / tail-call j that fall
- *    through into the next function
- * 2. Detects cross-function branches: functions that conditionally branch
- *    to the immediately-next function (if/else chains, cascading checks)
+ *    through into the next function. A trailing `j` counts as a tail call
+ *    only when its target is a proven entry point; a `j` to an address
+ *    nothing else can reach is intra-function control flow.
+ * 2. Detects cross-function branches: a conditional branch crossing the
+ *    boundary between a function and the immediately-next one, in either
+ *    direction (if/else chains, cascading checks, rotated-loop back-edges)
  * 3. Adds size: to the head function so spimdisasm doesn't end it early
  * 4. Changes unreferenced fragments to type:label (internal branch labels)
  * 5. Keeps externally-referenced fragments as type:func (alternative entries)
@@ -29,6 +32,7 @@ const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
 interface FuncEntry {
   name: string;
   addr: number;
+  isLabel: boolean;
 }
 
 function parseAllFuncEntries(): { gameEntries: FuncEntry[]; allSorted: FuncEntry[] } {
@@ -44,6 +48,7 @@ function parseAllFuncEntries(): { gameEntries: FuncEntry[]; allSorted: FuncEntry
       const entry: FuncEntry = {
         name: match[1],
         addr: parseInt(match[2], 16),
+        isLabel: match[3].toLowerCase() === "label",
       };
       allEntries.push(entry);
       if (/^func_[0-9A-Fa-f]+$/i.test(match[1])) {
@@ -62,7 +67,8 @@ function hasTerminator(
   funcAddr: number,
   nextFuncAddr: number,
   info: ReturnType<typeof loadPsxExeInfo>,
-  allAddrs: Set<number>
+  allAddrs: Set<number>,
+  provenEntries: Set<number>
 ): boolean {
   const funcSize = nextFuncAddr - funcAddr;
   if (funcSize < 8) return false;
@@ -79,7 +85,18 @@ function hasTerminator(
   for (const word of [penultimate, last]) {
     if ((word >>> 26) === 0x02) {
       const target = ((funcAddr & 0xf0000000) | ((word & 0x03ffffff) << 2)) >>> 0;
-      if ((target < funcAddr || target >= nextFuncAddr) && allAddrs.has(target)) {
+      /* A `j` terminates the function only when it is a real tail call — i.e.
+       * the target is independently reachable (jal, data pointer, address
+       * taken, entry point). A `j` to a target nothing else can reach is
+       * intra-function control flow: GCC's expand_end_loop emits exactly such
+       * a jump when it rotates a loop's trailing body above the loop head, so
+       * the function's own entry jumps over the rotated block. Treating that
+       * as a tail call splits one function into a preheader plus a body. */
+      if (
+        (target < funcAddr || target >= nextFuncAddr) &&
+        allAddrs.has(target) &&
+        provenEntries.has(target)
+      ) {
         return true;
       }
     }
@@ -89,76 +106,119 @@ function hasTerminator(
 }
 
 /**
- * Scan a region of the binary for branch instructions targeting a specific address.
+ * Find addresses that are provably independent entry points.
+ *
+ * An address qualifies when something other than intra-function control flow
+ * can reach it: a `jal`, a function pointer stored in data (jump tables
+ * included), an address taken in code via lui/addiu|ori, or the EXE entry
+ * point. A bare `j` is deliberately NOT evidence — GCC 2.95 emits no tail
+ * calls, so a `j` to an address nothing else references is intra-function
+ * control flow (see hasTerminator). Counting it as an entry point makes the
+ * target look like a real function and suppresses fragment detection for it.
+ *
+ * Over-reporting here is the safe direction: a spurious entry point only
+ * declines a merge, leaving the existing (unmerged) boundaries in place.
+ *
+ * Returns two sets. `calls` holds control-transfer entry points only (jal,
+ * address taken in code, EXE entry). `proven` adds function pointers stored in
+ * data. The jump-table pass needs `calls`: its case targets are by definition
+ * reachable through a data pointer, so testing them against `proven` would
+ * disqualify every one of them and disable that pass entirely.
  */
-function scanBodyForBranchTarget(
-  binary: Buffer,
-  bodyStart: number,
-  bodyEnd: number,
-  targetAddr: number,
-  info: ReturnType<typeof loadPsxExeInfo>
-): boolean {
-  const startOff = vramToRom(bodyStart, info);
-  const endOff = vramToRom(bodyEnd, info);
-
-  for (let off = startOff; off + 4 <= endOff; off += 4) {
-    const word = binary.readUInt32LE(off);
-    const opcode = word >>> 26;
-
-    // Branch opcodes: REGIMM(0x01), BEQ(0x04), BNE(0x05), BLEZ(0x06), BGTZ(0x07)
-    if (opcode === 0x01 || (opcode >= 0x04 && opcode <= 0x07)) {
-      const instrAddr = (off - info.payloadOffset + info.loadAddr) >>> 0;
-      const offset16 = word & 0xffff;
-      const signedOff = offset16 >= 0x8000 ? offset16 - 0x10000 : offset16;
-      const branchTarget = (instrAddr + 4 + signedOff * 4) >>> 0;
-
-      if (branchTarget === targetAddr) return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Find all addresses that are jal targets or cross-function j targets.
- */
-function findExternalCallTargets(
+function findProvenEntryPoints(
   binary: Buffer,
   info: ReturnType<typeof loadPsxExeInfo>,
   funcAddrs: number[]
-): Set<number> {
+): { proven: Set<number>; calls: Set<number> } {
   const targets = new Set<number>();
+  const calls = new Set<number>();
+  const candidates = new Set(funcAddrs);
   const sorted = [...funcAddrs].sort((a, b) => a - b);
-
-  function findFunc(addr: number): number {
-    let lo = 0, hi = sorted.length - 1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >>> 1;
-      if (sorted[mid] <= addr) lo = mid + 1;
-      else hi = mid - 1;
-    }
-    return hi >= 0 ? sorted[hi] : -1;
-  }
 
   const startOff = info.payloadOffset;
   const endOff = info.payloadOffset + info.payloadSize;
+
+  /* Text is the union of the function symbol ranges; anything else in the
+   * payload is data, where a word equal to a function address is a pointer. */
+  const textEnd = sorted.length > 0 ? sorted[sorted.length - 1] : info.loadAddr;
+  function inText(addr: number): boolean {
+    return sorted.length > 0 && addr >= sorted[0] && addr < textEnd;
+  }
+
+  calls.add(info.entryPoint >>> 0);
+
+  /* lui $r, hi / addiu|ori $r, $r, lo — an address taken in code. */
+  const luiHi = new Map<number, number>();
 
   for (let off = startOff; off + 4 <= endOff; off += 4) {
     const word = binary.readUInt32LE(off);
     const opcode = word >>> 26;
     const instrAddr = (off - info.payloadOffset + info.loadAddr) >>> 0;
 
+    if (!inText(instrAddr)) {
+      if (candidates.has(word >>> 0)) targets.add(word >>> 0);
+      continue;
+    }
+
     if (opcode === 0x03) {
-      const target = ((instrAddr & 0xf0000000) | ((word & 0x03ffffff) << 2)) >>> 0;
-      targets.add(target);
-    } else if (opcode === 0x02) {
-      const target = ((instrAddr & 0xf0000000) | ((word & 0x03ffffff) << 2)) >>> 0;
-      if (findFunc(instrAddr) !== findFunc(target)) {
-        targets.add(target);
+      calls.add(((instrAddr & 0xf0000000) | ((word & 0x03ffffff) << 2)) >>> 0);
+      continue;
+    }
+
+    if (opcode === 0x0f) {
+      luiHi.set((word >>> 16) & 0x1f, (word & 0xffff) << 16);
+    } else if (opcode === 0x09 || opcode === 0x0d) {
+      const rs = (word >>> 21) & 0x1f;
+      const hi = luiHi.get(rs);
+      if (hi !== undefined) {
+        const imm = word & 0xffff;
+        const lo = opcode === 0x09 && imm >= 0x8000 ? imm - 0x10000 : imm;
+        const addr = (hi + lo) >>> 0;
+        if (candidates.has(addr)) calls.add(addr);
       }
     }
   }
 
-  return targets;
+  for (const addr of calls) targets.add(addr);
+  return { proven: targets, calls };
+}
+
+/**
+ * Does any conditional branch cross `boundary` within [regionStart, regionEnd)?
+ *
+ * A MIPS conditional branch can never be a call, so a branch whose source and
+ * target sit on opposite sides of a symbol boundary proves the two symbols are
+ * one function. Both directions count: a forward branch from the head into the
+ * next symbol, and a backward branch from the next symbol into the head (which
+ * is what a rotated loop's back-edge looks like).
+ */
+function crossesBoundary(
+  binary: Buffer,
+  regionStart: number,
+  boundary: number,
+  regionEnd: number,
+  info: ReturnType<typeof loadPsxExeInfo>
+): boolean {
+  const startOff = vramToRom(regionStart, info);
+  const endOff = vramToRom(regionEnd, info);
+  if (startOff < 0 || endOff > binary.length) return false;
+
+  for (let off = startOff; off + 4 <= endOff; off += 4) {
+    const word = binary.readUInt32LE(off);
+    const opcode = word >>> 26;
+
+    // Branch opcodes: REGIMM(0x01), BEQ(0x04), BNE(0x05), BLEZ(0x06), BGTZ(0x07)
+    if (opcode !== 0x01 && (opcode < 0x04 || opcode > 0x07)) continue;
+
+    const instrAddr = (off - info.payloadOffset + info.loadAddr) >>> 0;
+    const offset16 = word & 0xffff;
+    const signedOff = offset16 >= 0x8000 ? offset16 - 0x10000 : offset16;
+    const target = (instrAddr + 4 + signedOff * 4) >>> 0;
+
+    if (target < regionStart || target >= regionEnd) continue;
+    if (instrAddr < boundary !== target < boundary) return true;
+  }
+  return false;
 }
 
 /**
@@ -407,21 +467,39 @@ function main() {
     return info.loadAddr + info.payloadSize;
   }
 
-  const jalTargets = findExternalCallTargets(binary, info, allSorted.map((e) => e.addr));
+  /* Where a merged function actually ends. Unlike getNextFuncAddr (which is
+   * used for adjacency and must see every symbol, so that a foreign symbol
+   * between two entries counts as a gap), this skips type:label entries:
+   * those are internal branch targets of the function being sized, so
+   * stopping at one would truncate the head's size annotation and leave the
+   * tail of the function outside the merge range. */
+  function getNextFuncBoundary(addr: number): number {
+    for (const e of allSorted) {
+      if (e.addr > addr && !e.isLabel) return e.addr;
+    }
+    return info.loadAddr + info.payloadSize;
+  }
 
-  // Pass 1: Detect fall-through — func has no terminator, next func is not a jal/j target
+  const { proven: jalTargets, calls: callTargets } = findProvenEntryPoints(
+    binary,
+    info,
+    allSorted.map((e) => e.addr)
+  );
+
+  // Pass 1: Detect fall-through — func has no terminator, next func is not an entry point
   const isFragment = new Set<number>();
   for (let i = 0; i < gameEntries.length - 1; i++) {
     const func = gameEntries[i];
     const next = gameEntries[i + 1];
-    if (getNextFuncAddr(func.addr) !== next.addr) continue;
+    if (getNextFuncBoundary(func.addr) !== next.addr) continue;
     if (jalTargets.has(next.addr)) continue;
-    if (!hasTerminator(binary, func.addr, next.addr, info, allAddrs)) {
+    if (!hasTerminator(binary, func.addr, next.addr, info, allAddrs, jalTargets)) {
       isFragment.add(next.addr);
     }
   }
 
-  // Pass 2: Detect cross-function branches — func branches to next func (if/else chains, etc.)
+  // Pass 2: Detect cross-function branches — a conditional branch crosses the
+  // head/next boundary in either direction (if/else chains, rotated loops).
   // Iterates until no new fragments are found (chain merging convergence).
   let changed = true;
   while (changed) {
@@ -437,10 +515,11 @@ function main() {
       const nextFunc = gameEntries[j];
       if (jalTargets.has(nextFunc.addr)) continue;
       // Must be adjacent (no gaps from non-game symbols)
-      if (getNextFuncAddr(gameEntries[j - 1].addr) !== nextFunc.addr) continue;
+      if (getNextFuncBoundary(gameEntries[j - 1].addr) !== nextFunc.addr) continue;
 
-      // Scan entire body (head + already-absorbed fragments) for branch to nextFunc
-      if (scanBodyForBranchTarget(binary, gameEntries[i].addr, nextFunc.addr, nextFunc.addr, info)) {
+      // Scan the head (plus already-absorbed fragments) and nextFunc together
+      // for a conditional branch crossing the boundary between them.
+      if (crossesBoundary(binary, gameEntries[i].addr, nextFunc.addr, getNextFuncBoundary(nextFunc.addr), info)) {
         isFragment.add(nextFunc.addr);
         changed = true;
       }
@@ -582,7 +661,7 @@ function main() {
         if (targetAddr === ownerAddr) continue;
         if (isFragment.has(targetAddr)) continue;
         if (jtblAbsorbed.has(targetAddr)) continue;
-        if (jalTargets.has(targetAddr)) continue;
+        if (callTargets.has(targetAddr)) continue;
 
         jtblAbsorbed.add(targetAddr);
         jtblOwners.set(targetAddr, ownerAddr);
@@ -631,7 +710,7 @@ function main() {
       head: head.name,
       headAddr: head.addr,
       absorbed,
-      endAddr: getNextFuncAddr(lastAddr),
+      endAddr: getNextFuncBoundary(lastAddr),
     });
   }
 
@@ -656,7 +735,7 @@ function main() {
         head: ownerName,
         headAddr: ownerAddr,
         absorbed: [],
-        endAddr: getNextFuncAddr(ownerAddr),
+        endAddr: getNextFuncBoundary(ownerAddr),
       };
       merges.push(existing);
     }
@@ -670,7 +749,7 @@ function main() {
     // Extend endAddr to cover all jtbl targets
     const allAddrsInGroup = [existing.headAddr, ...existing.absorbed.map((a) => a.addr)];
     const maxAddr = Math.max(...allAddrsInGroup);
-    existing.endAddr = Math.max(existing.endAddr, getNextFuncAddr(maxAddr));
+    existing.endAddr = Math.max(existing.endAddr, getNextFuncBoundary(maxAddr));
   }
 
   // Find which absorbed addresses are referenced from OUTSIDE their merge group

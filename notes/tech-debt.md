@@ -1,8 +1,9 @@
 # Tech debt: functions that are assembly, not C
 
-**Measured 2026-08-08** against the tree at that date. Regenerate the inventory
-before acting on it — the counts below are a snapshot, and the last note that
-recorded them by hand went stale (see "Corrections" at the end).
+**Re-measured 2026-08-08** against the tree at that date, after retiring
+`func_80017EE4`. Regenerate the inventory before acting on it — the counts
+below are a snapshot, and every hand-maintained version of them has gone stale
+(see "Corrections" at the end).
 
 This note covers **functions whose body is a raw `__asm__` block**. It does not
 cover `INCLUDE_ASM` stubs, which are honest not-yet-decompiled work and are
@@ -37,16 +38,76 @@ There is also a **specific reason to re-open these now**: the compiler changed
 under them. `notes/toolchain-version-detection.md` attributes the whole class to
 a belief that has since been disproved — "24 pure-asm functions — written as
 `__asm__` blocks because no C matched 2.8.1. With 2.95.2, some may be
-expressible as clean C" — and one function has already proved the point
-(`func_8001A8D0`, a switch statement, matched as clean C once the compiler was
-corrected). Only one file in the table below states 2.8.1 as its reason, but
-that is because most state no reason at all; the 24 in that note and the 18
-here were counted at different times and neither is a live figure.
+expressible as clean C" — and two functions have now proved the point:
+`func_8001A8D0` (a switch statement, matched as clean C once the compiler was
+corrected) and `func_80017EE4` (see below).
+
+## Check the symbol boundary before concluding "inexpressible"
+
+`func_80017EE4` was the first entry retired from this table, and it was never a
+codegen problem at all. **The symbol map was wrong.** `0x80017EE4..0x80017F30`
+is one function that appeared as three: a 2-instruction "function", a
+1-instruction "function", and the body. A 2-instruction symbol is not a
+function, so of course no C produced it — and the note you are reading asserted
+the opposite, calling it "a tail call, not a body… may be genuinely
+inexpressible in C". That claim was wrong and it cost a later agent a full
+session, which reached the same conclusion and wrote an `embedded-asm` block
+plus an allowlist entry to record it.
+
+**The general rule: a symbol that is not a function cannot be decompiled as
+one, and the failure looks exactly like a codegen impossibility.** Before
+concluding that a function resists C, prove the boundary. Decisive evidence,
+cheapest first:
+
+- **No `jr $ra` anywhere in the body.** The symbol does not return; it falls
+  through into the next one.
+- **A conditional branch crosses the symbol boundary**, in *either* direction.
+  A MIPS conditional branch can never be a call, so this proves the two symbols
+  are one function. A *backward* branch from a later symbol into an earlier one
+  is a rotated loop's back-edge, not a call.
+- **The entry is a `j`, not a prologue.** GCC 2.95 emits no tail calls, so a
+  `j` to an address that has no `jal`, no data pointer and no address-taken
+  `lui`/`addiu` anywhere in the binary is intra-function control flow.
+- **A register is read before any definition** on some path — e.g. the body
+  depends on `$a3` set only by the preceding symbol. `scanReadBeforeDef.ts`
+  reports this.
+- **Zero callers.** Scan for `jal`, stored pointers and `lui`/`addiu` pairs
+  across the whole payload, not just the call graph.
+
+`tools/build/mergeFragments.ts` now detects this class and `make split` applies
+it; the three defects that let `func_80017EE4` through were a `j` counted as a
+tail call, a `j` counted as an external entry point, and a pass that only
+looked for *forward* cross-boundary branches. All three are fixed. Re-running
+`make split` is therefore the first thing to try on a stuck tiny function, and
+a boundary that survives it is evidence, not an assumption.
+
+Once merged, `func_80017EE4` matched as ordinary C89 on the first shape that
+respected GCC 2.95's `expand_end_loop` rotation — no asm, no flag override, no
+register pinning. The source comment records which shape and why.
 
 ## Inventory
 
-20 files in `src/` have a raw `__asm__` block as the function body. Two are
-legitimate; **18 are debt.**
+Measured by classifying every `src/*.c` containing `__asm__`. The distinction
+matters and earlier counts blurred it:
+
+| Class | Files | Debt? |
+|---|---:|---|
+| Whole-body raw `__asm__` (no C body for the symbol) | 21 | 19 — see below |
+| Emitted asm inside an otherwise-C body | 1 | allowlisted |
+| Non-emitting `__asm__` (symbol aliases only) | 1 | no |
+| Register pins / scheduling barriers | 3 | other note |
+
+- **Emitted asm inside a C body:** `func_80016280` — heavy register pinning
+  plus asm blocks, allowlisted as `register-asm`/`embedded-asm`.
+- **Non-emitting:** `func_8002437C` — its trailing block only defines symbol
+  aliases (`_800243A4 = func_8002437C + 0x28`). It emits no instructions and is
+  not asm-body debt. It *is* a boundary artifact: internal labels promoted to
+  global symbols.
+- **Register pins / barriers:** `func_80019070` (pinned, allowlisted),
+  `func_80021820` (`register s32 i __asm__("a3")`, **not** allowlisted),
+  `func_800244FC` (`__asm__ volatile("" ::: "memory")` scheduling barrier,
+  **not** allowlisted). Tracked in
+  `notes/next-steps-for-revisiting-the-project.md`.
 
 ### Legitimate — GTE code, keep as assembly
 
@@ -67,7 +128,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
 | Function | Instrs | Owns | Stated reason |
 |---|---:|---|---|
-| `func_80017EE4` | 2 | — | none |
 | `func_80021D64` | 3 | — | none |
 | `func_8001FD74` | 4 | — | none |
 | `func_80017AA0` | 11 | `D_8005E44C` | none (comment describes behaviour) |
@@ -81,19 +141,27 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none |
 | `func_80017E34` | 27 | — | none |
 | `func_8001AF70` | 28 | — | none |
+| `func_8001D2D8` | 28 | — | "Force two separate return blocks with inline assembly labels" |
+| `func_8001F278` | 29 | — | none |
 | `func_80015AAC` | 30 | — | none |
 | `func_8001526C` | 40 | — | none |
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none |
 
-**None of the 18 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 19 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
+### Retired
+
+| Function | Retired | Result |
+|---|---|---|
+| `func_80017EE4` | 2026-08-08 | Symbol boundary was wrong; three symbols merged into one 0x4C function, then matched as clean C89. `make check` passes. |
+
 ## What research each group needs
 
-**The three tiny ones first**, because they are small enough to read whole and
-they are not all the same problem:
+**The two tiny ones first.** They are small enough to read whole and they are
+not the same problem:
 
 - `func_8001FD74` (4) — `lui`/`lw` of `D_80061F1C`, then `sltu $v0,$zero,$v0`.
   That is `return D_80061F1C != 0;`. The symbol is outside the `$gp` window and
@@ -105,17 +173,10 @@ they are not all the same problem:
   minimum outgoing-argument area, so the question to answer is *what made the
   original allocate one* — a call that was compiled out, or a stubbed body.
   Do not guess; find the shape that produces the frame.
-- `func_80017EE4` (2) — `j func_80017EF0` with `ori $a3,$zero,0xFFFF` in the
-  delay slot: a **tail call**, not a body. GCC 2.95 has no sibling-call
-  optimisation, so `return func_80017EF0(a0, a1, a2, 0xFFFF);` will emit
-  `jal` plus an epilogue, not `j`. This may be genuinely inexpressible in C
-  with this compiler — the research question is whether the original was a
-  hand-written thunk or a second entry point into `func_80017EF0`. If it is the
-  former, it belongs in the "legitimate" table above with that reason recorded,
-  not in this one.
 
-That spread is the point: "tiny" does not mean "easy", and one of the three may
-be a legitimate exception that has simply never been written down.
+**Run the boundary check on both before anything else.** That is what the
+third member of this group turned out to need, and `func_80021D64` in
+particular — three instructions with no body — has the shape that warrants it.
 
 **Then the small ones with a known shape** — `func_80017AA0`,
 `func_80017A70`, `func_8001205C`, `func_80019030`, `func_8001E78C`,
@@ -130,9 +191,15 @@ before assuming the obstacle survived. Note it reads its globals through the
 assembler macro form (`lh $5,D_8005E47A`), which is only GP-relative because
 the block declares them — so any C rewrite must define those four symbols.
 
+`func_8001D2D8` is the one entry whose stated reason is a *layout* claim
+("force two separate return blocks"), which is the same family of problem as
+`func_80017EE4`: block layout dictated by the compiler's own loop and jump
+handling rather than by the source statement order. Read
+`expand_end_loop` and the jump-threading passes before assuming asm is needed.
+
 **Then the rest** (22–44 instructions), ordinary decompilation work.
 
-**Carry the GP-relative facts across.** Six of the eighteen own globals. In C
+**Carry the GP-relative facts across.** Six of the nineteen own globals. In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`
 reports any file that reaches a global through `$gp` but addresses it
@@ -140,9 +207,16 @@ absolutely, which is the failure mode to watch for during a rewrite.
 
 **Acceptance for retiring an entry:** the function is C89 with no embedded
 assembly, `diffFunc <name> --bytes` reports VERIFIED, `make check` passes, and
-the row is deleted from the table above. A function that resists should move to
+the row moves from the debt table to "Retired". `diffFunc` alone is not
+sufficient — it compares pre-link encodings and can both false-pass and
+false-fail; `make check` is the verdict. A function that resists should move to
 `INCLUDE_ASM` in `nonmatchings/` with its diff signature recorded — quarantine
 is honest, an asm block that claims to be a decompilation is not.
+
+**Do not record an exemption for a function you could not match.** An
+`embedded-asm` entry in `.pi/autodecomp.json` asserts that assembly is the
+correct answer for that function, permanently and for every later agent. Being
+stuck is not that assertion. File the obstacle here instead.
 
 ## Smaller items found alongside
 
@@ -158,12 +232,32 @@ files are rewritten anyway.
 `func_80016054` and `func_80015704`; neither file contains any assembly. The
 permission outlived what it was granted for. `func_80019070` and
 `func_80016280` do still carry register pins and are correctly listed.
+`func_80021820` and `func_800244FC` carry a register pin and a scheduling
+barrier respectively and are *not* listed — the allowlist under-describes the
+tree in both directions.
+
+**Boundary artifacts beyond the merged case.** A binary-wide scan found nine
+symbol pairs with a conditional branch crossing between them and three symbols
+with no terminator. Most resolve to the two merge groups `make split` now
+applies; the pairs involving `func_8004815C` (a 0x166A4-byte symbol) look like
+a splat coverage problem rather than real merges and need separate triage —
+do not feed them to `mergeFragments` expectations.
 
 ## Corrections to earlier notes
 
 `notes/next-steps-for-revisiting-the-project.md` lists "Raw `__asm__` embeds
 (bad) | 5" naming `func_8001205C`, `func_80015AAC`, `func_80017E34`,
 `func_80021604`, `func_80022014`. All five are real and are in the table above,
-but the count is not 5 — it is 18 (plus the 2 legitimate GTE ones). That note's
-inventory was hand-maintained; this one was measured, and should be re-measured
-rather than trusted after any batch of decompilation work.
+but the count is not 5.
+
+This note's own previous count — "20 files, 18 debt" — was also wrong, in the
+other direction: it missed `func_8001D2D8` and `func_8001F278` (both
+whole-body asm) and did not distinguish emitted asm from non-emitting symbol
+aliases or register pins. The current figures come from a scan that separates
+those classes; re-run it rather than trusting any of them after a batch of
+decompilation work.
+
+This note previously asserted that `func_80017EE4` was a tail call that "may be
+genuinely inexpressible in C with this compiler". That was wrong on both
+counts, and it was believed and acted on. When a claim here is a *hypothesis*
+about codegen rather than a measurement, say so.
