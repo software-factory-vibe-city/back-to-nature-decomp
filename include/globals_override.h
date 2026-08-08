@@ -142,8 +142,14 @@ extern s32 D_8005E560;
 /* D_8005E44C - GP-relative s16 scalar (loaded with lh by func_80017AA0) */
 extern s16 D_8005E44C;
 
-/* D_8005E47A - used as signed halfword (lh) */
-extern s16 D_8005E47A_s __asm__("D_8005E47A");
+/* D_8005E47A - signed halfword (lh) — func_80019030 owns it */
+extern s16 D_8005E47A;
+
+/* D_8005E444 - unsigned halfword (lhu) — func_80019030 owns it */
+extern u16 D_8005E444;
+
+/* D_8005E4A8 - pointer to u16 array (lw, used as base) — func_80019030 owns it */
+extern u16 *D_8005E4A8;
 
 /* D_8005E025 - byte table accessed with absolute addressing (lui+addiu+lbu)
  * Array of 9 bytes ensures >8 byte declaration for absolute addressing */

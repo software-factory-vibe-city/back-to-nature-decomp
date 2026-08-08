@@ -1,33 +1,21 @@
 #include "common.h"
 
-/* Full asm block: lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2. */
-__asm__(
-"\n"
-"\t.set\tnoreorder\n"
-"\t.globl\tfunc_80019030\n"
-"\t.ent\tfunc_80019030\n"
-"func_80019030:\n"
-"\tlh\t$5,D_8005E47A\n"
-"\tlhu\t$2,D_8005E444\n"
-"\tlw\t$3,D_8005E4A8\n"
-"\tsll\t$2,$2,1\n"
-"\taddu\t$2,$2,$3\n"
-"\tlhu\t$4,-2($2)\n"
-"\tori\t$3,$0,0xFFFE\n"
-"\tbne\t$4,$3,.L80019068\n"
-"\taddiu\t$2,$5,-12\n"
-"\tlhu\t$3,D_8005E2BA\n"
-"\tnop\n"
-"\tsubu\t$2,$2,$3\n"
-"\tsll\t$2,$2,16\n"
-"\tsra\t$5,$2,16\n"
-".L80019068:\n"
-"\tjr\t$31\n"
-"\taddu\t$2,$5,$0\n"
-"\t.set\treorder\n"
-"\t.end\tfunc_80019030\n"
-"\t.comm\tD_8005E47A,2\n"
-"\t.comm\tD_8005E444,2\n"
-"\t.comm\tD_8005E4A8,4\n"
-"\t.comm\tD_8005E2BA,2\n"
-);
+/* TU-owned globals (GP-relative — tentative definitions). */
+s16 D_8005E47A;
+u16 D_8005E444;
+u16 *D_8005E4A8;
+u16 D_8005E2BA;
+
+s16 func_80019030(void) {
+    s16 result;
+    s32 tmp;
+
+    result = D_8005E47A;
+
+    if (D_8005E4A8[D_8005E444 - 1] == 0xFFFE) {
+        tmp = result - 12;
+        result = (s16)(tmp - D_8005E2BA);
+    }
+
+    return result;
+}

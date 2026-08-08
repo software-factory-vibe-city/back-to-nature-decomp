@@ -164,7 +164,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
 | Function | Instrs | Owns | Stated reason |
 |---|---:|---|---|
-| `func_80019030` | 16 | `D_8005E2BA` `D_8005E444` `D_8005E47A` `D_8005E4A8` | **stale** — "lh vs lhu mismatch cannot be resolved via C with GCC 2.8.1 -O2" |
 | `func_80024408` | 16 | — | none |
 | `func_8001E78C` | 20 | `D_8005E520` | none |
 | `func_80022014` | 22 | — | none |
@@ -179,7 +178,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none |
 
-**None of the 14 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the 13 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -193,18 +192,12 @@ nothing today asserts they are supposed to be assembly.
 | `func_80017AA0` | 2026-08-13 | 11-instruction mode encoder: loads `D_8005E44C` as `s16`, returns 0/2/1 depending on value. Matched as clean C89 on first shape. Required changing `D_8005E44C` from `u16` to `s16` in `globals_override.h` to emit `lh` instead of `lhu`. `make check` passes. |
 | `func_8001205C` | 2026-08-08 | 15-instruction arithmetic expression over four globals. Not a codegen problem: `D_8005E328` had been over-declared as `s32 [3]` in `globals_override.h`, which forces the split two-register address where the target uses the unsplit self-clobber pair. Declaring it as a scalar took it from 12/15 to 15/15 on the existing C. `make check` passes. |
 | `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
+| `func_80019030` | 2026-08-19 | 16-instruction conditional arithmetic: loads `D_8005E47A` as `s16`, checks `D_8005E4A8[D_8005E444 - 1] == 0xFFFE`, and if so returns `(s16)(result - 12 - D_8005E2BA)`. Stale obstacle claimed GCC 2.8.1 couldn't emit `lh` vs `lhu`; under 2.95.2 the real issue was front-end reassociation of `result - 12 - D_8005E2BA` into `result - (D_8005E2BA + 12)`. Solved by splitting into two statements with an `s32` intermediate to prevent premature sign-extension. Added `D_8005E444` (u16), `D_8005E4A8` (u16*), and simplified `D_8005E47A` (s16) in `globals_override.h`. `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones with a known shape first** — `func_80019030` (16),
-`func_80024408` (16), `func_8001E78C` (20).
-
-`func_80019030` is the sharpest test in the set: its recorded obstacle is a
-concrete, falsifiable codegen claim (`lh` where the candidate emits `lhu`),
-made against a compiler the project no longer uses. Re-run it under 2.95.2
-before assuming the obstacle survived. Note it reads its globals through the
-assembler macro form (`lh $5,D_8005E47A`), which is only GP-relative because
-the block declares them — so any C rewrite must define those four symbols.
+**The smallest ones with a known shape first** — `func_80024408` (16),
+`func_8001E78C` (20).
 
 `func_8001D2D8` is the one entry whose stated reason is a *layout* claim
 ("force two separate return blocks"), which is the same family of problem as
