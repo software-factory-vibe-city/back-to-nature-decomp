@@ -1,36 +1,17 @@
 #include "common.h"
 
-__asm__ (
-    "\n"
-    "\t.set\tnoreorder\n"
-    "\t.globl\tfunc_80022014\n"
-    "\t.ent\tfunc_80022014\n"
-    "func_80022014:\n"
-    "\tsll\t$a1,$a1,0x10\n"
-    "\tsra\t$a1,$a1,0x10\n"
-    "\tmove\t$t0,$zero\n"
-    "\taddiu\t$a0,$a0,2\n"
-    "\tmove\t$a3,$zero\n"
-    "_80022028:\n"
-    "\tmove\t$a2,$zero\n"
-    "\taddu\t$v1,$a3,$a0\n"
-    "_80022030:\n"
-    "\tlh\t$v0,0($v1)\n"
-    "\tnop\n"
-    "\tbne\t$v0,$a1,_80022048\n"
-    "\taddiu\t$a2,$a2,1\n"
-    "\tjr\t$ra\n"
-    "\tli\t$v0,1\n"
-    "_80022048:\n"
-    "\tsltiu\t$v0,$a2,6\n"
-    "\tbnez\t$v0,_80022030\n"
-    "\taddiu\t$v1,$v1,14\n"
-    "\taddiu\t$t0,$t0,1\n"
-    "\tsltiu\t$v0,$t0,3\n"
-    "\tbnez\t$v0,_80022028\n"
-    "\taddiu\t$a3,$a3,84\n"
-    "\tjr\t$ra\n"
-    "\tmove\t$v0,$zero\n"
-    "\t.end\tfunc_80022014\n"
-    "\n"
-);
+s32 func_80022014(s32 arg0, s16 arg1) {
+    u32 i;
+    u32 j;
+
+    i = 0;
+    arg0 += 2;
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < 6; j++) {
+            if (*(s16 *)((char *)arg0 + i * 84 + j * 14) == arg1) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}

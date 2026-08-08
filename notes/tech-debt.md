@@ -213,11 +213,10 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**11 remaining** (was 12; `func_8001E78C` retired 2026-08-08).
+**10 remaining** (was 11; `func_80022014` retired 2026-08-21).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
-| `func_80022014` | 22 | — | none                                                   |
 | `func_80021604` | 25 | — | none                                                   |
 | `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none                                                   |
 | `func_80017E34` | 27 | — | none                                                   |
@@ -245,12 +244,12 @@ nothing today asserts they are supposed to be assembly.
 | `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
 | `func_80019030` | 2026-08-19 | 16-instruction conditional arithmetic: loads `D_8005E47A` as `s16`, checks `D_8005E4A8[D_8005E444 - 1] == 0xFFFE`, and if so returns `(s16)(result - 12 - D_8005E2BA)`. Stale obstacle claimed GCC 2.8.1 couldn't emit `lh` vs `lhu`; under 2.95.2 the real issue was front-end reassociation of `result - 12 - D_8005E2BA` into `result - (D_8005E2BA + 12)`. Solved by splitting into two statements with an `s32` intermediate to prevent premature sign-extension. Added `D_8005E444` (u16), `D_8005E4A8` (u16*), and simplified `D_8005E47A` (s16) in `globals_override.h`. `make check` passes. |
 | `func_80024408` | 2026-08-20 | 16-instruction conditional return: three-argument function with nested `if` guards on `arg1 < 2`, `(u32)(arg0 - 10) < 3`, and `arg2 == 0`, returning 9/13/`arg0`/13 depending on the path. Matched as clean C89 on first shape. `make check` passes. |
+| `func_80022014` | 2026-08-21 | 22-instruction nested-loop table search: walks a 3×6 grid of halfwords (14 bytes apart, rows 84 bytes apart) at `arg0 + 2` for `arg1`, returning 1/0. Matched as clean C89 on first shape. Key details: `s16 arg1` produces the `sll/sra` sign-extension prologue, `u32` loop counters emit `sltiu` (unsigned) comparisons, and `i = 0;` before `arg0 += 2;` sets the correct instruction birth order. `make check` passes. |
 | `func_8001E78C` | 2026-08-08 | 20-instruction 2D proximity test against `(D_8005E520 >> 1) + 600`; the 3-component form is the already-matching sibling `func_8001E7DC`. Two independent faults: an in-progress reconstruction had the predicate **inverted** (it returned 0 for in-range, the target returns 1), and once corrected, the deltas had to be assigned back into the parameters rather than into fresh locals — see "Check who owns the delta" below. Owns `D_8005E520` (tentative definition for the GP-relative load). `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones with a known shape first** — `func_80022014` (22),
-`func_80021604` (25).
+**The smallest ones with a known shape first** — `func_80021604` (25).
 
 `func_8001D2D8` is the one entry whose stated reason is a *layout* claim
 ("force two separate return blocks"), which is the same family of problem as

@@ -349,6 +349,7 @@ void func_80021E60(s32 arg0);
 void func_80021FD0(void);
 s32 * func_80021FE4(void);
 void func_80022008(void);
+s32 func_80022014(s32 arg0, s16 arg1);
 s32 func_8002261C(s32 arg0, s32 arg1);
 s32 func_800226B0(void);
 void func_80022738(void);
