@@ -18,15 +18,20 @@
 /* Forward declaration - defined in game_types.h */
 struct GfxObj;
 
-/* D_8006C7B8 - absolute-addressed struct accessed at offsets 0x0, 0xC, 0x10, 0x14, 0x18, 0x1C */
+/* D_8006C7B8 - absolute-addressed struct. func_800215EC writes a Vec3 at offsets 0/4/8.
+ * func_80021604 reads offset 0 as an index and writes offsets 0xC–0x1C. */
 typedef struct {
-    s32 unk0;       /* 0x00 */
-    char pad[0x8];  /* 0x04-0x0B */
+    s32 unk0;       /* 0x00 - Vec3.x / table index */
+    s32 unk4;       /* 0x04 - Vec3.y */
+    s32 unk8;       /* 0x08 - Vec3.z */
     s32 unkC;       /* 0x0C */
     s32 unk10;      /* 0x10 */
     s32 unk14;      /* 0x14 */
     s32 unk18;      /* 0x18 */
     s32 unk1C;      /* 0x1C */
+    s32 unk20;      /* 0x20 */
+    s32 unk24;      /* 0x24 */
+    s32 unk28;      /* 0x28 */
 } struct_8006C7B8;
 extern struct_8006C7B8 _D_8006C7B8[1] __asm__("D_8006C7B8");
 #define D_8006C7B8 (*((struct_8006C7B8*)_D_8006C7B8))
@@ -263,6 +268,10 @@ extern PadPortPair D_8005E2AC[];
 
 /* Pad actuator alignment data passed to PadSetActAlign. */
 extern u8 D_80048B14[];
+
+/* D_80049370 - s32 array used by func_80021604, func_80020E58, and
+ * func_800214FC. The aggregate size preserves split absolute address formation. */
+extern s32 D_80049370[3];
 
 /* D_8005E2A4 — GP-relative s32, per-port state flags (func_80013B04)
  * Size 2 keeps declaration <= 8 bytes for GP-relative addressing under -G8. */

@@ -1,37 +1,22 @@
 #include "common.h"
 
-extern s32 D_80049370[];
+void func_80021604(s32 arg0) {
+    s32 index;
+    s32 val_hi;
+    s32 val_lo;
+    u32 delta;
+    u32 result;
 
-__asm__ (
-    "\n"
-    "\t.set\tnoreorder\n"
-    "\t.globl\tfunc_80021604\n"
-    "\t.ent\tfunc_80021604\n"
-    "func_80021604:\n"
-    "\tlui\t$t0,0x5b0\n"
-    "\tlui\t$a2,%hi(D_8006C7B8)\n"
-    "\tlui\t$a3,%hi(D_80049370)\n"
-    "\tlw\t$v0,%lo(D_8006C7B8)($a2)\n"
-    "\taddiu\t$a3,$a3,%lo(D_80049370)\n"
-    "\taddiu\t$a1,$v0,2\n"
-    "\tsll\t$a1,$a1,2\n"
-    "\taddu\t$a1,$a1,$a3\n"
-    "\taddiu\t$v0,$v0,1\n"
-    "\tsll\t$v0,$v0,2\n"
-    "\taddu\t$v0,$v0,$a3\n"
-    "\tlw\t$v1,0($a1)\n"
-    "\tlw\t$a3,0($v0)\n"
-    "\tori\t$t0,$t0,0x5b60\n"
-    "\tsubu\t$v1,$v1,$a3\n"
-    "\tsrl\t$v1,$v1,12\n"
-    "\tmultu\t$v1,$t0\n"
-    "\taddiu\t$a2,$a2,%lo(D_8006C7B8)\n"
-    "\tsw\t$a0,24($a2)\n"
-    "\tsw\t$zero,28($a2)\n"
-    "\tsw\t$zero,16($a2)\n"
-    "\tsw\t$a3,20($a2)\n"
-    "\tmfhi\t$v1\n"
-    "\tjr\t$ra\n"
-    "\t sw\t$v1,12($a2)\n"
-    "\t.end\tfunc_80021604\n"
-);
+    index = D_8006C7B8.unk0;
+    val_hi = D_80049370[index + 2];
+    val_lo = D_80049370[index + 1];
+
+    delta = (u32)(val_hi - val_lo);
+    result = delta / 184320U;
+
+    D_8006C7B8.unk18 = arg0;
+    D_8006C7B8.unk1C = 0;
+    D_8006C7B8.unk10 = 0;
+    D_8006C7B8.unk14 = val_lo;
+    D_8006C7B8.unkC = result;
+}

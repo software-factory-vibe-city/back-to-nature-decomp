@@ -1,10 +1,8 @@
 # Tech debt: functions that are assembly, not C
 
-**Re-measured 2026-08-08** against the tree at that date, after retiring
-`func_8001205C`. Regenerate the inventory before acting on it — the counts
-below are a snapshot, and every hand-maintained version of them has gone stale
-(see "Corrections" at the end). The previous "19 whole-body / 15 debt" figures
-had already drifted by five retirements when this measurement was taken.
+**Re-measured 2026-08-08** after retiring `func_80021604`. Regenerate the
+inventory before acting on it — the counts below are a snapshot, and every
+hand-maintained version of them has gone stale (see "Corrections" at the end).
 
 This note covers **functions whose body is a raw `__asm__` block**. It does not
 cover `INCLUDE_ASM` stubs, which are honest not-yet-decompiled work and are
@@ -179,7 +177,7 @@ matters and earlier counts blurred it:
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 16 | 14 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 11 | 9 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
 | Register pins / scheduling barriers | 3 | other note |
@@ -213,11 +211,10 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**10 remaining** (was 11; `func_80022014` retired 2026-08-21).
+**9 remaining** (`func_80021604` retired 2026-08-08).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
-| `func_80021604` | 25 | — | none                                                   |
 | `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none                                                   |
 | `func_80017E34` | 27 | — | none                                                   |
 | `func_8001AF70` | 28 | — | none                                                   |
@@ -228,7 +225,7 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
 | `func_80015594` | 44 | — | none                                                   |
 
-**None of the 11 has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the nine has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -236,6 +233,7 @@ nothing today asserts they are supposed to be assembly.
 
 | Function | Retired | Result |
 |---|---|---|
+| `func_80021604` | 2026-08-08 | 25-instruction transfer-progress initializer. The apparent explicit `multu`/`mfhi` high-product sequence is GCC's native expansion of unsigned division by 184320: it pre-shifts the even divisor's 12 bits, then uses the reduced-precision reciprocal `0x05B05B60`. Replacing the raw asm with `delta / 184320U` matched as clean C89. `make check` passes. |
 | `func_80017EE4` | 2026-08-08 | Symbol boundary was wrong; three symbols merged into one 0x4C function, then matched as clean C89. `make check` passes. |
 | `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
 | `func_8001FD74` | 2026-08-10 | 4-instruction Boolean getter: `return D_80061F1C != 0;`. Matched as clean C89 on first shape. `make check` passes. |
@@ -249,7 +247,8 @@ nothing today asserts they are supposed to be assembly.
 
 ## What research each group needs
 
-**The smallest ones with a known shape first** — `func_80021604` (25).
+**The smallest remaining functions first** — `func_80013394` and
+`func_80017E34` (27 instructions each).
 
 `func_8001D2D8` is the one entry whose stated reason is a *layout* claim
 ("force two separate return blocks"), which is the same family of problem as
@@ -257,9 +256,9 @@ nothing today asserts they are supposed to be assembly.
 handling rather than by the source statement order. Read
 `expand_end_loop` and the jump-threading passes before assuming asm is needed.
 
-**Then the rest** (22–44 instructions), ordinary decompilation work.
+**Then the rest** (28–44 instructions), ordinary decompilation work.
 
-**Carry the GP-relative facts across.** One of the eleven owns globals
+**Carry the GP-relative facts across.** One of the nine owns globals
 (`func_80013394`). In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`
@@ -343,8 +342,10 @@ do not feed them to `mergeFragments` expectations.
 
 `notes/next-steps-for-revisiting-the-project.md` lists "Raw `__asm__` embeds
 (bad) | 5" naming `func_8001205C`, `func_80015AAC`, `func_80017E34`,
-`func_80021604`, `func_80022014`. Four of the five are real and are in the
-table above; `func_8001205C` has since been retired. The count is not 5.
+`func_80021604`, `func_80022014`. All five were real raw embeds when listed,
+but `func_8001205C`, `func_80021604`, and `func_80022014` have since been
+retired; only `func_80015AAC` and `func_80017E34` remain in the table above.
+The count is not 5.
 
 This note's own previous count — "20 files, 18 debt" — was also wrong, in the
 other direction: it missed `func_8001D2D8` and `func_8001F278` (both

@@ -235,6 +235,19 @@ Technique and per-function detail for this group live in
 these wrappers illustrate is in
 `notes/research/frame-size-arity-diagnostic.md`.
 
+## VAB transfer setup/state — around 0x80020E58–0x800217B0 (confidence: medium)
+
+Sound-bank transfer setup and progress state.
+Fingerprints: func_80020E58 directly calls func_800214FC, func_800215EC,
+func_80021604, and func_80021668; func_80020E58, func_800214FC, and
+func_80021604 share the absolute D_80049370 table; func_800215EC,
+func_80021604, and func_80021668 share the D_8006C7B8 transfer-state object.
+Members: func_80020E58 (s) — transfer setup/dispatcher; func_800214FC (s) —
+selects a D_80049370 span and starts an operation; func_800215EC (m) — writes
+the first three transfer-state words; func_80021604 (m) — initializes transfer
+progress from adjacent D_80049370 entries; func_80021668 (s) — advances the
+partial VAB transfer.
+
 ## candidates to investigate
 
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count
