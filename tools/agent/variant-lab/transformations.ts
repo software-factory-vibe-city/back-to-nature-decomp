@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { ROOT } from "../decompToolchain.js";
 import { projectPath } from "./artifacts.js";
-import { validateVariantSource } from "./manifest.js";
+import { findGeneratedGlobalDefinitions, validateVariantSource } from "./manifest.js";
 import {
   TRANSFORMATION_TEMPLATES,
   type ExactSourceEdit,
@@ -126,9 +126,13 @@ export function generateTransformationVariants(specPath: string, functionName: s
   }
   mkdirSync(outputDirectory, { recursive: true });
 
+  /* Generated-global definitions the base source already owns carry through a
+   * transformation; only one the edits newly introduce is a policy violation. */
+  const inheritedGeneratedGlobals = findGeneratedGlobalDefinitions(base).map((definition) => definition.symbol);
+
   return spec.outputs.map((output) => {
     const transformed = applyExactEdits(base, output.edits);
-    const findings = validateVariantSource(transformed);
+    const findings = validateVariantSource(transformed, { inheritedGeneratedGlobals });
     if (findings.length > 0) {
       const first = findings[0];
       throw new Error(`generated ${output.id}.c:${first.line}: ${first.message}`);

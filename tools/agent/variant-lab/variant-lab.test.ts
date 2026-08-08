@@ -5,7 +5,7 @@ import test from "node:test";
 import { ROOT } from "../decompToolchain.js";
 import { deterministicRunId, hashDirectoryFiles, preserveSource, stableJson, writeStableJson } from "./artifacts.js";
 import { classifyHypothesis } from "./classify-hypothesis.js";
-import { findGeneratedGlobalDefinitions, validateManifest, validateVariantSource } from "./manifest.js";
+import { findGeneratedGlobalDefinitions, resolveHypotheses, validateManifest, validateVariantSource } from "./manifest.js";
 import { comparePassSnapshots, snapshotPassContent } from "./pass-diff.js";
 import { generateTransformationVariants } from "./transformations.js";
 import { PASS_STAGES, type PassSnapshot, type PassStage, type ToolIdentity, type VariantHypothesis } from "./types.js";
@@ -205,6 +205,28 @@ test("protects inherited translation-unit-owned generated-global definitions", (
   /* A plain extern redeclaration changes no code generation and stays refused. */
   assert.equal(findGeneratedGlobalDefinitions("extern u16 D_8005E438;\n").length, 0);
   assert.match(validateVariantSource("extern u16 D_8005E438;\n", { inheritedGeneratedGlobals: ["D_8005E438"] })[0].message, /generated globals/);
+});
+
+test("resolveHypotheses inherits the baseline's translation-unit-owned generated globals", () => {
+  const directory = mkdtempSync(join(ROOT, "build/variant-resolve-test-"));
+  try {
+    const owned = "#include \"common.h\"\n\nu16 D_8005E438;\n\nvoid f(void)\n{\n    D_8005E438 = 0;\n}\n";
+    const baseline = join(directory, "baseline.c");
+    const candidate = join(directory, "candidate.c");
+    writeFileSync(baseline, owned);
+    writeFileSync(candidate, owned.replace("D_8005E438 = 0;", "D_8005E438 = 1;"));
+    const hypotheses: VariantHypothesis[] = [
+      { id: "baseline", sourcePath: relative(ROOT, baseline), mechanism: "custom", baseline: true },
+      { id: "candidate", sourcePath: relative(ROOT, candidate), mechanism: "custom" },
+    ];
+    assert.deepEqual(resolveHypotheses(hypotheses).map((variant) => variant.id), ["baseline", "candidate"]);
+
+    /* A candidate may keep what the baseline owns; it may not introduce more. */
+    writeFileSync(candidate, owned.replace("u16 D_8005E438;", "u16 D_8005E438;\nu16 D_8005E43A;"));
+    assert.throws(() => resolveHypotheses(hypotheses), /D_8005E43A/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("reports a generated global at its own line, not at the start of the leading blank run", () => {

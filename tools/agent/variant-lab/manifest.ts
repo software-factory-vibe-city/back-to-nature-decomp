@@ -219,14 +219,26 @@ export function resolveHypotheses(hypotheses: VariantHypothesis[]): ResolvedVari
     if (hypothesis.baseline) baselines++;
   }
   if (baselines !== 1) throw new Error(`exactly one baseline is required after input resolution; found ${baselines}`);
-  return hypotheses.map((hypothesis) => {
+  const read = hypotheses.map((hypothesis) => {
     const absoluteSourcePath = isAbsolute(hypothesis.sourcePath)
       ? hypothesis.sourcePath
       : join(ROOT, hypothesis.sourcePath);
     if (!existsSync(absoluteSourcePath)) throw new Error(`variant source not found: ${hypothesis.sourcePath}`);
     if (!hypothesis.sourcePath.endsWith(".c")) throw new Error(`variant source must be a .c file: ${hypothesis.sourcePath}`);
-    const source = readFileSync(absoluteSourcePath, "utf8");
-    const findings = validateVariantSource(source);
+    return { hypothesis, absoluteSourcePath, source: readFileSync(absoluteSourcePath, "utf8") };
+  });
+  /* The baseline decides which in-file mechanisms the candidates inherit. A
+   * translation unit that owns a generated global carries its own tentative
+   * definition so the assembler addresses it gp-relatively, so that definition
+   * is part of the baseline under test rather than a stray redeclaration. It is
+   * protected when the baseline has it and still rejected when a candidate
+   * introduces one the baseline did not have. */
+  const baseline = read.find((entry) => entry.hypothesis.baseline)!;
+  const options: VariantSourceValidationOptions = {
+    inheritedGeneratedGlobals: findGeneratedGlobalDefinitions(baseline.source).map((definition) => definition.symbol),
+  };
+  return read.map(({ hypothesis, absoluteSourcePath, source }) => {
+    const findings = validateVariantSource(source, options);
     if (findings.length > 0) {
       const first = findings[0];
       throw new Error(`${hypothesis.sourcePath}:${first.line}: ${first.message}`);
