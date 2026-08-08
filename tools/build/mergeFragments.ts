@@ -18,7 +18,7 @@
  *   npx tsx tools/build/mergeFragments.ts --write   # modify
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { loadPsxExeInfo, vramToRom, ROOT } from "../lib/psxExeInfo.ts";
 
@@ -218,6 +218,23 @@ function findExternalBranchTargets(
  * table without absorbing any fragment — so this is driven by the jtbl owner
  * map rather than by merge groups.
  */
+/**
+ * Whether the compiled object emits a jump table, or `undefined` when it
+ * cannot say. A compiled artifact only answers for the source it was built
+ * from: if it is missing, or older than the source, it is stale and consulting
+ * it decides the wrong way in both directions -- keeping an entry after a
+ * revert to a stub, or dropping one for C that has not been rebuilt yet.
+ */
+function objectEmitsJumpTable(sourcePath: string, compiledPath: string): boolean | undefined {
+  if (!existsSync(compiledPath)) return undefined;
+  try {
+    if (statSync(compiledPath).mtimeMs < statSync(sourcePath).mtimeMs) return undefined;
+  } catch {
+    return undefined;
+  }
+  return /^\s*\.word\s+\$L\d+/m.test(readFileSync(compiledPath, "utf-8"));
+}
+
 function collectJumpTableRodataInserts(
   jtblByOwnerFunc: Map<number, { romStart: number; romEnd: number }[]>,
   nameOfAddr: Map<number, string>,
@@ -243,8 +260,7 @@ function collectJumpTableRodataInserts(
      * emits none. */
     if (!existsSync(sourcePath)) continue;
     if (/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"))) continue;
-    if (existsSync(compiledPath)
-        && !/^\s*\.word\s+\$L\d+/m.test(readFileSync(compiledPath, "utf-8"))) continue;
+    if (objectEmitsJumpTable(sourcePath, compiledPath) === false) continue;
     for (const jtbl of jtbls) {
       if (jtbl.romStart > 0) inserts.push({ romStart: jtbl.romStart, romEnd: jtbl.romEnd, name: owner });
     }
@@ -317,8 +333,7 @@ function syncSplatSubsegments(options: {
       const compiledPath = join(ROOT, "build/src", `${name}.s`);
       const stillC = existsSync(sourcePath)
         && !/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"));
-      const emitsTable = !existsSync(compiledPath)
-        || /^\s*\.word\s+\$L\d+/m.test(readFileSync(compiledPath, "utf-8"));
+      const emitsTable = objectEmitsJumpTable(sourcePath, compiledPath) !== false;
       if (stillC && emitsTable) merged.set(romStart, { romStart, romEnd, name });
       continue;
     }
