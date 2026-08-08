@@ -58,6 +58,12 @@ function runStep(label: string, cmd: string): string {
   try {
     return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
   } catch (e: any) {
+    /* GCC 2.95 exits 33 for warnings-only (not an error). Treat cc1 warnings
+     * as non-fatal so the diff can still run. Actual compile errors produce
+     * exit codes like 1 or 4 and no output .s file. */
+    if (label === "cc1" && e.status === 33) {
+      return "";
+    }
     const msg = (e.stderr || e.stdout || e.message || "").trim();
     throw new Error(`${label}: ${msg}`);
   }
@@ -75,19 +81,47 @@ function runStep(label: string, cmd: string): string {
  * Checked from the compiled assembly and configs/splat.yaml, so it costs
  * nothing and reports during iteration rather than only at 100%.
  */
-function reportOracleAvailability(assemblyPath: string, funcName: string | undefined): void {
-  if (!funcName || !existsSync(assemblyPath)) return;
-  const assembly = readFileSync(assemblyPath, "utf-8");
-  if (!/^\s*\.word\s+\$L\d+/m.test(assembly)) return;
-  const splat = readFileSync(join(ROOT, "configs/splat.yaml"), "utf-8");
-  if (new RegExp(`\\.rodata,\\s*${funcName}\\s*\\]`).test(splat)) return;
-  console.log("");
-  console.log("ORACLE UNAVAILABLE: this source compiles its switch to a jump table, but");
-  console.log(`  configs/splat.yaml has no '.rodata, ${funcName}' subsegment. The extracted`);
-  console.log("  jtbl_* is still emitted and references labels that no longer exist, so the");
-  console.log("  link fails and byte verification cannot run.");
-  console.log("  The score above is a masked proxy with no oracle behind it. Do not rank");
-  console.log("  variants on it until the build links.");
+function reportOracleAvailability(assemblyPath: string, funcName: string | undefined): boolean {
+  if (!funcName) return false;
+  try {
+    run("make -j1 build/slus_011.bin");
+    return true;
+  } catch (e: any) {
+    const output = (e.stderr || e.stdout || e.message || "").trim();
+    const detail = output.split("\n").slice(-4);
+    /* Name the culprit. One broken function blocks byte verification for every
+     * function, so without this an agent reads someone else's compile errors
+     * as its own and starts fixing the wrong file. */
+    const blame = output.match(/build\/src\/(\w+)\.c\.o/)?.[1];
+    console.log("");
+    if (blame && blame !== funcName) {
+      console.log(`ORACLE UNAVAILABLE: the build is blocked by src/${blame}.c, not by this`);
+      console.log("  function. Byte verification cannot run until that compiles, so the score");
+      console.log("  above is a masked proxy with no oracle behind it.");
+    } else if (blame) {
+      console.log(`ORACLE UNAVAILABLE: src/${blame}.c does not compile, so byte verification`);
+      console.log("  cannot run. Fix the compile before reading the score above -- it is a");
+      console.log("  masked proxy with no oracle behind it.");
+    } else {
+      console.log("ORACLE UNAVAILABLE: the full build does not link, so byte verification");
+      console.log("  cannot run. The score above is a masked proxy with no oracle behind it.");
+    }
+    for (const line of detail) console.log(`    ${line}`);
+
+    /* One cause has a specific remedy that is easy to misdiagnose as needing a
+     * hand edit, so name it when it applies. */
+    if (existsSync(assemblyPath) && /^\s*\.word\s+\$L\d+/m.test(readFileSync(assemblyPath, "utf-8"))) {
+      const splat = readFileSync(join(ROOT, "configs/splat.yaml"), "utf-8");
+      if (!new RegExp(`\\.rodata,\\s*${funcName}\\s*\\]`).test(splat)) {
+        console.log("");
+        console.log("  This source emits a jump table and configs/splat.yaml has no");
+        console.log(`  '.rodata, ${funcName}' subsegment, so the extracted jtbl_* still`);
+        console.log("  references labels that no longer exist. Run `make split` to generate");
+        console.log("  the subsegment -- do not edit splat.yaml by hand, it is regenerated.");
+      }
+    }
+    return false;
+  }
 }
 
 function compile(src: string): string {
@@ -299,8 +333,8 @@ function doDiff(src: string, target: string | null, funcName?: string): void {
         console.log("  instructions (except entry moves). Fix source semantics first.");
       }
     }
-    reportOracleAvailability(compiled.replace(/\.c\.o$/, ".s"), funcName);
-    if (total > 0 && matches === total && funcName) {
+    const oracleReady = reportOracleAvailability(compiled.replace(/\.c\.o$/, ".s"), funcName);
+    if (total > 0 && matches === total && funcName && oracleReady) {
       verifyLinkedBytes(funcName);
     } else if (total > 0 && matches === total) {
       console.log("NOTE: masked-only result (no function name given); relocation fields");
