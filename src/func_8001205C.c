@@ -1,28 +1,14 @@
 #include "common.h"
 
-__asm__ (
-    "\n"
-    "\t.set\tnoreorder\n"
-    "\t.globl\tfunc_8001205C\n"
-    "\t.ent\tfunc_8001205C\n"
-    "func_8001205C:\n"
-    "\tlui\t$v1,0xFFFB\n"
-    "\tori\t$v1,$v1,0x7000\n"
-    "\tlw\t$v0,D_8005E3B0\n"
-    "\tlui\t$a2,%hi(D_8001009C)\n"
-    "\tlw\t$a2,%lo(D_8001009C)($a2)\n"
-    "\tlui\t$a1,%hi(D_8005E328)\n"
-    "\tlw\t$a1,%lo(D_8005E328)($a1)\n"
-    "\tsubu\t$a0,$v0,$a2\n"
-    "\taddu\t$v1,$a0,$v1\n"
-    "\tlui\t$a0,%hi(D_8007AFF4)\n"
-    "\tlw\t$v0,%lo(D_8007AFF4)($a0)\n"
-    "\tsubu\t$a0,$v1,$a1\n"
-    "\tsubu\t$v0,$v0,$a2\n"
-    "\tjr\t$ra\n"
-    "\t subu\t$v0,$a0,$v0\n"
-    "\t.end\tfunc_8001205C\n"
-    "\n"
-    "\t.sdata\n"
-    "\t.comm\tD_8005E3B0,4\n"
-);
+/* Globals accessed by this function */
+s32 D_8005E3B0;
+
+s32 func_8001205C(void) {
+    s32 const_val;
+    s32 temp;
+
+    const_val = (s32)0xFFFB7000;
+    temp = D_8005E3B0 - D_8001009C;
+    temp = (temp + const_val) - D_8005E328;
+    return temp - (D_8007AFF4 - D_8001009C);
+}

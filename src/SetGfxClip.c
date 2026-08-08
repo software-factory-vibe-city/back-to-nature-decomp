@@ -6,9 +6,11 @@
  * Both D_8005E3A8 and D_8005E3AC are updated (double buffering).
  *
  * D_8005E3A8/D_8005E3AC are GP-addressable but this TU does not own them
- * (func_80011370 does), so they are addressed absolutely: configs/tu_externs.txt
- * disowns them here, which keeps cc1's assembler macro and lets it expand to the
- * target's single-register self-clobber pair. No pins or flag overrides needed. */
+ * (func_80011370 does). Not defining them here is the whole statement: maspsx
+ * goes GP-relative only for a symbol the file itself declares, so these are
+ * addressed absolutely, and their scalar declaration keeps cc1's assembler
+ * macro so it expands to the target's single-register self-clobber pair. No
+ * pins or flag overrides needed. */
 void SetGfxClip(s32 arg0, s32 arg1) {
     GfxObj *ptr_ac;
     GfxObj *ptr_a8;

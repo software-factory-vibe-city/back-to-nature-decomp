@@ -4,7 +4,7 @@
 **Status:** Accepted. The *finding* stands; the **first implementation was
 interim and has been replaced.**
 `plans/toolchain-native-small-data-addressing.md` landed on 2026-08-08 and
-deleted both `tools/build/fixSmallDataExterns.ts` and `configs/tu_externs.txt`.
+deleted both `tools/build/fixSmallDataExterns.ts` and `configs/tu_externs.txt`. <!-- doc-ref-ignore -->
 The addressing decision now comes from the toolchain's own model (§2.4), not
 from a project-specific pass and table (§2.1/§2.2, kept below as history).
 
@@ -138,52 +138,19 @@ re-enabled.
 **Addressing mode is decided at the assembler boundary, from project facts,
 not by bending the C or the compiler invocation.**
 
-Concretely, four rules. **§2.1 and §2.2 are history** — they describe the
-interim bridge, which §2.4 replaced and deleted. They are kept because they
-record what was tried and why it was not wrong, only unnecessary.
+Concretely, two rules: §2.3 and §2.4.
 
-### 2.1 (WITHDRAWN — interim bridge, deleted 2026-08-08) Correct the assembler's small-data decision in the pipeline
+### 2.1, 2.2 — withdrawn, deleted in `e32523a`
 
-`tools/build/fixSmallDataExterns.ts` ran between cc1 and maspsx. For each
-`.extern SYM, <size>` small enough to trigger GNU as's small-data path, it
-widens the recorded size past the threshold when the symbol **cannot be
-GP-addressed** — i.e. its address lies outside `[$gp - 0x8000, $gp + 0x8000)`.
-cc1 has already made its own decision by then, so the macro form survives and
-the assembler expands it absolutely.
+An interim bridge — a post-cc1 pass that widened `.extern` sizes, plus a table
+recording per-TU symbol ownership — stood here until §2.4 replaced it. Both the
+pass and the table were deleted on 2026-08-08. **Neither exists; do not look
+for them.** Read `git show e32523a` if you need what they did.
 
-Every input is read from project configuration:
-
-| Input | Source |
-|---|---|
-| `$gp` | `gp_value` in `configs/splat.yaml` |
-| `-G` threshold | `-G<n>` parsed from `ASFLAGS` in the `Makefile` |
-| symbol addresses | `configs/symbol_addrs.txt`, falling back to the address encoded in generated `D_xxxxxxxx` / `jtbl_xxxxxxxx` names |
-
-Nothing about this game is hardcoded. The pass is **conservative**: a symbol
-whose address cannot be established is left untouched, per the project's
-"report only what you prove" rule.
-
-### 2.2 (WITHDRAWN — interim bridge, deleted 2026-08-08) Record per-TU symbol ownership declaratively
-
-Being inside the `$gp` window is necessary but not sufficient. `configs/tu_externs.txt`
-recorded, per source stem, the in-window symbols that stem did **not** own:
-
-```
-SetGfxClip   = D_8005E3A8 D_8005E3AC
-SetGfxOffset = D_8005E3A8 D_8005E3AC
-func_800165D8 = D_8005E3C0
-func_80016C08 = D_8005E3C0
-```
-
-Those symbols got the same `.extern` widening, so they were addressed
-absolutely in those files and GP-relative in the file that owns them. Each
-entry carried its evidence in a comment.
-
-The problem it named is real and outlived the table: **facts about the original
-translation-unit boundaries that a single shared header cannot express.** What
-was wrong was the conclusion that they need a config file. C can express
-ownership directly — a definition is exactly the statement "this TU owns this
-object" — which is what §2.4 does.
+The one idea that outlived them: **translation-unit boundaries are facts a
+single shared header cannot express.** The mistake was concluding they need a
+config file. C states ownership directly — a definition *is* the statement
+"this TU owns this object" — which is what §2.4 does.
 
 ### 2.3 Treat "the compiler was invoked differently" as a last resort
 
@@ -341,20 +308,21 @@ inside that class. GP-for-`la` is a sharper signal from the same binary.
 
 ## 4. Alternatives rejected
 
-**Global `-G0` for the assembler.** *This entry was wrong, and §2.4 is the
-correction.* It was rejected on the belief that `-G0` would break every
-legitimate GP-relative access. It does — for GNU `as`. But maspsx forces `-G0`
-on `as` precisely so that maspsx, which models ASPSX's per-TU rule, makes the
-decision instead. The right answer really is per-symbol and per-TU; the
-assembler that produces it is maspsx, not `as`. Recorded rather than deleted
-because the reasoning failure is the reusable part: *a flag was judged by what
-one tool in the pipeline would do with it, without checking which tool the
-pipeline had put in charge.*
+Everything in this section is rejected. Nothing here is a fallback to reach
+for when §2.4 seems not to work.
 
-**Over-declaring globals as arrays.** The status quo. It links, but it forces
-the two-register split form, which is not what the target uses, and it lies
-about the type in a shared header — which is what broke `SetGfxClip` and
-`SetGfxOffset` when the declaration was later corrected for `func_80011370`.
+**Global `-G0` for the assembler.** Not rejected after all — §2.4 is this, and
+the original rejection was wrong. It was rejected on the belief that `-G0`
+breaks every legitimate GP-relative access. It does, for GNU `as`. But maspsx
+forces `-G0` on `as` precisely so that maspsx, which models ASPSX's per-TU
+rule, decides instead. The reusable part is the reasoning failure: *a flag was
+judged by what one tool in the pipeline would do with it, without checking
+which tool the pipeline had put in charge.*
+
+**Over-declaring globals as arrays.** It links, but it forces the two-register
+split form, which is not what these targets use, and it lies about the type in
+a shared header. Reintroducing one is the standing way to break a function that
+was matching — see §4.1.
 
 **Source-level web shaping to recover the self-clobber pair.** Proven
 unreachable, not merely difficult. `local-alloc.c`'s `combine_regs()` records a
@@ -363,6 +331,30 @@ register suggestion only for register-to-register copies; the load is
 suggested `$a2`, and `REG_ALLOC_ORDER` is plain ascending so it takes `$v0`. A
 named-temp variant was tried and changed nothing. *Read the pass that decides
 the thing before designing another source shape.*
+
+**This does not mean a missing self-clobber pair is unfixable — see §4.1.**
+It means you cannot reach one by reshaping the C. Whether you need to is
+decided earlier, by the declaration.
+
+### 4.1 When the target has a self-clobber pair and you emit a split one
+
+Check the declaration before concluding anything about allocation. Under §2.4
+the two decisions are separate, and only one of them is yours:
+
+| Question | Decided by |
+|---|---|
+| GP-relative or absolute? | whether **this TU defines** the symbol — size is irrelevant |
+| unsplit macro (self-clobber) or split pair? | the **declared size** against `-G8` |
+
+So a symbol declared `<= 8` bytes and *not* defined in the file gets exactly
+the absolute single-register `lui $r,%hi(sym)` / `lw $r,%lo(sym)($r)` the
+targets here use. Widening it past the threshold — an `[3]` array, say — buys
+nothing, because absolute addressing never depended on the size, and costs the
+match, because cc1 then splits the address across two registers and §4's
+unreachability result applies to the result.
+
+Pre-2026-08-08 comments claim size controls the addressing mode. It did, under
+the withdrawn §2.1/§2.2 bridge. It does not now.
 
 **Patching vendored maspsx.** Rejected, and still rejected under §2.4: maspsx
 already implements the rule, so nothing needed patching once it was allowed to.

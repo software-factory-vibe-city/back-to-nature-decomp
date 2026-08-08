@@ -63,10 +63,10 @@ void func_80021FD0(void);
    source shape or allocation can undo (local-alloc's combine_regs() only
    records register suggestions for reg-to-reg copies, so the HIGH temp can
    never be tied to $a2).
-   These symbols sit 0x4E1DC from $gp, far outside the GP window;
-   tools/build/fixSmallDataExterns.ts widens their `.extern` size so GNU as
-   expands the macro absolutely instead of emitting an unlinkable
-   R_MIPS_GPREL16. */
+   These symbols sit 0x4E1DC from $gp, far outside the GP window. Nothing has
+   to widen anything for that: maspsx forces -G0 on GNU as, so as makes no
+   small-data decision, and a symbol this translation unit does not define is
+   addressed absolutely whatever its declared size. */
 extern s32 D_80010098;
 extern s32 D_8001009C;
 s32 D_8005E27C;

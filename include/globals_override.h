@@ -221,6 +221,17 @@ extern u16 D_8005E438;
 extern s32 D_8005E5B4;
 extern s32 D_8005E5CC;
 
+/* D_8001009C, D_8005E328 - absolute s32 scalars (func_80011370 / func_8001205C)
+ *
+ * Scalars, not arrays. Addressing mode does not follow from the declared size:
+ * a translation unit that does not define the symbol addresses it absolutely
+ * whatever its size. The size decides only whether cc1 splits the address, and
+ * <= -G8 leaves the unsplit macro form that the assembler expands into the
+ * single-register lui/lw pair these two targets use. Over-declaring either
+ * past the threshold forces the two-register split form and stops the match. */
+extern s32 D_8001009C;
+extern s32 D_8005E328;
+
 /* D_800100A0 - string embedded in func_80010000 at offset 0xA0 ("INIT ERROR\n")
  * Referenced by func_80015704 for FntPrint error messages.
  * s32 array of 3 forces >8 byte declaration for absolute addressing (lui+lw) */
