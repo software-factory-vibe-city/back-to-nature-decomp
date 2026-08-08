@@ -162,21 +162,22 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-| Function | Instrs | Owns | Stated reason |
-|---|---:|---|---|
-| `func_80024408` | 16 | — | none |
-| `func_8001E78C` | 20 | `D_8005E520` | none |
-| `func_80022014` | 22 | — | none |
-| `func_80021604` | 25 | — | none |
-| `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none |
-| `func_80017E34` | 27 | — | none |
-| `func_8001AF70` | 28 | — | none |
-| `func_8001D2D8` | 28 | — | "Force two separate return blocks with inline assembly labels" |
-| `func_8001F278` | 29 | — | none |
-| `func_80015AAC` | 30 | — | none |
-| `func_8001526C` | 40 | — | none |
+**12 remaining** (was 13; `func_80024408` retired 2026-08-20).
+
+| Function | Instrs | Owns | Stated reason                                          |
+|---|---:|---|--------------------------------------------------------|
+| `func_8001E78C` | 20 | `D_8005E520` | none                                                   |
+| `func_80022014` | 22 | — | none                                                   |
+| `func_80021604` | 25 | — | none                                                   |
+| `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none                                                   |
+| `func_80017E34` | 27 | — | none                                                   |
+| `func_8001AF70` | 28 | — | none                                                   |
+| `func_8001D2D8` | 28 | — | none                                                   |
+| `func_8001F278` | 29 | — | none                                                   |
+| `func_80015AAC` | 30 | — | none                                                   |
+| `func_8001526C` | 40 | — | none                                                   |
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
-| `func_80015594` | 44 | — | none |
+| `func_80015594` | 44 | — | none                                                   |
 
 **None of the 13 has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
@@ -193,11 +194,11 @@ nothing today asserts they are supposed to be assembly.
 | `func_8001205C` | 2026-08-08 | 15-instruction arithmetic expression over four globals. Not a codegen problem: `D_8005E328` had been over-declared as `s32 [3]` in `globals_override.h`, which forces the split two-register address where the target uses the unsplit self-clobber pair. Declaring it as a scalar took it from 12/15 to 15/15 on the existing C. `make check` passes. |
 | `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
 | `func_80019030` | 2026-08-19 | 16-instruction conditional arithmetic: loads `D_8005E47A` as `s16`, checks `D_8005E4A8[D_8005E444 - 1] == 0xFFFE`, and if so returns `(s16)(result - 12 - D_8005E2BA)`. Stale obstacle claimed GCC 2.8.1 couldn't emit `lh` vs `lhu`; under 2.95.2 the real issue was front-end reassociation of `result - 12 - D_8005E2BA` into `result - (D_8005E2BA + 12)`. Solved by splitting into two statements with an `s32` intermediate to prevent premature sign-extension. Added `D_8005E444` (u16), `D_8005E4A8` (u16*), and simplified `D_8005E47A` (s16) in `globals_override.h`. `make check` passes. |
+| `func_80024408` | 2026-08-20 | 16-instruction conditional return: three-argument function with nested `if` guards on `arg1 < 2`, `(u32)(arg0 - 10) < 3`, and `arg2 == 0`, returning 9/13/`arg0`/13 depending on the path. Matched as clean C89 on first shape. `make check` passes. |
 
 ## What research each group needs
 
-**The smallest ones with a known shape first** — `func_80024408` (16),
-`func_8001E78C` (20).
+**The smallest ones with a known shape first** — `func_8001E78C` (20).
 
 `func_8001D2D8` is the one entry whose stated reason is a *layout* claim
 ("force two separate return blocks"), which is the same family of problem as

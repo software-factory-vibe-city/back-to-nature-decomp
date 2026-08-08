@@ -1,29 +1,16 @@
 #include "common.h"
 
-__asm__(
-    "\n"
-    "\t.set\tnoreorder\n"
-    "\t.globl\tfunc_80024408\n"
-    "\t.ent\tfunc_80024408\n"
-    "func_80024408:\n"
-    "\tslti\t$v0,$a1,0x2\n"
-    "\tbeqz\t$v0,_80024430\n"
-    "\t\taddiu\t$v0,$a0,-0xA\n"
-    "\tsltiu\t$v0,$v0,0x3\n"
-    "\tbeqz\t$v0,_80024434\n"
-    "\t\taddiu\t$v1,$zero,0x5\n"
-    "\tbeqz\t$a2,_80024440\n"
-    "\t\taddiu\t$v0,$zero,0x9\n"
-    "\tjr\t$ra\n"
-    "\t\taddiu\t$v0,$zero,0xD\n"
-    "_80024430:\n"
-    "\taddiu\t$v1,$zero,0x5\n"
-    "_80024434:\n"
-    "\tbeq\t$a1,$v1,_80024440\n"
-    "\t\taddiu\t$v0,$zero,0xD\n"
-    "\taddu\t$v0,$a0,$zero\n"
-    "_80024440:\n"
-    "\tjr\t$ra\n"
-    "\t\tnop\n"
-    "\t.end\tfunc_80024408\n"
-);
+s32 func_80024408(s32 arg0, s32 arg1, s32 arg2) {
+    if (arg1 < 2) {
+        if ((u32)(arg0 - 10) < 3) {
+            if (arg2 == 0) {
+                return 9;
+            }
+            return 13;
+        }
+    }
+    if (arg1 == 5) {
+        return 13;
+    }
+    return arg0;
+}
