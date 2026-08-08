@@ -158,8 +158,12 @@ function main() {
     ? `- **Compiler:** GCC ${mk.gccVersion}-psx (\`cc1\`) — verified byte-identical output against the original binary${evidenceRef}; ${check.detail}`
     : `- **Compiler:** GCC ${mk.gccVersion}-psx (\`cc1\`) — CONFIGURED but byte-identity NOT confirmed at generation time (${check.detail})`;
 
+  /* Size is a necessary condition for GP-relative addressing, not the
+   * decision: the assembler only uses `$gp` for symbols the translation unit
+   * declares itself. Stating the threshold without that qualifier is what
+   * produced a round of array over-declarations. */
   const gSentence = mk.gThreshold !== null
-    ? `\`-G${mk.gThreshold}\` — externs declared **${mk.gThreshold} bytes or smaller** get GP-relative addressing (single \`lw/sw %gp_rel(sym)($gp)\`); larger declarations get absolute addressing (\`lui\` + \`lw/sw %lo(sym)\`)`
+    ? `\`-G${mk.gThreshold}\` — a global can be reached GP-relatively (single \`lw/sw %gp_rel(sym)($gp)\`) only if it is declared **${mk.gThreshold} bytes or smaller**, *and* the file **defines** it (a tentative definition, so cc1 emits \`.comm\`). A file that only declares it \`extern\` gets absolute addressing (\`lui\` + \`lw/sw %lo(sym)\`) whatever the size. Never enlarge a declaration to force absolute addressing; derive ownership from the target with \`tools/build/deriveTuOwnedGlobals.ts\``
     : "unknown — no `-G` flag found in CC1FLAGS";
 
   const aspsxSentence = mk.aspsxVersion

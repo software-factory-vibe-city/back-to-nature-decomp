@@ -1,8 +1,29 @@
 # Plan: let the toolchain decide small-data addressing, and delete the bridge
 
-**Status: proposed.** Written 2026-08-08. Supersedes the interim mechanism
-introduced by `notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md`;
-amending that ADR is task §7 of this plan.
+**Status: LANDED 2026-08-08.** Written and executed the same day. All seven
+tasks are done, `make check` passes, and `npm test` is green (197 tests).
+`notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md` §2.4 is now the
+description of record; this file is kept as the execution log.
+
+Three things the plan did not anticipate, each recorded in the ADR:
+
+1. **Scope was 83 files / 108 symbols, not 200 / 209.** The §3 count came from
+   scanning compiled objects for `R_MIPS_GPREL16`, which also counts the
+   relocations that `INCLUDE_ASM` stubs inherit from their `.s`. Those need
+   nothing, as §3 itself says.
+2. **`--aspsx-version` had to move 2.77 → 2.80.** Four functions reach a global
+   through `addiu $r,$gp,...`, i.e. the assembler GP-relativised the `la` macro;
+   maspsx gates that on version ≥ 2.80. It is the only behavioural difference
+   between its 2.77 and 2.80 profiles, and bumping it alone rebuilt every object
+   byte-identically. See ADR §3.5.
+3. **Five hand-written `__asm__` files declare their own symbols.** They
+   carried `.extern SYM,n` inside the asm block and relied on the same GNU `as`
+   rule; they now carry `.comm SYM,n` (no space after the comma — maspsx's
+   parser splits on whitespace).
+
+One benign linker warning remains, documented in `src/func_80013B04.c`: gas
+guesses 8-byte alignment for an 8-byte two-argument `.comm`, and the extracted
+definition of `D_8005E2A4` is 4-aligned.
 
 **Goal:** delete `tools/build/fixSmallDataExterns.ts` and
 `configs/tu_externs.txt` entirely, and get the same result — correct

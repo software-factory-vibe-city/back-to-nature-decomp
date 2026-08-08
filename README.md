@@ -43,7 +43,7 @@ and `notes/toolchain-version-detection.md` for the full evidence trail.
 | Parameter | Value | How confirmed |
 |-----------|-------|---------------|
 | Compiler | **GCC 2.95.2-psx** (PSY-Q 4.6 `CC1PSX.EXE`) | Our Docker-built `cc1` produces **byte-identical output** to the original `CC1PSX.EXE` |
-| Assembler | **ASPSX 2.77** (emulated by maspsx) | `li` expansion patterns in the binary (1,142 `addiu` vs 88 `ori`) |
+| Assembler | **ASPSX ≥ 2.80** (emulated by maspsx) | `li` expansion patterns (1,142 `addiu` vs 88 `ori`) put it ≥ 2.56; direct `sltu` puts it ≥ 2.70; `addiu $r,$gp,…` from a `la` macro puts it ≥ 2.80 |
 | Runtime libs | **PSY-Q SDK 4.7** | Signature matching against `tools/vendor/psx_psyq_signatures/470/` |
 | Optimization | `-O2 -G8` | Delay-slot fill rate, GP-relative access for symbols ≤ 8 bytes |
 
@@ -55,14 +55,21 @@ during the 2.8.1 era is suspect and may now be unnecessary (see next-steps note)
 
 ```
 C source → mips-linux-gnu-cpp → cc1 (GCC 2.95.2-psx, Docker-built)
-         → maspsx (emulates ASPSX 2.77 quirks) → mips-linux-gnu-as → .o
+         → maspsx (emulates ASPSX 2.80 quirks) → mips-linux-gnu-as → .o
 Assembly (splat) → mips-linux-gnu-as → .o
 All .o → mips-linux-gnu-ld (slus_011.ld) → ELF → objcopy → raw binary
        → SHA-256 compare against original payload
 ```
 
-Per-file flag overrides live in `configs/flag_overrides.mk` (currently 2 entries,
-both suspect).
+Per-file flag overrides live in `configs/flag_overrides.mk` (currently **none** —
+all four were withdrawn on 2026-08-08; the file's comments record why).
+
+How a global is addressed — GP-relative or absolute — is a per-translation-unit
+fact, and it is stated in C: the owning file defines the global tentatively,
+every other file leaves it `extern`. maspsx forces `-G0` on GNU `as` so it is
+the only thing making that decision. See
+`notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md` §2.4, and
+`tools/build/deriveTuOwnedGlobals.ts` to derive ownership from the target.
 
 ## Setup
 
@@ -366,7 +373,7 @@ so `make split` runs a choreographed sequence:
 |-----------|----------|
 | `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
 | `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the oracle**), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `analyzeAllocatorCounterfactual.ts` (allocator/lifetime counterfactuals), `instrumentCompilerOracle.ts` plus `analyzeLocalAllocationOracle.ts` / `minimizeLocalAllocation.ts` / `solveLocalAllocationState.ts` (isolated instrumented-GCC, exact local-allocation replay, and bounded phantom-quantity solver), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `searchResidualSourceSpace.ts` (automatic exhaustive residual source-space search), `contextExport.ts`, and `sourcePolicy.ts` |
-| `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`) |
+| `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`), `deriveTuOwnedGlobals.ts` (per-TU global ownership from the target's `$gp` accesses) |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
 | `tools/lib/` | `psxExeInfo.ts` — shared binary constants, imported by all split-pipeline tools |
 | `tools/vendor/` | Vendored repos: `old-gcc` (cc1 2.95.2-psx), `maspsx`, `m2c`, `splat_ext`, `psx_psyq_signatures`, `psyq47` (SDK + docs), plus reference-only `psyq_sdk`, `silent-hill-decomp`, `homebrew-psyq` |

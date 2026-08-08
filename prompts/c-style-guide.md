@@ -483,8 +483,10 @@ allocation, or an address web.
 ### Generated globals
 
 `common.h` includes `globals.h`, which declares generated `D_XXXXXXXX`
-symbols. Do not redeclare them in `.c` files. If a global needs a struct or
-aggregate type, put the override in `include/globals_override.h`.
+symbols. Do not restate a declaration in a `.c` file. If a global needs a
+struct or aggregate type, put the override in `include/globals_override.h`.
+Defining a global the translation unit owns is a different thing and is
+required — see "Small-data addressing" below.
 
 Use `&D_XXXXXXXX` to obtain a generated global's address. Never use the
 underscore-prefixed implementation symbol `_D_XXXXXXXX`.
@@ -495,15 +497,29 @@ type and aggregate size agree with the target access and addressing mode.
 
 ### Small-data addressing
 
-The active `-G` threshold is in `configs/project-profile.md`.
+Whether a global is reached through `$gp` or through an absolute `lui`/`%lo`
+pair is a fact about the **original translation unit**, not about the type.
+The assembler emits a GP-relative access only for a symbol the file itself
+declares, and an absolute one for everything else. State that in C:
 
-- declarations at or below the threshold generally use one `%gp_rel` access;
-- larger declarations generally use an absolute `lui` plus `%lo` access.
+- the file whose target code reaches a global through `$gp` **defines** it —
+  a tentative definition (no `extern`, no initialiser) at file scope, with the
+  same type the header declares;
+- every other file leaves it `extern` and gets absolute addressing.
 
-If the candidate emits `%gp_rel` but the target uses `lui`/`lw`, the declared
-object is probably too small. The original may have declared an array or
-aggregate even if only element zero is accessed. Do not hardcode an assumed
-threshold; use the generated profile.
+Derive which globals a function owns from the target rather than guessing:
+`tools/build/deriveTuOwnedGlobals.ts <function>` lists them, and `--check`
+reports any file that reaches a global through `$gp` but addresses it
+absolutely. A hand-written `__asm__` block declares its own symbols the same
+way, with `.comm SYM,n` rather than `.extern`.
+
+The declared size still has to be at or below the `-G` threshold in
+`configs/project-profile.md` for a GP-relative access to be possible at all —
+but size is a necessary condition, never the decision. **Do not enlarge a
+declaration to force absolute addressing.** If the candidate emits `%gp_rel`
+where the target is absolute, the file is defining a global it does not own;
+remove the definition. If it emits `lui`/`%lo` where the target is
+GP-relative, the definition is missing.
 
 ### Shared types
 

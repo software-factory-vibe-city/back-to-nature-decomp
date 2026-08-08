@@ -47,6 +47,8 @@
 # assembler macro for D_8005E3C0 (lui $v1,%hi / lw $v1,%lo($v1), one
 # register). That was the wrong lever: the symbol is a 4-byte scalar, so cc1
 # already leaves it unsplit — the pair was being broken by GNU as resolving it
-# GP-relatively, because this TU does not own it. configs/tu_externs.txt now
-# records that, and both functions match under baseline flags.
+# GP-relatively, because this TU does not own it. Ownership is now stated in C:
+# a TU that owns a global defines it tentatively, and one that does not leaves
+# it extern and gets absolute addressing (ADR-0001 §2.4). Both functions match
+# under baseline flags.
 # `make check` passes with no per-file compiler flag overrides in the project.

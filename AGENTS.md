@@ -49,7 +49,10 @@ instructions. It is not a function-decompilation prompt.
   generator and regenerate them.
 - Do not redeclare generated globals in source files. Put shared parameter or
   local types in the designated shared type header and global type overrides
-  in the designated override header.
+  in the designated override header. A source file must, however, *define*
+  (tentatively) every global whose translation unit it is — that is how
+  GP-relative addressing is expressed; see the style guide's small-data
+  section. A definition is not a redeclaration.
 - Preserve the clean-source policy. For ordinary compiled functions, embedded
   assembly, hard-register pinning, and new assembly stubs are not valid
   decompilation solutions. Honor only exceptions established by the active

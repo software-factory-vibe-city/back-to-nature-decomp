@@ -19,8 +19,8 @@ configuration, then regenerate this file.
 
 - **Compiler:** GCC 2.95.2-psx (`cc1`) — verified byte-identical output against the original binary (evidence: `notes/toolchain-version-detection.md`); SHA-256 match confirmed at generation time
 - **Flags:** `-O2 -G8 -mips1 -mcpu=r3000 -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet`
-- **Small-data threshold:** `-G8` — externs declared **8 bytes or smaller** get GP-relative addressing (single `lw/sw %gp_rel(sym)($gp)`); larger declarations get absolute addressing (`lui` + `lw/sw %lo(sym)`)
-- **Assembler semantics:** ASPSX 2.77 via maspsx (`tools/vendor/maspsx`) — emulates macro expansion and relocation behavior; unlike cc1, byte identity with real ASPSX is not established for every input
+- **Small-data threshold:** `-G8` — a global can be reached GP-relatively (single `lw/sw %gp_rel(sym)($gp)`) only if it is declared **8 bytes or smaller**, *and* the file **defines** it (a tentative definition, so cc1 emits `.comm`). A file that only declares it `extern` gets absolute addressing (`lui` + `lw/sw %lo(sym)`) whatever the size. Never enlarge a declaration to force absolute addressing; derive ownership from the target with `tools/build/deriveTuOwnedGlobals.ts`
+- **Assembler semantics:** ASPSX 2.80 via maspsx (`tools/vendor/maspsx`) — emulates macro expansion and relocation behavior; unlike cc1, byte identity with real ASPSX is not established for every input
 - **SDK:** PSY-Q 4.7 (auto-detected by signature matching — 394 signatures matched, `tools/diagnostics/matchSignatures.ts`)
 
 ## Diagnostic and verification commands

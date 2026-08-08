@@ -231,10 +231,12 @@ moves earlier.
 ## 2. Collapse the three cc1 invocation paths
 
 `tools/agent/decompToolchain.ts`, `tools/agent/diffFunc.ts` and
-`tools/agent/flagProbe.ts` each invoke cc1 themselves. The
-`fixSmallDataExterns` pass was wired into the first two; **`flagProbe` was
-not**, so it now assembles differently from the build and its flag matrix will
-mis-score any function affected by the pass.
+`tools/agent/flagProbe.ts` each invoke cc1 themselves. The extra
+`fixSmallDataExterns` stage that used to make this urgent is gone (§5), and all
+three now read `MASPSX_FLAGS` from the `Makefile` instead of restating it, with
+`toolchain-parity.test.ts` failing if one spells a maspsx flag out again. The
+*structural* problem remains: three copies of the same cpp → cc1 → maspsx
+sequence.
 
 Commit `a4d6e78` ("derive every toolchain flag set from the Makefile") already
 fought this battle for *flags*; the same argument applies to *pipeline stages*.
@@ -249,16 +251,16 @@ is added once.
 ## 3. Make objects depend on the build configuration
 
 `$(BUILD_DIR)/src/%.c.o` depends only on `src/%.c`. Changing `ASFLAGS`,
-`CC1FLAGS`, `configs/flag_overrides.mk` or `configs/tu_externs.txt` does not
-invalidate a single object.
+`CC1FLAGS`, `MASPSX_FLAGS` or `configs/flag_overrides.mk` does not invalidate a
+single object.
 
 This caused a real misdiagnosis this session: a global `-G0` experiment was
 reverted, but only objects whose `.c` had changed got rebuilt. Everything else
 kept its `-G0` build, producing 580 bytes of drift that was initially — and
 wrongly — reported as a pre-existing project defect.
 
-**Fix:** add `Makefile`, `configs/flag_overrides.mk` and `configs/tu_externs.txt`
-as order-only-safe prerequisites of every object rule (the `.s.o` rule too).
+**Fix:** add `Makefile` and `configs/flag_overrides.mk` as order-only-safe
+prerequisites of every object rule (the `.s.o` rule too).
 
 **Acceptance:** touching any of those files forces a full rebuild; a flag
 experiment cannot leave a mixed-provenance tree.
@@ -270,13 +272,14 @@ experiment cannot leave a mixed-provenance tree.
 Per the project's push-not-search knowledge design, learnings surface through
 `tools/agent/triage.ts` detectors. Three are missing, all cheap:
 
-1. **Out-of-window small extern.** A `.extern SYM, n` with `n <= -G` whose
-   address is outside the `$gp` window. Today this either mismatches silently
-   or fails at link with `relocation truncated to fit: R_MIPS_GPREL16`. Cite
-   ADR-0001 §2.1.
-2. **Per-TU addressing conflict.** The function reads an in-window symbol that
-   is addressed both `%hi` and `%gp_rel` somewhere in the corpus. Emit the
-   suggested `configs/tu_externs.txt` line. Cite ADR-0001 §2.2.
+1. ~~**Out-of-window small extern.**~~ Gone with §5: under maspsx's forced
+   `-G0`, GNU `as` never GP-relativises anything, so a far symbol simply gets
+   absolute addressing. Nothing to detect.
+2. **Missing tentative definition.** The target reaches an in-window symbol
+   through `$gp` in this function, but the compiled object addresses it
+   absolutely. `deriveTuOwnedGlobals.ts --check` already reports it program-wide;
+   the detector's job is to surface it for the function being worked on, with
+   the definition line to add. Cite ADR-0001 §2.4.
 3. **Delay-slot-straddling `lui`/`%lo`.** Falsifies any unsplit-macro or
    `-mno-split-addresses` hypothesis in one step. Should fire *before*
    `flag-fingerprint` recommends a flag probe. Cite ADR-0001 §3.1.
@@ -286,35 +289,33 @@ real fingerprint and the wrong conclusion, and cost most of a session.
 
 ---
 
-## 5. Auto-derive symbol ownership from the target
+## 5. Auto-derive symbol ownership from the target — DONE (2026-08-08)
 
-> **Superseded by `plans/toolchain-native-small-data-addressing.md` §4.** The
-> derivation below is right; its *output* should be tentative definitions in
-> the owning source file, not entries in `configs/tu_externs.txt`, because
-> that file is slated for deletion. Keep this section for the scope numbers.
+**Landed as `tools/build/deriveTuOwnedGlobals.ts`**, via
+`plans/toolchain-native-small-data-addressing.md`. The derivation this section
+asked for is right; its *output* is tentative definitions in the owning source
+file, not entries in `configs/tu_externs.txt` — that file no longer exists, and
+neither does `fixSmallDataExterns.ts`.
 
-Ownership is currently hand-entered. It does not need to be: the archived
-assembly already shows, per function, which addressing mode the original used.
+The tool reads every `$gp`-based load, store and address computation out of a
+function's original bytes and maps `$gp + disp` back to a symbol, so it works
+for functions that are still assembly. `--check` cross-checks it against the
+compiled objects' `R_MIPS_GPREL16` relocations in both directions, which is
+what makes it a standing guard rather than a one-off migration script: a
+symbol the original reaches through `$gp` that the object addresses absolutely
+is a missing tentative definition.
 
-Build a tool that scans the target assembly for every `(symbol, function)`
-pair, records the observed mode, and emits a `tu_externs.txt` entry for any
-function that addresses an **in-window** symbol absolutely. Symbols outside the
-window need no entry — the address test in `fixSmallDataExterns.ts` covers them.
+Scope as actually measured: 200 functions reach a global through `$gp`; 117 of
+them are `INCLUDE_ASM` stubs and need nothing, because their `.s` carries
+explicit `%gp_rel` relocations. The 83 compiled C files own 108 distinct
+symbols and now define them. (An earlier count of 209 symbols across 200 files
+counted the stubs' relocations as if they were compiled C.)
 
-Scope, measured this session: six symbols are addressed both ways
-(`D_8005E3A4`, `D_8005E3A8`, `D_8005E3AC`, `D_8005E3B0`, `D_8005E3B4`,
-`D_8005E3C0`), with **40+ not-yet-decompiled functions** on the absolute side —
-e.g. `func_80012D30`, `func_8001316C`, `func_800134C4`, `func_8001B118`,
-`func_8001E160`, `func_80019CBC`, `func_800183E0`, and most of
-`func_80022xxx`–`func_80024xxx`. Each will otherwise need a hand entry and will
-present as a mysterious 4-bytes-short diff until someone remembers why.
-
-The GP-relative side is entirely within `0x80011370`–`0x800128DC`, which is
-strong evidence that range is one translation unit. That is also a useful
-input to `notes/file-groupings.md`.
-
-**Acceptance:** regenerating the file on a fully matched tree is a no-op;
-generated entries carry the evidence (both observed forms) in a comment.
+The six symbols addressed both ways (`D_8005E3A4`, `D_8005E3A8`, `D_8005E3AC`,
+`D_8005E3B0`, `D_8005E3B4`, `D_8005E3C0`) have their GP-relative side entirely
+within `0x80011370`–`0x800128DC`, which is strong evidence that range is one
+translation unit — reproduced independently by the tool, and a useful input to
+`notes/file-groupings.md`.
 
 ---
 
@@ -330,8 +331,9 @@ Cheap, and it makes `make` reliable for a human.
 **`tools/build/*` gitignore pattern is brittle.** `.gitignore` ignores
 `tools/build/*` wholesale and negates individual files. Every new build tool
 must remember a negation or it silently will not be committed — while the
-Makefile depends on it. `fixSmallDataExterns.ts` needed one. Invert the
-pattern: track `tools/build/*.ts` and ignore the generated artifacts by name.
+Makefile depends on it. `fixSmallDataExterns.ts` needed one, and
+`deriveTuOwnedGlobals.ts` inherited it. Invert the pattern: track
+`tools/build/*.ts` and ignore the generated artifacts by name.
 
 **`build/lib` regeneration is undocumented.** `build/lib/**/*.o` are patched
 copies of `lib/**/*.o` produced by `tools/build/patchLibBss.ts --write`, and
@@ -361,7 +363,6 @@ are what ADR-0001 builds on.
 5. §6 as convenient; the superseded-note correction should be done sooner
    rather than later because it actively misleads.
 
-§5 is not scheduled here: it is superseded by
-`plans/toolchain-native-small-data-addressing.md`, which removes the config it
-was going to generate. Do that plan's §4 instead. §3's prerequisite list drops
-`configs/tu_externs.txt` when that plan's §5 deletes the file.
+§5 is **done** — landed 2026-08-08 with
+`plans/toolchain-native-small-data-addressing.md`, which also removed the
+config it was originally going to generate.

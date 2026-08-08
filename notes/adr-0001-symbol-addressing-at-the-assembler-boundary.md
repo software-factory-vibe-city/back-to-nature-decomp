@@ -1,22 +1,17 @@
 # ADR-0001: Symbol addressing is an assembler-boundary fact
 
 **Date:** 2026-08-08
-**Status:** Accepted and implemented, but **the implementation is interim.**
-`plans/toolchain-native-small-data-addressing.md` shows the same behaviour is
-obtainable from maspsx directly (keep its `--force-G0` default; define
-TU-owned globals in their owning TU), which deletes both
-`tools/build/fixSmallDataExterns.ts` and `configs/tu_externs.txt`. The root
-cause is this project passing `--dont-force-G0`, which re-enables a GNU `as`
-small-data rule that ASPSX does not have. Sections 3.1-3.3 (the delay-slot
-falsification test, the per-TU addressing evidence, and what was deleted)
-stand regardless of implementation. Amend this ADR per that plan's §7 once it
-lands.
+**Status:** Accepted. The *finding* stands; the **first implementation was
+interim and has been replaced.**
+`plans/toolchain-native-small-data-addressing.md` landed on 2026-08-08 and
+deleted both `tools/build/fixSmallDataExterns.ts` and `configs/tu_externs.txt`.
+The addressing decision now comes from the toolchain's own model (§2.4), not
+from a project-specific pass and table (§2.1/§2.2, kept below as history).
 
-**Original status:** Accepted and implemented. `make check` passes with the changes in
-place; the project now carries **zero per-file compiler flag overrides**.
 **Supersedes:** the `-mno-split-addresses` conclusions in
 `notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md`
-(sections 12, 15, 19) and the two legacy `-fno-schedule-insns` entries that
+(sections 12, 15, 19), that note's §4 hypothesis 2 ("remove `--dont-force-G0`"
+— falsified, see §2.4), and the two legacy `-fno-schedule-insns` entries that
 used to live in `configs/flag_overrides.mk`.
 
 This is a pipeline ADR, not a function write-up. It records how this project
@@ -27,35 +22,29 @@ declarations or compiler flags, and what generalises to the next game.
 
 ## 0. State as of 2026-08-08 (read first)
 
-**All of this work is uncommitted.** A fresh clone does not have it; a fresh
-agent in this working tree is looking at a dirty state that is nonetheless
-green.
+`make check` **passes** — `build/slus_011.bin` matches the original payload —
+and the project carries **zero per-file compiler flag overrides**.
 
-- `make check` **passes** — `build/slus_011.bin` matches the original payload.
-- New, untracked: `tools/build/fixSmallDataExterns.ts`,
-  `configs/tu_externs.txt`, this ADR, and the two plans in `plans/`.
-- Modified by this work: `Makefile` (one pipeline step),
-  `configs/flag_overrides.mk` (now defines nothing), `.pi/autodecomp.json`
-  (allowlist 7 -> 4), `.gitignore`, `src/func_80011370.c`, `src/SetGfxClip.c`,
-  `src/SetGfxOffset.c`, `tools/agent/decompToolchain.ts`,
-  `tools/agent/diffFunc.ts`, `notes/file-groupings.md`, and the superseding
-  banner on `notes/research/func_80016C08-...md`.
-- Modified by an earlier session, not by this work: `configs/splat.yaml`,
-  `include/functions.h`, `include/functions.h.m2c`,
-  `include/globals_override.h`.
+The mechanism in the tree today is §2.4: every translation unit carries a
+**tentative definition** of each global its function reaches through `$gp`, and
+maspsx forces `-G0` on GNU `as` so maspsx alone decides small-data addressing.
+83 source files carry such definitions, covering 108 symbols; five of those
+files are hand-written `__asm__` blocks and declare their symbols with `.comm`
+inside the block rather than in C.
+
+The interim mechanism (§2.1/§2.2) is **gone**: no post-cc1 pass, no ownership
+table, and the diagnostic tools no longer restate maspsx flags — they read
+`MASPSX_FLAGS` from the `Makefile` like every other flag set.
 
 **Expect `diffFunc func_80011370` to report 551/557 (98.9%).** That function is
-byte-exact; the six reported differences are artifacts of the oracle, not of
-the code. Do not "fix" them — see
+byte-exact (`--bytes` reports VERIFIED); the six reported differences are
+artifacts of the oracle, not of the code. Do not "fix" them — see
 `plans/oracle-and-pipeline-integrity.md` §1. The same caveat is recorded in the
 header comment of `src/func_80011370.c`.
 
-Two follow-on plans exist:
-
-- `plans/toolchain-native-small-data-addressing.md` — removes the interim
-  mechanism this ADR introduced, and amends this ADR (its §7).
-- `plans/oracle-and-pipeline-integrity.md` — rebuilds the per-function diff and
-  fixes the pipeline-integrity gaps found alongside this work.
+One follow-on plan remains: `plans/oracle-and-pipeline-integrity.md`, which
+rebuilds the per-function diff and fixes the pipeline-integrity gaps found
+alongside this work.
 
 ---
 
@@ -122,6 +111,25 @@ relocation truncated to fit: R_MIPS_GPREL16 against `D_80010098'
 express the correct code at all — the array over-declaration was not a
 matching choice, it was the only thing that linked.
 
+### 1.1 The root cause: a flag that hands the decision back to GNU `as`
+
+Everything above follows from **one project flag**. maspsx already implements
+the ASPSX rule, in two deliberate pieces:
+
+- `tools/vendor/maspsx/maspsx.py:158` — `if not args.dont_force_G0: cmd.insert(-1, "-G0")`.
+  By default maspsx forces `-G0` on GNU `as`, removing `as`'s ability to make
+  any small-data decision. maspsx becomes the sole authority.
+- `tools/vendor/maspsx/maspsx/__init__.py:463` — `.extern` lines are skipped
+  when scanning for small-data symbols. Only `.comm`, `.lcomm` and
+  `.sdata`/`.sbss` *contents* populate `sdata_entries` / `sbss_entries`. That
+  is exactly "GP-relative only for in-file declarations".
+
+This project passed `--dont-force-G0`, which hands the decision back to GNU
+`as`, which then uses `.extern` sizes — the one input maspsx deliberately
+refuses to trust. It was not a maspsx bug: the project disabled maspsx's
+correctness mechanism and then wrote a pass to clean up after the rule that
+re-enabled.
+
 ---
 
 ## 2. Decision
@@ -129,11 +137,13 @@ matching choice, it was the only thing that linked.
 **Addressing mode is decided at the assembler boundary, from project facts,
 not by bending the C or the compiler invocation.**
 
-Concretely, three rules.
+Concretely, four rules. **§2.1 and §2.2 are history** — they describe the
+interim bridge, which §2.4 replaced and deleted. They are kept because they
+record what was tried and why it was not wrong, only unnecessary.
 
-### 2.1 Correct the assembler's small-data decision in the pipeline
+### 2.1 (WITHDRAWN — interim bridge, deleted 2026-08-08) Correct the assembler's small-data decision in the pipeline
 
-`tools/build/fixSmallDataExterns.ts` runs between cc1 and maspsx. For each
+`tools/build/fixSmallDataExterns.ts` ran between cc1 and maspsx. For each
 `.extern SYM, <size>` small enough to trigger GNU as's small-data path, it
 widens the recorded size past the threshold when the symbol **cannot be
 GP-addressed** — i.e. its address lies outside `[$gp - 0x8000, $gp + 0x8000)`.
@@ -152,10 +162,10 @@ Nothing about this game is hardcoded. The pass is **conservative**: a symbol
 whose address cannot be established is left untouched, per the project's
 "report only what you prove" rule.
 
-### 2.2 Record per-TU symbol ownership declaratively
+### 2.2 (WITHDRAWN — interim bridge, deleted 2026-08-08) Record per-TU symbol ownership declaratively
 
 Being inside the `$gp` window is necessary but not sufficient. `configs/tu_externs.txt`
-records, per source stem, the in-window symbols that stem does **not** own:
+recorded, per source stem, the in-window symbols that stem did **not** own:
 
 ```
 SetGfxClip   = D_8005E3A8 D_8005E3AC
@@ -164,20 +174,67 @@ func_800165D8 = D_8005E3C0
 func_80016C08 = D_8005E3C0
 ```
 
-Those symbols get the same `.extern` widening, so they are addressed
+Those symbols got the same `.extern` widening, so they were addressed
 absolutely in those files and GP-relative in the file that owns them. Each
-entry carries its evidence in a comment.
+entry carried its evidence in a comment.
 
-This is the general shape of a recurring problem: **facts about the original
-translation-unit boundaries that a single shared header cannot express.** A
-declarative table is the right home for them because it is data, it is
-reviewable, it carries its own evidence, and it starts empty on a new project.
+The problem it named is real and outlived the table: **facts about the original
+translation-unit boundaries that a single shared header cannot express.** What
+was wrong was the conclusion that they need a config file. C can express
+ownership directly — a definition is exactly the statement "this TU owns this
+object" — which is what §2.4 does.
 
 ### 2.3 Treat "the compiler was invoked differently" as a last resort
 
 A per-file compiler flag encodes an unfalsifiable-ish claim about the original
 build and does not generalise. Before accepting one, rule out the assembler
 boundary. The withdrawal of all four overrides (§3.3) is the precedent.
+
+### 2.4 (CURRENT) Let the toolchain decide, and say ownership in C
+
+**Keep maspsx's forced `-G0` default, and give each translation unit a
+tentative definition of every global its function reaches through `$gp`.**
+
+`MASPSX_FLAGS` no longer passes `--dont-force-G0`, so GNU `as` never makes a
+small-data decision and maspsx is the only authority — the design §1.1
+describes. maspsx's authority comes from `.comm`, so a tentative definition in
+the owning file is the whole signal:
+
+```c
+u16 D_8005E438;                 /* in the owning .c file          */
+extern u16 D_8005E438;          /* in include/globals_override.h  */
+```
+
+Under `-fcommon` (already in `CC1FLAGS`) cc1 emits `.comm D_8005E438,2`;
+maspsx records it in `sbss_entries` and emits `%gp_rel(...)($gp)` itself. A
+file with only an `extern` gets absolute addressing, which is what a
+non-owning TU wants.
+
+**It costs nothing at link time.** splat's extracted `.sdata` already defines
+the symbol at its fixed address, and a real definition overrides a COMMON. No
+splat change, no linker-script change, no layout change, no duplicate storage.
+
+Three constraints, each of which cost a measurement:
+
+1. **`-G8` must stay in `ASFLAGS`.** maspsx parses `-G<n>` from the assembler
+   arguments to set `sdata_limit` and *then* forces `-G0` on `as` itself.
+   Removing `-G8` silently sets the limit to 0, every `.comm` lands in
+   `bss_entries` instead of `sbss_entries`, and the mechanism looks broken.
+2. **`--aspsx-version` must be ≥ 2.80.** maspsx gates GP-relative expansion of
+   the `la` macro on that version, and this binary uses it (§3.5).
+3. **Hand-written `__asm__` blocks declare their own symbols.** Five files
+   reach globals from inline assembly; they use `.comm SYM,n` in the block
+   (`.extern` there means absolute). Write it with no space after the comma —
+   maspsx's parser splits on whitespace and a space makes it throw.
+
+Ownership is **derived, not maintained**: `tools/build/deriveTuOwnedGlobals.ts`
+reads every `$gp`-based load, store and address computation out of the
+original bytes and reports which globals each function's TU owns. It works for
+functions that are still assembly, and `--check` cross-checks it against the
+compiled objects' `R_MIPS_GPREL16` relocations in both directions — a symbol
+the original reaches through `$gp` but the object addresses absolutely is a
+missing tentative definition, which is exactly the failure the bridge used to
+mask.
 
 ---
 
@@ -249,14 +306,49 @@ The flag was compensating for the wrong stage.
 
 `func_80011370` is byte-exact: 557/557 words, confirmed by `make check`
 against the original payload. `SetGfxClip` and `SetGfxOffset` are 9/9 each.
+All three still verify after §2.4 replaced the mechanism.
+
+### 3.5 The toolchain-native route, measured
+
+Two symbols from one file, assembled through maspsx with its forced `-G0`
+default (and `-G8` still in `ASFLAGS`, so maspsx sets its own `sdata_limit`):
+
+| Symbol | In-file declaration? | Result |
+|---|---|---|
+| `D_8005E438` | yes (`.comm`) | `R_MIPS_GPREL16` |
+| `D_8005E3C0` | no (extern only) | `R_MIPS_HI16` / `R_MIPS_LO16` |
+
+Both are what the target does. That is the whole of §2.1 and §2.2's behaviour,
+produced by the toolchain, with no pass and no ownership table.
+
+**The assembler used `$gp` for `la`.** Four compiled functions —
+`func_80013B04`, `func_8001B258`, `func_8001B4D0`, `func_8001B4E4` — reach a
+global through `addiu $r,$gp,<gprel>` in the original bytes. cc1 emits `la
+$r,SYM` there, so the *assembler* GP-relativised an address materialisation,
+not just a load or a store. maspsx models that as ASPSX ≥ 2.80 behaviour
+(`gp_allow_la`), and it is the only behaviour that differs between its 2.77 and
+2.80 profiles, so `MASPSX_FLAGS` now says `--aspsx-version 2.80`. Bumping the
+version alone, with the old addressing still in place, rebuilt every object
+byte-identically — so the bump is a refinement of the version bound, not a
+change of build.
+
+This sharpens what was known: `notes/toolchain-version-detection.md` had
+pinned ASPSX only to "≥ 2.70" by the `li` and `sltu` signals and picked 2.77
+inside that class. GP-for-`la` is a sharper signal from the same binary.
 
 ---
 
 ## 4. Alternatives rejected
 
-**Global `-G0` for the assembler.** Fixes the out-of-window symbols but breaks
-every legitimate GP-relative access, because the correct answer is per-symbol
-and per-TU, not global.
+**Global `-G0` for the assembler.** *This entry was wrong, and §2.4 is the
+correction.* It was rejected on the belief that `-G0` would break every
+legitimate GP-relative access. It does — for GNU `as`. But maspsx forces `-G0`
+on `as` precisely so that maspsx, which models ASPSX's per-TU rule, makes the
+decision instead. The right answer really is per-symbol and per-TU; the
+assembler that produces it is maspsx, not `as`. Recorded rather than deleted
+because the reasoning failure is the reusable part: *a flag was judged by what
+one tool in the pipeline would do with it, without checking which tool the
+pipeline had put in charge.*
 
 **Over-declaring globals as arrays.** The status quo. It links, but it forces
 the two-register split form, which is not what the target uses, and it lies
@@ -271,41 +363,55 @@ suggested `$a2`, and `REG_ALLOC_ORDER` is plain ascending so it takes `$v0`. A
 named-temp variant was tried and changed nothing. *Read the pass that decides
 the thing before designing another source shape.*
 
-**Patching vendored maspsx.** Rejected: the correction is expressible as a
-pre-pass, and project policy keeps tooling in TypeScript.
+**Patching vendored maspsx.** Rejected, and still rejected under §2.4: maspsx
+already implements the rule, so nothing needed patching once it was allowed to.
 
 ---
 
 ## 5. Consequences
 
-**Good.** Addressing decisions are now data, in two config files, each entry
-carrying its evidence. The workaround classes that do not transfer between
-games (flags, pins, distorted declarations) are gone. A genuine build defect
-(unlinkable `R_MIPS_GPREL16`) is fixed rather than routed around.
+**Good.** Addressing is decided by the toolchain from an ordinary C
+definition. The workaround classes that do not transfer between games (flags,
+pins, distorted declarations, an ownership table) are gone, along with the
+custom pass. A genuine build defect (unlinkable `R_MIPS_GPREL16`) is fixed
+rather than routed around: under forced `-G0`, an out-of-window symbol simply
+gets absolute addressing and needs no entry anywhere.
 
-**Cost.** Two new pipeline inputs to keep correct, and `tu_externs.txt` needs
-an entry for every not-yet-decompiled function that addresses an in-window
-symbol it does not own. From §3.2 that is 40+ functions — see
-`plans/oracle-and-pipeline-integrity.md` §5 for auto-deriving these from the
-disassembly instead of by hand.
+**Cost.** 83 source files carry a small block of tentative definitions, and a
+function that is decompiled later has to gain its own — silently addressing a
+symbol absolutely is the failure mode. `deriveTuOwnedGlobals.ts --check`
+detects exactly that, in both directions, and `make check` is the final word.
 
-**Risk.** The pass must run identically in the build and in every diagnostic
-tool, or measurements stop describing the build. It is wired into the Makefile
-and into `decompToolchain`/`diffFunc`; **`flagProbe` still has its own cc1
-pipeline and was not updated** (plan §2).
+One benign linker warning remains, and it belongs to GNU `as`, not to the
+declaration: cc1 emits a two-argument `.comm D_8005E2A4,8` (MIPS has no
+aligned form), `as` guesses the alignment as the largest power of two dividing
+the size, and 8 exceeds the 4-byte alignment of the extracted definition. ld
+warns and then uses the real definition; the output is byte-identical. Recorded
+in `src/func_80013B04.c`, where the definition lives.
+
+**Risk closed.** The pipeline had to run identically in the build and in every
+diagnostic tool. `decompToolchain`, `diffFunc` and `flagProbe` now read
+`MASPSX_FLAGS` from the `Makefile` instead of restating it, and
+`toolchain-parity.test.ts` fails if a tool spells out a maspsx flag again —
+the same discipline commit `a4d6e78` established for the compiler flags.
 
 ---
 
 ## 6. Portability checklist for the next game
 
-The mechanism ports; the data does not. On a new project:
+The mechanism ports; the data does not, and there is no data to port. On a new
+project:
 
-1. `fixSmallDataExterns.ts` works unchanged once `splat.yaml` has `gp_value`,
-   `ASFLAGS` has `-G<n>`, and `symbol_addrs.txt` exists.
-2. `configs/tu_externs.txt` starts **empty**. Populate it from the target's
-   own addressing (§3.2 method: survey `%hi(SYM)` vs `%gp_rel(SYM)` across the
-   archived assembly; symbols appearing both ways are TU-owned).
-3. Expect the same three temptations — array over-declaration, per-file flags,
+1. **Keep maspsx's `--force-G0` default.** Do not pass `--dont-force-G0`; keep
+   `-G<n>` in `ASFLAGS` so maspsx can read its own small-data limit.
+2. **Define TU-owned globals in their owning TU.** Derive which those are from
+   the target with `tools/build/deriveTuOwnedGlobals.ts`, which needs only
+   `splat.yaml` (`gp_value` plus function subsegments) and the extracted data
+   labels. There is no config file to populate.
+3. **Check `--aspsx-version` against the binary's own behaviour.** If any
+   function reaches a global through `addiu $r,$gp,...`, the assembler
+   GP-relativised `la` and maspsx needs a version of 2.80 or later.
+4. Expect the same three temptations — array over-declaration, per-file flags,
    register pins — and check the assembler boundary first.
-4. Keep the delay-slot test (§3.1) in reach: it falsifies unsplit-macro
+5. Keep the delay-slot test (§3.1) in reach: it falsifies unsplit-macro
    hypotheses in one step.

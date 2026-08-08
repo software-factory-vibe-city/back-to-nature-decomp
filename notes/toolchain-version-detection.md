@@ -5,7 +5,7 @@
 | Parameter | Value | How confirmed |
 |-----------|-------|---------------|
 | GCC version | **2.95.2** | Byte-identical output from `CC1PSX.EXE` (PSY-Q 4.6) and `tools/old-gcc/build-gcc-2.95.2-psx/cc1` |
-| ASPSX version | **2.77** | `li` expansion pattern: 1142 `addiu` (small positives) vs 88 `ori` (values >= 0x8000) confirms >= 2.56. maspsx `--aspsx-version 2.77` produces correct encodings. |
+| ASPSX version | **>= 2.80** (maspsx runs as 2.80) | `li` expansion pattern: 1142 `addiu` (small positives) vs 88 `ori` (values >= 0x8000) confirms >= 2.56; direct `sltiu` confirms >= 2.70; **`addiu $r,$gp,<gprel>` from a `la` macro confirms >= 2.80** (2026-08-08). Was pinned at 2.77 inside the >= 2.70 class until the `la` signal narrowed it. |
 | PSY-Q SDK | **4.7** (runtime libs) | Library signature matching against `tools/psx_psyq_signatures/470/` patterns |
 | Optimization | **-O2** | Delay slot fill rate >90%, aggressive register allocation |
 | -G value | **8** | GP-relative accesses present for symbols <= 8 bytes |
@@ -50,10 +50,16 @@ mips-linux-gnu-cpp -Iinclude -Iinclude/psyq -undef -D__GNUC__=2 -lang-c INPUT.c 
 tools/old-gcc/build-gcc-2.95.2-psx/cc1 -quiet -O2 -G8 -mips1 -mcpu=r3000 \
   -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon \
   -fverbose-asm -msoft-float -mgas -fgnu-linker OUTPUT.i -o OUTPUT.s
-python3 tools/maspsx/maspsx.py --aspsx-version 2.77 --dont-force-G0 \
-  --run-assembler --gnu-as-path mips-linux-gnu-as -o OUTPUT.o \
+python3 tools/vendor/maspsx/maspsx.py --aspsx-version 2.80 \
+  --use-comm-section --run-assembler --gnu-as-path mips-linux-gnu-as -o OUTPUT.o \
   -march=r3000 -mtune=r3000 -EL -G8 -no-pad-sections -Iinclude -Iinclude/psyq OUTPUT.s
 ```
+
+`-G8` is passed to maspsx but **not** to GNU `as`: maspsx reads it to set its
+own small-data limit and then forces `-G0` on `as`, so maspsx alone decides
+GP-relative addressing. Do not add `--dont-force-G0` — see ADR-0001 §1.1.
+The Makefile is the authority for all four flag sets; this block is
+illustrative.
 
 ### CC1PSX.EXE via Wine (alternative)
 
@@ -71,7 +77,7 @@ Requires `wine32:i386` and a 32-bit wineprefix.
 
 ### maspsx compatibility
 
-maspsx (`--aspsx-version 2.77`) is fully compatible with GCC 2.95.2 output. Tested on multiple functions — produces byte-identical objects to direct gas assembly. The `li` expansion, nop insertion, and all other ASPSX transforms work correctly.
+maspsx (`--aspsx-version 2.80`) is fully compatible with GCC 2.95.2 output. Tested on multiple functions — produces byte-identical objects to direct gas assembly. The `li` expansion, nop insertion, and all other ASPSX transforms work correctly.
 
 ## Implications for Decompilation
 
@@ -111,6 +117,7 @@ The switch dispatch register is the strongest signal for distinguishing 2.8.x fr
 | `sltu` via `$at` vs `sltiu` direct | < 2.70 vs >= 2.70 | `$at` usage patterns |
 | Nop at `$at` expansion | < 2.30 vs >= 2.30 | Extra nops |
 | `mflo`/`mfhi` gap enforcement | < 2.30 vs >= 2.30 | Nops between mul/div |
+| `$gp` used for the `la` macro | < 2.80 vs >= 2.80 | `addiu $r,$gp,<disp>` reaching a small-data symbol, where the compiler emitted `la $r,SYM` |
 
 ### ASPSX Decision Tree
 
@@ -124,7 +131,14 @@ Has tge near div?
         sltu uses $at?
           YES → 2.56-2.69
           NO (sltiu) → >= 2.70
+            any addiu $r,$gp,<disp> reaching a small-data symbol?
+              YES → >= 2.80   (the assembler GP-relativised `la`)
+              NO  → 2.70-2.79, or the program never takes such an address
 ```
+
+The last step is one-sided: its "yes" is proof, its "no" is only absence of
+evidence — a program that never materialises the address of a small-data
+symbol produces no `la` to expand.
 
 ### PSY-Q SDK Version
 

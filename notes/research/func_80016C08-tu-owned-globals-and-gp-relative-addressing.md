@@ -7,10 +7,19 @@
 > at the wrong stage: `D_8005E3C0` is a 4-byte scalar, so cc1 already left its
 > address unsplit; the self-clobber pair was being broken by GNU as resolving
 > the load GP-relatively, because this TU does not own the symbol.
-> `configs/tu_externs.txt` now records that ownership and both
-> `func_80016C08` and `func_800165D8` match under baseline flags, with
+> Both `func_80016C08` and `func_800165D8` match under baseline flags, with
 > `make check` passing and no per-file compiler flag overrides anywhere in the
 > project. Sections 1-6 remain correct and are what the ADR builds on.
+>
+> **Also falsified, same date: §4 hypothesis 2, "remove `--dont-force-G0` —
+> wrong, that flag is load-bearing."** It is the opposite. maspsx forces `-G0`
+> on GNU `as` by default so that maspsx, which implements exactly the ASPSX
+> rule this note measured in §3, is the only thing deciding small-data
+> addressing. Passing `--dont-force-G0` handed the decision back to `as`, which
+> keys on `.extern` sizes — the input maspsx deliberately ignores. The flag is
+> gone; ownership is now stated in C as a tentative definition in the owning
+> TU, and `tools/build/fixSmallDataExterns.ts` and `configs/tu_externs.txt` are
+> deleted. See ADR §1.1 and §2.4.
 
 **Date:** 2026-08-03 (sections 1-10), extended same day (11-16), re-measured
 2026-08-05 (section 17), resolved 2026-08-06 (section 19).
