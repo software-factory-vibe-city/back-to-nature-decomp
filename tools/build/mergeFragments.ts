@@ -226,9 +226,25 @@ function collectJumpTableRodataInserts(
   for (const [ownerAddr, jtbls] of jtblByOwnerFunc) {
     const owner = nameOfAddr.get(ownerAddr);
     if (!owner) continue;
+    /* The subsegment asserts that this object supplies the ROM range, so the
+     * question is whether the object actually emits a jump table -- not
+     * whether the source happens to be C. A switch that lowers to comparisons
+     * emits no table, and the range would then come from nowhere: bytes go
+     * missing at link time, far from the cause. Ask the compiled assembly
+     * when it exists, and fall back to source state on a tree that has not
+     * been built yet. */
     const sourcePath = join(SRC_DIR, `${owner}.c`);
+    const compiledPath = join(ROOT, "build/src", `${owner}.s`);
+    /* Source state decides stub-versus-C, because it is always current; a
+     * compiled artifact can be stale, and trusting it would keep the entry
+     * after a revert to INCLUDE_ASM, leaving the extracted table dropped with
+     * nothing supplying the range. The object is consulted only to confirm
+     * that a C source really emits a table -- a switch lowered to comparisons
+     * emits none. */
     if (!existsSync(sourcePath)) continue;
     if (/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"))) continue;
+    if (existsSync(compiledPath)
+        && !/^\s*\.word\s+\$L\d+/m.test(readFileSync(compiledPath, "utf-8"))) continue;
     for (const jtbl of jtbls) {
       if (jtbl.romStart > 0) inserts.push({ romStart: jtbl.romStart, romEnd: jtbl.romEnd, name: owner });
     }
@@ -280,14 +296,30 @@ function syncSplatSubsegments(options: {
     if (existing) {
       const romStart = parseInt(existing[1]!, 16);
       const name = existing[2]!;
+      /* The extent comes from whatever follows. Usually that is the
+       * continuation segment, which is consumed with the entry. When two
+       * tables touch there is no continuation, and the next entry's own start
+       * is this one's end -- reading only continuations would leave the extent
+       * at zero and re-emit the zero-length segment on the next run. */
       let romEnd = romStart;
-      if (k + 1 < filteredYaml.length) {
-        const continuation = filteredYaml[k + 1]!.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/);
-        if (continuation) { romEnd = parseInt(continuation[1]!, 16); k++; }
+      const following = filteredYaml[k + 1];
+      if (following) {
+        const continuation = following.match(/\[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/);
+        if (continuation) {
+          romEnd = parseInt(continuation[1]!, 16);
+          k++;
+        } else {
+          const adjacent = following.match(/\[\s*0x([0-9A-Fa-f]+)\s*,/);
+          if (adjacent) romEnd = parseInt(adjacent[1]!, 16);
+        }
       }
       const sourcePath = join(SRC_DIR, `${name}.c`);
-      const stillC = existsSync(sourcePath) && !/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"));
-      if (stillC) merged.set(romStart, { romStart, romEnd, name });
+      const compiledPath = join(ROOT, "build/src", `${name}.s`);
+      const stillC = existsSync(sourcePath)
+        && !/INCLUDE_ASM/.test(readFileSync(sourcePath, "utf-8"));
+      const emitsTable = !existsSync(compiledPath)
+        || /^\s*\.word\s+\$L\d+/m.test(readFileSync(compiledPath, "utf-8"));
+      if (stillC && emitsTable) merged.set(romStart, { romStart, romEnd, name });
       continue;
     }
     stripped.push(filteredYaml[k]!);
@@ -310,12 +342,19 @@ function syncSplatSubsegments(options: {
       }
       const insertsHere = rodataInserts.filter((ins) => ins.romStart >= rodataStart && ins.romStart < rodataEnd);
       if (insertsHere.length > 0) {
-        finalYaml.push(line);
-        for (const ins of insertsHere) {
+        /* Emit a segment only where a gap actually exists. Tables can touch:
+         * jtbl_80010008 ends at 0x85C and jtbl_8001005C begins there. A
+         * segment the following entry immediately overrides is zero-length,
+         * and splat materialises it as an empty extracted file. */
+        if (insertsHere[0]!.romStart > rodataStart) finalYaml.push(line);
+        insertsHere.forEach((ins, position) => {
           finalYaml.push(`${indent}- [0x${ins.romStart.toString(16).toUpperCase()}, .rodata, ${ins.name}]`);
-          finalYaml.push(`${indent}- [0x${ins.romEnd.toString(16).toUpperCase()}, rodata]`);
+          const nextStart = insertsHere[position + 1]?.romStart ?? rodataEnd;
+          if (nextStart > ins.romEnd) {
+            finalYaml.push(`${indent}- [0x${ins.romEnd.toString(16).toUpperCase()}, rodata]`);
+          }
           addedRodata++;
-        }
+        });
         continue;
       }
     }
