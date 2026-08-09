@@ -1,354 +1,45 @@
-# Tech debt: functions that are assembly, not C
+# Tech debt: functions that are assembly, not C — CLOSED
 
-**Re-measured 2026-08-08** after retiring `func_80015AAC`. Regenerate the
-inventory before acting on it — the counts below are a snapshot, and every
-hand-maintained version of them has gone stale (see "Corrections" at the end).
+**Closed 2026-08-09.** The class this note tracked — *ordinary compiled
+functions whose C body is a raw `__asm__` block* — is **empty**. Twenty-six
+functions were re-decompiled to clean C89 and byte-verified. The two remaining
+whole-body assembly files (`func_8001DFD4`, `func_80038674`) are GTE
+coprocessor code that was handwritten in the original game and is correctly
+assembly.
 
-This note covers **functions whose body is a raw `__asm__` block**. It does not
-cover `INCLUDE_ASM` stubs, which are honest not-yet-decompiled work and are
-tracked by `make progress`. Register pinning, scheduling barriers and flag
-overrides are a different debt class and are tracked in
-`notes/next-steps-for-revisiting-the-project.md`; this note points at that
-rather than restating it.
+This file is a tombstone. Everything it accumulated has been distilled into the
+places that get read during actual work; nothing below duplicates that content.
 
-## Why this is debt and not a solution
+## Where the knowledge went
 
-The project's clean-source policy says it directly: for an ordinary compiled
-function, embedded assembly is not a valid decompilation solution. These files
-predate the gate that enforces it.
-`notes/next-steps-for-revisiting-the-project.md` diagnoses the cause and it is
-worth repeating once, because it explains the *shape* of the debt rather than
-blaming the functions: the retired orchestrator's success check was byte-only,
-so a raw `__asm__` block passed trivially. "The prompt forbade asm while the
-gate permitted it, so under turn pressure agents did what the gate rewarded."
-
-The bytes were never at risk — an asm block reproduces the target by
-construction. What it costs is real anyway:
-
-- **the progress metric counts them as decompiled**, which they are not;
-- **`contextExport` feeds them to the next agent** as examples of what a
-  finished function looks like;
-- **they cannot be reasoned about.** Every downstream tool in `tools/agent/`
-  — the compiler oracle, the allocator counterfactual, the scheduler probes —
-  works on cc1's output. A function with no C has no cc1 output, so it is
-  invisible to all of it.
-
-There is also a **specific reason to re-open these now**: the compiler changed
-under them. `notes/toolchain-version-detection.md` attributes the whole class to
-a belief that has since been disproved — "24 pure-asm functions — written as
-`__asm__` blocks because no C matched 2.8.1. With 2.95.2, some may be
-expressible as clean C" — and two functions have now proved the point:
-`func_8001A8D0` (a switch statement, matched as clean C once the compiler was
-corrected) and `func_80017EE4` (see below).
-
-## Check the symbol boundary before concluding "inexpressible"
-
-`func_80017EE4` was the first entry retired from this table, and it was never a
-codegen problem at all. **The symbol map was wrong.** `0x80017EE4..0x80017F30`
-is one function that appeared as three: a 2-instruction "function", a
-1-instruction "function", and the body. A 2-instruction symbol is not a
-function, so of course no C produced it — and the note you are reading asserted
-the opposite, calling it "a tail call, not a body… may be genuinely
-inexpressible in C". That claim was wrong and it cost a later agent a full
-session, which reached the same conclusion and wrote an `embedded-asm` block
-plus an allowlist entry to record it.
-
-**The general rule: a symbol that is not a function cannot be decompiled as
-one, and the failure looks exactly like a codegen impossibility.** Before
-concluding that a function resists C, prove the boundary. Decisive evidence,
-cheapest first:
-
-- **No `jr $ra` anywhere in the body.** The symbol does not return; it falls
-  through into the next one.
-- **A conditional branch crosses the symbol boundary**, in *either* direction.
-  A MIPS conditional branch can never be a call, so this proves the two symbols
-  are one function. A *backward* branch from a later symbol into an earlier one
-  is a rotated loop's back-edge, not a call.
-- **The entry is a `j`, not a prologue.** GCC 2.95 emits no tail calls, so a
-  `j` to an address that has no `jal`, no data pointer and no address-taken
-  `lui`/`addiu` anywhere in the binary is intra-function control flow.
-- **A register is read before any definition** on some path — e.g. the body
-  depends on `$a3` set only by the preceding symbol. `scanReadBeforeDef.ts`
-  reports this.
-- **Zero callers.** Scan for `jal`, stored pointers and `lui`/`addiu` pairs
-  across the whole payload, not just the call graph.
-
-`tools/build/mergeFragments.ts` now detects this class and `make split` applies
-it; the three defects that let `func_80017EE4` through were a `j` counted as a
-tail call, a `j` counted as an external entry point, and a pass that only
-looked for *forward* cross-boundary branches. All three are fixed. Re-running
-`make split` is therefore the first thing to try on a stuck tiny function, and
-a boundary that survives it is evidence, not an assumption.
-
-Once merged, `func_80017EE4` matched as ordinary C89 on the first shape that
-respected GCC 2.95's `expand_end_loop` rotation — no asm, no flag override, no
-register pinning. The source comment records which shape and why.
-
-## Check the declaration before concluding "the allocator won't do it"
-
-`func_8001205C` was the second entry retired for a reason that was not codegen,
-and it cost a capable agent a whole session of doc-reading. Its residual was one
-word: the target reads `D_8005E328` with the single-register self-clobber pair
-`lui $a1,%hi(sym)` / `lw $a1,%lo(sym)($a1)`, the candidate emitted the split
-two-register form. ADR-0001 §4 says recovering that pair by reshaping the C is
-*proven unreachable*, so the obstacle read as a wall.
-
-It was not. The pair was unreachable **because the declaration was wrong**.
-`D_8005E328` had been over-declared as `s32 [3]` to "force absolute addressing
-under -G8" — reasoning that was correct before ADR-0001 §2.4 and is backwards
-after it. Since §2.4 the two decisions are independent:
-
-| Question | Decided by |
+| What | Where |
 |---|---|
-| GP-relative or absolute? | whether **this TU defines** the symbol — size is irrelevant |
-| unsplit macro (self-clobber) or split pair? | the **declared size** against `-G8` |
+| Campaign record, per-function retirement ledger with the mechanism that matched each one, and the campaign's lessons | `notes/retros/2026-08-09-asm-body-debt-paydown-retro.md` |
+| Proving a symbol is a function before decompiling it (decisive evidence, detector defects, open boundary artifacts) | `notes/research/symbol-boundary-verification.md` |
+| Declaration shape vs. address form, and why "proven unreachable" was conditional | `notes/research/func_8001205C-declaration-shape-vs-address-form.md` |
+| Predicate re-derivation, and parameter reuse as a statement about web ownership | `notes/research/func_8001E78C-predicate-inversion-and-parameter-webs.md` |
+| The stale linker script and the search that reported an empty domain while holding the answer | `notes/research/tooling-false-verdicts.md` |
+| The one real codegen case in the campaign (shared multi-block web) | `notes/retros/2026-08-28-func_80017E34-retro.md` and `notes/research/func_80017E34-shared-web-global-allocno.md` |
+| Doctrine that now applies to every function, not just this class | `prompts/c-style-guide.md` §1 (predicate), §4 (negative results), §5 (argument webs), §7 (declaration vs. address form), §10 (audit the facts outside the function) |
+| Pre-flight boundary check, predicate-first triage, exemption hygiene | `.pi/skills/psx-decompile-function/SKILL.md` |
 
-Widening bought nothing, because absolute addressing never depended on size,
-and cost the match, because cc1 then split the address. A scalar declaration
-fixed it with no change to the C at all.
+## What is still open, and where it is tracked
 
-**The general rule: when the target uses a form the allocator "cannot"
-produce, check what the symbol is declared as before believing the
-impossibility result.** Same shape as the boundary case above — a fact outside
-the function makes the function look inexpressible. Two cheap checks:
+Nothing in this class. The **different** debt classes — register pins,
+scheduling barriers, and the allowlist that under-describes them in both
+directions — live in `notes/retros/2026-08-09-asm-folding-root-cause-retro.md`, whose
+inventory was re-measured on the same date.
 
-- **Does the same file already contradict you?** `func_8001205C` reads
-  `D_8001009C` (scalar) as the matching self-clobber pair and `D_8007AFF4`
-  (genuinely 12 bytes) as a genuine split, three lines apart.
-- **Is the declaration's comment older than 2026-08-08?** Comments claiming a
-  size controls the addressing mode predate §2.4 and are now false. ADR-0001
-  §4.1 states the current rule.
+`func_8001D2D8` is **not** retired and never appeared in the retirement ledger.
+It left the raw-asm class on 2026-08-08 without reaching clean C: its body is C
+with one pinned temporary added under the owner's explicit authorization. The
+allowlist entry records that authorization, not a finding that assembly is
+correct for it. 26 of its 28 words come out of clean C; the residual is the
+entry-block sign extension. It is a register-pin entry, tracked in the
+next-steps note.
 
-## Check the predicate before researching the codegen
+## The one rule this note earned
 
-`func_8001E78C` cost a capable agent a session before any compiler question was
-even in play, because **the reconstruction computed the wrong function and
-nobody re-derived it from the target.** The target returns 1 when both deltas
-are strictly inside the tolerance band; the in-progress source returned 0 when
-a delta was inside it — inverted, and with `<=` where the target has `<`.
-
-Everything downstream was then real work aimed at the wrong place: a
-225-candidate residual sweep, 18 source-shape syntheses, three fuzz variants, a
-target-schedule analysis and an allocator counterfactual, all concluding
-"web-parity blocker" and offering macro expansion and hand-written assembly as
-hypotheses. None of it was wrong *as analysis*. It just cannot converge, and
-nothing in the output says so — a residual search reports the domain it was
-given, not whether the domain was worth searching.
-
-**The general rule: a control-flow diff is a semantics question until proven
-otherwise.** An instruction-count delta plus branch-sense differences is the
-signature. Read the branch senses out of the target and state the predicate in
-words before touching allocation or scheduling, and prefer a matched sibling
-over the target's raw disassembly when one exists — `func_8001E7DC` is the
-three-component form of this same test and was matching the whole time.
-
-Two cheap checks, both of which would have caught it in minutes:
-
-- **Say what the function returns, in words, from the target.** Here: `beqz`
-  on `slt lower,delta` jumps to the `return 0` block, so out-of-band returns 0.
-  The header comment asserted the opposite and was never re-checked.
-- **Does a matched neighbour in the same TU disagree with you?**
-
-### Check who owns the delta
-
-Once the predicate was right the residual was a pure register permutation with
-an identical schedule, and the fix was not a codegen trick either. A derived
-value in a **fresh local** is a new allocno that inherits the argument
-registers as hard-register preferences — the `.greg` dump says so directly:
-
-```
-;; 88 preferences: 5 7        (diff1 prefers $a1 and $a3)
-```
-
-With `$a1` already taken by `bound`, the delta landed on `$a3`, and the
-target's entry copy of the argument never happened. Assigning back into the
-parameter (`arg1 = arg1 - arg3;`) keeps the delta on the argument's own web,
-whose only preference is its incoming register — which is what produces the
-`move v1,a1` at entry and the in-place `subu v1,v1,a3`.
-
-**Reusing a parameter is not a hack; it is a statement about which web the
-value lives on.** When a residual is one or two argument copies plus a register
-rotation, try it before reaching for the allocator tooling.
-
-## Inventory
-
-Measured by classifying every `src/*.c` containing `__asm__`. The distinction
-matters and earlier counts blurred it. **Re-scanned 2026-08-27 after
-`func_8001AF70` left the raw-asm class: 10 files contain `__asm__`.**
-
-| Class | Files | Debt? |
-|---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 5 | 2 — see below |
-| Emitted asm inside an otherwise-C body | 1 | allowlisted |
-| Non-emitting `__asm__` (symbol aliases only) | 1 | no |
-| Register pins / scheduling barriers | 4 | other note |
-
-- **Emitted asm inside a C body:** `func_80016280` — heavy register pinning
-  plus asm blocks, allowlisted as `register-asm`/`embedded-asm`.
-- **Non-emitting:** `func_8002437C` — its trailing block only defines symbol
-  aliases (`_800243A4 = func_8002437C + 0x28`). It emits no instructions and is
-  not asm-body debt. It *is* a boundary artifact: internal labels promoted to
-  global symbols.
-- **Register pins / barriers:** `func_80019070` (pinned, allowlisted),
-  `func_80021820` (`register s32 i __asm__("a3")`, **not** allowlisted),
-  `func_800244FC` (`__asm__ volatile("" ::: "memory")` scheduling barrier,
-  **not** allowlisted). Tracked in
-  `notes/next-steps-for-revisiting-the-project.md`.
-
-### Legitimate — GTE code, keep as assembly
-
-These issue coprocessor-2 instructions (`rtps`, `mvmva`, `lwc2`, `cfc2`, …).
-They were handwritten assembly in the original game; they never were C.
-
-| Function | Instrs | GTE ops |
-|---|---:|---:|
-| `func_8001DFD4` | 30 | 6 |
-| `func_80038674` | 20 | 15 |
-
-### Debt — no reason recorded, or a reason that no longer holds
-
-`owns` lists the globals whose GP-relative addressing this translation unit is
-responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
-re-decompilation must carry them over as tentative definitions in C, or the
-function will silently switch to absolute addressing — see ADR-0001 §2.4.
-
-**None remaining** (`func_80013394` retired 2026-08-09; `func_8001AF70` retired 2026-08-27; `func_8001F278` retired 2026-08-24; `func_8001D2D8` left this class 2026-08-08 — see Corrections; `func_80017E34` retired 2026-08-28).
-
-### Retired
-
-| Function | Retired | Result |
-|---|---|---|
-| `func_80017E34` | 2026-08-28 | 27-instruction u16 strcat from the unreachable u16-string library TU. The copy loop's $v0/$v1 swap was not a local-alloc tie problem: the pre-check re-read and the loop store value are ONE shared user variable — a multi-block web that goes to global-alloc, conflicts with $v0 (the block-4 0xFFFF constant is live across its compare), and takes $v1 in both blocks, leaving the loop compare re-read the only block-5 local ($v0). Matched as clean C89. `make check` passes. |
-| `func_80015AAC` | 2026-08-08 | 30-instruction sprite-source table lookup. Repeating the same stable `u16` dereference on both sides of the `0xFFFE` guard lets GCC CSE replace the fall-through read with the target's fresh copy web; the control-flow boundary preserves the separate copy and scale, and delayed-branch scheduling places the copy in the branch delay slot. This replaced the whole-body raw asm with clean C89 and passes the full finalizer. The automation gap is specified in `plans/cse-repeated-expression-source-synthesis.md`. |
-| `func_80015594` | 2026-08-08 | 44-instruction PSY-Q TILE initializer. Matched as clean C89 with `setTile`, `setRGB0`, `setXY0`, `setWH`, and `addPrim`; branch-local code stores share one variable so crossjump forms the target diamond, while placing `setXY0` after the join preserves the target's signed-coordinate conversions. `return p + 1` supplies the final packet-stride delay-slot instruction. |
-| `func_80021604` | 2026-08-08 | 25-instruction transfer-progress initializer. The apparent explicit `multu`/`mfhi` high-product sequence is GCC's native expansion of unsigned division by 184320: it pre-shifts the even divisor's 12 bits, then uses the reduced-precision reciprocal `0x05B05B60`. Replacing the raw asm with `delta / 184320U` matched as clean C89. `make check` passes. |
-| `func_80017EE4` | 2026-08-08 | Symbol boundary was wrong; three symbols merged into one 0x4C function, then matched as clean C89. `make check` passes. |
-| `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
-| `func_8001FD74` | 2026-08-10 | 4-instruction Boolean getter: `return D_80061F1C != 0;`. Matched as clean C89 on first shape. `make check` passes. |
-| `func_80017AA0` | 2026-08-13 | 11-instruction mode encoder: loads `D_8005E44C` as `s16`, returns 0/2/1 depending on value. Matched as clean C89 on first shape. Required changing `D_8005E44C` from `u16` to `s16` in `globals_override.h` to emit `lh` instead of `lhu`. `make check` passes. |
-| `func_8001205C` | 2026-08-08 | 15-instruction arithmetic expression over four globals. Not a codegen problem: `D_8005E328` had been over-declared as `s32 [3]` in `globals_override.h`, which forces the split two-register address where the target uses the unsplit self-clobber pair. Declaring it as a scalar took it from 12/15 to 15/15 on the existing C. `make check` passes. |
-| `func_80017A70` | 2026-08-16 | 12-instruction table lookup with clamp: `if (arg0 >= 3) arg0 = 1; D_8005E44C = D_80049050[arg0];`. Matched as clean C89 on first shape. Owns `D_8005E44C` (tentative definition for GP-relative store). `make check` passes. |
-| `func_80019030` | 2026-08-19 | 16-instruction conditional arithmetic: loads `D_8005E47A` as `s16`, checks `D_8005E4A8[D_8005E444 - 1] == 0xFFFE`, and if so returns `(s16)(result - 12 - D_8005E2BA)`. Stale obstacle claimed GCC 2.8.1 couldn't emit `lh` vs `lhu`; under 2.95.2 the real issue was front-end reassociation of `result - 12 - D_8005E2BA` into `result - (D_8005E2BA + 12)`. Solved by splitting into two statements with an `s32` intermediate to prevent premature sign-extension. Added `D_8005E444` (u16), `D_8005E4A8` (u16*), and simplified `D_8005E47A` (s16) in `globals_override.h`. `make check` passes. |
-| `func_80024408` | 2026-08-20 | 16-instruction conditional return: three-argument function with nested `if` guards on `arg1 < 2`, `(u32)(arg0 - 10) < 3`, and `arg2 == 0`, returning 9/13/`arg0`/13 depending on the path. Matched as clean C89 on first shape. `make check` passes. |
-| `func_80022014` | 2026-08-21 | 22-instruction nested-loop table search: walks a 3×6 grid of halfwords (14 bytes apart, rows 84 bytes apart) at `arg0 + 2` for `arg1`, returning 1/0. Matched as clean C89 on first shape. Key details: `s16 arg1` produces the `sll/sra` sign-extension prologue, `u32` loop counters emit `sltiu` (unsigned) comparisons, and `i = 0;` before `arg0 += 2;` sets the correct instruction birth order. `make check` passes. |
-| `func_8001E78C` | 2026-08-08 | 20-instruction 2D proximity test against `(D_8005E520 >> 1) + 600`; the 3-component form is the already-matching sibling `func_8001E7DC`. Two independent faults: an in-progress reconstruction had the predicate **inverted** (it returned 0 for in-range, the target returns 1), and once corrected, the deltas had to be assigned back into the parameters rather than into fresh locals — see "Check who owns the delta" below. Owns `D_8005E520` (tentative definition for the GP-relative load). `make check` passes. |
-| `func_8001530C` | 2026-08-22 | 44-instruction LINE_F2 primitive initializer (PSY-Q helper family; siblings at func_8001526C, func_800153BC, func_800154CC, func_80015594). Sets len/code, RGB, semitransparent code variant, two endpoints, links with `addPrim`, returns next slot. Key matching insight: color component extraction (`color >> 16`, `color >> 8`) must be **delayed until after** the cond branch diamond — extracting color early (via `setRGB0` or direct field assignments before the branch) causes the compiler to group color stores together instead of interleaving them with coordinate stores. Temporaries `r0/g0/b0` hold the extracted values across `setXY0`/`p->x1`/`p->y1`, producing the target's interleaved store schedule. Shared `code` variable in both branch arms lets crossjump merge the code stores into the target's uncollapsed diamond. `make check` passes. |
-| `func_8001526C` | 2026-08-23 | 40-instruction TILE_1 primitive initializer (PSY-Q helper family; siblings at func_8001530C, func_800153BC, func_800154CC, func_80015594). Sets len/code via individual `setlen`/`setcode` calls, RGB via `setRGB0`, semitransparent code variant via shared `code` variable in both branch arms (crossjump diamond), coordinates via `setXY0`, links with `addPrim`, returns `p + 1`. Key matching insight: `setXY0` must precede `setRGB0` in source order so that the x0/y0 stores receive lower LUIDs than the color stores, causing the legacy scheduler to emit the coordinate stores before the r0 store among the block of independent stores after the branch join. `make check` passes. |
-| `func_8001F278` | 2026-08-24 | 29-instruction 3-iteration integer lerp: `*out = (*src - *base) * factor / divisor + *base`. The target shares `subu a0,a1,a0` between both if/else branches via delay-slot speculation — the else-body fills the delay slot and the if-body overwrites it. Source shape `if (arg1 < arg0) arg0 = arg1; arg0 = arg1 - arg0;` produces the common-tail merge. A `do-while` countdown with `i--` placed before `arg2++` in source order matches the target's backward-scheduler LUID tiebreak. `make check` passes. |
-| `func_8001AF70` | 2026-08-27 | 28-instruction bit-flag setter/clearer on `D_8006C838 + 0x38`. Sets or clears a single bit given a 16-bit flag id and a set/clear flag. Key matching insight: the address computation requires three statements in exact order — `base = (char *)&D_8006C838;` (bare symbol), `scaled = word_idx << 2;` (creates overlap forcing `word_idx` to `$v1`), `base += 0x38;` (separate `addiu`, not folded into `lo_sum`). The `scaled` variable must be computed between the base address and the offset addition so that `word_idx` overlaps with `base` in `$v0`, pushing `word_idx` to `$v1` and `scaled` to `$a0`. Sibling `func_8001AF44` (bit reader) uses the same struct type but folds the field offset into the load immediate since it only reads. `make check` passes. |
-| `func_80013394` | 2026-08-09 | 27-instruction mode-dispatch getter: reads `D_8005E294` as mode, returns different predicates on `D_8005E3CC`/`D_8005E3CE` per mode (mode 1: `< 1`, mode 3: `== (D_8005E3CE + 3)`, mode 2: `>= (D_8005E3CE + 1)`, else: `1`). Matched as clean C89 on first shape. Owns `D_8005E294`, `D_8005E3CC`, `D_8005E3CE` (tentative definitions for GP-relative loads). `make check` passes. |
-
-## What research each group needs
-
-**No function in this debt class remains** — `func_80017E34` (27 instructions) was the last and is retired.
-
-**Acceptance for retiring an entry:** the function is C89 with no embedded
-assembly, `diffFunc <name> --bytes` reports VERIFIED, `make check` passes, and
-the row moves from the debt table to "Retired". `diffFunc` alone is not
-sufficient — it compares pre-link encodings and can both false-pass and
-false-fail; `make check` is the verdict. A function that resists should move to
-`INCLUDE_ASM` in `nonmatchings/` with its diff signature recorded — quarantine
-is honest, an asm block that claims to be a decompilation is not.
-
-**Do not record an exemption for a function you could not match.** An
-`embedded-asm` entry in `.pi/autodecomp.json` asserts that assembly is the
-correct answer for that function, permanently and for every later agent. Being
-stuck is not that assertion. File the obstacle here instead.
-
-## Smaller items found alongside
-
-**Two idioms for the same fact.** A pure-asm file that owns a global states it
-either with `.comm SYM,n` inside the block or with a C tentative definition
-above it, depending on whether the block uses the assembler macro form or
-writes `%gp_rel(...)` explicitly. Both are correct and the build does not care.
-`func_80017A70` used to carry both belts — an explicit `%gp_rel` store *and*
-a C definition — which is redundant but true. Worth unifying only when these
-files are rewritten anyway.
-
-**Stale allowlist entries.** `.pi/autodecomp.json` grants `embedded-asm` to
-`func_80016054` and `func_80015704`; neither file contains any assembly. The
-permission outlived what it was granted for. `func_80019070` and
-`func_80016280` do still carry register pins and are correctly listed.
-`func_80021820` and `func_800244FC` carry a register pin and a scheduling
-barrier respectively and are *not* listed — the allowlist under-describes the
-tree in both directions.
-
-**The linker script can go stale silently, and it looks like a source bug.**
-`Makefile:106` lists `$(LD_SCRIPT)` as a link prerequisite but **nothing has a
-rule to build it** — only `make split` produces it, and the four symbol
-`INCLUDE` lines are appended by shell *after* splat runs:
-
-```make
-@printf 'INCLUDE "build/undefined_funcs_auto.txt"\nINCLUDE "build/undefined_syms_auto.txt"\n' >> $(LD_SCRIPT)
-```
-
-So a bare `splat split`, or a `make split` interrupted in its last few lines,
-leaves a linker script missing 146 undefined-symbol definitions plus the lib
-bss set. Every `.bss` symbol at or above `0x8005E850` then goes undefined —
-984 errors that name `func_80011370` and read as a decompilation defect, hours
-after the actual event. This happened on 2026-08-08 and cost a full
-investigation. **Symptom to recognise:** mass `undefined reference to D_…` for
-bss addresses, while `build/undefined_syms_auto.txt` still contains them —
-check `tail -4 build/slus_011.ld` for the `INCLUDE` lines, and re-run
-`make split`. Two fixes, neither applied yet: a fast guard in `make check`
-that fails with "run make split" when the includes are absent, or a real Make
-rule for `$(LD_SCRIPT)` so an incomplete script cannot survive.
-
-**A search tool reported "no exact match exists" while holding one.** The
-residual search clusters candidates by canonicalized assembly *text*. cc1
-spells negation as the base instruction (`subu $t0,$zero,$a1`); the
-disassembler prints the identical word as `negu t0,a1`. Nothing collapsed the
-two, so a byte-exact candidate scored 18/19 and the run terminated
-`exhausted-no-exact` — an authoritative-sounding negative result with the
-answer inside it. Fixed 2026-08-08 in `tools/agent/variant-lab/compile.ts`
-(`normalizeAlias`, applied to both the cc1 and disassembly paths, with a
-regression test); the same domain now reports `exact-candidate-found`. Only
-aliases with exactly one encoding may be collapsed this way — `negu`/`neg`
-qualify, `move` does not, since it assembles as either `addu` or `or`. **When
-a search says the domain is empty, spot-check its best class against
-`diffFunc --bytes` before believing it.**
-
-**Boundary artifacts beyond the merged case.** A binary-wide scan found nine
-symbol pairs with a conditional branch crossing between them and three symbols
-with no terminator. Most resolve to the two merge groups `make split` now
-applies; the pairs involving `func_8004815C` (a 0x166A4-byte symbol) look like
-a splat coverage problem rather than real merges and need separate triage —
-do not feed them to `mergeFragments` expectations.
-
-## Corrections to earlier notes
-
-`notes/next-steps-for-revisiting-the-project.md` lists "Raw `__asm__` embeds
-(bad) | 5" naming `func_8001205C`, `func_80015AAC`, `func_80017E34`,
-`func_80021604`, `func_80022014`. All five were real raw embeds when listed,
-but `func_8001205C`, `func_80015AAC`, `func_80021604`, and
-`func_80022014` have since been retired; `func_80017E34` was the last and
-retired 2026-08-28. The count is not 5, and the class is now empty.
-
-This note's own previous count — "20 files, 18 debt" — was also wrong, in the
-other direction: it missed `func_8001D2D8` and `func_8001F278` (both
-whole-body asm) and did not distinguish emitted asm from non-emitting symbol
-aliases or register pins. The current figures come from a scan that separates
-those classes; re-run it rather than trusting any of them after a batch of
-decompilation work.
-
-This note previously asserted that `func_80017EE4` was a tail call that "may be
-genuinely inexpressible in C with this compiler". That was wrong on both
-counts, and it was believed and acted on. When a claim here is a *hypothesis*
-about codegen rather than a measurement, say so.
-
-`func_8001D2D8` left the raw-asm table on 2026-08-08 **without reaching clean
-C**, so it is not in "Retired" and must not be read as retired. Its body is now
-C with one pinned temporary, added under the owner's explicit authorization and
-allowlisted; the allowlist entry records that authorization, not a finding that
-assembly is correct for it. 26 of its 28 words come out of clean C — the
-residual is the entry-block sign extension. It is a register-pin entry now, so
-the obstacle, the measurements that closed off compiler versions and every cc1
-flag, and what remains open are all recorded in
-`notes/next-steps-for-revisiting-the-project.md`, not here.
-
-That row's stated reason in this table — "force two separate return blocks" —
-was never the obstacle. Block layout was correct in clean C the whole time; the
-residual is local register allocation in the entry block. The earlier advice
-here to read `expand_end_loop` and the jump-threading passes was a guess by
-analogy with `func_80017EE4`, and it sent at least one session at the wrong
-pass. It has been removed.
+Re-generate an inventory before acting on it. Every hand-maintained count in
+this file went stale, in both directions, and one of them ("20 files, 18 debt")
+was wrong on the day it was written. Counts belong to a scan, not to a note.

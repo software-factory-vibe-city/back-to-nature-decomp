@@ -11,9 +11,12 @@ original PS-X EXE, verified by SHA-256 on every build.
 - 10 **GTE functions** (handwritten cop2 assembly in the original — kept as asm, correct)
 - 1 pure-asm function
 - The full build (`make`) currently links and **matches the original payload**
-- Known caveat: a small number of "matched" files use inline-asm / register-pinning
-  hacks that are suspected to be unnecessary. See
-  **`notes/next-steps-for-revisiting-the-project.md`** — read this first if resuming work.
+- Clean-source status (measured 2026-08-09): no ordinary compiled function has a
+  raw `__asm__` body, and no per-file flag overrides are active. Four files still
+  carry register pins and three carry scheduling barriers, each a diagnosed
+  obstacle rather than undiagnosed superstition. Read
+  **`notes/retros/2026-08-09-asm-folding-root-cause-retro.md`** first if resuming
+  work — it covers why the project stalled, what closed it, and what is left.
 
 ## Binary facts
 
@@ -349,7 +352,7 @@ The foreground controller now mirrors every worker stream to that terminal.
 **Known failure mode (important):** a byte-only success gate rewards embedded
 assembly, register pinning, and flag overrides. The skills explicitly reject
 those outcomes and require a classified stuck report instead. Read
-`notes/next-steps-for-revisiting-the-project.md` before matching more functions.
+`notes/retros/2026-08-09-asm-folding-root-cause-retro.md` before matching more functions.
 
 ## The `make split` pipeline
 
@@ -394,12 +397,14 @@ The research trail — worth reading before changing anything fundamental:
 - `compiler-identification.md` — how PSY-Q was identified from binary strings/patterns
 - `toolchain-version-detection.md` — the 2.95.2 proof (CC1PSX byte-identity)
 - `bootstrapping.md` — how the project was set up from scratch (GP discovery, sections)
-- `jump-table-problem.md` — switch/jump-table handling in m2c and the linker script
+- `research/symbol-boundary-verification.md` — proving a symbol is a function
+  before decompiling it (also covers jump tables whose entries are function
+  symbols)
 - `maspsx-issue.md`, `maspsx-issue2.md` — known ASPSX-emulation discrepancies
 - `scheduling-breakage.md` — impact of `-fno-schedule-insns` (regresses 134 functions globally)
 - `psyq-detection.md`, `rom_info/` — SDK/library detection details
-- `jobs-to-be-done.md` — **stale** (pre-2.95.2-switch); superseded by
-  `next-steps-for-revisiting-the-project.md`
+- `retros/2026-08-09-asm-folding-root-cause-retro.md` — why the project stalled
+  on asm folding, what closed it, and what remains
 - `thoughts-on-automated-decomp.md` — design thinking behind the agent pipeline
 - `decompilation-tooling-ideas.md` — Bucket C observability tools, usage, and limitations
 

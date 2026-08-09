@@ -108,7 +108,12 @@ is independent per axis. Do not assume one PSY-Q release implies all three.
    splat pain lies ahead. (BTN: fully contiguous, lucky.)
 
 **Pitfall:** jump tables living in rodata break naive per-function splitting
-and crash m2c later — see `notes/jump-table-problem.md`.
+and crash m2c later. Two fixes, both cheap: pass the rodata file to m2c
+alongside the function's `.s` (it accepts multiple inputs, and without the
+table it raises `DecompFailure` on the computed jump and yields nothing), and
+treat a table whose entries are *function* symbols as a symbol-boundary defect
+rather than a dispatch table — those targets are usually case labels inside one
+function that the symbol map split apart.
 
 ## Phase 3 — A matching build with 0% decompilation
 
@@ -187,7 +192,7 @@ These are the lessons that cost the most; they are fully game-agnostic:
 1. **The gate must reject hacks, not just verify bytes.** A byte-match-only
    gate rewards `__asm__` embeds, register pinning, and per-file flag
    overrides. Reject all three by default; require explicit human allowlisting.
-   (`notes/next-steps-for-revisiting-the-project.md` — the full postmortem.)
+   (`notes/retros/2026-08-09-asm-folding-root-cause-retro.md` — the full postmortem.)
 2. **Periodically re-test old hacks.** Compiler-version corrections (our
    2.8.1 → 2.95.2 switch) invalidate yesterday's load-bearing hacks. A
    mechanical strip-and-retest sweep is cheap and pays off every time.

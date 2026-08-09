@@ -179,7 +179,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
   they are solid. The older automation used a byte-only completion gate; the
   project-local Pi skills now make clean-source policy explicit while
   `agent/diffFunc.ts` remains the exact per-function byte oracle (see
-  `notes/next-steps-for-revisiting-the-project.md`).
+  `notes/retros/2026-08-09-asm-folding-root-cause-retro.md`).
 - **Deleted in the reorganization** (verified orphaned — zero references):
   `splitFunctions.ts` (superseded by `bootstrap.ts`),
   `splitSegments.ts` (old segment approach),

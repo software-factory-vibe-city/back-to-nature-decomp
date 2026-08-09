@@ -18,6 +18,23 @@ Do not fuzz syntax around a misread computation. If many different source
 shapes diverge at the same early instruction, stop and recompute the target's
 arithmetic, constants, signedness, and address.
 
+### A control-flow diff is a semantics question until proven otherwise
+
+The signature is an instruction-count delta **plus** branch-sense differences.
+Before any allocation or scheduling interpretation, state in words what the
+target computes and returns, read out of the target's own branches — not out
+of the candidate, and not out of a header comment. An inherited comment is not
+evidence; re-derive it. Two checks, both cheap:
+
+- **Say what the function returns, from the target.** Name the compare, the
+  branch sense, and which block each side reaches. A predicate that is
+  inverted, or `<=` where the target has `<`, produces exactly the diff
+  signature that reads as a web-parity or allocation blocker — and every
+  downstream tool will analyse the wrong function without complaint.
+- **Does a matched neighbour in the same TU disagree with you?** Prefer an
+  already-matched sibling over the raw disassembly when one exists; it states
+  the predicate unambiguously in C.
+
 ### Call wrappers and unchanged argument registers
 
 Reconstruct a call from the complete ABI argument state at the `jal`, not only
@@ -363,6 +380,17 @@ proof-admitted handoff; inspect its mechanism coverage because the current
 source catalog may represent a witness only partially. Never describe SAT as a
 solution or UNSAT as a proof over all clean C.
 
+**Spot-check every negative result before believing it.** A search's
+"exhausted, no exact match" is a claim about its own domain and its own
+canonicalization, not about the world — one residual search reported
+`exhausted-no-exact` while holding a byte-exact candidate, because cc1 spells
+negation `subu $t0,$zero,$a1` and the disassembler prints the same word as
+`negu t0,a1`. Check the best-scoring class against `diffFunc --bytes` before
+ending a search on a negative. And `diffFunc` is not itself the verdict: it
+compares pre-link encodings and can both false-pass a masked transposition and
+false-fail byte-identical code. `make check` is the verdict. See
+`notes/research/tooling-false-verdicts.md`.
+
 Start with the cross-pass feedback category: `sched1-reordered`, `sched2-fixed`,
 `allocation-blocked`, or `memory-or-control`. For a stubborn scheduling window,
 run target-schedule analysis and check its emission alignment before using UIDs;
@@ -435,6 +463,24 @@ p16 = (s16 *)((char *)&D_HALFWORD_BASE + (arg0 << 1));
 An inline repeated expression may be CSE'd into one value born at the first
 consumer. Hoisting it to a standalone statement births it earlier. Match the
 birth site shown by the target.
+
+The reciprocal case is equally real, and the target's entry copies decide which
+rule applies. A derived value in a **fresh local** is a new allocno that
+inherits the argument hard registers as preferences (visible directly as
+`;; NN preferences: 5 7` in `.greg`); if one of those registers is already
+taken, the value lands elsewhere and the target's entry copy never happens.
+Assigning back into the parameter keeps the value on the argument's own web,
+whose only preference is its incoming register.
+
+| Target shows | Source shape |
+|---|---|
+| the argument stays in `$a0`–`$a3`, derived value in a scratch register | fresh temporary, or inline at the first consumer |
+| an entry `move` of the argument, then an in-place op on that copy | assign back into the parameter |
+
+Reusing a parameter is not a hack; it is a statement about which web the value
+lives on. When a residual is one or two argument copies plus a register
+rotation, test it before reaching for allocator tooling — it is a
+one-statement experiment.
 
 ### Allocation before scheduling
 
@@ -534,6 +580,24 @@ where the target is absolute, the file is defining a global it does not own;
 remove the definition. If it emits `lui`/`%lo` where the target is
 GP-relative, the definition is missing.
 
+Size does decide a different question, and conflating the two has cost a
+session. The two decisions are independent:
+
+| Question | Decided by |
+|---|---|
+| GP-relative or absolute? | whether **this TU defines** the symbol — size is irrelevant |
+| unsplit macro load (self-clobber pair) or split two-register pair? | the **declared size** against `-G` |
+
+So an over-wide declaration buys nothing on the first question and loses the
+second: cc1 splits the address, and the target's single-register
+`lui $r,%hi(sym)` / `lw $r,%lo(sym)($r)` becomes unreachable. Before accepting
+any "this address form is unreachable from C" result — including the one in
+ADR-0001 §4 — check what the symbol is declared as. That result is conditioned
+on the declaration in scope. A same-file counter-witness settles it in one
+grep: `func_8001205C` reads one scalar as the self-clobber pair and one genuine
+12-byte global as a genuine split, three lines apart. See
+`notes/research/func_8001205C-declaration-shape-vs-address-form.md`.
+
 ### Shared types
 
 - parameter/local structs shared across files: `include/game_types.h`
@@ -565,9 +629,35 @@ void func(void) {
 ### Switches
 
 Use a `switch` when the target has jump-table dispatch. The compiler supports
-it. Case body order matters because bodies are emitted in source order; reorder
-case clauses to match binary layout rather than replacing the switch with an
-if/else chain.
+it, and matched witnesses exist (`func_8001A8D0`, `func_80013B04`,
+`func_80011370`). Case body order matters because bodies are emitted in source
+order; reorder case clauses to match binary layout rather than replacing the
+switch with an if/else chain.
+
+The target's fingerprint is a bounds check into a table load and a computed
+jump:
+
+```asm
+sltiu $v0, $v1, 0x7                  # case count
+beqz  $v0, .Ldefault
+lui   $v0, %hi(jtbl_8001005C)        # 2.95.2 loads the table with lui+addiu,
+addiu $v0, $v0, %lo(jtbl_8001005C)   # not GP-relatively
+sll   $v1, $v1, 2
+addu  $v1, $v1, $v0
+lw    $a0, 0x0($v1)
+jr    $a0
+```
+
+The table itself lives in a `.rodata` segment attached to the function, not in
+the function's own `.s`. `psx_m2c` detects `jtbl_*` references and passes the
+rodata file automatically; without it m2c raises `DecompFailure` on the
+computed jump and produces nothing.
+
+**A table whose entries are function symbols is a symbol-boundary signal, not
+a tail-call dispatch table.** If the targets land inside another function's
+range they are case labels the symbol map promoted — see
+`notes/research/symbol-boundary-verification.md` §1a, where exactly this was
+misread as needing a top-level `__asm__` block.
 
 ### Native operators, not forged instructions
 
@@ -639,6 +729,31 @@ known pure-assembly function. A tail call, difficult allocation, or stubborn
 diff does not establish handwritten origin.
 
 ## 10. Escape hatch and targeted research
+
+### Before modelling a pass, audit the facts outside the function
+
+When a form reads as unreachable, the wall is often not in the codegen at all.
+Three inputs are taken as given by every downstream tool, and each has produced
+a full wasted session in this project — each presenting as a genuine codegen
+impossibility, because from inside the function that is exactly what it looks
+like. Check all three before modelling a compiler pass:
+
+1. **The symbol boundary.** A symbol that is not a function cannot be
+   decompiled as one. Re-run `make split` on a stuck tiny function; a boundary
+   that survives the merge detector is evidence rather than an assumption. See
+   `notes/research/symbol-boundary-verification.md` for the decisive evidence
+   list (no `jr $ra`; a conditional branch crossing the boundary in *either*
+   direction; a `j` entry with no callers; read-before-def; zero callers).
+2. **The declarations in scope.** An override's width and size change load
+   width, signedness, and address form. See §7.
+3. **The predicate.** See §1.
+
+An impossibility result is conditioned on its inputs. "Proven unreachable" in a
+note or ADR is true *given* what it assumed; re-read the assumption before
+accepting the wall. A capable, internally consistent analysis aimed at the
+wrong premise emits no signal that it is aimed wrong.
+
+### Reading the compiler
 
 When several traced, mechanism-directed source edits fail, stop permuting and
 locate the active compiler's exact source in the project. Relevant passes often

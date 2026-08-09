@@ -1,6 +1,6 @@
 # Decompilation Retro: Buckets C and D
 
-Companion to `notes/next-steps-for-revisiting-the-project.md`. Documents the
+Companion to `notes/retros/2026-08-09-asm-folding-root-cause-retro.md`. Documents the
 2026-07-25 de-superstition sweep (15 of 18 register-pinned files stripped
 clean, binary verified byte-identical by `make check`) and analyzes the two
 buckets that were deliberately **not** distilled into prompts yet:
@@ -739,8 +739,10 @@ assembler emulation.
 
 ## References
 
-- `notes/next-steps-for-revisiting-the-project.md` — the parent analysis
-  (root causes, six proposed steps; this sweep was step 2).
+- `notes/retros/2026-08-09-asm-folding-root-cause-retro.md` — the parent
+  analysis (root causes and the six-step plan, all now closed or superseded;
+  this sweep was step 2). It replaced the resumption plan this note was
+  originally written against.
 - `notes/research/func_8001B4E4-scheduler-allocator-resolution.md` — full
   research writeup of the C4 resolution (mechanism extraction from the
   2.95.2 sources, failed-strategy catalog, reusable levers).

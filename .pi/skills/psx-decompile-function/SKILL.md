@@ -28,7 +28,19 @@ Before editing, read completely:
 7. Run `psx_scan_read_before_def` once. A finding
    means the function belongs to the register-variable / handwritten
    fingerprint class (policy-exception territory — see the research notes
-   it cites); a clean scan rules that class out before you hypothesize it.
+   it cites), **or** that the symbol boundary is wrong and the body depends
+   on a register set by the preceding symbol; rule out the boundary first,
+   since it is cheaper. A clean scan rules both out before you hypothesize
+   them.
+
+   Prove the boundary whenever the symbol is tiny (under ~4 instructions),
+   has no `jr $ra`, is entered by a `j` rather than a prologue, or shows an
+   instruction-count delta no source shape moves. `make split` runs the
+   merge detector, so re-running it is the first move on a stuck tiny
+   function and a boundary that survives it is evidence rather than an
+   assumption. A symbol that is not a function cannot be decompiled as one,
+   and the failure is indistinguishable from a codegen impossibility —
+   `notes/research/symbol-boundary-verification.md`.
 8. Run `psx_triage` once, before authoring or
    perturbing source, and again after every structural edit. It works on a
    bare `INCLUDE_ASM` stub, so run it before you write the first line. It
@@ -96,7 +108,14 @@ evidence. The style guide's resume section is mandatory here.
    allocation or scheduling interpretation — an "allocation swap" with
    failing web parity is a symptom, not a cause. Any instruction-count
    delta beyond entry moves is structural; read the reported count-delta
-   decomposition instead of treating it as allocation noise.
+   decomposition instead of treating it as allocation noise. A count delta
+   accompanied by branch-sense differences is a **semantics** question:
+   state what the target computes and returns in words, read out of its own
+   branches, before interpreting anything else. Inherited header comments
+   are not evidence, and a matched sibling in the same TU beats the raw
+   disassembly. A wrong predicate produces a diff that reads convincingly
+   as a web-parity blocker, and every tool downstream will analyse the
+   wrong function without complaint.
 3. For allocation, scheduling, operand-order that survives source-order swaps,
    or mixed categories, call `psx_compiler_trace` before further perturbation.
    Tie the next edit to a pseudo birth, death, lifetime, conflict, assignment
@@ -188,6 +207,14 @@ override ships with its evidence comment and allowlist entry in the same
 change; an override without a fingerprint is still failure. A
 zero-instruction scheduling barrier is a documented last resort under the
 style guide, not a substitute for diagnosis.
+
+**Do not record an exemption for a function you could not match.** An
+allowlist entry asserts, permanently and to every later agent, that the
+exempted construct is the correct answer for that function. Being stuck is
+not that assertion, and a wrong one is expensive: an `embedded-asm` entry
+recorded this way outlived a symbol-map defect and cost a later session.
+File the obstacle instead, and quarantine the function as `INCLUDE_ASM` in
+`nonmatchings/` with its diff signature recorded — quarantine is honest.
 
 ## Targeted deep research
 
