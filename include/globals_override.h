@@ -298,4 +298,28 @@ extern s32 _D_8005E5E8[104] __asm__("D_8005E5E8");
 extern s32 _D_8005E5D8[3] __asm__("D_8005E5D8");
 #define D_8005E5D8 (*((s32*)_D_8005E5D8))
 
+/* D_80049A80 — absolute-addressed u16 array (func_80021CD8).
+ * Accessed with lui/addiu/lhu at byte offset index*6 (index*3 elements).
+ * Array size forces >8-byte declaration for absolute addressing under -G8. */
+extern u16 _D_80049A80[6] __asm__("D_80049A80");
+#define D_80049A80 ((_D_80049A80))
+
+/* D_8005E324 — GP-relative s16 (func_80021CD8 writes 1 via sh %gp_rel). */
+extern s16 D_8005E324;
+
+/* D_8005E580 — GP-relative u16 (func_80021CD8 writes via sh %gp_rel). */
+extern u16 D_8005E580;
+
+/* D_8005E584 — GP-relative s32 (func_80021CD8 reads via lw %gp_rel). */
+extern s32 D_8005E584;
+
+/* D_8005E588 — GP-relative s32 (func_80021CD8 reads+writes via lw/sw %gp_rel). */
+extern s32 D_8005E588;
+
+/* D_8005E58C — GP-relative s32 (func_80021CD8 writes via sw %gp_rel). */
+extern s32 D_8005E58C;
+
+/* D_8005E594 — GP-relative s32 (func_80021CD8 reads via lw %gp_rel). */
+extern s32 D_8005E594;
+
 #endif /* GLOBALS_OVERRIDE_H */
