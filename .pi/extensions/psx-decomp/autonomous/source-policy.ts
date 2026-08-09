@@ -27,6 +27,27 @@ function allowlisted(config: AutodecompConfig, name: string | undefined, vram: s
   return keys.some((key) => config.sourcePolicy.allowlist[key]?.includes(kind));
 }
 
+/**
+ * A GCC *asm label* — `extern T sym[1] __asm__("NAME");` — renames the symbol
+ * a declarator refers to. It emits no instructions, and it is how an
+ * absolutely-addressed generated symbol is given a real aggregate type in the
+ * override header. It is not embedded assembly and must not be policed as
+ * such.
+ *
+ * Recognised narrowly, so instructions cannot enter through it: one plain
+ * string operand that is a bare identifier (no colon operand lists, no
+ * instruction text), preceded on the same line by a declarator, and closing a
+ * declaration. Anything statement-initial, or following a `;`/`{`/`}`, is an
+ * asm statement and stays forbidden. A register pin is a different construct
+ * and is matched before this, on the `register` keyword.
+ */
+function asmLabel(line: string): boolean {
+  const match = line.match(/\b(?:__asm__|__asm|asm)\s*\(\s*"([^"\\]*)"\s*\)\s*;\s*$/);
+  if (!match || !/^[A-Za-z_][A-Za-z0-9_.]*$/.test(match[1])) return false;
+  const declarator = line.slice(0, match.index).trim();
+  return declarator.length > 0 && !/[;{}]$/.test(declarator);
+}
+
 function forbiddenLine(
   line: string,
   config: AutodecompConfig,
@@ -40,6 +61,7 @@ function forbiddenLine(
     return { kind: "register-asm", message: "Hard-register pinning is forbidden" };
   }
   if (/\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/.test(line)) {
+    if (asmLabel(line)) return undefined;
     const compact = line.replace(/\s+/g, "");
     const emptyMemoryBarrier = compact.includes('__asm__volatile("":::"memory")') || compact.includes('__asm__("":::"memory")');
     if (emptyMemoryBarrier && config.sourcePolicy.allowEmptyMemoryBarrier) return undefined;

@@ -44,6 +44,36 @@ test("an undecompiled backlog stub is a pending stub; a partial fold is not", ()
   assert.equal(isPendingStub(`void target(void) {}\n`), false);
 });
 
+test("an asm label on a declaration is a symbol rename, not embedded assembly", () => {
+  const { root, config } = fixture("void target(void) {}\n");
+  const added = (line: string) => [
+    "--- a/include/globals_override.h",
+    "+++ b/include/globals_override.h",
+    "@@ -1,0 +2,1 @@",
+    `+${line}`,
+  ].join("\n");
+
+  /* The documented override for an absolutely-addressed generated symbol. */
+  for (const line of [
+    'extern struct_80070000 _D_80070000[1] __asm__("D_80070000");',
+    'extern s32 _D_8004B1A4[3] __asm__("D_8004B1A4");',
+  ]) {
+    const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", patch: added(line) });
+    assert.equal(result.pass, true, `expected an asm label to pass: ${line}`);
+  }
+
+  /* Instructions must not enter through it, however the line is arranged. */
+  for (const line of [
+    '__asm__("nop");',
+    'int x = 0; __asm__("nop");',
+    'void f(void) { __asm__("nop"); }',
+    'extern int x __asm__("lw %0, 0(%1)" : "=r"(a));',
+  ]) {
+    const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", patch: added(line) });
+    assert.equal(result.pass, false, `expected an asm statement to fail: ${line}`);
+  }
+});
+
 test("rejects out-of-scope files and added flag overrides", () => {
   const { root, config } = fixture("void target(void) {}\n");
   const patch = `diff --git a/configs/flag_overrides.mk b/configs/flag_overrides.mk\n--- a/configs/flag_overrides.mk\n+++ b/configs/flag_overrides.mk\n@@ -0,0 +1 @@\n+CC1FLAGS_target := -fno-schedule-insns\n`;
