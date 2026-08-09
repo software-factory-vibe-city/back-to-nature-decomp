@@ -63,6 +63,17 @@ Members (address order):
 References: notes/research/func_8001E878-dead-spill-allocation.md §9,
 notes/research/func_8001E9F8.md.
 
+## projected primitive clipping — 0x8001C37C–0x8001D348 (confidence: medium)
+
+GTE-projected triangle/quad rendering and screen-X rejection. Fingerprints:
+func_8001C37C directly calls both adjacent bounds helpers four times each;
+both helpers consume packed GTE SXY words loaded from primitive X/Y pairs and
+test the signed low-half X coordinate against the same screen interval.
+Members: func_8001C37C (s) — projected primitive renderer/caller;
+HasTriangleVertexXInBounds (m) — three-vertex X bounds helper;
+func_8001D2D8 (?) — four-vertex X bounds helper. func_8001D348 is the first
+following function and may mark the next TU; membership unverified.
+
 ## unknown group A — 0x8001E04C–0x8001E26C (confidence: low)
 
 Address-adjacent block preceding collision.c; none of its functions touch
