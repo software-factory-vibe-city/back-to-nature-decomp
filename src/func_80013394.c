@@ -1,75 +1,18 @@
 #include "common.h"
 
-__asm__(
-"\n"
-"\t.text\n"
-"\t.align\t2\n"
-"\t.globl\tfunc_80013394\n"
-"\t.ent\tfunc_80013394\n"
-"func_80013394:\n"
-"\t.frame\t$sp,0,$31\n"
-"\t.mask\t0x00000000,0\n"
-"\t.fmask\t0x00000000,0\n"
-"\tlh\t$v1,D_8005E294\n"
-"\tli\t$v0,1\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tbne\t$v1,$v0,_800133B0\n"
-"\tnop\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"\tlh\t$v0,D_8005E3CC\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tjr\t$31\n"
-"\tslti\t$v0,$v0,1\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"_800133B0:\n"
-"\tli\t$v0,3\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tbne\t$v1,$v0,_800133D4\n"
-"\tnop\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"\tlh\t$v1,D_8005E3CE\n"
-"\tlh\t$v0,D_8005E3CC\n"
-"\taddiu\t$v1,$v1,3\n"
-"\txor\t$v0,$v0,$v1\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tjr\t$31\n"
-"\tsltiu\t$v0,$v0,1\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"_800133D4:\n"
-"\tli\t$v0,2\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tbeq\t$v1,$v0,_800133E8\n"
-"\tnop\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tjr\t$31\n"
-"\tli\t$v0,1\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"_800133E8:\n"
-"\tlh\t$v1,D_8005E3CE\n"
-"\tlh\t$v0,D_8005E3CC\n"
-"\taddiu\t$v1,$v1,1\n"
-"\tslt\t$v0,$v0,$v1\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\tjr\t$31\n"
-"\txori\t$v0,$v0,0x1\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"\t.end\tfunc_80013394\n"
-"\t.comm\tD_8005E294,2\n"
-"\t.comm\tD_8005E3CC,2\n"
-"\t.comm\tD_8005E3CE,2\n"
-);
+s16 D_8005E294;
+s16 D_8005E3CC;
+s16 D_8005E3CE;
+
+s32 func_80013394(void) {
+    if (D_8005E294 == 1) {
+        return D_8005E3CC < 1;
+    }
+    if (D_8005E294 == 3) {
+        return D_8005E3CC == (D_8005E3CE + 3);
+    }
+    if (D_8005E294 == 2) {
+        return D_8005E3CC >= (D_8005E3CE + 1);
+    }
+    return 1;
+}

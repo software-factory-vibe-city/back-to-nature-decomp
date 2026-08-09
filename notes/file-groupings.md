@@ -270,6 +270,23 @@ Technique and per-function detail for this group live in
 these wrappers illustrate is in
 `notes/research/frame-size-arity-diagnostic.md`.
 
+## game-state init and query — around 0x800132B8–0x80013394 (confidence: low)
+
+Game-state initialization and mode-dispatch query. Fingerprints:
+func_800132B8 (m) defines `D_8005E294`, `D_8005E298`, `D_8005E2A0`,
+`D_8005E3CC`, `D_8005E3CE`, `D_8005E3D0` as tentative definitions (GP-relative);
+func_80013394 (m) defines the subset `D_8005E294`, `D_8005E3CC`, `D_8005E3CE`
+and reads them GP-relatively. Shared gp-rel cluster is the same evidence
+class as the boot/main-loop TU. func_80011370 calls func_800132B8,
+so this is a different TU. Intermediate func_800132F0 and func_80013328
+are stubs; membership unverified.
+
+Members (address order):
+- func_800132B8 (m) — game-state initializer (sets mode, counters, sizes)
+- func_800132F0 (s)(?) — stub; intermediate
+- func_80013328 (s)(?) — stub; intermediate
+- func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
+
 ## VAB transfer setup/state — around 0x80020E58–0x800217B0 (confidence: medium)
 
 Sound-bank transfer setup and progress state.
