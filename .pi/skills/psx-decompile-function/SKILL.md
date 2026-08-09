@@ -160,20 +160,30 @@ evidence. The style guide's resume section is mandatory here.
    reason to stop only that serialized domain, and INCONCLUSIVE or
    model-replay failure as no proof. Never promote a solver witness directly.
 7. If several mechanism-backed source shapes remain, first call
-   `psx_synthesize_source_shapes` when the analyzer's requirements map to a
-   conservative supported source region. Inspect its source-role bindings,
-   recipes, generated search spec, and coverage; finite exhaustion covers only
-   that recorded grammar. If synthesis refuses an ambiguous region, compare a
-   small hand-authored set with `psx_fuzz_variants` or author an explicit finite
-   specification for `psx_search_source_shapes`. Search only after the
-   trace/analysis names concrete mechanism requirements and semantic
-   invariants. Inspect preserved generated sources under `build/`; never copy a
-   result automatically. For a `priority-relation`, test the reported
-   single-set/birth-eligibility web before unrelated statement permutations;
-   for a `luid-order`, test source birth/constant sites while preserving the
-   dependency graph. Rank requirement and mechanism evidence before match
-   percentage. Never promote a cc1-only result: require full configured
-   assembly, then re-run the exact function diff.
+   `psx_search_residual_source_space` with `deriveOnly` to price the domain.
+   Read the exact size, the per-axis radix breakdown, and the projected wall
+   time before launching a full run; a `domain-too-large` result names the axis
+   responsible, and the only lever on it is a smaller residual, which is real
+   work rather than a flag. Then run it to exhaustion. The domain is derived
+   from the current source and the current machine residual, so re-derive after
+   any source edit rather than trusting an earlier price. Its terminal states
+   are honest and mean different things: `exact` found a byte-identical
+   candidate, `exhausted-no-exact` evaluated the whole domain and is a claim
+   about the recorded grammar schema and its suppression list only, and
+   `unsupported-*` means the source or correspondence could not be modelled at
+   all. Read the suppressed-rule list before concluding a representation does
+   not exist. If the closure does not reach a hypothesis the trace names, or
+   the run reports it unsupported, compare a small hand-authored set with
+   `psx_fuzz_variants`, or author an explicit finite specification for
+   `psx_search_source_shapes`. In that fallback, for a `priority-relation` test
+   the reported single-set/birth-eligibility web before unrelated statement
+   permutations, and for a `luid-order` test source birth/constant sites while
+   preserving the dependency graph. Search only after the trace/analysis names
+   concrete mechanism requirements and semantic invariants. Inspect preserved
+   generated sources under `build/`; never copy a result automatically. Rank
+   requirement and mechanism evidence before match percentage. Never promote a
+   cc1-only result: require full configured assembly, then re-run the exact
+   function diff.
 8. Keep changes within project policy and put shared types in the designated
    headers rather than conflicting with generated declarations.
 

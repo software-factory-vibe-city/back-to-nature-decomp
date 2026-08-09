@@ -1,6 +1,6 @@
 # Plan: complete the residual source-representation search
 
-**Status: proposed (2026-08-09).**
+**Status: Phase 1 landed 2026-08-09; Phases 2-7 proposed.**
 
 This plan consolidates four documents that all described one subsystem — the
 search over semantics-preserving source representations of a function — and
@@ -94,20 +94,32 @@ consolidation that makes any of it reachable from the normal workflow.
 The highest-value change in this plan requires no new search capability. It
 routes the workflow to the model that can represent the function.
 
-## 1.1 Route the skill
+## 1.1 Route the skill — LANDED 2026-08-09
 
-`.pi/skills/psx-decompile-function/SKILL.md` step 7 names
-`psx_synthesize_source_shapes` and never names
+`.pi/skills/psx-decompile-function/SKILL.md` step 7 named
+`psx_synthesize_source_shapes` and never named
 `psx_search_residual_source_space`, although that wrapper is registered in
-`diagnostics.ts` and has been for some time — Deliverable 11 of the spine plan
-delivered its tool half and left the skill half undone. Invert the order: derive
-and price the residual domain first, and treat an explicit
-`psx_search_source_shapes` specification as the fallback for a hypothesis the
-automatic closure does not reach.
+`diagnostics.ts` and had been for some time — Deliverable 11 of the spine plan
+delivered its tool half and left the skill half undone.
 
-The `--derive-only` price must be stated before a run is launched, so the step
-must instruct pricing first and reading the per-axis breakdown, since the only
-lever on a `domain-too-large` result is a smaller residual.
+Step 7 now calls `psx_search_residual_source_space` with `deriveOnly` first,
+requires reading the exact size, per-axis radix breakdown, and projected wall
+time before launching a full run, and states that the only lever on a
+`domain-too-large` result is a smaller residual. It distinguishes the terminal
+states, notes that `exhausted-no-exact` is a claim about the recorded grammar
+schema and its suppression list only, and requires reading the suppressed-rule
+list before concluding that a representation does not exist. It also requires
+re-deriving after any source edit, since the domain is a function of the
+current source and the current machine residual.
+
+The explicit `psx_search_source_shapes` specification and a small
+`psx_fuzz_variants` set are now the fallback for a hypothesis the automatic
+closure does not reach, and the `priority-relation` / `luid-order` guidance
+moved into that fallback branch, where hand-chosen shapes actually apply.
+
+No reference to the superseded synthesizer remains in `.pi/skills/`. The tool
+and its module are still present and still registered; they are removed in
+1.2, behind the parity gate.
 
 ## 1.2 Parity gate, then retire the MVP
 
@@ -137,8 +149,9 @@ evidence, not as a second front end.
 
 ## Acceptance
 
-- Step 7 of the skill routes to residual search first, with pricing before
-  launch, and names the fallback conditions for an explicit specification.
+- ~~Step 7 of the skill routes to residual search first, with pricing before
+  launch, and names the fallback conditions for an explicit specification.~~
+  **Met 2026-08-09.**
 - The parity gate is a checked-in test over the 35-function list, not a manual
   comparison.
 - After retirement, no document or tool registry references the removed module.
@@ -352,7 +365,7 @@ gates, prunes, or seeds a search.
 
 | phase | content | gate |
 |---|---|---|
-| 1 | Deliverable 1.1, skill routing | the workflow reaches residual search first; no code deleted yet |
+| 1 — **LANDED 2026-08-09** | Deliverable 1.1, skill routing | the workflow reaches residual search first; no code deleted yet |
 | 2 | Deliverable 4, survival diagnostics | first lemma cites verified compiler source lines; `func_80015594` replay |
 | 3 | Deliverable 5, control-flow placement | hand-verified fixture counts; `func_80015594` domain contains the post-join form |
 | 4 | Deliverable 2, expression reuse | refusal fixtures refused; `func_80015AAC` domain contains the repeated form |
@@ -360,8 +373,8 @@ gates, prunes, or seeds a search.
 | 6 | Deliverable 3, type and cast forms | every admitted form changes assembly on a fixture |
 | 7 | Deliverable 6, sibling report | advisory only |
 
-Phase 1 is first because it is the only phase that improves outcomes today and
-costs no new search capability.
+Phase 1 was first because it was the only phase that improves outcomes today
+and cost no new search capability. It is done; everything below it is open.
 
 Phase 2 precedes both new strata deliberately. A stratum that fails without
 survival diagnostics fails mysteriously; one that fails with them names the
