@@ -274,6 +274,11 @@ extern u8 D_80048B14[];
  * func_800214FC. The aggregate size preserves split absolute address formation. */
 extern s32 D_80049370[3];
 
+/* D_80049A70 - array of 4 s32 pointers to CD filename strings (func_800218C4).
+ * Values point to "\\STR\\01.XA;1" through "\\STR\\04.XA;1" in rodata.
+ * Absolute-addressed (lui+addiu). Array size 4 ensures >8 bytes. */
+extern s32 D_80049A70[4];
+
 /* D_8005E2A4 — GP-relative s32, per-port state flags (func_80013B04)
  * Size 2 keeps declaration <= 8 bytes for GP-relative addressing under -G8. */
 extern s32 D_8005E2A4[2];
