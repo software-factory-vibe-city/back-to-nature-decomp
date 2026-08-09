@@ -331,6 +331,35 @@ no shared gp-rel cluster with core members (all absolute addressing).
 
 References: src/func_800218C4.c.
 
+## CD loading — 0x80014554–0x80014B44 (confidence: high)
+
+CD file/disk loading helpers: search for files on disc, set location, read
+sectors, and synchronize. Fingerprints: shared gp-rel cluster
+D_8005E3F0–D_8005E430 (CD state, buffers, positions) — every member reaches
+this cluster GP-relatively; D_8005E428 and D_8005E430 are universal across
+all five members. SDK fingerprint is near-identical: CdSearchFile, CdControl,
+CdRead, CdReadSync, VSync with optional ResetCallback/DrawSync/CdSync/CdIntToPos.
+Internal call graph: func_800147BC calls func_80014554; func_80014B44 calls
+func_80014854. func_80011370 (main loop) calls func_800145F0 and func_800147BC.
+
+Members (address order):
+- func_80014554 (m) — CD file loader: CdSearchFile loop, CdSetloc, CdRead,
+  CdReadSync/VSync wait; no gp-rel globals (pure helper, stack CdlFILE only);
+  sole caller is func_800147BC
+- func_800145F0 (s) — CD loader with state: touches D_8005E430, D_8005E404,
+  D_8005E428, D_8005E3F0 GP-relatively; called by func_80011370
+- func_80014748 (s)(?) — dead; ResetCallback + DrawSync only; possible
+  stub or unused variant; membership unverified
+- func_800147BC (s) — CD file search wrapper: CdSearchFile + CdPosToInt,
+  writes D_8005E428 and D_8005E430; calls func_80014554; called by func_80011370
+- func_80014854 (s) — CD loader: widest gp-rel footprint (D_8005E3F0–D_8005E430
+  plus D_8005E2B0, D_8005E408); called by func_80014B44
+- func_80014988 (s) — general-purpose CD loader: D_8005E410, D_8005E418,
+  D_8005E41C, D_8005E420 plus shared cluster; called by sound system
+  (func_80020E58, func_800214FC, func_80021668)
+- func_80014B44 (s) — boot CD loader: D_8005E2B0, D_8005E3F8, D_8005E3FC,
+  D_8005E400, D_8005E40C; calls func_80014854; called by __start
+
 ## candidates to investigate
 
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count
