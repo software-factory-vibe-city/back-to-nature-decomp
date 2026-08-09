@@ -173,12 +173,12 @@ rotation, try it before reaching for the allocator tooling.
 ## Inventory
 
 Measured by classifying every `src/*.c` containing `__asm__`. The distinction
-matters and earlier counts blurred it. **Re-scanned 2026-08-08 after
-`func_8001D2D8` left the raw-asm class: 11 files contain `__asm__`.**
+matters and earlier counts blurred it. **Re-scanned 2026-08-27 after
+`func_8001AF70` left the raw-asm class: 10 files contain `__asm__`.**
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 5 | 3 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 5 | 2 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
 | Register pins / scheduling barriers | 4 | other note |
@@ -212,16 +212,14 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**3 remaining** (`func_8001F278` retired 2026-08-24; `func_8001D2D8` left this
-class 2026-08-08 — see Corrections).
+**2 remaining** (`func_8001AF70` retired 2026-08-27; `func_8001F278` retired 2026-08-24; `func_8001D2D8` left this class 2026-08-08 — see Corrections).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
 | `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none                                                   |
 | `func_80017E34` | 27 | — | none                                                   |
-| `func_8001AF70` | 28 | — | none                                                   |
 
-**None of the three has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the two has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -245,14 +243,14 @@ nothing today asserts they are supposed to be assembly.
 | `func_8001530C` | 2026-08-22 | 44-instruction LINE_F2 primitive initializer (PSY-Q helper family; siblings at func_8001526C, func_800153BC, func_800154CC, func_80015594). Sets len/code, RGB, semitransparent code variant, two endpoints, links with `addPrim`, returns next slot. Key matching insight: color component extraction (`color >> 16`, `color >> 8`) must be **delayed until after** the cond branch diamond — extracting color early (via `setRGB0` or direct field assignments before the branch) causes the compiler to group color stores together instead of interleaving them with coordinate stores. Temporaries `r0/g0/b0` hold the extracted values across `setXY0`/`p->x1`/`p->y1`, producing the target's interleaved store schedule. Shared `code` variable in both branch arms lets crossjump merge the code stores into the target's uncollapsed diamond. `make check` passes. |
 | `func_8001526C` | 2026-08-23 | 40-instruction TILE_1 primitive initializer (PSY-Q helper family; siblings at func_8001530C, func_800153BC, func_800154CC, func_80015594). Sets len/code via individual `setlen`/`setcode` calls, RGB via `setRGB0`, semitransparent code variant via shared `code` variable in both branch arms (crossjump diamond), coordinates via `setXY0`, links with `addPrim`, returns `p + 1`. Key matching insight: `setXY0` must precede `setRGB0` in source order so that the x0/y0 stores receive lower LUIDs than the color stores, causing the legacy scheduler to emit the coordinate stores before the r0 store among the block of independent stores after the branch join. `make check` passes. |
 | `func_8001F278` | 2026-08-24 | 29-instruction 3-iteration integer lerp: `*out = (*src - *base) * factor / divisor + *base`. The target shares `subu a0,a1,a0` between both if/else branches via delay-slot speculation — the else-body fills the delay slot and the if-body overwrites it. Source shape `if (arg1 < arg0) arg0 = arg1; arg0 = arg1 - arg0;` produces the common-tail merge. A `do-while` countdown with `i--` placed before `arg2++` in source order matches the target's backward-scheduler LUID tiebreak. `make check` passes. |
+| `func_8001AF70` | 2026-08-27 | 28-instruction bit-flag setter/clearer on `D_8006C838 + 0x38`. Sets or clears a single bit given a 16-bit flag id and a set/clear flag. Key matching insight: the address computation requires three statements in exact order — `base = (char *)&D_8006C838;` (bare symbol), `scaled = word_idx << 2;` (creates overlap forcing `word_idx` to `$v1`), `base += 0x38;` (separate `addiu`, not folded into `lo_sum`). The `scaled` variable must be computed between the base address and the offset addition so that `word_idx` overlaps with `base` in `$v0`, pushing `word_idx` to `$v1` and `scaled` to `$a0`. Sibling `func_8001AF44` (bit reader) uses the same struct type but folds the field offset into the load immediate since it only reads. `make check` passes. |
 
 ## What research each group needs
 
 **The smallest remaining functions first** — `func_80013394` and
-`func_80017E34` (27 instructions each), then `func_8001AF70` (28), ordinary
-decompilation work.
+`func_80017E34` (27 instructions each), ordinary decompilation work.
 
-**Carry the GP-relative facts across.** One of the three owns globals
+**Carry the GP-relative facts across.** One of the two owns globals
 (`func_80013394`). In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`

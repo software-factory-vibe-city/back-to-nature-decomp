@@ -305,6 +305,7 @@ u16 * func_8001AA7C(s32 arg0, u16 *arg1);
 void func_8001ACA0(void);
 void func_8001AF34(void);
 s32 func_8001AF44(u32 arg0);
+void func_8001AF70(u16 arg0, u16 arg1);
 void func_8001B258(void);
 void func_8001B4D0(s32 arg0, s32 arg1);
 void func_8001B4E4(s32 arg0);

@@ -1,45 +1,29 @@
 #include "common.h"
 
-void func_8001AF70(s32 arg0, s32 arg1);
+void func_8001AF70(u16 arg0, u16 arg1) {
+    u32 *p;
+    u32 word_idx;
+    u32 bit_idx;
+    u32 mask;
+    u32 scaled;
+    char *base;
 
-__asm__(
-    ".text\n"
-    ".align 2\n"
-    ".globl func_8001AF70\n"
-    ".ent func_8001AF70\n"
-    "func_8001AF70:\n"
-    ".set noat\n"
-    ".set noreorder\n"
-    "andi $a0, $a0, 0xFFFF\n"
-    "andi $a1, $a1, 0xFFFF\n"
-    "srl $v1, $a0, 5\n"
-    "beqz $a1, _8001AFB0\n"
-    "andi $a2, $a0, 0x1F\n"
-    "lui $v0, %hi(D_8006C838)\n"
-    "addiu $v0, $v0, %lo(D_8006C838)\n"
-    "sll $a0, $v1, 2\n"
-    "addiu $v0, $v0, 0x38\n"
-    "addu $a0, $a0, $v0\n"
-    "li $v1, 1\n"
-    "lw $v0, 0($a0)\n"
-    "sllv $v1, $v1, $a2\n"
-    "or $v0, $v0, $v1\n"
-    "jr $ra\n"
-    "sw $v0, 0($a0)\n"
-    "_8001AFB0:\n"
-    "lui $v0, %hi(D_8006C838)\n"
-    "addiu $v0, $v0, %lo(D_8006C838)\n"
-    "sll $a0, $v1, 2\n"
-    "addiu $v0, $v0, 0x38\n"
-    "addu $a0, $a0, $v0\n"
-    "li $v1, 1\n"
-    "sllv $v1, $v1, $a2\n"
-    "lw $v0, 0($a0)\n"
-    "nor $v1, $zero, $v1\n"
-    "and $v0, $v0, $v1\n"
-    "jr $ra\n"
-    "sw $v0, 0($a0)\n"
-    ".set at\n"
-    ".set reorder\n"
-    ".end func_8001AF70\n"
-);
+    word_idx = arg0 >> 5;
+    bit_idx = arg0 & 0x1F;
+
+    if (arg1) {
+        base = (char *)&D_8006C838;
+        scaled = word_idx << 2;
+        base += 0x38;
+        p = (u32 *)(base + scaled);
+        mask = 1 << bit_idx;
+        *p |= mask;
+    } else {
+        base = (char *)&D_8006C838;
+        scaled = word_idx << 2;
+        base += 0x38;
+        p = (u32 *)(base + scaled);
+        mask = 1 << bit_idx;
+        *p &= ~mask;
+    }
+}
