@@ -173,7 +173,7 @@ count of orders that collapsed into it. Write a `campaign.jsonl` +
    family (as bounded above) does not contain the target; the recorded
    frontier then feeds the tooling track (general expression
    materialization, domain streaming, scheduler-model tie-break fix) in
-   `plans/automatic-residual-source-space-search.md`.
+   `plans/deprecated/automatic-residual-source-space-search.md`.
 
 Do not widen the family beyond the toggles listed here without recording
 the widening as a new explicit dimension — the value of this campaign is

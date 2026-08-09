@@ -1,6 +1,21 @@
 # Plan: instruction survival and control-flow-aware source synthesis
 
-**Status: proposed (2026-08-08).**
+**Status: SUPERSEDED 2026-08-09 by
+`plans/residual-source-search-completion.md`. Never implemented.**
+
+No `analyzeInstructionSurvival.ts` or `tools/agent/instruction-survival/`
+module was written. The design is carried forward whole:
+
+- Deliverables 1-3 (pass-survival analysis, lemma catalog, inventory/classifier
+  semantics) become Deliverable 4 of the successor plan.
+- Deliverables 4-5 (branch/join regions, placement recipes) become the
+  `control-flow-placement` grammar axis there, targeting
+  `residual-source-search/` rather than the retired
+  `source-shape-synthesis/` MVP this plan was written against.
+- Deliverable 6 (sibling structural similarity) is carried as the successor's
+  lowest-priority advisory deliverable.
+
+The original body follows unchanged for the institutional record.
 
 This plan addresses the diagnostic and source-grammar gaps exposed while
 matching `func_80015594`. It extends the existing compiler-trace,

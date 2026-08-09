@@ -1,7 +1,23 @@
 # Plan: tree-sitter front end, loop-aware grammar, and a no-knob exhaustive interface
 
-**Status: not started.** This plan supersedes only the *front end* of
-`plans/automatic-residual-source-space-search.md`. That plan's causal closure,
+**Status: DELIVERED in full, all five phases. Superseded 2026-08-09 by
+`plans/residual-source-search-completion.md`.**
+
+The previous `not started` header was stale and caused a re-plan of work that
+already existed. Verified in the tree on 2026-08-09:
+
+| phase | evidence |
+|---|---|
+| 1, no-knob interface and cost report | `searchResidualSourceSpace.ts` accepts only `--source`, `--derive-only`, `--json`; `residual-source-search/cost-report.ts` supplies the per-axis breakdown, deterministic pilot, and projection; `checkpoint.ts` makes resume automatic |
+| 2, tree-sitter front end | `residual-source-search/tree-sitter-c.ts` on `web-tree-sitter`, vendored grammar under `tools/vendor/tree-sitter-c`, `C_FRONTEND_IDENTITY` in the run manifest |
+| 3, structural loops and switch | `SemanticBlock.kind` carries `loop-init`, `loop-update`, `loop-body`, `case` |
+| 4, loop-carried dependencies | `topological-orders.ts: loopCarriedDependencies`, applied in `enumerate.ts` |
+| 5, new grammar strata | loop-update placement and switch↔if/else-if are live in grammar schema 5; compound-assignment and loop-form were **measured and removed** under this plan's own "a stratum that never changes anything is removed" rule, and are recorded in `SUPPRESSED_BASE` with their fixtures |
+
+The original body follows unchanged for the institutional record.
+
+This plan superseded only the *front end* of
+`plans/deprecated/automatic-residual-source-space-search.md`. That plan's causal closure,
 exact counting, deterministic enumeration, canonicalization, and object oracle
 stay exactly as they are. This plan replaces the hand-rolled C parser, adds loop
 and switch support, and removes the tuning flags in favour of one honest cost

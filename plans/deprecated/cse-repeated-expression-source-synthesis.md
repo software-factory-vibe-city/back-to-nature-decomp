@@ -1,12 +1,21 @@
 # Plan: CSE-aware repeated-expression source synthesis
 
-**Status: proposed (2026-08-09).**
+**Status: SUPERSEDED 2026-08-09 by
+`plans/residual-source-search-completion.md`. Never implemented.**
+
+No `expression-reuse-form` axis exists; `rewrite-catalog.ts` still records
+`expression-materialization` in `SUPPRESSED_BASE`. The design is carried
+forward whole as Deliverable 2 of the successor plan, which keeps this
+document's semantic proof obligations, two canonical forms, radix-2 group
+counting, and pass-mechanism grading verbatim in intent.
+
+The original body follows unchanged for the institutional record.
 
 This plan adds one focused expression-materialization mechanism to the existing
 compiler-trace, source-shape synthesis, and residual-source-search pipeline. It
 is the concrete implementation of the currently suppressed "materialized common
 subexpression versus repeated expression" part of rule 4.3 in
-`plans/automatic-residual-source-space-search.md`.
+`plans/deprecated/automatic-residual-source-space-search.md`.
 
 It does not add a general C optimizer, another compiler pipeline, or a source
 promotion path.
@@ -122,10 +131,10 @@ candidates. It must not accept arbitrary edits or modify source.
 ## Relationship to existing plans
 
 - This plan implements one bounded subcase of expression materialization from
-  `plans/automatic-residual-source-space-search.md` rule 4.3.
+  `plans/deprecated/automatic-residual-source-space-search.md` rule 4.3.
 - It reuses the whole-function semantic graph, causal closure, exact counting,
   enumeration, compiler pipeline, and object oracle from residual search.
-- It complements `plans/instruction-survival-and-control-flow-source-synthesis.md`:
+- It complements `plans/deprecated/instruction-survival-and-control-flow-source-synthesis.md`:
   that plan asks where a candidate operation disappears; this plan asks whether
   a repeated source expression causes CSE to create a missing copy operation.
 - It does not depend on completion of the broader tree-sitter or instruction-

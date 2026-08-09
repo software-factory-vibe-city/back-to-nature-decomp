@@ -19,10 +19,12 @@ leave exact object and full-binary comparison as the final oracles.
 | P2 | Analogous-function finder | Find source precedents by normalized machine behavior rather than names or macros |
 | P2 | Indexed-global shape inference | Suggest defensible global type/extent overrides from access and bounds evidence |
 
-The direct solution-seeking tool has an implementation plan in
-`plans/requirement-guided-clean-c-source-synthesis.md`; its conservative
-prologue MVP is now implemented. The next two supporting ideas are grouped in
-`plans/baseline-aware-variant-schedule-comparison.md`.
+The direct solution-seeking tool was planned in
+`plans/deprecated/requirement-guided-clean-c-source-synthesis.md` and its
+conservative prologue MVP was implemented, then superseded by
+`searchResidualSourceSpace.ts`; remaining work is in
+`plans/residual-source-search-completion.md`. The next two supporting ideas are
+grouped in `plans/deprecated/baseline-aware-variant-schedule-comparison.md`.
 
 ## 1. Requirement-guided clean-C source-shape synthesis
 
@@ -45,14 +47,24 @@ compatibility rather than match-percentage hill climbing.
 
 The implemented MVP models a conservative top-level prologue and derives
 proof-oriented statement orders, declaration initializers, verified `setSprt`
-expansions/named constants, and typed pointer-copy forms. Broader CFG,
-expression, alias, and schedule-profile-driven composition remains planned.
+expansions/named constants, and typed pointer-copy forms.
+
+**Superseded (2026-08-09).** The idea was delivered in full by
+`searchResidualSourceSpace.ts`, which models the whole function instead of a
+prologue and seeds scope from the machine residual rather than from role
+binding. The MVP's prologue model can represent 35 of the 180 decompiled C
+functions; the rest fail on ordinary C it cannot parse. It is scheduled for
+removal behind a parity gate.
 
 ### Implementation and plan
 
-- `tools/agent/synthesizeSourceShapes.ts`
-- `tools/agent/source-shape-synthesis/`
-- `plans/requirement-guided-clean-c-source-synthesis.md`
+- `tools/agent/searchResidualSourceSpace.ts` and
+  `tools/agent/residual-source-search/` — the delivered tool
+- `tools/agent/synthesizeSourceShapes.ts` and
+  `tools/agent/source-shape-synthesis/` — the superseded MVP
+- `plans/residual-source-search-completion.md` — remaining work
+- `plans/deprecated/requirement-guided-clean-c-source-synthesis.md` — the
+  original MVP plan
 
 ## 2. Baseline-aware approved-construct variant mode
 

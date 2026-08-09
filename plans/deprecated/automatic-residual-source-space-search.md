@@ -1,6 +1,27 @@
 # Plan: automatic exhaustive residual source-space search
 
-**Status: Phases 1-2 implemented, plus rule 4.6, the constant subset of
+**Status: SUPERSEDED 2026-08-09 by
+`plans/residual-source-search-completion.md`. Substantially delivered.**
+
+This is the architectural spine of `searchResidualSourceSpace.ts` and remains
+the reference for its causal closure, exact counting, deterministic
+enumeration, canonicalization, and object oracle — none of which the successor
+plan changes. Delivery has since advanced past the status line below:
+Deliverables 1-11 are implemented and the grammar reached **schema 5** (loop
+structure, loop-update placement, and switch↔if/else-if forms, via the
+now-delivered `plans/deprecated/tree-sitter-frontend-and-loop-aware-grammar.md`).
+
+Three strata remain open and are carried into the successor plan: the general
+part of rule 4.3 (expression materialization), rule 4.4 (type and cast
+representations), and the control-flow placement subset of Phase 5. Two Phase 5
+candidates — compound-assignment form and loop form — were measured to be
+assembly-identical under the configured compiler and are permanently retired in
+`SUPPRESSED_BASE`, not deferred.
+
+The status line and body below are the original text, unchanged for the
+institutional record.
+
+**Original status: Phases 1-2 implemented, plus rule 4.6, the constant subset of
 rule 4.3, and rule 4.7** (`tools/agent/searchResidualSourceSpace.ts` and
 `tools/agent/residual-source-search/`): baseline bundle, whole-function
 semantic graph, diff-seeded causal closure, grammar schema 4 (web

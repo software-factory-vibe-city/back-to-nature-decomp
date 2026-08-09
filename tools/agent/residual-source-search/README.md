@@ -151,12 +151,24 @@ axis responsible and, with it, how much the residual has to shrink first.
 
 ## Remaining plan phases
 
-From `plans/automatic-residual-source-space-search.md`: general expression
-materialization beyond diff-named literal constants (rest of 4.3), type/cast
-representations (4.4), and broader CFG equivalence (Phase 5) are not
-implemented; the catalog reports them as suppressed so exhaustion claims stay
-correctly scoped. The bounded Pi wrapper and skill integration (Deliverable
-11) are also still pending.
+Tracked by `plans/residual-source-search-completion.md`, which consolidates the
+four plans that used to describe this subsystem (all now under
+`plans/deprecated/`). Still open, and reported as suppressed by the catalog so
+exhaustion claims stay correctly scoped:
+
+- general expression materialization beyond diff-named literal constants
+  (rest of rule 4.3) — successor Deliverable 2;
+- type and cast representations (rule 4.4) — successor Deliverable 3;
+- control-flow placement across a branch or its join — successor Deliverable 5.
+
+Two candidate strata were **measured and permanently retired** rather than
+deferred: compound-assignment form and loop form both compile identically
+through the configured compiler. Their fixtures are in the test file.
+
+The bounded Pi wrapper `psx_search_residual_source_space` is registered. Skill
+integration is not: `.pi/skills/psx-decompile-function/SKILL.md` still routes
+source-shape work to the superseded `synthesizeSourceShapes.ts` prologue MVP.
+That is successor Deliverable 1.
 
 Empirical notes from the `func_80019070` campaigns: the entire baseline web
 partition and the full entry-window sweep (orders, births, setSprt component
