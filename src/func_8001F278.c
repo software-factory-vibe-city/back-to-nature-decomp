@@ -1,44 +1,20 @@
 #include "common.h"
 
-void func_8001F278(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3, s32 *arg4);
+void func_8001F278(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3, s32 *arg4) {
+    s32 i;
+    s32 *out;
 
-__asm__(
-"\t.set noat\n"
-"\t.set noreorder\n"
-"glabel func_8001F278\n"
-"/* FA78 8001F278 2A10A400 */  slt        $v0, $a1, $a0\n"
-"/* FA7C 8001F27C 03004010 */  beqz       $v0, .L8001F28C\n"
-"/* FA80 8001F280 2320A400 */   subu      $a0, $a1, $a0\n"
-"/* FA84 8001F284 2120A000 */  addu       $a0, $a1, $zero\n"
-"/* FA88 8001F288 2320A400 */  subu       $a0, $a1, $a0\n"
-".L8001F28C:\n"
-"/* FA8C 8001F28C 1000A88F */  lw         $t0, 0x10($sp)\n"
-"/* FA90 8001F290 02000924 */  addiu      $t1, $zero, 0x2\n"
-".L8001F294:\n"
-"/* FA94 8001F294 0000C28C */  lw         $v0, 0x0($a2)\n"
-"/* FA98 8001F298 0000E38C */  lw         $v1, 0x0($a3)\n"
-"/* FA9C 8001F29C 00000000 */  nop\n"
-"/* FAA0 8001F2A0 23104300 */  subu       $v0, $v0, $v1\n"
-"/* FAA4 8001F2A4 18004400 */  mult       $v0, $a0\n"
-"/* FAA8 8001F2A8 12100000 */  mflo       $v0\n"
-"/* FAAC 8001F2AC 00000000 */  nop\n"
-"/* FAB0 8001F2B0 00000000 */  nop\n"
-"/* FAB4 8001F2B4 1A004500 */  div        $zero, $v0, $a1\n"
-"/* FAB8 8001F2B8 12100000 */  mflo       $v0\n"
-"/* FABC 8001F2BC 0200A014 */  bnez       $a1, .L8001F2C8\n"
-"/* FAC0 8001F2C0 00000000 */   nop\n"
-"/* FAC4 8001F2C4 CD010000 */  break      0x0, 0x7\n"
-".L8001F2C8:\n"
-"/* FAC8 8001F2C8 21104300 */  addu       $v0, $v0, $v1\n"
-"/* FACC 8001F2CC 000002AD */  sw         $v0, 0x0($t0)\n"
-"/* FAD0 8001F2D0 04000825 */  addiu      $t0, $t0, 0x4\n"
-"/* FAD4 8001F2D4 FFFF2925 */  addiu      $t1, $t1, -0x1\n"
-"/* FAD8 8001F2D8 0400C624 */  addiu      $a2, $a2, 0x4\n"
-"/* FADC 8001F2DC EDFF2105 */  bgez       $t1, .L8001F294\n"
-"/* FAE0 8001F2E0 0400E724 */   addiu     $a3, $a3, 0x4\n"
-"/* FAE4 8001F2E4 0800E003 */  jr         $ra\n"
-"/* FAE8 8001F2E8 00000000 */   nop\n"
-"endlabel func_8001F278\n"
-"\t.set at\n"
-"\t.set reorder\n"
-);
+    if (arg1 < arg0) {
+        arg0 = arg1;
+    }
+    arg0 = arg1 - arg0;
+
+    out = arg4;
+    i = 2;
+    do {
+        *out++ = (*arg2 - *arg3) * arg0 / arg1 + *arg3;
+        i--;
+        arg2++;
+        arg3++;
+    } while (i >= 0);
+}
