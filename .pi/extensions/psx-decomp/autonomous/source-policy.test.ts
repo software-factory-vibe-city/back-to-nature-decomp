@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { DEFAULT_CONFIG } from "./config.ts";
-import { checkSourcePolicy } from "./source-policy.ts";
+import { checkSourcePolicy, isPendingStub } from "./source-policy.ts";
 
 function fixture(source: string) {
   const root = mkdtempSync(join(tmpdir(), "autodecomp-policy-"));
@@ -28,6 +28,20 @@ test("rejects register pinning, embedded assembly, and stubs", () => {
   const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", scanFunctions: ["target"] });
   assert.equal(result.pass, false);
   assert.deepEqual(new Set(result.hardFailures.map((finding) => finding.kind)), new Set(["register-asm", "embedded-asm", "include-asm"]));
+});
+
+test("classifies a pin written without underscores as register pinning, not embedded asm", () => {
+  const { root, config } = fixture(`void target(void) {\n    register int x asm(\"v0\");\n}\n`);
+  const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", scanFunctions: ["target"] });
+  assert.equal(result.pass, false);
+  assert(result.hardFailures.some((finding) => finding.kind === "register-asm"));
+});
+
+test("an undecompiled backlog stub is a pending stub; a partial fold is not", () => {
+  assert.equal(isPendingStub(`#include "common.h"\n#include "include_asm.h"\n\nINCLUDE_ASM("build/asm/x", target);\n`), true);
+  assert.equal(isPendingStub(`/* INCLUDE_ASM is only mentioned here */\n#include "common.h"\n\nINCLUDE_ASM("build/asm/x", target);\n`), true);
+  assert.equal(isPendingStub(`#include "common.h"\n\nint helper(void) { return 1; }\nINCLUDE_ASM("build/asm/x", target);\n`), false);
+  assert.equal(isPendingStub(`void target(void) {}\n`), false);
 });
 
 test("rejects out-of-scope files and added flag overrides", () => {

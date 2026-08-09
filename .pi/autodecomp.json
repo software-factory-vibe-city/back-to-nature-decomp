@@ -60,6 +60,27 @@
       "func_8001d2d8": [
         "register-asm",
         "embedded-asm"
+      ],
+      "func_8001dfd4": [
+        "embedded-asm"
+      ],
+      "func_80038674": [
+        "embedded-asm"
+      ],
+      "func_8002437c": [
+        "embedded-asm"
+      ],
+      "func_8001e9f8": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80020e38": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80021820": [
+        "register-asm",
+        "embedded-asm"
       ]
     }
   }

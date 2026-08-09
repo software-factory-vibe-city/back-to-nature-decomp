@@ -145,19 +145,24 @@ delay-slot patch, so the two should be settled together.
 
 ## 6. Open items
 
-1. **The allowlist under-describes the tree in both directions.**
-   `.pi/autodecomp.json` grants `embedded-asm` to `func_80016054` and
-   `func_80015704`, **neither of which contains any assembly** — the permission
-   outlived what it was granted for. Meanwhile `func_80021820` (a pin) and
-   `func_800244FC` (a barrier) carry exempted constructs and are **not**
-   listed. This is not cosmetic: an entry asserts to every later agent that the
-   construct is the correct answer for that function, and one such entry,
-   recorded by a session that was merely stuck, outlived a symbol-map defect
-   and cost a full session. Pending owner action, since the allowlist is
-   pipeline-critical.
+1. ~~**The allowlist under-describes the tree in both directions.**~~
+   **Closed 2026-08-09 by owner decision.** Every construct the tree actually
+   carries is now listed in `.pi/autodecomp.json`: `func_8001DFD4` and
+   `func_80038674` (legitimately assembly), `func_8002437C` (the non-emitting
+   alias block), and the pins in `func_8001E9F8`, `func_80020E38`, and
+   `func_80021820`. The stale `func_80016054` / `func_80015704` grants were
+   left in place. The caution the item raised still holds — an entry asserts to
+   every later agent that the construct is the correct answer for that
+   function — so read item 2 before treating `func_80021820`'s entry as a
+   verdict on its pin.
 2. **`func_80021820`** — from-scratch 2.95.2 re-decompilation, jointly with the
-   delay-slot patch question.
-3. **A model-independent mechanical source gate** — desirable, not urgent.
+   delay-slot patch question. Its allowlist entry records the existing
+   exception, not a finding that the pin is correct.
+3. ~~**A model-independent mechanical source gate**~~ — exists as
+   `tools/agent/sourcePolicy.ts` (`psx_source_policy`). Its repo-wide sweep
+   audits the decompiled corpus and skips the undecompiled backlog, whose
+   `INCLUDE_ASM` stubs are the expected state; `--final` reproduces the
+   controller's completion audit, where a remaining stub is a failure.
 
 ## 7. Lessons
 

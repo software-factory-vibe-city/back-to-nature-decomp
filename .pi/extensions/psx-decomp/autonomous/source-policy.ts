@@ -36,7 +36,7 @@ function forbiddenLine(
   if (/\bINCLUDE_ASM\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, "include-asm")) {
     return { kind: "include-asm", message: "Assembly stub is forbidden for an ordinary compiled function" };
   }
-  if (/\bregister\b[^;\n]*\b(?:__asm__|__asm)\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, "register-asm")) {
+  if (/\bregister\b[^;\n]*\b(?:__asm__|__asm|asm)\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, "register-asm")) {
     return { kind: "register-asm", message: "Hard-register pinning is forbidden" };
   }
   if (/\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/.test(line)) {
@@ -76,6 +76,28 @@ function stripComments(line: string, inBlock: boolean): { code: string; inBlock:
     index = block + 2;
   }
   return { code, inBlock };
+}
+
+/**
+ * A source file whose only code is the canonical `INCLUDE_ASM` placeholder is
+ * a backlog stub: the function has not been decompiled yet. That is the normal
+ * state of unfinished work, not a policy violation. A file that mixes
+ * `INCLUDE_ASM` with any other code is *not* a stub — it is a partial fold,
+ * and the scan must still see it.
+ *
+ * The per-function match gate and the controller's completion audit
+ * deliberately do not use this: there, a remaining stub is a real failure.
+ */
+export function isPendingStub(source: string): boolean {
+  let inBlock = false;
+  const code: string[] = [];
+  for (const line of source.split("\n")) {
+    const stripped = stripComments(line, inBlock);
+    inBlock = stripped.inBlock;
+    const trimmed = stripped.code.trim();
+    if (trimmed && !trimmed.startsWith("#")) code.push(trimmed);
+  }
+  return code.length === 1 && /^INCLUDE_ASM\s*\(.*\)\s*;?$/.test(code[0]);
 }
 
 function scanSourceFile(options: PolicyOptions, file: string, findings: PolicyFinding[]): void {
