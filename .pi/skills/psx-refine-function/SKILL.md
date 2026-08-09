@@ -66,7 +66,7 @@ placeholder symbol to a precise name in the active project's convention:
    `touch` those stub `.c` files — their objects are stale against the
    regenerated asm — and re-run the full build verification.
 
-Use the project's designated headers for global and shared types. Never redeclare generated globals in source files.
+Use the headers the generated profile designates for global and shared types. Giving a data symbol a struct or aggregate type is the most common refinement here, and it belongs in the project's **override** header — the generated declarations header is an output that skips whatever the override already declares, so editing it appears to work and is erased on the next regeneration. Never redeclare generated globals in source files.
 
 Apply risky changes one at a time. After each type, expression, declaration, or struct change, call `psx_diff_function` and immediately revert that individual change if the match is lost. Renames and comments are safer but still require final verification.
 

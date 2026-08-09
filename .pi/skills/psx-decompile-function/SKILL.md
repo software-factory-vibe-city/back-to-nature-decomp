@@ -18,7 +18,16 @@ Before editing, read completely:
 3. `prompts/c-style-guide.md` — mandatory distilled matching doctrine, not an
    optional reference
 4. the target source and original assembly
-5. the target call-graph entry and relevant generated/shared declarations
+5. the target call-graph entry and relevant generated/shared declarations.
+   The profile's header table says which file each kind of declaration
+   belongs in and which files are generated outputs. A global that needs a
+   struct or aggregate type gets that type in the project's **override**
+   header — never in the generated declarations header, never in a `.c` file.
+   Editing a generated header looks like it works and is erased by the next
+   regeneration; the generator skips whatever the override header already
+   declares, which is the mechanism that makes the override the correct
+   place. If a needed declaration seems absent, check the generated headers
+   before adding an extern.
 6. `notes/file-groupings.md` — the target's suspected source-file group, and
    any campaign or research note it points to. Same-file membership carries
    TU-level priors (shared register-variable quirks, idioms, global clusters,
@@ -184,8 +193,11 @@ evidence. The style guide's resume section is mandatory here.
    requirement and mechanism evidence before match percentage. Never promote a
    cc1-only result: require full configured assembly, then re-run the exact
    function diff.
-8. Keep changes within project policy and put shared types in the designated
-   headers rather than conflicting with generated declarations.
+8. Keep changes within project policy and put shared types in the headers the
+   profile designates rather than conflicting with generated declarations. A
+   type fix belongs in the override or shared-type header; hand-editing a
+   generated header is not a fix, and a local redeclaration that silences the
+   compiler has moved the defect rather than removed it.
 
 If a source change has no effect, locate the first divergent compiler dump and
 read that exact pass in the vendored compiler source before trying another

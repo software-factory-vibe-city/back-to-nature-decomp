@@ -24,7 +24,7 @@ Avoid speculative symbol renames. If a rename is exceptionally well supported, d
 - Keep the batch small enough to review as one diff.
 - Call `psx_diff_function` after every risky source or type change.
 - Do not introduce register pinning, embedded assembly, assembly stubs, flag overrides, or any workaround forbidden by project policy.
-- Do not hand-edit generated files.
+- Do not hand-edit generated files. The profile's header table says which headers are generated outputs; a type or declaration fix goes in the override or shared-type header it defers to, or in the generator's input.
 - Follow the project's required C standard and comment style.
 
 ## Verification

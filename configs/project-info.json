@@ -1,4 +1,11 @@
 {
   "game": "Harvest Moon: Back to Nature",
-  "evidence": "notes/toolchain-version-detection.md"
+  "evidence": "notes/toolchain-version-detection.md",
+  "headers": [
+    { "role": "Umbrella header included by every source file", "path": "include/common.h" },
+    { "role": "Generated declarations for data symbols", "path": "include/globals.h" },
+    { "role": "Type overrides for data symbols — where a struct or aggregate type goes", "path": "include/globals_override.h" },
+    { "role": "Shared parameter and local struct types", "path": "include/game_types.h" },
+    { "role": "Generated function declarations", "path": "include/functions.h" }
+  ]
 }

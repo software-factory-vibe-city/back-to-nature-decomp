@@ -587,6 +587,14 @@ struct or aggregate type, put the override in `include/globals_override.h`.
 Defining a global the translation unit owns is a different thing and is
 required — see "Small-data addressing" below.
 
+`globals.h` is a generated output and carries a do-not-edit banner. Editing it
+compiles, which is exactly why the mistake survives review: the next
+regeneration erases the change and the build breaks somewhere unrelated. The
+generator skips every symbol the override header already declares, so the
+override is not a workaround for not being able to edit the generated file —
+it is the input that decides what the generated file says. The same holds for
+every generated header; the profile's header table lists which ones they are.
+
 Use `&D_XXXXXXXX` to obtain a generated global's address. Never use the
 underscore-prefixed implementation symbol `_D_XXXXXXXX`.
 
