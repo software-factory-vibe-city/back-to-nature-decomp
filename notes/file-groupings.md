@@ -135,7 +135,7 @@ linking fingerprints; primitive-specific field counts explain their middle
 sections.
 
 Members (address order):
-- func_8001526C (s) — small primitive initializer, code 0x68
+- func_8001526C (m) — TILE_1 primitive initializer, code 0x68
 - func_8001530C (s) — small primitive initializer, code 0x40
 - func_800153BC (m) — POLY_G4 initializer, code 0x38/0x3A
 - func_800154CC (m) — POLY_F4 initializer, code 0x28/0x2A

@@ -211,7 +211,7 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**7 remaining** (`func_8001530C` retired 2026-08-22).
+**6 remaining** (`func_8001526C` retired 2026-08-23).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
@@ -221,7 +221,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_8001D2D8` | 28 | — | none                                                   |
 | `func_8001F278` | 29 | — | none                                                   |
 | `func_80015AAC` | 30 | — | none                                                   |
-| `func_8001526C` | 40 | — | none                                                   |
 
 **None of the nine has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
@@ -244,6 +243,7 @@ nothing today asserts they are supposed to be assembly.
 | `func_80022014` | 2026-08-21 | 22-instruction nested-loop table search: walks a 3×6 grid of halfwords (14 bytes apart, rows 84 bytes apart) at `arg0 + 2` for `arg1`, returning 1/0. Matched as clean C89 on first shape. Key details: `s16 arg1` produces the `sll/sra` sign-extension prologue, `u32` loop counters emit `sltiu` (unsigned) comparisons, and `i = 0;` before `arg0 += 2;` sets the correct instruction birth order. `make check` passes. |
 | `func_8001E78C` | 2026-08-08 | 20-instruction 2D proximity test against `(D_8005E520 >> 1) + 600`; the 3-component form is the already-matching sibling `func_8001E7DC`. Two independent faults: an in-progress reconstruction had the predicate **inverted** (it returned 0 for in-range, the target returns 1), and once corrected, the deltas had to be assigned back into the parameters rather than into fresh locals — see "Check who owns the delta" below. Owns `D_8005E520` (tentative definition for the GP-relative load). `make check` passes. |
 | `func_8001530C` | 2026-08-22 | 44-instruction LINE_F2 primitive initializer (PSY-Q helper family; siblings at func_8001526C, func_800153BC, func_800154CC, func_80015594). Sets len/code, RGB, semitransparent code variant, two endpoints, links with `addPrim`, returns next slot. Key matching insight: color component extraction (`color >> 16`, `color >> 8`) must be **delayed until after** the cond branch diamond — extracting color early (via `setRGB0` or direct field assignments before the branch) causes the compiler to group color stores together instead of interleaving them with coordinate stores. Temporaries `r0/g0/b0` hold the extracted values across `setXY0`/`p->x1`/`p->y1`, producing the target's interleaved store schedule. Shared `code` variable in both branch arms lets crossjump merge the code stores into the target's uncollapsed diamond. `make check` passes. |
+| `func_8001526C` | 2026-08-23 | 40-instruction TILE_1 primitive initializer (PSY-Q helper family; siblings at func_8001530C, func_800153BC, func_800154CC, func_80015594). Sets len/code via individual `setlen`/`setcode` calls, RGB via `setRGB0`, semitransparent code variant via shared `code` variable in both branch arms (crossjump diamond), coordinates via `setXY0`, links with `addPrim`, returns `p + 1`. Key matching insight: `setXY0` must precede `setRGB0` in source order so that the x0/y0 stores receive lower LUIDs than the color stores, causing the legacy scheduler to emit the coordinate stores before the r0 store among the block of independent stores after the branch join. `make check` passes. |
 
 ## What research each group needs
 

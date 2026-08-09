@@ -1,63 +1,28 @@
 #include "common.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+#include "psyq/libgpu.h"
 
-typedef struct {
-    u32 unk0;
-    s8 unk4;
-    s8 unk5;
-    s8 unk6;
-    s8 unk7;
-    s16 unk8;
-    s16 unkA;
-} SomeStruct;
+/* TILE_1 primitive initializer (PSY-Q helper family; siblings at
+ * func_8001530C (LINE_F2), func_800153BC (POLY_G4), func_800154CC (POLY_F4),
+ * func_80015594 (TILE)).  Sets len/code, RGB, the semitransparent code
+ * variant, the vertex coordinates, links the primitive into the ordering
+ * table, and returns the next primitive slot.
+ */
+TILE_1 *func_8001526C(TILE_1 *p, u_long *ot, s16 x0, s16 y0, s32 color, s16 cond) {
+    s32 code;
 
-extern void *func_8001526C(SomeStruct *arg0, s32 *arg1, s16 arg2, s16 arg3, s32 arg4, s16 arg5);
-
-__asm__(
-"\t.set\tnoreorder\n"
-"\t.globl\tfunc_8001526C\n"
-"\t.ent\tfunc_8001526C\n"
-"func_8001526C:\n"
-"\tmove\t$t0, $a0\n"
-"\tli\t$v0, 2\n"
-"\tli\t$v1, 104\n"
-"\tmove\t$t1, $a1\n"
-"\tsll\t$a2, $a2, 16\n"
-"\tsra\t$a2, $a2, 16\n"
-"\tsll\t$a3, $a3, 16\n"
-"\tsb\t$v0, 3($t0)\n"
-"\tsb\t$v1, 7($t0)\n"
-"\tlh\t$v0, 20($sp)\n"
-"\tlw\t$a1, 16($sp)\n"
-"\tbeqz\t$v0, 1f\n"
-"\tsra\t$a3, $a3, 16\n"
-"\tj\t2f\n"
-"\tli\t$v0, 106\n"
-"1:\n"
-"\tli\t$v0, 104\n"
-"2:\n"
-"\tsb\t$v0, 7($t0)\n"
-"\tlui\t$a0, 0xff\n"
-"\tori\t$a0, $a0, 0xffff\n"
-"\tsra\t$v1, $a1, 8\n"
-"\tsb\t$v1, 5($t0)\n"
-"\tlw\t$v1, 0($t0)\n"
-"\tsra\t$v0, $a1, 16\n"
-"\tsb\t$a1, 6($t0)\n"
-"\tlui\t$a1, 0xff00\n"
-"\tsh\t$a2, 8($t0)\n"
-"\tsh\t$a3, 10($t0)\n"
-"\tsb\t$v0, 4($t0)\n"
-"\tlw\t$v0, 0($t1)\n"
-"\tand\t$v1, $v1, $a1\n"
-"\tand\t$v0, $v0, $a0\n"
-"\tor\t$v1, $v1, $v0\n"
-"\tsw\t$v1, 0($t0)\n"
-"\tlw\t$v0, 0($t1)\n"
-"\tand\t$a0, $t0, $a0\n"
-"\tand\t$v0, $v0, $a1\n"
-"\tor\t$v0, $v0, $a0\n"
-"\tsw\t$v0, 0($t1)\n"
-"\tjr\t$ra\n"
-"\taddiu\t$v0, $t0, 12\n"
-"\t.end\tfunc_8001526C\n"
-);
+    setlen(p, 2);
+    setcode(p, 0x68);
+    if (cond != 0) {
+        code = 0x6A;
+        setcode(p, code);
+    } else {
+        code = 0x68;
+        setcode(p, code);
+    }
+    setXY0(p, x0, y0);
+    setRGB0(p, (u8)(color >> 16), (u8)(color >> 8), (u8)color);
+    addPrim(ot, p);
+    return p + 1;
+}
