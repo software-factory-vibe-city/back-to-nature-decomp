@@ -125,6 +125,24 @@ input decoder called by func_8001413C.
 References: notes/research/func_800140C8-aggregate-copy.md;
 notes/retros/2026-08-07-func_800140C8-retro.md.
 
+## GPU primitive packet initializers — 0x8001526C–0x80015594 (confidence: high)
+
+Adjacent helpers that initialize one PSY-Q primitive, select its opaque or
+semitransparent code through the same conditional diamond, link it with
+`addPrim`, and return the next packet slot. The matched func_800154CC and
+func_80015594 targets share the same entry, color-extraction, branch, and tag
+linking fingerprints; primitive-specific field counts explain their middle
+sections.
+
+Members (address order):
+- func_8001526C (s) — small primitive initializer, code 0x68
+- func_8001530C (s) — small primitive initializer, code 0x40
+- func_800153BC (m) — POLY_G4 initializer, code 0x38/0x3A
+- func_800154CC (m) — POLY_F4 initializer, code 0x28/0x2A
+- func_80015594 (m) — TILE initializer, code 0x60/0x62
+
+Reference: `notes/research/func_800154CC-polyf4-diamond-crossjump.md`.
+
 ## sprite data, animation, and renderers — 0x80015704–0x80016C08
 
 Family confidence: high. Exact TU boundary confidence: medium. The current

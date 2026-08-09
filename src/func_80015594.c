@@ -1,58 +1,28 @@
 #include "common.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+#include "psyq/libgpu.h"
 
-__asm__(
-"\n"
-".set\tnoat\n"
-".set\tnoreorder\n"
-".globl\tfunc_80015594\n"
-".ent\tfunc_80015594\n"
-"func_80015594:\n"
-"    move $t0, $a0\n"
-"    li $v0, 3\n"
-"    sb $v0, 3($t0)\n"
-"    li $v0, 96\n"
-"    move $t1, $a1\n"
-"    sll $a2, $a2, 16\n"
-"    sra $a2, $a2, 16\n"
-"    sll $a3, $a3, 16\n"
-"    lw $a0, 24($sp)\n"
-"    sb $v0, 7($t0)\n"
-"    sra $v1, $a0, 16\n"
-"    sra $v0, $a0, 8\n"
-"    sb $v1, 4($t0)\n"
-"    sb $v0, 5($t0)\n"
-"    sb $a0, 6($t0)\n"
-"    lh $a1, 16($sp)\n"
-"    lh $v0, 28($sp)\n"
-"    lh $v1, 20($sp)\n"
-"    beqz $v0, .L800155EC\n"
-"    sra $a3, $a3, 16\n"
-"    j .L800155F0\n"
-"    addiu $v0, $zero, 0x62\n"
-".L800155EC:\n"
-"    addiu $v0, $zero, 0x60\n"
-".L800155F0:\n"
-"    sb $v0, 7($t0)\n"
-"    lui $a0, 255\n"
-"    sh $v1, 14($t0)\n"
-"    lw $v1, 0($t0)\n"
-"    ori $a0, $a0, 65535\n"
-"    sh $a1, 12($t0)\n"
-"    lui $a1, 65280\n"
-"    sh $a2, 8($t0)\n"
-"    sh $a3, 10($t0)\n"
-"    lw $v0, 0($t1)\n"
-"    and $v1, $v1, $a1\n"
-"    and $v0, $v0, $a0\n"
-"    or $v1, $v1, $v0\n"
-"    sw $v1, 0($t0)\n"
-"    lw $v0, 0($t1)\n"
-"    and $a0, $t0, $a0\n"
-"    and $v0, $v0, $a1\n"
-"    or $v0, $v0, $a0\n"
-"    sw $v0, 0($t1)\n"
-"    jr $ra\n"
-"    addiu $v0, $t0, 16\n"
-".set reorder\n"
-".end func_80015594\n"
-);
+/*
+ * Initialize and link a TILE primitive, returning the next packet slot.
+ * The shared code variable lets crossjump merge the branch-local code stores.
+ * Keeping setXY0 after the join preserves the signed coordinate conversions.
+ */
+TILE *func_80015594(TILE *p, u_long *ot, s16 x0, s16 y0,
+                    s16 w, s16 h, s32 color, s16 cond) {
+    s32 code;
+
+    setTile(p);
+    setRGB0(p, (u8)(color >> 16), (u8)(color >> 8), (u8)color);
+    if (cond != 0) {
+        code = 0x62;
+        setcode(p, code);
+    } else {
+        code = 0x60;
+        setcode(p, code);
+    }
+    setXY0(p, x0, y0);
+    setWH(p, w, h);
+    addPrim(ot, p);
+    return p + 1;
+}

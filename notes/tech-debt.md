@@ -211,7 +211,7 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**9 remaining** (`func_80021604` retired 2026-08-08).
+**8 remaining** (`func_80015594` retired 2026-08-08).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
@@ -223,7 +223,6 @@ function will silently switch to absolute addressing — see ADR-0001 §2.4.
 | `func_80015AAC` | 30 | — | none                                                   |
 | `func_8001526C` | 40 | — | none                                                   |
 | `func_8001530C` | 44 | — | none (comment: "Bytes reversed for big-endian output") |
-| `func_80015594` | 44 | — | none                                                   |
 
 **None of the nine has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
@@ -233,6 +232,7 @@ nothing today asserts they are supposed to be assembly.
 
 | Function | Retired | Result |
 |---|---|---|
+| `func_80015594` | 2026-08-08 | 44-instruction PSY-Q TILE initializer. Matched as clean C89 with `setTile`, `setRGB0`, `setXY0`, `setWH`, and `addPrim`; branch-local code stores share one variable so crossjump forms the target diamond, while placing `setXY0` after the join preserves the target's signed-coordinate conversions. `return p + 1` supplies the final packet-stride delay-slot instruction. |
 | `func_80021604` | 2026-08-08 | 25-instruction transfer-progress initializer. The apparent explicit `multu`/`mfhi` high-product sequence is GCC's native expansion of unsigned division by 184320: it pre-shifts the even divisor's 12 bits, then uses the reduced-precision reciprocal `0x05B05B60`. Replacing the raw asm with `delta / 184320U` matched as clean C89. `make check` passes. |
 | `func_80017EE4` | 2026-08-08 | Symbol boundary was wrong; three symbols merged into one 0x4C function, then matched as clean C89. `make check` passes. |
 | `func_80021D64` | 2026-08-09 | 3-instruction stub allocating 16-byte frame and returning. Matched as `char pad[16]` local — a placeholder/stub body from the original source. `make check` passes. |
