@@ -173,14 +173,15 @@ rotation, try it before reaching for the allocator tooling.
 ## Inventory
 
 Measured by classifying every `src/*.c` containing `__asm__`. The distinction
-matters and earlier counts blurred it:
+matters and earlier counts blurred it. **Re-scanned 2026-08-08 after
+`func_8001D2D8` left the raw-asm class: 11 files contain `__asm__`.**
 
 | Class | Files | Debt? |
 |---|---:|---|
-| Whole-body raw `__asm__` (no C body for the symbol) | 7 | 5 — see below |
+| Whole-body raw `__asm__` (no C body for the symbol) | 5 | 3 — see below |
 | Emitted asm inside an otherwise-C body | 1 | allowlisted |
 | Non-emitting `__asm__` (symbol aliases only) | 1 | no |
-| Register pins / scheduling barriers | 3 | other note |
+| Register pins / scheduling barriers | 4 | other note |
 
 - **Emitted asm inside a C body:** `func_80016280` — heavy register pinning
   plus asm blocks, allowlisted as `register-asm`/`embedded-asm`.
@@ -211,16 +212,16 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**4 remaining** (`func_8001F278` retired 2026-08-24).
+**3 remaining** (`func_8001F278` retired 2026-08-24; `func_8001D2D8` left this
+class 2026-08-08 — see Corrections).
 
 | Function | Instrs | Owns | Stated reason                                          |
 |---|---:|---|--------------------------------------------------------|
 | `func_80013394` | 27 | `D_8005E294` `D_8005E3CC` `D_8005E3CE` | none                                                   |
 | `func_80017E34` | 27 | — | none                                                   |
 | `func_8001AF70` | 28 | — | none                                                   |
-| `func_8001D2D8` | 28 | — | none                                                   |
 
-**None of the five has an allowlist entry** in `.pi/autodecomp.json`. They are
+**None of the three has an allowlist entry** in `.pi/autodecomp.json`. They are
 inherited from before that gate existed, not policy-blessed exceptions — so
 nothing today asserts they are supposed to be assembly.
 
@@ -248,17 +249,10 @@ nothing today asserts they are supposed to be assembly.
 ## What research each group needs
 
 **The smallest remaining functions first** — `func_80013394` and
-`func_80017E34` (27 instructions each).
+`func_80017E34` (27 instructions each), then `func_8001AF70` (28), ordinary
+decompilation work.
 
-`func_8001D2D8` is the one entry whose stated reason is a *layout* claim
-("force two separate return blocks"), which is the same family of problem as
-`func_80017EE4`: block layout dictated by the compiler's own loop and jump
-handling rather than by the source statement order. Read
-`expand_end_loop` and the jump-threading passes before assuming asm is needed.
-
-**Then the rest** (28–29 instructions), ordinary decompilation work.
-
-**Carry the GP-relative facts across.** One of the five owns globals
+**Carry the GP-relative facts across.** One of the three owns globals
 (`func_80013394`). In C
 that is a tentative definition; in a remaining asm block it is `.comm SYM,n`
 (never `.extern`, which means absolute). `deriveTuOwnedGlobals.ts --check`
@@ -358,3 +352,20 @@ This note previously asserted that `func_80017EE4` was a tail call that "may be
 genuinely inexpressible in C with this compiler". That was wrong on both
 counts, and it was believed and acted on. When a claim here is a *hypothesis*
 about codegen rather than a measurement, say so.
+
+`func_8001D2D8` left the raw-asm table on 2026-08-08 **without reaching clean
+C**, so it is not in "Retired" and must not be read as retired. Its body is now
+C with one pinned temporary, added under the owner's explicit authorization and
+allowlisted; the allowlist entry records that authorization, not a finding that
+assembly is correct for it. 26 of its 28 words come out of clean C — the
+residual is the entry-block sign extension. It is a register-pin entry now, so
+the obstacle, the measurements that closed off compiler versions and every cc1
+flag, and what remains open are all recorded in
+`notes/next-steps-for-revisiting-the-project.md`, not here.
+
+That row's stated reason in this table — "force two separate return blocks" —
+was never the obstacle. Block layout was correct in clean C the whole time; the
+residual is local register allocation in the entry block. The earlier advice
+here to read `expand_end_loop` and the jump-threading passes was a guess by
+analogy with `func_80017EE4`, and it sent at least one session at the wrong
+pass. It has been removed.
