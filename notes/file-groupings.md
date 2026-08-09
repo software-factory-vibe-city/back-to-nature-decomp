@@ -164,8 +164,10 @@ Fingerprints:
 - func_80015704 initializes the same source-data/animation object consumed
   by the family: header-relative pointers at `field_1C`, `field_20`,
   `field_24`, `field_28`, and `field_2C`; adjacent func_800158E4 advances
-  animation through `field_28`/`field_2C`, and the 0x80015BF0–0x80015D6C
-  dispatchers call it before selecting renderer wrappers.
+  animation through `field_28`/`field_2C`, func_80015AAC maps two low-byte
+  indices through `field_28`/`field_2C` and then `field_20`/`field_24` with
+  the family's 0xFFFE guard, and the 0x80015BF0–0x80015D6C dispatchers call
+  func_800158E4 before selecting renderer wrappers.
 - func_80016054 and func_80015704 both expand the exact split-statement
   CAPTURE_RA macro (`addu $8,<addr>,$0`; `sw $31,0($8)`). This proves a
   shared studio header and strengthens their pre-render-module grouping,
@@ -187,7 +189,11 @@ Members (address order):
   accessors over the object initialized by func_80015704
 - func_800158E4 (m) — animation-state/frame-timing update using the source
   object's `field_28` and `field_2C` tables
-- func_80015A18–func_80015DD4 (mixed) — source-data accessors and dispatchers;
+- func_80015A18–func_80015A94 (mixed) — source-data accessors
+- func_80015AAC (m) — maps two low-byte indices through the source object's
+  `field_28`/`field_2C` tables, applies the 0xFFFE guard, then resolves the
+  result through `field_20`/`field_24`; sole caller is func_80017284
+- func_80015B24–func_80015DD4 (mixed) — entry lookup and dispatchers;
   func_80015BF0–func_80015D6C bridge func_800158E4 to the wrappers below
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)
 - func_80015E78 (m) — thin func_800165D8 wrapper

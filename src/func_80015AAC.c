@@ -1,42 +1,26 @@
 #include "common.h"
+#include "game_types.h"
 
-__asm__ (
-    "\n"
-    "\t.set\tnoreorder\n"
-    "\t.globl\tfunc_80015AAC\n"
-    "\t.ent\tfunc_80015AAC\n"
-    "func_80015AAC:\n"
-    "\taddu\t$a3,$a0,$zero\n"
-    "\tandi\t$a1,$a1,0xFF\n"
-    "\tsll\t$a1,$a1,2\n"
-    "\tandi\t$a2,$a2,0xFF\n"
-    "\tlw\t$v0,40($a3)\n"
-    "\tlw\t$v1,44($a3)\n"
-    "\taddu\t$v0,$v0,$a1\n"
-    "\tlhu\t$a0,2($v0)\n"
-    "\tsll\t$v0,$a2,2\n"
-    "\taddu\t$v0,$v0,$a2\n"
-    "\tsll\t$v0,$v0,1\n"
-    "\taddu\t$v1,$v1,$a0\n"
-    "\taddu\t$v1,$v1,$v0\n"
-    "\tlhu\t$a0,0($v1)\n"
-    "\tori\t$v0,$zero,0xFFFD\n"
-    "\tsltu\t$v0,$v0,$a0\n"
-    "\tbnez\t$v0,_80015B1C\n"
-    "\t addu\t$v0,$a0,$zero\n"
-    "\tsll\t$v0,$v0,2\n"
-    "\tlw\t$a0,32($a3)\n"
-    "\tlw\t$v1,36($a3)\n"
-    "\taddu\t$a0,$a0,$v0\n"
-    "\tlhu\t$a1,2($a0)\n"
-    "\tnop\n"
-    "\taddu\t$v1,$v1,$a1\n"
-    "\tlhu\t$v0,2($v1)\n"
-    "\tjr\t$ra\n"
-    "\t nop\n"
-    "_80015B1C:\n"
-    "\tjr\t$ra\n"
-    "\t addu\t$v0,$zero,$zero\n"
-    "\t.end\tfunc_80015AAC\n"
-    "\n"
-);
+u16 func_80015AAC(SpriteSourceData *arg0, u32 arg1, u32 arg2) {
+    u16 val;
+    s32 ptr;
+    s32 ptr_1;
+    s32 ptr_2;
+    s32 ptr_3;
+    s32 ptr_4;
+
+    arg1 = arg1 & 0xFF;
+    ptr = arg0->field_28 + (arg1 * 4);
+    val = *(u16 *)(ptr + 2);
+    arg2 = arg2 & 0xFF;
+    ptr_1 = arg0->field_2C + val + (arg2 * 10);
+    if (*(u16 *)ptr_1 >= 0xFFFE) {
+        return 0;
+    }
+
+    ptr_2 = *(u16 *)ptr_1 * 4;
+    ptr_3 = arg0->field_20 + ptr_2;
+    val = *(u16 *)(ptr_3 + 2);
+    ptr_4 = arg0->field_24 + val;
+    return *(u16 *)(ptr_4 + 2);
+}
