@@ -12,6 +12,9 @@ typedef struct { unsigned long pad[4]; } POLY_FT4;
 typedef struct { unsigned long pad[2]; } SPRT;
 typedef struct { unsigned long pad[1]; } DR_MODE;
 typedef struct { unsigned short x; unsigned short y; } RECT;
+typedef struct { unsigned long pad[3]; } TILE_1;
+typedef struct { unsigned long pad[4]; } TILE;
+typedef struct { unsigned long pad[4]; } LINE_F2;
 
 typedef struct {
     s16 field_0;
@@ -317,6 +320,7 @@ void func_8001BA40(s32 arg0, s32 arg1, s32 arg2);
 s32 func_8001D2D8(s32 sxy0, s32 sxy1, s32 sxy2, s32 sxy3);
 s32 func_8001DCA8(void);
 void func_8001E158(void);
+s32 func_8001E78C(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 s32 func_8001E7DC(s32 *arg0, s32 *arg1);
 s32 func_8001E878(CoordTri *p0, CoordTri *p1, CoordTri *p2);
 s32 func_8001E9F8(s32 i0, s32 i1, s32 i2, s32 i3);

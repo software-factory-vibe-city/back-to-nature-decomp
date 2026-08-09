@@ -276,6 +276,9 @@ function writeHeader(
     "typedef struct { unsigned long pad[2]; } SPRT;",
     "typedef struct { unsigned long pad[1]; } DR_MODE;",
     "typedef struct { unsigned short x; unsigned short y; } RECT;",
+    "typedef struct { unsigned long pad[3]; } TILE_1;",
+    "typedef struct { unsigned long pad[4]; } TILE;",
+    "typedef struct { unsigned long pad[4]; } LINE_F2;",
     "",
   ];
 
