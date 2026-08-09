@@ -184,6 +184,18 @@ For a lone commutative `mult` or ALU operand-order mismatch, try changing
 whether the result is fresh or reuses an input. Swapping source operands alone
 may be canonicalized away.
 
+### Target registers are a web census
+
+Before interpreting a register-role swap as an allocation event, read the
+TARGET's hard-register usage as evidence about the original's variables: the
+same hard register serving the same role in two different blocks (same-shaped
+loads, disjoint windows) is one shared user variable more often than two
+coincidentally colored locals — and near-certain when the coloring repeats in
+sibling functions of the same TU. A variable set in two blocks is a global
+allocno, so local-allocation tie analysis does not apply to it at all; its
+register comes from conflicts with overlapping locals. See
+`notes/research/func_80017E34-shared-web-global-allocno.md`.
+
 ### Store-block initializers: order from the data, never from emission
 
 When a mismatch is order-only inside a block of constant/pointer stores
@@ -402,6 +414,7 @@ which these matching lessons were distilled.
 | Hard-register suggestion | A pseudo born where an argument hard register dies can inherit `$a0`–`$a3` |
 | Priority uses references and lifetime; ties use birth order | Statement and expression birth order can change allocation |
 | Fake lifetime extension with post-allocation scheduling | Moving a birth by one statement can create or remove a pseudo-conflict |
+| Locality test: one block, one death | A variable set in two blocks is a global allocno; its register is chosen by conflicts with overlapping locals' hard registers (via `reg_renumber`), not by the local priority tie |
 | Pre-allocation scheduler works backward | Independent source statements do not necessarily retain source order |
 | Legacy scheduler ties use priority, last-scheduled dependency class, then LUID | Separate birth-priority changes from block-local source/RTL birth-order changes |
 | Distinct symbol bases may not alias | Stores through independently proven bases can reorder freely |
@@ -748,6 +761,14 @@ the current output before adopting any prior session's model.
 - Allocno priorities are integer quotients; a one-insn change in total
   live length can flip a rank tie through a floor boundary. Do not chase
   such a swap with source edits until the instruction count is final.
+- Two phrase-level variants that produce identical `.lreg` quantity
+  structure are the SAME experiment; the match score cannot distinguish
+  them. When refs, lifetimes, and birth order are all pinned by the
+  dependency graph, a local-alloc tie is structural: stop permuting the
+  family and change the web population (a shared multi-block variable, or
+  a fused temporary) instead. A scheduler-state UNSAT over a domain
+  derived from the wrong model is a correct proof about an irrelevant
+  space.
 
 ## Final checklist
 

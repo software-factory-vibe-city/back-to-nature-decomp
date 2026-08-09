@@ -35,10 +35,13 @@ simulator to a sched2-contaminated witness under the wrong source order:
 `addiu $v1, $v1, 0x1248`, and 0xA landing in `$a2` follows from its early
 birth (first use `c[1]`) plus leapfrog pressure — no multi-set web needed.
 
-**Lesson (see memory `project-store-block-order-evidence`):** when a store
-block mismatches only in order, first mine the stored values for arithmetic
-relationships and match the constant first-use order; write the source in
-natural data order and let the scheduler do the shuffling.
+**Lesson:** when a store block mismatches only in order, first mine the stored
+values for arithmetic relationships and match the constant first-use order;
+write the source in natural data order and let the scheduler do the shuffling.
+This is now standing doctrine — see the style guide's "Store-block
+initializers: order from the data, never from emission" (§2) and its
+flat-initialized lookup-table pattern (§12), automated by
+`psx_analyze_store_block` at step 5 of the decompile-function skill loop.
 
 ---
 

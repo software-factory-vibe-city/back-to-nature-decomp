@@ -210,7 +210,7 @@ layer; answer: no.
   double-walker countdown inner loop: no hits. Not SDK library code (and lib/
   is the confirmed-correct PSY-Q v4.70, so this is conclusive — earlier
   "wrong SDK version" suspicion was resolved as link-order relocation noise;
-  see memory project_sdk_version). Semantics (per cross-refs
+  see notes/rom_info/lib-detectoin-gaps.md). Semantics (per cross-refs
   func_80020148/174/80020E38/80021820): sound engine reset — 6-slot request
   FIFO + per-slot tables, 24-entry SPU voice-allocation table (C128 =
   0x1000000 min-scan sentinel, C0C8 = state tag scanned in 4 priority passes).

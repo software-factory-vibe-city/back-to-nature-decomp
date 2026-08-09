@@ -212,20 +212,13 @@ responsible for (derived by `tools/build/deriveTuOwnedGlobals.ts`). A
 re-decompilation must carry them over as tentative definitions in C, or the
 function will silently switch to absolute addressing — see ADR-0001 §2.4.
 
-**1 remaining** (`func_80013394` retired 2026-08-09; `func_8001AF70` retired 2026-08-27; `func_8001F278` retired 2026-08-24; `func_8001D2D8` left this class 2026-08-08 — see Corrections).
-
-| Function | Instrs | Owns | Stated reason                                          |
-|---|---:|---|--------------------------------------------------------|
-| `func_80017E34` | 27 | — | none                                                   |
-
-**None of the two has an allowlist entry** in `.pi/autodecomp.json`. They are
-inherited from before that gate existed, not policy-blessed exceptions — so
-nothing today asserts they are supposed to be assembly.
+**None remaining** (`func_80013394` retired 2026-08-09; `func_8001AF70` retired 2026-08-27; `func_8001F278` retired 2026-08-24; `func_8001D2D8` left this class 2026-08-08 — see Corrections; `func_80017E34` retired 2026-08-28).
 
 ### Retired
 
 | Function | Retired | Result |
 |---|---|---|
+| `func_80017E34` | 2026-08-28 | 27-instruction u16 strcat from the unreachable u16-string library TU. The copy loop's $v0/$v1 swap was not a local-alloc tie problem: the pre-check re-read and the loop store value are ONE shared user variable — a multi-block web that goes to global-alloc, conflicts with $v0 (the block-4 0xFFFF constant is live across its compare), and takes $v1 in both blocks, leaving the loop compare re-read the only block-5 local ($v0). Matched as clean C89. `make check` passes. |
 | `func_80015AAC` | 2026-08-08 | 30-instruction sprite-source table lookup. Repeating the same stable `u16` dereference on both sides of the `0xFFFE` guard lets GCC CSE replace the fall-through read with the target's fresh copy web; the control-flow boundary preserves the separate copy and scale, and delayed-branch scheduling places the copy in the branch delay slot. This replaced the whole-body raw asm with clean C89 and passes the full finalizer. The automation gap is specified in `plans/cse-repeated-expression-source-synthesis.md`. |
 | `func_80015594` | 2026-08-08 | 44-instruction PSY-Q TILE initializer. Matched as clean C89 with `setTile`, `setRGB0`, `setXY0`, `setWH`, and `addPrim`; branch-local code stores share one variable so crossjump forms the target diamond, while placing `setXY0` after the join preserves the target's signed-coordinate conversions. `return p + 1` supplies the final packet-stride delay-slot instruction. |
 | `func_80021604` | 2026-08-08 | 25-instruction transfer-progress initializer. The apparent explicit `multu`/`mfhi` high-product sequence is GCC's native expansion of unsigned division by 184320: it pre-shifts the even divisor's 12 bits, then uses the reduced-precision reciprocal `0x05B05B60`. Replacing the raw asm with `delta / 184320U` matched as clean C89. `make check` passes. |
@@ -247,7 +240,7 @@ nothing today asserts they are supposed to be assembly.
 
 ## What research each group needs
 
-**The smallest remaining function first** — `func_80017E34` (27 instructions), ordinary decompilation work.
+**No function in this debt class remains** — `func_80017E34` (27 instructions) was the last and is retired.
 
 **Acceptance for retiring an entry:** the function is C89 with no embedded
 assembly, `diffFunc <name> --bytes` reports VERIFIED, `make check` passes, and
@@ -328,8 +321,8 @@ do not feed them to `mergeFragments` expectations.
 (bad) | 5" naming `func_8001205C`, `func_80015AAC`, `func_80017E34`,
 `func_80021604`, `func_80022014`. All five were real raw embeds when listed,
 but `func_8001205C`, `func_80015AAC`, `func_80021604`, and
-`func_80022014` have since been retired; only `func_80017E34` remains in the
-table above. The count is not 5.
+`func_80022014` have since been retired; `func_80017E34` was the last and
+retired 2026-08-28. The count is not 5, and the class is now empty.
 
 This note's own previous count — "20 files, 18 debt" — was also wrong, in the
 other direction: it missed `func_8001D2D8` and `func_8001F278` (both

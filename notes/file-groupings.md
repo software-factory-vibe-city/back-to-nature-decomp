@@ -74,6 +74,31 @@ HasTriangleVertexXInBounds (m) — three-vertex X bounds helper;
 func_8001D2D8 (?) — four-vertex X bounds helper. func_8001D348 is the first
 following function and may mark the next TU; membership unverified.
 
+## u16 string library — 0x80017D9C–0x80017F30 (confidence: medium)
+
+Library TU of 0xFFFF-terminated u16 string routines; none of it is
+reachable from shipped code, so the linker pulled it in wholesale.
+
+Fingerprints:
+- shared idiom: all members operate on 0xFFFF-terminated u16 buffers;
+- func_80017E34 and func_80017EA0 share a byte-identical copy loop with
+  the same systematic allocation (loop load $v1, compare re-read $v0),
+  produced in both by one user variable shared between the pre-check
+  re-read and the loop store value (multi-block web -> global allocno,
+  conflicts with $v0 -> $v1);
+- address adjacency with no interleaved unrelated code.
+
+Members (address order):
+- func_80017D9C (s) — wrapper, calls 80011F5C/80018B98/80011FD8
+- func_80017E34 (m) — u16 strcat (append)
+- func_80017EA0 (s) — u16 strcpy (copy); void return
+- func_80017EE4 (m) — u16 strcmp (compare); entry is a `j` over the
+  rotated loop tail (expand_end_loop rotation)
+
+References: notes/research/func_80017E34-shared-web-global-allocno.md
+(apply the shared-variable shape to func_80017EA0 when decompiling it),
+notes/retros/2026-08-28-func_80017E34-retro.md.
+
 ## unknown group A — 0x8001E04C–0x8001E26C (confidence: low)
 
 Address-adjacent block preceding collision.c; none of its functions touch

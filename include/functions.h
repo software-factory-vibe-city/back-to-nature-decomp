@@ -293,6 +293,7 @@ s16 func_80017B30(void);
 u16 func_80017C24(void);
 u16 func_80017C30(void);
 void func_80017C3C(s32 arg0);
+u16 * func_80017E34(u16 *arg0, u16 *arg1);
 s32 func_80017EE4(u16 *s1, u16 *s2);
 s16 func_80019030(void);
 void * func_80019070(s32 *ordering_table, u8 *packet, u32 glyph, s32 x, s16 y, u8 red, u8 green, u8 blue, u32 palette, s32 semitransparent);
