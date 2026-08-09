@@ -243,8 +243,14 @@ allowlist entry asserts, permanently and to every later agent, that the
 exempted construct is the correct answer for that function. Being stuck is
 not that assertion, and a wrong one is expensive: an `embedded-asm` entry
 recorded this way outlived a symbol-map defect and cost a later session.
-File the obstacle instead, and quarantine the function as `INCLUDE_ASM` in
-`nonmatchings/` with its diff signature recorded — quarantine is honest.
+File the obstacle instead.
+
+**Leave the best attempt in place.** Do not restore the `INCLUDE_ASM` stub,
+revert the file, or otherwise discard a non-matching attempt on your own
+initiative. The best clean-C state and its diff signature are the next
+session's starting point, and they are worth more than a tidy tree. Retiring
+a function from the worklist is a separate, explicit instruction; act on it
+only when you are given it.
 
 ## Targeted deep research
 

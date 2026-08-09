@@ -231,6 +231,21 @@ export const TOOL_SPECS: ToolSpec[] = [
     ],
     timeout: 300_000,
   },
+  {
+    name: "psx_c_source_guard",
+    label: "PSX C Source Guard",
+    script: "cSourceGuard.ts",
+    description:
+      "AST answers about a C translation unit, read from the tree-sitter parse rather than matched by pattern: does it parse, is it safe to place inside a disabled `#if 0` block (no dangling #endif/#else, no unterminated conditional, no literal running past its line), and which INCLUDE_ASM placeholders does it declare and for which symbols. Use it before any tool moves, wraps, or rewrites C source.",
+    parameters: Type.Object({
+      paths: Type.Array(Type.String({ description: "Project-relative path to a .c or .h file" }), {
+        description: "One or more source files to inspect",
+        minItems: 1,
+      }),
+    }),
+    argv: (p) => p.paths as string[],
+    timeout: 120_000,
+  },
   functionTool(
     "psx_get_prompt", "PSX Get Prompt", "getPrompt.ts",
     "Print the assembled decompilation prompt and context for one function.",

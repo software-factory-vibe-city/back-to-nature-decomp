@@ -1,0 +1,192 @@
+import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
+import type { HandoffSummary } from "./types.ts";
+
+export const DECOMPILE_SKILL = "psx-decompile-function";
+
+/** The nudge the loop sends on every return that is not yet a match. */
+export const KEEP_GOING = "keep going, there is clean c that will match this function 100%";
+
+export function matchReport(diff: DiffResult): string {
+  const lines = [
+    `Oracle: ${diff.functionName} verdict ${diff.verdict.toUpperCase()} — ${diff.matchedInstructions}/${diff.totalInstructions} words (${diff.matchPercent}%).`,
+  ];
+  if (diff.instructionCountDelta !== 0) {
+    lines.push(
+      `Instruction count delta versus target: ${diff.instructionCountDelta > 0 ? "+" : ""}${diff.instructionCountDelta}.`,
+    );
+  }
+  return lines.join("\n");
+}
+
+export function gateReport(gate: GateResult): string {
+  return [
+    `Finalize oracle failed for ${gate.functionName}:`,
+    ...gate.failures.map((failure) => `- ${failure}`),
+  ].join("\n");
+}
+
+export function findingsReport(findings: PolicyFinding[]): string {
+  return findings
+    .map((finding) => `- ${finding.file}:${finding.line ?? "?"} — ${finding.kind} — ${finding.message}\n    ${finding.text ?? ""}`)
+    .join("\n");
+}
+
+export function openingMessage(functionName: string): string {
+  return [
+    `/skill:${DECOMPILE_SKILL} Target: ${functionName}. Mode: fresh decompilation.`,
+    "Create an m2c draft only if the source is still an INCLUDE_ASM stub; never overwrite an existing clean-C attempt.",
+    "This turn runs inside an automated escalation loop: work until the function is byte-exact, then stop.",
+    "Do not commit, do not create a worktree, and do not edit files outside src/, include/, and configs/.",
+  ].join(" ");
+}
+
+/**
+ * The outgoing tier's exit interview.
+ *
+ * It runs on that tier's own model with its context still intact — the last
+ * moment the reasoning exists anywhere. Everything after this point reads the
+ * source file, the oracle report, and this summary, and nothing else.
+ */
+export function handoffMessage(functionName: string): string {
+  return [
+    `You have not reached a byte-exact match for ${functionName}, and the loop is escalating to a`,
+    "stronger model. Your context ends here; the next tier will see only the source file on disk,",
+    "the oracle report, and the summary you are about to write.",
+    "",
+    `Call \`${"psx_loop_handoff"}\` exactly once with four fields:`,
+    "",
+    "- **whatWasTried** — the source shapes and structural hypotheses you actually compiled and",
+    "  diffed, and what each one did to the diff. Not what you considered; what you measured.",
+    "- **ruledOut** — hypotheses you positively eliminated, each with the evidence that killed it.",
+    "  This is the most valuable field: it is what stops the next tier repeating your work.",
+    "- **currentDivergence** — the first remaining divergence. Where it is, what the target does",
+    "  there, what your candidate does instead.",
+    "- **leadingHypothesis** — the most promising direction you did not get to, and the cheapest",
+    "  evidence that would confirm or kill it.",
+    "",
+    "Every claim must be traceable to an assembly line or a tool that measured it. A hunch you",
+    "cannot point at is worse than an empty field — it will be read as a finding. Do not edit any",
+    "files in this turn.",
+  ].join("\n");
+}
+
+/**
+ * How the incoming tier is told to read that summary.
+ *
+ * The previous tier failed, so at least one premise it was working from is
+ * probably wrong — and a summary written by a failed attempt is exactly the
+ * kind of plausible, confident, wrong context that makes the next attempt fail
+ * the same way. It is offered as a lead to disprove, never as a foundation.
+ */
+export function handoffBlock(summary: HandoffSummary): string {
+  const body =
+    summary.source === "tool"
+      ? [
+          `- What was tried: ${summary.whatWasTried}`,
+          `- Ruled out: ${summary.ruledOut}`,
+          `- Current divergence: ${summary.currentDivergence}`,
+          `- Leading hypothesis: ${summary.leadingHypothesis}`,
+        ].join("\n")
+      : summary.whatWasTried;
+
+  return [
+    "--- Handoff from the previous escalation tier ---",
+    "",
+    body,
+    "",
+    "--- How to read the above ---",
+    "",
+    "Treat this analysis adversarially and with skepticism. It was written by a tier that did not",
+    "match the function, so at least one premise in it is likely wrong, and the wrong ones will be",
+    "stated as confidently as the right ones. Use it to avoid repeating measurements, not to",
+    "inherit conclusions. Re-derive every structural premise — arity, frame, types, ownership —",
+    "from the tools and the assembly. Where the summary and the assembly disagree, the assembly",
+    "wins and the summary was wrong.",
+    "",
+    "In particular, a hypothesis listed as ruled out is only ruled out if the evidence given",
+    "actually rules it out. Check the evidence, not the verdict.",
+  ].join("\n");
+}
+
+export function escalationMessage(
+  functionName: string,
+  tierLabel: string,
+  lastReport: string,
+  handoff?: HandoffSummary,
+): string {
+  return [
+    `/skill:${DECOMPILE_SKILL} Target: ${functionName}. Mode: resume/fix.`,
+    `The previous escalation tier did not reach a match; you are now ${tierLabel}.`,
+    "Preserve the current clean-C attempt, classify its existing diff, and continue from there.",
+    "Re-derive the structural premises rather than trusting the previous tier's conclusions.",
+    "",
+    lastReport,
+    ...(handoff ? ["", handoffBlock(handoff)] : []),
+    "",
+    KEEP_GOING,
+  ].join("\n");
+}
+
+export function nudgeMessage(lastReport: string): string {
+  return [KEEP_GOING, "", lastReport].join("\n");
+}
+
+/**
+ * The one turn between a match and its commit.
+ *
+ * Grouping evidence is cheapest to record while the function is still in
+ * context and most expensive to recover once it is not. The turn is scoped to
+ * the ledger on purpose: the build inputs have just been proven, and anything
+ * this turn writes outside `notes/` is reverted before the commit.
+ */
+export function groupingsMessage(functionName: string): string {
+  return [
+    `${functionName} is byte-exact and has passed the full finalize gate.`,
+    "",
+    "Before it is committed: update `notes/file-groupings.md` if — and only if — this function",
+    "produced new evidence about which original translation unit it belongs to. Same-file",
+    "evidence is things like a shared static or global cluster, a register-variable quirk",
+    "shared with a neighbour, a declaration-order effect, an SDK idiom cluster, or an",
+    "adjacency the call graph and the link order agree on.",
+    "",
+    "Record membership and one-line roles only. Technique and per-function detail belong in",
+    "`notes/research/` or `notes/retros/`, not in the ledger.",
+    "",
+    "If this function produced no new grouping evidence, say so and change nothing — an",
+    "unfounded ledger entry is worse than no entry.",
+    "",
+    "Edit nothing outside `notes/` in this turn. The source has already been verified and any",
+    "other edit will be reverted.",
+  ].join("\n");
+}
+
+export function reviewMessage(functionName: string, findings: PolicyFinding[]): string {
+  return [
+    `Policy review for ${functionName}. A lower escalation tier introduced source constructs the`,
+    "clean-source policy forbids for an ordinary compiled function:",
+    "",
+    findingsReport(findings),
+    "",
+    "Read `src/" + functionName + ".c`, the original assembly, and the project's clean-source policy in",
+    "AGENTS.md and prompts/c-style-guide.md. Decide one question only: is the forbidden construct the",
+    "correct answer for this function — a genuine, documented exception class — or is it a workaround",
+    "for a structural hypothesis the tier failed to find?",
+    "",
+    "An exemption asserts permanently, to every later agent, that the construct is correct here.",
+    "Being stuck is not that assertion. Approve only on positive evidence; reject by default.",
+    "",
+    "Answer by calling `psx_loop_policy_verdict` exactly once. Do not edit any files in this turn.",
+  ].join("\n");
+}
+
+export function rejectionReport(functionName: string, findings: PolicyFinding[], rationale: string): string {
+  return [
+    `Policy review rejected the forbidden constructs in ${functionName}; the edit has been reverted.`,
+    "",
+    findingsReport(findings),
+    "",
+    `Reviewer rationale: ${rationale.trim() || "(none given)"}`,
+    "",
+    "Do not reintroduce them. The remaining divergence has a clean-C expression; find it.",
+  ].join("\n");
+}

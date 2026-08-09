@@ -77,6 +77,7 @@ They are still runnable by hand as `npx tsx tools/agent/<file>.ts`.
 | `callGraph.ts` | Builds `build/callGraph.json`, including tier and priority ordering used by the Pi extension. | **Yes** |
 | `contextExport.ts` | Extracts matched signatures into the generated function context header. | Library + CLI |
 | `sourcePolicy.ts` | Audits eligible source and current changes for forbidden matching workarounds and modification-scope violations. | **Yes** |
+| `cSourceGuard.ts` | AST answers about a translation unit, for tools that move or rewrite C: does it parse, is it safe to place inside a disabled `#if 0` block (no dangling `#endif`/`#else`, no unterminated conditional, no literal running past its line), and which `INCLUDE_ASM` placeholders it declares and for which symbols. Reads the tree-sitter parse, and walks anonymous tokens too, so a MISSING `#endif` or closing quote is visible. | **Yes** |
 | `getPrompt.ts` | Legacy standalone prompt builder using archived templates under `prompts/legacy/`; active Pi workflows do not invoke it. | Library + CLI |
 | `worktree.ts` | Legacy worktree helper retained for manual experiments; the Pi workflow does not invoke it. | Library only |
 
@@ -92,6 +93,20 @@ All wrappers are bounded the same way: they accept function names,
 project-relative paths, and focused block/budget/depth/version controls, and
 derive/resume modes. None can supply shell fragments or promote generated
 source.
+
+**Reading C from a tool.** Tooling that inspects, moves, wraps, or rewrites C
+source goes through the pinned tree-sitter front end
+(`residual-source-search/tree-sitter-c.ts`), not regular expressions over the
+text. A pattern match cannot tell a declaration from the same text inside a
+comment or a string, and it cannot see the preprocessor structure that decides
+whether a rewrite still compiles. `cSourceGuard.ts` already answers the common
+questions; extend it rather than re-deriving them. Note that the shared
+`subtreeIsBroken` helper walks *named* children only, so it cannot see a
+MISSING anonymous token — walk every child when conditional or literal balance
+is what you are checking.
+
+This constrains tools, not the C itself. Nothing here changes how a
+decompilation session edits `src/*.c` by hand.
 
 ## tools/build/ — what `make split` runs
 

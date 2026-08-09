@@ -11,6 +11,7 @@ import { registerExportContextTool } from "./tools/export-context.ts";
 import { registerFinalizeFunctionTool } from "./tools/finalize-function.ts";
 import { registerFuzzVariantsTool } from "./tools/fuzz-variants.ts";
 import { registerAutodecompCommands } from "./autonomous/commands.ts";
+import { registerAutoloopCommands } from "./autoloop/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
 import { registerSearchSourceShapesTool } from "./tools/search-source-shapes.ts";
 import { registerSynthesizeSourceShapesTool } from "./tools/synthesize-source-shapes.ts";
@@ -301,6 +302,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   });
 
   registerAutodecompCommands(pi, root);
+  registerAutoloopCommands(pi, root);
 
   pi.registerCommand("decomp-status", {
     description: "Show the current call-graph decompilation worklist summary",
