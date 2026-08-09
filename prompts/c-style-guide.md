@@ -339,6 +339,46 @@ the structural classifier:
 | `relocation-or-immediate` | Check symbol declarations, small-data shape, and linked-layout noise |
 | `mixed-operands` / `scheduling-and-operands` | Inspect compiler pass dumps before changing source again |
 
+### Epilogue return/join rotations are a shallow CFG-shape problem first
+
+A small scheduling residual can consist solely of a constant return move
+crossing stack restores:
+
+```text
+target:     move v0,zero; lw ra,...; lw s0,...
+candidate:  lw ra,...; lw s0,...; move v0,zero
+```
+
+When instruction count, inventory, web parity, and the rest of the body are
+exact, test source-level return/join provenance before modelling scheduler
+state. Semantics-equivalent C control flow can produce different basic-block
+notes and post-reload scheduling even when every executable body instruction is
+unchanged. Batch only the natural forms justified by the target's own branch
+senses:
+
+```c
+/* Positive body with one trailing return. */
+if (active) {
+    body();
+}
+return 0;
+
+/* Inverted guard with the same body and result. */
+if (!active) {
+    return 0;
+}
+body();
+return 0;
+```
+
+Also test a return in each predecessor when that reflects the source logic.
+Do not invert a predicate from the candidate by algebra alone: read the target
+branches and state which path reaches the body. A named zero local is a
+constant-birth experiment, not a CFG experiment, and often compiles identically.
+`explainDiff.ts` prints `EPILOGUE RETURN/JOIN SIGNATURE` when it recognizes this
+exact residual. Run the required trace once, then try this small batch before
+target-schedule analysis, scheduler-state search, or broad source grammars.
+
 Run `compilerTrace.ts` for allocation, scheduling, stubborn operand-order, and
 mixed cases. It stores GCC dumps and a typed `report.json` under
 `build/compilerTrace/<func>/`. The report connects observed pseudo SET/use/death

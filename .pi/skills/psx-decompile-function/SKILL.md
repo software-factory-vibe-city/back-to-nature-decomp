@@ -119,9 +119,17 @@ evidence. The style guide's resume section is mandatory here.
 3. For allocation, scheduling, operand-order that survives source-order swaps,
    or mixed categories, call `psx_compiler_trace` before further perturbation.
    Tie the next edit to a pseudo birth, death, lifetime, conflict, assignment
-   pass, canonicalization rule, or scheduler decision. For statement-order
-   questions (which global is touched first, where a pointer assignment
-   sits in a branch), run
+   pass, canonicalization rule, or scheduler decision. One narrow scheduling
+   signature has a cheaper bounded response: when `psx_explain_diff` prints
+   `EPILOGUE RETURN/JOIN SIGNATURE` (a constant return move crosses only stack
+   restores while inventory and web parity are clean), run the trace once, then
+   batch the natural CFG-equivalent forms before deeper scheduler work: positive
+   body plus trailing return, inverted early-return guard, and returns in both
+   predecessors when the target branch senses justify them. These forms can
+   change basic-block note and sched2 provenance without changing executable
+   body instructions; a named constant local is a different experiment and
+   often has no effect. For statement-order questions (which global is touched
+   first, where a pointer assignment sits in a branch), run
    `psx_mine_statement_order` — per-block
    emission-order evidence (hi16 formation order, store order, delay-slot
    occupant) constrains source statement order directly.

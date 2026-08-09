@@ -449,6 +449,59 @@ function independent(left: DisassembledInstruction, right: DisassembledInstructi
   return !intersects(a.defs, b.uses) && !intersects(b.defs, a.uses) && !intersects(a.defs, b.defs);
 }
 
+function constantZeroReturn(instruction: DisassembledInstruction): boolean {
+  const operands = normalizedOperands(instruction);
+  if (instruction.mnemonic === "move") return operands[0] === "v0" && operands[1] === "zero";
+  if (instruction.mnemonic === "addu" || instruction.mnemonic === "or") {
+    return operands[0] === "v0" && operands[1] === "zero" && operands[2] === "zero";
+  }
+  if (instruction.mnemonic === "li") return operands[0] === "v0" && /^(?:0x)?0$/.test(operands[1] || "");
+  if (instruction.mnemonic === "addiu") {
+    return operands[0] === "v0" && operands[1] === "zero" && /^(?:0x)?0$/.test(operands[2] || "");
+  }
+  return false;
+}
+
+function stackRestore(instruction: DisassembledInstruction): boolean {
+  if (instruction.mnemonic !== "lw") return false;
+  const operands = normalizedOperands(instruction);
+  return /^(?:ra|fp|s[0-7])$/.test(operands[0] || "") && (operands[1] || "").includes("(sp)");
+}
+
+/** A tiny post-reload rotation often comes from CFG/join provenance, not a
+ * scheduler mechanism that should be modelled deeply. Source-level guard and
+ * return placement changes can preserve semantics and every body instruction
+ * while changing the zero-width notes and basic-block partition seen by
+ * sched2. */
+function epilogueReturnJoinHint(
+  target: DisassembledInstruction[],
+  compiled: DisassembledInstruction[],
+): string | undefined {
+  const targetZero = target.findIndex(constantZeroReturn);
+  const compiledZero = compiled.findIndex(constantZeroReturn);
+  if (targetZero < 0 || compiledZero < 0) return undefined;
+
+  const targetRestoresAfter = new Set(
+    target.slice(targetZero + 1).filter(stackRestore).map((instruction) => canonical(instruction)),
+  );
+  const crossedRestore = compiled.slice(0, compiledZero)
+    .filter(stackRestore)
+    .some((instruction) => targetRestoresAfter.has(canonical(instruction)));
+  if (!crossedRestore) return undefined;
+
+  const targetReturns = target.slice(targetZero + 1).some((instruction) =>
+    instruction.mnemonic === "jr" && normalizedOperands(instruction)[0] === "ra");
+  const compiledReturns = compiled.slice(compiledZero + 1).some((instruction) =>
+    instruction.mnemonic === "jr" && normalizedOperands(instruction)[0] === "ra");
+  if (!targetReturns || !compiledReturns) return undefined;
+
+  return "EPILOGUE RETURN/JOIN SIGNATURE: the target places its constant-zero return before stack restores, " +
+    "while the candidate schedules the same return after them. Before deep scheduler-state work, batch a few " +
+    "semantics-equivalent CFG forms: invert the predicate into an early-return guard, return from each predecessor, " +
+    "and vary whether the common return sits inside or after the conditional. Preserve the target's branch senses " +
+    "and body semantics; named constant locals are a separate birth-site experiment and often compile identically.";
+}
+
 function orderInversions(
   target: DisassembledInstruction[],
   compiled: DisassembledInstruction[],
@@ -674,6 +727,10 @@ export function analyzeInstructionSets(
   if (!exact && inversionTargetKeys) {
     evidence.push(`${inversions.independent} reordered pairs appear register-independent; ${inversions.dependent} are conservatively dependent or memory/control related.`);
   }
+  if (category === "scheduling" && webParity.parity) {
+    const hint = epilogueReturnJoinHint(target, compiled);
+    if (hint) evidence.push(hint);
+  }
 
   return {
     category,
@@ -779,6 +836,24 @@ function selfTest(): void {
   const scheduleOurs = [synthetic("sll", ["a0", "a0", "2"]), synthetic("lui", ["v0", "0x8006"]), synthetic("jr", ["ra"])];
   if (analyzeInstructionSets(scheduleTarget, scheduleOurs).category !== "scheduling") {
     throw new Error("scheduling classification failed");
+  }
+
+  const epilogueTarget = [
+    synthetic("move", ["v0", "zero"]),
+    synthetic("lw", ["ra", "44(sp)"]),
+    synthetic("lw", ["s0", "40(sp)"]),
+    synthetic("jr", ["ra"]),
+  ];
+  const epilogueOurs = [
+    synthetic("lw", ["ra", "44(sp)"]),
+    synthetic("lw", ["s0", "40(sp)"]),
+    synthetic("move", ["v0", "zero"]),
+    synthetic("jr", ["ra"]),
+  ];
+  const epilogueReport = analyzeInstructionSets(epilogueTarget, epilogueOurs);
+  if (epilogueReport.category !== "scheduling" ||
+      !epilogueReport.evidence.some((item) => item.includes("EPILOGUE RETURN/JOIN SIGNATURE"))) {
+    throw new Error("epilogue return/join scheduling hint failed");
   }
 
   /* Web parity + provenance: the func_800241EC signature in miniature.
