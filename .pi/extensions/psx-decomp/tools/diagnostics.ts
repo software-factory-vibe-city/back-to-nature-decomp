@@ -86,6 +86,20 @@ export const TOOL_SPECS: ToolSpec[] = [
 
   /* ---- evidence for a specific mismatch class ---- */
   functionTool(
+    "psx_scheduler_trace", "PSX Scheduler Trace", "schedulerTrace.ts",
+    "The scheduler's own per-cycle record of why a block came out in this order: every insn's priority at the moment it competed, the ready list it was chosen from, and whether it won on priority, on a function-unit hazard, or on a tie. Run as soon as a residual is classified as scheduling, BEFORE authoring source variants — spellings that compile to the same RTL are the same experiment, and this says which lever actually moved. The unpromoted list is the actionable output: a non-store insn is unpromoted when its destination pseudo is assigned more than once, which in C is a variable written twice.",
+    { extra: {
+        src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of src/<function>.c" })),
+        pass: Type.Optional(Type.String({ enum: ["sched", "sched2", "both"], description: "Scheduling pass: sched (pre-reload, default), sched2 (post-reload), or both" })),
+        block: Type.Optional(Type.Integer({ minimum: 0, description: "Restrict output to one basic block" })),
+      },
+      argv: (p) => [p.functionName as string,
+        ...(p.src ? ["--src", p.src as string] : []),
+        ...(p.pass ? ["--pass", p.pass as string] : []),
+        ...(p.block !== undefined ? ["--block", String(p.block)] : []),
+        ...(p.json ? ["--json"] : [])] },
+  ),
+  functionTool(
     "psx_mine_statement_order", "PSX Statement Order", "mineStatementOrder.ts",
     "Per-block emission-order evidence (hi16 formation order, store order, delay-slot occupant) that constrains source statement order directly. Use for questions like which global is touched first or where a pointer assignment sits in a branch.",
   ),

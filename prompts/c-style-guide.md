@@ -491,6 +491,33 @@ which these matching lessons were distilled.
 | Post-allocation scheduling sees hard-register hazards | A scheduling mismatch can be downstream of the wrong register allocation |
 | CSE commutative constant-second rule | Source operand swaps can be no-ops; change the web/address family |
 
+### Observe the scheduler; do not model it
+
+Every mechanism in the table above is *observable*. The legacy scheduler writes
+its own per-cycle record — each insn's priority at the moment it competed, the
+ready list it was chosen from, and the tie or hazard that decided it — into the
+ordinary RTL dumps, with no extra flag. `psx_scheduler_trace` reads it. Run it
+the moment a residual is classified as scheduling, before authoring variants.
+
+Two facts that cost real time when assumed instead of checked:
+
+- These projects schedule with the **legacy** `gcc/sched.c`, not
+  `haifa-sched.c`. Both files define a `rank_for_schedule`, and the two are
+  different functions with different tie-breaks. `sched.c` also schedules a
+  block **bottom-up**: an insn that keeps losing priority contests drifts to
+  the *top* of the block. Confirm which pass is live from the dump's own
+  format before reading any compiler source; the option that configures the
+  other scheduler's verbosity is rejected outright by this compiler, which is
+  itself the confirmation.
+- Source spellings that compile to the same RTL are the same experiment. A
+  sweep over pointer, array, offset-local and cast address families is one
+  data point, not four, whenever the families collapse to identical RTL —
+  compare the pass dumps before concluding a hypothesis is exhausted.
+
+When a model of the scheduler and the observed order disagree, the model is
+wrong and the disagreement is the finding. Re-check which pass is running
+before adding a correction to the model.
+
 ### Argument reassignment
 
 Do not reassign an argument when the target keeps it in its incoming hard

@@ -125,7 +125,19 @@ evidence. The style guide's resume section is mandatory here.
    disassembly. A wrong predicate produces a diff that reads convincingly
    as a web-parity blocker, and every tool downstream will analyse the
    wrong function without complaint.
-3. For allocation, scheduling, operand-order that survives source-order swaps,
+3. The moment the classifier reports a scheduling category, call
+   `psx_scheduler_trace` — before authoring a single source variant. The
+   scheduler records its own per-cycle decisions in the ordinary RTL dumps,
+   so this is a measurement of the choice rather than an inference from the
+   emitted code, and it costs one compile. Read its unpromoted list first:
+   a non-store insn is unpromoted when its destination pseudo is assigned
+   more than once, which in C is a variable written twice, and that is
+   usually the only source-visible lever on the order. Authoring variants
+   before this is how sessions burn: source spellings that compile to the
+   same RTL are the same experiment no matter how different they look, and
+   the diff cannot tell you which axis you failed to move.
+
+   For allocation, scheduling, operand-order that survives source-order swaps,
    or mixed categories, call `psx_compiler_trace` before further perturbation.
    Tie the next edit to a pseudo birth, death, lifetime, conflict, assignment
    pass, canonicalization rule, or scheduler decision. One narrow scheduling
