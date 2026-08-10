@@ -19,6 +19,12 @@ Before editing, read completely:
    optional reference
 4. the target source and original assembly
 5. the target call-graph entry and relevant generated/shared declarations.
+   For an indirect call, inspect the plausible table-member callees before
+   accepting a callback prototype: meaningful values left in `$a1`--`$a3` at
+   `jalr` may be dead address-generation state or delay-slot inputs, not
+   callback arguments. The callee family's incoming-register reads decide
+   arity; a wrong prototype adds call-setup moves and poisons every later web
+   and allocation analysis.
    The profile's header table says which file each kind of declaration
    belongs in and which files are generated outputs. A global that needs a
    struct or aggregate type gets that type in the project's **override**
@@ -29,8 +35,8 @@ Before editing, read completely:
    place. If a needed declaration seems absent, check the generated headers
    before adding an extern.
 6. `notes/file-groupings.md` — the target's suspected source-file group, and
-   any campaign or research note it points to. Same-file membership carries
-   TU-level priors (shared register-variable quirks, idioms, global clusters,
+   any campaign, research, or retrospective note it points to. Same-file
+   membership carries TU-level priors (shared register-variable quirks, idioms, global clusters,
    declaration-order effects). Update the ledger in the same session if you
    find grouping evidence — membership and one-line roles only; technique and
    per-function detail belong in `notes/research/` or `notes/retros/`.
@@ -125,6 +131,17 @@ evidence. The style guide's resume section is mandatory here.
    disassembly. A wrong predicate produces a diff that reads convincingly
    as a web-parity blocker, and every tool downstream will analyse the
    wrong function without complaint.
+
+   Once count, opcode multiset, inventory, and web parity are exact, freeze
+   semantics and census the target's simultaneous hard-register roles. For a
+   residual rotation, explicitly test these compiler-state axes before broad
+   permutation: top-of-block declaration initializer versus later assignment,
+   one local reused for sequential roles versus fresh locals, coordinated
+   base/offset/result birth order, and a named constant at the scheduler's
+   required birth site. Preserve a lower-scoring variant when it solves one
+   independently measured allocation relation; match percentage is not a
+   mechanism verdict. The compact case study is
+   `notes/retros/2026-08-10-func_8001A574-retro.md`.
 3. The moment the classifier reports a scheduling category, call
    `psx_scheduler_trace` — before authoring a single source variant. The
    scheduler records its own per-cycle decisions in the ordinary RTL dumps,
@@ -201,15 +218,25 @@ evidence. The style guide's resume section is mandatory here.
    permutations, and for a `luid-order` test source birth/constant sites while
    preserving the dependency graph. Search only after the trace/analysis names
    concrete mechanism requirements and semantic invariants. Inspect preserved
-   generated sources under `build/`; never copy a result automatically. Rank
-   requirement and mechanism evidence before match percentage. Never promote a
-   cc1-only result: require full configured assembly, then re-run the exact
-   function diff.
+   generated sources under `build/`; never copy a result automatically. A
+   `deriveOnly` residual run compiles pilot coordinates to price the domain, so
+   inspect the best preserved pilot class before launching exhaustion — it may
+   already contain the missing declaration initializer, sequential local reuse,
+   or statement interaction. Confirm it with the exact relocated function
+   oracle because search alignment and byte comparison are not interchangeable.
+   Rank requirement and mechanism evidence before match percentage. Never
+   promote a cc1-only result: require full configured assembly, then re-run the
+   exact function diff.
 8. Keep changes within project policy and put shared types in the headers the
    profile designates rather than conflicting with generated declarations. A
    type fix belongs in the override or shared-type header; hand-editing a
    generated header is not a fix, and a local redeclaration that silences the
    compiler has moved the defect rather than removed it.
+
+Do not run raw `diffFunc.ts --src` commands concurrently: alternate-source CLI
+compiles can share intermediate paths and cross-contaminate variant results.
+Use `psx_fuzz_variants` or the isolated source-search tools for parallel work,
+or run raw alternate-source diffs sequentially.
 
 If a source change has no effect, locate the first divergent compiler dump and
 read that exact pass in the vendored compiler source before trying another

@@ -9,14 +9,8 @@
     {
       "provider": "openrouter",
       "model": "deepseek/deepseek-v4-flash-0731",
-      "thinking": "high",
+      "thinking": "xhigh",
       "label": "deepseek-v4-flash"
-    },
-    {
-      "provider": "openrouter",
-      "model": "moonshotai/kimi-k3",
-      "thinking": "high",
-      "label": "kimi-k3"
     },
     {
       "provider": "openai-codex",
@@ -26,7 +20,7 @@
     }
   ],
   "returnsPerTier": 2,
-  "maxFunctions": 25,
+  "maxFunctions": 50,
   "clearContextBetween": true,
   "handoffSummary": true,
   "updateFileGroupings": true,

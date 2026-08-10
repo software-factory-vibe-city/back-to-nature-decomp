@@ -404,3 +404,38 @@ Members (address order):
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count
   parallel arrays over 0x18-byte elements) — likely has sibling functions
   reading the same table; no membership evidence collected yet.
+
+## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001A970 (confidence: medium)
+
+Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
+- shared absolute-addressed cluster: D_80049078 (3-entry fn-pointer dispatch
+  table, called by func_8001A574), D_800749F4 (0xB8-stride object array
+  scanned by the callees), D_8005F0F8 (u16 0xFFFF sentinel — the *split*
+  address form `lui r,%hi` / `op %lo(r)`, implying a >-G8 declared size in the
+  original TU; both func_8001A574 and func_8001A668 targets split it),
+  D_8005E444/D_8005E4A8 (u16 table length/base, GP-relative in func_8001A574's
+  TU, signalled via tentative definitions).
+- internal call graph: func_8001A574 → func_8001A668/8001A6FC/8001A790
+  (dispatch, one s32 argument, return s32) → func_8001A808; both callees scan
+  the same 0xB8-stride D_800749F4 array and return
+  `(ptr - &D_8005F0F8) >> 1`.
+- func_8001A668 and func_8001A6FC are near-identical except the scan's branch
+  sense (bnez vs beqz) — classic source-level twin.
+
+Members (address order):
+- func_8001A574 (s) — dispatcher/insert: arg0/3 → q,r; dispatch
+  `D_80049078[r](q)`; scans the gap in
+  `p_table = D_8005E4A8 + D_8005E444`; memmove/memcpy shift; sentinel
+  D_8005F0F8 = 0xFFFF before/after
+- func_8001A668 (s) — scan member (bnez); calls func_8001A808
+- func_8001A6FC (s) — scan member (beqz); calls func_8001A808
+- func_8001A790 (s) — third dispatch callee
+- func_8001A808 (s) — per-entry helper called by 668/6FC
+- func_8001A870 (s), func_8001A8D0 (m), func_8001A970 (m) — later members;
+  A8D0/A970 are clean scalar helpers (charset / number-to-string)
+
+References:
+- notes/research/func_8001205C-declaration-shape-vs-address-form.md
+  (-G8 size decides split vs macro form for D_8005F0F8)
+- notes/retros/2026-08-10-func_8001A574-retro.md
+  (indirect-call arity, declaration birth, sequential temp reuse, and final scheduler tie)

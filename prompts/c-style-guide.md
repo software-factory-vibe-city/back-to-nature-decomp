@@ -54,6 +54,27 @@ Always use the `frame_size + 16 + 4*n` formula; applying the standard ABI
 offset produces an argument count that is 2 too high (func_80015F80: 11
 versus the correct 9).
 
+### Indirect calls: live caller-saved registers are not proof of callback arity
+
+At `jalr`, `$a1`--`$a3` may still contain meaningful-looking values that are
+not arguments: an entry address used to load the function pointer, a dead table
+base, or a value consumed in the call delay slot. O32 caller-saved registers do
+not get cleared when their role ends. Inferring callback arity from every
+nonzero argument register can therefore create extra call-setup copies and a
+convincing web-parity failure.
+
+For a function-pointer table, identify the plausible table members from data,
+adjacency, callers, and the file group, then inspect which incoming argument
+registers those callees actually read before redefining. Build the callback
+prototype from the callee family and verify that prototype against the caller's
+necessary setup instructions. If changing the prototype removes only compiled-
+side argument copies and makes instruction count/web parity exact, treat that as
+a semantic correction before any allocator analysis.
+
+Validated on func_8001A574: `$a1` held the dispatch-entry address, `$a2` a table
+base, and `$a3` a delay-slot offset, but the selected callback consumed only
+`$a0`. See `notes/retros/2026-08-10-func_8001A574-retro.md`.
+
 ### Sign extension fused with element scaling
 
 Around an array access, this pattern usually combines a cast with element
@@ -339,6 +360,29 @@ the structural classifier:
 | `relocation-or-immediate` | Check symbol declarations, small-data shape, and linked-layout noise |
 | `mixed-operands` / `scheduling-and-operands` | Inspect compiler pass dumps before changing source again |
 
+### Rapid path for an exact instruction set with a residual register rotation
+
+When instruction count, opcode multiset, inventory, and web parity are all
+exact, stop changing semantics. Census the target's simultaneous hard-register
+roles, then preserve each independently demonstrated allocation gain even when
+its raw match score is lower. A source family that fixes `$a2/$a3` while
+rotating `$v0/$v1` has proved one required lifetime/occupancy relation; it is
+not a failed experiment to discard.
+
+The highest-yield clean-C axes at this stage are:
+
+- a top-of-block declaration initializer versus a later assignment (the
+  initializer is an executable birth site and is valid C89);
+- one local reused for sequential roles versus two fresh locals;
+- the birth order of independent bases, offsets, and pointer results; and
+- a named constant assigned immediately before the independent copy/load it
+  must precede.
+
+Test these as interactions, not only one axis at a time. func_8001A574 required
+all four: a declaration-born quotient, a product local overwritten with the
+remainder, coordinated base/offset/pointer births, and a loop sentinel born
+before the scan-pointer copy.
+
 ### Epilogue return/join rotations are a shallow CFG-shape problem first
 
 A small scheduling residual can consist solely of a constant return move
@@ -451,6 +495,20 @@ counts; a lower match can provide stronger causal evidence. A cc1-only result
 is triage and cannot be promoted without the preserved hypothesis reproducing
 in full mode.
 
+Do not launch raw `diffFunc.ts --src` invocations concurrently. Alternate-source
+CLI compiles can share intermediate paths; concurrent runs have produced one
+variant's frame/allocation under another variant's label. Use
+`psx_fuzz_variants` or the isolated search tools for parallel evaluation, or
+serialize raw CLI diffs.
+
+A residual-source-space `deriveOnly` run compiles a bounded pilot sample to
+price the full domain. Inspect the preserved source for its best pilot classes
+before deciding whether to exhaust the domain. The pilot itself can expose the
+missing declaration initializer, web reuse, or statement interaction. Confirm
+any promising class with the sequential exact function oracle; search scores
+may align delay slots or compiler instructions differently from the relocated
+byte comparison.
+
 ### When source-order changes do nothing
 
 If both orders of a commutative source expression compile identically, a
@@ -481,6 +539,8 @@ which these matching lessons were distilled.
 | Dying-input tie | A fresh output can share the register of an input that dies in the same instruction |
 | Hard-register suggestion | A pseudo born where an argument hard register dies can inherit `$a0`–`$a3` |
 | Priority uses references and lifetime; ties use birth order | Statement and expression birth order can change allocation |
+| Declaration initializers are executable births | `s32 q = x / 3;` at the top of a C89 block is not allocator-equivalent to declaring `q` and assigning it after the first statement |
+| Sequential local reuse changes web population | Writing `tmp = q * 3; ...; tmp = arg - tmp;` can reproduce one recurring target hard-register role that separate product/remainder locals cannot |
 | Fake lifetime extension with post-allocation scheduling | Moving a birth by one statement can create or remove a pseudo-conflict |
 | Locality test: one block, one death | A variable set in two blocks is a global allocno; its register is chosen by conflicts with overlapping locals' hard registers (via `reg_renumber`), not by the local priority tie |
 | Pre-allocation scheduler works backward | Independent source statements do not necessarily retain source order |
@@ -658,7 +718,11 @@ remove the definition. If it emits `lui`/`%lo` where the target is
 GP-relative, the definition is missing.
 
 Size does decide a different question, and conflating the two has cost a
-session. The two decisions are independent:
+session. The two decisions are independent. Access width alone does not prove
+object size: a target may touch only one `u16` at offset zero while its split
+address formation proves the declaration in scope was an aggregate above the
+configured threshold. Use load/store width for the member type and address
+formation for the containing declaration's size class.
 
 | Question | Decided by |
 |---|---|
@@ -687,11 +751,14 @@ is known.
 
 ### C89 form
 
-Declare locals at the top of each block and use `/* */` comments:
+Declare locals at the top of each block and use `/* */` comments. C89 permits
+initializers on those declarations, and an initializer is a compiler-visible
+birth site; do not mechanically extract it into a later assignment while
+matching allocation or scheduling.
 
 ```c
 void func(void) {
-    s32 i;
+    s32 i = 0;
     s32 *ptr;
 
     ptr = &D_SCALAR_BASE;

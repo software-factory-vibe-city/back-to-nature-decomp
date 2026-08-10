@@ -330,4 +330,20 @@ extern s32 D_8005E53C;
 /* D_8005E55C — GP-relative s32, stereo/mono flag (func_80020818, func_80020A14, func_80020A40). */
 extern s32 D_8005E55C;
 
+/* D_8005F0F8 — u16 sentinel value (func_8001A574 stores/loads via sh/lhu).
+ * Declared as an array so the declared size is > -G8: the original TU's
+ * declaration was >8 bytes, because every target access in the file family
+ * (func_8001A574, func_8001A668) uses the cc1 split form
+ * `lui reg,%hi` / `op %lo(reg)` (real register), not the <=-G8 assembler
+ * macro (`lui $at` / `op`). A 2-byte declaration makes cc1 emit the raw
+ * macro, which maspsx expands with $at — a different address form. See
+ * notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md §2.4. */
+extern u16 D_8005F0F8[6];
+
+/* D_80049078 — array of 3 function pointers (func_8001A574 dispatch table).
+ * Each callee takes one s32 argument and returns s32. Absolute-addressed (12 bytes, > -G8). */
+typedef s32 (*FuncPtr_80049078)(s32);
+extern FuncPtr_80049078 _D_80049078[3] __asm__("D_80049078");
+#define D_80049078 _D_80049078
+
 #endif /* GLOBALS_OVERRIDE_H */
