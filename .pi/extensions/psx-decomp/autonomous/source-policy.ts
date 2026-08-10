@@ -198,14 +198,25 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
         ? undefined
         : forbiddenLine(text, options.config, scope.name, scope.vram);
       if (violation) findings.push({ kind: violation.kind, file, line: newLine, message: violation.message, text: text.trim() });
-      if (file === "configs/flag_overrides.mk" && /^CC1FLAGS_\S+\s*:?=/.test(text) && !allowlisted(options.config, scope.name, scope.vram, "flag-override")) {
-        findings.push({
-          kind: "flag-override",
-          file,
-          line: newLine,
-          message: "New per-function compiler flag overrides are forbidden",
-          text: text.trim(),
-        });
+      /* A CC1FLAGS_ line names the stem it overrides, so the allowlist lookup
+       * keys on that stem rather than on the patch scope. The scope is empty
+       * whenever the caller audits the repo rather than one function, and
+       * keying on it there reported an allowlisted override as a violation. */
+      const overrideStem = file === "configs/flag_overrides.mk"
+        ? text.match(/^CC1FLAGS_(\S+?)\s*:?=/)?.[1]
+        : undefined;
+      if (overrideStem) {
+        const overrideVram = options.functionVrams?.[overrideStem]
+          ?? (overrideStem === options.functionName ? options.functionVram : undefined);
+        if (!allowlisted(options.config, overrideStem, overrideVram, "flag-override")) {
+          findings.push({
+            kind: "flag-override",
+            file,
+            line: newLine,
+            message: "New per-function compiler flag overrides are forbidden",
+            text: text.trim(),
+          });
+        }
       }
       newLine++;
     } else if (!line.startsWith("-") && !line.startsWith("\\")) {
