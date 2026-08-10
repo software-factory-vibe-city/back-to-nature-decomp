@@ -286,8 +286,8 @@ Evidence: these functions reach the 0x8005E27C–0x8005E3C0 small-data cluster
 GP-relatively, and every other function in the binary reaches the same symbols
 absolutely. Under the ASPSX rule recorded for func_80016C08 (gp-relative only
 for symbols the file itself declares), that makes them one translation unit —
-the one that owns the cluster. The six symbols observed both ways are
-D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4 and D_8005E3C0;
+the one that owns the cluster. The seven symbols observed both ways are
+D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4, D_8005E3BC and D_8005E3C0;
 40+ functions outside this range use the absolute form.
 
 - func_80011370 (m) — game entry / main loop: init sequence then an infinite
