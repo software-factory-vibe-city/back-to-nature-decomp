@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerAnalyzeTargetScheduleTool } from "./tools/analyze-target-schedule.ts";
 import { registerCallGraphTool } from "./tools/call-graph.ts";
 import { registerCompilerTraceTool } from "./tools/compiler-trace.ts";

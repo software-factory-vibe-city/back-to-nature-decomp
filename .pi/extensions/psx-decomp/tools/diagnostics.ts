@@ -8,7 +8,7 @@
  * the registration, so adding a CLI is one entry rather than one file.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type, type TObject } from "typebox";
 import { runProjectCommand, validateFunctionName } from "./shared.ts";
 

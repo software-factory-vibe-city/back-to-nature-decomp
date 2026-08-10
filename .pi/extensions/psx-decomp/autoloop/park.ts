@@ -265,6 +265,32 @@ export function writeSource(projectRoot: string, functionName: string, source: s
   writeFileSync(path, source);
 }
 
+/**
+ * Keep a copy of whatever the loop is about to overwrite.
+ *
+ * The loop replaces `src/<fn>.c` in exactly two places — a rejected policy
+ * exemption and a park — and in both the file on disk may hold the only copy of
+ * an attempt that took a tier an hour to reach. The note and the `#if 0` block
+ * are the intended records, but they are produced by machinery that can itself
+ * fail; this is the copy that does not depend on any of it working. Archives are
+ * written under the runtime directory, which is not tracked, and are never
+ * pruned by the loop.
+ */
+export function archiveSource(
+  runtimeDir: string,
+  functionName: string,
+  source: string,
+  tag: string,
+  at: string,
+): string | undefined {
+  if (!source.trim()) return undefined;
+  const stamp = at.replace(/[:.]/g, "-");
+  const path = join(runtimeDir, "attempts", `${functionName}.${stamp}.${tag}.c`);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, source);
+  return path;
+}
+
 export function noteRelativePath(config: LoopConfig, fileName: string): string {
   return `${config.approvalsDir}/${fileName}`;
 }

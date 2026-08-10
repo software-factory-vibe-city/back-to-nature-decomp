@@ -1,10 +1,11 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getSessionBaseline } from "../tools/session-baseline.ts";
 import { loadLoopConfig } from "./config.ts";
 import { runLoop, summarize, type AbortFlag } from "./loop.ts";
 import { createHandoffSink, registerHandoffTool, setHandoffToolActive } from "./handoff.ts";
 import { createVerdictSink, registerPolicyVerdictTool, setVerdictToolActive } from "./policy-verdict.ts";
 import { readState } from "./state.ts";
+import { createTurnGate, registerTurnGate } from "./turn-gate.ts";
 
 export const LOOP_COMMAND = "auto_decompilation_loop";
 
@@ -46,9 +47,10 @@ export function parseArgs(args: string): ParsedArgs {
  * call a function finished.
  */
 export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string): void {
-  const sink = { verdict: createVerdictSink(), handoff: createHandoffSink() };
+  const sink = { verdict: createVerdictSink(), handoff: createHandoffSink(), gate: createTurnGate() };
   registerPolicyVerdictTool(pi, sink.verdict);
   registerHandoffTool(pi, sink.handoff);
+  registerTurnGate(pi, sink.gate);
 
   let active: AbortFlag | null = null;
 

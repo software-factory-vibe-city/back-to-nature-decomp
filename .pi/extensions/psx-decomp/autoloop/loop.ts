@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import type { PolicyFinding } from "../autonomous/types.ts";
 import { commitMatchedFunction } from "./commit.ts";
 import {
@@ -12,6 +12,7 @@ import {
   type OracleContext,
 } from "./oracles.ts";
 import {
+  archiveSource,
   buildApprovalNote,
   buildApprovedExemptionNote,
   committedSource,
@@ -36,6 +37,7 @@ import {
 } from "./prompts.ts";
 import { isNotesPath, restoreDrift, snapshotFiles } from "./scope-guard.ts";
 import { readState, recordApproval, recordPark, writeState } from "./state.ts";
+import { waitForTurn, type TurnGate } from "./turn-gate.ts";
 import type {
   FunctionOutcome,
   HandoffSummary,
@@ -54,7 +56,13 @@ export interface AbortFlag {
 export interface LoopSinks {
   verdict: VerdictSink;
   handoff: HandoffSink;
+  /** Completed-agent-run counter, half of the loop's proof that a turn happened. */
+  gate: TurnGate;
 }
+
+/** How long a sent message may take to become a running agent turn. */
+const TURN_START_TIMEOUT_MS = 120_000;
+const TURN_POLL_MS = 100;
 
 export interface LoopDeps {
   pi: ExtensionAPI;
@@ -90,13 +98,41 @@ async function applyTier(deps: LoopDeps, tier: LoopTier): Promise<boolean> {
   return true;
 }
 
-/** One agent turn: hand it the message, wait for it to yield. */
+/**
+ * One agent turn: hand it the message, wait for it to be answered.
+ *
+ * Waiting is two-step — see the turn gate — because a send only queues. The
+ * session stays idle for as long as it takes the prompt to start, so an
+ * immediate `waitForIdle()` returns before the agent has read anything. The loop
+ * would then apply the next tier's model to this tier's message, score both
+ * oracles against an untouched file, and walk the whole ladder in seconds,
+ * parking functions no tier ever attempted.
+ */
 async function turn(deps: LoopDeps, message: string): Promise<boolean> {
   await deps.ctx.waitForIdle();
   if (deps.flag.aborted) return false;
+
+  const before = deps.sink.gate.settled;
   deps.pi.sendUserMessage(message);
-  await deps.ctx.waitForIdle();
-  return !deps.flag.aborted;
+
+  const outcome = await waitForTurn({
+    gate: deps.sink.gate,
+    before,
+    isIdle: () => deps.ctx.isIdle(),
+    isAborted: () => deps.flag.aborted,
+    waitForIdle: () => deps.ctx.waitForIdle(),
+    startTimeoutMs: TURN_START_TIMEOUT_MS,
+    pollMs: TURN_POLL_MS,
+    now: () => Date.now(),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  });
+
+  if (outcome === "never-started") {
+    notify(deps, "The agent never picked up the loop's message; stopping rather than scoring an unanswered turn.", "error");
+    deps.flag.aborted = true;
+    return false;
+  }
+  return outcome === "settled" && !deps.flag.aborted;
 }
 
 /**
@@ -266,6 +302,7 @@ async function park(
     lastReport,
     findings,
   };
+  const archived = archiveSource(deps.config.runtimeDir, functionName, attempt, "parked", record.parkedAt);
   const notePath = noteRelativePath(deps.config, `${functionName}.md`);
   const plan = await planPark({
     projectRoot: deps.projectRoot,
@@ -285,6 +322,7 @@ async function park(
   const next = recordPark(deps.config, state, record);
   const preserved = plan.preserved ? "attempt preserved in the source" : "attempt preserved in the note only";
   notify(deps, `Parked ${functionName} (${reason}); ${preserved}; wrote ${notePath}`, "warning");
+  if (archived) notify(deps, `Pre-park source archived at ${archived}`, "info");
   if (!plan.preserved && plan.reasons.length) notify(deps, plan.reasons.join("; "), "info");
   return { state: next, record };
 }
@@ -311,10 +349,13 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
   let lastFindings: PolicyFinding[] = [];
   let handoff: HandoffSummary | undefined;
   let reachedTier = deps.config.ladder[0]?.label ?? "none";
+  /* A park rewrites the source; it is only ever the verdict of tiers that ran. */
+  let tiersRan = 0;
 
   for (let tierIndex = 0; tierIndex < deps.config.ladder.length; tierIndex++) {
     const tier = deps.config.ladder[tierIndex];
     if (!(await applyTier(deps, tier))) continue;
+    tiersRan += 1;
     /* Escalating means a fresh reading of the same evidence, so the new tier
      * starts without the previous tier's conversation. */
     if (tierIndex > 0) await clearContext(deps);
@@ -357,9 +398,18 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
         }
 
         if (review.decision === "reject") {
+          const rejected = readSource(deps.projectRoot, functionName);
+          const archived = archiveSource(
+            deps.config.runtimeDir,
+            functionName,
+            rejected,
+            "rejected",
+            new Date().toISOString(),
+          );
           writeSource(deps.projectRoot, functionName, snapshot);
           lastReport = rejectionReport(functionName, findings, review.rationale);
           notify(deps, `${review.reviewer} rejected the forbidden construct in ${functionName}; reverted`, "warning");
+          if (archived) notify(deps, `Rejected source archived at ${archived}`, "info");
           continue;
         }
 
@@ -405,6 +455,14 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
       handoff = (await captureHandoff(deps, functionName, tier.label)) ?? handoff;
       if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
     }
+  }
+
+  /* Every rung was unreachable — no model, no key. That is an environment fault,
+   * not a verdict on the function, and parking it here would hand back an
+   * INCLUDE_ASM stub in place of work no tier ever looked at. */
+  if (tiersRan === 0) {
+    notify(deps, `No escalation tier was reachable for ${functionName}; left the source untouched.`, "error");
+    return { state: current, outcome: { kind: "aborted", functionName } };
   }
 
   const parked = await park(
@@ -485,8 +543,17 @@ export async function runLoop(deps: LoopDeps, options: LoopOptions = {}): Promis
     }
   } finally {
     writeState(deps.config, state);
-    if (savedModel) await deps.pi.setModel(savedModel);
-    deps.pi.setThinkingLevel(savedThinking);
+    /* Stopping the loop hands the session back to the user mid-turn: the message
+     * they typed is what stopped it, and it is being answered right now by the
+     * tier that was working. Swapping the model out from under that request
+     * would corrupt the turn they are waiting on, so the ladder's tier stays
+     * until the session is idle again. */
+    if (savedModel && deps.ctx.isIdle()) {
+      await deps.pi.setModel(savedModel);
+      deps.pi.setThinkingLevel(savedThinking);
+    } else if (savedModel) {
+      notify(deps, `Loop stopped mid-turn; leaving the active model in place. Restore it with /model ${savedModel.id}.`, "info");
+    }
     setVerdictToolActive(deps.pi, false);
     setHandoffToolActive(deps.pi, false);
     setStatus(deps, undefined);
