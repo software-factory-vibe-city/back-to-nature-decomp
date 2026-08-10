@@ -37,6 +37,7 @@ import {
 } from "./variant-lab/manifest.js";
 import { comparePassSnapshots } from "./variant-lab/pass-diff.js";
 import { generateTransformationVariants } from "./variant-lab/transformations.js";
+import { PASS_STAGES } from "./variant-lab/types.js";
 import type {
   NormalizedInstruction,
   ResolvedVariantHypothesis,
@@ -288,6 +289,76 @@ function rankResults(results: InternalResult[]): InternalResult[] {
   );
 }
 
+/**
+ * Group variants that compiled to identical code, and — when passes were
+ * traced — name the earliest stage at which the group's dumps already agreed.
+ *
+ * A sweep over "different" source spellings is worth one data point per group,
+ * not one per file: two shapes that reach the same RTL are the same experiment
+ * however different they read. Saying so up front is what stops a session from
+ * re-running a null experiment a dozen times in different clothes.
+ */
+function groupByOutcome(results: InternalResult[]): void {
+  const groups = new Map<string, InternalResult[]>();
+  for (const entry of results) {
+    if (entry.result.status === "compile-error") continue;
+    const key = entry.normalized.map((instruction) => instruction.canonical).join("\n");
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(entry);
+    else groups.set(key, [entry]);
+  }
+
+  /* Label by descending size so group A is the one to stop repeating. */
+  const ordered = [...groups.values()].sort((left, right) =>
+    right.length - left.length || left[0]!.result.id.localeCompare(right[0]!.result.id));
+
+  ordered.forEach((members, index) => {
+    const label = String.fromCharCode(65 + (index % 26)) + (index >= 26 ? String(Math.floor(index / 26)) : "");
+    for (const member of members) member.result.outcomeGroup = label;
+    if (members.length < 2) return;
+    const representative = members[0]!;
+    for (const member of members) {
+      if (member === representative || !member.compiled?.passes || !representative.compiled?.passes) continue;
+      for (const stage of PASS_STAGES) {
+        const mine = member.compiled.passes.get(stage);
+        const theirs = representative.compiled.passes.get(stage);
+        if (!mine || !theirs) continue;
+        if (mine.hash === theirs.hash) {
+          member.result.convergedAt = stage;
+          break;
+        }
+      }
+    }
+  });
+}
+
+function renderOutcomeGroups(ranked: InternalResult[]): string[] {
+  const groups = new Map<string, InternalResult[]>();
+  for (const entry of ranked) {
+    const label = entry.result.outcomeGroup;
+    if (!label) continue;
+    const bucket = groups.get(label);
+    if (bucket) bucket.push(entry);
+    else groups.set(label, [entry]);
+  }
+  const compiled = ranked.filter((entry) => entry.result.outcomeGroup).length;
+  if (groups.size === 0 || groups.size === compiled) return [];
+
+  const lines = ["", `Distinct outcomes: ${groups.size} from ${compiled} compiled variant(s).`];
+  for (const [label, members] of [...groups.entries()].sort()) {
+    const first = members[0]!.result;
+    const score = first.exact === undefined ? "-" : `${first.exact}/${first.total}`;
+    const converged = members.map((member) => member.result.convergedAt).find(Boolean);
+    const where = members.length > 1
+      ? converged ? `, identical from .${converged} onward` : ", pass dumps not traced"
+      : "";
+    lines.push(`  ${label} ${score.padEnd(8)} ${members.map((member) => member.result.id).join(", ")}${where}`);
+  }
+  lines.push("  Variants inside one group are the same experiment. To learn anything");
+  lines.push("  new, move an axis that separates the groups — or a different axis.");
+  return lines;
+}
+
 function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: InternalResult[]): string {
   const lines = [
     `Variant laboratory: ${summary.function}`,
@@ -321,6 +392,7 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
       }
     }
   }
+  lines.push(...renderOutcomeGroups(ranked));
   lines.push("", "Verdicts rank predicted mechanism evidence before exact-match count.");
   const promotable = ranked.filter((entry) => entry.result.promotionEligible);
   if (promotable.length > 0) {
@@ -403,6 +475,7 @@ function main(): void {
     targetNormalized,
   });
   classifyAll(results, baseline.id, options.tracePasses, options.cc1Only);
+  groupByOutcome(results);
   const ranked = rankResults(results);
   const summaryBase = {
     schemaVersion: 1 as const,

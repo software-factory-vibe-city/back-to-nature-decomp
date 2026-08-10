@@ -153,6 +153,10 @@ export interface VariantResult {
   total?: number;
   firstDivergence?: string;
   passComparison?: PassComparison;
+  /** Label shared by every variant that compiled to identical code. */
+  outcomeGroup?: string;
+  /** Earliest traced pass whose dump this variant shares with its group. */
+  convergedAt?: PassStage;
   error?: string;
   artifacts: string;
   artifactHashes: Record<string, string>;
