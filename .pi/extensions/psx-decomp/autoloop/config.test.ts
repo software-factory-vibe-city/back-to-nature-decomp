@@ -8,8 +8,8 @@ test("the default ladder escalates local -> openrouter -> codex with the configu
     DEFAULT_LADDER.map((tier) => `${tier.provider}/${tier.model}:${tier.thinking}`),
     [
       "qwen36-llama/qwen3.6-27b:medium",
-      "openrouter/deepseek/deepseek-v4-flash-0731:high",
-      "openrouter/moonshotai/kimi-k3:high",
+      "openrouter/deepseek/deepseek-v4-flash-0731:xhigh",
+      // "openrouter/moonshotai/kimi-k3:high",
       "openai-codex/gpt-5.6-sol:xhigh",
     ],
   );

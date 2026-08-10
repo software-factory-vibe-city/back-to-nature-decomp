@@ -15,8 +15,8 @@ const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "hi
  */
 export const DEFAULT_LADDER: LoopTier[] = [
   { provider: "qwen36-llama", model: "qwen3.6-27b", thinking: "medium", label: "qwen3.6-27b (local)" },
-  { provider: "openrouter", model: "deepseek/deepseek-v4-flash-0731", thinking: "high", label: "deepseek-v4-flash" },
-  { provider: "openrouter", model: "moonshotai/kimi-k3", thinking: "high", label: "kimi-k3" },
+  { provider: "openrouter", model: "deepseek/deepseek-v4-flash-0731", thinking: "xhigh", label: "deepseek-v4-flash" },
+  // { provider: "openrouter", model: "moonshotai/kimi-k3", thinking: "high", label: "kimi-k3" },
   { provider: "openai-codex", model: "gpt-5.6-sol", thinking: "xhigh", label: "gpt-5.6-sol" },
 ];
 
