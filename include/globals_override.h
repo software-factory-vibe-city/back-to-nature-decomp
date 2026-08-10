@@ -324,4 +324,10 @@ extern s32 D_8005E58C;
 /* D_8005E594 — GP-relative s32 (func_80021CD8 reads via lw %gp_rel). */
 extern s32 D_8005E594;
 
+/* D_8005E53C — GP-relative s32, sound initialization flag (func_80020818). */
+extern s32 D_8005E53C;
+
+/* D_8005E55C — GP-relative s32, stereo/mono flag (func_80020818, func_80020A14, func_80020A40). */
+extern s32 D_8005E55C;
+
 #endif /* GLOBALS_OVERRIDE_H */
