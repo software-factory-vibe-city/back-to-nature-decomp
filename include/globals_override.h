@@ -250,14 +250,16 @@ extern s32 D_8005E328;
 extern s32 _D_800100A0[3] __asm__("D_800100A0");
 #define D_800100A0 ((char*)_D_800100A0)
 
-/* D_8005E9C8, D_8005EA18 - pad state buffers accessed with absolute addressing
- * (lui+addiu). Array size 3 forces >8-byte declaration to avoid GP-relative
- * small-data addressing under -G8. Evidence: func_80014064 target uses
- * lui/addiu for both symbols, not %gp_rel. */
+/* D_8005E9C8 - pad state buffer. Its aggregate declaration is wider than
+ * -G8, preserving split address formation in func_80014064. */
 extern s32 _D_8005E9C8[3] __asm__("D_8005E9C8");
 #define D_8005E9C8 (*((s32*)_D_8005E9C8))
-extern s32 _D_8005EA18[3] __asm__("D_8005EA18");
-#define D_8005EA18 (*((s32*)_D_8005EA18))
+
+/* Two eight-byte PadSetAct actuator tables: func_80014064 hands &D_8005EA18
+ * to port 0 and &D_8005EA18 + 8 to port 0x10, and func_80014494 indexes them
+ * by port. The 16-byte aggregate is wider than -G8, so it is addressed
+ * absolutely (lui + %lo) rather than GP-relatively. */
+extern u8 D_8005EA18[2][8];
 
 /* Pad port IDs copied by func_800140C8. The incomplete aggregate type keeps
  * the object out of small data and preserves the two-byte object copy. */

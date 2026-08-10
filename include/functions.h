@@ -260,6 +260,7 @@ void func_80013B04(void);
 void func_80013F90(Struct80013F90 *arg0);
 void func_80014064(void);
 s32 func_800140C8(s32 arg0);
+void func_80014494(s32 arg0, s32 arg1, s32 arg2);
 s32 func_80014554(s32 arg0, s32 arg1);
 s32 func_80014CB0(void);
 TILE_1 * func_8001526C(TILE_1 *p, u_long *ot, s16 x0, s16 y0, s32 color, s16 cond);

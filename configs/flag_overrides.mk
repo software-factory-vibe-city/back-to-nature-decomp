@@ -52,3 +52,28 @@
 # it extern and gets absolute addressing (ADR-0001 §2.4). Both functions match
 # under baseline flags.
 # `make check` passes with no per-file compiler flag overrides in the project.
+
+# func_80014494: -fno-cse-skip-blocks.
+#
+# Fingerprint (decoded from the original bytes, no source needed): at
+# 0x800144F4 the join block of the inner `if` re-forms the address of
+# D_8005EA18 with `addiu $v0,$t2,%lo(D_8005EA18)` from the CSE-shared %hi in
+# $t2, even though the dominating block at 0x800144C4 already materialised
+# the very same symbol address in $v0 and no call or clobber sits between
+# them. Under -fcse-skip-blocks CSE follows the `beqz` around the one-block
+# if-body (cse.c cse_end_of_basic_block, "detect a branch around a block of
+# code") and carries that pseudo into the join, so the lo_sum there is
+# always folded away — the target's re-materialised lo_sum is unreachable
+# from any C shape at baseline. The same block reuses the dominating block's
+# `sll` result in $a0, so the target is not merely CSE-starved: it is CSE
+# with the skipped-block path switched off.
+#
+# Flag column: -fno-cse-skip-blocks takes the natural array-form source from
+# 47 instructions / 13-of-48 to a byte-exact 48/48 MATCH; baseline cannot
+# reach it (verified over 21 source shapes covering pointer-increment,
+# two-pointer, row-pointer, offset-local and cast address families).
+#
+# No contrary regional witness: the other matched members of the
+# 0x80013B04-0x80014554 pad group still match byte-for-byte with this flag
+# applied (checked 2026-08-09).
+CC1FLAGS_func_80014494 := -fno-cse-skip-blocks

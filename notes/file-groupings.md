@@ -31,23 +31,6 @@ in its campaign note. Keep this file readable as a map.
 
 ---
 
-## "area/calc-80014250" — 0x80014250–0x80014384 (confidence: medium)
-
-Distance/centre dead-zone calc: caller 80014250 → 800142D8 (csqrt).
-
-Fingerprints:
-- call graph: 80014250 calls 800142D8; 800142D8 calls csqrt.
-- address adjacency: 80014250 and 800142D8 are adjacent in the address space
-  (0x80014250–0x800142D4 and 0x800142D8–0x80014384).
-- shared idiom: both use csqrt and fixed-point arithmetic.
-
-Members (address order):
-- 0x80014250 func_80014250 (s) — likely driver, calls func_800142D8
-- 0x800142D8 func_800142D8 (s) — match, under an allowlisted embedded-asm
-  exception for one delay slot (notes/retros/2026-08-09-func_800142D8-retro.md)
-
----
-
 ## "collision.c" — 0x8001E334–0x8001EFA4 (confidence: high)
 
 Floor/surface collision subsystem: walkmesh quads split into triangle
@@ -161,22 +144,41 @@ caller. Handlers stored in D_800559C4 are unidentified — resolving them
 would extend the group.
 Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 
-## pad initialization and state — 0x80013B04–0x80014388 (confidence: medium)
+## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
 
-Pad setup, per-port state polling, and decoded controller input.
+Pad setup, per-port state polling, decoded controller input, analog-stick
+normalization, and pad-helper sequence.
 Fingerprints: func_80014064 initializes D_8005E9C8 through PadInitDirect;
 adjacent func_8001413C reads the same buffer and calls func_80014388;
 func_800140C8 is between them, calls PadGetState/PadSetActAlign, and its sole
 caller func_80013B04 also calls adjacent func_80013F90 while processing pad
-state.
-Members: func_80013B04 (s) — pad-state driver; func_80013F90 (m) — clears a
-per-port state object; func_80014064 (m) — initializes pad buffers and starts
-communication; func_800140C8 (m) — polls one port and aligns its actuators;
-func_8001413C (s) — decodes one D_8005E9C8 port record; func_80014388 (s) —
-input decoder called by func_8001413C.
+state. func_80013CD0 drives the other two internal chains: func_80013FC0 calls
+func_8001413C, while func_80014250 calls func_800142D8 to turn byte coordinates
+centered on 0x80 into a dead-zone/clamped stick magnitude. func_80013CD0 also
+calls func_80014494, which shares GP-relative D_8005E3E8/D_8005E3EC with
+func_80013B04/func_80014064 and writes D_8005EA18 (pad actuator buffer).
+Members: func_80013B04 (m) — pad-state driver; func_80013CD0 (s) — per-pad
+processing driver; func_80013F90 (m) — clears a per-port state object;
+func_80013FC0 (s) — calls the decoded-input path; func_80014064 (m) —
+initializes pad buffers and starts communication; func_800140C8 (m) — polls one
+port and aligns its actuators; func_8001413C (s) — decodes one D_8005E9C8 port
+record; func_80014250 (s) — analog-stick normalization driver;
+func_800142D8 (m) — center/dead-zone magnitude helper, matched under an
+allowlisted three-instruction embedded-asm exception for one delay-slot choice;
+func_80014388 (s) — input decoder called by func_8001413C; func_80014494 (m) —
+writes one port's PadSetAct actuator table, matched under an allowlisted
+-fno-cse-skip-blocks override.
+
+Per-TU flag: func_80014494 needs `-fno-cse-skip-blocks`. Expect it on the
+group's other members — all six matched members (func_80013B04, func_80013F90,
+func_80014064, func_800140C8, func_800142D8, func_80014554) were re-checked
+with the flag applied on 2026-08-09 and still match byte-for-byte, so it is
+consistent with the whole group rather than a single-file workaround.
 
 References: notes/research/func_800140C8-aggregate-copy.md;
-notes/retros/2026-08-07-func_800140C8-retro.md.
+notes/retros/2026-08-07-func_800140C8-retro.md;
+notes/retros/2026-08-09-func_800142D8-retro.md;
+notes/retros/2026-08-09-func_80014494-retro.md.
 
 ## GPU primitive packet initializers — 0x8001526C–0x80015594 (confidence: high)
 
