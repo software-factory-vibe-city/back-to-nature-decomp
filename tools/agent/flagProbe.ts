@@ -59,6 +59,13 @@ const FLAG_MATRIX: [string, string][] = [
   ["-fno-gcse -fno-schedule-insns{,2}", "-fno-gcse -fno-schedule-insns -fno-schedule-insns2"],
   ["-fno-rerun-cse-after-loop", "-fno-rerun-cse-after-loop"],
   ["-mno-split-addresses", "-mno-split-addresses"],
+  /* CSE path exploration. -O2 turns both on. They decide whether CSE carries
+   * values across a branch into a block it does not straight-line dominate,
+   * which is what makes an address or index re-materialise in a join block
+   * instead of being folded to a register the dominator already holds. */
+  ["-fno-cse-follow-jumps", "-fno-cse-follow-jumps"],
+  ["-fno-cse-skip-blocks", "-fno-cse-skip-blocks"],
+  ["-fno-cse-follow-jumps -fno-cse-skip-blocks", "-fno-cse-follow-jumps -fno-cse-skip-blocks"],
 ];
 
 function run(cmd: string): string {
@@ -181,9 +188,9 @@ function assembleTargetInstrs(name: string): string[] | null {
   return maskedInstrs(run(`${CROSS}objdump -d --no-show-raw-insn ${dir}/${name}.target.o`));
 }
 
-function compileScore(name: string, extraFlags: string, target: string[]): string {
+function compileScore(name: string, extraFlags: string, target: string[], sourcePath?: string): string {
   const dir = "build/flagProbe";
-  const src = `src/${name}.c`;
+  const src = sourcePath ?? `src/${name}.c`;
   try {
     run(`${CROSS}cpp ${CPPFLAGS} ${src} -o ${dir}/${name}.i`);
     run(`${CC} ${CC1FLAGS} ${extraFlags} ${dir}/${name}.i -o ${dir}/${name}.s`);
@@ -218,7 +225,10 @@ function nearbyOverrides(vram: number): string[] {
 /* ---- main ---- */
 
 const name = process.argv[2];
-if (!name) { console.error("Usage: npx tsx tools/agent/flagProbe.ts <func_name>"); process.exit(1); }
+if (!name || name.startsWith("--")) {
+  console.error("Usage: npx tsx tools/agent/flagProbe.ts <func_name> [--with-source <file>]...");
+  process.exit(1);
+}
 const info = getFuncInfo(name);
 if (!info || !info.size) { console.error(`${name} not found in configs/splat.yaml`); process.exit(1); }
 
@@ -228,7 +238,15 @@ const words = targetWords(info);
 const f1 = fingerprintBottomIncrement(words);
 const f2 = fingerprintSelfClobberLoads(words);
 console.log("Target structural fingerprints (from original bytes):");
-if (f1.length === 0 && f2.length === 0) console.log("  none detected");
+if (f1.length === 0 && f2.length === 0) {
+  console.log("  none detected");
+  console.log("  Two detectors exist (nested-loop bottom increment; symbolic");
+  console.log("  lui/lw self-clobber). They are the shapes someone has encoded, not");
+  console.log("  the shapes that exist, so silence here is NOT evidence that flags");
+  console.log("  are irrelevant. Read the matrix below on its own merits, and treat a");
+  console.log("  property you have proven unreachable from any C shape as a");
+  console.log("  fingerprint in its own right — that proof is what the bar is for.");
+}
 for (const h of f1) console.log(`  [PRE-fatal shape] ${h}`);
 for (const h of f2) console.log(`  [self-clobber shape] ${h}`);
 if (f1.length) {
@@ -255,13 +273,37 @@ console.log("\nNearby/existing flag overrides:");
 const near = nearbyOverrides(info.vram);
 console.log(near.length ? near.join("\n") : "  none");
 
+const extraSources: string[] = [];
+for (let index = 3; index < process.argv.length; index++) {
+  if (process.argv[index] !== "--with-source") continue;
+  const value = process.argv[++index];
+  if (!value) { console.error("--with-source requires a path"); process.exit(1); }
+  extraSources.push(value);
+}
+
 const srcPath = join(ROOT, `src/${name}.c`);
 if (existsSync(srcPath)) {
   const target = assembleTargetInstrs(name);
   if (target) {
-    console.log("\nFlag matrix on current src (masked scores; bytes still decide):");
-    for (const [label, flags] of FLAG_MATRIX) {
-      console.log(`  ${label.padEnd(36)} ${compileScore(name, flags, target)}`);
+    /* The matrix is one slice through a two-dimensional space: a flag can only
+     * pay off on the source shape it was meant for, and the shape that needs
+     * it usually scores WORSE than the incumbent until the flag is applied.
+     * Scoring the matrix against candidate shapes as well as the current one
+     * is what keeps a winning pair from being ranked away one axis at a time. */
+    const sources: Array<[string, string | undefined]> = [
+      ["current src", undefined],
+      ...extraSources.map((path) => [path, path] as [string, string]),
+    ];
+    for (const [label, path] of sources) {
+      console.log(`\nFlag matrix on ${label} (masked scores; bytes still decide):`);
+      for (const [flagLabel, flags] of FLAG_MATRIX) {
+        console.log(`  ${flagLabel.padEnd(42)} ${compileScore(name, flags, target, path)}`);
+      }
+    }
+    if (extraSources.length === 0) {
+      console.log("\n  Only the current source was scored. If a shape you rejected on score");
+      console.log("  is still mechanically plausible, re-run with --with-source <file> for");
+      console.log("  each: the flag that matters may be the one that only pays off there.");
     }
   } else {
     console.log("\n(no nonmatchings asm for masked scoring; skipping flag matrix)");
