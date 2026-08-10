@@ -31,6 +31,23 @@ in its campaign note. Keep this file readable as a map.
 
 ---
 
+## "area/calc-80014250" — 0x80014250–0x80014384 (confidence: medium)
+
+Distance/centre dead-zone calc: caller 80014250 → 800142D8 (csqrt).
+
+Fingerprints:
+- call graph: 80014250 calls 800142D8; 800142D8 calls csqrt.
+- address adjacency: 80014250 and 800142D8 are adjacent in the address space
+  (0x80014250–0x800142D4 and 0x800142D8–0x80014384).
+- shared idiom: both use csqrt and fixed-point arithmetic.
+
+Members (address order):
+- 0x80014250 func_80014250 (s) — likely driver, calls func_800142D8
+- 0x800142D8 func_800142D8 (s) — match, under an allowlisted embedded-asm
+  exception for one delay slot (notes/retros/2026-08-09-func_800142D8-retro.md)
+
+---
+
 ## "collision.c" — 0x8001E334–0x8001EFA4 (confidence: high)
 
 Floor/surface collision subsystem: walkmesh quads split into triangle

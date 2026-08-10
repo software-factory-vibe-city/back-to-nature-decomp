@@ -656,7 +656,8 @@ function detectAsmPolicy(name: string, srcText: string): Finding[] {
   const stripped = srcText.replace(/\/\*[\s\S]*?\*\//g, " ");
   const asmLines = stripped
     .split("\n")
-    .filter((line) => /\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/.test(line));
+    /* `__volatile__` too — the C89 spelling this project's sources use. */
+    .filter((line) => /\b(?:__asm__|__asm|asm)\s*(?:(?:__)?volatile(?:__)?\s*)?\(/.test(line));
   if (asmLines.length === 0) return [];
 
   const findings: Finding[] = [];
@@ -743,10 +744,15 @@ function detectDeadAsm(compiled: CompiledFacts, srcText: string): Finding[] {
     let readBeforeClobber = false;
     for (const line of block.after) {
       if (new RegExp(`\\$${reg}\\b`).test(line)) {
-        /* A read counts only if the register is a source operand. */
+        /* A read counts only if the register is a source operand — except on a
+         * branch, whose first operand is compared, not written. Reading it as a
+         * destination reports a live value as dead. */
+        const mnemonic = (line.trim().match(/^[a-z][a-z0-9.]*/) ?? [""])[0];
+        const isBranch = BRANCH_MNEMONICS.has(mnemonic);
         const operands = line.replace(/^\s*[a-z]+[a-z0-9.]*\s+/, "").split(",").map((o) => o.trim());
-        if (operands.slice(1).some((o) => o.includes(`$${reg}`))) { readBeforeClobber = true; break; }
-        if (operands[0] === `$${reg}`) break; /* redefined without being read */
+        const sources = isBranch ? operands : operands.slice(1);
+        if (sources.some((o) => o.includes(`$${reg}`))) { readBeforeClobber = true; break; }
+        if (!isBranch && operands[0] === `$${reg}`) break; /* redefined without being read */
       }
       if (/^\s*jal\b/.test(line)) break; /* call clobbers it */
     }

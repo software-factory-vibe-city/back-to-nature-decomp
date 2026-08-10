@@ -485,6 +485,8 @@ which these matching lessons were distilled.
 | Locality test: one block, one death | A variable set in two blocks is a global allocno; its register is chosen by conflicts with overlapping locals' hard registers (via `reg_renumber`), not by the local priority tie |
 | Pre-allocation scheduler works backward | Independent source statements do not necessarily retain source order |
 | Legacy scheduler ties use priority, last-scheduled dependency class, then LUID | Separate birth-priority changes from block-local source/RTL birth-order changes |
+| A newly-ready insn is boosted only when its destination is assigned exactly once function-wide | Reusing one variable for two unrelated values silently removes that boost and reorders independent statements. When two independent initializers come out in the wrong order and their computed priorities tie, split the reused variable before touching statement order |
+| A register copy is rewritten and eliminated when the immediately preceding insn defines its source | A copy the target keeps must not directly follow the statement that produced its source; an intervening statement is load-bearing |
 | Distinct symbol bases may not alias | Stores through independently proven bases can reorder freely |
 | Post-allocation scheduling sees hard-register hazards | A scheduling mismatch can be downstream of the wrong register allocation |
 | CSE commutative constant-second rule | Source operand swaps can be no-ops; change the web/address family |

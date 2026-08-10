@@ -30,6 +30,44 @@ test("rejects register pinning, embedded assembly, and stubs", () => {
   assert.deepEqual(new Set(result.hardFailures.map((finding) => finding.kind)), new Set(["register-asm", "embedded-asm", "include-asm"]));
 });
 
+test("catches embedded asm written with the reserved __volatile__ spelling", () => {
+  const { root, config } = fixture(`void target(void) {\n    __asm__ __volatile__(\"nop\");\n}\n`);
+  const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", scanFunctions: ["target"] });
+  assert.equal(result.pass, false);
+  assert(result.hardFailures.some((finding) => finding.kind === "embedded-asm"));
+});
+
+test("a patch-added line is judged against its own file's allowlist entry", () => {
+  const { root, config } = fixture("void target(void) {\n    __asm__(\"nop\");\n}\n");
+  config.sourcePolicy.allowlist["target"] = ["embedded-asm"];
+  const patch = [
+    "--- a/src/target.c",
+    "+++ b/src/target.c",
+    "@@ -1,0 +2,1 @@",
+    '+    __asm__("nop");',
+  ].join("\n");
+  /* Repo-wide sweep: no top-level functionName, so the allowlist can only be
+   * reached by attributing the line to src/target.c. */
+  const allowlisted = checkSourcePolicy({ projectRoot: root, config, scanFunctions: ["target"], patch });
+  assert.equal(allowlisted.pass, true);
+
+  delete config.sourcePolicy.allowlist["target"];
+  const bare = checkSourcePolicy({ projectRoot: root, config, scanFunctions: ["target"], patch });
+  assert(bare.hardFailures.some((finding) => finding.kind === "embedded-asm"));
+});
+
+test("a note quoting embedded asm is documentation, not a violation", () => {
+  const { root, config } = fixture("void target(void) {}\n");
+  const patch = [
+    "--- a/notes/retros/example.md",
+    "+++ b/notes/retros/example.md",
+    "@@ -1,0 +2,1 @@",
+    '+    __asm__ __volatile__("nop");',
+  ].join("\n");
+  const result = checkSourcePolicy({ projectRoot: root, config, scanFunctions: ["target"], patch });
+  assert.equal(result.pass, true);
+});
+
 test("classifies a pin written without underscores as register pinning, not embedded asm", () => {
   const { root, config } = fixture(`void target(void) {\n    register int x asm(\"v0\");\n}\n`);
   const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", scanFunctions: ["target"] });

@@ -60,9 +60,11 @@ function forbiddenLine(
   if (/\bregister\b[^;\n]*\b(?:__asm__|__asm|asm)\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, "register-asm")) {
     return { kind: "register-asm", message: "Hard-register pinning is forbidden" };
   }
-  if (/\b(?:__asm__|__asm|asm)\s*(?:volatile\s*)?\(/.test(line)) {
+  /* `__volatile__` is the reserved spelling this project's C89 sources use;
+   * matching only `volatile` let embedded asm through the gate unseen. */
+  if (/\b(?:__asm__|__asm|asm)\s*(?:(?:__)?volatile(?:__)?\s*)?\(/.test(line)) {
     if (asmLabel(line)) return undefined;
-    const compact = line.replace(/\s+/g, "");
+    const compact = line.replace(/\s+/g, "").replace(/__volatile__/g, "volatile");
     const emptyMemoryBarrier = compact.includes('__asm__volatile("":::"memory")') || compact.includes('__asm__("":::"memory")');
     if (emptyMemoryBarrier && config.sourcePolicy.allowEmptyMemoryBarrier) return undefined;
     if (!allowlisted(config, functionName, functionVram, "embedded-asm")) {
@@ -143,15 +145,44 @@ function scanSourceFile(options: PolicyOptions, file: string, findings: PolicyFi
   }
 }
 
+/**
+ * Attribute an added line to the function whose file it is in. Using the single
+ * top-level `functionName` attributes every file to one function, and in a
+ * repo-wide sweep that name is `undefined` — so no allowlist entry could ever
+ * apply to a patch-added line, and an allowlisted construct failed the gate the
+ * first time its own file was touched.
+ */
+/**
+ * Only compiled translation units carry the construct ban: `src/**.c` and the
+ * headers they include (where the narrow asm-label exception lives). A note or
+ * a retro quoting `__asm__` is documentation — policing it would make the
+ * repository unable to write down the very thing the policy is about.
+ */
+function policesConstructs(file: string): boolean {
+  const path = normalizedPath(file);
+  return /^src\/.*\.c$/.test(path) || /^include\/.*\.h$/.test(path);
+}
+
+function patchScope(options: PolicyOptions, file: string): { name?: string; vram?: string } {
+  const match = normalizedPath(file).match(/^src\/(.+)\.c$/);
+  const name = match ? match[1] : options.functionName;
+  if (!name) return {};
+  const vram = options.functionVrams?.[name]
+    ?? (name === options.functionName ? options.functionVram : undefined);
+  return { name, vram };
+}
+
 function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
   if (!options.patch) return [];
   const findings: PolicyFinding[] = [];
   let file = "";
+  let scope: { name?: string; vram?: string } = {};
   let newLine = 0;
   for (const line of options.patch.split("\n")) {
     const fileMatch = line.match(/^\+\+\+ b\/(.+)$/);
     if (fileMatch) {
       file = fileMatch[1];
+      scope = patchScope(options, file);
       continue;
     }
     const hunk = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)/);
@@ -163,9 +194,11 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
       const text = line.slice(1);
       const trimmed = text.trim();
       const commentOnly = trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("//");
-      const violation = commentOnly ? undefined : forbiddenLine(text, options.config, options.functionName, options.functionVram);
+      const violation = commentOnly || !policesConstructs(file)
+        ? undefined
+        : forbiddenLine(text, options.config, scope.name, scope.vram);
       if (violation) findings.push({ kind: violation.kind, file, line: newLine, message: violation.message, text: text.trim() });
-      if (file === "configs/flag_overrides.mk" && /^CC1FLAGS_\S+\s*:?=/.test(text) && !allowlisted(options.config, options.functionName, options.functionVram, "flag-override")) {
+      if (file === "configs/flag_overrides.mk" && /^CC1FLAGS_\S+\s*:?=/.test(text) && !allowlisted(options.config, scope.name, scope.vram, "flag-override")) {
         findings.push({
           kind: "flag-override",
           file,
