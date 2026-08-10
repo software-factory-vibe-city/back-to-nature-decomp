@@ -106,7 +106,7 @@ the collision cluster (checked 2026-07-31), so the file boundary likely
 falls between func_8001E26C and SetVal8005E51C. No positive grouping
 evidence yet — recorded to mark the boundary question.
 Members: func_8001E04C (s), func_8001E088 (s), func_8001E0B8 (s),
-func_8001E158 (m), func_8001E160 (s), func_8001E26C (s).
+func_8001E158 (m), func_8001E160 (m), func_8001E26C (s).
 
 ## unknown group B — around 0x80022738–0x80022F1C (confidence: low)
 
