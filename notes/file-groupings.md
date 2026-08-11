@@ -63,16 +63,21 @@ Members (address order):
 References: notes/research/func_8001E878-dead-spill-allocation.md §9,
 notes/research/func_8001E9F8.md.
 
-## projected primitive clipping — 0x8001C37C–0x8001D348 (confidence: medium)
+## projected primitive clipping — 0x8001C0D4–0x8001D348 (confidence: medium)
 
 GTE-projected triangle/quad rendering and screen-X rejection. Fingerprints:
 func_8001C37C directly calls both adjacent bounds helpers four times each;
 both helpers consume packed GTE SXY words loaded from primitive X/Y pairs and
 test the signed low-half X coordinate against the same screen interval.
-Members: func_8001C37C (s) — projected primitive renderer/caller;
-HasTriangleVertexXInBounds (m) — three-vertex X bounds helper;
-func_8001D2D8 (?) — four-vertex X bounds helper. func_8001D348 is the first
-following function and may mark the next TU; membership unverified.
+Members: func_8001C0D4 (s) — GTE camera/view driver (PushMatrix/PopMatrix),
+sole caller of both func_8001C1C0 and func_8001C37C, plus func_8001D348/
+func_8001D6B8; func_8001C1C0 (m) — camera-to-point direction via
+VectorNormalSS tested against 4 planes, read by sole caller func_8001C0D4
+(address-adjacent, shares the GTE vector idiom; owns D_80061EC8 camera +
+D_80061EA8 plane coefficients); func_8001C37C (s) — projected primitive
+renderer/caller; HasTriangleVertexXInBounds (m) — three-vertex X bounds
+helper; func_8001D2D8 (?) — four-vertex X bounds helper. func_8001D348 is
+the first following function and may mark the next TU; membership unverified.
 
 ## u16 string library — 0x80017D9C–0x80017F30 (confidence: medium)
 

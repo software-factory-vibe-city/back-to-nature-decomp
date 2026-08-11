@@ -386,4 +386,15 @@ typedef s32 (*FuncPtr_80049078)(s32);
 extern FuncPtr_80049078 _D_80049078[3] __asm__("D_80049078");
 #define D_80049078 _D_80049078
 
+/* D_80061EC8 — camera/reference position as s32[3], accessed with absolute
+ * addressing (lui+lw). func_8001C1C0 reads all three elements. */
+extern s32 _D_80061EC8[3] __asm__("D_80061EC8");
+#define D_80061EC8 (_D_80061EC8)
+
+/* D_80061EA8 — array of plane coefficients (s16), accessed with absolute
+ * addressing (lui+lh). func_8001C1C0 reads 12 elements (4 planes × 3 components).
+ * Array size 12 ensures >8 bytes for absolute addressing under -G8. */
+extern s16 _D_80061EA8[12] __asm__("D_80061EA8");
+#define D_80061EA8 (_D_80061EA8)
+
 #endif /* GLOBALS_OVERRIDE_H */
