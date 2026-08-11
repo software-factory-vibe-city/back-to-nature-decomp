@@ -88,6 +88,12 @@ typedef struct {
 
 extern CDLocTableEntry D_80048B1C[];
 
+/* D_80048B40 - view of the .loc fields of D_80048B1C as a flat s32 array.
+ * Address 0x80048B40 = 0x80048B1C + 0x24 (offset of .loc within entry).
+ * func_800145F0 accesses this with lui+addiu base (no extra offset addiu),
+ * then indexes by arg*0x28. Array size forces >8 bytes for absolute addressing. */
+extern s32 D_80048B40[4];
+
 /* D_80049050 - array used by func_80017A70
  * Array size of 5 ensures >8 byte declaration for absolute addressing (lui+addiu) */
 extern u16 D_80049050[5];
