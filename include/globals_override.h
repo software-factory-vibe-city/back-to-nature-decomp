@@ -78,6 +78,16 @@ extern s16 D_80055988[5];
  * Array size of 6 ensures >8 byte declaration for absolute addressing (lui+addiu) */
 extern u16 D_80049044[6];
 
+/* D_80048B1C - table of 0x28-byte entries (CD file table). func_80014854
+ * reads the s32 at offset 0x24 (last s32) of entry [arg] as a CD position.
+ * Byte stride 0x28 = 40, absolute-addressed (owned elsewhere). */
+typedef struct {
+    char name[0x24];    /* 0x00-0x23 - filename / padding */
+    u32 loc;            /* 0x24 - CD position, logical >> */
+} CDLocTableEntry;      /* 0x28 */
+
+extern CDLocTableEntry D_80048B1C[];
+
 /* D_80049050 - array used by func_80017A70
  * Array size of 5 ensures >8 byte declaration for absolute addressing (lui+addiu) */
 extern u16 D_80049050[5];
