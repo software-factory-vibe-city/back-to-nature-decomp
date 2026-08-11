@@ -395,9 +395,10 @@ Members (address order):
   D_8005E3F0/F8/FC, D_8005E400/04/08/0C, D_8005E428/30 (defines all ten); reads
   the absolute-addressed CD file table D_80048B1C (entry stride 0x28, loc at 0x24,
   owned elsewhere); called by func_80014B44
-- func_80014988 (s) — general-purpose CD loader: D_8005E410, D_8005E418,
-  D_8005E41C, D_8005E420 plus shared cluster; called by sound system
-  (func_80020E58, func_800214FC, func_80021668)
+- func_80014988 (m) — general-purpose CD loader: owns the gp-rel cluster
+  D_8005E3F0, D_8005E410, D_8005E414, D_8005E418, D_8005E41C, D_8005E420,
+  D_8005E428, D_8005E430 (shares D_8005E428/E430 with the family); called by
+  sound system (func_80020E58, func_800214FC, func_80021668)
 - func_80014B44 (s) — boot CD loader: D_8005E2B0, D_8005E3F8, D_8005E3FC,
   D_8005E400, D_8005E40C; calls func_80014854; called by __start (its globals are
   a subset of func_80014854's TU-owned cluster ⇒ likely same TU)
