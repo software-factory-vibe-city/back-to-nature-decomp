@@ -305,10 +305,19 @@ extern s32 D_8005E2A4[2];
 extern s16 D_8005E3E8[2];
 
 /* D_8005E5E8 — double-buffered DRAWENV/DISPENV pair (func_80011370).
- * Accessed at offsets 0x0..0x19A via absolute lui/addiu base in $s0.
- * Array size forces >8-byte declaration for absolute addressing under -G8. */
-extern s32 _D_8005E5E8[104] __asm__("D_8005E5E8");
-#define D_8005E5E8 (*((s32*)_D_8005E5E8))
+ * Accessed at offsets 0x0..0x19A via absolute lui/addiu base (2*0x134 bytes
+ * > -G8, so cc1 emits the split absolute lui/addiu address form).
+ * Declared as env_struct_0x134[2] so element indexing stays a true ARRAY_REF:
+ * expand_expr's get_inner_reference builds the element address base-first
+ * (plus(base,offset)), which is what func_800128DC's addu base+offset with the
+ * result in the base register needs. The three users only take &D_8005E5E8, so
+ * the type change is address-neutral for them. */
+typedef struct {
+    char pad_0[0x130];
+    void *field_130;
+} env_struct_0x134;
+
+extern env_struct_0x134 D_8005E5E8[2];
 
 /* D_8005E5D8 — pointer toggled between two buffer bases (func_80011370).
  * Target uses absolute lui/lw addressing. Array size forces >8 bytes. */
