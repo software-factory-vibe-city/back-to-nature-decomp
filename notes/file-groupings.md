@@ -113,6 +113,15 @@ evidence yet — recorded to mark the boundary question.
 Members: func_8001E04C (s), func_8001E088 (s), func_8001E0B8 (s),
 func_8001E158 (m), func_8001E160 (m), func_8001E26C (s).
 
+Negative membership evidence for the boot TU (2026-08-11): func_8001E160
+initialises the same D_8005E5E8[2] render contexts as the boot TU's
+func_80012598 — its whole body is the same source as that function's second
+loop — but it reaches D_8005E3B0 *absolutely* (`lui`/`lw %lo`) where
+func_80012598 reaches it GP-relatively. Under the ASPSX rule that makes them
+different translation units, so this is duplicated source across files, not
+shared membership. Practical value: E160 is the proven idiom (and partial
+body) for anyone working func_80012598 or its neighbours.
+
 ## unknown group B — around 0x80022738–0x80022F1C (confidence: low)
 
 Game-state/flags readers over the D_8006C838 struct array.
@@ -301,12 +310,33 @@ D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4, D_8005E3BC and D_800
 - func_80011C24 (s) — called at the bottom of the main loop every iteration
 - func_80011DB0 (s), func_80011F5C (s), func_80011FD8 (s) — share D_8005E3C0
   and D_8005E3B4
-- func_8001202C (s), func_80012098 (s), func_8001231C (s), func_80012598 (s) —
-  share D_8005E3B0
+- func_8001202C (s), func_80012098 (s), func_8001231C (s) — share D_8005E3B0
+- func_80012598 (m) — graphics-heap carve and double-buffer/ordering-table
+  init over D_8005E5E8[2]; owns D_8005E3B0/B8/BC gp-relatively. Its second
+  loop is the same source as func_8001E160 in another TU (see "unknown
+  group A"). notes/research/func_80012598.md
+- func_8001231C (s) — the second-configuration twin of func_80012598: same
+  0x40 frame, same memset(0x801BE1B0, 0, 0x3EE50) carve, and a first loop with
+  an identical 21-web store partition. Differs only in the 0x801F7000 /
+  0x2EE0 constants and in calling func_8001E160 where func_80012598 inlines it.
+  Parked with a ready recipe: notes/research/func_8001231C.md
 - func_800120C8 (s) — touches the widest set of the cluster; called from
   func_80011370's init
 - func_800121D4 (s), func_800128DC (s) — share D_8005E3C0; func_800128DC is
   called from the main loop and from several switch cases
+
+Render-context sub-family (evidence: the pool constants, 2026-08-11).
+func_80012598 and func_8001231C are the only two functions in the binary that
+reference all of 0x801BE1B0 / 0x801BE440 / 0x801C2440 — the graphics heap, the
+big ordering table and the VRAM staging area — so they are the two carve
+routines. The already-matched relatives that consume what they build are
+func_800120C8 (GsSetWorkBase over field_12C, ClearOTagR), func_800128DC (memcpy
+over field_130), func_8001205C, and func_80011370 (whose SetDefDrawEnv /
+SetDefDispEnv calls fix the DRAWENV/DISPENV part of the field map). Still stubs
+and sharing D_8005E3B0: func_8001202C, func_80012098, func_800121D4 — the last
+is 93% opcode-shingle-covered by the matched func_800120C8, so diff it first.
+D_8005E3C0 (the *active* context pointer) is read by 36 functions across the
+binary; that is "this function draws", not a grouping signal.
 
 Practical consequence for anyone matching a member: a gp-relative access in
 the target is a membership signal, and a member must *declare* the symbols it
