@@ -252,7 +252,7 @@ typedef struct {
     /* 0x11C */ char    pad_11C[0x4];
     /* 0x120 */ s32     field_120;
     /* 0x124 */ s32     field_124;
-    /* 0x128 */ char    pad_128[0x4];
+    /* 0x128 */ s32     field_128;
     /* 0x12C */ s32     field_12C;
 } struct_8005E3C0;
 extern struct_8005E3C0 *D_8005E3C0;
