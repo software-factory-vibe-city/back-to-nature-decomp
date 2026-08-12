@@ -492,7 +492,7 @@ Members (address order):
   D_8005E428, D_8005E3F0 GP-relatively; called by func_80011370
 - func_80014748 (s)(?) — dead; ResetCallback + DrawSync only; possible
   stub or unused variant; membership unverified
-- func_800147BC (s) — CD file search wrapper: CdSearchFile + CdPosToInt,
+- func_800147BC (m) — CD file search wrapper: CdSearchFile + CdPosToInt,
   writes D_8005E428 and D_8005E430; calls func_80014554; called by func_80011370
 - func_80014854 (m) — CD loader: TOUNES/owns the gp-rel cluster D_8005E2B0,
   D_8005E3F0/F8/FC, D_8005E400/04/08/0C, D_8005E428/30 (defines all ten); reads
