@@ -396,6 +396,7 @@ s32 func_80024408(s32 arg0, s32 arg1, s32 arg2);
 s32 func_800244FC(s32 arg0, s32 arg1);
 s32 func_80024578(s32 arg0, s32 arg1);
 u16 func_800245C8(s32 arg0, s32 arg1);
+void func_80024A4C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4);
 u8 GetFlag8005E274(void);
 s16 GetPairedTpage(s32 tpage);
 s32 GetVal8005E29C(void);

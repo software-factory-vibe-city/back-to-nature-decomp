@@ -180,6 +180,31 @@ caller. Handlers stored in D_800559C4 are unidentified — resolving them
 would extend the group.
 Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 
+## sprite render dispatch wrappers — 0x800245F4–0x80024AD4 (confidence: high)
+
+14 thin wrappers plus one core dispatcher, all consecutive with no unrelated
+code between them. Every wrapper has the same body shape: sign-extend incoming
+`$a2`/`$a3` to s16, set `$a1` to a sprite-header id constant, and tail-call
+func_80024A4C. The constants (0x7–0x2B, with 0x27 shared by four wrappers)
+are sprite header identifiers, not sequential indices. The core
+(func_80024A4C) caches a SpriteSourceData object at D_800A0728, reinitializes
+it via func_80015704 when the header pointer (field_14) doesn't match the
+requested header (D_800977F8), then dispatches through func_80015EE8 to the
+sprite renderer.
+
+Fingerprints:
+- internal call graph: all 14 wrappers (func_800245F4–func_80024A10) call
+  exactly one function — func_80024A4C — and nothing else;
+- address adjacency: 15 functions spanning 0x800245F4–0x80024AD4 with zero
+  gaps;
+- structural identity: every wrapper is 0x38 or 0x3C bytes, differs only in
+  the `$a1` constant and which incoming register supplies arg3.
+
+Members (address order):
+- func_800245F4–func_80024A10 (14× s) — thin wrappers with sprite-header id
+  constants (0x7–0x2B); all call func_80024A4C
+- func_80024A4C (m) — core dispatcher: header-cache check + func_80015EE8 call
+
 ## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
 
 Pad setup, per-port state polling, decoded controller input, analog-stick
