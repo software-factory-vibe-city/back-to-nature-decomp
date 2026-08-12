@@ -370,6 +370,13 @@ extern s32 D_8005E53C;
 /* D_8005E55C — GP-relative s32, stereo/mono flag (func_80020818, func_80020A14, func_80020A40). */
 extern s32 D_8005E55C;
 
+/* D_8005EE28 — 0x200-byte sprite upload staging buffer used by
+ * func_80017300. The next symbol begins at D_8005F028, fixing the extent.
+ * The target forms its address with split lui/addiu pairs; the declaration
+ * therefore has to retain the full aggregate size (> -G8), not the scalar
+ * type inferred from the symbol boundary. */
+extern u8 D_8005EE28[0x200];
+
 /* D_8005F0F8 — u16 sentinel value (func_8001A574 stores/loads via sh/lhu).
  * Declared as an array so the declared size is > -G8: the original TU's
  * declaration was >8 bytes, because every target access in the file family
