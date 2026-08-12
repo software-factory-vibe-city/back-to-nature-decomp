@@ -83,6 +83,13 @@ Before editing, read completely:
      int). Blocker: the call defines `$v0` and rotates post-call scratch
      allocation from outside the function body. The finding prints the
      known-good declaration when `include/functions.h` has one.
+   - `loop-nesting`, `loop-idiom` — loop structure read from the target
+     alone, so both fire on a bare stub. Nested back-edge ranges need nested
+     source loops, and a countdown latch means count-up source that the
+     compiler reverses. Take the named shape as the DEFAULT when first
+     authoring, not as a repair hint after a stall: the wrong loop idiom
+     reproduces loop bodies byte-for-byte while silently fixing preheader
+     order, loop-bottom order, and allocation in an unreachable state.
    - `flag-fingerprint` — symbolic lui/lw self-clobber pairs in the target:
      the per-file flag class (unsplit macro load / scheduling). When it
      fires, run `psx_flag_probe` before deep source archaeology and apply
@@ -133,8 +140,15 @@ evidence. The style guide's resume section is mandatory here.
    wrong function without complaint.
 
    Once count, opcode multiset, inventory, and web parity are exact, freeze
-   semantics and census the target's simultaneous hard-register roles. For a
-   residual rotation, explicitly test these compiler-state axes before broad
+   semantics and census the target's simultaneous hard-register roles. If the
+   residual sits in or around a loop — preheader order, loop-bottom order, or
+   an allocation swap between pseudos that live across the loop — run the
+   style guide's loop-idiom batch FIRST (spelling, direction, increment
+   position, bound type, invariant site: a bounded dozen compiles per loop).
+   Loop spellings that emit identical bodies are different pass-time
+   experiments, and every mechanism tool downstream analyses whichever frame
+   you picked without complaint. For a residual rotation after that,
+   explicitly test these compiler-state axes before broad
    permutation: top-of-block declaration initializer versus later assignment,
    one local reused for sequential roles versus fresh locals, coordinated
    base/offset/result birth order, and a named constant at the scheduler's

@@ -348,8 +348,20 @@ psx_search_scheduler_state <func> [block <n>]
 psx_diff_function <func>
 ```
 
-`diffFunc.ts` is the exact oracle, not the diagnosis. Route the next edit from
-the structural classifier:
+`diffFunc.ts` is the exact oracle, not the diagnosis. Its **verdict** is sound;
+its **score** is not a distance. The comparison aligns the two instruction
+streams before pairing words, so a transposed pair contributes one structural
+row and zero "differing" rows, and one of the two words is still counted as
+matching. Each transposition therefore inflates the headline number by one and
+hides two wrong words — always in the flattering direction, and most often
+exactly when a function is close enough for the last residuals to be
+transpositions. Recognize it in the rendered diff as a
+`-addr` / context / `+addr` triple whose two instructions exist on both sides
+at swapped addresses while `differing words:` names neither. Before deciding a
+residual is small enough to be worth another day, recount word-by-word by
+index with no realignment; see `notes/research/tooling-false-verdicts.md` §3.
+
+Route the next edit from the structural classifier:
 
 | Category | First response |
 |---|---|
@@ -527,6 +539,110 @@ again.
 If `explainDiff.ts` cannot find archived assembly, continue with the exact diff
 oracle. A diagnostic setup failure is not a source mismatch.
 
+### Loop preheader order is decided before the scheduler
+
+When a preheader's instructions come out in the wrong order and
+`schedulerTrace` shows them **tied on priority**, the scheduler is not the
+actor and no amount of source-statement reordering inside the loop body will
+help. A tied block reproduces its incoming order exactly (the ready list sorts
+by descending LUID and the block fills bottom-up), so the order was fixed
+earlier. Trace it backwards through these three facts, in order:
+
+- **Preheader order is the movable-list order**, and the movable list is built
+  in insn-stream order as the loop body is scanned. The `.loop` dump prints the
+  list with each entry's `moved to <uid>`; read it rather than guessing.
+- **A hoist can be deferred to the second loop pass.** The desirability test is
+  `threshold * savings * lifetime >= insn_count` (doubled if the register was
+  already moved once), so a value whose only in-loop use is the very next insn
+  can miss in pass one and move in pass two — which puts it *after* everything
+  pass one emitted. Two hoists of the same expression in different passes are
+  how a `lui`/`move` pair appears.
+- **gcse-PRE inserts at the END of a block**, before its closing jump, so any
+  original instruction in that block precedes the insertion. When PRE puts
+  *several* values into one block they are emitted in ascending
+  expression-hash-table index, not source order. This is why two loops with the
+  same source shape can hoist the same pair of values in opposite orders.
+
+The practical consequence: to place a computation *after* a PRE insertion in a
+preheader, it must itself be PRE-relocated into that block, or live in a later
+block that the loop scan reaches afterwards. Writing it later in the same block
+does nothing.
+
+### Hoisting out of a conditionally-executed block has a hard gate
+
+`scan_loop` refuses to list a set as movable when the register is used outside
+the set's basic block **and** the set is not guaranteed to run every iteration.
+`maybe_never` becomes true at the first label or jump inside the loop and is
+reset only by a virtual-top note at the outermost scan depth, so in practice
+every block after the loop's first conditional is affected. The escape hatch is
+that the register's **last use is in the same basic block as its set** — which
+a flag computed at one point and tested at a later join does not satisfy.
+
+So a loop-invariant value that must reach the preheader has to be either
+computed in the loop's first block, or relocated there by PRE. If neither is
+available, the value cannot be hoisted, and a variant that tries will lose the
+recomputation cost every iteration.
+
+### Lazy code motion places at the last block of a delay chain
+
+PRE's placement is computed from transparency and anticipatability only — the
+locally-available bitmap is not passed — and the "latest" set degenerates to
+the delayed set. Read it as: the computation slides forward from the earliest
+anticipated point until it reaches a block that computes it, or a join whose
+other predecessor did not carry the delay (a loop head always stops it).
+**Every block where the slide stops gets an insertion.**
+
+That is the trap: a single-predecessor block between the loop top and the first
+inner loop is a second stopping point, so the value is inserted twice, its
+in-loop set count is no longer one, and the hoist that the whole shape was for
+does not happen. When a PRE relocation "almost" works, count the insertions in
+the `.gcse` dump (`PRE/HOIST: end of bb N`) before changing anything else — and
+look for a one-instruction block to eliminate or to give its own occurrence.
+
+### The movable list is not always in stream order
+
+If a loop's first in-range instruction is an unconditional jump to a label
+inside the loop, the scan starts at that label and wraps around to the loop top
+afterwards, so the movable list — and hence the preheader — comes out in a
+rotated order. This is the only source-reachable control over preheader order
+that does not go through PRE. It requires the loop to be genuinely entered near
+the bottom; the scan also rejects the loop outright unless its start is a real
+label from before the pass.
+
+### A stuck loop-adjacent residual: rewrite the loop idiom before modelling passes
+
+When instruction count, opcode multiset, inventory, and web parity are exact
+but residual words sit in or around a loop (preheader order, loop-bottom
+order, an allocation swap whose pseudos live across the loop), run this
+bounded batch BEFORE any scheduler-state search, allocator arithmetic, or
+compiler-source reading — and immediately AFTER any such analysis that ends
+in "the CFG must differ from this reconstruction". Each variant is one
+compile; measure each with the strict index-by-index count.
+
+For every loop overlapping the residual:
+
+1. **Loop spelling**: guarded do-while ↔ `while` ↔ `for`. These are different
+   pass-time experiments even when they emit byte-identical bodies — the
+   while/for conversion adds the VTOP note, creates inits during loop pass 1,
+   and changes which blocks exist at gcse time, which moves PRE insertion
+   sites and live lengths.
+2. **Direction**: if the target loop counts down, write count-up and let
+   check_dbra_loop reverse it (see the period-priors section for the gates:
+   signed `LT` exit test, non-negative bound for a `beqz` guard).
+3. **Increment position**: `for (;;i++)` versus `while` with an explicit
+   `i++` placed before/after the other trailing statements — this chooses the
+   emitted slot of the (possibly reversed) step instruction.
+4. **Bound type**: signed versus unsigned bound flips the exit-test relation
+   (`LT`/`LTU`) and with it the reversal gate and the guard shape.
+5. **Invariant site**: each loop-invariant flag or address computed at its
+   use site ↔ at the loop top ↔ before the loop. Use-site placement is the
+   only one PRE can relocate into the preheader, and PRE emits multiple
+   insertions into one block in expression-hash order, not source order.
+
+The whole lattice for one loop is a dozen compiles. A pass-modelling session
+that skips it can prove a form unreachable inside the wrong frame — the proof
+will be internally correct and aimed at source the original never contained.
+
 ## 5. Allocation and scheduling mechanisms
 
 Use these mechanisms to design source, not as reasons to hand-assign registers.
@@ -539,6 +655,8 @@ which these matching lessons were distilled.
 | Dying-input tie | A fresh output can share the register of an input that dies in the same instruction |
 | Hard-register suggestion | A pseudo born where an argument hard register dies can inherit `$a0`–`$a3` |
 | Priority uses references and lifetime; ties use birth order | Statement and expression birth order can change allocation |
+| Global-allocno priority is computable by hand | It is `floor_log2(n_refs) * n_refs / live_length * 10000 * size`, truncated to int, ranked descending with the lower allocno number breaking exact ties. `n_refs` is the **sum of loop depths over the references**, function body 1 and each nesting +1 — so moving one reference in or out of a loop is worth a whole depth, and a two-way register swap is often a difference of one reference or a handful of live-length units. Compute both sides from the `.lreg` dump before hunting a source shape: it tells you exactly how much you need to move and which of the two pseudos is cheaper to move |
+| Live length is overwritten by sched1 from the scheduled order | `schedule_insns` accumulates +1 per scheduled insn while a reg is live and writes it back to `REG_LIVE_LENGTH`, so with the emission fixed, a pseudo's live length is **pinned** — no source spelling with identical output moves it. When an allocno_compare inequality must flip, the lever is the competitor's stats (refs kept by flow for insns later passes delete, or a pass-time geometry change such as a converted loop), never the losing pseudo's own live length |
 | Declaration initializers are executable births | `s32 q = x / 3;` at the top of a C89 block is not allocator-equivalent to declaring `q` and assigning it after the first statement |
 | Sequential local reuse changes web population | Writing `tmp = q * 3; ...; tmp = arg - tmp;` can reproduce one recurring target hard-register role that separate product/remainder locals cannot |
 | Fake lifetime extension with post-allocation scheduling | Moving a birth by one statement can create or remove a pseudo-conflict |
@@ -891,6 +1009,14 @@ like. Check all three before modelling a compiler pass:
 2. **The declarations in scope.** An override's width and size change load
    width, signedness, and address form. See §7.
 3. **The predicate.** See §1.
+4. **The idiom frame.** A source structure transcribed from the emitted shape
+   (a countdown loop, a walking pointer, a hand-rolled guard) can byte-match
+   the code it was copied from while fixing the pass-time geometry —
+   which blocks exist at gcse time, which notes the loop passes see, which
+   births the allocator counts — in a state no statement-level edit escapes.
+   When a mechanism analysis concludes "the CFG must differ from this
+   reconstruction," that is the finding: run the loop-idiom batch in §4
+   before reading another pass.
 
 An impossibility result is conditioned on its inputs. "Proven unreachable" in a
 note or ADR is true *given* what it assumed; re-read the assumption before
@@ -952,7 +1078,23 @@ show (PSY-Q samples, matched Silent Hill/ESA/soul-re, Net Yaroze, libsnd):
 
 - Count-up indexed `for` loops (`for (i = 0; i < N; i++) a[i] = x;`).
   Countdown loops in targets are check_dbra_loop reversals of count-up
-  source, not source-level countdowns.
+  source, not source-level countdowns. A hand-written countdown do-while can
+  byte-match the loop *body* while still being the wrong experiment: the
+  reversal path runs through jump.c's while/for conversion (VTOP note) and
+  creates the `counter = bound` init during loop pass 1, so preheader block
+  contents at gcse time, PRE insertion sites, and live lengths all differ
+  from the do-while spelling. Reversal facts that gate the shape:
+  - it requires a **signed `LT`** exit test — an unsigned bound leaves the
+    loop count-up with an `sltu` (so a countdown target with a signed outer
+    compare pins the bound's type);
+  - a `beqz`/`bnez` guard is still consistent with a signed count-up when the
+    bound is provably non-negative (masked or narrow) — combine rewrites
+    `LE/GT 0` to `EQ/NE 0` via nonzero_bits; do not read a `beqz` guard as
+    proof of a source-level `!= 0` do-while guard;
+  - the reversed decrement keeps the *increment's* RTL slot: `for (;;i++)`
+    puts it after the whole body, `while` with an explicit trailing `i++`
+    before later statements puts it earlier — the choice is visible as the
+    loop-bottom instruction order.
 - Naive indexed bodies; walking pointers are strength-reduction products.
   Do not hand-write the post-transformation shape.
 - ONE counter variable reused across sequential loops. This is also a
@@ -965,10 +1107,22 @@ show (PSY-Q samples, matched Silent Hill/ESA/soul-re, Net Yaroze, libsnd):
   type in the globals override header.
 - Literal bounds or simple `#define`s; plain signed int counters; `-1`
   sentinels; "max+1" constants for minimum scans.
-- Codegen no-ops on GCC 2.95 (do not waste turns): `register`, declaration
-  order, init-statement order, `if (var) {}` dead refs on locals. A named
+- Codegen no-ops on GCC 2.95 (do not waste turns): `register`,
+  init-statement order, `if (var) {}` dead refs on locals. A named
   constant local (`s32 neg1 = -1;`) does shift materialization order and is
   clean C.
+- Declaration order is NOT a no-op. It fixes pseudo numbers, which fix the
+  gcse expression-hash bucket order, which decides which of two PRE-created
+  values owns the lower caller-save or spill slot; it also feeds the allocno
+  numbering that breaks `allocno_compare` ties. When a residual is a swap of
+  two same-shaped stack slots or two same-priority registers, vary the *gap*
+  between the declarations, not just their order — adjacent declarations can
+  collide in one hash bucket and reproduce the same order.
+- `register T x asm("$N")` does not reserve a hard register in this compiler.
+  Local register variables are honoured only as `asm` operands; the allocator
+  will still hand the register to unrelated pseudos, so the emitted code is
+  wrong rather than merely differently allocated. Use a pinned-register build
+  as a *diagnostic* of allocation pressure only, never as a solution.
 - `do { } while (0)` is NOT an allocation no-op: loop depth scales
   register-reference weights, so a degenerate loop reorders quantity
   priorities and can rotate local and global assignments block-wide while

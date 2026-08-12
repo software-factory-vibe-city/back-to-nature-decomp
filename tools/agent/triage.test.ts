@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { detectBackendPacket, detectLoopNesting, type TargetFacts } from "./triage.js";
+import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, type TargetFacts } from "./triage.js";
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
 import type { DisassembledInstruction } from "./decompToolchain.js";
@@ -196,6 +196,64 @@ test("loop-nesting: straight-line code produces no finding", () => {
     "lw $ra, 0x14($sp)",
     "jr $ra",
     "addiu $sp, $sp, 0x18",
+  ]));
+  assert.deepEqual(findings, []);
+});
+
+/* func_80017300's shape: the RLE byte loop decrements $a1 into a bnez
+ * back-edge, with the -1 step two insns above the branch (the count_rle
+ * shift pair sits between). Ten of that function's thirteen residual words
+ * traced back to hand-writing this as a countdown do-while instead of the
+ * count-up loop check_dbra_loop reverses. */
+test("loop-idiom: a countdown latch is reported with its counter", () => {
+  const findings = detectLoopIdiom(facts([
+    "move $a1, $s4",            /* 0x00 */
+    "lbu $v0, 0x0($s0)",        /* 0x04  header */
+    "addiu $s0, $s0, 0x1",      /* 0x08 */
+    "addiu $a1, $a1, -0x1",     /* 0x0c  counter step */
+    "sb $v0, 0x0($a0)",         /* 0x10 */
+    "bnez $a1, 4",              /* 0x14  back-edge on the counter */
+    "addiu $a0, $a0, 0x1",      /* 0x18  delay slot */
+  ]));
+
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].detector, "loop-idiom");
+  assert.ok(findings[0].summary.includes("COUNT-UP"));
+  assert.ok(findings[0].evidence.some((line) => line.includes("$a1")));
+});
+
+/* A count-up loop's back-edge tests a comparison result, not the stepped
+ * register — the prior is already satisfied, so the detector stays quiet. */
+test("loop-idiom: a count-up sltu/bnez loop is not reported", () => {
+  const findings = detectLoopIdiom(facts([
+    "addu $a1, $zero, $zero",   /* 0x00 */
+    "lbu $v0, 0x0($s0)",        /* 0x04  header */
+    "addiu $a1, $a1, 0x1",      /* 0x08  counter step, +1 */
+    "sltu $v0, $a1, $s3",       /* 0x0c */
+    "bnez $v0, 4",              /* 0x10  back-edge on the compare result */
+    "nop",                      /* 0x14 */
+  ]));
+  assert.deepEqual(findings, []);
+});
+
+/* A pointer walked down by -1 and tested against a bound via bne reg,reg is
+ * not the counter-to-zero shape; only bne against $zero qualifies. */
+test("loop-idiom: bne against a non-zero register is not reported", () => {
+  const findings = detectLoopIdiom(facts([
+    "addiu $a1, $a1, -0x1",     /* 0x00  header */
+    "bne $a1, $s3, 0",          /* 0x04 */
+    "nop",                      /* 0x08 */
+  ]));
+  assert.deepEqual(findings, []);
+});
+
+/* Forward branches are not back-edges; no loop, no finding. */
+test("loop-idiom: straight-line code produces no finding", () => {
+  const findings = detectLoopIdiom(facts([
+    "addiu $a1, $a1, -0x1",
+    "bnez $a1, 3",
+    "nop",
+    "jr $ra",
   ]));
   assert.deepEqual(findings, []);
 });

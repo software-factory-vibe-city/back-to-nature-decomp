@@ -24,6 +24,9 @@
  *   arity-stack     loads from the incoming stack-argument region
  *   undeclared-callee  calls with no declaration in scope (implicit int)
  *   capture-ra      the CAPTURE_RA debug-hook signature in the target
+ *   loop-nesting    nested back-edge ranges need nested source loops
+ *   loop-idiom      countdown latches mean count-up source reversed by loop.c
+ *   backend-packet  all-loads-then-all-stores runs from one block-move insn
  *   flag-fingerprint  symbolic lui/lw self-clobber pairs (per-file flag class)
  *   asm-policy      embedded asm without a sourcePolicy allowlist entry
  *   asm-dead        an embedded asm block whose output is clobbered unused
@@ -415,6 +418,117 @@ export function detectLoopNesting(target: TargetFacts): Finding[] {
     ],
     see: [
       "notes/retros/2026-08-07-func_80013B04-retro.md",
+    ],
+  }];
+}
+
+/**
+ * A countdown loop in the target — a `-1` step on a register that a backward
+ * branch tests against zero — is normally check_dbra_loop's REVERSAL of
+ * count-up source, not a source-level countdown. The trap is that a
+ * hand-written countdown do-while byte-matches the loop BODY, so it survives
+ * every body-level experiment while putting the pass-time geometry in a
+ * different, often unreachable state: the reversal path runs through jump.c's
+ * while/for conversion (VTOP note) and creates the `counter = bound` init
+ * during loop pass 1, which changes preheader block contents at gcse time,
+ * PRE insertion sites, and register live lengths.
+ *
+ * Author count-up source FIRST (`for (i = 0; i < bound; i++)`, or `while`
+ * with an explicit trailing `i++` when later statements must follow the
+ * decrement in the emitted loop bottom). Two gates decide whether the
+ * reversal fires at all: the exit test must be a signed `LT` (an unsigned
+ * bound leaves the loop count-up with an `sltu`), and a `beqz` guard on the
+ * bound is still consistent with count-up when the bound is provably
+ * non-negative. Only fall back to a hand-written countdown after the
+ * count-up family is measured.
+ *
+ * This is cheap and needs no candidate source, so it runs on a bare stub
+ * before the first variant is written.
+ */
+export function detectLoopIdiom(target: TargetFacts): Finding[] {
+  const instructions = target.instructions;
+  const indexOfAddress = new Map<number, number>();
+  instructions.forEach((insn, index) => indexOfAddress.set(insn.address, index));
+
+  const reg = (operand: string | undefined): string | null => {
+    const m = operand?.trim().match(/^\$?(\w+)$/);
+    return m ? m[1]! : null;
+  };
+
+  /* Two reversal flavors: a register bound reverses to `counter != 0`
+   * (bnez), a constant bound to `counter - 1 >= 0` (bgez) — check_dbra's
+   * "vanilla" path. Both come from count-up source. */
+  const countdowns: { header: number; latch: number; counter: string }[] = [];
+  instructions.forEach((insn, index) => {
+    const mnemonic = insn.mnemonic.toLowerCase();
+    if (mnemonic !== "bnez" && mnemonic !== "bne" && mnemonic !== "bgez") return;
+    const tested = reg(insn.operands[0]);
+    if (!tested) return;
+    if (mnemonic === "bne" && reg(insn.operands[1]) !== "zero") return;
+    const last = insn.operands[insn.operands.length - 1];
+    const matched = last?.trim().match(/^(?:0x)?([0-9a-f]+)\b/i);
+    if (!matched) return;
+    const header = indexOfAddress.get(parseInt(matched[1]!, 16));
+    if (header === undefined || header >= index) return;
+
+    /* Scan back from the branch to the loop header for the first insn that
+     * writes the tested register — the scheduler can move the step
+     * arbitrarily far from the latch — and require it to be the -1 step.
+     * The delay slot is also a legal home for it. The scan is linear, not
+     * CFG-aware, so a conditional def in a side arm stops it: that
+     * under-reports, never over-reports. */
+    const isDecrement = (candidate: DisassembledInstruction | undefined): boolean =>
+      candidate !== undefined
+      && candidate.mnemonic.toLowerCase() === "addiu"
+      && reg(candidate.operands[0]) === tested
+      && reg(candidate.operands[1]) === tested
+      && /^-(0x)?1$/i.test(candidate.operands[2]?.trim() ?? "");
+    /* Writer check is local rather than defUse-based: binutils spells $30
+     * as "s8", which the shared web-register list only knows as "fp", and a
+     * countdown in $s8 must not be invisible. Destination-first holds for
+     * everything except stores, branches, and hi/lo writers. */
+    const NON_WRITING = new Set(["sb", "sh", "sw", "swl", "swr", "mult", "multu", "div", "divu"]);
+    const writesTested = (candidate: DisassembledInstruction): boolean => {
+      const m = candidate.mnemonic.toLowerCase();
+      if (BRANCH_MNEMONICS.has(m) || NON_WRITING.has(m)) return false;
+      return reg(candidate.operands[0]) === tested;
+    };
+    let step: DisassembledInstruction | undefined;
+    for (let back = index - 1; back >= header; back--) {
+      const candidate = instructions[back];
+      if (!candidate) break;
+      if (writesTested(candidate)) {
+        step = candidate;
+        break;
+      }
+    }
+    const delaySlot = instructions[index + 1];
+    if (!isDecrement(step) && !isDecrement(delaySlot)) return;
+
+    countdowns.push({ header, latch: index, counter: tested });
+  });
+  if (countdowns.length === 0) return [];
+
+  const byHeader = new Map<number, { header: number; latch: number; counter: string }>();
+  for (const loop of countdowns) if (!byHeader.has(loop.header)) byHeader.set(loop.header, loop);
+  const distinct = [...byHeader.values()].sort((a, b) => a.header - b.header);
+
+  return [{
+    detector: "loop-idiom",
+    severity: "signal",
+    summary:
+      `target has ${distinct.length} countdown loop(s) (register stepped by -1 into a bnez ` +
+      "back-edge). Default to COUNT-UP source and let check_dbra_loop reverse it; a " +
+      "hand-written countdown do-while byte-matches the loop body while placing VTOP, the " +
+      "bound init, gcse-PRE preheader insertions, and live lengths in a different state " +
+      "that no body-level or mechanism-level edit can recover. Reversal requires a signed " +
+      "LT exit test (bound type matters), and the increment's source position controls the " +
+      "emitted decrement slot. Hand-written countdown is the measured fallback, not the default.",
+    evidence: distinct.map((loop) =>
+      `header ${hex(instructions[loop.header]!.address)} <- countdown latch ${hex(instructions[loop.latch]!.address)} on $${loop.counter}`),
+    see: [
+      "prompts/c-style-guide.md",
+      "notes/research/func_80017300-pre-placement-and-movable-order.md",
     ],
   }];
 }
@@ -832,6 +946,7 @@ function main(): void {
   findings.push(...detectArityStack(target));
   findings.push(...detectBackendPacket(target));
   findings.push(...detectLoopNesting(target));
+  findings.push(...detectLoopIdiom(target));
   findings.push(...detectCaptureRa(target));
   findings.push(...detectFlagFingerprint(name));
   findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
