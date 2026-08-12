@@ -278,6 +278,7 @@ void func_8001588C(void);
 void func_80015894(SomeStruct *arg0, s32 arg1);
 void func_800158E4(SpriteSourceData *src);
 u16 func_80015AAC(SpriteSourceData *arg0, u32 arg1, u32 arg2);
+void func_80015C50(s32 arg0, SpriteSourceData *arg1, s16 arg2, s16 arg3);
 void func_80015E3C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, u8 arg5, s16 arg6, s16 arg7);
 void func_80015E78(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, s16 arg5, s16 arg6, s32 arg7, s32 arg8, u16 arg9, s16 arg10, s16 arg11);
 void func_80015EE8(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5);
