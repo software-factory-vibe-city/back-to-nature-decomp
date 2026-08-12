@@ -281,10 +281,13 @@ extern s32 D_8005E328;
 extern s32 _D_800100A0[3] __asm__("D_800100A0");
 #define D_800100A0 ((char*)_D_800100A0)
 
-/* D_8005E9C8 - pad state buffer. Its aggregate declaration is wider than
- * -G8, preserving split address formation in func_80014064. */
-extern s32 _D_8005E9C8[3] __asm__("D_8005E9C8");
-#define D_8005E9C8 (*((s32*)_D_8005E9C8))
+/* D_8005E9C8 - pad state buffer (2 records of 0x22 bytes, 0x44 total).
+ * Its aggregate declaration is wider than -G8, preserving split address
+ * formation in func_80014064. func_80014250 selects a record by arg0 and
+ * indexes raw bytes; 2D byte-array typing matches the direct-index idiom
+ * and -fno-cse-skip-blocks handling of the sibling D_8005EA18 in this TU. */
+extern u8 _D_8005E9C8[2][0x22] __asm__("D_8005E9C8");
+#define D_8005E9C8 (_D_8005E9C8)
 
 /* Two eight-byte PadSetAct actuator tables: func_80014064 hands &D_8005EA18
  * to port 0 and &D_8005EA18 + 8 to port 0x10, and func_80014494 indexes them
