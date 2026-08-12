@@ -248,7 +248,7 @@ notes/retros/2026-08-07-func_800140C8-retro.md;
 notes/retros/2026-08-09-func_800142D8-retro.md;
 notes/retros/2026-08-09-func_80014494-retro.md.
 
-## GPU primitive packet initializers — 0x8001526C–0x80015594 (confidence: high)
+## GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)
 
 Adjacent helpers that initialize one PSY-Q primitive, select its opaque or
 semitransparent code through the same conditional diamond, link it with
@@ -263,6 +263,7 @@ Members (address order):
 - func_800153BC (m) — POLY_G4 initializer, code 0x38/0x3A
 - func_800154CC (m) — POLY_F4 initializer, code 0x28/0x2A
 - func_80015594 (m) — TILE initializer, code 0x60/0x62
+- func_80015644 (m) — POLY_F4 wrapper with semitransparency (calls func_800154CC)
 
 Reference: `notes/research/func_800154CC-polyf4-diamond-crossjump.md`.
 
