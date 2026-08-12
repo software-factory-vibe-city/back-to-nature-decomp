@@ -176,7 +176,7 @@ processing driver; func_80013F90 (m) — clears a per-port state object;
 func_80013FC0 (s) — calls the decoded-input path; func_80014064 (m) —
 initializes pad buffers and starts communication; func_800140C8 (m) — polls one
 port and aligns its actuators; func_8001413C (s) — decodes one D_8005E9C8 port
-record; func_80014250 (s) — analog-stick normalization driver;
+record; func_80014250 (m) — analog-stick normalization driver, indexes the 2D byte buffer D_8005E9C8[arg0][N] in the same direct-index idiom as D_8005EA18;
 func_800142D8 (m) — center/dead-zone magnitude helper, matched under an
 allowlisted three-instruction embedded-asm exception for one delay-slot choice;
 func_80014388 (s) — input decoder called by func_8001413C; func_80014494 (m) —
@@ -291,6 +291,27 @@ Members (address order):
   gp-relative access in the original a TU-membership signal — see
   `notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md`
 
+## Sprite / tile-load wrappers — 0x80017042–0x8001782C (confidence: medium)
+
+Sprite data decompressor and thin callers, address-adjacent to the tile
+loader func_8001782C. func_80017300 is a raw-compression sprite decompressor
+(poly-flag-driven byte/RLE copy into D_8005EE28 followed by LoadImage +
+DrawSync); it is reached by the four thin wrappers func_8001719C,
+func_800171CC, func_80017200, func_80017240, and neighbouring func_80017284
+links it to the sprite family by calling func_80015AAC / func_80015B24 plus
+the tile loader func_8001782C (which func_80016B7C also calls). Evidence:
+address adjacency inside one gap, shared LoadImage/sprite-idrom idiom, and
+the func_80017284 bridge to the sprite/animation family. TU boundary
+uncertain; func_80017300 uses split addressing (lui+%lo hi kept in a saved
+register), so it does not carry the renderer TUs' -mno-split-addresses flag.
+
+Members:
+- func_8001719C/800171CC/80017200/80017240 (s) — thin wrappers into func_80017300
+- func_80017300 (matched 2026-08-12) — sprite data decompressor (RLE/byte)
+  into D_8005EE28, LoadImage per scanline. Key shape: the row-byte loops are
+  count-up loops reversed by check_dbra_loop (see
+  notes/research/func_80017300-pre-placement-and-movable-order.md §11)
+
 ## Boot / main-loop TU (0x80011370 – 0x800128DC)
 
 Confidence: **high** — shared gp-relative cluster, the strongest signal this
@@ -399,7 +420,7 @@ Members (address order):
 - func_80020818 (m) — sound init: opens sequences, calls SsStart, sets
   D_8005E53C, configures stereo/mono from D_8005E55C
 - func_80020A14 (s) — mono setter: calls SsSetMono, clears D_8005E55C
-- func_80020A40 (s) — stereo setter: calls SsSetStereo, sets D_8005E55C
+- func_80020A40 (m) — stereo setter: calls SsSetStereo, sets D_8005E55C
 - GetVal8005E55C (s) — getter: returns D_8005E55C
 - GetVal8005E544 (s)(?) — adjacent getter; membership unverified
 - GetVal8005E548 (s)(?) — adjacent getter; membership unverified
@@ -448,7 +469,8 @@ Members (address order):
 
 Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
 - shared absolute-addressed cluster: D_80049078 (3-entry fn-pointer dispatch
-  table, called by func_8001A574), D_800749F4 (0xB8-stride object array
+  table, called by func_8001A574) and its adjacent D_80049084 (u16 string at
+  +0x0C, used by func_8001A808), D_800749F4 (0xB8-stride object array
   scanned by the callees), D_8005F0F8 (u16 0xFFFF sentinel — the *split*
   address form `lui r,%hi` / `op %lo(r)`, implying a >-G8 declared size in the
   original TU; both func_8001A574 and func_8001A668 targets split it),
@@ -469,11 +491,15 @@ Members (address order):
 - func_8001A668 (s) — scan member (bnez); calls func_8001A808
 - func_8001A6FC (s) — scan member (beqz); calls func_8001A808
 - func_8001A790 (s) — third dispatch callee
-- func_8001A808 (s) — per-entry helper called by 668/6FC
-- func_8001A870 (s), func_8001A8D0 (m), func_8001A970 (m) — later members;
+- func_8001A808 (m) — per-entry helper called by 668/6FC; flag-gated
+  strcat chain appended into D_80049084
+- func_8001A870 (m), func_8001A8D0 (m), func_8001A970 (m) — later members;
   A8D0/A970 are clean scalar helpers (charset / number-to-string)
 
 References:
+- notes/research/func_8001A808-D80049084-address-split.md
+  (declared >-G8 so the address splits; addiu half lands in the second jal's
+  delay slot)
 - notes/research/func_8001205C-declaration-shape-vs-address-form.md
   (-G8 size decides split vs macro form for D_8005F0F8)
 - notes/retros/2026-08-10-func_8001A574-retro.md

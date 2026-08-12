@@ -72,7 +72,68 @@ only be as correct as its alias table, and its failure mode is silent.
 
 ---
 
-## 3. The standing caveat this belongs with
+## 3. `diffFunc`'s headline score undercounts a near-match
+
+**Status: not fixed as of 2026-08-12.** Measured during the func_80017300
+rework, where it hid a third of the residual for two sessions.
+
+`compareWords` in `tools/lib/functionOracle.ts` aligns the two instruction
+streams with an LCS (`lcsPairs`) before comparing. Words the alignment pairs go
+through `settle`, which increments `same` or pushes to `differing`; words the
+alignment leaves unpaired become `target-only` / `candidate-only` rows and set
+`structural = true` — **contributing to neither counter.**
+
+The consequence is systematic and one-directional: a **transposed pair** costs
+one structural row and **zero** `differing` rows, and the LCS still counts one
+of the two words as `same`. So each transposition inflates the headline score
+by one and hides two wrong words.
+
+On the func_80017300 attempt the tool reported
+
+```
+Match: 320/331 words (96.7%)
+VERDICT: MISMATCH — 7 word(s) differ.
+```
+
+for an object whose true index-by-index count is **318/331 with 13 wrong
+words**. Four transpositions were invisible: `320 = 318 + (4 structural pairs
+counted once)`, and `7 = 13 - (4 pairs x 2 wrong words) + ...`. The verdict
+(`MISMATCH`) was correct throughout — only the *magnitude* was wrong, which is
+what a session uses to decide whether a residual is worth another day.
+
+**Symptom to recognize:** the rendered diff shows a `-addr: insn` / context /
+`+addr: insn` triple where both instructions exist on both sides at swapped
+addresses, and the `differing words:` list does not name either address.
+
+**Check:** compare `targetWords[i].raw` against `candidateWords[i].raw` by
+index, with no realignment. Roughly fifteen lines against the existing
+`compareFunction` API:
+
+```ts
+const r = compareFunction(fn, { objectPath });
+let same = 0;
+for (let i = 0; i < r.targetWords.length; i++) {
+  const t = r.targetWords[i], c = r.candidateWords[i];
+  if (t && c && t.raw === c.raw && !c.undetermined) same++;
+}
+```
+
+**Fix not applied, and why.** `functionOracle.ts` is the project's verdict
+authority; changing what it prints is a pipeline-critical edit and is filed
+here for the owner rather than made unilaterally. The LCS alignment is right
+for the *rendering* — it is what makes a transposition legible as a
+transposition instead of two unrelated diffs. The defect is only that the
+summary line is computed from the alignment. Two candidate fixes: report both
+numbers (`320/331 aligned, 318/331 by index`), or count structural rows into
+`differing`.
+
+**Until then: quote the strict count.** When a function is close enough that
+the last words are transpositions, the aligned number is the one that will be
+wrong, in the flattering direction.
+
+---
+
+## 4. The standing caveat this belongs with
 
 `diffFunc` is not the verdict. It compares **pre-link encodings** and can both
 false-pass (a masked transposition reported as a match) and false-fail
@@ -89,3 +150,5 @@ acceptance requires it.
 - `notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md`
   §5 — the link-map methodology for the neighbouring failure mode, where a
   short in-progress function shifts every later object.
+- `notes/research/func_80017300-pre-placement-and-movable-order.md` — the case
+  that surfaced §3, and the worked example of what the hidden words were.
