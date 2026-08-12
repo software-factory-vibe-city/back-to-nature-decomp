@@ -413,4 +413,9 @@ extern s32 _D_80061EC8[3] __asm__("D_80061EC8");
 extern s16 _D_80061EA8[12] __asm__("D_80061EA8");
 #define D_80061EA8 (_D_80061EA8)
 
+/* D_80010000 - function pointer table at start of code segment (2 entries).
+ * Array size 3 forces >-G8 declared size for split absolute addressing (lui/addiu). */
+typedef void (*InitFunc)(void);
+extern InitFunc D_80010000[3];
+
 #endif /* GLOBALS_OVERRIDE_H */
