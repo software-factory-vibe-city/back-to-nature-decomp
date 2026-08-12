@@ -1,4 +1,11 @@
 #include "common.h"
-#include "include_asm.h"
+#include "psyq/libsnd.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80020A40", func_80020A40);
+/* Tentative definitions — this TU owns these GP-relative globals. */
+s32 D_8005E55C;
+
+void func_80020A40(void) {
+    SsSetStereo();
+    D_8005E55C = 1;
+    func_800218BC();
+}
