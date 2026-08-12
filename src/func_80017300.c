@@ -4,15 +4,57 @@
 INCLUDE_ASM("build/asm/nonmatchings/func_80017300", func_80017300);
 
 
-/* PARKED by /auto_decompilation_loop on 2026-08-12T03:47:24.119Z.
- * Reason: escalation-exhausted.
- * Escalation reached: gpt-5.6-sol.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/func_80017300.md
+/* STATUS 2026-08-11: NOT MATCHED. Best clean-C attempt below (disabled so the
+ * ROM check stays green): 320/331 words exact by index, 7 differing words
+ * (was 34). Instruction count, opcode multiset and inventory are exact; every
+ * register web except three matches.
+ *
+ * Residual, all measured from the dumps rather than guessed:
+ *
+ *   1. Branch A and C loop preheaders emit [andi flags2, lui %hi, move] where
+ *      the target emits [lui %hi, andi flags2, move]. sched2 shows all three
+ *      insns TIE on priority, so the order is a pure LUID tie; the required
+ *      LUID order is high < and < move. That order is loop.c's movable
+ *      emission order, and the `high` it hoists is a gcse-PRE insertion placed
+ *      at the END of the loop-top block (insert_insn_end_bb), hence always
+ *      after the andi. Branch B is CORRECT here because its flag test sits in
+ *      a single-predecessor block, which lets the assignment live at its use
+ *      site (a later block than the gcse insertion) -- see the note.
+ *   2. `count_rle = 0` should be the join-block insn reorg duplicates into the
+ *      0x800173FC delay slot. Writing it first costs `repeat` 8 units of
+ *      REG_LIVE_LENGTH (552 -> 544), which flips allocno_compare for the s7/s8
+ *      pair (0.21324 vs branch-A base 0.21053) and rotates 12 more words.
+ *      Measured trade (7 words vs 18-19), confirmed over a full 2x2x2 sweep.
+ *   3. Branch A materialises the constant 1 in $v1 where the target uses $v0,
+ *      and the arg5 reload register is swapped between branches A and B.
+ *      Both are local-alloc ties downstream of 1.
+ *
+ * Levers that DID resolve (keep all of these):
+ *   - `flags2 = entry_data & 2` must be hoisted into the loop preheader. At the
+ *     top of the row-loop body it always hoists; at its use site it hoists only
+ *     where the flag-test block has one predecessor (branch B), and there it
+ *     produces the TARGET's preheader order.
+ *   - Splitting `header` from `entry_data` (flags) keeps the 0xFFFFFF constant
+ *     live in $v0 across the rect.h load, forcing that load into $v1. This
+ *     fixed the entire loop-head cluster.
+ *   - Declaration order is NOT inert: it sets pseudo numbers, which set the
+ *     gcse expression-hash bucket order for `size + 3` vs `entry_idx + 1`,
+ *     which decides which owns caller-save slot 0x2C vs 0x30. `entry_idx` must
+ *     be declared at least 3 slots after `size`. Worth 8 words.
+ *   - A fresh `bytes` local for the rounded byte count restores the target's
+ *     single-$v0 tail chain.
+ *
+ * Ruled out with evidence: per-file flag overrides (flagProbe: baseline 314
+ * dominates every column, next best 253); -fmove-all-movables (347 insns);
+ * scheduling barriers (worse); a single pre-dispatch flag computation (target
+ * has 3 andi, so the flag is computed per branch); exhaustive residual search
+ * (domain 2.1e15).
+ *
+ * Full analysis: notes/human-needed-approvals/func_80017300.md
  */
 
 #if 0
-/* Best non-matching attempt, preserved for the next session. */
+/* Best non-matching attempt: 320/331, 7 differing words. */
 #include "common.h"
 #include "psyq/stddef.h"
 #include "psyq/libgte.h"
@@ -21,10 +63,13 @@ INCLUDE_ASM("build/asm/nonmatchings/func_80017300", func_80017300);
 void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
     RECT rect;
     u16 count;
-    u32 entry_idx;
     u32 entry_data;
+    u32 header;
     u32 size;
+    u32 bytes;
     u8 *src;
+    u8 *dst;
+    u32 entry_idx;
     s8 count_rle;
     u8 repeat;
     u8 repeat_val = 0;
@@ -33,8 +78,8 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
     s32 row;
     s32 next_row;
     u16 channel;
-    u32 flags2;
     u16 pixel;
+    u32 flags2;
 
     if (*arg0 != 0xD) {
         return;
@@ -44,10 +89,10 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
     arg0 += 4;
 
     for (entry_idx = 0; entry_idx < count; entry_idx = (entry_idx + 1) & 0xFFFF) {
+        header = *(u32 *)arg0;
+        size = header & 0xFFFFFF;
+        entry_data = header >> 24;
         src = arg0 + 12;
-        entry_data = *(u32 *)arg0;
-        size = entry_data & 0xFFFFFF;
-        entry_data >>= 24;
         rect.x = *(u16 *)(arg0 + 4);
         rect.y = *(u16 *)(arg0 + 6);
         rect.w = *(u16 *)(arg0 + 8);
@@ -61,19 +106,19 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
             rect.y += arg4;
         }
 
-        count_rle = 0;
         repeat = 0;
+        count_rle = 0;
         row_width = (rect.w * 2) & 0xFFFF;
         height = (u16)rect.h;
 
         if (!(entry_data & 0xC)) {
-            flags2 = entry_data & 2;
-            row = 0;
             rect.h = 1;
+            row = 0;
             if (height != 0) {
                 do {
+                    dst = D_8005EE28;
+                    flags2 = entry_data & 2;
                     next_row = row + 1;
-                    entry_data = (u32)D_8005EE28;
                     if (row_width != 0) {
                         row = row_width;
                         do {
@@ -88,11 +133,11 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
                                 }
                             }
                             if (!repeat) {
-                                (*(u8 *)entry_data) = *src++;
-                                entry_data++;
+                                *dst = *src++;
+                                dst++;
                             } else {
-                                (*(u8 *)entry_data) = repeat_val;
-                                entry_data++;
+                                *dst = repeat_val;
+                                dst++;
                             }
                             row--;
                             count_rle--;
@@ -113,15 +158,14 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
                 } while (row < height);
             }
         } else if (entry_data & 8) {
-            flags2 = entry_data & 2;
-            row = 0;
             rect.w = 1;
+            row = 0;
             if (row_width != 0) {
                 do {
                     next_row = row + 2;
                     channel = 0;
                     do {
-                        entry_data = (u32)(D_8005EE28 + (channel != 0));
+                        dst = D_8005EE28 + (channel != 0);
                         if (height != 0) {
                             row = height;
                             do {
@@ -136,11 +180,11 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
                                     }
                                 }
                                 if (!repeat) {
-                                    (*(u8 *)entry_data) = *src++;
+                                    *dst = *src++;
                                 } else {
-                                    (*(u8 *)entry_data) = repeat_val;
+                                    *dst = repeat_val;
                                 }
-                                entry_data += 2;
+                                dst += 2;
                                 row--;
                                 count_rle--;
                             } while (row != 0);
@@ -148,6 +192,7 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
                         channel++;
                     } while (channel < 2);
 
+                    flags2 = entry_data & 2;
                     if (flags2 && (arg5 == 1)) {
                         pixel = 1;
                         while (pixel < rect.w) {
@@ -162,18 +207,18 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
                 } while (row < row_width);
             }
         } else {
-            flags2 = entry_data & 2;
-            row = 0;
             rect.h = 1;
+            row = 0;
             if (height != 0) {
                 do {
+                    dst = D_8005EE28;
+                    flags2 = entry_data & 2;
                     next_row = row + 1;
-                    entry_data = (u32)D_8005EE28;
                     if (row_width != 0) {
                         row = row_width;
                         do {
-                            (*(u8 *)entry_data) = *src++;
-                            entry_data++;
+                            *dst = *src++;
+                            dst++;
                             row--;
                         } while (row != 0);
                     }
@@ -196,7 +241,8 @@ void func_80017300(u8 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5) {
         do {
         } while (DrawSync(1) != 0);
 
-        arg0 += ((((size + 3) >> 2) << 2) + 12);
+        bytes = ((size + 3) >> 2) << 2;
+        arg0 += bytes + 12;
     }
 }
 #endif
