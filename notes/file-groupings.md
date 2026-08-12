@@ -58,10 +58,32 @@ Members (address order):
 - func_8001E878 (m) — point-in-triangle; CAPTURE_PREV_RET policy exception
 - func_8001E9F8 (m) — point-in-quad; file-scope $2 register variable
 - func_8001EAE4 (s) — polygon-list iterator, flag masks D_8005E4FC
-- func_8001EFA4 (s)(?) — touches no cluster globals; possible file tail
+- func_8001EFA4 (m) — no longer suspected collision.c member. See viewport.c group below.
 
 References: notes/research/func_8001E878-dead-spill-allocation.md §9,
 notes/research/func_8001E9F8.md.
+
+## viewport/camera setup — 0x8001EFA4–0x8001F24C (confidence: high)
+
+Viewport area and camera-rotation setup: func_8001EFA4 sets viewport dimensions
+(800×600) and calls func_8001F1E0 to compute rotated camera offset vectors, then
+copies the result into a Vec3 and sets status flags.
+
+Fingerprints:
+- shared gp-rel cluster D_8005E2EC–D_8005E314 (viewport dimensions, status flags,
+  offsets) — func_8001EFA4 and func_8001F038 both define the overlapping subset
+  D_8005E2EE, D_8005E2F8, D_8005E2FC, D_8005E300 as tentative definitions
+  (GP-relative), which is the strongest same-TU signal.
+- internal call graph: func_8001EFA4 → func_8001F038, func_8001F1E0
+- address adjacency: all three are consecutive with no unrelated code between them.
+
+Members (address order):
+- func_8001EFA4 (m) — viewport setup driver; sets 800×600, calls F038 and F1E0,
+  then copies result and sets flags (D_8005E2EC=2, D_8005E2ED=1)
+- func_8001F038 (m) — viewport dimension setter; stores width/height/depth,
+  sets dirty flag on change
+- func_8001F1E0 (m) — rotated camera-offset vector calculator; uses rcos/rsin
+  trig with yaw argument
 
 ## projected primitive clipping — 0x8001C0D4–0x8001D348 (confidence: medium)
 

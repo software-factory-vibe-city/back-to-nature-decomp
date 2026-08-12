@@ -421,4 +421,14 @@ extern s16 _D_80061EA8[12] __asm__("D_80061EA8");
 typedef void (*InitFunc)(void);
 extern InitFunc D_80010000[3];
 
+/* D_80049268, D_80049274, D_80049280 — absolute-addressed Vec3 globals
+ * used by func_8001EFA4. Accessed with lui/lw (split absolute addressing).
+ * Array size 3 (12 bytes) forces >-G8 declaration for split addressing. */
+extern s32 _D_80049268[3] __asm__("D_80049268");
+#define D_80049268 (_D_80049268[0])
+extern s32 _D_80049274[3] __asm__("D_80049274");
+#define D_80049274 (*((s32*)_D_80049274))
+extern s32 _D_80049280[3] __asm__("D_80049280");
+#define D_80049280 (*((s32*)_D_80049280))
+
 #endif /* GLOBALS_OVERRIDE_H */
