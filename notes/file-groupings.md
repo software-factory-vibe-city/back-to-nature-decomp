@@ -515,9 +515,15 @@ Members (address order):
 
 ## candidates to investigate
 
+- func_80021DA8 (m) — buffer/address initializer: clears D_8006C838 and
+  D_8007AFF0, calls func_80021E60(0), computes 2048-byte-aligned addresses
+  from D_8001009C - D_80010098, stores results in D_8007AFF0[0..1].
+  Evidence for func_80021E60 neighborhood: address-adjacent (func_80021DA8
+  ends at 0x80021E60 where func_80021E60 begins), direct caller.
+  No shared gp-rel cluster verified yet; TU membership unconfirmed.
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count
-  parallel arrays over 0x18-byte elements) — likely has sibling functions
-  reading the same table; no membership evidence collected yet.
+  parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
+  caller and address predecessor; shared gp-rel globals unverified.
 
 ## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001A970 (confidence: medium)
 
