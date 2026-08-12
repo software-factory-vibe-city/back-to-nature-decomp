@@ -144,7 +144,7 @@ different translation units, so this is duplicated source across files, not
 shared membership. Practical value: E160 is the proven idiom (and partial
 body) for anyone working func_80012598 or its neighbours.
 
-## unknown group B — around 0x80022738–0x80022F1C (confidence: low)
+## unknown group B — around 0x8002261C–0x80022F1C (confidence: low)
 
 Game-state/flags readers over the D_8006C838 struct array.
 
@@ -159,7 +159,14 @@ Fingerprints:
   dead `$v0` call def that blocks the target's `$v0` scratch allocation).
 
 Members (address order):
+- func_8002261C (m) — queue worker over the +0xCC state byte (0 -> 1
+  handshake, then a 5/6 re-queue path guarded by C4==-1); writes D_8005E5A8/AC
+  and D_8005E5C4/C8; declares D_8005E5A8/AC/B4/C4/C8
 - func_80022738 (m) — flag-slot state check/advance (byte at +0xCC, 4 -> 5)
+- func_80022DF8 (m) — reads the s32 flag word at D_8006C838+0xC (bit 27), OR/ANDs
+  it, clears the +0xCC state byte (struct struct_8006C838_view in
+  globals_override.h), then (de)queues a script/timer via func_8002261C; declares
+  D_8005E5B4/BC/C0/C4/C8
 - func_80022F1C (m) — u16 threshold bucketing at a large computed offset
 
 The GetVal8005E5B4/GetVal8005E5B8 accessors are natural same-TU candidates
