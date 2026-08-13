@@ -537,7 +537,7 @@ Members (address order):
 - GetVal8005E55C (s) — getter: returns D_8005E55C
 - GetVal8005E544 (s)(?) — adjacent getter; membership unverified
 - GetVal8005E548 (s)(?) — adjacent getter; membership unverified
-- func_80020A94 (s) — sound stop: clears D_8005E53C
+- func_80020A94 (m) — sound stop: clears D_8005E53C
 
 ## CD loading — 0x80014554–0x80014B44 (confidence: high)
 
