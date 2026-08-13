@@ -1,4 +1,14 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80019FC4", func_80019FC4);
+s32 D_8005E45C;
+s16 D_8005E468;
+u8 *D_8005E46C;
+
+void func_80019FC4(s16 arg0) {
+    if ((D_8005E468 != arg0) && (D_8005E46C != 0)) {
+        func_8001719C(D_8005E46C);
+        func_80022008();
+        D_8005E468 = arg0;
+        D_8005E45C = 0;
+    }
+}
