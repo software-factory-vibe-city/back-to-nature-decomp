@@ -583,7 +583,7 @@ Members (address order):
   D_8005F0F8 = 0xFFFF before/after
 - func_8001A668 (s) — scan member (bnez); calls func_8001A808
 - func_8001A6FC (s) — scan member (beqz); calls func_8001A808
-- func_8001A790 (s) — third dispatch callee
+- func_8001A790 (m) — third dispatch callee
 - func_8001A808 (m) — per-entry helper called by 668/6FC; flag-gated
   strcat chain appended into D_80049084
 - func_8001A870 (m), func_8001A8D0 (m), func_8001A970 (m) — later members;
