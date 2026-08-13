@@ -27,6 +27,13 @@ export interface KnownMacroDefinition {
   expectedDefinition: string;
   effects: MacroEffect[];
   evidence: string;
+  /**
+   * The macro publishes a packet into a list the hardware or a later pass
+   * walks. Statements touching a published object are ordered against the
+   * publication point by default, so an initializer can never be moved after
+   * the call that links its packet in.
+   */
+  publication?: true;
 }
 
 export interface ActiveMacro extends KnownMacroDefinition {
@@ -37,12 +44,44 @@ export interface ActiveMacro extends KnownMacroDefinition {
 export interface MacroRegistry {
   active: Map<string, ActiveMacro>;
   inactive: Array<{ name: string; reason: string }>;
+  /** SHA-256 of each configured header the registry was validated against. */
+  headerHashes: Record<string, string>;
 }
 
 const GPU = "include/psyq/libgpu.h";
 
 function fieldWrites(argIndex: number, fields: string[]): MacroEffect[] {
   return fields.map((field) => ({ kind: "field-write" as const, argIndex, field }));
+}
+
+/** `setXxx(p)` primitive initializers: one entry per (length, code) pair. */
+function primitiveInitializer(name: string, len: number, code: string): KnownMacroDefinition {
+  return {
+    name,
+    header: GPU,
+    argCount: 1,
+    expectedDefinition: `${name}(p) setlen(p, ${len}), setcode(p, ${code})`,
+    effects: fieldWrites(0, ["len", "code"]),
+    evidence: "Expands to setlen and setcode on the same primitive; writes only len and code.",
+  };
+}
+
+/** `setXY*`/`setUV*`/`setRGB*` point and colour setters: named field writes. */
+function pointSetter(
+  name: string,
+  parameters: string[],
+  body: string,
+  fields: string[],
+  what: string,
+): KnownMacroDefinition {
+  return {
+    name,
+    header: GPU,
+    argCount: parameters.length + 1,
+    expectedDefinition: `${name}(p,${parameters.join(",")}) ${body}`,
+    effects: fieldWrites(0, fields),
+    evidence: `Writes only the ${what} of its pointer argument.`,
+  };
 }
 
 const REGISTRY: KnownMacroDefinition[] = [
@@ -70,30 +109,23 @@ const REGISTRY: KnownMacroDefinition[] = [
     effects: fieldWrites(0, ["addr"]),
     evidence: "Writes only the primitive tag address bitfield of its pointer argument.",
   },
-  {
-    name: "setSprt",
-    header: GPU,
-    argCount: 1,
-    expectedDefinition: "setSprt(p) setlen(p, 4), setcode(p, 0x64)",
-    effects: fieldWrites(0, ["len", "code"]),
-    evidence: "Expands to setlen and setcode on the same primitive; writes only len and code.",
-  },
-  {
-    name: "setSprt8",
-    header: GPU,
-    argCount: 1,
-    expectedDefinition: "setSprt8(p) setlen(p, 3), setcode(p, 0x74)",
-    effects: fieldWrites(0, ["len", "code"]),
-    evidence: "Expands to setlen and setcode on the same primitive; writes only len and code.",
-  },
-  {
-    name: "setSprt16",
-    header: GPU,
-    argCount: 1,
-    expectedDefinition: "setSprt16(p) setlen(p, 3), setcode(p, 0x7c)",
-    effects: fieldWrites(0, ["len", "code"]),
-    evidence: "Expands to setlen and setcode on the same primitive; writes only len and code.",
-  },
+  primitiveInitializer("setSprt", 4, "0x64"),
+  primitiveInitializer("setSprt8", 3, "0x74"),
+  primitiveInitializer("setSprt16", 3, "0x7c"),
+  primitiveInitializer("setPolyF3", 4, "0x20"),
+  primitiveInitializer("setPolyFT3", 7, "0x24"),
+  primitiveInitializer("setPolyG3", 6, "0x30"),
+  primitiveInitializer("setPolyGT3", 9, "0x34"),
+  primitiveInitializer("setPolyF4", 5, "0x28"),
+  primitiveInitializer("setPolyFT4", 9, "0x2c"),
+  primitiveInitializer("setPolyG4", 8, "0x38"),
+  primitiveInitializer("setPolyGT4", 12, "0x3c"),
+  primitiveInitializer("setTile", 3, "0x60"),
+  primitiveInitializer("setTile1", 2, "0x68"),
+  primitiveInitializer("setTile8", 2, "0x70"),
+  primitiveInitializer("setTile16", 2, "0x78"),
+  primitiveInitializer("setLineF2", 3, "0x40"),
+  primitiveInitializer("setLineG2", 4, "0x50"),
   {
     name: "setClut",
     header: GPU,
@@ -118,6 +150,12 @@ const REGISTRY: KnownMacroDefinition[] = [
     effects: fieldWrites(0, ["r0", "g0", "b0"]),
     evidence: "Writes only the three color bytes of its pointer argument.",
   },
+  pointSetter("setRGB1", ["_r1", "_g1", "_b1"],
+    "(p)->r1 = _r1,(p)->g1 = _g1,(p)->b1 = _b1", ["r1", "g1", "b1"], "second colour triple"),
+  pointSetter("setRGB2", ["_r2", "_g2", "_b2"],
+    "(p)->r2 = _r2,(p)->g2 = _g2,(p)->b2 = _b2", ["r2", "g2", "b2"], "third colour triple"),
+  pointSetter("setRGB3", ["_r3", "_g3", "_b3"],
+    "(p)->r3 = _r3,(p)->g3 = _g3,(p)->b3 = _b3", ["r3", "g3", "b3"], "fourth colour triple"),
   {
     name: "setXY0",
     header: GPU,
@@ -126,6 +164,27 @@ const REGISTRY: KnownMacroDefinition[] = [
     effects: fieldWrites(0, ["x0", "y0"]),
     evidence: "Writes only the first screen point of its pointer argument.",
   },
+  pointSetter("setXY2", ["_x0", "_y0", "_x1", "_y1"],
+    "(p)->x0 = (_x0), (p)->y0 = (_y0), (p)->x1 = (_x1), (p)->y1 = (_y1)",
+    ["x0", "y0", "x1", "y1"], "first two screen points"),
+  pointSetter("setXY3", ["_x0", "_y0", "_x1", "_y1", "_x2", "_y2"],
+    "(p)->x0 = (_x0), (p)->y0 = (_y0), (p)->x1 = (_x1), (p)->y1 = (_y1), (p)->x2 = (_x2), (p)->y2 = (_y2)",
+    ["x0", "y0", "x1", "y1", "x2", "y2"], "first three screen points"),
+  pointSetter("setXY4", ["_x0", "_y0", "_x1", "_y1", "_x2", "_y2", "_x3", "_y3"],
+    "(p)->x0 = (_x0), (p)->y0 = (_y0), (p)->x1 = (_x1), (p)->y1 = (_y1), (p)->x2 = (_x2), (p)->y2 = (_y2), (p)->x3 = (_x3), (p)->y3 = (_y3)",
+    ["x0", "y0", "x1", "y1", "x2", "y2", "x3", "y3"], "four screen points"),
+  pointSetter("setXYWH", ["_x0", "_y0", "_w", "_h"],
+    "(p)->x0 = (_x0), (p)->y0 = (_y0), (p)->x1 = (_x0)+(_w), (p)->y1 = (_y0), (p)->x2 = (_x0), (p)->y2 = (_y0)+(_h), (p)->x3 = (_x0)+(_w), (p)->y3 = (_y0)+(_h)",
+    ["x0", "y0", "x1", "y1", "x2", "y2", "x3", "y3"], "four screen points of a rectangle"),
+  pointSetter("setUV3", ["_u0", "_v0", "_u1", "_v1", "_u2", "_v2"],
+    "(p)->u0 = (_u0), (p)->v0 = (_v0), (p)->u1 = (_u1), (p)->v1 = (_v1), (p)->u2 = (_u2), (p)->v2 = (_v2)",
+    ["u0", "v0", "u1", "v1", "u2", "v2"], "first three texture points"),
+  pointSetter("setUV4", ["_u0", "_v0", "_u1", "_v1", "_u2", "_v2", "_u3", "_v3"],
+    "(p)->u0 = (_u0), (p)->v0 = (_v0), (p)->u1 = (_u1), (p)->v1 = (_v1), (p)->u2 = (_u2), (p)->v2 = (_v2), (p)->u3 = (_u3), (p)->v3 = (_v3)",
+    ["u0", "v0", "u1", "v1", "u2", "v2", "u3", "v3"], "four texture points"),
+  pointSetter("setUVWH", ["_u0", "_v0", "_w", "_h"],
+    "(p)->u0 = (_u0), (p)->v0 = (_v0), (p)->u1 = (_u0)+(_w), (p)->v1 = (_v0), (p)->u2 = (_u0), (p)->v2 = (_v0)+(_h), (p)->u3 = (_u0)+(_w), (p)->v3 = (_v0)+(_h)",
+    ["u0", "v0", "u1", "v1", "u2", "v2", "u3", "v3"], "four texture points of a rectangle"),
   {
     name: "setWH",
     header: GPU,
@@ -153,6 +212,20 @@ const REGISTRY: KnownMacroDefinition[] = [
       { kind: "field-write", argIndex: 1, field: "addr" },
     ],
     evidence: "Links the primitive into the ordering-table entry: reads and writes both tag address bitfields.",
+    publication: true,
+  },
+  {
+    name: "addPrims",
+    header: GPU,
+    argCount: 3,
+    expectedDefinition: "addPrims(ot,p0,p1) setaddr(p1, getaddr(ot)),setaddr(ot, p0)",
+    effects: [
+      { kind: "field-read", argIndex: 0, field: "addr" },
+      { kind: "field-write", argIndex: 0, field: "addr" },
+      { kind: "field-write", argIndex: 2, field: "addr" },
+    ],
+    evidence: "Links a chain of primitives into the ordering-table entry: reads and writes the table tag and the last packet's tag.",
+    publication: true,
   },
   {
     name: "catPrim",
@@ -161,6 +234,7 @@ const REGISTRY: KnownMacroDefinition[] = [
     expectedDefinition: "catPrim(p0, p1) setaddr(p0, p1)",
     effects: fieldWrites(0, ["addr"]),
     evidence: "Writes only the tag address bitfield of its first pointer argument.",
+    publication: true,
   },
   {
     name: "termPrim",
@@ -169,6 +243,7 @@ const REGISTRY: KnownMacroDefinition[] = [
     expectedDefinition: "termPrim(p) setaddr(p, 0xffffffff)",
     effects: fieldWrites(0, ["addr"]),
     evidence: "Writes only the tag address bitfield of its pointer argument.",
+    publication: true,
   },
   {
     name: "setSemiTrans",
@@ -202,6 +277,39 @@ const REGISTRY: KnownMacroDefinition[] = [
       { kind: "whole-object-write", argIndex: 0 },
     ],
     evidence: "Writes the tag length and a raw word that overlaps named color/code fields, so it is ordered against every other access to the same object.",
+  },
+  {
+    name: "setDrawMode",
+    header: GPU,
+    argCount: 5,
+    expectedDefinition: "setDrawMode(p,dfe,dtd,tpage,tw) setlen(p, 2), ((u_long *)p)[1] = _get_mode(dfe, dtd, tpage), ((u_long *)p)[2] = _get_tw((RECT *)tw)",
+    effects: [
+      { kind: "field-write", argIndex: 0, field: "len" },
+      { kind: "whole-object-write", argIndex: 0 },
+    ],
+    evidence: "Writes the tag length and two raw words addressed past the named fields, so it is ordered against every other access to the same object.",
+  },
+  {
+    name: "setTexWindow",
+    header: GPU,
+    argCount: 2,
+    expectedDefinition: "setTexWindow(p,tw) setlen(p, 2), ((u_long *)(p))[1] = _get_tw(tw), ((u_long *)(p))[2] = 0",
+    effects: [
+      { kind: "field-write", argIndex: 0, field: "len" },
+      { kind: "whole-object-write", argIndex: 0 },
+    ],
+    evidence: "Writes the tag length and two raw words addressed past the named fields, so it is ordered against every other access to the same object.",
+  },
+  {
+    name: "setDrawStp",
+    header: GPU,
+    argCount: 2,
+    expectedDefinition: "setDrawStp(p,pbw) setlen(p, 2), ((u_long *)p)[1] = 0xe6000000|(pbw?0x01:0), ((u_long *)p)[2] = 0",
+    effects: [
+      { kind: "field-write", argIndex: 0, field: "len" },
+      { kind: "whole-object-write", argIndex: 0 },
+    ],
+    evidence: "Writes the tag length and two raw words addressed past the named fields, so it is ordered against every other access to the same object.",
   },
 ];
 
@@ -307,10 +415,13 @@ export function loadMacroRegistry(root: string = ROOT): MacroRegistry {
   const active = new Map<string, ActiveMacro>();
   const inactive: Array<{ name: string; reason: string }> = [];
   const headerCache = new Map<string, string | undefined>();
+  const headerHashes: Record<string, string> = {};
   for (const entry of REGISTRY) {
     if (!headerCache.has(entry.header)) {
       const path = join(root, entry.header);
-      headerCache.set(entry.header, existsSync(path) ? readFileSync(path, "utf8") : undefined);
+      const text = existsSync(path) ? readFileSync(path, "utf8") : undefined;
+      headerCache.set(entry.header, text);
+      if (text !== undefined) headerHashes[entry.header] = sha256(text);
     }
     const headerText = headerCache.get(entry.header);
     if (headerText === undefined) {
@@ -337,5 +448,10 @@ export function loadMacroRegistry(root: string = ROOT): MacroRegistry {
       bodyConstants: bodyConstants(expected),
     });
   }
-  return { active, inactive };
+  return { active, inactive, headerHashes };
+}
+
+/** Macros that link a packet into a list a later stage walks. */
+export function isPublicationMacro(registry: MacroRegistry, name: string | undefined): boolean {
+  return name !== undefined && registry.active.get(name)?.publication === true;
 }

@@ -4,6 +4,13 @@ import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, type TargetFac
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
 import type { DisassembledInstruction } from "./decompToolchain.js";
+import {
+  BASELINE_LABEL,
+  CURRENT_SOURCE_LABEL,
+  concludeMatrix,
+  type Fingerprint,
+  type FlagMatrixRow,
+} from "./flagProbe.js";
 
 function code(lines: string[]): DisassembledInstruction[] {
   return lines.map((line, index) => {
@@ -256,4 +263,94 @@ test("loop-idiom: straight-line code produces no finding", () => {
     "jr $ra",
   ]));
   assert.deepEqual(findings, []);
+});
+
+/* ------------------------------------------------------------------ */
+/* Flag-probe matrix conclusions                                       */
+/* ------------------------------------------------------------------ */
+
+function row(label: string, masked: number | null, instructions: number | null): FlagMatrixRow {
+  const entry: FlagMatrixRow = {
+    label,
+    flags: label === BASELINE_LABEL ? "" : label,
+    source: CURRENT_SOURCE_LABEL,
+    masked,
+    instructions,
+    targetInstructions: 105,
+  };
+  if (masked === null) entry.error = "compile failed";
+  return entry;
+}
+
+const SPLIT_ADDRESSES: Fingerprint = {
+  kind: "self-clobber-shape",
+  detail: "lui/lw self-clobber at words 6-7 (reg $3)",
+  candidates: ["-mno-split-addresses"],
+};
+
+test("flag matrix: a tie with baseline is not support for the flag on this source", () => {
+  const verdict = concludeMatrix({
+    rows: [row(BASELINE_LABEL, 105, 105), row("-mno-split-addresses", 72, 105)],
+    fingerprints: [SPLIT_ADDRESSES],
+    sourceLabel: CURRENT_SOURCE_LABEL,
+  });
+  assert.equal(verdict.conclusion, "not-supported-current-source");
+  assert.deepEqual(verdict.dominantRows, []);
+  /* The scope has to survive into the wording: this is a statement about one
+     source, never about the flag in general. */
+  assert.ok(verdict.reasons.some((reason) => reason.includes("scoped to the current source only")));
+});
+
+test("flag matrix: a strictly better column is support, and is named", () => {
+  const verdict = concludeMatrix({
+    rows: [row(BASELINE_LABEL, 80, 111), row("-mno-split-addresses", 105, 105)],
+    fingerprints: [SPLIT_ADDRESSES],
+    sourceLabel: CURRENT_SOURCE_LABEL,
+  });
+  assert.equal(verdict.conclusion, "supported");
+  assert.deepEqual(verdict.dominantRows, ["-mno-split-addresses"]);
+  assert.equal(verdict.candidates[0].conclusion, "supported");
+});
+
+test("flag matrix: a higher masked score bought with an instruction regression is not dominant", () => {
+  const verdict = concludeMatrix({
+    rows: [row(BASELINE_LABEL, 100, 105), row("-mno-split-addresses", 102, 111)],
+    fingerprints: [SPLIT_ADDRESSES],
+    sourceLabel: CURRENT_SOURCE_LABEL,
+  });
+  assert.equal(verdict.conclusion, "not-supported-current-source");
+  assert.deepEqual(verdict.dominantRows, []);
+});
+
+test("flag matrix: a compile failure is inconclusive, never a refutation", () => {
+  assert.equal(concludeMatrix({
+    rows: [row(BASELINE_LABEL, 105, 105), row("-mno-split-addresses", null, null)],
+    fingerprints: [SPLIT_ADDRESSES],
+    sourceLabel: CURRENT_SOURCE_LABEL,
+  }).conclusion, "inconclusive");
+
+  assert.equal(concludeMatrix({
+    rows: [row(BASELINE_LABEL, null, null), row("-mno-split-addresses", 105, 105)],
+    fingerprints: [SPLIT_ADDRESSES],
+    sourceLabel: CURRENT_SOURCE_LABEL,
+  }).conclusion, "inconclusive");
+});
+
+test("flag matrix: no measured source is inconclusive rather than silence", () => {
+  const verdict = concludeMatrix({ rows: [], fingerprints: [SPLIT_ADDRESSES], sourceLabel: CURRENT_SOURCE_LABEL });
+  assert.equal(verdict.conclusion, "inconclusive");
+  assert.match(verdict.reasons[0], /no flag matrix was measured/);
+});
+
+test("flag matrix: rows scored on a candidate shape never decide the current source's verdict", () => {
+  const verdict = concludeMatrix({
+    rows: [
+      row(BASELINE_LABEL, 105, 105),
+      row("-mno-split-addresses", 72, 105),
+      { ...row("-mno-split-addresses", 105, 105), source: "build/candidate.c" },
+    ],
+    fingerprints: [SPLIT_ADDRESSES],
+    sourceLabel: CURRENT_SOURCE_LABEL,
+  });
+  assert.equal(verdict.conclusion, "not-supported-current-source");
 });

@@ -7,9 +7,10 @@ import { deterministicRunId, hashDirectoryFiles, preserveSource, stableJson, wri
 import { classifyHypothesis } from "./classify-hypothesis.js";
 import { findGeneratedGlobalDefinitions, resolveHypotheses, validateManifest, validateVariantSource } from "./manifest.js";
 import { normalizeDisassembly, parseCc1Assembly } from "./compile.js";
+import { assessExactCandidate, unresolvedRelocations } from "./exact-candidate.js";
 import { comparePassSnapshots, snapshotPassContent } from "./pass-diff.js";
-import { generateTransformationVariants } from "./transformations.js";
-import { PASS_STAGES, type PassSnapshot, type PassStage, type ToolIdentity, type VariantHypothesis } from "./types.js";
+import { generateTransformationVariants, planSdkCallOrder, validateTransformationSpec } from "./transformations.js";
+import { PASS_STAGES, type NormalizedInstruction, type PassSnapshot, type PassStage, type ToolIdentity, type VariantHypothesis } from "./types.js";
 
 function insn(uid: number, destination: number, source: string, deaths = ""): string {
   return `(insn ${uid} 0 0 (set (reg:SI ${destination}) ${source}) -1 (nil)${deaths ? ` (expr_list (REG_DEAD (reg:SI ${deaths})) (nil))` : " (nil)"})`;
@@ -298,6 +299,198 @@ test("cc1-only exact variants cannot be promoted", () => {
     baseline: false,
   });
   assert.equal(full.promotionEligible, true);
+});
+
+/* --- the sdk-call-order fallback template --- */
+
+const SDK_ORDER_SOURCE = [
+  "#include \"common.h\"",
+  "#include \"psyq/libgpu.h\"",
+  "",
+  "void fixture(POLY_F4 *poly, u_long *ot, u8 color) {",
+  "    setPolyF4(poly);",
+  "    setRGB0(poly, color, color, color);",
+  "    setXYWH(poly, 0, 0, 0x280, 0x1E0);",
+  "    setSemiTrans(poly, 1);",
+  "    addPrim(ot, poly);",
+  "}",
+  "",
+].join("\n");
+
+const SDK_ORDER_STATEMENTS = [
+  "setPolyF4(poly);",
+  "setRGB0(poly, color, color, color);",
+  "setXYWH(poly, 0, 0, 0x280, 0x1E0);",
+  "setSemiTrans(poly, 1);",
+];
+
+test("sdk-call-order derives the dependency-valid orders from the configured header", () => {
+  const plan = planSdkCallOrder("fixture", SDK_ORDER_SOURCE, SDK_ORDER_STATEMENTS);
+  assert.deepEqual(plan.calls.map((call) => call.macro), ["setPolyF4", "setRGB0", "setXYWH", "setSemiTrans"]);
+
+  /* setPolyF4 writes `code`; setSemiTrans reads and rewrites it. That is the
+     only constraint among the four, so half the orders survive. */
+  assert.deepEqual(plan.dependencies.map((edge) => [edge.from, edge.to]), [["c0", "c3"]]);
+  assert.equal(plan.orders.length, 12);
+  assert.deepEqual(plan.orders[0], [0, 1, 2, 3], "rank 0 is the source's current order");
+  for (const order of plan.orders) {
+    assert.ok(order.indexOf(0) < order.indexOf(3), "setSemiTrans never precedes setPolyF4");
+  }
+});
+
+test("sdk-call-order refuses anything it cannot permute atomically", () => {
+  assert.throws(
+    () => planSdkCallOrder("fixture", SDK_ORDER_SOURCE, ["setPolyF4(poly);", "setXYWH(poly, 0, 0, 0x280, 0x1E0);"]),
+    /must be adjacent/,
+    "a gap between the named statements is refused rather than closed",
+  );
+  assert.throws(
+    () => planSdkCallOrder("fixture", SDK_ORDER_SOURCE, ["setPolyF4(poly);", "setlen(poly, 5);"]),
+    /appear exactly once/,
+    "a statement not present in the base source is refused",
+  );
+
+  const withUnknown = SDK_ORDER_SOURCE.replace(
+    "    setRGB0(poly, color, color, color);",
+    "    SomeUnknownHelper(poly);");
+  assert.throws(
+    () => planSdkCallOrder("fixture", withUnknown, ["setPolyF4(poly);", "SomeUnknownHelper(poly);"]),
+    /not a verified SDK macro call/,
+  );
+});
+
+test("sdk-call-order spec validation rejects a hand-written permutation list", () => {
+  assert.throws(() => validateTransformationSpec({
+    function: "fixture",
+    template: "sdk-call-order",
+    baseSourcePath: "src/fixture.c",
+    expectedPass: "rtl",
+    outputs: [{ id: "p00", expectedEffect: "x", invariants: ["y"], edits: [{ find: "a", replace: "b" }] }],
+    region: { statements: SDK_ORDER_STATEMENTS },
+  }), /derives its own outputs/);
+
+  assert.throws(() => validateTransformationSpec({
+    function: "fixture",
+    template: "sdk-call-order",
+    baseSourcePath: "src/fixture.c",
+    expectedPass: "rtl",
+    region: { statements: ["setPolyF4(poly);"] },
+  }), /2 to 6 adjacent SDK macro calls/);
+});
+
+/* --- byte-exactness as an oracle result, orthogonal to the verdict --- */
+
+const NO_RELOCATIONS: NormalizedInstruction[] = [
+  { mnemonic: "addu", operands: ["v0", "a0", "a1"], canonical: "addu v0,a0,a1" },
+  { mnemonic: "jr", operands: ["ra"], canonical: "jr ra" },
+];
+
+test("a full-mode exact result is a byte-exact candidate even with tracing off", () => {
+  const classification = classifyHypothesis({
+    hypothesis,
+    status: "exact",
+    passComparison: undefined,
+    tracePasses: false,
+    cc1Only: false,
+    baseline: false,
+  });
+  const assessment = assessExactCandidate({
+    status: "exact",
+    exact: 2,
+    total: 2,
+    mode: "full",
+    target: NO_RELOCATIONS,
+    compiled: NO_RELOCATIONS,
+  });
+
+  /* Both statements hold at once, and the run must be able to say both. */
+  assert.equal(classification.verdict, "inconclusive");
+  assert.equal(assessment.exactCandidate, true);
+  assert.equal(assessment.exactCandidateBasis, "full-object");
+});
+
+test("a cc1-only exact result is named but flagged as needing full confirmation", () => {
+  const assessment = assessExactCandidate({
+    status: "exact",
+    exact: 2,
+    total: 2,
+    mode: "cc1-only",
+    target: NO_RELOCATIONS,
+    compiled: NO_RELOCATIONS,
+  });
+  assert.equal(assessment.exactCandidate, true);
+  assert.equal(assessment.exactCandidateBasis, "cc1-only");
+  assert.match(assessment.reason, /full-mode confirmation still required/);
+
+  const classification = classifyHypothesis({
+    hypothesis,
+    status: "exact",
+    passComparison: undefined,
+    tracePasses: false,
+    cc1Only: true,
+    baseline: false,
+  });
+  assert.equal(classification.promotionEligible, false);
+});
+
+test("a full-mode exact result with a confirmed mechanism stays promotion eligible", () => {
+  const classification = classifyHypothesis({
+    hypothesis,
+    status: "exact",
+    passComparison: comparePassSnapshots(snapshots(), snapshots({ rtl: dump([
+      insn(10, 105, "(plus:SI (reg:SI 90) (reg:SI 91))"),
+      insn(21, 105, "(ior:SI (reg:SI 92) (reg:SI 93))"),
+    ]) })),
+    tracePasses: true,
+    cc1Only: false,
+    baseline: false,
+  });
+  assert.equal(classification.verdict, "confirmed");
+  assert.equal(classification.promotionEligible, true);
+  assert.equal(assessExactCandidate({
+    status: "exact",
+    exact: 2,
+    total: 2,
+    mode: "full",
+    target: NO_RELOCATIONS,
+    compiled: NO_RELOCATIONS,
+  }).exactCandidate, true);
+});
+
+test("a normalized score equal to the target count is not exact when a relocation is unresolved", () => {
+  /* Before linking, two calls to different symbols disassemble identically;
+   * only the relocation record separates them, and the normalized cc1 text
+   * does not carry it. */
+  const target: NormalizedInstruction[] = [
+    { mnemonic: "jal", operands: ["0<enclosing>"], relocation: "%lo(func_80013668)", canonical: "jal 0<enclosing>" },
+    { mnemonic: "nop", operands: [], canonical: "nop " },
+  ];
+  const compiled: NormalizedInstruction[] = [
+    { mnemonic: "jal", operands: ["0<enclosing>"], canonical: "jal 0<enclosing>" },
+    { mnemonic: "nop", operands: [], canonical: "nop " },
+  ];
+  const assessment = assessExactCandidate({
+    status: "exact", exact: 2, total: 2, mode: "cc1-only", target, compiled,
+  });
+  assert.equal(assessment.exactCandidate, false);
+  assert.equal(assessment.exactCandidateBasis, null);
+  assert.match(assessment.reason, /relocation the comparison never resolved/);
+  assert.deepEqual(unresolvedRelocations(target, compiled), [0]);
+});
+
+test("a resolved relocation present on both sides is still exact", () => {
+  const both: NormalizedInstruction[] = [
+    { mnemonic: "lui", operands: ["v0", "%hi(8005e980)"], relocation: "%hi(8005e980)", canonical: "lui v0,%hi(8005e980)" },
+  ];
+  assert.equal(assessExactCandidate({
+    status: "exact", exact: 1, total: 1, mode: "cc1-only", target: both, compiled: both,
+  }).exactCandidate, true);
+});
+
+test("a mismatch is never a byte-exact candidate however high its score", () => {
+  assert.equal(assessExactCandidate({
+    status: "mismatch", exact: 104, total: 105, mode: "full", target: NO_RELOCATIONS, compiled: NO_RELOCATIONS,
+  }).exactCandidate, false);
 });
 
 test("func_800154CC regression explains tag-result web reuse and branch-join mask scheduling", () => {

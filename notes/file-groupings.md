@@ -549,7 +549,8 @@ for the active ordering table. Evidence is the direct internal call plus
 address adjacency; no shared GP-relative cluster has been established.
 
 Members:
-- func_800134C4 (m) — builds and links the full-screen POLY_F4/DR_MODE pair
+- func_800134C4 (m) — builds and links the full-screen POLY_F4/DR_MODE pair;
+  see `notes/retros/2026-08-13-func_800134C4-retro.md`
 - func_80013668 (m) — resets display/draw environments to 640×480
 
 ## VAB transfer setup/state — around 0x80020E58–0x800218C4 (confidence: high)

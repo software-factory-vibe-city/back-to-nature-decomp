@@ -9,7 +9,7 @@
  *   npx tsx tools/agent/explainDiff.ts --self-test
  */
 
-import { rmSync } from "fs";
+import { readFileSync, rmSync } from "fs";
 import { join, relative } from "path";
 import {
   ROOT,
@@ -29,6 +29,7 @@ import {
   provenanceAudit,
   summarizeWeb,
 } from "./webAnalysis.js";
+import { recognizeIdioms, sdkReconstructionGap } from "./sdkIdioms.js";
 
 export type DiffCategory =
   | "exact"
@@ -755,12 +756,108 @@ export function analyzeInstructionSets(
   };
 }
 
-function printHuman(funcName: string, source: string, report: StructuralDiffReport, artifacts: string): void {
+/* --- SDK operation-boundary routing --- */
+
+export interface SdkBoundaryCandidate {
+  /** Packet types the target's own bytes establish. */
+  types: string[];
+  missingTypes: string[];
+  /** SDK operations the target establishes, and the ones still hand-expanded. */
+  macros: string[];
+  missingMacros: string[];
+  /** Reported differences that land inside a recognized packet region. */
+  overlappingDifferences: number[];
+  /** Why the section fired, in the classifier's own terms. */
+  reasons: string[];
+}
+
+/**
+ * Route a residual back to source semantics when it overlaps a packet the
+ * configured SDK can build.
+ *
+ * The classifications below this section describe how the compiler placed the
+ * instructions a source asked for. When some of those instructions are a
+ * hand-expanded SDK operation, the source asked for the wrong ones, and every
+ * allocation or scheduling reading taken on top of them is a reading of a
+ * different program. So this is advisory compatibility — it never claims the
+ * historical source used these macros — but it is advisory that comes first.
+ */
+export function sdkOperationBoundary(
+  target: DisassembledInstruction[],
+  sourceText: string,
+  report: StructuralDiffReport,
+): SdkBoundaryCandidate | null {
+  if (report.category === "exact") return null;
+  const gap = sdkReconstructionGap(recognizeIdioms(target, sourceText), sourceText);
+  if (!gap || gap.complete) return null;
+
+  const region = new Set(gap.indexes);
+  const overlappingDifferences = report.differences
+    .map((difference) => difference.index)
+    .filter((index) => region.has(index));
+
+  const reasons: string[] = [];
+  if (overlappingDifferences.length > 0) {
+    reasons.push(
+      `${overlappingDifferences.length} reported difference(s) land inside the recognized packet region ` +
+      `(target instructions ${overlappingDifferences.join(", ")})`);
+  }
+  if (!report.webParity.parity) {
+    reasons.push("web parity fails, so the source pseudo set already differs from the target's");
+  }
+  if (report.targetCount !== report.compiledCount) {
+    reasons.push(
+      `instruction counts differ (${report.targetCount} vs ${report.compiledCount}); a macro expansion ` +
+      "emits a different instruction set, not a different order of the same one");
+  }
+  if (report.category === "instruction-selection" || report.category === "mixed-operands") {
+    reasons.push(`the classification is ${report.category}, which a wrong operation boundary produces directly`);
+  }
+  if (reasons.length === 0) return null;
+
+  return {
+    types: gap.types,
+    missingTypes: gap.missingTypes,
+    macros: gap.macros,
+    missingMacros: gap.missingMacros,
+    overlappingDifferences,
+    reasons,
+  };
+}
+
+function printSdkBoundary(candidate: SdkBoundaryCandidate): void {
+  /* The headline names the packet types and the link operation; the full
+   * macro list is a line of its own, because a headline that grows with the
+   * field-macro count stops reading as a headline. */
+  const headline = [...candidate.types, ...(candidate.macros.includes("addPrim") ? ["addPrim"] : [])];
+  console.log("SDK OPERATION-BOUNDARY CANDIDATE");
+  console.log(`Target region is compatible with ${headline.join("/")} operations, while the`);
+  console.log("source expands them manually. Test the named SDK representation before acting");
+  console.log("on allocation or scheduling classifications below.");
+  if (candidate.missingTypes.length > 0) {
+    console.log(`  types not used by the source:  ${candidate.missingTypes.join(", ")}`);
+  }
+  if (candidate.missingMacros.length > 0) {
+    console.log(`  operations still expanded by hand: ${candidate.missingMacros.join(", ")}`);
+  }
+  for (const reason of candidate.reasons) console.log(`  - ${reason}`);
+  console.log("  Advisory compatibility: this does not prove the original source used these");
+  console.log("  macros. Run psx_sdk_idioms for the full field map and argument evidence.\n");
+}
+
+function printHuman(
+  funcName: string,
+  source: string,
+  report: StructuralDiffReport,
+  artifacts: string,
+  sdkBoundary?: SdkBoundaryCandidate | null,
+): void {
   console.log(`Structural diff: ${funcName}`);
   console.log(`source:      ${source}`);
   console.log(`artifacts:   ${artifacts}`);
   console.log(`target:      ${report.targetCount} instructions`);
   console.log(`compiled:    ${report.compiledCount} instructions\n`);
+  if (sdkBoundary) printSdkBoundary(sdkBoundary);
   console.log(`Classification: ${report.category}`);
   console.log(report.summary);
   for (const item of report.evidence) console.log(`  - ${item}`);
@@ -936,19 +1033,22 @@ if (isCLI) {
         useOverrides: !args.includes("--no-overrides"),
       });
       const targetObject = assembleTarget(funcName, outputDirectory);
+      const targetInstructions = disassembleObject(targetObject);
       const report = analyzeInstructionSets(
-        disassembleObject(targetObject),
+        targetInstructions,
         disassembleObject(compiled.object!),
       );
+      const sdkBoundary = sdkOperationBoundary(targetInstructions, readFileSync(source, "utf-8"), report);
       if (args.includes("--json")) {
         console.log(JSON.stringify({
           function: funcName,
           source: relative(ROOT, source),
           artifacts: relative(ROOT, outputDirectory),
+          sdkBoundary,
           ...report,
         }, null, 2));
       } else {
-        printHuman(funcName, relative(ROOT, source), report, relative(ROOT, outputDirectory));
+        printHuman(funcName, relative(ROOT, source), report, relative(ROOT, outputDirectory), sdkBoundary);
       }
     } catch (error: any) {
       console.error(`explainDiff: ${error.message}`);

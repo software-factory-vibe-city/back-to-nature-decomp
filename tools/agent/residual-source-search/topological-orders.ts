@@ -160,6 +160,72 @@ export function loopCarriedDependencies(
   return extra;
 }
 
+/** Two effects that name the same storage, whether or not either writes. */
+function effectsTouchSameObject(left: MemoryEffect, right: MemoryEffect): boolean {
+  if (left.namespace === "unknown" || right.namespace === "unknown") return true;
+  if (left.namespace === "global" && right.namespace === "global") return left.key === right.key;
+  if (left.namespace === "global") return right.globals.includes(left.key);
+  if (right.namespace === "global") return left.globals.includes(right.key);
+  return left.key === right.key &&
+    left.baseWebs.join(",") === right.baseWebs.join(",") &&
+    !left.baseWebs.some((web) => web.startsWith("?:"));
+}
+
+function nodesTouchSameObject(left: RegionNodeView, right: RegionNodeView): boolean {
+  const leftEffects = [...left.memoryReads, ...left.memoryWrites];
+  const rightEffects = [...right.memoryReads, ...right.memoryWrites];
+  for (const leftEffect of leftEffects) {
+    for (const rightEffect of rightEffects) {
+      if (effectsTouchSameObject(leftEffect, rightEffect)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Publication barriers.
+ *
+ * `addPrim(ot, p)` hands `p` to a list a later stage walks. Field-level
+ * aliasing alone does not order an initializer against it — `setRGB0` writes
+ * `r0/g0/b0` while `addPrim` writes `addr`, and those commute as C — so
+ * without this the domain would contain candidates that initialize a packet
+ * after linking it in. Those are not representations of the same program in
+ * any sense a decompilation cares about, and the original source will not have
+ * been written that way.
+ *
+ * The rule is conservative in the direction that only ever shrinks the domain:
+ * every statement touching a published object keeps its side of the
+ * publication point, and two publication points keep their relative order.
+ * Both are recorded as suppressions in `grammar.json` rather than applied
+ * silently.
+ */
+export function publicationBarrierDependencies(views: RegionNodeView[]): RegionDependency[] {
+  const edges: RegionDependency[] = [];
+  const publishes = views.map((view) => view.node.publishes === true);
+  if (!publishes.some(Boolean)) return edges;
+
+  for (let left = 0; left < views.length; left++) {
+    for (let right = left + 1; right < views.length; right++) {
+      if (!publishes[left] && !publishes[right]) continue;
+      if (publishes[left] && publishes[right]) {
+        edges.push({
+          from: views[left]!.id,
+          to: views[right]!.id,
+          kind: `publication-order:${views[left]!.node.macro}->${views[right]!.node.macro}`,
+        });
+        continue;
+      }
+      if (!nodesTouchSameObject(views[left]!, views[right]!)) continue;
+      edges.push({
+        from: views[left]!.id,
+        to: views[right]!.id,
+        kind: `publication:${(publishes[right] ? views[right]! : views[left]!).node.macro}`,
+      });
+    }
+  }
+  return edges;
+}
+
 export class RegionTooLargeError extends Error {
   constructor(readonly nodeCount: number) {
     super(`region with ${nodeCount} reorderable nodes exceeds the exact-counting bound of ${MAX_REGION_NODES}`);

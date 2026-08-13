@@ -1,6 +1,22 @@
 # Plan: make SDK-idiom reconstruction the default before allocator tuning
 
-**Status: proposed.**
+**Status: landed 2026-08-13.** All eight phases built and verified in one
+session. Two things came out differently from the proposal and are recorded
+here rather than silently:
+
+- The four `POLY_F4` initializer calls have **12** dependency-valid orders, not
+  24. `setPolyF4` writes `code` and `setSemiTrans` reads and rewrites it, so
+  the header's own verified field effects order that pair. The original manual
+  batch of 24 permutations included 12 that no dependency admits. Phase 4's
+  test for "four independent initializers produce 24 coordinates" is kept, on
+  four genuinely independent calls.
+- Phase 4's SDK-call-order stratum is an accounting and barrier layer over the
+  existing `statement-order` rule, not a second enumeration. The coordinates
+  were already reachable once the macros were registered; what was missing was
+  the registration, the publication barrier, and the record in `grammar.json`
+  that makes an exhaustion claim over those orders checkable.
+
+The retrospective is `notes/retros/2026-08-13-func_800134C4-retro.md`.
 
 ## Purpose
 

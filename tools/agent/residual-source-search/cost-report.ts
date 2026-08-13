@@ -5,7 +5,7 @@ import { compileSourceAsync } from "../decompToolchain.js";
 import { writeStableJson } from "../variant-lab/artifacts.js";
 import { groupNameAt, type DomainRuntime } from "./enumerate.js";
 import type { DerivedGrammar } from "./rewrite-catalog.js";
-import { RegionOrderModel, parseMemoryToken, regionDependencies } from "./topological-orders.js";
+import { RegionOrderModel, parseMemoryToken, publicationBarrierDependencies, regionDependencies } from "./topological-orders.js";
 import type { WebView } from "./web-partitions.js";
 import type { CandidateClass, CostEstimate, DomainAxisReport, SemanticGraph } from "./types.js";
 
@@ -125,7 +125,14 @@ export function grammarAxes(options: {
             memoryWrites: node.memoryWrites.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
           };
         });
-        radix = RegionOrderModel.fromDependencies(region.nodeIds, regionDependencies(views)).count().toString();
+        /* Same edge set the enumerator uses, publication barriers included —
+         * a price quoted from a larger domain than the run walks is wrong. */
+        const edges = regionDependencies(views);
+        for (const edge of publicationBarrierDependencies(views)) {
+          if (edges.some((existing) => existing.from === edge.from && existing.to === edge.to)) continue;
+          edges.push(edge);
+        }
+        radix = RegionOrderModel.fromDependencies(region.nodeIds, edges).count().toString();
       } catch {
         radix = "unknown";
       }

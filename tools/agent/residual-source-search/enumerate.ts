@@ -10,6 +10,7 @@ import {
   RegionTooLargeError,
   loopCarriedDependencies,
   parseMemoryToken,
+  publicationBarrierDependencies,
   regionDependencies,
   type RegionNodeView,
 } from "./topological-orders.js";
@@ -23,6 +24,7 @@ import {
   type OrderRegion,
   type PartitionDomain,
   type ResidualDomain,
+  type SdkCallOrderRegion,
   type SemanticGraph,
   type SemanticNode,
   type SwitchFormSite,
@@ -109,7 +111,7 @@ export function groupNameAt(
   return named.groupOfWeb.get(`${variable}#0`) ?? variable;
 }
 
-function regionNodeView(
+export function regionNodeView(
   graph: SemanticGraph,
   view: WebView,
   named: NamedPartitionRuntime,
@@ -127,6 +129,153 @@ function regionNodeView(
     memoryReads: node.memoryReads.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
     memoryWrites: node.memoryWrites.map((token) => parseMemoryToken(token, webAt, (name) => variableNames.has(name))),
   };
+}
+
+/** Bounds from the plan's eligibility rule for the SDK-call-order stratum. */
+const MIN_SDK_CALL_RUN = 2;
+const MAX_SDK_CALL_RUN = 6;
+
+function factorial(count: number): bigint {
+  let result = 1n;
+  for (let index = 2n; index <= BigInt(count); index++) result *= index;
+  return result;
+}
+
+/**
+ * Record the SDK macro-call runs whose birth order this domain enumerates.
+ *
+ * The coordinates are the ones the statement-order rule already produces —
+ * this adds no candidate and removes none. What it adds is the record: which
+ * calls, which edges and where each came from, how many of the `N!` orders
+ * survived, and the hash of the SDK header the calls were recognized against.
+ * An exhaustion claim over "the orders of these calls" is only checkable if
+ * the run says which orders those were.
+ *
+ * A macro call is treated atomically. The stores inside one expansion are the
+ * macro's own definition, never a permutable statement list.
+ */
+export function sdkCallOrderRegions(options: {
+  graph: SemanticGraph;
+  view: WebView;
+  derived: DerivedGrammar;
+}): SdkCallOrderRegion[] {
+  const { graph, view, derived } = options;
+  const named = derived.materializations[0]?.partitions[0];
+  if (!named) return [];
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const headerHashes = derived.registry.headerHashes;
+  const records: SdkCallOrderRegion[] = [];
+
+  const describe = (node: SemanticNode) => ({
+    nodeId: node.id,
+    macro: node.macro!,
+    text: node.text,
+    span: node.span,
+    publication: node.publishes === true,
+  });
+
+  for (const region of derived.regions) {
+    const nodes = region.nodeIds.map((id) => nodeById.get(id)!).filter(Boolean);
+    /* Sub-runs, not whole regions: a packet build sits among the pointer
+     * assignments that set it up, so the SDK-call axis is the adjacent macro
+     * calls inside the region rather than the region itself.
+     *
+     * A run also ends at a publication point. The barrier already fixes which
+     * side of an `addPrim` every initializer sits on, so counting the
+     * initializers and the publications as one `N!` run would report a
+     * coupling the grammar does not have — and would push an ordinary packet
+     * build past the stratum's bound for no reason. */
+    const runs: SemanticNode[][] = [];
+    let run: SemanticNode[] = [];
+    let runPublishes: boolean | undefined;
+    const flushRun = (): void => {
+      if (run.length > 0) runs.push(run);
+      run = [];
+      runPublishes = undefined;
+    };
+    for (const node of nodes) {
+      if (node.kind !== "known-macro" || node.macro === undefined) { flushRun(); continue; }
+      const publishes = node.publishes === true;
+      if (runPublishes !== undefined && publishes !== runPublishes) flushRun();
+      runPublishes = publishes;
+      run.push(node);
+    }
+    flushRun();
+
+    const publications = nodes.filter((node) => node.publishes === true);
+    for (const calls of runs) {
+      if (calls.length < MIN_SDK_CALL_RUN) continue;
+      if (calls.length > MAX_SDK_CALL_RUN) {
+        records.push({
+          regionId: region.id,
+          block: region.block,
+          calls: calls.map(describe),
+          dependencies: [],
+          admittedOrders: "0",
+          unconstrainedOrders: factorial(calls.length).toString(),
+          suppressedOrders: factorial(calls.length).toString(),
+          suppressionReasons: [
+            `${calls.length} adjacent SDK calls exceed the stratum's bound of ${MAX_SDK_CALL_RUN}; ` +
+            "the general statement-order rule still enumerates this region, but the run is not " +
+            "recorded as an SDK-call-order region",
+          ],
+          sdkHeaderHashes: headerHashes,
+        });
+        continue;
+      }
+
+      const views = calls.map((node) => regionNodeView(graph, view, named, node));
+      const dataflow = regionDependencies(views);
+      const barriers = publicationBarrierDependencies(views)
+        .filter((edge) => !dataflow.some((existing) => existing.from === edge.from && existing.to === edge.to));
+      const edges = [...dataflow, ...barriers];
+
+      let admitted: bigint;
+      try {
+        admitted = RegionOrderModel.fromDependencies(calls.map((node) => node.id), edges).count();
+      } catch {
+        continue;
+      }
+      const unconstrained = factorial(calls.length);
+      const suppressionReasons: string[] = [];
+      if (dataflow.length > 0) {
+        suppressionReasons.push(
+          `${dataflow.length} dataflow edge(s) from the macros' verified field effects: ` +
+          dataflow.map((edge) => `${edge.from}->${edge.to} (${edge.kind})`).join(", "));
+      }
+      if (barriers.length > 0) {
+        suppressionReasons.push(
+          `${barriers.length} publication barrier edge(s): ` +
+          barriers.map((edge) => `${edge.from}->${edge.to} (${edge.kind})`).join(", "));
+      }
+      if (suppressionReasons.length === 0) {
+        suppressionReasons.push("no dependency constrains these calls; every order is admitted");
+      }
+      if (calls.length < nodes.length) {
+        suppressionReasons.push(
+          `counted over the ${calls.length} adjacent SDK calls alone; region ${region.id} has ` +
+          `${nodes.length} statements, and its full domain also interleaves the other ${nodes.length - calls.length}`);
+      }
+      if (publications.length > 0 && calls[0]!.publishes !== true) {
+        suppressionReasons.push(
+          `publication point(s) ${publications.map((node) => `${node.id} ${node.macro}`).join(", ")} delimit this run; ` +
+          "the barrier fixes which side of each publication every one of these calls sits on");
+      }
+
+      records.push({
+        regionId: region.id,
+        block: region.block,
+        calls: calls.map(describe),
+        dependencies: edges,
+        admittedOrders: admitted.toString(),
+        unconstrainedOrders: unconstrained.toString(),
+        suppressedOrders: (unconstrained - admitted).toString(),
+        suppressionReasons,
+        sdkHeaderHashes: headerHashes,
+      });
+    }
+  }
+  return records;
 }
 
 function firstGroupDef(
@@ -356,6 +505,15 @@ export function buildDomain(options: {
           try {
             const views = effective.map((node) => regionNodeView(graph, view, namedWithSynthetic, node));
             const edges = regionDependencies(views);
+            /* A packet handed to a display list is published: nothing that
+             * touches it may cross that point, and field-level aliasing alone
+             * does not say so. */
+            for (const edge of publicationBarrierDependencies(views)) {
+              if (edges.some((existing) => existing.from === edge.from && existing.to === edge.to)) continue;
+              edges.push(edge);
+              const note = `region ${region.id}: ${edge.kind} orders ${edge.from} before ${edge.to} (publication barrier)`;
+              if (!caveats.includes(note)) caveats.push(note);
+            }
             /* Inside a loop the back edge is a second dependence channel. */
             if (loopRegions.has(region.id)) {
               const carried = loopCarriedDependencies(views, edges);

@@ -66,11 +66,16 @@ Before editing, read completely:
      parameter types are read off load width and signedness and are exact;
      take them, do not re-derive them. Do not report a frame size you did
      not get from here.
-   - `sdk-idiom` — the PSY-Q primitive type and macro expansions present in
-     the target. If it names a type, use that type and
-     `#include "psyq/libgpu.h"`; the field map it prints names every offset
-     the function touches. Hand-rolled bitfield arithmetic where the SDK has
-     a macro is a reconstruction error, not a style choice.
+   - `sdk-idiom` — the PSY-Q packet types and macro operations present in the
+     target: primitive initializers (including a base code composed with
+     documented attribute bits such as semi-transparency), command packets
+     with their recovered arguments, and complete tag-link operations. If it
+     names a type, use that type and `#include "psyq/libgpu.h"`; the field map
+     it prints names every offset the function touches. Hand-rolled bitfield
+     arithmetic where the SDK has a macro is a reconstruction error, not a
+     style choice, and this finding sorts ahead of `inventory` and the
+     allocation/scheduling classes on purpose — see "Restore SDK operation
+     boundaries first" below.
    - `inventory` — memory offsets, constants, and shift amounts as multisets,
      target versus your compiled source. These are invariant to scheduling
      and register allocation, so anything marked TARGET ONLY is a **semantic**
@@ -103,6 +108,37 @@ Before editing, read completely:
 
    `psx_frame_map`, `psx_sdk_idioms`, and `psx_inventory` also run standalone
    when you want one of them in full detail without the rest.
+
+## Restore SDK operation boundaries first
+
+When triage or `psx_explain_diff` names an SDK packet type or macro operation,
+that comes before every compiler-state question, in this order:
+
+1. run triage and `psx_sdk_idioms`;
+2. reconstruct **all** named types and macro operations — initializer,
+   attribute macros, field-group macros, command packets, and links;
+3. re-run triage, the inventory, the exact diff, and the classifier;
+4. only then trace allocation or scheduling;
+5. if the remaining residual is order-only among adjacent independent SDK
+   calls, run the bounded SDK-call statement-order search
+   (`psx_search_residual_source_space`, or the `sdk-call-order` transform
+   template through `psx_fuzz_variants` when the closure does not reach the
+   region). Never permute the stores inside one macro expansion.
+
+`psx_explain_diff` prints `SDK OPERATION-BOUNDARY CANDIDATE` above its
+classification when a residual overlaps a recognized packet the source expands
+by hand. Treat everything under it as provisional until the boundary is
+restored: an allocation or scheduling classification derived from a
+hand-expanded packet describes a program the original build never compiled.
+
+Compact case (`notes/retros/2026-08-13-func_800134C4-retro.md`): a 106-vs-105
+`instruction-selection` residual with a broad register rotation read as an
+allocation problem. The target's code byte was `0x2A` — `setPolyF4`'s `0x28`
+with `setSemiTrans`'s documented bit already applied — so nothing named the
+primitive. Rebuilding the function as `setPolyF4` / `setRGB0` / `setXYWH` /
+`setSemiTrans` / `setDrawMode` plus two `addPrim` calls put the count at 105
+and removed the rotation, leaving only the birth order of four independent
+initializer calls; the 24 dependency-valid orders were then exhausted directly.
 
 ## Prepare the target
 

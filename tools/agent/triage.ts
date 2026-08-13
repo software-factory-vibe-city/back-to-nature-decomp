@@ -60,7 +60,9 @@ import {
   renderMap,
   renderSignature,
 } from "./frameMap.js";
-import { recognizeIdioms } from "./sdkIdioms.js";
+import { recognizeIdioms, sdkReconstructionGap } from "./sdkIdioms.js";
+import { readReport, targetHashOf, toolchainHash, type FlagProbeReport } from "./flagProbe.js";
+import { sha256 } from "./variant-lab/artifacts.js";
 import { compareInventories, renderReport } from "./inventory.js";
 import { BRANCH_MNEMONICS, defUse } from "./webAnalysis.js";
 
@@ -216,26 +218,77 @@ function detectFrameMap(name: string, target: TargetFacts): Finding[] {
 }
 
 /**
- * The field map is the payload, and it is only worth printing while the
- * source has not adopted the type. Once it has, one confirming line is
- * enough — the rest would be wallpaper, and wallpaper gets skimmed.
+ * A recognized SDK packet is a source-semantics finding, not a style
+ * suggestion: hand-written field stores and 24-bit tag arithmetic where the
+ * configured SDK has macros put the operation boundaries in the wrong place,
+ * and every allocation or scheduling reading taken on top of them is taken on
+ * the wrong program. So this runs BEFORE the inventory and frame detectors,
+ * and it stays a signal until the source expresses the recognized operations.
+ *
+ * The field map is the payload while the source has not adopted the type.
+ * Once it has, one confirming line is enough — the rest would be wallpaper,
+ * and wallpaper gets skimmed.
  */
+const SDK_BOUNDARY_INSTRUCTION =
+  "Restore the SDK operation boundary before allocator or scheduler work. " +
+  "Hand-written field stores and 24-bit tag arithmetic are a reconstruction " +
+  "defect when the configured SDK provides these macros.";
+
 function detectSdkIdioms(target: TargetFacts, sourceText?: string): Finding[] {
   const report = recognizeIdioms(target.instructions, sourceText);
-  if (!report.primitive) return [];
+  const gap = sdkReconstructionGap(report, sourceText);
+  if (!gap) return [];
 
-  const knowsType = sourceText ? new RegExp(`\\b${report.primitive.name}\\b`).test(sourceText) : false;
-  const relevant = knowsType
-    ? report.findings.filter((finding) => finding.kind === "sdk-primitive")
-    : report.findings;
+  const names = gap.types.length > 0 ? gap.types.join(", ") : "SDK tag operations";
 
-  return relevant.map((finding) => ({
+  /* No source yet: the whole report is authoring reference. */
+  if (sourceText === undefined) {
+    return [{
+      detector: "sdk-idiom",
+      severity: "signal",
+      summary:
+        `target builds ${names} through the configured PSY-Q SDK. ${SDK_BOUNDARY_INSTRUCTION}`,
+      evidence: report.findings.flatMap((finding) => [finding.summary, ...finding.evidence.map((line) => `  ${line}`)]),
+      see: ["include/psyq/libgpu.h", "notes/retros/2026-08-13-func_800134C4-retro.md"],
+    }];
+  }
+
+  if (gap.complete) {
+    return [{
+      detector: "sdk-idiom",
+      severity: "info",
+      summary:
+        `source expresses every recognized SDK operation (${gap.types.join(", ") || "tag links"}: ` +
+        `${gap.macros.join(", ")}) — the operation boundary is already restored`,
+      evidence: [],
+      see: ["include/psyq/libgpu.h"],
+    }];
+  }
+
+  if (gap.missingTypes.length > 0) {
+    return [{
+      detector: "sdk-idiom",
+      severity: "signal",
+      summary:
+        `target builds ${names}, and your source does not use ` +
+        `${gap.missingTypes.join(", ")}. ${SDK_BOUNDARY_INSTRUCTION}`,
+      evidence: report.findings.flatMap((finding) => [finding.summary, ...finding.evidence.map((line) => `  ${line}`)]),
+      see: ["include/psyq/libgpu.h", "notes/retros/2026-08-13-func_800134C4-retro.md"],
+    }];
+  }
+
+  /* The type is adopted but some operation is still expanded by hand. */
+  return [{
     detector: "sdk-idiom",
-    severity: (finding.kind === "sdk-primitive" && !knowsType ? "signal" : "info") as Severity,
-    summary: finding.summary,
-    evidence: knowsType ? [`source already uses ${report.primitive!.name}`] : finding.evidence,
-    see: ["include/psyq/libgpu.h"],
-  }));
+    severity: "signal",
+    summary:
+      `source uses ${gap.types.join(", ")} but still expands ${gap.missingMacros.join(", ")} by hand. ` +
+      SDK_BOUNDARY_INSTRUCTION,
+    evidence: report.findings
+      .filter((finding) => finding.kind === "sdk-macro" || finding.kind === "sdk-link")
+      .flatMap((finding) => [finding.summary, ...finding.evidence.map((line) => `  ${line}`)]),
+    see: ["include/psyq/libgpu.h", "notes/retros/2026-08-13-func_800134C4-retro.md"],
+  }];
 }
 
 function detectInventory(target: TargetFacts, compiled: CompiledFacts): Finding[] {
@@ -660,7 +713,32 @@ function detectArityStack(target: TargetFacts): Finding[] {
  * registers can instead be the scheduling class (SetGfxClip precedent).
  * psx_flag_probe's matrix now carries both columns; it settles which.
  */
-function detectFlagFingerprint(name: string): Finding[] {
+/**
+ * A cached probe conclusion counts only when it was measured on this exact
+ * function, source, target, and toolchain. Anything else is a claim about a
+ * program that no longer exists, and a stale "the flag is not the answer"
+ * costs more than no answer at all.
+ */
+export function flagProbeConclusion(
+  name: string,
+  srcText: string | undefined,
+): { report: FlagProbeReport; fresh: true } | { report: FlagProbeReport | null; fresh: false; reason: string } {
+  const report = readReport(name);
+  if (!report) return { report: null, fresh: false, reason: "no flagProbe report has been written for this function" };
+  const sourceHash = srcText === undefined ? null : sha256(srcText);
+  if (report.sourceHash !== sourceHash) {
+    return { report, fresh: false, reason: "the probe measured a different source than the one being analysed" };
+  }
+  if (report.targetHash !== (targetHashOf(name) ?? "")) {
+    return { report, fresh: false, reason: "the target assembly changed since the probe ran" };
+  }
+  if (report.toolchainHash !== toolchainHash()) {
+    return { report, fresh: false, reason: "the toolchain changed since the probe ran" };
+  }
+  return { report, fresh: true };
+}
+
+function detectFlagFingerprint(name: string, srcText?: string): Finding[] {
   const path = resolveTargetAsm(name);
   if (!path) return [];
   const insns = readFileSync(path, "utf-8")
@@ -681,23 +759,75 @@ function detectFlagFingerprint(name: string): Finding[] {
   const overrides = join(ROOT, "configs/flag_overrides.mk");
   const hasOverride = existsSync(overrides) &&
     new RegExp(`^CC1FLAGS_${name}\\s*:?=`, "m").test(readFileSync(overrides, "utf-8"));
+  const see = [
+    "prompts/c-style-guide.md",
+    "notes/research/func_800165D8-code-region-fold-and-allocation.md",
+    "notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md",
+  ];
+  if (hasOverride) {
+    return [{
+      detector: "flag-fingerprint",
+      severity: "info",
+      summary: "symbolic lui/lw self-clobber pair(s); a per-file flag override already covers this function",
+      evidence: pairs,
+      see,
+    }];
+  }
+
+  /* The fingerprint is a fact about the target and stays in the evidence
+   * whatever the probe said. What a fresh measurement changes is whether the
+   * flag is still the ACTIVE remedy to chase. */
+  const cached = flagProbeConclusion(name, srcText);
+  if (cached.fresh && cached.report.conclusion === "not-supported-current-source") {
+    return [{
+      detector: "flag-fingerprint",
+      severity: "info",
+      summary:
+        "symbolic lui/lw self-clobber pair(s) in the target, but a fresh psx_flag_probe run measured " +
+        "the current source does not support this flag hypothesis; continue source-shape/SDK " +
+        "reconstruction. The fingerprint stands — it is scoped to this source, not to every source shape.",
+      evidence: [
+        ...pairs,
+        ...cached.report.candidates.map((candidate) => `${candidate.label}: ${candidate.reason}`),
+      ],
+      see,
+    }];
+  }
+  if (cached.fresh && cached.report.conclusion === "supported") {
+    return [{
+      detector: "flag-fingerprint",
+      severity: "signal",
+      summary:
+        "symbolic lui/lw self-clobber pair(s), and a fresh psx_flag_probe run measured a dominant flag " +
+        `column on the current source (${cached.report.dominantRows.join(", ")}). Apply the style guide's ` +
+        "flag-hypothesis bar: fingerprint + dominant column + no contrary regional witness.",
+      evidence: [
+        ...pairs,
+        ...cached.report.candidates
+          .filter((candidate) => candidate.conclusion === "supported")
+          .map((candidate) => candidate.reason),
+      ],
+      see,
+    }];
+  }
+
   return [{
     detector: "flag-fingerprint",
-    severity: hasOverride ? "info" : "signal",
-    summary: hasOverride
-      ? "symbolic lui/lw self-clobber pair(s); a per-file flag override already covers this function"
-      : "symbolic lui/lw self-clobber pair(s) — likely the unsplit assembler-macro " +
-        "load, unreachable under baseline split addresses (no source shape or " +
-        "allocation pins the lui against sched2 unless another insn touches its " +
-        "register). Run psx_flag_probe: its matrix carries -mno-split-addresses " +
-        "and the scheduling columns, and file-groupings.md may record the flag " +
-        "as this TU's fact. Apply per the style guide flag-hypothesis bar.",
-    evidence: pairs,
-    see: [
-      "prompts/c-style-guide.md",
-      "notes/research/func_800165D8-code-region-fold-and-allocation.md",
-      "notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md",
+    severity: "signal",
+    summary:
+      "symbolic lui/lw self-clobber pair(s) — likely the unsplit assembler-macro " +
+      "load, unreachable under baseline split addresses (no source shape or " +
+      "allocation pins the lui against sched2 unless another insn touches its " +
+      "register). Run psx_flag_probe: its matrix carries -mno-split-addresses " +
+      "and the scheduling columns, and file-groupings.md may record the flag " +
+      "as this TU's fact. Apply per the style guide flag-hypothesis bar.",
+    evidence: [
+      ...pairs,
+      cached.fresh
+        ? `a fresh probe exists but its conclusion is ${cached.report.conclusion}`
+        : `no fresh probe conclusion: ${cached.reason}`,
     ],
+    see,
   }];
 }
 
@@ -926,6 +1056,12 @@ function main(): void {
   const sourceState: "missing" | "stub" | "c" =
     srcText === undefined ? "missing" : /INCLUDE_ASM/.test(srcText) ? "stub" : "c";
 
+  /* Operation recovery outranks compiler-state tuning: an inventory or frame
+   * reading taken while the source hand-expands an SDK packet is a reading of
+   * the wrong program, so the SDK finding is emitted first and, being a
+   * signal, sorts above the inventory signal that would otherwise lead. */
+  findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
+
   let frameConverged = false;
   if (sourceState === "c" && srcText !== undefined) {
     findings.push(...detectAsmPolicy(name, srcText));
@@ -948,8 +1084,7 @@ function main(): void {
   findings.push(...detectLoopNesting(target));
   findings.push(...detectLoopIdiom(target));
   findings.push(...detectCaptureRa(target));
-  findings.push(...detectFlagFingerprint(name));
-  findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
+  findings.push(...detectFlagFingerprint(name, sourceState === "c" ? srcText : undefined));
   rmSync(scratch, { recursive: true, force: true });
 
   if (json) {

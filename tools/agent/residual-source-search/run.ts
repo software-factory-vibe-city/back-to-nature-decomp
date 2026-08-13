@@ -25,7 +25,7 @@ import {
   type PilotArtifact,
 } from "./cost-report.js";
 import { coverageReport, terminalStatus } from "./coverage.js";
-import { buildDomain, shardSize, type DomainRuntime, type ShardSpec } from "./enumerate.js";
+import { buildDomain, sdkCallOrderRegions, shardSize, type DomainRuntime, type ShardSpec } from "./enumerate.js";
 import { evaluateDomain, freshEvaluationState, type CandidateClassRuntime, type EvaluationState } from "./evaluate.js";
 import { loadMacroRegistry } from "./macro-forms.js";
 import { renderResidualSummary } from "./render-text.js";
@@ -236,6 +236,24 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
   if (witness) deriveOptions.witness = witness;
   if (options.partitionCap !== undefined) deriveOptions.partitionCap = options.partitionCap;
   const derived = deriveGrammar(deriveOptions);
+
+  /* SDK-call-order accounting rides on the statement-order coordinates the
+   * grammar already produces; it is recorded before either artifact write so
+   * a domain-too-large run still names the regions it recognized. */
+  const sdkRegions = sdkCallOrderRegions({ graph, view, derived });
+  if (sdkRegions.length > 0) {
+    derived.grammar.sdkCallOrderRegions = sdkRegions;
+    if (sdkRegions.some((region) => region.admittedOrders !== "0")) {
+      derived.grammar.activeRules = [...derived.grammar.activeRules, "sdk-call-order"];
+    }
+    for (const region of sdkRegions.filter((entry) => entry.admittedOrders === "0")) {
+      derived.grammar.suppressedRules.push({
+        rule: "sdk-call-order",
+        reason: region.suppressionReasons.join("; "),
+        evidence: region.calls.map((call) => `${call.nodeId} ${call.macro} at line ${call.span.lineStart}`),
+      });
+    }
+  }
 
   /* A grammar that is already beyond the enumerable bound gets its per-axis
    * breakdown and nothing else: the breakdown names the axis responsible,

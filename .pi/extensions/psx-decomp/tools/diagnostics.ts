@@ -66,7 +66,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   ),
   functionTool(
     "psx_sdk_idioms", "PSX SDK Idioms", "sdkIdioms.ts",
-    "Identify the PSY-Q primitive type and macro expansions present in the target, with the field map naming every offset the function touches. Hand-rolled bitfield arithmetic where the SDK has a macro is a reconstruction error, not a style choice.",
+    "Identify every PSY-Q packet the target builds and the macro operations that build it: primitive initializers including a base code composed with documented attribute bits, command packets with the arguments the observed command word establishes, and complete tag-link operations. Objects are grouped by traced base-register web, so one function can carry several. The field map names every offset the function touches. Hand-rolled bitfield arithmetic where the SDK has a macro is a reconstruction error, not a style choice; restore the operation boundary before any allocation or scheduling reading.",
   ),
   functionTool(
     "psx_inventory", "PSX Inventory", "inventory.ts",
@@ -81,7 +81,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   ),
   functionTool(
     "psx_flag_probe", "PSX Flag Probe", "flagProbe.ts",
-    "Early per-file flag-hypothesis check, from three independent sources: structural fingerprints decoded from the original binary's bytes (no source needed), a flag-matrix score of the current source, and nearby overrides (flags are per-TU). Run BEFORE deep source archaeology. A matrix showing baseline equal to the delta kills a flag hypothesis cheaply.",
+    "Early per-file flag-hypothesis check, from three independent sources: structural fingerprints decoded from the original binary's bytes (no source needed), a flag-matrix score of the current source, and nearby overrides (flags are per-TU). Run BEFORE deep source archaeology. A matrix showing baseline equal to the delta kills a flag hypothesis cheaply. Writes build/flagProbe/<function>/report.json with a conclusion scoped to the measured source; triage reads it under a function/source/target/toolchain hash check and stops directing you at a flag its own matrix already tied, without erasing the target fingerprint.",
   ),
 
   /* ---- evidence for a specific mismatch class ---- */

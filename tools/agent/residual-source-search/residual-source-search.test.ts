@@ -12,7 +12,7 @@ import { canonicalContext, canonicalSourceHash } from "./canonicalize.js";
 import { validateSearchCheckpoint } from "./checkpoint.js";
 import { domainAxes, median, pilotRanks, projectWallMs } from "./cost-report.js";
 import { deriveCausalClosure } from "./compiler-closure.js";
-import { buildDomain, candidateAt, shardRank, shardSize } from "./enumerate.js";
+import { buildDomain, candidateAt, regionNodeView, sdkCallOrderRegions, shardRank, shardSize } from "./enumerate.js";
 import { loadMacroRegistry, splitComponents } from "./macro-forms.js";
 import { renderCandidate, renameIdentifiers } from "./render.js";
 import { deriveGrammar, macroComponents } from "./rewrite-catalog.js";
@@ -25,6 +25,7 @@ import {
   loopCarriedDependencies,
   memoryEffectsConflict,
   parseMemoryToken,
+  publicationBarrierDependencies,
   regionDependencies,
 } from "./topological-orders.js";
 import { analyzeWebs, enumeratePartitions, websCompatible } from "./web-partitions.js";
@@ -1769,4 +1770,162 @@ test("refusal: INCLUDE_ASM stubs are ineligible without compiling", async () => 
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+/* ------------------------------------------------------------------ */
+/* SDK-call order stratum                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The func_800134C4 shape: a POLY_F4 built by four independent macro calls,
+ * a DR_MODE command packet, and two links into one ordering table.
+ */
+function sdkSource(body: string[]): string {
+  return [
+    "#include \"common.h\"",
+    "#include \"psyq/libgpu.h\"",
+    "",
+    "void fixture(POLY_F4 *poly, DR_MODE *mode, u_long *ot, u_long *ot2, u8 color) {",
+    ...body.map((line) => `    ${line}`),
+    "}",
+    "",
+  ].join("\n");
+}
+
+function sdkRegionsOf(source: string) {
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  return { graph, derived, regions: sdkCallOrderRegions({ graph, view, derived }) };
+}
+
+test("sdk-call-order: four independent packet initializers produce 24 orders", () => {
+  const { regions } = sdkRegionsOf(sdkSource([
+    "setRGB0(poly, color, color, color);",
+    "setXY0(poly, 0, 0);",
+    "setUV0(poly, 1, 2);",
+    "setWH(poly, 4, 8);",
+  ]));
+  assert.equal(regions.length, 1);
+  const region = regions[0];
+  assert.deepEqual(region.calls.map((call) => call.macro), ["setRGB0", "setXY0", "setUV0", "setWH"]);
+  assert.equal(region.unconstrainedOrders, "24");
+  assert.equal(region.admittedOrders, "24");
+  assert.equal(region.suppressedOrders, "0");
+  assert.deepEqual(region.dependencies, []);
+  /* The header the calls were recognized against is part of the record. */
+  assert.match(region.sdkHeaderHashes["include/psyq/libgpu.h"] ?? "", /^[0-9a-f]{64}$/);
+});
+
+test("sdk-call-order: a write/read dependency reduces the domain to the valid orders", () => {
+  /* setPolyF4 writes `code`; setSemiTrans reads and rewrites it, so the two
+     are ordered and only half the orders survive. */
+  const { regions } = sdkRegionsOf(sdkSource([
+    "setPolyF4(poly);",
+    "setRGB0(poly, color, color, color);",
+    "setXYWH(poly, 0, 0, 640, 480);",
+    "setSemiTrans(poly, 1);",
+  ]));
+  assert.equal(regions.length, 1);
+  const region = regions[0];
+  assert.equal(region.unconstrainedOrders, "24");
+  assert.equal(region.admittedOrders, "12");
+  assert.equal(region.suppressedOrders, "12");
+  const edge = region.dependencies.find((item) => item.kind.startsWith("memory:"));
+  assert.ok(edge, "the shared code byte must produce a dataflow edge");
+  assert.equal(edge!.from, region.calls[0].nodeId);
+  assert.equal(edge!.to, region.calls[3].nodeId);
+  assert.ok(region.suppressionReasons.some((reason) => reason.includes("dataflow edge")));
+});
+
+test("sdk-call-order: addPrim prevents later initialization of the packet it published", () => {
+  const source = sdkSource([
+    "setPolyF4(poly);",
+    "setRGB0(poly, color, color, color);",
+    "addPrim(ot, poly);",
+  ]);
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  const named = derived.materializations[0].partitions[0];
+  const views = derived.regions[0].nodeIds
+    .map((id) => graph.nodes.find((node) => node.id === id)!)
+    .map((node) => regionNodeView(graph, view, named, node));
+
+  /* Field effects alone do not order these: setRGB0 writes r0/g0/b0 while
+     addPrim writes addr, and those commute as C. The barrier is what keeps an
+     initializer from landing after the packet was handed to the list. */
+  assert.equal(regionDependencies(views).length, 0);
+  const barriers = publicationBarrierDependencies(views);
+  assert.equal(barriers.length, 2, "both initializers are ordered before the publication point");
+  for (const barrier of barriers) assert.equal(barrier.to, views[2].id);
+  assert.equal(RegionOrderModel.fromDependencies(views.map((item) => item.id), barriers).count(), 2n);
+
+  /* The recorded stratum stops at the publication point and says so. */
+  const regions = sdkCallOrderRegions({ graph, view, derived });
+  assert.deepEqual(regions.map((region) => region.calls.map((call) => call.macro)), [["setPolyF4", "setRGB0"]]);
+  assert.ok(regions[0].suppressionReasons.some((reason) => reason.includes("delimit this run")));
+});
+
+test("sdk-call-order: two publication points on different tables keep their relative order", () => {
+  /* Nothing in the field effects orders these — they touch different ordering
+     tables and different packets — so only the barrier preserves them. */
+  const { regions } = sdkRegionsOf(sdkSource([
+    "addPrim(ot, poly);",
+    "addPrim(ot2, mode);",
+  ]));
+  assert.equal(regions.length, 1);
+  assert.equal(regions[0].unconstrainedOrders, "2");
+  assert.equal(regions[0].admittedOrders, "1");
+  assert.ok(regions[0].dependencies.some((item) => item.kind.startsWith("publication-order:")));
+  assert.ok(regions[0].suppressionReasons.some((reason) => reason.includes("publication barrier")));
+});
+
+test("sdk-call-order: a call through an unregistered macro is never part of a region", () => {
+  const { graph, regions } = sdkRegionsOf(sdkSource([
+    "setRGB0(poly, color, color, color);",
+    "setXY0(poly, 0, 0);",
+    "SomeUnknownHelper(poly);",
+    "setWH(poly, 4, 8);",
+    "setUV0(poly, 1, 2);",
+  ]));
+  const unknown = graph.nodes.find((node) => node.text.startsWith("SomeUnknownHelper"))!;
+  assert.equal(unknown.kind, "call");
+  assert.equal(unknown.movable, false);
+
+  /* The unknown-effect call splits the run; it appears in no region, and the
+     surviving fragments are enumerated independently. */
+  const covered = regions.flatMap((region) => region.calls.map((call) => call.nodeId));
+  assert.equal(covered.includes(unknown.id), false);
+  assert.deepEqual(regions.map((region) => region.calls.map((call) => call.macro)),
+    [["setRGB0", "setXY0"], ["setWH", "setUV0"]]);
+});
+
+test("sdk-call-order: a run beyond the bound is recorded as suppressed with its reason", () => {
+  const { regions } = sdkRegionsOf(sdkSource([
+    "setRGB0(poly, color, color, color);",
+    "setRGB1(poly, color, color, color);",
+    "setRGB2(poly, color, color, color);",
+    "setRGB3(poly, color, color, color);",
+    "setXY0(poly, 0, 0);",
+    "setUV0(poly, 1, 2);",
+    "setWH(poly, 4, 8);",
+  ]));
+  assert.equal(regions.length, 1);
+  assert.equal(regions[0].admittedOrders, "0");
+  assert.equal(regions[0].unconstrainedOrders, "5040");
+  assert.ok(regions[0].suppressionReasons[0].includes("exceed the stratum's bound"));
+});
+
+test("sdk-call-order: macro calls stay atomic — a component split is a separate rule", () => {
+  const { derived, regions } = sdkRegionsOf(sdkSource([
+    "setPolyF4(poly);",
+    "setRGB0(poly, color, color, color);",
+  ]));
+  assert.equal(regions.length, 1);
+  /* Every coordinate of this stratum permutes whole calls; splitting a
+     composite into setlen/setcode is the known-macro-form rule, recorded on
+     the region as `splittable` rather than as an order. */
+  for (const call of regions[0].calls) assert.match(call.text, /^set\w+\(/);
+  assert.ok(derived.regions.every((region) => region.nodeIds.length === regions[0].calls.length));
 });

@@ -65,6 +65,12 @@ export interface SemanticNode {
   lhs?: string;
   rhs?: string;
   macro?: string;
+  /**
+   * The macro links a packet into a list a later stage walks. Statements
+   * touching a published object are ordered against this node, so an
+   * initializer can be permuted freely before it and never moved after it.
+   */
+  publishes?: boolean;
   declName?: string;
   declType?: string;
   initializer?: string;
@@ -287,7 +293,8 @@ export type RewriteRuleId =
   | "compound-assignment-form"
   | "loop-form"
   | "loop-update-placement"
-  | "switch-form";
+  | "switch-form"
+  | "sdk-call-order";
 
 export interface SuppressedRule {
   rule: RewriteRuleId;
@@ -383,6 +390,41 @@ export interface OrderRegion {
   materializable: MaterializationSite[];
 }
 
+/**
+ * A run of adjacent, complete SDK macro calls whose birth order the search
+ * enumerates atomically.
+ *
+ * This is an accounting layer over the statement-order rule, not a second
+ * enumeration: the coordinates are the region's own dependency-valid orders.
+ * What it adds is the record — which calls, which edges, how many orders were
+ * admitted, how many the barriers removed, and the hash of the SDK header the
+ * calls were recognized against — so an exhaustion claim over these orders is
+ * checkable rather than asserted.
+ */
+export interface SdkCallOrderRegion {
+  regionId: string;
+  block: number;
+  calls: Array<{
+    nodeId: string;
+    macro: string;
+    text: string;
+    span: SourceSpan;
+    /** The call links a packet into a display list (addPrim and family). */
+    publication: boolean;
+  }>;
+  /** Every edge constraining the calls, with the reason it exists. */
+  dependencies: Array<{ from: string; to: string; kind: string }>;
+  /** Exact dependency-valid order count over the calls alone. */
+  admittedOrders: string;
+  /** `N!` for the same calls, before any dependency or barrier. */
+  unconstrainedOrders: string;
+  /** Orders excluded, and why. */
+  suppressedOrders: string;
+  suppressionReasons: string[];
+  /** SHA-256 of each configured SDK header used to identify the calls. */
+  sdkHeaderHashes: Record<string, string>;
+}
+
 export interface RegionVariantDomain {
   splitMask: number;
   /** Bit k moves `movableUpdates[k]` from the `for` header into this region. */
@@ -434,6 +476,8 @@ export interface ResidualGrammar {
   administrativeSites?: AdministrativeCopySite[];
   /** Switches this grammar may also spell as an if/else-if chain. */
   switchFormSites?: SwitchFormSite[];
+  /** Adjacent SDK macro-call runs whose order this domain enumerates. */
+  sdkCallOrderRegions?: SdkCallOrderRegion[];
   /** Citation of the scheduler-constraint witness that activated rule 4.7. */
   witness?: {
     runId: string;

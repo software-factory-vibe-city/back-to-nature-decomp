@@ -266,6 +266,48 @@ statement order, and the correct order is the natural DATA order.
 
 ## 3. Use natural arrays, structs, and addresses
 
+### Recover SDK operation boundaries before compiler-state tuning
+
+A recognized SDK packet is a source-semantics finding, not a style
+suggestion. When the configured SDK provides a type and macros for what the
+target builds, hand-written field stores and hand-rolled tag arithmetic put
+the operation boundaries in the wrong place, and every allocation, scheduling,
+or flag reading taken on top of them is a reading of a different program —
+one the compiler was never asked to emit.
+
+Order of work:
+
+1. run triage and the SDK detector before authoring or perturbing source;
+2. reconstruct every named type and macro operation the detector reports;
+3. re-run triage, the inventory, the exact diff, and the classifier;
+4. only then trace allocation or scheduling;
+5. if the residual is order-only among adjacent independent SDK calls, run the
+   bounded SDK-call statement-order search — never permute the stores inside
+   one macro expansion.
+
+Two recognition facts an agent will otherwise miss:
+
+- The code byte in the target is the **composed** byte. `setSemiTrans` and
+  `setShadeTex` set documented low bits of `code` on top of an initializer's
+  base value, so a target byte that appears in no primitive table is normally
+  a base code with attribute bits already applied. Strip only bits the
+  configured header defines as attributes; an unexplained bit means it is not
+  that primitive.
+- A "mask constant plus a store" is not a link. The link macro is two
+  complete 24-bit merges — preserve one word's top byte, take the other's low
+  24 bits, both directions — and anything less is compatible with a link
+  rather than proof of one.
+
+Detection is compatibility, not provenance: a matching packet shape means
+"test this SDK representation", never "the historical names are proved". The
+representation still has to be confirmed by the byte oracle.
+
+The worked case, including the composed code byte, the command-packet
+inversion, the tag-merge dataflow, and the flag hypothesis that was measured
+and rejected, is `notes/retros/2026-08-13-func_800134C4-retro.md`. The earlier
+operation-boundary case with a block move instead of a packet is
+`notes/retros/2026-08-07-func_800140C8-retro.md`.
+
 ### Array indexing
 
 Prefer:

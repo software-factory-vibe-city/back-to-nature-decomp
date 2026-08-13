@@ -14,6 +14,8 @@ export const VARIANT_MECHANISMS = [
 export type VariantMechanism = typeof VARIANT_MECHANISMS[number];
 export type HypothesisVerdict = "confirmed" | "partially-confirmed" | "rejected" | "inconclusive";
 export type VariantStatus = "exact" | "mismatch" | "compile-error";
+/** How a byte-exact result was established, independent of the verdict. */
+export type ExactCandidateBasis = "full-object" | "cc1-only" | null;
 export type PassStage = "rtl" | "jump" | "cse" | "combine" | "regmove" | "sched" | "lreg" | "greg" | "sched2" | "dbr";
 
 export const PASS_STAGES: PassStage[] = [
@@ -148,6 +150,15 @@ export interface VariantResult {
   verdict: HypothesisVerdict;
   verdictReason: string;
   promotionEligible: boolean;
+  /**
+   * Byte-exactness, orthogonal to `verdict` and `promotionEligible`: an exact
+   * candidate can still be `inconclusive` (no mechanism evidence) and still be
+   * promotion-ineligible (cc1-only). The oracle result must never be readable
+   * only through the verdict.
+   */
+  exactCandidate: boolean;
+  exactCandidateBasis: ExactCandidateBasis;
+  exactCandidateReason?: string;
   category?: DiffCategory | string;
   exact?: number;
   total?: number;
@@ -219,6 +230,7 @@ export const TRANSFORMATION_TEMPLATES = [
   "array-vs-struct-address",
   "assignment-chain",
   "alias-access",
+  "sdk-call-order",
 ] as const;
 
 export type TransformationTemplate = typeof TRANSFORMATION_TEMPLATES[number];
@@ -237,6 +249,16 @@ export interface TransformationOutput {
   baseline?: boolean;
 }
 
+/**
+ * The adjacent SDK macro calls whose birth order the `sdk-call-order` template
+ * permutes. Statements are exact source text in current program order; the
+ * generator derives the admissible orders itself, so the spec names the region
+ * and never a permutation list.
+ */
+export interface SdkCallOrderRegionSpec {
+  statements: string[];
+}
+
 export interface TransformationSpec {
   schemaVersion?: 1;
   function: string;
@@ -244,5 +266,8 @@ export interface TransformationSpec {
   baseSourcePath: string;
   outputDirectory?: string;
   expectedPass: string;
+  /** Required for every template except `sdk-call-order`, which derives them. */
   outputs: TransformationOutput[];
+  /** `sdk-call-order` only: the adjacent macro-call run to permute. */
+  region?: SdkCallOrderRegionSpec;
 }

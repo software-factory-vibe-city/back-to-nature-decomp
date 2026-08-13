@@ -23,6 +23,7 @@ import {
 import { analyzeInstructionSets } from "./explainDiff.js";
 import { deterministicRunId, hashDirectoryFiles, projectPath, variantLabImplementationHash, writeRunManifest, writeRunSummary } from "./variant-lab/artifacts.js";
 import { classifyHypothesis, VERDICT_RANK } from "./variant-lab/classify-hypothesis.js";
+import { assessExactCandidate } from "./variant-lab/exact-candidate.js";
 import {
   compareNormalized,
   compileVariant,
@@ -205,6 +206,8 @@ function compileAll(options: {
       verdict: "inconclusive",
       verdictReason: "not yet classified",
       promotionEligible: false,
+      exactCandidate: false,
+      exactCandidateBasis: null,
       artifacts: projectPath(outputDirectory),
       artifactHashes: {},
       flags: [],
@@ -240,6 +243,17 @@ function compileAll(options: {
         base.firstDivergence = firstTargetDivergence(report);
         base.status = report.category === "exact" ? "exact" : "mismatch";
       }
+      const assessment = assessExactCandidate({
+        status: base.status,
+        exact: base.exact,
+        total: base.total,
+        mode: options.cc1Only ? "cc1-only" : "full",
+        target: options.targetNormalized,
+        compiled: internal.normalized,
+      });
+      base.exactCandidate = assessment.exactCandidate;
+      base.exactCandidateBasis = assessment.exactCandidateBasis;
+      base.exactCandidateReason = assessment.reason;
       writeNormalizedComparison(outputDirectory, options.targetNormalized, internal.normalized);
     } catch (error: any) {
       base.status = "compile-error";
@@ -279,9 +293,17 @@ function classifyAll(
   }
 }
 
+/**
+ * The baseline still leads, then byte-exact candidates, then the mechanism
+ * ranking. Ordering is presentation only: no verdict changes because a
+ * candidate is exact, and no candidate becomes promotion-eligible by being
+ * listed higher. What this prevents is an exact row sitting twentieth in a
+ * table sorted by a verdict that had no evidence to work from.
+ */
 function rankResults(results: InternalResult[]): InternalResult[] {
   return [...results].sort((left, right) =>
     Number(right.result.baseline) - Number(left.result.baseline) ||
+    Number(right.result.exactCandidate) - Number(left.result.exactCandidate) ||
     VERDICT_RANK[left.result.verdict] - VERDICT_RANK[right.result.verdict] ||
     Number(right.result.status === "exact") - Number(left.result.status === "exact") ||
     (right.result.exact ?? -1) - (left.result.exact ?? -1) ||
@@ -359,6 +381,46 @@ function renderOutcomeGroups(ranked: InternalResult[]): string[] {
   return lines;
 }
 
+/**
+ * The banner. A byte-exact candidate is the run's most consequential fact, and
+ * it must be impossible to miss — including when the mechanism verdict beside
+ * it reads `inconclusive`, which is the normal state whenever pass tracing was
+ * off. The banner is an oracle result, not a causal claim: it says the code
+ * came out the same, never that the stated mechanism fired.
+ */
+function renderExactBanner(summary: Omit<VariantRunSummary, "results">, ranked: InternalResult[]): string[] {
+  const exact = ranked.filter((entry) => entry.result.exactCandidate);
+  if (exact.length === 0) return [];
+
+  const lines = ["", `BYTE-EXACT CANDIDATE FOUND: ${exact.map((entry) => entry.result.id).join(", ")}`];
+  for (const entry of exact) {
+    const result = entry.result;
+    lines.push(`  ${result.id}: preserved source ${result.artifacts}/source.c`);
+    lines.push(`    basis: ${result.exactCandidateBasis} — ${result.exactCandidateReason}`);
+    if (result.verdict !== "confirmed") {
+      lines.push(
+        `    mechanism verdict is ${result.verdict}` +
+        (summary.tracePasses ? "" : " because pass tracing was disabled") +
+        "; that is a statement about the hypothesis, not about the bytes");
+    }
+    if (result.baseline) {
+      lines.push("    this is the run's reference source, so the function already matches;");
+      lines.push("    the other rows are being compared against an already-solved baseline.");
+    } else if (result.exactCandidateBasis === "cc1-only") {
+      lines.push("    cc1-only: NOT promotion-eligible. Re-run this same manifest in full mode");
+      lines.push("    (drop --cc1-only) before treating it as a candidate at all.");
+    } else {
+      lines.push("    copy it deliberately, then run the exact relocated function oracle:");
+      lines.push(`      cp ${result.artifacts}/source.c src/${summary.function}.c`);
+      lines.push(`      psx_diff_function ${summary.function}      # must report VERDICT: MATCH`);
+      lines.push(`      psx_finalize_function ${summary.function}`);
+    }
+  }
+  lines.push("  Run the exact relocated function oracle before promotion; this banner is a");
+  lines.push("  byte comparison of the run's own artifacts, not the finalizer.");
+  return lines;
+}
+
 function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: InternalResult[]): string {
   const lines = [
     `Variant laboratory: ${summary.function}`,
@@ -367,6 +429,7 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
     `trace:    ${summary.tracePasses ? "rtl -> jump -> cse -> combine -> regmove -> sched -> lreg -> greg -> sched2 -> dbr" : "disabled"}`,
     `baseline: ${summary.baselineId}`,
     `artifacts:${summary.artifacts}`,
+    ...renderExactBanner(summary, ranked),
     "",
     `${"variant".padEnd(24)} ${"verdict".padEnd(20)} ${"mechanism".padEnd(27)} ${"score".padEnd(9)} first mechanism/target divergence`,
   ];
@@ -378,9 +441,11 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
       ? [pass.affectedUids.length ? `UID ${pass.affectedUids.join("/")}` : "", pass.affectedPseudos.length ? `pseudo ${pass.affectedPseudos.join("/")}` : ""]
         .filter(Boolean).join(", ")
       : "";
-    const divergence = pass
-      ? `.${pass.stage}: ${pass.summary}${passEvidence ? ` [${passEvidence}]` : ""}`
-      : result.firstDivergence || result.error || result.verdictReason;
+    const divergence = result.exactCandidate
+      ? `BYTE-EXACT (${result.exactCandidateBasis})`
+      : pass
+        ? `.${pass.stage}: ${pass.summary}${passEvidence ? ` [${passEvidence}]` : ""}`
+        : result.firstDivergence || result.error || result.verdictReason;
     lines.push(`${result.id.padEnd(24)} ${result.verdict.padEnd(20)} ${result.mechanism.padEnd(27)} ${score.padEnd(9)} ${divergence}`);
     if (!result.baseline) {
       lines.push(`  expected .${result.expectedPass}: ${result.expectedEffect}`);
@@ -393,13 +458,21 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
     }
   }
   lines.push(...renderOutcomeGroups(ranked));
-  lines.push("", "Verdicts rank predicted mechanism evidence before exact-match count.");
+  lines.push("", "Rows are ordered baseline, byte-exact candidates, then predicted mechanism " +
+    "evidence; verdicts themselves still rank mechanism evidence before exact-match count.");
   const promotable = ranked.filter((entry) => entry.result.promotionEligible);
+  const exact = ranked.filter((entry) => entry.result.exactCandidate);
   if (promotable.length > 0) {
     for (const entry of promotable) lines.push(`promotion candidate: ${entry.result.source}`);
     lines.push(`Copy a selected candidate over src/${summary.function}.c, then confirm with diffFunc and make check.`);
   } else if (summary.mode === "cc1-only" && ranked.some((entry) => entry.result.status === "exact")) {
     lines.push("No cc1-only result is promotion-eligible; re-run the same manifest in full mode.");
+  } else if (exact.length > 0) {
+    /* Promotion eligibility is a mechanism statement. Saying only that here
+     * would read as "nothing was found", which is the opposite of the truth. */
+    lines.push(
+      `No result is mechanism-confirmed, but ${exact.length} byte-exact candidate(s) are named above ` +
+      "— exactness and mechanism confirmation are separate results.");
   } else {
     lines.push("No mechanism-confirmed exact result is promotion-eligible.");
   }
@@ -490,6 +563,8 @@ function main(): void {
       "Hypothesis confirmation verifies the predicted first pass, not the free-text expected effect; inspect the preserved pass evidence.",
       "A cc1-only exact result is never promotion-eligible until reproduced in full mode.",
       "Exact target comparison remains the final oracle; verdict ranking is intentionally not percentage hill climbing.",
+      "exactCandidate is orthogonal to verdict and promotionEligible: a byte-exact result can be inconclusive (no mechanism evidence) and still be exact.",
+      "Process exit status is unchanged by an exact candidate; read exactCandidate in this JSON or the banner in the rendered text.",
     ],
   };
   const text = renderSummary(summaryBase, ranked);

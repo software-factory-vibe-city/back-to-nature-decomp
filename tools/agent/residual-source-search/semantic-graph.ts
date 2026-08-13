@@ -905,12 +905,16 @@ function classifyCall(
         kind: "known-macro",
         movable: true,
         macro: name,
+        ...(macro.publication === true ? { publishes: true } : {}),
         reads: [...reads].sort(),
         memoryReads: [...memoryReads].sort(),
         memoryWrites: [...memoryWrites].sort(),
         evidence: [
           `${name} effects verified against ${macro.header} (definition hash ${macro.definitionHash.slice(0, 12)}).`,
           macro.evidence,
+          ...(macro.publication === true
+            ? ["Publication point: statements touching the published object are ordered against this call by default."]
+            : []),
         ],
       };
     }
