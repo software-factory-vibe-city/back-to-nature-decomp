@@ -85,6 +85,32 @@ Members (address order):
 - func_8001F1E0 (m) — rotated camera-offset vector calculator; uses rcos/rsin
   trig with yaw argument
 
+## pad/controller entry processing — 0x8001B2CC–0x8001B4E4 (confidence: medium)
+
+Per-entry processing of the controller/pad state tables indexed by an id:
+func_8001B3EC advances an entry pointer, func_8001B4E4 resets it.
+
+Fingerprints:
+- shared gp-rel cluster D_8005E4C0 / D_8005E4C4 / D_8005E4C8 / D_8005E4D0
+  (s16/u16 count table at 0x8005E4C0, s32 pointer table at 0x8005E4C8) —
+  reached gp-relatively by func_8001B2CC, func_8001B3EC, func_8001B4D0,
+  func_8001B4E4
+- internal call graph: func_8001B3EC → func_8001B4E4 (deactivate when
+  entry byte is 0xFF)
+- both B3EC and B4E4 write struct_8005E870 field_36/field_37 (offsets
+  0x36/0x37)
+- address adjacency: B2CC–B4E4 is consecutive with no unrelated code between
+
+Members (address order):
+- func_8001B2CC (s) — touches T_8005E4C8; likely same entry family
+- func_8001B3EC (m) — entry processing: reads D_8005E4C8[arg0] pointer, bumps
+  D_8005E4C0[arg0] counter, compares counter against (byte at +2) >> 1; on
+  overflow advances pointer by 3 and resets counter; calls B4E4 on 0xFF byte;
+  sets D_8005E870 flags from byte bits
+- func_8001B4D0 (s) — touches T_8005E4C8; likely same entry family
+- func_8001B4E4 (m) — deactivation: zeroes D_8005E4C8[arg0] pointer and the
+  u16 entries (D_8005E4C0/C4/D0) and D_8005E870 field_36/field_37
+
 ## projected primitive clipping — 0x8001C0D4–0x8001D348 (confidence: medium)
 
 GTE-projected triangle/quad rendering and screen-X rejection. Fingerprints:

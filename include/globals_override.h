@@ -15,6 +15,8 @@
 #ifndef GLOBALS_OVERRIDE_H
 #define GLOBALS_OVERRIDE_H
 
+#include "psyq/libspu.h"
+
 /* Forward declaration - defined in game_types.h */
 struct GfxObj;
 
@@ -68,6 +70,15 @@ extern struct struct_8006C838 D_8006C838[];
 struct struct_8006C838_flags {
     char pad_000[0x38];     /* 0x00-0x37 */
     u32 flags[0x800];       /* 0x38: one word per 32 flag ids */
+};
+
+/* View of D_8006C838 for func_80022DF8: s32 flag word at 0xC (bit 27) and
+ * u8 state byte at 0xCC (script/timer status, also touched by func_8002261C). */
+struct struct_8006C838_view {
+    char pad_000[0x0C];     /* 0x00-0x0B */
+    s32 field_0C;           /* 0x0C */
+    char pad_010[0xBC];     /* 0x10-0xCB */
+    u8 field_CC;            /* 0xCC */
 };
 
 /* D_80055988 - s16 array accessed with absolute addressing (lui+addiu+lh)
@@ -169,6 +180,13 @@ extern s16 D_8005E47A;
 /* D_8005E444 - unsigned halfword (lhu) — func_80019030 owns it */
 extern u16 D_8005E444;
 
+/* D_8005E2ED - GP-relative byte (sb-only access by func_8001EFA4).
+ * classifyGlobals defaults GP symbols with no nonmatching accessor to s32;
+ * the only accessor is a matched function, so its access is invisible to the
+ * generator. Declared here so classifyGlobals skips it (it will otherwise
+ * regress globals.h to s32 and conflict with func_8001EFA4.c's s8 definition). */
+extern s8 D_8005E2ED;
+
 /* D_8005E4A8 - pointer to u16 array (lw, used as base) — func_80019030 owns it */
 extern u16 *D_8005E4A8;
 
@@ -247,7 +265,9 @@ typedef struct {
     /* 0xF0 */  s32     field_F0;
     /* 0xF4 */  s32     field_F4;
     /* 0xF8 */  s32     field_F8;
-    /* 0xFC */  char    pad_FC[0x1C];
+    /* 0xFC */  char    pad_FC[0x14];
+    /* 0x110 */ s32     field_110;
+    /* 0x114 */ char    pad_114[0x4];
     /* 0x118 */ s32     field_118;
     /* 0x11C */ char    pad_11C[0x4];
     /* 0x120 */ s32     field_120;
@@ -264,7 +284,7 @@ extern u16 D_8005E438;
 extern s32 D_8005E5B4;
 extern s32 D_8005E5CC;
 
-/* D_8001009C, D_8005E328 - absolute s32 scalars (func_80011370 / func_8001205C)
+/* D_80010098, D_8001009C, D_8005E328 - absolute s32 scalars (func_80011370 / func_8001205C)
  *
  * Scalars, not arrays. Addressing mode does not follow from the declared size:
  * a translation unit that does not define the symbol addresses it absolutely
@@ -272,8 +292,16 @@ extern s32 D_8005E5CC;
  * <= -G8 leaves the unsplit macro form that the assembler expands into the
  * single-register lui/lw pair these two targets use. Over-declaring either
  * past the threshold forces the two-register split form and stops the match. */
+extern s32 D_80010098;
 extern s32 D_8001009C;
 extern s32 D_8005E328;
+
+/* D_80010078, D_80010088 - CD-ROM filenames in .rodata (func_800147BC)
+ * "\\A_FILE.HDT;1" and "\\A_FILE.BIN;1". Accessed absolutely with
+ * unsplit lui/addiu. char[] keeps the symbol <= -G8 so the address
+ * is not split; this TU does not define them so they are absolute. */
+extern char D_80010078[];
+extern char D_80010088[];
 
 /* D_800100A0 - string embedded in func_80010000 at offset 0xA0 ("INIT ERROR\n")
  * Referenced by func_80015704 for FntPrint error messages.
@@ -367,11 +395,22 @@ extern s32 D_8005E58C;
 /* D_8005E594 — GP-relative s32 (func_80021CD8 reads via lw %gp_rel). */
 extern s32 D_8005E594;
 
+/* D_8005E538 — GP-relative s32, sound system flag (func_8001FEA4 clears, func_80020E58/func_800214FC read/write). */
+extern s32 D_8005E538;
+
 /* D_8005E53C — GP-relative s32, sound initialization flag (func_80020818). */
 extern s32 D_8005E53C;
 
+/* D_8005E558 — GP-relative s32, sound system flag (func_8001FEA4 clears, func_800200E4 reads/writes). */
+extern s32 D_8005E558;
+
 /* D_8005E55C — GP-relative s32, stereo/mono flag (func_80020818, func_80020A14, func_80020A40). */
 extern s32 D_8005E55C;
+
+/* D_8006C368 — SpuCommonAttr global, absolute-addressed (func_8001FEA4 initializes fields
+ * and passes to SpuSetCommonAttr). Override replaces s32[3] from globals.h. */
+extern SpuCommonAttr _D_8006C368[1] __asm__("D_8006C368");
+#define D_8006C368 (*((SpuCommonAttr*)_D_8006C368))
 
 /* D_8005EE28 — 0x200-byte sprite upload staging buffer used by
  * func_80017300. The next symbol begins at D_8005F028, fixing the extent.
@@ -430,5 +469,7 @@ extern s32 _D_80049274[3] __asm__("D_80049274");
 #define D_80049274 (*((s32*)_D_80049274))
 extern s32 _D_80049280[3] __asm__("D_80049280");
 #define D_80049280 (*((s32*)_D_80049280))
+
+
 
 #endif /* GLOBALS_OVERRIDE_H */
