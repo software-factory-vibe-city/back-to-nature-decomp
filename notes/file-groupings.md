@@ -541,6 +541,17 @@ Members (address order):
 - func_80013328 (s)(?) — stub; intermediate
 - func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
 
+## Full-screen primitive setup — 0x800134C4–0x80013668 (confidence: medium)
+
+Display-transition helper pair. func_800134C4 calls the adjacent
+func_80013668, then initializes a full-screen POLY_F4 and DR_MODE packet pair
+for the active ordering table. Evidence is the direct internal call plus
+address adjacency; no shared GP-relative cluster has been established.
+
+Members:
+- func_800134C4 (m) — builds and links the full-screen POLY_F4/DR_MODE pair
+- func_80013668 (m) — resets display/draw environments to 640×480
+
 ## VAB transfer setup/state — around 0x80020E58–0x800218C4 (confidence: high)
 
 Sound-bank transfer setup and progress state.

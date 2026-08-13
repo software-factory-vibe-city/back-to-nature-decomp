@@ -278,6 +278,10 @@ typedef struct {
 } struct_8005E3C0;
 extern struct_8005E3C0 *D_8005E3C0;
 
+/* D_8005E3B4 — pointer to s32, absolute addressing (func_800134C4 loads with
+ * lui/lw self-clobber, then dereferences the loaded pointer). */
+extern s32 *D_8005E3B4;
+
 /* D_8005E438 - GP-relative u16, sprite tile/entry ID storage */
 extern u16 D_8005E438;
 
