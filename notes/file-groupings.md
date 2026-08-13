@@ -282,7 +282,7 @@ Members: func_80013B04 (m) — pad-state driver; func_80013CD0 (s) — per-pad
 processing driver; func_80013F90 (m) — clears a per-port state object;
 func_80013FC0 (s) — calls the decoded-input path; func_80014064 (m) —
 initializes pad buffers and starts communication; func_800140C8 (m) — polls one
-port and aligns its actuators; func_8001413C (s) — decodes one D_8005E9C8 port
+port and aligns its actuators; func_8001413C (m) — decodes one D_8005E9C8 port
 record; func_80014250 (m) — analog-stick normalization driver, indexes the 2D byte buffer D_8005E9C8[arg0][N] in the same direct-index idiom as D_8005EA18;
 func_800142D8 (m) — center/dead-zone magnitude helper, matched under an
 allowlisted three-instruction embedded-asm exception for one delay-slot choice;
