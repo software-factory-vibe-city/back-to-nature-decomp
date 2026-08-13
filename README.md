@@ -1,35 +1,84 @@
 # BTN Decompilation
 
-A **matching decompilation** of *Harvest Moon: Back to Nature* (SLUS-01115, PS1).
-The goal: C source code that compiles to a **byte-for-byte identical binary** of the
-original PS-X EXE, verified by SHA-256 on every build.
+This project is a matching decompilation of *Harvest Moon: Back to Nature*
+(SLUS-01115, PlayStation 1).
 
-## Status snapshot
+The goal is C source code that compiles to a byte-identical copy of the
+original PS-X EXE. The build checks the result with SHA-256 each time.
 
-- **93 / 257 live functions decompiled (36%)**, ~8.5% of live bytes
-- 206 functions classified as **dead code** (PSY-Q library residue, excluded from counts)
-- 10 **GTE functions** (handwritten cop2 assembly in the original — kept as asm, correct)
-- 1 pure-asm function
-- The full build (`make`) currently links and **matches the original payload**
-- Clean-source status (measured 2026-08-09): no ordinary compiled function has a
-  raw `__asm__` body, and no per-file flag overrides are active. Four files still
-  carry register pins and three carry scheduling barriers, each a diagnosed
-  obstacle rather than undiagnosed superstition. Read
-  **`notes/retros/2026-08-09-asm-folding-root-cause-retro.md`** first if resuming
-  work — it covers why the project stalled, what closed it, and what is left.
+### Terms
 
-## Binary facts
+| Term | Meaning in this project |
+|---|---|
+| the original binary | The PS-X EXE payload in `extracted/iso/slus_011.15` |
+| the target | The original machine code of one function |
+| the candidate | The machine code that our C source makes |
+| to match | To be byte-identical to the target |
+| function | One symbol in the original binary that holds code |
+| live function | A function that the game uses |
+| dead function | Unused code from the PSY-Q libraries |
+| tool | One TypeScript program under `tools/` |
+| report | One text or JSON output of a tool |
+| the oracle | `diffFunc.ts`, which compares bytes with the original |
+| stub | A `.c` file that includes the original assembly instead of C |
+
+## Status
+
+The numbers below come from `npx tsx tools/diagnostics/progress.ts` and from a
+census of `src/`. The date of the measurement is 2026-08-13.
+
+### Progress
+
+| Measurement | Value |
+|---|---|
+| Live functions that match | 198 of 257 (77.04%) |
+| Live bytes that match | 31,884 of 57,804 (55.16%) |
+| Dead functions (not counted) | 206 functions, 22,256 bytes |
+| GTE functions (counted) | 10 |
+| Pure assembly functions (not counted) | 1 |
+| Files in `src/` | 464 |
+| Files that are still a stub | 217 |
+
+`make check` passes. The build makes a binary that matches the original
+payload.
+
+### Clean-source status
+
+A byte match is a failure if it needs a workaround. The table shows every
+workaround that the C sources still use.
+
+| Construct | Files | Note |
+|---|---|---|
+| Hard-register pin | 8 | Each file has a `register-asm` entry in the allowlist |
+| Empty assembly barrier | 7 | The style guide permits this as a last resort. The configuration sets `allowEmptyMemoryBarrier`, so these files need no entry |
+| Assembly block with instructions | 5 | Each file has an `embedded-asm` entry |
+| `CAPTURE_RA` debug hook | 2 | The hook is a target feature, not a workaround |
+| Full function in assembly | 2 | The handwritten-assembly class |
+| Per-file compiler flag | 1 | `func_80014494` uses `-fno-cse-skip-blocks` |
+
+The allowlist is `.pi/autodecomp.json`, key `sourcePolicy.allowlist`. Each
+entry is the audit trail for one construct. The gate refuses a construct that
+has no entry.
+
+One function is parked: `func_8001A870`. Three functions wait for a human
+decision. The notes are in `notes/human-needed-approvals/`.
+
+Read `notes/retros/2026-08-09-asm-folding-root-cause-retro.md` first if you
+continue this work. It explains why the project stopped, what restarted it,
+and what remains.
+
+## The original binary
 
 | Field | Value |
-|-------|-------|
+|---|---|
 | File | `extracted/iso/slus_011.15` (PS-X EXE, 323,584 bytes) |
 | Load address | `0x80010000` |
 | Entry point | `0x80011278` |
 | Payload | 321,536 bytes at file offset `0x800` |
-| GP value | `0x8005E274` (discovered from code; header field is zero) |
+| GP value | `0x8005E274` (found in the code; the header field is zero) |
 | Stack base | `0x801FFFF0` |
 
-Sections are contiguous, non-interleaved:
+The sections are contiguous. No section interleaves with another section.
 
 ```
 0x80010000 – 0x80011270  .rodata  (4,720 bytes)
@@ -38,152 +87,232 @@ Sections are contiguous, non-interleaved:
 0x8005D3D8 – 0x8005E800  .sdata   (5,160 bytes, GP-relative)
 ```
 
-## Toolchain (proven, not guessed)
+## The toolchain
 
-This is the foundation everything rests on — see `notes/compiler-identification.md`
-and `notes/toolchain-version-detection.md` for the full evidence trail.
+Every other result depends on these four facts. For the full evidence, read
+`notes/compiler-identification.md` and `notes/toolchain-version-detection.md`.
 
-| Parameter | Value | How confirmed |
-|-----------|-------|---------------|
-| Compiler | **GCC 2.95.2-psx** (PSY-Q 4.6 `CC1PSX.EXE`) | Our Docker-built `cc1` produces **byte-identical output** to the original `CC1PSX.EXE` |
-| Assembler | **ASPSX ≥ 2.80** (emulated by maspsx) | `li` expansion patterns (1,142 `addiu` vs 88 `ori`) put it ≥ 2.56; direct `sltu` puts it ≥ 2.70; `addiu $r,$gp,…` from a `la` macro puts it ≥ 2.80 |
-| Runtime libs | **PSY-Q SDK 4.7** | Signature matching against `tools/vendor/psx_psyq_signatures/470/` |
-| Optimization | `-O2 -G8` | Delay-slot fill rate, GP-relative access for symbols ≤ 8 bytes |
+| Parameter | Value | Proof |
+|---|---|---|
+| Compiler | GCC 2.95.2-psx (PSY-Q 4.6 `CC1PSX.EXE`) | Our `cc1` from Docker makes byte-identical output to the original `CC1PSX.EXE` |
+| Assembler | ASPSX 2.80 or later (maspsx emulates it) | The `li` patterns (1,142 `addiu` against 88 `ori`) prove 2.56 or later. A direct `sltu` proves 2.70 or later. An `addiu $r,$gp,…` from a `la` macro proves 2.80 or later |
+| Runtime libraries | PSY-Q SDK 4.7 | Signature match against `tools/vendor/psx_psyq_signatures/470/` |
+| Optimization | `-O2 -G8` | The delay-slot fill rate, and GP-relative access for symbols of 8 bytes maximum |
 
-Key hard-won fact: it is **2.95.2, not 2.8.1**. The giveaway was the switch-dispatch
-register (`$a0` in the target; 2.8.1 hardcodes `$v0`). Everything register-hacked
-during the 2.8.1 era is suspect and may now be unnecessary (see next-steps note).
+The compiler is 2.95.2, not 2.8.1. The proof is the register that the switch
+dispatch uses. The target uses `$a0`. Version 2.8.1 always uses `$v0`. Doubt
+each register workaround from the 2.8.1 period. Many of them are now
+unnecessary.
 
-### Compilation pipeline
+### The compilation pipeline
 
 ```
-C source → mips-linux-gnu-cpp → cc1 (GCC 2.95.2-psx, Docker-built)
-         → maspsx (emulates ASPSX 2.80 quirks) → mips-linux-gnu-as → .o
+C source → mips-linux-gnu-cpp → cc1 (GCC 2.95.2-psx, built with Docker)
+         → maspsx (emulates the ASPSX 2.80 behavior) → mips-linux-gnu-as → .o
 Assembly (splat) → mips-linux-gnu-as → .o
 All .o → mips-linux-gnu-ld (slus_011.ld) → ELF → objcopy → raw binary
-       → SHA-256 compare against original payload
+       → SHA-256 comparison against the original payload
 ```
 
-Per-file flag overrides live in `configs/flag_overrides.mk` (currently **none** —
-all four were withdrawn on 2026-08-08; the file's comments record why).
+Per-file compiler flags live in `configs/flag_overrides.mk`. The file has one
+active entry. Each entry carries a comment that states its evidence.
 
-How a global is addressed — GP-relative or absolute — is a per-translation-unit
-fact, and it is stated in C: the owning file defines the global tentatively,
-every other file leaves it `extern`. maspsx forces `-G0` on GNU `as` so it is
-the only thing making that decision. See
-`notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md` §2.4, and
-`tools/build/deriveTuOwnedGlobals.ts` to derive ownership from the target.
+### How the code addresses a global
+
+The address form of a global is a fact of one translation unit. The C source
+states that fact:
+
+- The file that owns the global defines it tentatively.
+- Every other file declares it `extern`.
+
+maspsx forces `-G0` on GNU `as`. Therefore the C source is the only input that
+makes this decision. For the rules, read
+`notes/adr-0001-symbol-addressing-at-the-assembler-boundary.md`, section 2.4.
+To find the owner of a global from the target, use
+`tools/build/deriveTuOwnedGlobals.ts`.
 
 ## Setup
+
+Do these steps in this order.
 
 ```bash
 sudo apt install binutils-mips-linux-gnu
 pipx install splat64[mips]
 git clone --recursive <repo-url> && cd btn-decompilation
 npm install
+```
 
-# Build the PSX GCC 2.95.2 cross-compiler (requires Docker)
+Then build the PlayStation GCC 2.95.2 cross-compiler. This step needs Docker.
+
+```bash
 cd tools/vendor/old-gcc && make VERSION=2.95.2-psx && cd ../..
 ```
 
-Place the original EXE at `extracted/iso/slus_011.15` (gitignored).
+Last, put the original EXE at `extracted/iso/slus_011.15`. Git ignores that
+path.
 
-## Make targets
+## Build commands
 
-| Target | Description |
-|--------|-------------|
-| `make` / `make check` | Build and verify byte-identical match (default) |
-| `make split` | Full splat pipeline: split binary → .s files + linker script (runs ~10 TS tools around splat, see below) |
-| `make progress` | Decompilation progress summary |
-| `make disassemble` | spimdisasm bootstrap (functions.csv + per-function .s) |
-| `make setup` | Init git submodules |
-| `make clean` / `make wipe` | Remove build artifacts / wipe generated configs to re-bootstrap |
+| Command | Result |
+|---|---|
+| `make` or `make check` | Builds the binary and checks the byte match. This is the default |
+| `make split` | Runs the full splat pipeline. See "The `make split` pipeline" |
+| `make progress` | Shows a summary of the decompilation progress |
+| `make disassemble` | Runs the spimdisasm bootstrap and writes `functions.csv` and one `.s` file for each function |
+| `make config-check` | Runs `make split` again and fails if a tracked file changes |
+| `make setup` | Initializes the git submodules |
+| `make clean` | Removes the build artifacts |
+| `make wipe` | Removes the generated configuration files. Use this to bootstrap again |
 
-## Project structure
+## Directory structure
 
 ```
-src/                    Decompiled C, one file per function (466 files)
+src/                    One C file for each function (464 files)
 include/
-  common.h              u8/s32 etc. PSX types; includes globals.h
-  globals.h             Auto-generated D_XXXXXXXX externs (classifyGlobals.ts)
-  globals_override.h    Hand-maintained struct types for specific globals
-  functions.h           Auto-generated signatures of decompiled functions (contextExport.ts)
-  game_types.h          Shared struct definitions (Vec3, GfxObj, ...)
-  include_asm.h         INCLUDE_ASM macro for nonmatching stubs
+  common.h              PSX scalar types (u8, s32, and others); includes globals.h
+  globals.h             Generated externs for D_XXXXXXXX (classifyGlobals.ts)
+  globals_override.h    Hand-written struct types for specific globals
+  functions.h           Generated signatures of matched functions (contextExport.ts)
+  sdk_types.h           Generated type context for m2c (contextExport.ts)
+  game_types.h          Shared struct definitions (Vec3, GfxObj, and others)
+  variables.h           Shared variable declarations
+  debughook.h           The CAPTURE_RA macro
+  include_asm.h         The INCLUDE_ASM macro for stubs
   psyq/                 PSY-Q SDK headers
 configs/
-  splat.yaml            Splat config (partially auto-generated by bootstrap.ts)
-  symbol_addrs.txt      Hand-maintained function/data symbols
-  flag_overrides.mk     Per-file cc1 flag overrides
-  project-info.json     Human-supplied facts (game title, evidence note)
-  project-profile.md    Auto-generated target/toolchain facts (genProjectProfile.ts),
-                        read by active skills — do not edit manually
-lib/                    PSY-Q 4.7 static libs (libgpu.a, libgte.a, ...) used for
-                        signature detection and dead-code classification
-tools/                  TypeScript tooling (npx tsx) — see notes/tools-directory-structure.md
+  splat.yaml            Splat configuration (bootstrap.ts generates part of it)
+  symbol_addrs.txt      Hand-written function and data symbols
+  flag_overrides.mk     Per-file cc1 flags
+  checksum.sha256       The SHA-256 of the original payload
+  project-info.json     Facts that a human supplies (game title, evidence note)
+  project-profile.md    Generated target and toolchain facts (genProjectProfile.ts).
+                        The skills read this file. Do not edit it by hand
+lib/                    PSY-Q 4.7 static libraries. The tools use them to detect
+                        signatures and to classify dead code
+tools/                  TypeScript tools that run with npx tsx
   agent/                Decompilation diagnostics and context tools
-  build/                make split pipeline (bootstrap, lib folding, splat patching, ...)
-  diagnostics/          progress/diff/one-shot analysis tools
-  lib/                  shared constants module (psxExeInfo.ts)
-  vendor/               vendored repos (old-gcc, maspsx, m2c, splat_ext, SDK data, reference)
-.pi/                    Project-local Pi extension commands and reusable PSX skills
-notes/                  Research/writeups — the project's institutional memory
-prompts/                Mandatory matching guide plus archived standalone templates
-build/                  All generated artifacts (gitignored): asm/, callGraph.json,
-                        pipeline audit trails, map files, sha256 sums
-extracted/iso/          Original game files (gitignored)
-orchestrator_output_*.txt, run000*.txt, project-refiner-run-*.txt
-                        Historical agent run logs (large, kept for forensics)
+  build/                The make split pipeline
+  diagnostics/          Progress, diff, and one-shot analysis tools
+  lib/                  Shared modules (psxExeInfo.ts, symbolIndex.ts, functionOracle.ts)
+  vendor/               Vendored repositories
+.pi/                    Pi extension commands, skills, tools, and the supervisor
+notes/                  Research and write-ups. This is the project memory
+prompts/                The matching guide, and archived templates
+plans/                  Plans for tool and workflow work, with their status
+build/                  All generated artifacts. Git ignores this directory
+extracted/iso/          The original game files. Git ignores this directory
 ```
 
-## The Pi decompilation workflow
+For the full tool list, read `notes/tools-directory-structure.md`.
 
-The standalone SDK loop and auto-committing worktree orchestrator have been
-replaced by project-local Pi resources in `.pi/`. Pi supplies the model,
-authentication, session loop, compaction, and standard coding tools; this
-project supplies reusable PlayStation decompilation policy and workflow.
+## The Pi workflow
 
-`tools/agent/callGraph.ts` still builds and priority-ranks the worklist. The Pi
-extension reads that generated graph and exposes these commands:
+Pi supplies the model, the authentication, the session loop, and the standard
+coding tools. This project supplies the PlayStation decompilation policy and
+the workflow. The resources are in `.pi/`.
+
+`tools/agent/callGraph.ts` builds the worklist and ranks it by priority. The
+Pi extension reads that graph.
+
+Start `pi` from the repository root. Then use a command. Run `/reload` after
+you edit a `.pi` resource in an open session.
+
+### Commands
 
 ```text
-/decompile [function]       Start a fresh function, or select the next target
-/fix-decomp <function>      Resume an existing clean-source attempt
-/refine-decomp [function]   Refine an already-matching function
-/project-refine             Execute one conservative project-wide cleanup batch
-/decomp-status              Show worklist counts and the next target
+/decompile [function]       Start a new function, or select the next target
+/fix-decomp <function>      Continue an existing clean-source attempt
+/refine-decomp [function]   Refine a function that already matches
+/project-refine             Do one careful cleanup batch across files
+/decomp-status              Show the worklist counts and the next target
+/auto_decompilation_loop    Run the tiered escalation loop in this session
 ```
 
-The commands dispatch project-local, game-agnostic skills:
+The commands dispatch three skills. The skills are game-agnostic:
 
-- `psx-decompile-function` — m2c → classify → trace when needed → exact diff → full check
-- `psx-refine-function` — caller/callee-driven cleanup while preserving the match
-- `psx-project-refinement` — one small, reviewable, fully verified cross-file batch
+- `psx-decompile-function` — m2c, then classify, then trace, then diff, then
+  the full check.
+- `psx-refine-function` — cleanup from the callers and the callees. The match
+  stays.
+- `psx-project-refinement` — one small batch across files. The gate checks all
+  of it.
 
-The extension also registers focused tool wrappers around the TypeScript tools
-in `tools/agent/`: `psx_m2c`, `psx_explain_diff`, `psx_compiler_trace`,
-`psx_fuzz_variants`, `psx_analyze_target_schedule`, `psx_search_source_shapes`,
-`psx_synthesize_source_shapes`, `psx_diff_function`, `psx_build_call_graph`, `psx_export_context`,
-`psx_verify_build`, and the terminating `psx_finalize_function` clean-source
-and byte-identity gate. Command output is bounded before it enters model context.
+An interactive workflow never commits and never merges.
 
-`compilerTrace.ts` writes raw `-da` dumps plus a typed
-`build/compilerTrace/<function>/report.json`. Its pass summaries and structured
-stage metadata retain loop, basic-block, and deleted-instruction notes, annotate
-instructions with reconstructed loop depth, and normalize loop regions by their
-enclosed semantic instructions. Its bounded text report also connects observed
-pseudo SET/use/death provenance, reconstructed lifetime endpoints,
-local/global allocation, sched1/sched2 ready-list decisions,
-allocation-created hard-register hazards, and inferred target-register recurrence experiments.
-`analyzeAllocatorCounterfactual.ts` then refines target hard-register roles to
-UID-local pre-allocation pseudos, verifies GCC 2.95.2 allocno priorities, and
-emits explicit-hard-lifetime, overlapping-local-pseudo, and global-order
-requirements. For private local-allocation state that `-da` cannot expose, the
-diagnostic compiler oracle builds an isolated instrumented `cc1` under
-`build/compilerOracle/`, verifies that its baseline output equals the production
-compiler, records exact local quantities and `find_free_reg` candidate order,
-and runs legal forced-assignment/dependency counterfactuals. Its local minimizer
-reduces target assignments to verified hard-register occupancy requirements:
+The skills read the target and toolchain facts from
+`configs/project-profile.md` and from the active configuration. They do not
+hold the values of one project.
+
+### Step 1: triage before you write source
+
+`triage.ts` and `sdkIdioms.ts` answer a cheap question first. Does the target
+build a PSY-Q packet that the SDK has a type and macros for?
+
+```bash
+npx tsx tools/agent/triage.ts <function>
+npx tsx tools/agent/sdkIdioms.ts <function> [--json]
+npx tsx tools/agent/flagProbe.ts <function> [--json]
+```
+
+`sdkIdioms.ts` reads `include/psyq/libgpu.h` each time it runs. It takes these
+facts from the header, and holds none of them in its own code:
+
+- the size of each packet;
+- the offset of each field;
+- the value of each command;
+- the mask of each attribute macro;
+- the expansion of each macro;
+- the struct that each command macro builds.
+
+The tool reports every packet that it recognizes. It groups the packets by the
+base register web that addresses them. Therefore one function can hold several
+packets.
+
+Three recognition rules make the difference:
+
+- The tool removes the attribute masks of the header from the observed code
+  byte. Therefore it recognizes `setPolyF4` in composition with
+  `setSemiTrans`. An earlier version saw nothing at all.
+- The tool inverts a command word back to the arguments that the target
+  establishes.
+- The tool checks both halves of a tag link before it calls the link
+  complete.
+
+Hand-written field stores are a defect if the SDK has a macro for them. The
+same is true of hand-written tag arithmetic. Therefore:
+
+- `triage.ts` shows this finding before the inventory and allocation findings.
+- `explainDiff.ts` prints an `SDK OPERATION-BOUNDARY CANDIDATE` section above
+  its classification.
+
+Treat each classification below that section as provisional. Restore the
+operation boundary first. A reading of allocation or scheduling from a
+hand-expanded packet describes a program that the original build never
+compiled.
+
+### Step 2: check the flag hypothesis early
+
+`flagProbe.ts` writes `build/flagProbe/<function>/report.json` next to its
+text output. The report holds:
+
+- the structural fingerprints from the original bytes;
+- the flag matrix over the current source;
+- a conclusion of `supported`, `not-supported-current-source`, or
+  `inconclusive`;
+- the hashes of the source, the target, and the toolchain.
+
+`triage.ts` reads the report only when all four identities agree. A measured
+tie makes the flag signal an info finding. The target fingerprint stays as
+evidence. An edit to the source cancels the conclusion.
+
+The wording stays inside the measurement. A tie proves that the flag is not
+the remedy for the source as written. It does not prove that the flag is
+useless for every source shape.
+
+### Step 3: get compiler evidence
+
+`compilerTrace.ts` writes the raw `-da` dumps. It also writes a typed report
+to `build/compilerTrace/<function>/report.json`.
 
 ```bash
 npx tsx tools/agent/compilerTrace.ts <function> --pseudo 106
@@ -191,15 +320,36 @@ npx tsx tools/agent/compilerTrace.ts <function> --scheduler-window 24:32
 npx tsx tools/agent/compilerTrace.ts <function> --json
 ```
 
-`analyzeTargetSchedule.ts` aligns target/candidate instructions with final GCC
-UIDs while retaining proven zero-width RTL barriers, reconstructs the configured
-legacy scheduler's priority/dependency-class/LUID comparator, validates baseline
-ready-list replay, checks target order against the candidate DAG, and performs a
-bounded counterfactual participant-order replay. Its reusable analysis path can
-consume isolated preserved compiler-trace artifacts without rerunning cc1. It
-writes confidence-labelled emission links, minimal scheduling relations,
-allocation-order, and delay-slot requirements to
-`build/targetSchedule/<function>/analysis.json`:
+The pass summaries keep the loop notes, the basic-block notes, and the notes
+for deleted instructions. The tool adds the loop depth to each instruction. It
+normalizes each loop region by the semantic instructions inside it.
+
+The text report connects these items:
+
+- where a pseudo is set, used, and dies;
+- the endpoints of each lifetime;
+- the local allocation and the global allocation;
+- the ready-list decisions of sched1 and sched2;
+- the hard-register hazards that allocation makes;
+- the experiments on target-register recurrence.
+
+`analyzeAllocatorCounterfactual.ts` then refines the hard-register roles of
+the target to pseudos before allocation. It checks the allocno priorities of
+GCC 2.95.2. It writes three kinds of requirement: explicit hard lifetimes,
+overlapping local pseudos, and global order.
+
+The `-da` dumps cannot show the private state of local allocation. For that
+state, the diagnostic oracle builds a separate instrumented `cc1` under
+`build/compilerOracle/`. The oracle then:
+
+1. checks that its baseline output equals the output of the production
+   compiler;
+2. records the exact local quantities and the candidate order of
+   `find_free_reg`;
+3. runs legal counterfactuals for forced assignment and for dependency.
+
+The local minimizer reduces the target assignments to hard-register occupancy
+requirements.
 
 ```bash
 npx tsx tools/agent/analyzeTargetSchedule.ts <function> [--block 0]
@@ -211,13 +361,29 @@ npx tsx tools/agent/solveLocalAllocationState.ts <function>
 npx tsx tools/agent/inspectLocalAllocationVariant.ts <function> <variant.c> [--block N]
 ```
 
-`searchSchedulerState.ts` converts one validated scheduler block into a typed,
-function-agnostic finite constraint problem over birth boosts, realizable LUID
-relations, bounded coalescible phantom copies, and explicitly justified extra
-dependencies. It refuses target search until the parameterized model exactly
-replays the candidate block, then emits SAT, bounded exhaustive UNSAT, or
-INCONCLUSIVE with deterministic artifacts and an optional clean-C source-search
-handoff:
+`analyzeTargetSchedule.ts` aligns the target instructions with the candidate
+instructions. It keeps the proven zero-width RTL barriers. It then:
+
+- rebuilds the comparator of the legacy scheduler;
+- checks the replay of the baseline ready list;
+- checks the target order against the candidate dependency graph;
+- replays a bounded counterfactual for the participant order.
+
+The tool can read preserved compiler-trace artifacts. Then it does not run
+`cc1` again. It writes the emission links, the scheduling relations, the
+allocation order, and the delay-slot requirements to
+`build/targetSchedule/<function>/analysis.json`. Each emission link carries a
+confidence label.
+
+### Step 4: search the source space
+
+`searchSchedulerState.ts` turns one checked scheduler block into a finite
+constraint problem. The problem is typed and function-agnostic. It covers
+birth boosts, LUID relations, bounded phantom copies, and extra dependencies.
+Each extra dependency needs a stated reason.
+
+The tool refuses to search until the model replays the candidate block
+exactly. It then writes SAT, bounded exhaustive UNSAT, or INCONCLUSIVE.
 
 ```bash
 npx tsx tools/agent/searchSchedulerState.ts <function> --block 0
@@ -225,14 +391,10 @@ npx tsx tools/agent/searchSchedulerState.ts \
   --input build/schedulerConstraint/<function>/<run-id>/input.json
 ```
 
-`searchSourceShapes.ts` consumes that analysis plus an explicit finite,
-mechanism-labelled exact-edit grammar. It generates only complete policy-clean
-C under `build/sourceShapeSearch/`, deduplicates source/preprocessed/assembly
-classes, checkpoints deterministic product suffixes, traces useful classes, and
-fully assembles exact candidates without changing `src/`. Schema-v2 searches
-may trace every distinct preprocessed class, fingerprint normalized compiler
-causality, and write target-relative schedule profiles/deltas so identical final
-assembly does not hide replay, allocation, or delay-slot regressions:
+`searchSourceShapes.ts` reads that analysis and an explicit finite grammar of
+exact edits. Each rule of the grammar carries its mechanism label. The tool
+writes only complete policy-clean C under `build/sourceShapeSearch/`. It never
+changes `src/`.
 
 ```bash
 npx tsx tools/agent/searchSourceShapes.ts <function> \
@@ -240,13 +402,15 @@ npx tsx tools/agent/searchSourceShapes.ts <function> \
   --spec build/search/<function>.json --jobs 8 [--resume]
 ```
 
-`synthesizeSourceShapes.ts` is the solution-oriented layer between target
-analysis and finite search. Its conservative MVP models the top-level C89
-prologue, binds source statements to target roles, derives dependency-preserving
-statement, initializer, known-macro, and typed pointer-copy recipes, emits an
-inspectable schema-v2 search spec with per-variant schedule comparison, and
-optionally executes it through `searchSourceShapes.ts`. Existing configured
-empty memory barriers can be preserved but never added or edited:
+A schema-v2 search can trace each distinct preprocessed class. It can also
+write schedule profiles that compare with the target. Therefore identical
+final assembly cannot hide a regression in replay, in allocation, or in the
+delay slots.
+
+`synthesizeSourceShapes.ts` sits between the target analysis and the finite
+search. Its model covers the top-level C89 prologue only. It binds the source
+statements to the target roles. It then derives recipes that keep the
+dependencies, and writes a schema-v2 specification that you can read.
 
 ```bash
 npx tsx tools/agent/synthesizeSourceShapes.ts <function> --derive-only
@@ -254,19 +418,40 @@ npx tsx tools/agent/synthesizeSourceShapes.ts <function> \
   --max-variants 500 --max-depth 3 --jobs 8 [--resume]
 ```
 
-`searchResidualSourceSpace.ts` is the automatic layer above these: from one
-function name it establishes an immutable baseline bundle, builds a lossless
-whole-function C89 semantic graph, derives a diff-seeded compiler/source causal
-closure with machine-readable reason paths, and serializes a finite versioned
-rewrite grammar (value-web split/merge partitions, dependency-valid statement
-orders, and declaration-birth forms in grammar schema 1; expression, type/cast,
-known-macro, and administrative strata are recorded as suppressed). The
-resulting domain is exactly counted, lazily enumerated in a deterministic
-order, shardable as disjoint `k/n` residue classes, checkpointed, and
-evaluated through the configured pipeline with byte-identical object
-comparison as the oracle. Terminal states distinguish exact, exhausted,
-incomplete, unsupported, drifted, and too-large outcomes; hitting a budget is
-never reported as exhaustion, and generated candidates are never promoted:
+`searchResidualSourceSpace.ts` is the automatic layer above the other search
+tools. It needs one function name. From that name it:
+
+1. establishes an immutable baseline bundle;
+2. builds a whole-function C89 semantic graph with no loss;
+3. derives a causal closure from the instructions that differ, with a
+   machine-readable reason for each item;
+4. writes a finite versioned grammar of rewrite rules.
+
+The grammar has these active rules:
+
+- partitions that split or merge value webs;
+- statement orders that the dependencies permit;
+- declaration-birth forms;
+- component splits of verified SDK macros;
+- materialization of constants that the diff names;
+- SDK-call order across adjacent verified macro calls.
+
+The expression rules and the type-and-cast rules stay suppressed. The grammar
+records each suppressed rule with its reason.
+
+A packet that the code hands to a display list is a publication barrier.
+Nothing that touches that packet may cross the barrier. `grammar.json` records
+each SDK-call run with:
+
+- the calls, in source order;
+- the dependency edges, and the reason for each edge;
+- the count of admitted orders and the count of suppressed orders;
+- the hash of the SDK header that identified the calls.
+
+The tool counts the domain exactly. It enumerates the domain in a
+deterministic order, and it can shard the domain into disjoint `k/n` classes.
+It checkpoints its progress. It compares each candidate object with the target
+bytes.
 
 ```bash
 npx tsx tools/agent/searchResidualSourceSpace.ts <function> --derive-only
@@ -275,33 +460,94 @@ npx tsx tools/agent/searchResidualSourceSpace.ts <function> \
   --jobs 16 --shard 3/16 --max-candidates 100000 [--resume]
 ```
 
-`fuzzVariants.ts` is a mechanism-aware variant laboratory, not a source
-permuter. A JSON manifest records each complete C variant's mechanism, expected
-pass/effect, and invariants. `--trace-passes` compares `rtl` through `dbr`; the
-deterministic run directory preserves exact sources, preprocessing, cc1/object
-artifacts, flags, hashes, normalized comparisons, and verdicts:
+Each terminal state means one thing:
+
+| State | Meaning |
+|---|---|
+| `exact-candidate-found` | The run found a byte-identical candidate |
+| `exhausted-no-exact` | The run evaluated the whole domain and found none |
+| `incomplete-budget` | The run stopped early. The next run resumes it |
+| `incomplete-shards` | Some shards of the domain did not finish |
+| `unsupported-source` | The tool cannot model the source |
+| `unsupported-correspondence` | The tool cannot align the target with the candidate |
+| `domain-too-large` | The domain is beyond the exact bound |
+| `baseline-drift` | The inputs changed after the checkpoint |
+| `derived` | `--derive-only` finished. The run priced the domain |
+
+A run that stops early never reports `exhausted-no-exact`. The tool never
+copies a candidate into `src/`.
+
+### Step 5: compare a small set of hypotheses
+
+`fuzzVariants.ts` is a variant laboratory. It is not a source permuter. A JSON
+manifest records each complete C variant. Each record holds the mechanism, the
+expected pass, the expected effect, and the invariants.
 
 ```bash
 npx tsx tools/agent/fuzzVariants.ts <function> --manifest build/hypotheses.json --trace-passes
 ```
 
-Verdicts rank causal evidence before instruction counts. Note-aware pass diffs
-report metadata-only loop-depth changes (including whether any executable loop
-control was added) instead of reducing them to UID changes. A cc1-only result is
-never promotion-eligible until the same hypothesis is confirmed in full mode.
+`--trace-passes` compares the passes from `rtl` through `dbr`. The run
+directory keeps:
 
-Start `pi` from the repository root and use a slash command. Run `/reload` after
-editing `.pi` resources in an existing session. Interactive workflows never
-commit or merge automatically. Reusable guides derive concrete target and
-toolchain facts from `configs/project-profile.md` and active configuration
-rather than baking one project's values into workflow instructions.
+- the exact sources;
+- the preprocessed files;
+- the `cc1` output and the object files;
+- the flags and the hashes;
+- the normalized comparisons and the verdicts.
 
-### Autonomous project loop
+The verdicts rank causal evidence above instruction counts. The pass diffs
+report a change of loop depth that touches metadata only. They also report
+whether the change added executable loop control. A cc1-only result is never
+eligible for promotion. Repeat the same hypothesis in full mode first.
 
-The deterministic supervisor under `.pi/extensions/psx-decomp/autonomous/`
-runs isolated short-lived Pi workers, gates their patches independently, and
-schedules matching plus targeted/project refinement until all live ordinary-C
-functions are accepted. Start and inspect it from Pi:
+The run reports byte exactness apart from the verdict. The two answer
+different questions:
+
+- The verdict says whether the stated mechanism happened.
+- `exactCandidate` says whether the code came out the same.
+
+A run starts with a `BYTE-EXACT CANDIDATE FOUND` banner if any candidate is
+exact. The banner names each exact result, its preserved source, and the next
+command. The banner appears even when the verdict beside it reads
+`inconclusive`. That verdict is normal when pass tracing is off.
+
+An exact score with an unresolved relocation is not exact. Two calls to
+different symbols look the same before the link step. Only the relocation
+record separates them.
+
+The `sdk-call-order` template covers one axis. A general search prices that
+axis at a high cost. A bounded batch settles it at once. The axis is the birth
+order of adjacent PSY-Q macro calls.
+
+- The specification names the region.
+- The header supplies the admissible orders, through its verified field
+  effects.
+- Each macro call moves as one unit. The stores inside one expansion belong to
+  the macro, not to a statement list.
+
+### Step 6: accept the result
+
+The oracle is `diffFunc.ts`. It compiles one function, relocates the object to
+the original addresses, and compares it with the original bytes. It reports
+MATCH, MISMATCH, or UNDETERMINED.
+
+`psx_finalize_function` is the last gate. It runs the exact function diff, the
+full binary check, the scope check, and the clean-source check.
+
+### Registered tools
+
+The extension registers one Pi tool for each CLI under `tools/agent/`. A test
+fails if a CLI has no tool. Pi bounds the output of each tool before the
+output enters the model context.
+
+## The autonomous loop
+
+The supervisor is in `.pi/extensions/psx-decomp/autonomous/`. It is
+deterministic. It runs short-lived Pi workers in isolation, gates their
+patches, and schedules the work.
+
+Control it from Pi:
 
 ```text
 /autodecomp start
@@ -315,7 +561,7 @@ functions are accepted. Start and inspect it from Pi:
 /autodecomp logs
 ```
 
-Or run it in the foreground/headlessly:
+Or run it from a shell:
 
 ```bash
 npm run autodecomp -- start
@@ -324,95 +570,144 @@ npm run autodecomp -- start --once
 npm run autodecomp -- status
 ```
 
-Configuration is `.pi/autodecomp.json`; durable state, Pi sessions, patches,
-and reports are written to gitignored `run_output/autodecomp/`. The default
-requires a clean tracked tree at first startup and uses sequential detached git
-worktrees. Accepted patches are applied transactionally to the main checkout
-and reverified, but are **never committed**. Failed patches remain in the
-runtime directory for diagnosis and cannot dirty the main checkout.
+The configuration is `.pi/autodecomp.json`. The supervisor writes its state,
+its Pi sessions, its patches, and its reports to `run_output/autodecomp/`. Git
+ignores that directory.
 
-Detached runs mirror the complete Pi worker JSON stream, worker stderr, and
-controller transition events into one append-only file. Follow it continuously
-(no polling command is required):
+Make the tracked tree clean before the first start. The supervisor uses
+sequential detached git worktrees. It applies an accepted patch to the main
+checkout as one transaction, and then checks the patch again. It never commits
+a patch. A failed patch stays in the runtime directory. A failed patch cannot
+make the main checkout dirty.
+
+A detached run mirrors three streams into one append-only file: the Pi worker
+JSON, the worker stderr, and the controller events. Follow the file:
 
 ```bash
 tail -F run_output/autodecomp/controller.log
 ```
 
-For a terminal that can be detached and reattached, run the foreground
-controller inside `tmux`:
+To detach and attach a terminal, run the foreground controller inside `tmux`:
 
 ```bash
 tmux new-session -s autodecomp 'npm run autodecomp -- start'
 tmux attach-session -t autodecomp
 ```
 
-The foreground controller now mirrors every worker stream to that terminal.
+The foreground controller mirrors each worker stream to that terminal.
 
-**Known failure mode (important):** a byte-only success gate rewards embedded
-assembly, register pinning, and flag overrides. The skills explicitly reject
-those outcomes and require a classified stuck report instead. Read
-`notes/retros/2026-08-09-asm-folding-root-cause-retro.md` before matching more functions.
+**Warning:** a gate that checks bytes only rewards embedded assembly, register
+pins, and flag overrides. The skills refuse those results. They ask for a
+classified report of the obstacle instead. Read
+`notes/retros/2026-08-09-asm-folding-root-cause-retro.md` before you match
+more functions.
 
 ## The `make split` pipeline
 
-Splat alone can't handle this binary (PSY-Q libs, cross-file refs, BSS layout),
-so `make split` runs a choreographed sequence:
+Splat alone cannot process this binary. Three properties stop it: the PSY-Q
+libraries, the references between files, and the BSS layout. Therefore
+`make split` runs this sequence:
 
-1. `bootstrap.ts` — generate configs if absent (no-op when they exist)
-2. `mergeFragments.ts`, `addLibSymbols.ts`, `patchSplatForLibs.ts`, `addDepObjects.ts`
-   — fold detected PSY-Q library objects into the splat config
-3. `splat split` (with `SPIMDISASM_ARCHLEVEL=1`)
-4. `fixCrossFileRefs.ts` + re-split loop (up to 3×) — resolve symbols spanning fragments
-5. `patchLinkerBss.ts`, `patchLibBss.ts` — reproduce PSYLINK's independent
-   per-symbol BSS allocation
-6. Append auto-generated `undefined_funcs/syms` INCLUDEs to `slus_011.ld`
-7. `classifyGlobals.ts` — GP-relative vs absolute global classification → `globals.h`
-8. `contextExport.ts --all` — refresh `functions.h`
+1. `bootstrap.ts` generates the configuration files if they are absent. It
+   does nothing if they exist.
+2. `mergeFragments.ts`, `addLibSymbols.ts`, `patchSplatForLibs.ts`, and
+   `addDepObjects.ts` fold the detected PSY-Q library objects into the splat
+   configuration.
+3. `splat split` runs with `SPIMDISASM_ARCHLEVEL=1`.
+4. `fixCrossFileRefs.ts` resolves the symbols that span fragments. The split
+   repeats up to three times.
+5. `patchLinkerBss.ts` and `patchLibBss.ts` reproduce the BSS allocation of
+   PSYLINK. PSYLINK allocates each symbol independently.
+6. The pipeline appends the generated `undefined_funcs` and `syms` includes to
+   `slus_011.ld`.
+7. `classifyGlobals.ts` classifies each global as GP-relative or absolute, and
+   writes `globals.h`.
+8. `contextExport.ts --all` refreshes `functions.h`.
 
 ## Tools inventory
 
 | Directory | Contents |
-|-----------|----------|
-| `.pi/` | Project-local Pi commands, game-agnostic PlayStation skills, focused tools, and the durable autonomous supervisor |
-| `tools/agent/` | Decompilation support tools: `callGraph.ts` (priority worklist), `m2cFunc.ts` (m2c wrapper), `diffFunc.ts` (**the per-function oracle**; relocates the compiled object to the original addresses and compares it with the original bytes), `explainDiff.ts` (structural classifier), `compilerTrace.ts` (GCC observability), `analyzeTargetSchedule.ts` (machine/UID requirements), `analyzeAllocatorCounterfactual.ts` (allocator/lifetime counterfactuals), `instrumentCompilerOracle.ts` plus `analyzeLocalAllocationOracle.ts` / `minimizeLocalAllocation.ts` / `solveLocalAllocationState.ts` (isolated instrumented-GCC, exact local-allocation replay, and bounded phantom-quantity solver), `searchSchedulerState.ts` (scheduler-state SAT/UNSAT search), `searchSourceShapes.ts` (finite deterministic clean-C grammar search), `synthesizeSourceShapes.ts` (requirement-guided grammar derivation), `searchResidualSourceSpace.ts` (automatic exhaustive residual source-space search), `contextExport.ts`, and `sourcePolicy.ts` |
-| `tools/build/` | The `make split` pipeline: `disassemble.sh`, `bootstrap.ts`, `analyzeLayout.ts`, `mergeFragments.ts`, library folding (`detectLibFunctions.ts`, `addLibSymbols.ts`, `addDepObjects.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`), PSYLINK layout reproduction (`patchSplatForLibs.ts`, `patchLinkerBss.ts`, `patchLibBss.ts`, `extractBssSymAddrs.ts`), `fixCrossFileRefs.ts`, `classifyGlobals.ts` (→ `globals.h`), `deriveTuOwnedGlobals.ts` (per-TU global ownership from the target's `$gp` accesses) |
+|---|---|
+| `.pi/` | The Pi commands, the PlayStation skills, the tool wrappers, and the autonomous supervisor |
+| `tools/agent/` | The decompilation tools. See the list below |
+| `tools/build/` | The `make split` pipeline |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
-| `tools/lib/` | `psxExeInfo.ts` (shared binary constants, imported by all split-pipeline tools), `symbolIndex.ts` (address ↔ symbol and splat subsegment extents), `functionOracle.ts` (relocate a compiled object to the original addresses and compare it with the original bytes — what `diffFunc.ts` reports) |
-| `tools/vendor/` | Vendored repos: `old-gcc` (cc1 2.95.2-psx), `maspsx`, `m2c`, `splat_ext`, `psx_psyq_signatures`, `psyq47` (SDK + docs), plus reference-only `psyq_sdk`, `silent-hill-decomp`, `homebrew-psyq` |
+| `tools/lib/` | `psxExeInfo.ts` (shared binary constants), `symbolIndex.ts` (address and symbol lookup), `functionOracle.ts` (the byte comparison that `diffFunc.ts` reports) |
+| `tools/vendor/` | The vendored repositories |
 
-Full details: `notes/tools-directory-structure.md`.
+The main tools under `tools/agent/` are:
 
-**Git submodules:** `tools/vendor/old-gcc` (decompals/old-gcc — Docker GCC builds),
-`tools/vendor/maspsx` (mkst/maspsx — ASPSX emulator), `tools/m2c`
-(matt-kempster/m2c — MIPS→C decompiler), `tools/vendor/psx_psyq_signatures`
-(lab313ru — SDK byte signatures). Also vendored: `tools/vendor/psyq47`,
-`tools/vendor/psyq_sdk` (contains original `CC1PSX.EXE`), `tools/vendor/homebrew-psyq`,
-`tools/vendor/silent-hill-decomp` (reference project), `tools/vendor/splat_ext`.
+| Tool | Role |
+|---|---|
+| `callGraph.ts` | Builds the worklist and ranks it |
+| `m2cFunc.ts` | Runs m2c on one function |
+| `triage.ts` | Runs the pre-flight detectors |
+| `sdkIdioms.ts` | Recognizes the PSY-Q packets in the target |
+| `flagProbe.ts` | Checks the per-file flag hypothesis |
+| `diffFunc.ts` | The oracle |
+| `explainDiff.ts` | Classifies a structural mismatch |
+| `compilerTrace.ts` | Shows the internal state of GCC |
+| `analyzeTargetSchedule.ts` | Derives the scheduling requirements |
+| `analyzeAllocatorCounterfactual.ts` | Derives the allocation requirements |
+| `instrumentCompilerOracle.ts` | Builds the instrumented `cc1` |
+| `searchSchedulerState.ts` | Searches the scheduler state |
+| `searchSourceShapes.ts` | Searches an explicit finite grammar |
+| `synthesizeSourceShapes.ts` | Derives a grammar from the requirements |
+| `searchResidualSourceSpace.ts` | Searches the residual source space automatically |
+| `fuzzVariants.ts` | Compares mechanism hypotheses |
+| `contextExport.ts` | Exports the matched signatures |
+| `sourcePolicy.ts` | Audits the sources for forbidden constructs |
 
-## Notes index (notes/)
+For the full list, read `notes/tools-directory-structure.md`.
 
-The research trail — worth reading before changing anything fundamental:
+### Git submodules
 
-- `compiler-identification.md` — how PSY-Q was identified from binary strings/patterns
-- `toolchain-version-detection.md` — the 2.95.2 proof (CC1PSX byte-identity)
-- `bootstrapping.md` — how the project was set up from scratch (GP discovery, sections)
-- `research/symbol-boundary-verification.md` — proving a symbol is a function
-  before decompiling it (also covers jump tables whose entries are function
-  symbols)
-- `maspsx-issue.md`, `maspsx-issue2.md` — known ASPSX-emulation discrepancies
-- `scheduling-breakage.md` — impact of `-fno-schedule-insns` (regresses 134 functions globally)
-- `psyq-detection.md`, `rom_info/` — SDK/library detection details
-- `retros/2026-08-09-asm-folding-root-cause-retro.md` — why the project stalled
-  on asm folding, what closed it, and what remains
-- `thoughts-on-automated-decomp.md` — design thinking behind the agent pipeline
-- `decompilation-tooling-ideas.md` — Bucket C observability tools, usage, and limitations
+| Path | Repository | Purpose |
+|---|---|---|
+| `tools/vendor/old-gcc` | decompals/old-gcc | GCC builds with Docker |
+| `tools/vendor/maspsx` | mkst/maspsx | The ASPSX emulator |
+| `tools/vendor/m2c` | matt-kempster/m2c | The MIPS-to-C decompiler |
+| `tools/vendor/psx_psyq_signatures` | lab313ru | SDK byte signatures |
 
-## Conventions
+These directories are vendored but are not submodules: `tools/vendor/psyq47`,
+`tools/vendor/psyq_sdk` (holds the original `CC1PSX.EXE`),
+`tools/vendor/homebrew-psyq`, `tools/vendor/silent-hill-decomp` (a reference
+project), and `tools/vendor/splat_ext`.
 
-- Never commit `extracted/` or `build/`
-- Tooling is TypeScript only (run via `npx tsx`); no Python scripts checked in
-- C is C89: declarations at top of block, `/* */` comments only
-- Never redeclare `D_XXXXXXXX` globals in .c files — they come from `globals.h`;
-  struct types for globals go in `globals_override.h`
-- Don't commit unless asked
+## Notes index
+
+Read the relevant note before you change anything fundamental.
+
+| Note | Subject |
+|---|---|
+| `compiler-identification.md` | How the strings and patterns identified PSY-Q |
+| `toolchain-version-detection.md` | The proof of version 2.95.2 |
+| `bootstrapping.md` | How the project started (GP discovery, sections) |
+| `adr-0001-symbol-addressing-at-the-assembler-boundary.md` | How the code addresses a global |
+| `research/symbol-boundary-verification.md` | How to prove that a symbol is a function |
+| `maspsx-issue.md`, `maspsx-issue2.md` | Known differences in the ASPSX emulation |
+| `scheduling-breakage.md` | The effect of `-fno-schedule-insns` (134 functions regress) |
+| `psyq-detection.md`, `rom_info/` | How the tools detect the SDK and its libraries |
+| `file-groupings.md` | Which functions share a translation unit |
+| `tools-directory-structure.md` | The full tool list |
+| `retros/` | One write-up for each solved problem |
+| `human-needed-approvals/` | Decisions that wait for a human |
+| `thoughts-on-automated-decomp.md` | The design of the agent pipeline |
+| `decompilation-tooling-ideas.md` | Observability tools, their use, and their limits |
+
+`prompts/c-style-guide.md` holds the matching rules. Read it before you write
+C for this project.
+
+## Rules
+
+- Do not commit `extracted/` or `build/`.
+- Write tools in TypeScript, and run them with `npx tsx`. Do not commit Python
+  scripts.
+- Write C89 only. Put the declarations at the top of a block. Use `/* */`
+  comments.
+- Do not declare a `D_XXXXXXXX` global again in a `.c` file. The declarations
+  come from `globals.h`. Put a struct type for a global in
+  `globals_override.h`.
+- Do not edit a generated file. Change its source configuration, then generate
+  the file again.
+- Commit only when the user asks for a commit.
