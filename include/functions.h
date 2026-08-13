@@ -45,6 +45,7 @@ s32 func_80014854(s32 arg0, s32 arg1, s32 arg2);
 s32 func_80014988(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 s32 func_80014B44(void);
 s32 func_80014CB0(void);
+void func_80014E90(u32 *arg0, s16 arg1, s16 arg2, s32 arg3, s16 arg4);
 TILE_1 * func_8001526C(TILE_1 *p, u_long *ot, s16 x0, s16 y0, s32 color, s16 cond);
 LINE_F2 * func_8001530C(LINE_F2 *p, u_long *ot, s16 x0, s16 y0, s16 x1, s16 y1, s32 color, s16 cond);
 void * func_800153BC(Struct_800153BC *arg0, s32 *arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9, s16 arg10);
