@@ -117,18 +117,6 @@ typedef struct {
 } SourceData;
 
 typedef struct {
-    /* 0x00 */ s32 tag;          /* magic value 0xE */
-    /* 0x04 */ s32 field_4;
-    /* 0x08 */ s32 field_8;
-    /* 0x0C */ s32 field_C;
-    /* 0x10 */ s32 offset_tex;   /* -> SpriteTex[] (cel/texture rectangles) */
-    /* 0x14 */ s32 offset_ref;   /* -> SpriteRef[] (sprite entry indices) */
-    /* 0x18 */ s32 offset_18;    /* -> entry data (SpriteEntry[]) */
-    /* 0x1C */ s32 offset_anim;  /* -> SpriteRef[] (animation frame index table) */
-    /* 0x20 */ s32 offset_frame; /* -> frame data (SpriteFrame[] / control bytes) */
-} SpriteDataHeader;
-
-typedef struct {
     /* 0x00 */ s16 unk0;
     /* 0x02 */ u16 unk2;
 } SpriteRef;
@@ -153,6 +141,20 @@ typedef struct {
     /* 0x28 */ SpriteRef *unk28;
     /* 0x2C */ u8 *unk2C;
 } SpriteSourceData;
+
+typedef void (*SpriteCallback)(s32, SpriteSourceData *, s16, s32, s32);
+
+typedef struct {
+    /* 0x00 */ s32 tag;          /* magic value 0xE */
+    /* 0x04 */ s32 field_4;
+    /* 0x08 */ s32 field_8;
+    /* 0x0C */ s32 field_C;
+    /* 0x10 */ s32 offset_tex;   /* -> SpriteTex[] (cel/texture rectangles) */
+    /* 0x14 */ s32 offset_ref;   /* -> SpriteRef[] (sprite entry indices) */
+    /* 0x18 */ s32 offset_18;    /* -> entry data (SpriteEntry[]) */
+    /* 0x1C */ s32 offset_anim;  /* -> SpriteRef[] (animation frame index table) */
+    /* 0x20 */ s32 offset_frame; /* -> frame data (SpriteFrame[] / control bytes) */
+} SpriteDataHeader;
 
 typedef struct {
     /* 0x00 */ s32 field_0x00;

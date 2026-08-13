@@ -196,6 +196,26 @@ different translation units, so this is duplicated source across files, not
 shared membership. Practical value: E160 is the proven idiom (and partial
 body) for anyone working func_80012598 or its neighbours.
 
+## sprite-grid callback family — 0x8002238C–0x80022528 (confidence: medium)
+
+Sprite-source-grid callback family in the 0x80022xxx gap between the VAB
+setup group and unknown group B.
+
+Fingerprints:
+- internal call graph: func_8002238C and func_800223B0 pass the addresses of
+  func_800224F0 and func_80022528 respectively to func_800223D4; both callbacks
+  consume the grid driver's five-argument interface and forward into sprite
+  renderers;
+- all five functions are consecutive in link order, with no unrelated code
+  between them.
+
+Members (address order):
+- func_8002238C (s) — wrapper pairing func_800223D4 with func_800224F0
+- func_800223B0 (s) — wrapper pairing func_800223D4 with func_80022528
+- func_800223D4 (m) — sprite-source grid callback driver
+- func_800224F0 (s) — callback forwarding grid entries to func_80015EE8
+- func_80022528 (s) — callback forwarding grid entries to func_80015E3C
+
 ## unknown group B — around 0x8002261C–0x80022F1C (confidence: low)
 
 Game-state/flags readers over the D_8006C838 struct array.

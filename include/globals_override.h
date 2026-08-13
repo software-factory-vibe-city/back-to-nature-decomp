@@ -378,6 +378,13 @@ extern s32 _D_8005E5D8[3] __asm__("D_8005E5D8");
 extern u16 _D_80049A80[6] __asm__("D_80049A80");
 #define D_80049A80 ((_D_80049A80))
 
+/* D_8005E330 — GP-relative s32 (func_800223D4 reads/writes via lw/sw %gp_rel). */
+extern s32 D_8005E330;
+
+/* D_80055974 — absolute-addressed s16 table (func_800223D4 indexes with lui/addiu/lh).
+ * Array size 5 ensures >8 byte declaration for absolute addressing under -G8. */
+extern s16 D_80055974[5];
+
 /* D_8005E324 — GP-relative s16 (func_80021CD8 writes 1 via sh %gp_rel). */
 extern s16 D_8005E324;
 
