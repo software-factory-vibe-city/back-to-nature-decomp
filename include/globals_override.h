@@ -460,6 +460,28 @@ extern s16 _D_80061EA8[12] __asm__("D_80061EA8");
 typedef void (*InitFunc)(void);
 extern InitFunc D_80010000[3];
 
+/* D_8005F2E8 - OT ring buffer (0x100 bytes = 0x40 u32 entries; func_8001AFE0
+ * zeroes a larger 0x1300-byte sprite render region starting here). Declared
+ * >-G8 so cc1 materializes the address as a SPLIT lui/addiu pair (two RTL
+ * insns). Under the generated 4-byte s32 declaration the address was a single
+ * unsplit `la` macro and CSE folded the OT base into each ClearOTagR use,
+ * destroying the callee-saved $s2 web func_8001B074 keeps (move a0,s2 /
+ * addiu a0,s2,128 across four calls). Size class only; this TU never defines it. */
+extern u32 D_8005F2E8[0x40];
+
+/* D_8005F2B8 - SpriteSourceData instance (0x30 bytes). Declared >-G8 so cc1
+ * materializes its address as a SPLIT lui/addiu pair in RTL, matching how the
+ * original TU compiled it (target lui s1,%hi / addiu s1,%lo). The declared size
+ * class feeds the local-allocator quantity structure (HIGH temp merges into the
+ * base quantity); with a 4-byte declaration the address is an unsplit `la` macro
+ * and the register quantity differs from the original, shifting the callee-saved
+ * assignment. This TU never defines it. */
+extern u32 D_8005F2B8[0xC];
+
+/* D_800605F0 - SpriteDataHeader instance. Same split-address declaration class
+ * as D_8005F2B8/D_8005F2E8; target reaches it with lui s0,%hi / addiu s0,%lo. */
+extern u32 D_800605F0[0x10];
+
 /* D_80049268, D_80049274, D_80049280 — absolute-addressed Vec3 globals
  * used by func_8001EFA4. Accessed with lui/lw (split absolute addressing).
  * Array size 3 (12 bytes) forces >-G8 declaration for split addressing. */

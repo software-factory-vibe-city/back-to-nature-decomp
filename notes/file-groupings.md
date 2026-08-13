@@ -85,6 +85,32 @@ Members (address order):
 - func_8001F1E0 (m) — rotated camera-offset vector calculator; uses rcos/rsin
   trig with yaw argument
 
+## sprite frame setup and OT — 0x8001AFE0–0x8001B118 (confidence: medium)
+
+Sprite data-area setup: clear the OT ring at D_8005F2E8, load sprite data,
+initialize the SpriteSourceData at D_8005F2B8, and flush it via DrawOTag.
+func_8001B074 is the byte-matched core.
+
+Fingerprints:
+- shared data cluster D_8005F2B8 (SpriteSourceData, GP/absolute), D_8005F2E8
+  (OT ring base, cleared by func_8001AFE0 memset 0x1300), D_800605F0 (sprite
+  header), and the sprite flags D_8005E2CC / D_8005E2D0 (B074 defines
+  D_8005E2CC; func_8001B118 reads it and D_8005E2D0 as a render lock)
+- address adjacency: AFE0-B028-B074-B118 consecutive; func_8001B118 shares
+  the same split OT base materialization (lui s1/addiu D_8005F2E8) and the
+  renderer framework D_8005E3A4/D_8005E3C0
+- call graph: func_8001AFE0 → func_8001B074; func_8001B028 → func_8001B074;
+  func_8001B074 → func_80012A14, func_8001719C (sprite data load),
+  func_80015704 (sprite source init), func_80015840 (sprite reset)
+
+Members (address order):
+- func_8001AFE0 (s) — sprite reset: memsets &D_8005F2E8 0x1300 bytes, calls B074
+- func_8001B028 (s) — wrapper: s16-scaled args, calls B074
+- func_8001B074 (m, 2026-08) — sprite/OT init: two ClearOTagR on D_8005F2E8
+  halves, initializes SpriteSourceData via func_80015704, sets D_8005E2CC = 1
+- func_8001B118 (s) — sprite flush: guards D_8005E2CC/D_8005E2D0, DrawOTag
+  from the D_8005F2E8 base, ClearOTagR
+
 ## pad/controller entry processing — 0x8001B2CC–0x8001B4E4 (confidence: medium)
 
 Per-entry processing of the controller/pad state tables indexed by an id:
