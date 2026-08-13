@@ -130,8 +130,12 @@ Members (address order):
 - func_8001B028 (s) — wrapper: s16-scaled args, calls B074
 - func_8001B074 (m, 2026-08) — sprite/OT init: two ClearOTagR on D_8005F2E8
   halves, initializes SpriteSourceData via func_80015704, sets D_8005E2CC = 1
-- func_8001B118 (s) — sprite flush: guards D_8005E2CC/D_8005E2D0, DrawOTag
-  from the D_8005F2E8 base, ClearOTagR
+- func_8001B118 (m, 2026-08) — sprite flush: guards D_8005E2CC/D_8005E2D0, DrawOTag
+  from the D_8005F2E8 base, ClearOTagR; env-toggle idiom shared with
+  func_80011370 (conditional pointer increment at a base, then
+  D_8005E3A4 = ptr != base) but a separate TU: reads D_8005E3A4/D_8005E3C0/
+  D_8005E5E8 absolutely (all defined by func_80011370.c), while D_8005E2CC/
+  D_8005E2D0 are defined here GP-relatively like func_8001B074.c
 
 ## pad/controller entry processing — 0x8001B2CC–0x8001B4E4 (confidence: medium)
 
