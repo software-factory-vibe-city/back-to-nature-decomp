@@ -511,4 +511,11 @@ typedef struct {
 extern Coord3 *_D_80061EF8[3] __asm__("D_80061EF8");
 #define D_80061EF8 (_D_80061EF8)
 
+/* D_8005E850 — VAB transfer state struct, same layout as D_8006C7B8.
+ * func_80021668 copies D_8006C7B8 fields to offsets 0..0x1C here.
+ * Array size 8 (32 bytes) forces >-G8 declaration for split absolute
+ * addressing (lui/addiu with real register) matching the target. */
+extern struct_8006C7B8 _D_8005E850[1] __asm__("D_8005E850");
+#define D_8005E850 (*((struct_8006C7B8*)_D_8005E850))
+
 #endif /* GLOBALS_OVERRIDE_H */

@@ -555,7 +555,7 @@ Members: func_80020E38 (m) — helper: indexed load from D_8006BF48;
 func_80020E58 (s) — transfer setup/dispatcher; func_800214FC (m) —
 selects a D_80049370 span and starts a CD load operation; func_800215EC (m) —
 writes the first three transfer-state words; func_80021604 (m) — initializes
-transfer progress from adjacent D_80049370 entries; func_80021668 (s) —
+transfer progress from adjacent D_80049370 entries; func_80021668 (m) —
 advances the partial VAB transfer; func_800218C4 (m) — searches for STR/*.XA
 CD audio files via CdSearchFile (4 filename pointers in D_80049A70, CdlFILE
 buffer at D_8006C7D8); called from func_8001FE7C which is called by
