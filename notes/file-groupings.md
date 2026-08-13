@@ -234,8 +234,9 @@ Fingerprints:
   the `$a1` constant and which incoming register supplies arg3.
 
 Members (address order):
-- func_800245F4–func_80024A10 (14× s) — thin wrappers with sprite-header id
-  constants (0x7–0x2B); all call func_80024A4C
+- func_800245F4–func_80024A10 (14 wrappers, 1× m + 13× s) — thin wrappers with
+  sprite-header id constants (0x7–0x2B, 0x27 shared by four); all call func_80024A4C;
+  func_800248B0 (m) is the matched wrapper (id 0xB)
 - func_80024A4C (m) — core dispatcher: header-cache check + func_80015EE8 call
 
 ## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
