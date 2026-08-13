@@ -500,6 +500,15 @@ extern s32 _D_80049274[3] __asm__("D_80049274");
 extern s32 _D_80049280[3] __asm__("D_80049280");
 #define D_80049280 (*((s32*)_D_80049280))
 
-
+/* D_80061EF8 — array of 3 pointers to vertex coordinate structs (s16 at 0, 2, 4).
+ * Absolute addressing (lui/addiu). Array of 3 pointers = 12 bytes > -G8.
+ * Used by func_8001E38C for hit-triangle vertex coordinates. */
+typedef struct {
+    s16 f0;
+    s16 f2;
+    s16 f4;
+} Coord3;
+extern Coord3 *_D_80061EF8[3] __asm__("D_80061EF8");
+#define D_80061EF8 (_D_80061EF8)
 
 #endif /* GLOBALS_OVERRIDE_H */

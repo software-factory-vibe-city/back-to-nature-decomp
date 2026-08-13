@@ -50,7 +50,7 @@ Fingerprints:
 Members (address order):
 - SetVal8005E51C 0x8001E334 (m) — tolerance setter
 - func_8001E340 (s)(?) — tiny; touches no cluster globals
-- func_8001E38C (s) — post-hit consumer, guards on D_8005E528
+- func_8001E38C (m) — post-hit consumer, guards on D_8005E528
 - func_8001E4C0 (s) — driver: clears flags, installs query pointer
 - func_8001E6FC (s) — small; query pointer + D_8005E524
 - func_8001E78C (m) — 2D proximity test; owns D_8005E520 (tolerance)

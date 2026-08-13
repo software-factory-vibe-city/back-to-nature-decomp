@@ -129,6 +129,7 @@ s32 func_8001DCA8(void);
 s32 func_8001E0B8(s32 arg0, s32 arg1);
 void func_8001E158(void);
 void func_8001E160(void);
+s32 func_8001E38C(void);
 s32 func_8001E78C(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 s32 func_8001E7DC(s32 *arg0, s32 *arg1);
 s32 func_8001E878(CoordTri *p0, CoordTri *p1, CoordTri *p2);
