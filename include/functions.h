@@ -160,6 +160,7 @@ void func_80020A40(void);
 s32 func_80020A94(void);
 s32 func_80020E38(void);
 s32 func_80021484(s32 arg0);
+void func_800214FC(s16 arg0);
 void func_800215EC(s32 arg0, s32 arg1, s32 arg2);
 void func_80021604(s32 arg0);
 s32 func_800217B0(s32 arg0, s32 arg1, s32 arg2, u8 *arg3);

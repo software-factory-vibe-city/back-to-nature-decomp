@@ -495,22 +495,27 @@ Members (address order):
 - func_80013328 (s)(?) — stub; intermediate
 - func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
 
-## VAB transfer setup/state — around 0x80020E58–0x800218C4 (confidence: medium)
+## VAB transfer setup/state — around 0x80020E58–0x800218C4 (confidence: high)
 
 Sound-bank transfer setup and progress state.
 Fingerprints: func_80020E58 directly calls func_800214FC, func_800215EC,
 func_80021604, and func_80021668; func_80020E58, func_800214FC, and
 func_80021604 share the absolute D_80049370 table; func_800215EC,
-func_80021604, and func_80021668 share the D_8006C7B8 transfer-state object.
-Members: func_80020E58 (s) — transfer setup/dispatcher; func_800214FC (s) —
-selects a D_80049370 span and starts an operation; func_800215EC (m) — writes
-the first three transfer-state words; func_80021604 (m) — initializes transfer
-progress from adjacent D_80049370 entries; func_80021668 (s) — advances the
-partial VAB transfer; func_800218C4 (m) — searches for STR/*.XA CD audio files
-via CdSearchFile (4 filename pointers in D_80049A70, CdlFILE buffer at
-D_8006C7D8); called from func_8001FE7C which is called by func_80011370
-(main loop); address adjacency (0x18C4 is 0x194 past previous boundary);
-no shared gp-rel cluster with core members (all absolute addressing).
+func_80021604, and func_80021668 share the D_8006C7B8 transfer-state object;
+func_80020E58 and func_800214FC share a GP-relative cluster
+D_8005E538, D_8005E54C, D_8005E554, D_8005E572 (both define them tentatively
+and access via %gp_rel — func_80020E38 also defines D_8005E554).
+Members: func_80020E38 (m) — helper: indexed load from D_8006BF48;
+func_80020E58 (s) — transfer setup/dispatcher; func_800214FC (m) —
+selects a D_80049370 span and starts a CD load operation; func_800215EC (m) —
+writes the first three transfer-state words; func_80021604 (m) — initializes
+transfer progress from adjacent D_80049370 entries; func_80021668 (s) —
+advances the partial VAB transfer; func_800218C4 (m) — searches for STR/*.XA
+CD audio files via CdSearchFile (4 filename pointers in D_80049A70, CdlFILE
+buffer at D_8006C7D8); called from func_8001FE7C which is called by
+func_80011370 (main loop); address adjacency (0x18C4 is 0x194 past previous
+boundary); func_800218C4 uses all absolute addressing (no shared gp-rel
+cluster with core members — likely a different TU or the boundary member).
 
 References: src/func_800218C4.c.
 

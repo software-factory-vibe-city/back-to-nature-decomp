@@ -164,9 +164,10 @@ extern BoundsStruct_8001E878 *D_8005E518;
 extern s32 D_8005E51C;
 extern s32 D_8005E528;
 
-/* D_8005E540, D_8005E550, D_8005E554, D_8005E560 - GP-relative s32 scalars
- * Accessed by func_8001FF98 with sw %gp_rel */
+/* D_8005E540, D_8005E54C, D_8005E550, D_8005E554, D_8005E560 - GP-relative s32 scalars
+ * Accessed by func_8001FF98 with sw %gp_rel; D_8005E54C by func_800214FC */
 extern s32 D_8005E540;
+extern s32 D_8005E54C;
 extern s32 D_8005E550;
 extern s32 D_8005E554;
 extern s32 D_8005E560;
