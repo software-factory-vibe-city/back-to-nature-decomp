@@ -100,6 +100,7 @@ s32 func_80019E50(s32 arg0);
 void func_80019FC4(s16 arg0);
 void func_8001A574(s32 arg0);
 s32 func_8001A668(s32 arg0);
+s32 func_8001A6FC(s32 arg0);
 s32 func_8001A790(s32 arg0);
 u16 * func_8001A808(u16 *arg0, s32 arg1, s32 arg2);
 s16 * func_8001A870(s32 arg0, s16 *arg1, s32 arg2);
