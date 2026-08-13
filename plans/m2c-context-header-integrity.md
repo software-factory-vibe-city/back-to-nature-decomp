@@ -1,8 +1,20 @@
 # Plan: m2c context header integrity
 
-**Status: proposed, 2026-08-09.** The immediate unblock has landed (three stub
-typedefs added to the generator preamble, `include/functions.h` regenerated).
-This plan covers the durable fix, which is not yet built.
+**Status: landed 2026-08-12.** Six phases; Phase 6 was added during
+implementation. Originally proposed 2026-08-09 after the `TILE_1` outage, when
+only the symptom was patched (three stub typedefs added to the generator
+preamble). The durable fix was never built, and on 2026-08-12 the same failure
+recurred with `SVECTOR` — a second project-wide m2c outage from the same
+open-set-against-closed-list defect. The plan was then revised to record the
+recurrence, to adopt an AST-based harvest, and to emit resolved types into a
+dedicated `include/sdk_types.h`, and built the same day.
+
+What shipped: `tools/agent/sdkTypes.ts` (harvest, resolution, and signature
+extraction), `contextExport.ts` regenerated as a gated two-file emitter with no
+C-parsing regex left in it, `m2cFunc.ts` owning context order and surfacing
+diagnostics, and `tools/agent/contextExport.test.ts` (23 tests). Verified with
+all 240 functions decompiling, `npm test` at 310 passing, `make check`
+byte-exact, and `include/functions.h` unchanged by the AST port.
 
 ## Purpose
 
@@ -12,34 +24,40 @@ only consumer cannot parse, and nothing detects it. When that happens m2c
 fails for **every** function, not just the one being worked on, and the tool
 wrapper hides the real diagnostic.
 
-The goal is to make the generated header parse **by construction** and to
+The goal is to make the generated context parse **by construction** and to
 prove it parses before it ships.
 
 ---
 
 ## The failure this comes from
 
-`writeHeader()` emits a fixed preamble of stub typedefs for PSY-Q types:
-`u_long`, `POLY_FT4`, `SPRT`, `DR_MODE`, `RECT`. Function signatures, by
-contrast, are harvested from whatever types matched source files happen to
-use. That is an open set checked against a closed list, with no check.
+`writeHeader()` emits a fixed preamble of stub typedefs for PSY-Q types.
+Function signatures, by contrast, are harvested from whatever types matched
+source files happen to use. That is an open set checked against a closed list,
+with no check.
 
-Commit `b24cc50` matched `func_8001526C`, whose signature uses `TILE_1`. The
-regenerated header declared `TILE_1 * func_8001526C(...)` at line 261 with no
-definition in scope. pycparser aborted the whole context there, so m2c refused
-every function for the next 13 commits. Two further types, `LINE_F2` and
-`TILE`, were in the same state behind it.
+It has now fired twice:
 
-Three properties made a one-type oversight cost that much:
+| Date | Trigger | Type | Cost |
+|---|---|---|---|
+| 2026-08-09 | `b24cc50` matched `func_8001526C` | `TILE_1` | m2c refused every function for 13 commits |
+| 2026-08-12 | `d3b1f88` matched `func_8001B3EC`, publishing `func_8001C1C0` | `SVECTOR` | m2c refused all 240 functions |
+
+Both were one-line oversights. Three properties made each cost that much:
 
 1. **Global blast radius.** The context is shared, so one bad line disables
    the tool for all inputs.
-2. **Silent generation.** `contextExport.ts --all` reported
-   `Exported 179 function(s)` and exited 0 while writing an unparseable file.
+2. **Silent generation.** `contextExport.ts --all` reports success and exits 0
+   while writing an unparseable file. In the 2026-08-12 case the autonomous
+   controller (`autonomous/controller.ts:503`) invoked it unattended, so the
+   outage landed overnight with nobody watching.
 3. **Swallowed diagnostic.** `m2cFunc.ts` reports only
-   `m2c failed: Command failed: <cmd>`. The real message —
-   `Syntax error when parsing C context. before: * at line 261, column 8` —
-   is discarded, so the failure reads as function-specific.
+   `m2c failed: Command failed: <cmd>`, discarding the real message. The
+   failure reads as function-specific when it is project-wide.
+
+The recurrence is itself the argument for building this. The first outage was
+diagnosed correctly and patched at the symptom; three days later the identical
+defect cost the same again.
 
 ---
 
@@ -53,61 +71,119 @@ first cannot reproduce the outage:
 - **Backstop** guarantees every remaining referenced type gets *some*
   definition, closing the set by construction.
 
-A verification gate then refuses to ship a header that fails to parse.
+A verification gate then refuses to ship a context that fails to parse.
 
 ---
 
 ## Phase 1 — resolve PSY-Q types from the SDK headers
 
-Replace the hardcoded stub list with resolution against `include/psyq/*.h`.
+Replace the hardcoded stub list with resolution against the vendored SDK
+headers, emitted into a dedicated generated header `include/sdk_types.h`.
 
-- Extend the existing `extractStructTypedefs()` to run over the SDK headers,
-  feeding the same `structDefs` map that `src/` and `include/game_types.h`
-  already populate. `findReferencedTypes()` and `topologicalSortStructs()`
-  then emit only what signatures actually reference, in dependency order —
-  no new machinery.
-- Add the primitive aliases the SDK layouts need to the preamble:
-  `u_char`, `u_short`, `u_long`.
-- Strip preprocessor lines and `extern` prototypes from the SDK headers before
-  extraction; m2c parses the context with no preprocessor.
-- `STRUCT_TYPEDEF_RE` is non-nesting (`[^}]*`). Types containing a nested
-  struct or union will not extract; they must fall through to Phase 2 rather
-  than emit a truncated definition.
+**Harvest with tree-sitter, not the existing regex.** The original plan
+proposed extending `extractStructTypedefs()`, whose `STRUCT_TYPEDEF_RE` is
+non-nesting (`[^}]*`) and silently drops any type containing a nested struct
+or union. The repo already vendors a pinned C grammar behind
+`tools/agent/residual-source-search/tree-sitter-c.ts` (`parseC`, `walk`,
+`subtreeIsBroken`), which is the established front end for C tooling here.
+
+Measured on 2026-08-12 against the current tree:
+
+- 196 typedefs harvested from `include/psyq`, **0 broken subtrees**.
+- All 19 SDK types presently referenced anywhere in `src/` recovered,
+  including all seven currently hand-stubbed.
+- Transitive closure over the 180 published signatures: 24 types.
+- Whole pass — parse `include/psyq`, `include/`, and `src/`, resolve,
+  topologically sort, emit — runs in **0.40s wall** including `npx tsx`
+  startup. No caching is warranted; a cache would only add a staleness
+  failure mode.
+- m2c parsed the resulting context for **40 of 40** functions sampled, with
+  zero hand-maintained type entries.
+
+Implementation constraints, each of which cost a debugging cycle in the probe:
+
+- **Read the `declarator` field, not any named child.** Treating the
+  underlying type as a declared name maps `u_short` onto a `DECDCTTAB`
+  typedef, drags it in spuriously, and emits it twice — a redefinition error
+  that reproduces the outage from the other direction.
+- **Never harvest the generator's own output.** `include/functions.h` contains
+  the stub typedefs; scanning `include/*.h` blindly re-ingests them and the
+  stubs become self-perpetuating — the probe kept the fake
+  `POLY_FT4 { unsigned long pad[4]; }` over the real `libgpu.h` definition
+  without any visible symptom. Exclude both `include/functions.h` and
+  `include/sdk_types.h` from the harvest inputs.
+- **Project types win collisions.** Harvest `src/*.c` and the project headers
+  before the SDK so a project definition shadows an SDK one of the same name.
+- Emit only referenced types plus their transitive dependencies, in dependency
+  order. `findReferencedTypes()` and `topologicalSortStructs()` already do
+  this and need no new machinery; resolve type references off the AST rather
+  than by regex.
 
 Fidelity gain, not just parseability: the current `RECT` stub is
 `{ unsigned short x; unsigned short y; }` — 4 bytes, unsigned. The real
 `libgpu.h:350` `RECT` is `short x, y, w, h` — 8 bytes, signed. Any m2c output
 that indexes or offsets a `RECT` today is wrong. The same risk applies to the
-`pad[n]` stubs for `POLY_FT4`, `SPRT`, `DR_MODE`, and the three just added.
+`pad[n]` stubs for `POLY_FT4`, `SPRT`, `DR_MODE`, `TILE`, `TILE_1`, and
+`LINE_F2`.
+
+Note this is a deliberate behaviour change: once the real definitions ship,
+m2c emits real field names where it previously emitted `->pad[2]`. That is an
+improvement, but it moves output for every function touching those types and
+should land as its own reviewable step.
+
+### Consumer ordering is now a hard constraint
+
+Splitting types into a second file makes `--context` order load-bearing.
+Measured 2026-08-12: m2c shares one scope across `--context` files but parses
+them in the order given.
+
+- `--context sdk_types.h --context functions.h` → parses.
+- `--context functions.h --context sdk_types.h` → fails with the identical
+  `Syntax error when parsing C context` this plan exists to prevent.
+
+So `runM2c()` must own the ordering and always emit `sdk_types.h` ahead of
+`functions.h`. No caller should be able to pass one without the other, and the
+`--context` CLI override must add to that pair rather than replace it.
+Otherwise a future caller reproduces the outage by argument order alone —
+the one real cost of a separate file over inlining.
+
+m2c writes a parse cache beside each context file. These were neither ignored
+nor untracked: `include/functions.h.m2c` was a committed 400KB binary that
+every m2c run re-dirtied. `*.m2c` is now in `.gitignore` and the tracked copy
+was removed from the index.
 
 ## Phase 2 — unknown-type backstop
 
-After assembling the header body and before writing it:
+After assembling the type header and before writing it:
 
 - Tokenize every emitted signature for type positions and subtract the
-  builtin set, the preamble, and the emitted struct definitions.
+  builtin set, the preamble, and the emitted definitions.
 - For each name still undefined, emit
-  `typedef struct { unsigned long pad[1]; } <T>;` so the header parses.
+  `typedef struct { unsigned long pad[1]; } <T>;` into `sdk_types.h` so the
+  context parses.
 - `console.warn` each fallback by name and by the signature that referenced
   it. A fallback is a fidelity gap — layout is a guess — and must be visible,
   not silent. Silent truncation reads as coverage.
 
 This is what converts the allowlist into a closed set. Phase 1 determines how
-*good* the definitions are; Phase 2 determines that there are definitions
-at all.
+*good* the definitions are; Phase 2 determines that there are definitions at
+all. With Phase 1 harvesting the whole SDK, Phase 2 should rarely fire — but
+it is the mechanism that makes a third recurrence structurally impossible,
+so it is the higher-value half.
 
 ## Phase 3 — self-verification gate
 
 `writeHeader()` must not be the last step.
 
-- After writing, invoke m2c's context parser on the generated header (one
-  subprocess against a known-good `.s`, or m2c's context-parse entry point
-  directly).
-- On failure: print m2c's diagnostic, restore the previous header, and exit
-  nonzero. `contextExport.ts` must never exit 0 having written a header its
-  consumer rejects.
-- Cost is one subprocess per `--all` run, which is negligible against the
-  13-commit outage it prevents.
+- After writing, invoke m2c's context parser on the generated pair, in
+  consumer order, against a known-good `.s`.
+- On failure: print m2c's diagnostic, restore **both** previous headers, and
+  exit nonzero. `contextExport.ts` must never exit 0 having written a context
+  its consumer rejects.
+- Validate the pair, not each file alone: `sdk_types.h` parses in isolation
+  while `functions.h` does not, so a per-file check would pass on exactly the
+  configuration that is broken.
+- Cost is one subprocess per `--all` run, negligible against two outages.
 
 ## Phase 4 — surface the diagnostic in `m2cFunc.ts`
 
@@ -132,26 +208,73 @@ into `src/*.c` under `--write`.
 Add `tools/agent/contextExport.test.ts` covering the exact hole:
 
 - A fixture source file whose signature uses a type defined nowhere. Assert
-  the generated header defines it and that m2c parses the result.
+  the generated context defines it and that m2c parses the result.
 - A fixture using a real SDK type (`TILE_1`). Assert the emitted definition
   matches `libgpu.h`, not a `pad[n]` stub.
 - Assert `RECT` resolves to the 8-byte signed `libgpu.h` layout — pins the
   Phase 1 fidelity fix.
+- Assert a nested-struct SDK type extracts intact — pins the AST harvest
+  against a regression to the non-nesting regex.
+- Assert the harvest ignores `include/functions.h` and `include/sdk_types.h`,
+  so stubs cannot re-enter through the generator's own output.
 - Assert the Phase 3 gate rejects a deliberately malformed header and leaves
-  the previous one in place.
+  the previous pair in place.
 
 ---
 
 ## Sequencing
 
-Phases 2, 3 and 4 are independent of Phase 1 and each remove a distinct
-contributor to the outage; any of them alone would have caught this one. Land
-them first if Phase 1's SDK parsing proves awkward. Phase 1 is the fidelity
-fix and the one that makes the emitted context worth trusting.
+Phases 2, 3 and 4 were independent of Phase 1 and each removed a distinct
+contributor to the outage; any of them alone would have caught both
+occurrences. The 2026-08-12 recurrence happened because the previous round of
+this plan led with the fidelity work and shipped none of it. All five landed
+together in the end, but the ordering lesson stands: the cheap structural
+guards are what stop a third occurrence, and they never depended on the
+harvest landing cleanly.
+
+The invariant now enforced, in one line: an unresolvable type costs one
+warning and one opaque placeholder, never a context that fails to parse.
+
+## Immediate unblock
+
+Resolved by Phase 1 rather than by another symptom patch: `SVECTOR` now
+resolves from `include/psyq/libgte.h` like every other SDK type, so no
+hand-written preamble entry was needed. All 240 functions decompile.
+
+## Phase 6 — AST signature extraction (landed 2026-08-12)
+
+Originally out of scope, then built once the gate exposed what it could not
+catch. The gate proves that what was written parses; it cannot prove that
+everything that should have been written *was*. Signature extraction was still
+regex, and its failure mode was silent omission:
+
+- `void f(void (*cb)(int), s32 n)` — the `[^)]*` parameter group ended at the
+  function pointer's inner `)`, so the definition did not match.
+- `void g(s32 a /* count ) here */, s32 b)` — a regex cannot see comments.
+
+Either one made the extractor publish **nothing for the entire file**, with no
+error. A missing prototype does not break the context; it degrades the callers,
+which fall back to implicit-int and poison `$v0` for post-call temps.
+
+`extractSignaturesFromSource` and `extractPrototypesFromSource` now rebuild
+prototypes from the parse tree, and `contextExport.ts` holds no C-parsing
+regex at all. Two constraints found while building it:
+
+- **Check brokenness on the declaration, not the definition.** Bodies carry
+  constructs the grammar rejects — `register s32 x asm("$16")` pinning in
+  `func_8001FEA4.c` — and a whole-node check discarded a valid signature.
+- **The reader must be at least as capable as the emitter.** The old
+  `readExistingHeader` regex could not re-read a function-pointer signature
+  the new extractor can now write, so that prototype would have been dropped
+  on the next incremental export. Both directions are AST now, with a
+  round-trip test pinning the pair.
+
+Verified byte-identical: all 224 non-stub sources produce exactly the
+signatures the regex produced, and `include/functions.h` is unchanged.
 
 ## Out of scope
-
-- Rewriting how signatures are harvested from `src/`.
-- The build itself. `include/functions.h` is m2c context only — it is not
-  included by `common.h` or by any `src/*.c`, so nothing here can move the
-  payload. `make check` is unaffected either way.
+- The build itself. `include/functions.h` is m2c context only — nothing
+  `#include`s it, so nothing here can move the payload. `make check` is
+  unaffected either way. `include/sdk_types.h` inherits the same property and
+  must not be included by `src/*.c`, which would collide with the real SDK
+  headers.

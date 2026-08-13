@@ -1,9 +1,17 @@
 /**
- * contextExport.ts — Extract function signatures from decompiled C files into include/functions.h
+ * contextExport.ts — Extract function signatures from decompiled C files into the m2c context
  *
  * Stage 4 of the decompilation pipeline. After a function is byte-matched and cleaned up,
- * this tool extracts its signature and adds it to include/functions.h so that future
+ * this tool extracts its signature and adds it to the m2c context so that future
  * m2c runs and LLM agents have type context.
+ *
+ * Two files are generated, and m2c must be given them in this order:
+ *   include/sdk_types.h  — definitions of every type the signatures name
+ *   include/functions.h  — the signatures themselves
+ *
+ * Both are m2c context only. Nothing #includes them, and they carry no
+ * preprocessor directives, because m2c parses its context as plain C with no
+ * preprocessor.
  *
  * Usage:
  *   npx tsx tools/agent/contextExport.ts func_80011F08          # extract from src/func_80011F08.c
@@ -11,30 +19,24 @@
  *   npx tsx tools/agent/contextExport.ts func_80011F08 --dry-run # show what would be added
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { execFileSync } from "child_process";
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from "fs";
 import { join } from "path";
+import {
+  extractPrototypesFromSource,
+  extractSignaturesFromSource,
+  harvestTypedefs,
+  renderSdkTypesHeader,
+  resolveTypes,
+  typeNamesIn,
+  type ExtractedSignature,
+  type Resolution,
+} from "./sdkTypes.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
-// Match a C function definition: return type, name, params, opening brace.
-// Handles pointer return types with the star on either side (`int* f`,
-// `int *f`), multi-word types (unsigned int), and multi-line parameter
-// lists. The separator group must contain a star or whitespace so that
-// single-word statements (`if (x) {`) cannot match.
-const FUNC_DEF_RE = /^([\w][\w\s]*?)(\s*\*+\s*|\s+)([\w]+)\s*\(([^)]*)\)\s*\{/gm;
-
-// Lines that are not function definitions
-const SKIP_RE = /^(?:#include|\/\/|\/\*|\*|$)/;
-
-// Match typedef struct { ... } Name; — no nesting, C89 anonymous structs
-const STRUCT_TYPEDEF_RE = /typedef\s+struct\s*\{[^}]*\}\s*(\w+)\s*;/gs;
-
-// Built-in types that don't need struct definitions
-const BUILTIN_TYPES = new Set([
-  "u8", "u16", "u32", "s8", "s16", "s32",
-  "vu8", "vu16", "vu32", "vs8", "vs16", "vs32",
-  "char", "int", "short", "long", "void", "unsigned", "signed",
-]);
+const SDK_TYPES_HEADER = "include/sdk_types.h";
+const FUNCTIONS_HEADER = "include/functions.h";
 
 interface ExportResult {
   signatures: string[];
@@ -43,9 +45,9 @@ interface ExportResult {
 }
 
 /**
- * Extract function signatures from a decompiled C file.
+ * Extract the function definitions a decompiled C file publishes.
  */
-export function extractSignatures(cFilePath: string): string[] {
+export function extractSignaturePairs(cFilePath: string): ExtractedSignature[] {
   if (!existsSync(cFilePath)) return [];
 
   const source = readFileSync(cFilePath, "utf-8");
@@ -53,246 +55,166 @@ export function extractSignatures(cFilePath: string): string[] {
   // Skip stubs that still use INCLUDE_ASM
   if (source.includes("INCLUDE_ASM(")) return [];
 
-  const signatures: string[] = [];
-  let match: RegExpExecArray | null;
-
-  // Reset regex state
-  FUNC_DEF_RE.lastIndex = 0;
-
-  while ((match = FUNC_DEF_RE.exec(source)) !== null) {
-    const returnType = match[1].trim();
-    const stars = (match[2].match(/\*+/) ?? [""])[0];
-    const funcName = match[3];
-    const params = match[4].trim();
-
-    // Normalize empty params to void; collapse multi-line params to single line
-    const normalizedParams = params === "" ? "void" : params.replace(/\s+/g, " ").trim();
-    signatures.push(`${returnType}${stars ? ` ${stars}` : ""} ${funcName}(${normalizedParams});`);
-  }
-
-  return signatures;
+  return extractSignaturesFromSource(source);
 }
 
 /**
- * Extract struct typedefs from a C source file.
- * Returns a map of type name -> full typedef text.
+ * Extract function signatures from a decompiled C file.
  */
-export function extractStructTypedefs(cFilePath: string): Map<string, string> {
-  const defs = new Map<string, string>();
-  if (!existsSync(cFilePath)) return defs;
-
-  const source = readFileSync(cFilePath, "utf-8");
-  STRUCT_TYPEDEF_RE.lastIndex = 0;
-
-  let match: RegExpExecArray | null;
-  while ((match = STRUCT_TYPEDEF_RE.exec(source)) !== null) {
-    defs.set(match[1], match[0]);
-  }
-  return defs;
+export function extractSignatures(cFilePath: string): string[] {
+  return extractSignaturePairs(cFilePath).map((s) => s.signature);
 }
 
 /**
- * Given all signatures and all struct defs, find which struct names are referenced
- * in any signature. Computes transitive closure (struct fields referencing other structs).
- */
-function findReferencedTypes(
-  signatures: Map<string, string>,
-  structDefs: Map<string, string>,
-): Set<string> {
-  const referenced = new Set<string>();
-
-  // Find struct names referenced directly in signatures
-  const allSigText = [...signatures.values()].join("\n");
-  for (const name of structDefs.keys()) {
-    if (allSigText.includes(name)) {
-      referenced.add(name);
-    }
-  }
-
-  // Transitive closure: if a referenced struct's body mentions another struct, include it
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const name of referenced) {
-      const body = structDefs.get(name)!;
-      for (const candidate of structDefs.keys()) {
-        if (!referenced.has(candidate) && body.includes(candidate)) {
-          referenced.add(candidate);
-          changed = true;
-        }
-      }
-    }
-  }
-
-  return referenced;
-}
-
-/**
- * Collect struct typedefs from all source files in src/.
- */
-function collectAllStructDefs(srcDir: string): Map<string, string> {
-  const allDefs = new Map<string, string>();
-  if (!existsSync(srcDir)) return allDefs;
-
-  const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
-  for (const file of files) {
-    const defs = extractStructTypedefs(join(srcDir, file));
-    for (const [name, def] of defs) {
-      allDefs.set(name, def);
-    }
-  }
-
-  /* Also scan shared headers for struct typedefs */
-  const includeDir = join(srcDir, "..", "include");
-  const sharedHeaders = ["game_types.h"];
-  for (const header of sharedHeaders) {
-    const defs = extractStructTypedefs(join(includeDir, header));
-    for (const [name, def] of defs) {
-      allDefs.set(name, def);
-    }
-  }
-
-  return allDefs;
-}
-
-/**
- * Read the current include/functions.h and return a map of funcName -> signature line.
- * Uses a regex over the full file content to correctly handle multi-line signatures.
+ * Read the current include/functions.h and return a map of funcName -> signature.
  */
 function readExistingHeader(headerPath: string): Map<string, string> {
   const map = new Map<string, string>();
   if (!existsSync(headerPath)) return map;
 
-  const content = readFileSync(headerPath, "utf-8");
-  // Match complete signatures: "type funcname(params);" — [
-  const sigRe = /^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\([^)]*\)\s*;\s*/gm;
-  let m;
-  while ((m = sigRe.exec(content)) !== null) {
-    const funcName = m[1];
-    // Normalize to single line: collapse whitespace inside params
-    const sig = m[0].replace(/\s+/g, " ").trim();
-    map.set(funcName, sig);
+  for (const { name, signature } of extractPrototypesFromSource(readFileSync(headerPath, "utf-8"))) {
+    map.set(name, signature);
   }
   return map;
 }
 
-/**
- * Build a dependency graph of struct types: for each struct, find which other
- * struct names appear in its body. Returns a map name -> Set of dependency names.
- */
-function buildStructDeps(
-  structDefs: Map<string, string>,
-): Map<string, Set<string>> {
-  const deps = new Map<string, Set<string>>();
-  for (const [name, body] of structDefs) {
-    const depSet = new Set<string>();
-    for (const candidate of structDefs.keys()) {
-      if (candidate !== name && body.includes(candidate)) {
-        depSet.add(candidate);
-      }
-    }
-    deps.set(name, depSet);
-  }
-  return deps;
-}
+/* ------------------------------------------------------------------ */
+/* Context generation                                                  */
+/* ------------------------------------------------------------------ */
 
 /**
- * Topological sort of struct typedefs so that dependencies are emitted first.
- * Falls back to alphabetical order for any remaining ties or cycles.
+ * Resolve the type definitions the signatures require, and report which
+ * signature pulled in any type that could not be resolved.
  */
-function topologicalSortStructs(
-  structDefs: Map<string, string>,
-  referenced: Set<string>,
-): string[] {
-  const filtered = new Map<string, string>();
-  for (const name of referenced) {
-    if (structDefs.has(name)) {
-      filtered.set(name, structDefs.get(name)!);
-    }
-  }
-
-  const deps = buildStructDeps(filtered);
-  const result: string[] = [];
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
-
-  function visit(name: string): void {
-    if (visited.has(name)) return;
-    if (visiting.has(name)) {
-      // Cycle detected — skip to avoid infinite recursion
-      return;
-    }
-    visiting.add(name);
-    const depSet = deps.get(name) ?? new Set();
-    for (const dep of depSet) {
-      if (filtered.has(dep)) {
-        visit(dep);
-      }
-    }
-    visiting.delete(name);
-    visited.add(name);
-    result.push(name);
-  }
-
-  // Visit in alphabetical order for deterministic tie-breaking
-  const names = [...filtered.keys()].sort();
-  for (const name of names) {
-    visit(name);
-  }
-
-  return result;
-}
-
-/**
- * Write include/functions.h with sorted signatures and any referenced struct typedefs.
- * Structs are emitted in dependency order (topological sort) so forward references work.
- */
-function writeHeader(
-  headerPath: string,
+export function resolveContextTypes(
+  rootDir: string,
   signatures: Map<string, string>,
-  structDefs: Map<string, string> = new Map(),
-): void {
-  // Sort by function name (which sorts by address for func_XXXXXXXX names)
-  const sortedSigs = [...signatures.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+): { resolution: Resolution; defs: Map<string, string>; referencedBy: Map<string, string[]> } {
+  const defs = harvestTypedefs(rootDir);
 
-  // Filter to only structs referenced in signatures
-  const referenced = findReferencedTypes(signatures, structDefs);
-  const orderedStructNames = topologicalSortStructs(structDefs, referenced);
-
-  // No preprocessor directives — m2c parses this as plain C context
-  const lines = [
-    "/* Auto-generated by tools/agent/contextExport.ts — do not edit manually */",
-    "",
-    "typedef unsigned char u8;",
-    "typedef unsigned short u16;",
-    "typedef unsigned int u32;",
-    "typedef signed char s8;",
-    "typedef signed short s16;",
-    "typedef signed int s32;",
-    "",
-    // PSY-Q GPU types used in function signatures (opaque stubs for m2c context)
-    "typedef unsigned long u_long;",
-    "typedef struct { unsigned long pad[4]; } POLY_FT4;",
-    "typedef struct { unsigned long pad[2]; } SPRT;",
-    "typedef struct { unsigned long pad[1]; } DR_MODE;",
-    "typedef struct { unsigned short x; unsigned short y; } RECT;",
-    "typedef struct { unsigned long pad[3]; } TILE_1;",
-    "typedef struct { unsigned long pad[4]; } TILE;",
-    "typedef struct { unsigned long pad[4]; } LINE_F2;",
-    "",
-  ];
-
-  if (orderedStructNames.length > 0) {
-    for (const name of orderedStructNames) {
-      lines.push(structDefs.get(name)!);
-      lines.push("");
+  const referencedBy = new Map<string, string[]>();
+  for (const sig of signatures.values()) {
+    for (const name of typeNamesIn(sig)) {
+      const users = referencedBy.get(name);
+      if (users) users.push(sig);
+      else referencedBy.set(name, [sig]);
     }
   }
 
-  lines.push(...sortedSigs.map(([_, sig]) => sig));
-  lines.push("");
+  return { resolution: resolveTypes(referencedBy.keys(), defs), defs, referencedBy };
+}
 
-  writeFileSync(headerPath, lines.join("\n"));
+/** Render include/functions.h: signatures only, sorted by name. */
+function renderFunctionsHeader(signatures: Map<string, string>): string {
+  const sorted = [...signatures.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  return [
+    "/* Auto-generated by tools/agent/contextExport.ts — do not edit manually */",
+    "/* m2c context only. Types live in include/sdk_types.h, which must be",
+    " * passed to m2c before this file. */",
+    "",
+    ...sorted.map(([, sig]) => sig),
+    "",
+  ].join("\n");
+}
+
+/**
+ * Ask m2c to parse the generated context, in the order consumers use it.
+ *
+ * The pair is verified together: sdk_types.h parses in isolation whether or
+ * not functions.h does, so a per-file check would pass on exactly the
+ * configuration that is broken.
+ */
+export function verifyContextParses(
+  rootDir: string,
+): { ok: boolean; skipped?: string; diagnostic?: string } {
+  const asmRoot = join(rootDir, "build/asm/nonmatchings");
+  if (!existsSync(asmRoot)) {
+    return { ok: true, skipped: "build/asm/nonmatchings is absent (gitignored); cannot verify" };
+  }
+  const dirs = readdirSync(asmRoot).sort();
+  let probe: { fn: string; sFile: string } | undefined;
+  for (const dir of dirs) {
+    const candidate = join(asmRoot, dir, `${dir}.s`);
+    if (existsSync(candidate)) {
+      probe = { fn: dir, sFile: candidate };
+      break;
+    }
+  }
+  if (!probe) return { ok: true, skipped: "no .s file available to verify against" };
+
+  const args = [
+    "tools/vendor/m2c/m2c.py",
+    "--target", "mipsel-gcc-c",
+    /* Parse fresh rather than trusting the on-disk .m2c cache: the point of
+     * the gate is to check what was just written. */
+    "--no-cache",
+    "-f", probe.fn,
+  ];
+  const globalsCtx = join(rootDir, "build/m2c_globals.ctx");
+  if (existsSync(globalsCtx)) args.push("--context", "build/m2c_globals.ctx");
+  args.push("--context", SDK_TYPES_HEADER, "--context", FUNCTIONS_HEADER, probe.sFile);
+
+  let output: string;
+  try {
+    output = execFileSync("python3", args, { cwd: rootDir, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (e: any) {
+    output = `${e.stdout ?? ""}${e.stderr ?? ""}`;
+  }
+
+  /* Only a context parse failure is this gate's business. m2c can fail on a
+   * given function for unrelated reasons without the context being at fault. */
+  if (output.includes("Syntax error when parsing C context")) {
+    return { ok: false, diagnostic: output.trim() };
+  }
+  return { ok: true };
+}
+
+/**
+ * Write the m2c context pair, then prove it parses before letting it stand.
+ *
+ * The context is shared by every function, so an unparseable one disables the
+ * tool project-wide. On failure both files are restored and the error is
+ * raised: this must never return having left a context its consumer rejects.
+ */
+export function writeContext(rootDir: string, signatures: Map<string, string>): void {
+  const sdkPath = join(rootDir, SDK_TYPES_HEADER);
+  const funcsPath = join(rootDir, FUNCTIONS_HEADER);
+
+  const { resolution, defs, referencedBy } = resolveContextTypes(rootDir, signatures);
+
+  for (const name of resolution.unresolved) {
+    const users = referencedBy.get(name) ?? [];
+    console.warn(
+      `warning: type '${name}' is referenced by a signature but defined nowhere. ` +
+      `Emitting an opaque placeholder — its layout is a guess, so m2c output ` +
+      `touching this type will be wrong.`,
+    );
+    for (const sig of users.slice(0, 3)) console.warn(`         referenced by: ${sig}`);
+    if (users.length > 3) console.warn(`         ...and ${users.length - 3} more`);
+  }
+
+  const previous = new Map<string, string | null>([
+    [sdkPath, existsSync(sdkPath) ? readFileSync(sdkPath, "utf-8") : null],
+    [funcsPath, existsSync(funcsPath) ? readFileSync(funcsPath, "utf-8") : null],
+  ]);
+
+  writeFileSync(sdkPath, renderSdkTypesHeader(resolution, defs));
+  writeFileSync(funcsPath, renderFunctionsHeader(signatures));
+
+  const check = verifyContextParses(rootDir);
+  if (check.skipped) {
+    console.warn(`warning: context self-check skipped — ${check.skipped}`);
+    return;
+  }
+  if (!check.ok) {
+    for (const [path, content] of previous) {
+      if (content === null) rmSync(path, { force: true });
+      else writeFileSync(path, content);
+    }
+    throw new Error(
+      `Generated m2c context does not parse; previous context restored.\n\n${check.diagnostic}`,
+    );
+  }
 }
 
 /**
@@ -306,10 +228,11 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
     return { signatures: [], skipped: true, reason: "file not found" };
   }
 
-  const sigs = extractSignatures(cFile);
-  if (sigs.length === 0) {
+  const pairs = extractSignaturePairs(cFile);
+  if (pairs.length === 0) {
     return { signatures: [], skipped: true, reason: "no function definitions (stub?)" };
   }
+  const sigs = pairs.map((p) => p.signature);
 
   /* A matched caller may carry its own local prototype for this function
    * (period style: per-file declarations, often with all-s32 parameter
@@ -317,10 +240,11 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
    * conflicting prototype in functions.h would break those TUs, so skip
    * and report instead of writing. */
   const srcDirGuard = join(rootDir, "src");
-  const declRe = new RegExp(`^[^/]*\\b${funcName}\\s*\\([^)]*\\)\\s*;`, "m");
   const conflicting = readdirSync(srcDirGuard)
     .filter((f) => f.endsWith(".c") && f !== `${funcName}.c`)
-    .filter((f) => declRe.test(readFileSync(join(srcDirGuard, f), "utf-8")));
+    .filter((f) =>
+      extractPrototypesFromSource(readFileSync(join(srcDirGuard, f), "utf-8"))
+        .some((p) => p.name === funcName));
   if (conflicting.length > 0) {
     return {
       signatures: sigs,
@@ -329,23 +253,37 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
     };
   }
 
-  const headerPath = join(rootDir, "include/functions.h");
-  const existing = readExistingHeader(headerPath);
+  const existing = readExistingHeader(join(rootDir, FUNCTIONS_HEADER));
+  for (const { name, signature } of pairs) existing.set(name, signature);
 
-  // Merge new signatures into existing
-  for (const sig of sigs) {
-    const m = sig.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
-    if (m) {
-      existing.set(m[1], sig);
+  writeContext(rootDir, existing);
+  return { signatures: sigs, skipped: false };
+}
+
+/**
+ * Collect the signatures published by every decompiled (non-stub) file in src/.
+ */
+function collectAllSignatures(rootDir: string): { signatures: Map<string, string>; exported: string[]; skipped: string[] } {
+  const srcDir = join(rootDir, "src");
+  const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
+  const signatures = readExistingHeader(join(rootDir, FUNCTIONS_HEADER));
+  const exported: string[] = [];
+  const skipped: string[] = [];
+
+  for (const file of files) {
+    const funcName = file.replace(/\.c$/, "");
+    const pairs = extractSignaturePairs(join(srcDir, file));
+
+    if (pairs.length === 0) {
+      skipped.push(funcName);
+      continue;
     }
+
+    for (const { name, signature } of pairs) signatures.set(name, signature);
+    exported.push(funcName);
   }
 
-  // Collect struct defs from ALL source files (a signature in file A may reference a struct from file B)
-  const srcDir = join(rootDir, "src");
-  const allStructDefs = collectAllStructDefs(srcDir);
-
-  writeHeader(headerPath, existing, allStructDefs);
-  return { signatures: sigs, skipped: false };
+  return { signatures, exported, skipped };
 }
 
 /**
@@ -355,51 +293,10 @@ export function exportAll(rootDir: string = ROOT): { exported: string[]; skipped
   const srcDir = join(rootDir, "src");
   if (!existsSync(srcDir)) return { exported: [], skipped: [] };
 
-  const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
-  const exported: string[] = [];
-  const skipped: string[] = [];
-
-  // Collect all signatures and struct defs
-  const headerPath = join(rootDir, "include/functions.h");
-  const allSigs = readExistingHeader(headerPath);
-  const allStructDefs = new Map<string, string>();
-
-  for (const file of files) {
-    const funcName = file.replace(/\.c$/, "");
-    const cFile = join(srcDir, file);
-    const sigs = extractSignatures(cFile);
-
-    // Collect struct defs from every file
-    const defs = extractStructTypedefs(cFile);
-    for (const [name, def] of defs) {
-      allStructDefs.set(name, def);
-    }
-
-    if (sigs.length === 0) {
-      skipped.push(funcName);
-      continue;
-    }
-
-    for (const sig of sigs) {
-      const m = sig.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
-      if (m) {
-        allSigs.set(m[1], sig);
-      }
-    }
-    exported.push(funcName);
-  }
-
-  /* Also scan shared headers for struct typedefs */
-  const includeDir = join(rootDir, "include");
-  for (const header of ["game_types.h"]) {
-    const defs = extractStructTypedefs(join(includeDir, header));
-    for (const [name, def] of defs) {
-      allStructDefs.set(name, def);
-    }
-  }
+  const { signatures, exported, skipped } = collectAllSignatures(rootDir);
 
   if (exported.length > 0) {
-    writeHeader(headerPath, allSigs, allStructDefs);
+    writeContext(rootDir, signatures);
   }
 
   return { exported, skipped };
@@ -419,68 +316,50 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
     process.exit(1);
   }
 
-  if (all) {
-    if (dryRun) {
-      const srcDir = join(ROOT, "src");
-      const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
-      const allSigs = new Map<string, string>();
-      const allStructDefs = new Map<string, string>();
-      for (const file of files) {
-        const cFile = join(srcDir, file);
-        const sigs = extractSignatures(cFile);
-        for (const sig of sigs) {
-          const m = sig.match(/^[\w][\w\s]*?\s*\**\s*([\w]+)\s*\(/);
-          if (m) allSigs.set(m[1], sig);
-        }
-        const defs = extractStructTypedefs(cFile);
-        for (const [name, def] of defs) {
-          allStructDefs.set(name, def);
-        }
-      }
-      const referenced = findReferencedTypes(allSigs, allStructDefs);
-      const orderedNames = topologicalSortStructs(allStructDefs, referenced);
-      if (orderedNames.length > 0) {
-        console.log("/* Struct typedefs */");
-        for (const name of orderedNames) {
-          console.log(allStructDefs.get(name)!);
-          console.log();
+  try {
+    if (all) {
+      if (dryRun) {
+        const { signatures } = collectAllSignatures(ROOT);
+        const { resolution, defs } = resolveContextTypes(ROOT, signatures);
+        console.log(renderSdkTypesHeader(resolution, defs));
+        console.log(renderFunctionsHeader(signatures));
+        console.log(
+          `\n${signatures.size} signature(s), ${resolution.ordered.length} type(s) resolved, ` +
+          `${resolution.unresolved.length} unresolved (dry run, nothing written)`,
+        );
+      } else {
+        const result = exportAll();
+        console.log(`Exported ${result.exported.length} function(s), skipped ${result.skipped.length} stub(s)`);
+        if (result.exported.length > 0) {
+          console.log(`Updated ${SDK_TYPES_HEADER} and ${FUNCTIONS_HEADER}`);
         }
       }
-      console.log("/* Function signatures */");
-      const sortedSigs = [...allSigs.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-      for (const [_, sig] of sortedSigs) {
-        console.log(sig);
-      }
-      console.log(`\n${sortedSigs.length} signature(s), ${referencedDefs.length} struct(s) found (dry run, nothing written)`);
     } else {
-      const result = exportAll();
-      console.log(`Exported ${result.exported.length} function(s), skipped ${result.skipped.length} stub(s)`);
-      if (result.exported.length > 0) {
-        console.log(`Updated include/functions.h`);
+      const cFile = join(ROOT, "src", `${funcName}.c`);
+      const sigs = extractSignatures(cFile);
+
+      if (sigs.length === 0) {
+        console.log(`No function definitions found in src/${funcName}.c (stub or missing)`);
+        process.exit(0);
+      }
+
+      for (const sig of sigs) {
+        console.log(`  ${sig}`);
+      }
+
+      if (dryRun) {
+        console.log(`(dry run, nothing written)`);
+      } else {
+        const result = exportContext(funcName!);
+        if (!result.skipped) {
+          console.log(`Updated ${SDK_TYPES_HEADER} and ${FUNCTIONS_HEADER}`);
+        } else if (result.reason) {
+          console.log(`Skipped: ${result.reason}`);
+        }
       }
     }
-  } else {
-    const cFile = join(ROOT, "src", `${funcName}.c`);
-    const sigs = extractSignatures(cFile);
-
-    if (sigs.length === 0) {
-      console.log(`No function definitions found in src/${funcName}.c (stub or missing)`);
-      process.exit(0);
-    }
-
-    for (const sig of sigs) {
-      console.log(`  ${sig}`);
-    }
-
-    if (dryRun) {
-      console.log(`(dry run, nothing written)`);
-    } else {
-      const result = exportContext(funcName!);
-      if (!result.skipped) {
-        console.log(`Updated include/functions.h`);
-      } else if (result.reason) {
-        console.log(`Skipped: ${result.reason}`);
-      }
-    }
+  } catch (e: any) {
+    console.error(e.message);
+    process.exit(1);
   }
 }

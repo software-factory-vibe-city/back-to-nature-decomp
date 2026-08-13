@@ -66,11 +66,16 @@ export function runM2c(funcName: string, root: string = DEFAULT_ROOT, options: M
   if (existsSync(globalsCtx)) {
     cmd.push("--context", "build/m2c_globals.ctx");
   }
-  const autoContext = join(root, "include/functions.h");
+  /* Order is load-bearing. m2c parses --context files in sequence into a
+   * single scope, so sdk_types.h must precede the signatures in functions.h
+   * that name those types; reversed, the whole context fails to parse and m2c
+   * refuses every function. This pair is not caller-overridable for that
+   * reason — an explicit --context is added to it, never substituted. */
+  for (const ctx of ["include/sdk_types.h", "include/functions.h"]) {
+    if (existsSync(join(root, ctx))) cmd.push("--context", ctx);
+  }
   if (options.contextFile) {
     cmd.push("--context", options.contextFile);
-  } else if (existsSync(autoContext)) {
-    cmd.push("--context", "include/functions.h");
   }
 
   cmd.push(sFile);
@@ -98,7 +103,28 @@ export function runM2c(funcName: string, root: string = DEFAULT_ROOT, options: M
     }
   }
 
-  const m2cOutput = execSync(cmd.join(" "), { cwd: root, encoding: "utf-8" });
+  /* m2c splits its failure reporting across streams: a C context syntax error
+   * arrives on stdout, wrapped in a "Decompilation failure" comment block,
+   * while an unknown function name arrives on stderr. Both exit nonzero.
+   * Reporting only the exception message discards whichever stream carried the
+   * reason, which makes a project-wide context break read as a local one. */
+  let m2cOutput: string;
+  try {
+    m2cOutput = execSync(cmd.join(" "), {
+      cwd: root,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e: any) {
+    const detail = [e.stdout, e.stderr].map((s: string) => (s ?? "").trim()).filter(Boolean).join("\n");
+    throw new Error(`${cmd.join(" ")}\n\n${detail || e.message}`);
+  }
+
+  /* A context failure can also arrive on a zero exit. Catching it here keeps
+   * --write from committing a comment block into src/*.c as if it were code. */
+  if (m2cOutput.includes("Decompilation failure:")) {
+    throw new Error(`${cmd.join(" ")}\n\n${m2cOutput.trim()}`);
+  }
 
   const output = [
     '#include "common.h"',
@@ -139,7 +165,7 @@ if (isCLI) {
       process.stdout.write(output);
     }
   } catch (e: any) {
-    console.error("m2c failed:", e.message);
+    console.error(`m2c failed:\n${e.message}`);
     process.exit(1);
   }
 }
