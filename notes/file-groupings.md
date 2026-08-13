@@ -464,14 +464,19 @@ References: src/func_800218C4.c.
 ## sound init and control — around 0x8001FEA4–0x80020A94 (confidence: medium)
 
 Sound system initialization, stereo/mono control, and score sequence opening.
-Fingerprints: shared gp-rel cluster D_8005E53C (init flag) and D_8005E55C
-(stereo/mono flag) — every listed member reaches both or one GP-relatively;
-all other functions in the binary reach these symbols absolutely. SDK
-fingerprint: libsnd SsSeqOpen, SsStart, SsSetStereo, SsSetMono.
+Fingerprints: shared gp-rel cluster D_8005E538, D_8005E53C (init flags),
+D_8005E558, D_8005E55C (stereo/mono flag) — func_8001FEA4 defines all four
+as tentative definitions (GP-relative); func_80020818 defines the overlapping
+subset D_8005E53C, D_8005E55C. All other functions in the binary reach these
+symbols absolutely. SDK fingerprint: libsnd SsInit, SsSetTableSize,
+SsSetTickMode, SsUtReverbOff, SsSeqOpen, SsStart, SsSetStereo, SsSetMono;
+libspu SpuSetCommonAttr; libcd CdControl.
 func_80011370 (main loop) calls func_80020818.
 
 Members (address order):
-- func_8001FEA4 (s) — sound reset: clears D_8005E53C, writes D_8005E55C
+- func_8001FEA4 (m) — sound reset: clears D_8005E538/D_8005E53C/D_8005E558,
+  sets D_8005E55C=1, initializes SpuCommonAttr D_8006C368, calls SsInit /
+  SsSetTableSize / SsSetTickMode / SsUtReverbOff / SpuSetCommonAttr
 - func_80020818 (m) — sound init: opens sequences, calls SsStart, sets
   D_8005E53C, configures stereo/mono from D_8005E55C
 - func_80020A14 (s) — mono setter: calls SsSetMono, clears D_8005E55C
