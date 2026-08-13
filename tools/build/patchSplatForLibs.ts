@@ -457,11 +457,26 @@ function main() {
     const owned = line.match(/^\s+- \[\s*0x([0-9A-Fa-f]+)\s*,\s*\.rodata\s*,\s*(\w+)\s*\]/);
     if (!owned) return;
     const rom = parseInt(owned[1], 16);
-    const next = yamlLines[index + 1]?.match(/^\s+- \[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/i);
-    if (!next) return;
+    /* The extent comes from whatever follows. Usually a plain rodata
+     * continuation segment. When two C-owned tables touch there is no
+     * continuation, and the next entry's own start is this one's end —
+     * reading only continuations would leave the extent at zero and the
+     * entry would be silently dropped (mirrors mergeFragments). */
+    let size = 0;
+    const following = yamlLines[index + 1];
+    if (following) {
+      const continuation = following.match(/^\s+- \[\s*0x([0-9A-Fa-f]+)\s*,\s*rodata\s*\]/i);
+      if (continuation) {
+        size = parseInt(continuation[1], 16) - rom;
+      } else {
+        const adjacent = following.match(/^\s+- \[\s*0x([0-9A-Fa-f]+)\s*,/);
+        if (adjacent) size = parseInt(adjacent[1], 16) - rom;
+      }
+    }
+    if (size <= 0) return;
     ownedRodata.push({
       rom,
-      size: parseInt(next[1], 16) - rom,
+      size,
       oPath: "",
       sectionArg: ".rodata",
       ownedByFunc: owned[2],
