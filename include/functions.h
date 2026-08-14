@@ -24,6 +24,7 @@ void func_800129F4(void);
 void func_80012A14(void);
 void func_80012A68(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8 arg4, u8 arg5, u8 arg6);
 s32 func_80012CB4(s32 arg0, s32 *arg1, s32 arg2);
+void func_80012D30(void);
 void func_800132B8(s32 arg0, s32 arg1, s32 arg2);
 s32 func_80013394(void);
 s32 func_800134B8(void);

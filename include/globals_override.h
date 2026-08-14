@@ -390,11 +390,36 @@ extern s16 D_8005E3E8[2];
  * result in the base register needs. The three users only take &D_8005E5E8, so
  * the type change is address-neutral for them. */
 typedef struct {
-    char pad_0[0x130];
+    char pad_0[0x17];
+    /* 0x17 */ u8 unk17;
+    /* 0x18 */ u8 unk18;
+    char pad_19[0x130 - 0x19];
     void *field_130;
 } env_struct_0x134;
 
 extern env_struct_0x134 D_8005E5E8[2];
+
+/* D_8005E644 — array of 0x134-stride render contexts (func_80012D30).
+ * Not owned by func_80012D30's TU (absolute lui/addiu base in target); the
+ * element stride 0x134 lets &D_8005E644[idx] produce the target's idx*0x134
+ * address for PutDispEnv. Also declared char D_8005E3A4 is owned elsewhere
+ * (func_80011370 / func_800120C8) and read absolutely here. */
+extern env_struct_0x134 D_8005E644[];
+extern s32 D_8005E3A4;
+
+/* D_8005E8E0 / D_8005E910 — packet arrays indexed by D_8005E3A4 (func_80012D30).
+ * Element strides 0x18 and 0xC. Declared as sized struct arrays so
+ * get_inner_reference builds the element address base-first (the target's
+ * lui(base) ... addu base+offset order); the .c casts elements to POLY_F4* /
+ * DR_MODE* at use. */
+typedef struct {
+    char pad[0x18];
+} packet_0x18;
+typedef struct {
+    char pad[0x0C];
+} packet_0x0C;
+extern packet_0x18 D_8005E8E0[];
+extern packet_0x0C D_8005E910[];
 
 /* D_8005E5D8 — pointer toggled between two buffer bases (func_80011370).
  * Target uses absolute lui/lw addressing. Array size forces >8 bytes. */
