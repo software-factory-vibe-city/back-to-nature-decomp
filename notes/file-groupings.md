@@ -577,6 +577,39 @@ cluster with core members — likely a different TU or the boundary member).
 
 References: src/func_800218C4.c.
 
+## SPU voice allocation and playback — around 0x800212A8–0x80021820 (confidence: medium)
+
+Per-voice allocation, playback (SsUtKeyOnV) and release (SsUtKeyOffV) over the
+24-voice group/LRU tables. Functionally distinct from the VAB-transfer group but
+interleaved with it in link order (the VAB members sit between func_80021484 and
+func_800217B0); the two share no globals, and the interleaving is the open
+TU-boundary question (one combined sound TU vs two adjacent TUs).
+
+Fingerprints:
+- shared absolute 24-voice table pair D_8006C0C8 (per-voice group, 0–3) +
+  D_8006C128 (per-voice LRU, 0x01000000 min-scan sentinel); written by
+  212A8/21484, read by 21820, initialized by func_8001FF98 (sound reset);
+- dedicated call graph: func_800212A8 → func_800217B0 (primary allocator) +
+  func_80021820 (fallback 4-pass allocator); neither allocator has any other
+  matched caller;
+- producer/consumer on D_80049A10 (per-voice key-status): func_800212A8 writes
+  it after playing, func_800217B0 reads it to score a voice's state delta.
+
+Members (address order):
+- func_800212A8 (m, 2026-08) — voice play: allocates a voice, sets its group
+  from the D_800495CC per-sound table and LRU to the first VSync's return,
+  plays SsUtKeyOnV with per-sound params (Rand() overrides for soundId 0x46/0x47),
+  records the key status, returns the voice
+- func_80021484 (m) — voice release: when a voice's key status is 0/3, clears its
+  group/LRU and calls SsUtKeyOffV
+- func_800217B0 (m) — primary allocator: scans [lo,hi) for a voice whose D_80049A10
+  state changed by >= 2
+- func_80021820 (m) — fallback 4-pass allocator: min-LRU voice per group 0–3
+
+Adjacent func_800218BC is an empty function (no globals, no signal). func_8001FF98
+(m) initializes the shared tables but is a broader sound reset in the sound-init
+range, not a member here.
+
 ## sound init and control — around 0x8001FEA4–0x80020A94 (confidence: medium)
 
 Sound system initialization, stereo/mono control, and score sequence opening.

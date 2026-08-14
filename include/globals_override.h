@@ -15,7 +15,27 @@
 #ifndef GLOBALS_OVERRIDE_H
 #define GLOBALS_OVERRIDE_H
 
-#include "psyq/libspu.h"
+/* Minimal SPU types for the D_8006C368 override below. Do not include
+ * psyq/libspu.h here: its `void SpuGetAllKeysStatus` prototype reaches every
+ * TU, but the original sound TU observes the call's return value (see
+ * src/func_800212A8.c). Layout matches the PSY-Q 4.7 definitions exactly. */
+typedef struct {
+    short left;
+    short right;
+} SpuVolumeO;
+typedef struct {
+    SpuVolumeO volume;
+    long reverb;
+    long mix;
+} SpuExtAttrO;
+typedef struct {
+    unsigned long mask;
+    SpuVolumeO mvol;
+    SpuVolumeO mvolmode;
+    SpuVolumeO mvolx;
+    SpuExtAttrO cd;
+    SpuExtAttrO ext;
+} SpuCommonAttrO;
 
 /* Forward declaration - defined in game_types.h */
 struct GfxObj;
@@ -343,6 +363,11 @@ extern u8 D_80048B14[];
  * func_800214FC. The aggregate size preserves split absolute address formation. */
 extern s32 D_80049370[3];
 
+/* D_800495CC - per-sound-id s16 parameter table, 78 entries of 7 s16 fields
+ * (0x800495CC..0x80049A0E, ending where D_80049A10 begins). Absolute-addressed
+ * (lui+addiu) by func_800212A8 and neighbours; read as signed halfwords. */
+extern s16 D_800495CC[78 * 7];
+
 /* D_80049A70 - array of 4 s32 pointers to CD filename strings (func_800218C4).
  * Values point to "\\STR\\01.XA;1" through "\\STR\\04.XA;1" in rodata.
  * Absolute-addressed (lui+addiu). Array size 4 ensures >8 bytes. */
@@ -421,8 +446,8 @@ extern s32 D_8005E55C;
 
 /* D_8006C368 — SpuCommonAttr global, absolute-addressed (func_8001FEA4 initializes fields
  * and passes to SpuSetCommonAttr). Override replaces s32[3] from globals.h. */
-extern SpuCommonAttr _D_8006C368[1] __asm__("D_8006C368");
-#define D_8006C368 (*((SpuCommonAttr*)_D_8006C368))
+extern SpuCommonAttrO _D_8006C368[1] __asm__("D_8006C368");
+#define D_8006C368 (*((SpuCommonAttrO*)_D_8006C368))
 
 /* D_8005EE28 — 0x200-byte sprite upload staging buffer used by
  * func_80017300. The next symbol begins at D_8005F028, fixing the extent.
