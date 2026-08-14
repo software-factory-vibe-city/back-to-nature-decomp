@@ -2,9 +2,9 @@
   "ladder": [
     {
       "provider": "qwen36-llama",
-      "model": "qwen3.6-27b",
+      "model": "qwen3.8-27b",
       "thinking": "medium",
-      "label": "qwen3.6-27b (local)"
+      "label": "qwen3.8-27b (local)"
     },
     {
       "provider": "openrouter",
