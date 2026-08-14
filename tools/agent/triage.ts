@@ -22,6 +22,8 @@
  *   inventory       order-independent content diff (offsets/constants/shifts)
  *   arity-frame     compiled frame decomposition vs target, component-wise
  *   arity-stack     loads from the incoming stack-argument region
+ *   param-residence memory-resident parameters: re-read incoming slots and
+ *                   home-slot stores of register arguments
  *   undeclared-callee  calls with no declaration in scope (implicit int)
  *   capture-ra      the CAPTURE_RA debug-hook signature in the target
  *   loop-nesting    nested back-edge ranges need nested source loops
@@ -56,7 +58,9 @@ import {
   analyzeReturnValue,
   argSlotRange,
   maximumArity,
+  memoryOperand,
   minimumArity,
+  registerOf,
   renderMap,
   renderSignature,
 } from "./frameMap.js";
@@ -703,6 +707,109 @@ function detectArityStack(target: TargetFacts): Finding[] {
 }
 
 /**
+ * Parameter-residence fingerprints in the target.
+ *
+ * (a) Memory-resident stack parameter: an incoming stack-argument slot read
+ *     MORE THAN ONCE. A register-resident parameter is copied out of its
+ *     slot exactly once near entry; per-use re-loads mean the value lived
+ *     in the slot across the function. Two originals produce that byte
+ *     pattern: the parameter's pseudo lost register allocation and reload
+ *     spilled it to its home slot (high pressure), or the declaration made
+ *     the parameter memory-resident outright — an address-taken parameter,
+ *     or a small under-aligned aggregate parameter (a 4-byte char-array
+ *     struct is BLKmode on strict-alignment MIPS, and assign_parms then
+ *     leaves it in its slot with NO entry-copy insn).
+ *
+ * (b) Homed register argument: $a0-$a3 stored into its OWN incoming home
+ *     slot (framesize + 4n) and read back later. Same dual reading: a
+ *     reload spill of a call-crossing argument, or an assign_parms home
+ *     store for a memory-resident register parameter.
+ *
+ * Why it matters even though both readings emit the same bytes: the two
+ * originals differ in pass-time geometry. A register-resident parameter
+ * contributes an entry-copy/load insn to block 0's RTL stream whose
+ * dependences (and stream position) constrain every scheduling and
+ * allocation decision around it; a memory-resident one contributes nothing
+ * there. When allocation or scheduling work stalls around these slots — an
+ * entry weave that will not settle, a home store pinned away from its
+ * target slot, anti-dependences radiating from parameter loads — test the
+ * memory-resident declaration (the BLK aggregate parameter) before deeper
+ * scheduler forensics. Detection is compatibility, not provenance: the
+ * byte oracle still decides which reading the original used.
+ */
+export function detectParamResidence(target: TargetFacts): Finding[] {
+  const frameSize = target.frame.frameSize;
+  if (frameSize <= 0) return [];
+
+  const ARG_HOME: Record<string, number> = { a0: 0, a1: 4, a2: 8, a3: 12 };
+  const slotLoads = new Map<number, string[]>();
+  const homeStores = new Map<number, string>();
+  const homeLoads = new Map<number, string>();
+
+  for (const insn of target.instructions) {
+    const { isLoad, isStore } = defUse(insn);
+    if (!isLoad && !isStore) continue;
+    const memory = memoryOperand(insn.operands[insn.operands.length - 1] ?? "");
+    if (!memory || memory.base !== "sp" || memory.offset < frameSize) continue;
+    const register = registerOf(insn.operands[0] ?? "");
+    const home = memory.offset - frameSize;
+
+    if (isLoad) {
+      if (home >= 0x10) {
+        slotLoads.set(memory.offset, [...(slotLoads.get(memory.offset) ?? []), insn.raw.trim()]);
+      } else if (!homeLoads.has(home)) {
+        homeLoads.set(home, insn.raw.trim());
+      }
+    }
+    if (isStore && register !== null && ARG_HOME[register] === home) {
+      homeStores.set(home, insn.raw.trim());
+    }
+  }
+
+  const findings: Finding[] = [];
+  const see = [
+    "notes/research/param-residence-playbook.md",
+    "notes/retros/2026-08-14-func_80014CBC-retro.md",
+  ];
+
+  const rereads = [...slotLoads.entries()].filter(([, loads]) => loads.length >= 2);
+  if (rereads.length > 0) {
+    findings.push({
+      detector: "param-residence",
+      severity: "signal",
+      summary:
+        "incoming stack-argument slot(s) re-read per use — the parameter lived in its slot. " +
+        "Either its pseudo was reload-spilled to the home slot, or the original declaration " +
+        "was memory-resident (address-taken, or a BLKmode 4-byte char-array struct parameter " +
+        "with no entry copy). If entry-block scheduling or allocation will not settle, test " +
+        "the BLK-struct declaration before scheduler forensics.",
+      evidence: rereads.flatMap(([offset, loads]) =>
+        loads.map((line) => `${line}  ->  caller_sp+${hex(offset - frameSize)} read ${loads.length}x`)),
+      see,
+    });
+  }
+
+  const homed = [...homeStores.entries()].filter(([home]) => homeLoads.has(home));
+  if (homed.length > 0) {
+    findings.push({
+      detector: "param-residence",
+      severity: "signal",
+      summary:
+        "register argument stored to its own incoming home slot and read back — a " +
+        "compiler-emitted homing, not a source statement. Either reload spilled a " +
+        "call-crossing argument to its home, or assign_parms homed a memory-resident " +
+        "parameter. The store's schedule slot is decided by dependences C cannot spell " +
+        "directly; if it pins away from its target position, see the cited retro.",
+      evidence: homed.map(([home, line]) =>
+        `${line}  /  ${homeLoads.get(home)}  (arg${home / 4} home slot)`),
+      see,
+    });
+  }
+
+  return findings;
+}
+
+/**
  * Symbolic lui/lw self-clobber pairs in the target: `lui $r, %hi(SYM)`
  * immediately followed by a load into $r through %lo(SYM)($r). Under the
  * baseline split-addresses codegen the lui is an independent insn that
@@ -1080,6 +1187,7 @@ function main(): void {
    * decomposes exactly like the target's, it has nothing left to tell you. */
   if (!frameConverged) findings.push(...detectFrameMap(name, target));
   findings.push(...detectArityStack(target));
+  findings.push(...detectParamResidence(target));
   findings.push(...detectBackendPacket(target));
   findings.push(...detectLoopNesting(target));
   findings.push(...detectLoopIdiom(target));

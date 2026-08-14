@@ -84,6 +84,13 @@ Before editing, read completely:
      precondition for that work, not a nice-to-have.
    - `arity-frame`, `arity-stack`, `capture-ra`, `asm-policy`, `asm-dead` —
      the signature, ABI, debug-hook, and source-policy symptom classes.
+   - `param-residence` — memory-resident parameter fingerprints: an incoming
+     stack-argument slot re-read at each use, or a register argument stored
+     to its own home slot and reloaded. Both are compiler-emitted patterns
+     (reload spill or assign_parms homing), not source statements; when
+     entry-block allocation or scheduling will not settle around them, test
+     the memory-resident declaration (the style guide's parameter-residence
+     section) before scheduler forensics.
    - `undeclared-callee` — a call with no declaration in scope (C89 implicit
      int). Blocker: the call defines `$v0` and rotates post-call scratch
      allocation from outside the function body. The finding prints the

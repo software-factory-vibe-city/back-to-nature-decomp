@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, type TargetFacts } from "./triage.js";
+import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, type TargetFacts } from "./triage.js";
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
 import type { DisassembledInstruction } from "./decompToolchain.js";
@@ -353,4 +353,55 @@ test("flag matrix: rows scored on a candidate shape never decide the current sou
     sourceLabel: CURRENT_SOURCE_LABEL,
   });
   assert.equal(verdict.conclusion, "not-supported-current-source");
+});
+
+/* func_80014CBC's parameter-residence class: arg4 re-read from its slot at
+ * each use, arg1 homed to old_sp+4 and reloaded at the recursion. Both are
+ * compiler-emitted patterns, not source statements, and the memory-resident
+ * declaration reading is what closed that function. */
+test("param-residence: an incoming slot re-read per use is reported", () => {
+  const findings = detectParamResidence(facts([
+    "addiu $sp, $sp, -0x40",
+    "sw $s0, 0x18($sp)",
+    "lw $v0, 0x50($sp)",
+    "sw $v0, 0x0($s0)",
+    "lw $v0, 0x50($sp)",
+    "jr $ra",
+    "addiu $sp, $sp, 0x40",
+  ]));
+
+  const rereads = findings.filter((f) => f.summary.includes("re-read per use"));
+  assert.equal(rereads.length, 1);
+  assert.equal(rereads[0].detector, "param-residence");
+  assert.ok(rereads[0].evidence.some((line) => line.includes("read 2x")));
+  assert.ok(rereads[0].summary.includes("BLK"), "must name the memory-resident declaration lever");
+});
+
+test("param-residence: a homed register argument with a later reload is reported", () => {
+  const findings = detectParamResidence(facts([
+    "addiu $sp, $sp, -0x40",
+    "sw $a1, 0x44($sp)",
+    "jal 0x80014CBC",
+    "nop",
+    "lw $a1, 0x44($sp)",
+    "jr $ra",
+    "addiu $sp, $sp, 0x40",
+  ]));
+
+  const homed = findings.filter((f) => f.summary.includes("home slot"));
+  assert.equal(homed.length, 1);
+  assert.equal(homed[0].detector, "param-residence");
+  assert.ok(homed[0].evidence.some((line) => line.includes("arg1 home slot")));
+});
+
+test("param-residence: a single entry copy from an incoming slot stays silent", () => {
+  const findings = detectParamResidence(facts([
+    "addiu $sp, $sp, -0x18",
+    "lw $s0, 0x28($sp)",
+    "sw $a0, 0x10($sp)",
+    "jr $ra",
+    "addiu $sp, $sp, 0x18",
+  ]));
+
+  assert.equal(findings.length, 0);
 });

@@ -112,13 +112,13 @@ function parseImmediate(text: string): number | null {
   return m[1] === "-" ? -value : value;
 }
 
-function memoryOperand(operand: string): { offset: number; base: string } | null {
+export function memoryOperand(operand: string): { offset: number; base: string } | null {
   const m = operand.trim().match(/^(-?(?:0x)?[0-9a-fA-F]+)?\(\$?(\w+)\)$/);
   if (!m) return null;
   return { offset: m[1] ? parseImmediate(m[1]) ?? 0 : 0, base: m[2] };
 }
 
-function registerOf(operand: string): string | null {
+export function registerOf(operand: string): string | null {
   const m = operand.trim().match(/^\$?(\w+)$/);
   return m && !/^\d+$/.test(m[1]) ? m[1] : null;
 }
