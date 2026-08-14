@@ -634,6 +634,23 @@ Members (address order):
 - func_80014B44 (s) — boot CD loader: D_8005E2B0, D_8005E3F8, D_8005E3FC,
   D_8005E400, D_8005E40C; calls func_80014854; called by __start (its globals are
   a subset of func_80014854's TU-owned cluster ⇒ likely same TU)
+- func_80014CBC (m) — CD sector reader with retry: owns D_8005E3F0, D_8005E410,
+  D_8005E428, D_8005E430, D_8005E2B4 (gp-rel, tentative defs merged via -fcommon
+  with the func_80014854/80014988 cluster); reads D_80048B1C (stride 0x28, loc at
+  0x24); calls func_80021B20 (arg0 only — callee ignores args, untouched a1/a2/a3
+  remain incoming args), CdReadSync/CdRead/…; recursion on sync==-1; returns a
+  u_char* into the caller's buffer (or NULL). Called by func_8001A018,
+  func_80022964, func_800229F4 (far from the CD address range ⇒ TU membership
+  unconfirmed; shares the gp-rel cluster ⇒ CD-family member by fingerprint).
+  Matched 2026-08-14 at 117/117 under user-authorized hybrid asm (allowlisted
+  embedded-asm): BLKmode struct stack parameters (arg4/arg5) remove the
+  entry-block parameter loads, the arg1 home store rides an alias-opaque
+  asm carrier, and dummy asm operands pin the remaining scheduler releases
+  and allocno reference counts. Mechanism history:
+  notes/research/func_80014CBC-allocno-priority-web-partition.md; closing
+  retro: notes/retros/2026-08-14-func_80014CBC-retro.md; recipe for the
+  class: notes/research/param-residence-playbook.md; deferred family
+  experiment: notes/research/cd-family-module-merge-plan.md.
 
 ## candidates to investigate
 

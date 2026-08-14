@@ -1,0 +1,118 @@
+#include "common.h"
+#include "psyq/stddef.h"
+#include "psyq/libcd.h"
+#include "psyq/memory.h"
+
+/* GP-relative globals owned by this TU (CD loading state).
+ * Tentative definitions merged with func_80014854.c / func_80014988.c via -fcommon. */
+s32 D_8005E3F0;
+s32 D_8005E410;
+s32 D_8005E428;
+s32 D_8005E430;
+s32 D_8005E2B4;
+
+/* func_80021B20 - original TU had no declaration (C89 implicit int).
+ * Declared void so the call does NOT define $v0, matching target allocation.
+ * Only arg0 is passed: the callee ignores its arguments, and the caller's
+ * untouched a1/a2/a3 remain the incoming arg1/arg2/arg3 at the call. */
+void func_80021B20(s32 arg0);
+
+u_char *func_80014CBC(s32 arg0, s32 arg1, s32 arg2, u_char *arg3, s32 arg4, s32 arg5) {
+    register u32 pos __asm__("$4");
+    register char *bp __asm__("$3");
+    char *eptr;
+    register s32 scaled __asm__("$2");
+    s32 a1r;
+    u32 pos_end;
+    u_char *result;
+    u_char *src;
+    s32 sector_start;
+    s32 pos_mod;
+    s32 sector_end;
+    s32 nsectors;
+    s32 sync_result;
+    s32 one;
+
+    bp = (char *)D_80048B1C;
+    scaled = arg0 * 40;
+    /* Hybrid-asm (user-authorized): the table-entry address add with an
+     * alias-opaque result. */
+    __asm__("addu %0,%0,%2" : "=r"(eptr) : "0"(bp), "r"(scaled));
+    /* Hybrid-asm carrier (user-authorized): emits the incoming-arg1 home
+     * store with a declared may-write through the opaque entry pointer, so
+     * the table load below must stay below it — releasing this store into
+     * its original slot between the callee saves and the loads. The
+     * duplicate arg3 input keeps the parameter copy a separate, promoted
+     * instruction; no REG_DEAD chain binds this store. */
+    __asm__("sw $5,68($sp)" : "=r"(arg3), "=m"(*(s32 *)(eptr + 36)) : "0"(arg3), "r"(arg3));
+    pos = *(u32 *)(eptr + 36);
+    pos += arg1;
+    result = NULL;
+    pos_end = pos + arg2;
+    sector_end = pos_end >> 11;
+    sector_end += (pos_end & 0x7FF) != 0;
+    /* Hybrid-asm pair (user-authorized): the original schedule emits the
+     * sector_start srl before the pos_mod andi, but every C statement order
+     * that does so also stretches sector_start's live range past the allocno
+     * priority boundary that costs it $s0. The dummy %2 input on the andi
+     * orders the pair, and its extra reference keeps sector_start's priority
+     * above arg3's regardless of slotting. Bytes are the target's own. */
+    __asm__("srl %0,%1,0xb" : "=r"(sector_start) : "r"(pos));
+    __asm__("andi %0,%1,0x7ff" : "=r"(pos_mod) : "r"(pos), "r"(sector_start));
+    nsectors = sector_end - sector_start;
+
+    if (D_8005E410 == 0 || (one = 1, pos = 1, arg5 == one)) {
+        func_80021B20(pos);
+        D_8005E428 = sector_start + D_8005E430;
+        CdReadBreak();
+        CdFlush();
+        CdSync(0, 0);
+        CdControl(CdlSetloc, CdIntToPos(D_8005E428, (CdlLOC *)&D_8005E3F0), 0);
+        CdRead(nsectors, (u_long *)arg3, CdlModeSpeed);
+        D_8005E410 = 1;
+        if (arg5 == 1) {
+            D_8005E2B4 = arg5;
+        }
+        goto done;
+    }
+
+    sync_result = CdReadSync(1, 0);
+    if (sync_result == -1) {
+        goto retry;
+    }
+    if (sync_result != 0) {
+        goto zero_tail;
+    }
+
+    if (arg4 == one) {
+        src = arg3 + pos_mod;
+        /* Zero-instruction anchor: one extra sched1-time insn here (arg5,
+         * arg0, pos_mod, one, nsectors, result are all dead in this window)
+         * stretches only arg2's live length 66->68, tying arg0's allocno
+         * priority at 1176 so the lower-numbered arg0 web takes $s5 and
+         * arg2 falls to $s6, matching the target allocation. Emits no bytes. */
+        if (arg3 != src)
+            memmove(arg3, src, arg2);
+        result = arg3;
+        D_8005E410 = 0;
+        D_8005E2B4 = 0;
+    } else {
+        result = arg3 + pos_mod;
+        D_8005E410 = 0;
+        D_8005E2B4 = 0;
+    }
+    goto done;
+
+retry:
+    D_8005E410 = 0;
+    __asm__("lw %0,68($sp)" : "=r"(a1r));
+    func_80014CBC(arg0, a1r, arg2, arg3, arg4, arg5);
+    goto zero_tail;
+
+zero_tail:
+    result = NULL;
+    D_8005E2B4 = 1;
+
+done:
+    return result;
+}

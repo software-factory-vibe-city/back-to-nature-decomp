@@ -47,6 +47,7 @@ s32 func_80014854(s32 arg0, s32 arg1, s32 arg2);
 s32 func_80014988(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 s32 func_80014B44(void);
 s32 func_80014CB0(void);
+u_char * func_80014CBC(s32 arg0, s32 arg1, s32 arg2, u_char *arg3, ReadFlag arg4, ReadFlag arg5);
 void func_80014E90(u32 *arg0, s16 arg1, s16 arg2, s32 arg3, s16 arg4);
 void func_80014FAC(s32 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5, s32 arg6, s32 arg7, s32 arg8, s16 arg9);
 void func_80015114(u32 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s32 arg5, s16 arg6);

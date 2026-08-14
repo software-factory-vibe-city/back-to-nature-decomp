@@ -65,6 +65,10 @@ typedef struct {
 } PairS32;
 
 typedef struct {
+    u_char b[4];
+} ReadFlag;
+
+typedef struct {
 	u_long	tag;
 	u_char	r0, g0, b0, code;
 	short	x0, 	y0;

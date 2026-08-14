@@ -98,6 +98,9 @@
       "func_8001FEA4": [
         "register-asm",
         "embedded-asm"
+      ],
+      "func_80014cbc": [
+        "embedded-asm"
       ]
     }
   }
