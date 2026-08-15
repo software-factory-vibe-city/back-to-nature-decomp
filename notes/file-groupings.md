@@ -626,6 +626,12 @@ Adjacent func_800218BC is an empty function (no globals, no signal). func_8001FF
 (m) initializes the shared tables but is a broader sound reset in the sound-init
 range, not a member here.
 
+func_8001FABC (m) is the sole caller of func_800212A8 (call graph), passing
+(soundId, 0, 0x17) and discarding the voice. It links in the unassigned gap
+after the gradient-interpolation cluster (0x8001FABC), far from this range —
+sound-playback role by call graph, non-adjacent by link order; TU membership
+unproven.
+
 ## sound init and control — around 0x8001FEA4–0x80020A94 (confidence: medium)
 
 Sound system initialization, stereo/mono control, and score sequence opening.

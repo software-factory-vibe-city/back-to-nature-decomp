@@ -145,6 +145,7 @@ void func_8001F278(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3, s32 *arg4);
 void func_8001F39C(Struct_8001F39C *arg0, Struct_8001F39C *arg1);
 void func_8001F774(u16 *arg0, u16 *arg1, u16 *arg2, s32 arg3, s32 arg4);
 s32 func_8001FAB4(void);
+void func_8001FABC(s16 arg0);
 s32 func_8001FB08(void);
 void func_8001FBE4(s32 arg0, s32 arg1);
 void func_8001FCDC(void);
