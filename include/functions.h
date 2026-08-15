@@ -212,6 +212,7 @@ void func_80023A74(void);
 s32 func_800241EC(s32 arg0, s32 arg1, u32 arg2);
 s32 func_8002437C(s32 arg0, s32 arg1, s32 arg2);
 s32 func_80024408(s32 arg0, s32 arg1, s32 arg2);
+void func_80024448(u16 arg0);
 s32 func_800244FC(s32 arg0, s32 arg1);
 s32 func_80024578(s32 arg0, s32 arg1);
 u16 func_800245C8(s32 arg0, s32 arg1);

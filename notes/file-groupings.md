@@ -309,6 +309,22 @@ caller. Handlers stored in D_800559C4 are unidentified — resolving them
 would extend the group.
 Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
 
+## sprite frame-index helpers — 0x80024408–0x800245C8 (confidence: medium)
+
+Five consecutive matched helpers feeding the sprite render dispatch group
+below. Same-TU evidence: adjacency with the 0x800245F4 wrapper group with no
+unrelated code between; func_800244FC and func_800245C8 index
+D_800559CC/D_800559D4, the same data run as the D_80055994/D_800559BC/
+D_800559C4 grid-cursor tables noted above; func_80024448 calls func_800248B0,
+a member of the dispatch group; func_80024448 and func_800244FC share the
+same unsigned u16/14 frame-counter division idiom.
+
+Members (address order): func_80024408 (m) — state-based offset select;
+func_80024448 (m) — frame counter into func_800248B0;
+func_800244FC (m) — frame-remainder dispatch through the D_800559CC pointer
+table; func_80024578 (m) — per-state offset scaled by arg1; func_800245C8
+(m) — D_800559D4 row lookup.
+
 ## sprite render dispatch wrappers — 0x800245F4–0x80024AD4 (confidence: high)
 
 14 thin wrappers plus one core dispatcher, all consecutive with no unrelated
