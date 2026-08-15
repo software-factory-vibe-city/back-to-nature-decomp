@@ -830,3 +830,43 @@ References:
   (-G8 size decides split vs macro form for D_8005F0F8)
 - notes/retros/2026-08-10-func_8001A574-retro.md
   (indirect-call arity, declaration birth, sequential temp reuse, and final scheduler tie)
+
+## func_8001A284 — member of the 0x8001A574 family TU (MATCHED 2026-08-15)
+
+Dispatch-style switch on `arg0 & 0xFFF` (cases 10-34) returning a pointer or
+value. TU evidence: calls func_8001A574 and func_8001A870 (same family's
+callees), reaches the 0xB8-stride D_800749F8 array (family fingerprint) and
+D_8005F0F8 (sentinel, split address form), and touches the
+`&D_8006C838 + 0x8000` region at offsets 0x676C/0x19CA/0x19CE/0x6620/0x26DA
+and `&D_8006C838 + 0x81F0` / `+ 0x7AB8` (0xB8/0xB4-stride scans). Owns
+D_8005E490 GP-relatively (tentative definition in this file). Matched
+byte-identically; the earlier parked analysis of case 15's exit structure
+(goto into case 10, D_80071A00 <= -G8 override) was WRONG and its override
+has been removed. What the bytes actually are:
+
+- Case 15's inner dispatch is a NESTED SWITCH on the 0x676C halfword
+  (cases 0/1/2, default result=0), not an if-chain. The balanced
+  compare order in the target (==1 first, then <2, ==0, ==2) is GCC's
+  small-switch dispatch fingerprint.
+- Case 10 and the nested case 0 both return `&D_8006C838 + 0x51C8`
+  (there is no D_80071A00 reference at all). Case 10 spells it inline;
+  jump2's cross-jump equivalence rewrite (find_cross_jump's REG_EQUAL
+  path) folds both copies to the same la-const, merges the arm into
+  case 10's copy, and leaves case 10's expander HIGH orphaned — that is
+  the "stray lui v0,0x8007" at 0x8001A2C0. See
+  notes/research/func_8001A284-crossjump-equiv-orphan.md.
+- Cases 22/23 share a named `neg1 = -1` sentinel local; case 22 sets it
+  before the load (so it conflicts with the base in v0 and allocates
+  v1), case 23 after (so it fills the load-delay slot).
+- Case 33 carries a zero-instruction scheduling barrier (tracked debt,
+  allowlisted): the target births the `addiu a1,gp,%gp_rel(D_8005E490)`
+  argument before the base formation and every clean hoist spelling is
+  CSE-folded back to the call site.
+- The TU's .rodata is the 25-entry jump table plus a 4-byte zero pad at
+  0x940; splat.yaml carries a `[0x940, rodata]` sub-split for the pad.
+  Both lines (and the whole game-rodata block) are now derived by
+  `tools/build/deriveRodataSplits.ts` (attribution iff the owner is
+  compiled C; extent = the owner's .o .rodata size, which produces pad
+  residues mechanically). The original hand edit by the autoloop —
+  attributing 0x8DC while the function was still a stub — is exactly the
+  inconsistent state the tool's check mode rejects.

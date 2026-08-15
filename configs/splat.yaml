@@ -38,6 +38,8 @@ segments:
       - [0x808, .rodata, func_80011370]
       - [0x85C, .rodata, func_80013B04]
       - [0x878, rodata]
+      - [0x8DC, .rodata, func_8001A284]
+      - [0x940, rodata]
       - [0x944, .rodata, func_8001A8D0]
       - [0xA1C, rodata]
       - [0xBB0, o, ../lib/libmath/sin00, .rdata] # lib/libmath/sin00.o

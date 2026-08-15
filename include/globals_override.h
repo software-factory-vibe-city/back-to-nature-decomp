@@ -572,4 +572,16 @@ extern Coord3 *_D_80061EF8[3] __asm__("D_80061EF8");
 extern struct_8006C7B8 _D_8005E850[1] __asm__("D_8005E850");
 #define D_8005E850 (*((struct_8006C7B8*)_D_8005E850))
 
+/* D_80054BC0 - s32 triple read by func_8001A284 (case 15) with the split
+ * two-register form `lui v0,%hi` / `lw a0,%lo(v0)`: declared size 12 bytes
+ * (> -G8) so cc1 emits the split two-register address rather than the
+ * <=-G8 self-clobber macro pair. Not classified in globals.h. */
+extern s32 D_80054BC0[3];
+
+/* D_8005175C / D_80051768 - s32 scalars whose addresses func_8001A284
+ * materializes with the unsplit `la` form (expanded by ASPSX to a
+ * self-clobbering lui/addiu pair). */
+extern s32 D_8005175C;
+extern s32 D_80051768;
+
 #endif /* GLOBALS_OVERRIDE_H */
