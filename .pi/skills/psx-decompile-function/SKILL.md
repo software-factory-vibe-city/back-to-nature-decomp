@@ -161,6 +161,45 @@ shape it predicts, and prefer the visible diff's own structure (copy
 directions, fresh-vs-reused destinations, spill-slot owners) as the primary
 evidence. The style guide's resume section is mandatory here.
 
+## Measurement discipline — non-negotiable
+
+`psx_diff_function` is the only thing in this workflow that knows what the
+compiler actually did. **Every deliberate edit is followed by a
+`psx_diff_function` call, without exception, before you form any opinion about
+what to do next.** Not the obvious edits, not the small ones, not the ones you
+already reasoned through and are sure about. One edit, one diff.
+
+Prohibited, and treated as a process failure regardless of the outcome:
+
+- Batching. Two or more edits and a single diff at the end. The measurement no
+  longer attributes to either edit, and you have destroyed the evidence for
+  both.
+- Predicting instead of compiling. Emission order, delay-slot occupancy,
+  register assignment, and score are decided by compiler passes you cannot
+  read off the source. Reasoning about them is a hypothesis; only the diff is
+  a result.
+- Chaining unmeasured steps. "If I move this store up, the load follows it,
+  which frees the temp, so then..." — everything past the first unmeasured
+  step is fiction. Compile the first step and read what actually moved.
+- Reporting any score, category, count, or residual you did not just measure.
+
+The recurring failure this rule exists to stop: an agent builds a long,
+internally consistent causal story about ordering or allocation, edits several
+times in service of it, and only discovers many edits later that step one
+already contradicted it. An unmeasured causal model is indistinguishable from
+a correct one right up to the moment it has cost the session. A compile costs
+seconds.
+
+So: **if you are writing more than a couple of sentences about what the
+compiler will do with a change, stop writing and run the tool.** A long stretch
+of reasoning with no recent diff in it means you have drifted off the evidence
+and are now decompiling from imagination. Get back to a measured state before
+continuing.
+
+A diff that reports no change is itself a measurement and a useful one — it
+proves the source shapes compiled to the same RTL, which retires an entire
+axis. Record it and move to a different axis; do not re-litigate it in prose.
+
 ## Evidence-driven matching loop
 
 1. Call `psx_explain_diff` before editing.
@@ -228,8 +267,11 @@ evidence. The style guide's resume section is mandatory here.
    `psx_mine_statement_order` — per-block
    emission-order evidence (hi16 formation order, store order, delay-slot
    occupant) constrains source statement order directly.
-4. After every deliberate edit, call `psx_diff_function`. Reclassify whenever
-   the mismatch signature changes or its cause becomes unclear.
+4. After every deliberate edit, call `psx_diff_function` — see "Measurement
+   discipline" above; this step is mandatory and has no exceptions. Do not
+   proceed to the next edit, the next hypothesis, or the next tool until the
+   current edit has been measured. Reclassify whenever the mismatch signature
+   changes or its cause becomes unclear.
 5. If the mismatch is order-only inside a block of constant/pointer stores,
    run `psx_analyze_store_block` BEFORE any
    scheduler analysis. Mine the stored values for arithmetic structure

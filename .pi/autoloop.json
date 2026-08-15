@@ -3,6 +3,12 @@
     {
       "provider": "qwen36-llama",
       "model": "qwen3.8-27b",
+      "thinking": "low",
+      "label": "qwen3.8-27b (local)"
+    },
+    {
+      "provider": "qwen36-llama",
+      "model": "qwen3.8-27b",
       "thinking": "xhigh",
       "label": "qwen3.8-27b (local)"
     },
