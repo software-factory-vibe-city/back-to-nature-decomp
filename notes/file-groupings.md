@@ -387,6 +387,28 @@ notes/retros/2026-08-07-func_800140C8-retro.md;
 notes/retros/2026-08-09-func_800142D8-retro.md;
 notes/retros/2026-08-09-func_80014494-retro.md.
 
+## screen-space pixel/line/rect drawers — 0x80014E90–0x80014FAC (confidence: medium)
+
+Three adjacent screen-space drawers with identical skeletons: each calls
+func_80011F5C (packet-buffer getter, boot/main-loop TU) and exactly one
+initializer from the GPU-primitive group that follows — a 1:1 pairing that
+matches their argument shapes (evidence: call graph + address adjacency +
+parallel structure; discovered while matching func_800136D4, their sole
+caller).
+
+Members (address order):
+- func_80014E90 (m) — pixel/point drawer (x, y, color) via func_8001526C
+  (TILE_1)
+- func_80014F0C (m) — line drawer (x1, y1, x2, y2, color) via
+  func_8001530C (LINE family, code 0x40)
+- func_80014FAC (m) — gouraud rect drawer (four corner colors) via
+  func_800153BC (POLY_G4)
+
+Possibly the same TU as the GPU primitive packet initializers that follow;
+func_80015074, func_80015114, and func_800151B4 sit in between and are
+unexamined, so the two entries stay separate until a shared fingerprint
+ties them.
+
 ## GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)
 
 Adjacent helpers that initialize one PSY-Q primitive, select its opaque or
@@ -592,17 +614,25 @@ Members (address order):
 - func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
 - SetVal8005E29C (m) — setter for D_8005E29C (shared with func_80012D30)
 
-## Full-screen primitive setup — 0x800134C4–0x80013668 (confidence: medium)
+## Full-screen primitive setup — 0x800134C4–0x800139F8 (confidence: medium)
 
-Display-transition helper pair. func_800134C4 calls the adjacent
-func_80013668, then initializes a full-screen POLY_F4 and DR_MODE packet pair
-for the active ordering table. Evidence is the direct internal call plus
-address adjacency; no shared GP-relative cluster has been established.
+Display-transition and screen-drawing helpers. func_800134C4 calls the
+adjacent func_80013668, then initializes a full-screen POLY_F4 and DR_MODE
+packet pair for the active ordering table. Evidence is the direct internal
+call plus address adjacency; no shared GP-relative cluster has been
+established. func_800136D4 (matched 2026-08-15) touches no globals at all,
+so no gp-rel evidence is possible for it — membership rests on adjacency
+and shared screen-drawing domain only.
 
 Members:
 - func_800134C4 (m) — builds and links the full-screen POLY_F4/DR_MODE pair;
   see `notes/retros/2026-08-13-func_800134C4-retro.md`
 - func_80013668 (m) — resets display/draw environments to 640×480
+- func_800136D4 (m) (?) — draws a beveled UI panel (beige/wood palette:
+  0xF8DBAF light edges, 0xBA8B47 shadow, 0xFDECD2 highlight, gouraud
+  0xF4DFBD/0xF9CF8F fill) as 6 pixels + 8 lines + 1 rect through the
+  0x80014E90 drawer trio, of which it is the sole caller; its own only
+  caller is the stub func_80022580
 
 ## VAB transfer setup/state — around 0x80020E58–0x800218C4 (confidence: high)
 

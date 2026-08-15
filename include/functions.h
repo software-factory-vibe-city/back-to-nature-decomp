@@ -30,6 +30,7 @@ s32 func_80013394(void);
 s32 func_800134B8(void);
 void func_800134C4(void);
 void func_80013668(void);
+void func_800136D4(u32 *arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4);
 void func_800139FC(void);
 void func_80013A24(void);
 void func_80013B04(void);

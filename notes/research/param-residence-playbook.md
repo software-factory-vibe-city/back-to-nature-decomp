@@ -132,7 +132,7 @@ Fingerprint carriers — run this playbook when starting them:
 | func_80018B98 | 294 | 9 | REREAD + HOMED + self-recursive — the full func_80014CBC profile, highest risk |
 | func_800183E0 | 491 | 9 | HOMED |
 | func_80017F88 | 268 | 9 | HOMED |
-| func_800136D4 | 202 | 9 | HOMED |
+| func_800136D4 | 202 | 9 | HOMED — MATCHED 2026-08-15 as the **reload-spill** reading (plain `u32 *` declaration, Step 1's alternative): the BLK declaration byte-matched nothing here because its 14 assign_parms-visible home loads sat in block-0 RTL, inflating every call-crossing qty span at lreg time and busying the sched1 ready lists; under the plain declaration those loads are reload-born and invisible to sched1/lreg, which flipped the whole s4–s8 assignment cascade. See `notes/retros/2026-08-15-func_800136D4-retro.md` |
 | func_80020B80 | 174 | 9 | HOMED |
 | func_80019610 | 123 | 9 | HOMED — size-twin of func_80019AD0; varargs (printf-family) suspected: check Step 0 first |
 | func_80019AD0 | 123 | 9 | HOMED — see above |
