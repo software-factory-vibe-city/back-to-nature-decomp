@@ -34,6 +34,7 @@ void func_800139FC(void);
 void func_80013A24(void);
 void func_80013B04(void);
 void func_80013F90(Struct80013F90 *arg0);
+s32 func_80013FC0(s32 arg0);
 void func_80014064(void);
 s32 func_800140C8(s32 arg0);
 s32 func_8001413C(s32 arg0);
