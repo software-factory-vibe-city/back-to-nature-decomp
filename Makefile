@@ -102,16 +102,33 @@ $(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s
 	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) $< -o $@
 
-# Link
+# Link. The game-rodata subsegment block of splat.yaml is derived, never
+# hand-maintained: attribution iff the owning function is compiled C, extent
+# = the owner's .o .rodata size. Objects exist here, so this is the earliest
+# point the derivation can run; on drift (a jump-table function flipped
+# stub<->C) it rederives, re-splits, and rebuilds once.
 $(BUILT_ELF): $(ALL_OBJS) $(LD_SCRIPT)
-	$(LD) -EL -T $(LD_SCRIPT) -Map $(BUILD_DIR)/$(BASENAME).map -o $@
+	@if npx tsx tools/build/deriveRodataSplits.ts; then \
+		$(LD) -EL -T $(LD_SCRIPT) -Map $(BUILD_DIR)/$(BASENAME).map -o $@; \
+	elif [ -z "$$DERIVE_RODATA_RETRY" ]; then \
+		echo "rodata attribution drift — rederiving splat.yaml and rebuilding"; \
+		npx tsx tools/build/deriveRodataSplits.ts --write; \
+		$(MAKE) split; \
+		DERIVE_RODATA_RETRY=1 $(MAKE) $@; \
+	else \
+		echo "deriveRodataSplits: still inconsistent after rederivation"; \
+		exit 1; \
+	fi
 
 # Extract raw binary
 $(BUILT_BIN): $(BUILT_ELF)
 	$(OBJCOPY) -O binary $< $@
 
-# Verify match against original payload
+# Verify match against original payload. The rodata-attribution check runs
+# unconditionally here so a splat.yaml edit on an already-built tree is
+# caught even when no relink is needed (the link rule self-heals the rest).
 check: $(BUILT_BIN)
+	@npx tsx tools/build/deriveRodataSplits.ts
 	@dd if=$(TARGET) bs=1 skip=$(PAYLOAD_OFF) count=$(PAYLOAD_SZ) 2>/dev/null | \
 		sha256sum | awk '{print $$1}' > $(BUILD_DIR)/original.sha256
 	@dd if=$(BUILT_BIN) bs=1 skip=$(PAYLOAD_OFF) count=$(PAYLOAD_SZ) 2>/dev/null | \

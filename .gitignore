@@ -9,6 +9,7 @@ build/
 tools/build/*
 !tools/build/genProjectProfile.ts
 !tools/build/deriveTuOwnedGlobals.ts
+!tools/build/deriveRodataSplits.ts
 tools/vendor/old-gcc/build-gcc-*/
 tools/vendor/homebrew-psyq/
 # Logs
