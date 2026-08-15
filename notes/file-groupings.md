@@ -247,9 +247,10 @@ Members (address order):
 - func_800224F0 (s) — callback forwarding grid entries to func_80015EE8
 - func_80022528 (s) — callback forwarding grid entries to func_80015E3C
 
-## unknown group B — around 0x8002261C–0x80022F1C (confidence: low)
+## unknown group B — around 0x8002261C–0x80022B20 (confidence: medium)
 
-Game-state/flags readers over the D_8006C838 struct array.
+Game-state/flags readers and CD-script readers over the D_8006C838 struct
+array and the D_8005E5A8–E5CC state cluster.
 
 Fingerprints:
 - both members walk D_8006C838 through a `char *base = (char *)&D_8006C838`
@@ -259,7 +260,16 @@ Fingerprints:
   func_80016C08 entry);
 - SetVal8005E2BC and SetVal8005E334 are void-returning: func_80022738
   matches only with void prototypes (an implicit-int/s32 declaration adds a
-  dead `$v0` call def that blocks the target's `$v0` scratch allocation).
+  dead `$v0` call def that blocks the target's `$v0` scratch allocation);
+- func_80022964's target reaches D_8005E5A8/B4/BC/C0/CC gp-relatively (TU
+  declares all five) and func_800229F4's reaches D_8005E5A8/B0/CC
+  gp-relatively — the same cluster the earlier members declare, now spanning
+  the whole address range;
+- func_80022964 and func_800229F4 both consume func_80022AF0's `$v0` as a
+  full word with no 16-bit extension (`jal; addu a0, v0, zero`), pinning the
+  caller-side prototype to an s32 return (per-TU declaration effect, byte-
+  verified), and both call func_80014CBC with the same 6-word shape
+  (`func_80022AF0()`, `D_8005E5A8 << 13`, 0x2000, base+0xD8, words, words).
 
 Members (address order):
 - func_8002261C (m) — queue worker over the +0xCC state byte (0 -> 1
@@ -271,6 +281,15 @@ Members (address order):
   globals_override.h), then (de)queues a script/timer via func_8002261C; declares
   D_8005E5B4/BC/C0/C4/C8
 - func_80022F1C (m) — u16 threshold bucketing at a large computed offset
+- func_80022AF0 (m) — file-id lookup D_8005597C[D_8005E5AC clamped 0..4],
+  s16 return without extension; declares D_8005E5AC
+- func_80022964 (m) — CD script read: stages D_8005E5BC/B4/C0, ORs bit 27 into
+  D_8006C838+0xC, calls func_80014CBC(func_80022AF0(), D_8005E5A8 << 13,
+  0x2000, D_8006C838+0xD8, 0, 1), sets +0xCC byte to 2; declares
+  D_8005E5A8/B4/BC/C0/CC
+- func_800229F4 (s) — similar CD read via func_80014CBC(func_80022AF0(),
+  D_8005E5A8 << 13, ...) into a D_8006C910-based buffer, then drives the
+  D_8005E3C0 struct; reaches D_8005E5A8/B0/CC gp-relatively
 
 The GetVal8005E5B4/GetVal8005E5B8 accessors are natural same-TU candidates
 via the gp-rel declarations; membership unverified.

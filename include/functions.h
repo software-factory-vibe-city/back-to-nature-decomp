@@ -199,6 +199,7 @@ void func_800223D4(s32 arg0, SpriteCallback callback);
 s32 func_8002261C(s32 arg0, s32 arg1);
 s32 func_800226B0(void);
 void func_80022738(void);
+s32 func_80022964(void);
 s16 func_80022AF0(void);
 s32 func_80022DF8(void);
 void func_80022EA4(void);
