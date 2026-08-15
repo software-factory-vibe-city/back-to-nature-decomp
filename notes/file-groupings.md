@@ -757,6 +757,39 @@ Members (address order):
   parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
   caller and address predecessor; shared gp-rel globals unverified.
 
+## table-slot CD-loader cluster — 0x800183E0 / 0x80019FC4–0x8001A11C / 0x8001AD6C (confidence: medium)
+
+Slot-based table loading: a 16-bit "slot" selects a 0x1800-byte region read
+from CD into D_8006C910 via func_80014CBC; per-slot state lives in a small
+gp-rel cluster. Fingerprints:
+- shared GP-relative cluster D_8005E440 (pending slot, u32), D_8005E45C
+  (load-done flag), D_8005E460 (current slot, s16), D_8005E46C (buffer
+  pointer), plus D_8005E468 (second slot marker, touched only by
+  func_80019FC4) — every member reaches it GP-relatively, so the defining
+  TU is among them (tentative definitions can still span TUs via -fcommon;
+  TU membership unconfirmed).
+- func_80019FC4 is address-adjacent: it ends at 0x8001A018 where
+  func_8001A018 begins.
+- func_800183E0 also reaches the u16 family's D_8005E444/D_8005E4A8
+  GP-relatively, linking this cluster to the 0x8001A574 family's TU.
+- internal call graph: func_8001AD6C → func_8001A018(slot, 1) →
+  func_80019FC4(slot); func_800183E0 and func_8001ACBC also call
+  func_8001A018.
+
+Members (address order):
+- func_800183E0 (s) — u16-table consumer over the loaded buffer
+  (0xFFFF-sentinel scan); reaches D_8005E4B0, D_8005E4A8, D_8005E444,
+  D_8005E45C, D_8005E46C GP-relatively; calls func_8001A018
+- func_80019FC4 (s) — per-slot consumer: when D_8005E468 == slot and
+  D_8005E46C is set, calls func_8001719C/func_80022008, re-stamps
+  D_8005E468, clears D_8005E45C
+- func_8001A018 (m) — CD slot loader: loads the slot's 0x1800-byte region
+  into D_8006C910 via func_80014CBC; owns the D_8005E440/E45C/E460/E46C
+  state; retry loop gated by arg1; sets D_8005E460 on success
+- func_8001AD6C (s) — dispatcher: after a GetPairedTpage/func_80017C30
+  guard, calls func_8001A018(slot, 1), then func_80019FC4(slot) if
+  D_8005E460 == slot
+
 ## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001A970 (confidence: medium)
 
 Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
@@ -767,7 +800,8 @@ Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
   address form `lui r,%hi` / `op %lo(r)`, implying a >-G8 declared size in the
   original TU; both func_8001A574 and func_8001A668 targets split it),
   D_8005E444/D_8005E4A8 (u16 table length/base, GP-relative in func_8001A574's
-  TU, signalled via tentative definitions).
+  TU, signalled via tentative definitions; also reached GP-relatively by
+  func_800183E0 — see the table-slot CD-loader cluster).
 - internal call graph: func_8001A574 → func_8001A668/8001A6FC/8001A790
   (dispatch, one s32 argument, return s32) → func_8001A808; both callees scan
   the same 0xB8-stride D_800749F4 array and return
