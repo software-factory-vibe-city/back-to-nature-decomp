@@ -145,4 +145,14 @@ typedef struct {
 /* Backward-compatibility alias for func_800158E4. */
 typedef SpriteSourceData Struct_S;
 
+/* Polygon-list query consumed by func_8001EAE4. */
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+    s32 field_C;
+    s32 field_10;
+    s32 field_14;
+} EAE4Query;
+
 #endif /* GAME_TYPES_H */

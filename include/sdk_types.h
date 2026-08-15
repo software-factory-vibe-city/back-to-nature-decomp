@@ -23,6 +23,15 @@ typedef struct {
 } DR_MODE;
 
 typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+    s32 field_C;
+    s32 field_10;
+    s32 field_14;
+} EAE4Query;
+
+typedef struct {
     s16 field_00;
     u16 field_02;
 } Group;

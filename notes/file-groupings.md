@@ -40,9 +40,12 @@ Fingerprints:
 - shared gp-rel cluster D_8005E4F0–D_8005E528 (query point, tolerances,
   cross products, hit flag, hit-triangle vertex pointers — semantic
   hypotheses annotated in include/globals_override.h);
-- TU-wide quirk: a file-scope `register s32 x asm("$2")` declared between
-  func_8001E878 and func_8001E9F8 — functions before it use $v0 as
-  scratch, functions after have it reserved (byte-verified in both);
+- nested-function static-chain fingerprint: EAE4 materializes its frame base
+  as `$v0 = $sp + 16` before all eight E878/E9F8 calls; E878 consumes incoming
+  `$v0`, while E9F8 saves it and forwards it before sibling E878 calls. This
+  proves the three contiguous functions came from one nested-function TU; the
+  register-asm constructs in the separate E878/E9F8 files only emulate that
+  incoming chain under the project's split source layout;
 - internal call graph: E4C0 (driver) → E78C/EAE4/E38C/E7DC;
   EAE4 (poly iterator) → E878 ×4 + E9F8 ×4; E9F8 → E878 ×2;
   E38C → func_80038674 (external consumer).
@@ -55,13 +58,15 @@ Members (address order):
 - func_8001E6FC (s) — small; query pointer + D_8005E524
 - func_8001E78C (m) — 2D proximity test; owns D_8005E520 (tolerance)
 - func_8001E7DC (m) — 3D form of E78C, same D_8005E520 tolerance
-- func_8001E878 (m) — point-in-triangle; CAPTURE_PREV_RET policy exception
-- func_8001E9F8 (m) — point-in-quad; file-scope $2 register variable
-- func_8001EAE4 (s) — polygon-list iterator, flag masks D_8005E4FC
+- func_8001E878 (m) — nested point-in-triangle; split-file static-chain emulation
+- func_8001E9F8 (m) — nested point-in-quad; saves/forwards the static chain
+- func_8001EAE4 (m) — parent polygon-list iterator; nested declarations emit
+  the eight static-chain setups; byte-matched clean C (2026-08-14)
 - func_8001EFA4 (m) — no longer suspected collision.c member. See viewport.c group below.
 
 References: notes/research/func_8001E878-dead-spill-allocation.md §9,
-notes/research/func_8001E9F8.md.
+notes/research/func_8001E9F8.md,
+notes/research/func_8001EAE4-v0-channel-delay-slot-fossil.md.
 
 ## viewport/camera setup — 0x8001EFA4–0x8001F24C (confidence: high)
 

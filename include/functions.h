@@ -137,6 +137,7 @@ s32 func_8001E78C(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 s32 func_8001E7DC(s32 *arg0, s32 *arg1);
 s32 func_8001E878(CoordTri *p0, CoordTri *p1, CoordTri *p2);
 s32 func_8001E9F8(s32 i0, s32 i1, s32 i2, s32 i3);
+s32 func_8001EAE4(s32 arg0, EAE4Query *arg1);
 void func_8001EFA4(void);
 void func_8001F038(s32 arg0, s32 arg1, s32 arg2);
 void func_8001F1E0(s32 *arg0, s32 arg1, s32 arg2, s32 arg3);

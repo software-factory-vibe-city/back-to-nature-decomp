@@ -1,11 +1,17 @@
 # func_8001E878 — point-in-triangle allocation and dead-spill research log
 
-**Date:** 2026-07-31  
-**Status:** **SOLVED — 96/96, byte-verified in the linked binary, full
-`make check` passes.** Resolved under a user-approved policy exception: the
-match requires an uninitialized `register s32 phantom asm("$2")` (hard-$v0
-liveness at entry), which clean C cannot express — see §9.1(b) for the
-impossibility argument and §9.4 for the final source recipe.
+**Date:** 2026-07-31; corrected 2026-08-14  
+**Status:** **SOLVED — 96/96, byte-verified in the linked binary.** The current
+one-function-per-file source uses a user-approved hard-register emulation, but
+the historical-origin conclusion was corrected on 2026-08-14: incoming `$v0`
+is the GCC nested-function static chain supplied by parent `func_8001EAE4`,
+not an uninitialized user variable or debug channel. EAE4's exact clean source
+uses block-local `auto` callee declarations and emits `$v0 = $sp + 16` before
+every E878/E9F8 call. The §9.1(b) impossibility result remains valid only for
+reproducing that incoming hard-register state while compiling E878 as an
+artificial standalone translation unit; §9.4 documents the split-layout
+emulation, not the original construct. See
+`notes/research/func_8001EAE4-v0-channel-delay-slot-fossil.md`.
 
 This note consolidates the work done on `func_8001E878` before and during the
 2026-07-31 repair session. It is intended to prevent future work from repeating
@@ -418,7 +424,7 @@ source and word-diff live in the session scratchpad only; its full shape is
 `phantom_bounds_y.c` + `register s32 phantom asm("$2")` as the phantom +
 direct returns, and the exact residual is the §9.1(c) tail arrangement.
 
-### 9.4 Resolution (user-approved policy exception, 96/96)
+### 9.4 Split-layout resolution (user-approved policy exception, 96/96)
 
 The user explicitly authorized violating the clean-source policy for this
 function. Final source = the §9.1 probe shape plus three tail levers found by
