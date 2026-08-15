@@ -648,6 +648,9 @@ Members (address order):
 - func_8001FEA4 (m) — sound reset: clears D_8005E538/D_8005E53C/D_8005E558,
   sets D_8005E55C=1, initializes SpuCommonAttr D_8006C368, calls SsInit /
   SsSetTableSize / SsSetTickMode / SsUtReverbOff / SpuSetCommonAttr
+- func_800200E4 (m, 2026-08) — sound request: if D_8005E558 nonzero calls
+  func_80020A94 (stop), stores the two request args plus 0x1010 into
+  D_8005E548/D_8005E54C/D_8005E544, bumps D_8005E558, resets via func_8001FF98
 - func_80020818 (m) — sound init: opens sequences, calls SsStart, sets
   D_8005E53C, configures stereo/mono from D_8005E55C
 - func_80020A14 (s) — mono setter: calls SsSetMono, clears D_8005E55C
