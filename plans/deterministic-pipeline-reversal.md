@@ -44,9 +44,9 @@ are component bugs, not mysteries.
 | Stage | Fiber character | Existing embryo |
 |---|---|---|
 | assembler + reorg | near-bijective: macro un-expansion (self-clobber pairs → la/lw), delay-slot un-filling (stolen/duplicated slots are syntactically recognizable), un-relocation | maspsx source is the forward spec; diffFunc's reloc resolution |
-| sched2 / sched1 | fiber = dep-legal orders the documented comparator re-sorts to the observed order; constraint-characterizable | analyzeTargetSchedule, searchSchedulerState |
+| sched2 / sched1 | fiber = dep-legal orders the documented comparator re-sorts to the observed order; constraint-characterizable. The sched1 model must include three measured facts (func_800136D4): `adjust_priority`'s birthing boost applies only to single-set destinations, and split large constants are 2-set — so a call-crossing constant web ALWAYS drifts to block top; an insn setting a REG_N_CALLS_CROSSED==0 pseudo is anti-dep-pinned below the last call, one crossing calls floats free; injected dependencies do not recompute priorities (oracle edges distort — a legality probe, not a counterfactual) | analyzeTargetSchedule, searchSchedulerState |
 | jump2 (cross-jump, threading, tensioning) | few rewrite rules, all leaving syntactic witnesses (mid-block labels, orphaned HIGHs, inverted branches); small enumerable fibers | notes/research/func_8001A284-crossjump-equiv-orphan.md; plans item 4 (inverse jump-optimizer) |
-| alloc / reload | hard regs → webs is deterministic dataflow; residual ambiguity (which webs were one variable) constrained by the known allocator arithmetic | webAnalysis, solveLocalAllocationState, allocno formula in the style guide |
+| alloc / reload | hard regs → webs is deterministic dataflow; residual ambiguity (which webs were one variable) constrained by the known allocator arithmetic — verified exactly reproducible on func_800136D4: hand-computed qty merges and `qty_compare` priorities matched the instrumented oracle's event stream rank-for-rank, and local-alloc's fp-exclusion turns "which webs failed local allocation" into a hard byte-level deduction ($fp assignment ⇒ global allocno) | webAnalysis, solveLocalAllocationState, allocno formula in the style guide |
 | combine | un-merging enumerable straight off the machine description; choice points are the documented idiom ambiguities (fused cast+scale vs shift) | style guide §1 idiom tables |
 | cse / gcse / loop | widest fibers (rematerialize shared values, un-hoist invariants) but forward behavior already precisely characterized (PRE placement, movable-list, related-value rules) | style guide §4, loop/PRE research notes |
 | expand⁻¹ (RTL₀ → C) | near-mechanical: RTL₀ is a tree-walk image; control-frame decisions (casesi / balanced tree / if-chain) are deterministic patterns | dispatch-idiom detector (plans item 2); m2c demoted to one heuristic inside g_expand |
@@ -67,10 +67,14 @@ waypoint (the manual method used throughout the func_8001A284 session).
   Irrelevant to byte-matching; separate readability pass later.
 - Coupled choices: a canonical member at stage k that replays locally but
   poisons stage k-1's inversion (pseudo numbering → hash buckets → PRE
-  order; declaration order → allocno ties). These are today's hard 20%.
-  Deterministic reversal converts them from "search all source space" to
-  "jointly resolve an enumerated fiber-choice set at named sites" — a
-  SAT-shaped problem over a small domain.
+  order; declaration order → allocno ties; func_800136D4's parameter
+  residence: one expand-stage declaration choice decides whether the spill
+  loads exist as block-0 RTL at sched1/lreg or are reload-born, shifting
+  every quantity span downstream — a 2-member fiber, resolved by one
+  forward replay per member). These are today's hard 20%. Deterministic
+  reversal converts them from "search all source space" to "jointly
+  resolve an enumerated fiber-choice set at named sites" — a SAT-shaped
+  problem over a small domain.
 
 ## Why this fits the arbitrary-binaries goal
 
