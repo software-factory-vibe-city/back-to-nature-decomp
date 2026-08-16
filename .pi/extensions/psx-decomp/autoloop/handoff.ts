@@ -35,13 +35,13 @@ export function registerHandoffTool(pi: ExtensionAPI, sink: HandoffSink): void {
     parameters: Type.Object({
       functionName: Type.String({ description: "Function being handed off" }),
       whatWasTried: Type.String({
-        description: "Source shapes and structural hypotheses actually compiled and diffed, and what each did to the diff",
+        description: "Source shapes actually compiled and measured, and what each did to the residual — including which produced identical code and are therefore not experiments to repeat",
       }),
       ruledOut: Type.String({
-        description: "Hypotheses positively eliminated, and the evidence that eliminated each one",
+        description: "Hypotheses positively eliminated, and the evidence that eliminated each one. State what each elimination was conditional on: a form ruled out under one schedule or allocation is not ruled out if that state is itself the open variable",
       }),
       currentDivergence: Type.String({
-        description: "The first remaining divergence: where it is, what the target does, what the candidate does",
+        description: "The residual as psx_reverse_pipeline reports it: which pass owns it, the per-block residual, and the open decisions with their source levers — not a word count",
       }),
       leadingHypothesis: Type.String({
         description: "The most promising untested direction, and the cheapest evidence that would confirm or kill it",

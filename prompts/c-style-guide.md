@@ -387,21 +387,32 @@ psx_explain_diff <func>
 psx_compiler_trace <func>
 psx_analyze_target_schedule <func> [block <n>]
 psx_search_scheduler_state <func> [block <n>]
-psx_diff_function <func>
+psx_reverse_pipeline <func> [block <n>]
+psx_residual_objective <func>
 ```
 
-`diffFunc.ts` is the exact oracle, not the diagnosis. Its **verdict** is sound;
-its **score** is not a distance. The comparison aligns the two instruction
+`psx_reverse_pipeline` names the pass that owns the residual before any of the
+others are worth running: it lifts the original bytes and the candidate object
+through the same inverse chain and reports the oldest waypoint at which they
+still differ. While the instruction populations disagree, no allocation or
+scheduling reading applies. With a block number it prints that block's
+instructions target beside candidate.
+
+`psx_residual_objective` is the measurement after each edit. Its residual is a
+distance and a word count is not: the comparison aligns the two instruction
 streams before pairing words, so a transposed pair contributes one structural
-row and zero "differing" rows, and one of the two words is still counted as
-matching. Each transposition therefore inflates the headline number by one and
-hides two wrong words — always in the flattering direction, and most often
-exactly when a function is close enough for the last residuals to be
-transpositions. Recognize it in the rendered diff as a
-`-addr` / context / `+addr` triple whose two instructions exist on both sides
-at swapped addresses while `differing words:` names neither. Before deciding a
-residual is small enough to be worth another day, recount word-by-word by
-index with no realignment; see `notes/research/tooling-false-verdicts.md` §3.
+row and zero "differing" rows while one of the two words still counts as
+matching. Each transposition inflates a word count by one and hides two wrong
+words — always in the flattering direction, and most often exactly when a
+function is close enough for the last residuals to be transpositions. The
+staged residual has neither defect: it counts the transposition, it attributes
+it to the pass that owns it, and it is per block. Never steer by a word count;
+see `notes/research/tooling-false-verdicts.md` §3 for how the old number
+misled.
+
+The terminal gate is `psx_finalize_function` — the exact diff, the linked
+build, the scope check and the clean-source check together. A pre-link byte
+comparison is not a finish line.
 
 Route the next edit from the structural classifier:
 
@@ -421,7 +432,9 @@ exact, stop changing semantics. Census the target's simultaneous hard-register
 roles, then preserve each independently demonstrated allocation gain even when
 its raw match score is lower. A source family that fixes `$a2/$a3` while
 rotating `$v0/$v1` has proved one required lifetime/occupancy relation; it is
-not a failed experiment to discard.
+not a failed experiment to discard. `psx_residual_objective` names this case
+`traded` and reports the per-block exchange, so the gain is legible instead of
+being argued for against a falling score.
 
 The highest-yield clean-C axes at this stage are:
 
@@ -523,10 +536,11 @@ solution or UNSAT as a proof over all clean C.
 canonicalization, not about the world — one residual search reported
 `exhausted-no-exact` while holding a byte-exact candidate, because cc1 spells
 negation `subu $t0,$zero,$a1` and the disassembler prints the same word as
-`negu t0,a1`. Check the best-scoring class against `diffFunc --bytes` before
-ending a search on a negative. And `diffFunc` is not itself the verdict: it
-compares pre-link encodings and can both false-pass a masked transposition and
-false-fail byte-identical code. `make check` is the verdict. See
+`negu t0,a1`. Check the best-scoring class against `psx_residual_objective` before ending a
+search on a negative: its `EXACT` verdict is a byte comparison and does not
+care how a disassembler spells a word. And no pre-link comparison is itself the
+verdict — it can false-fail byte-identical code. `psx_finalize_function`, which
+includes `make check`, is the verdict. See
 `notes/research/tooling-false-verdicts.md`.
 
 Start with the cross-pass feedback category: `sched1-reordered`, `sched2-fixed`,
@@ -549,11 +563,11 @@ counts; a lower match can provide stronger causal evidence. A cc1-only result
 is triage and cannot be promoted without the preserved hypothesis reproducing
 in full mode.
 
-Do not launch raw `diffFunc.ts --src` invocations concurrently. Alternate-source
-CLI compiles can share intermediate paths; concurrent runs have produced one
-variant's frame/allocation under another variant's label. Use
-`psx_fuzz_variants` or the isolated search tools for parallel evaluation, or
-serialize raw CLI diffs.
+Do not launch alternate-source compiles concurrently. They can share
+intermediate paths; concurrent runs have produced one variant's
+frame/allocation under another variant's label. Use `psx_fuzz_variants`, the
+isolated search tools, or one `psx_residual_objective` call listing every
+candidate; otherwise serialize them.
 
 A residual-source-space `deriveOnly` run compiles a bounded pilot sample to
 price the full domain. Inspect the preserved source for its best pilot classes
@@ -718,6 +732,8 @@ its own per-cycle record — each insn's priority at the moment it competed, the
 ready list it was chosen from, and the tie or hazard that decided it — into the
 ordinary RTL dumps, with no extra flag. `psx_scheduler_trace` reads it. Run it
 the moment a residual is classified as scheduling, before authoring variants.
+`psx_reverse_pipeline` is what classifies it: run that first, so the trace is
+read for a block the residual actually lives in.
 
 Two facts that cost real time when assumed instead of checked:
 
@@ -777,6 +793,15 @@ If an instruction moves only in post-allocation scheduling, first ask whether
 the candidate has the wrong register web. Target hard-register read/write
 hazards can pin an order that the candidate's allocation leaves independent.
 Fixing allocation can fix scheduling without any source-order workaround.
+
+The dependency runs the other way for the pre-reload pass, and mixing them up
+costs sessions. Allocation runs *over* the sched1 order, so a block whose
+instruction order and register assignment both differ is a sched1 problem with
+an allocation consequence, and chasing the registers there is chasing a
+symptom. `psx_reverse_pipeline` separates the two mechanically: a block with a
+reordering and an allocation difference is attributed to `sched`, and a block
+with an allocation difference and no reordering to `lreg`, where the lever is
+the quantity's own priority — its reference count and live range.
 
 ### Operand and field order
 
@@ -1231,8 +1256,12 @@ show (PSY-Q samples, matched Silent Hill/ESA/soul-re, Net Yaroze, libsnd):
 
 ## 13. Resuming a stuck function: re-derive before you inherit
 
-Re-run triage and the diff classifier and rebuild the causal picture from
-the current output before adopting any prior session's model.
+Re-run `psx_reverse_pipeline` first, then triage and the diff classifier, and
+rebuild the causal picture from the current output before adopting any prior
+session's model. The reversal is first because it is the cheapest way to
+discover that an inherited story is about the wrong pass: it reads the residual
+owner out of the bytes and the candidate object alone, with no dependence on
+what anyone concluded earlier.
 
 - A note's quantitative allocator model (web counts, priority thresholds,
   live-range figures) is one solution of an inequality fitted to a past
@@ -1248,6 +1277,12 @@ the current output before adopting any prior session's model.
   without X") as hypotheses. When the assembly or a pass-source proof
   contradicts a note, the note is wrong: correct it in the same session,
   dated, in place.
+- Most "proven blocked" conclusions are conditional and do not say so. A form
+  shown to be unreachable *given the schedule or allocation the previous
+  attempt happened to produce* is not unreachable when that state is itself
+  what you are changing. Before inheriting a block, ask what it was conditional
+  on; if the answer is a pass state the residual owner says is still open, the
+  block is not proven.
 - Allocno priorities are integer quotients; a one-insn change in total
   live length can flip a rank tie through a floor boundary. Do not chase
   such a swap with source edits until the instruction count is final.
@@ -1269,11 +1304,11 @@ Before accepting a function:
 3. every nontrivial edit followed a classified diff or compiler trace;
 4. no forbidden workaround, generated-global redeclaration, `_D_` symbol, or
    C99 construct was introduced;
-5. `diffFunc` reports `VERDICT: MATCH` — the function's bytes are the
+5. `psx_residual_objective` reports `EXACT` — the function's bytes are the
    original's, relocations included, so two same-shaped globals transposed
-   between registers appear as differing words rather than hiding behind a
-   full score. A word count of N/N is a progress reading, not the verdict:
-   `UNDETERMINED` means a relocation could not be resolved and is neither a
-   match nor a mismatch; and
+   between registers are counted rather than hidden. A word count of N/N is a
+   progress reading, not the verdict: undetermined words mean a relocation
+   could not be resolved and are neither a match nor a mismatch, and the tool
+   reports them in their own column; and
 6. context export, the full binary check, modification-scope check, and
    clean-source gate pass.

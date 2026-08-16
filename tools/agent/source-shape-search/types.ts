@@ -97,6 +97,13 @@ export interface SearchVariantResult {
   opcodeStreamExact: boolean;
   instructionCountExact: boolean;
   cc1Exact: boolean;
+  /**
+   * The staged residual from the pipeline reversal, when a full object exists.
+   * It ranks above the instruction count because it is a distance: an edit that
+   * fixes the cause of a difference rotates the register assignment downstream
+   * and comes out worse by count while moving closer.
+   */
+  residual?: { key: [number, number, number, number]; summary: string };
   exactInstructions: number;
   totalInstructions: number;
   fullObjectExact: boolean;

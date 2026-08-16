@@ -259,7 +259,24 @@ export function classifyRtlEmission(instruction: RtlInstruction): RtlEmission {
       ],
     };
   }
-  if (/^\((?:insn|jump_insn|call_insn)(?:\/[a-z]+)*\b[\s\S]*?\s\((?:use|clobber)\b/s.test(instruction.text) && !instruction.text.includes("(set ")) {
+  /* A jump table is real output, but it goes to `.rdata`, so it contributes no
+   * word to the `.text` stream every emission alignment is counted against. */
+  if (/\((?:addr_vec|addr_diff_vec)\b/.test(instruction.text)) {
+    return {
+      uid: instruction.uid,
+      stage: instruction.stage,
+      classification: "zero-width",
+      reason: "jump-table-data",
+      confidence: "exact",
+      evidence: ["An ADDR_VEC emits label words into the read-only data section, not into .text."],
+    };
+  }
+  /* A standalone USE or CLOBBER emits nothing. A call or a return whose
+   * pattern is a PARALLEL of a CALL/RETURN with clobbers is not standalone:
+   * it has no `(set `, but it emits `jal` or `j $31`. */
+  if (/^\((?:insn|jump_insn|call_insn)(?:\/[a-z]+)*\b[\s\S]*?\s\((?:use|clobber)\b/s.test(instruction.text) &&
+      !instruction.text.includes("(set ") &&
+      !/\((?:call|return)\b/.test(instruction.text)) {
     return {
       uid: instruction.uid,
       stage: instruction.stage,
@@ -267,6 +284,19 @@ export function classifyRtlEmission(instruction: RtlInstruction): RtlEmission {
       reason: "use-or-clobber",
       confidence: "reconstructed",
       evidence: ["The final standalone USE/CLOBBER constrains compiler dataflow but has no machine template; neighboring canonical anchors confirm zero emitted operations."],
+    };
+  }
+  /* `(unspec_volatile [(const_int 0)] 0)` is the MIPS blockage pattern: a
+   * scheduling barrier with an empty template. */
+  if (/\(unspec_volatile\[?\s*\(const_int\s+0/.test(instruction.text.replace(/\s+/g, " ")) ||
+      /\{blockage\}/.test(instruction.text)) {
+    return {
+      uid: instruction.uid,
+      stage: instruction.stage,
+      classification: "zero-width",
+      reason: "scheduling-blockage",
+      confidence: "exact",
+      evidence: ["The blockage UNSPEC_VOLATILE orders the scheduler and emits no machine operation."],
     };
   }
   if (instruction.operation === "asm_operands" || instruction.text.includes("(unspec")) {

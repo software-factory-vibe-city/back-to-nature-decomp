@@ -5,7 +5,6 @@ import { registerAnalyzeTargetScheduleTool } from "./tools/analyze-target-schedu
 import { registerCallGraphTool } from "./tools/call-graph.ts";
 import { registerCompilerTraceTool } from "./tools/compiler-trace.ts";
 import { registerDiagnosticTools } from "./tools/diagnostics.ts";
-import { registerDiffFunctionTool } from "./tools/diff-function.ts";
 import { registerExplainDiffTool } from "./tools/explain-diff.ts";
 import { registerExportContextTool } from "./tools/export-context.ts";
 import { registerFinalizeFunctionTool } from "./tools/finalize-function.ts";
@@ -176,7 +175,6 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerCallGraphTool(pi);
   registerCompilerTraceTool(pi);
   registerDiagnosticTools(pi);
-  registerDiffFunctionTool(pi);
   registerExplainDiffTool(pi);
   registerExportContextTool(pi);
   registerFinalizeFunctionTool(pi);

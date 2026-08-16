@@ -16,7 +16,7 @@ Refine exactly the target named in the invocation. Derive all game-specific fact
 
 ## Baseline gate
 
-Call `psx_diff_function` for the target and `psx_verify_build` before editing. Stop if either baseline fails.
+Call `psx_residual_objective` for the target and `psx_verify_build` before editing. Stop unless the verdict is `EXACT` and the build is green — a refinement starts from a match.
 
 ## Improvements
 
@@ -68,7 +68,7 @@ placeholder symbol to a precise name in the active project's convention:
 
 Use the headers the generated profile designates for global and shared types. Giving a data symbol a struct or aggregate type is the most common refinement here, and it belongs in the project's **override** header — the generated declarations header is an output that skips whatever the override already declares, so editing it appears to work and is erased on the next regeneration. Never redeclare generated globals in source files.
 
-Apply risky changes one at a time. After each type, expression, declaration, or struct change, call `psx_diff_function` and immediately revert that individual change if the match is lost. Renames and comments are safer but still require final verification.
+Apply risky changes one at a time. After each type, expression, declaration, or struct change, call `psx_residual_objective` and immediately revert that individual change if the verdict is no longer `EXACT`. Renames and comments are safer but still require final verification.
 
 ## Finish
 

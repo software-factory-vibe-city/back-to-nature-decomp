@@ -39,6 +39,8 @@ import type { NormalizedInstruction, PassSnapshot, PassStage, VariantHypothesis 
 import { cacheKey, restoreCache, storeCache } from "./source-shape-search/cache.js";
 import { loadCheckpoint, validateCheckpoint, writeCheckpoint } from "./source-shape-search/checkpoint.js";
 import { equivalenceClasses } from "./source-shape-search/equivalence.js";
+import { summarizeObjective } from "./pipeline-reversal/objective.js";
+import { reversePipeline } from "./pipeline-reversal/reverse.js";
 import { evaluateAssembly, functionObjectsEqual, rankSearchResults } from "./source-shape-search/evaluator.js";
 import { generateVariantBatch, type GeneratedVariant } from "./source-shape-search/generator.js";
 import { renderSourceShapeSummary } from "./source-shape-search/render-text.js";
@@ -573,6 +575,19 @@ async function main(): Promise<void> {
     const exact = compareNormalized(target, full);
     const fullExact = exact.exact === exact.total && full.length === target.length &&
       functionObjectsEqual(targetObject, object, directory);
+    /* One reading per group: every member of a group compiled to the same
+     * object, so the residual is the same for all of them. Never fatal — a
+     * function with no preserved disassembly still ranks on everything else. */
+    let residual: SearchVariantResult["residual"];
+    try {
+      const reversal = reversePipeline({
+        functionName: options.functionName,
+        objectPath: object,
+        outputDirectory: join(directory, "reversal"),
+        replay: false,
+      });
+      residual = { key: reversal.report.objective.key, summary: summarizeObjective(reversal.report.objective) };
+    } catch { /* no residual reading for this group */ }
     for (const member of group.members) {
       const result = results.get(member);
       const variant = batch.variants.find((item) => item.id === member);
@@ -593,6 +608,7 @@ async function main(): Promise<void> {
       result.opcodeStreamExact = fullEvaluation.opcodeStreamExact;
       result.instructionCountExact = fullEvaluation.instructionCountExact;
       result.exactInstructions = fullEvaluation.exactInstructions;
+      if (residual) result.residual = residual;
       result.totalInstructions = fullEvaluation.totalInstructions;
       result.fullObjectExact = fullExact;
       result.promotionEligible = fullExact && result.policyPassed && result.hardConstraintsPassed &&

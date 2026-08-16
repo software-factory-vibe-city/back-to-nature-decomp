@@ -104,6 +104,19 @@ export function functionObjectsEqual(left: string, right: string, scratchDirecto
   return JSON.stringify(relocations(left)) === JSON.stringify(relocations(right));
 }
 
+/** Lexicographic on the staged residual; a missing reading never outranks one. */
+function residualRank(left: SearchVariantResult, right: SearchVariantResult): number {
+  const a = left.residual?.key;
+  const b = right.residual?.key;
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  for (let index = 0; index < a.length; index++) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return 0;
+}
+
 export function rankSearchResults(results: SearchVariantResult[]): SearchVariantResult[] {
   const requirementScore = (result: SearchVariantResult): number => result.requirementResults.reduce((score, item) =>
     score + (item.status === "satisfied" ? 3 : item.status === "unchanged" ? 1 : item.status === "ambiguous" ? 0 : -5), 0);
@@ -114,6 +127,9 @@ export function rankSearchResults(results: SearchVariantResult[]): SearchVariant
     Number(right.hardConstraintsPassed) - Number(left.hardConstraintsPassed) ||
     requirementScore(right) - requirementScore(left) ||
     scheduleDeltaRank(right.scheduleDelta) - scheduleDeltaRank(left.scheduleDelta) ||
+    /* Measured, staged, and decomposable — it belongs with the other causal
+     * evidence, above the mechanism verdicts and well above the raw count. */
+    residualRank(left, right) ||
     verdictScore(right) - verdictScore(left) ||
     Number(right.opcodeStreamExact) - Number(left.opcodeStreamExact) ||
     Number(right.instructionCountExact) - Number(left.instructionCountExact) ||

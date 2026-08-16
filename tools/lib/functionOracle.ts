@@ -641,8 +641,11 @@ export function compareFunction(functionName: string, options: OracleOptions = {
 
   if (targetWords.length !== candidateWords.length) {
     notes.push(
-      "A count delta is STRUCTURAL — allocation and scheduling cannot add or remove",
-      "  instructions. Fix source semantics first.",
+      "The instruction counts differ. Scheduling never changes a count, and allocation",
+      "  changes it in exactly one way: when both ends of a register-to-register copy get",
+      "  the same register, the copy becomes a no-op move and jump_optimize deletes it. So",
+      "  a delta of one move is an allocation question, not a semantics one — run",
+      "  psx_reverse_pipeline, which separates the two, before rewriting the source.",
       "  Local targets are shown relative to the function, so while the counts differ every",
       "  branch and jump past the first structural difference resolves elsewhere and lights",
       "  up. Those realign on their own once the counts match.",

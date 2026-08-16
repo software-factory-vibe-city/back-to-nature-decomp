@@ -21,6 +21,8 @@ import {
   type DisassembledInstruction,
 } from "./decompToolchain.js";
 import { analyzeInstructionSets } from "./explainDiff.js";
+import { summarizeObjective } from "./pipeline-reversal/objective.js";
+import { reversePipeline } from "./pipeline-reversal/reverse.js";
 import { deterministicRunId, hashDirectoryFiles, projectPath, variantLabImplementationHash, writeRunManifest, writeRunSummary } from "./variant-lab/artifacts.js";
 import { classifyHypothesis, VERDICT_RANK } from "./variant-lab/classify-hypothesis.js";
 import { assessExactCandidate } from "./variant-lab/exact-candidate.js";
@@ -242,6 +244,20 @@ function compileAll(options: {
         base.category = report.category;
         base.firstDivergence = firstTargetDivergence(report);
         base.status = report.category === "exact" ? "exact" : "mismatch";
+        /* Never fatal: the reversal needs the original disassembly, and a
+         * variant run on a function that has none still deserves its diff. */
+        try {
+          const reversal = reversePipeline({
+            functionName: options.functionName,
+            objectPath: compiled.artifacts.object!,
+            outputDirectory: join(outputDirectory, "reversal"),
+            replay: false,
+          });
+          base.residual = {
+            key: reversal.report.objective.key,
+            summary: summarizeObjective(reversal.report.objective),
+          };
+        } catch { /* no residual reading for this variant */ }
       }
       const assessment = assessExactCandidate({
         status: base.status,
@@ -300,10 +316,24 @@ function classifyAll(
  * listed higher. What this prevents is an exact row sitting twentieth in a
  * table sorted by a verdict that had no evidence to work from.
  */
+/** Lexicographic on the staged residual; a missing reading never outranks one. */
+function residualRank(left: InternalResult, right: InternalResult): number {
+  const a = left.result.residual?.key;
+  const b = right.result.residual?.key;
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  for (let index = 0; index < a.length; index++) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return 0;
+}
+
 function rankResults(results: InternalResult[]): InternalResult[] {
   return [...results].sort((left, right) =>
     Number(right.result.baseline) - Number(left.result.baseline) ||
     Number(right.result.exactCandidate) - Number(left.result.exactCandidate) ||
+    residualRank(left, right) ||
     VERDICT_RANK[left.result.verdict] - VERDICT_RANK[right.result.verdict] ||
     Number(right.result.status === "exact") - Number(left.result.status === "exact") ||
     (right.result.exact ?? -1) - (left.result.exact ?? -1) ||
@@ -431,7 +461,7 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
     `artifacts:${summary.artifacts}`,
     ...renderExactBanner(summary, ranked),
     "",
-    `${"variant".padEnd(24)} ${"verdict".padEnd(20)} ${"mechanism".padEnd(27)} ${"score".padEnd(9)} first mechanism/target divergence`,
+    `${"variant".padEnd(24)} ${"verdict".padEnd(20)} ${"mechanism".padEnd(27)} ${"score".padEnd(9)} ${"residual".padEnd(24)} first mechanism/target divergence`,
   ];
   for (const entry of ranked) {
     const result = entry.result;
@@ -446,7 +476,8 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
       : pass
         ? `.${pass.stage}: ${pass.summary}${passEvidence ? ` [${passEvidence}]` : ""}`
         : result.firstDivergence || result.error || result.verdictReason;
-    lines.push(`${result.id.padEnd(24)} ${result.verdict.padEnd(20)} ${result.mechanism.padEnd(27)} ${score.padEnd(9)} ${divergence}`);
+    const residual = result.residual ? result.residual.summary : "-";
+    lines.push(`${result.id.padEnd(24)} ${result.verdict.padEnd(20)} ${result.mechanism.padEnd(27)} ${score.padEnd(9)} ${residual.padEnd(24)} ${divergence}`);
     if (!result.baseline) {
       lines.push(`  expected .${result.expectedPass}: ${result.expectedEffect}`);
       const later = result.passComparison?.divergentStages.slice(1) || [];
@@ -458,8 +489,11 @@ function renderSummary(summary: Omit<VariantRunSummary, "results">, ranked: Inte
     }
   }
   lines.push(...renderOutcomeGroups(ranked));
-  lines.push("", "Rows are ordered baseline, byte-exact candidates, then predicted mechanism " +
-    "evidence; verdicts themselves still rank mechanism evidence before exact-match count.");
+  lines.push("", "Rows are ordered baseline, byte-exact candidates, then the staged residual " +
+    "(control-flow, population, schedule, allocation), then predicted mechanism evidence. " +
+    "The residual outranks the score column because it is a distance and the score is not: " +
+    "an edit that fixes the cause of a difference rotates the register assignment downstream " +
+    "and scores worse while moving closer.");
   const promotable = ranked.filter((entry) => entry.result.promotionEligible);
   const exact = ranked.filter((entry) => entry.result.exactCandidate);
   if (promotable.length > 0) {

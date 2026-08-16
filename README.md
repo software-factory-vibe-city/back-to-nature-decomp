@@ -19,7 +19,7 @@ original PS-X EXE. The build checks the result with SHA-256 each time.
 | dead function | Unused code from the PSY-Q libraries |
 | tool | One TypeScript program under `tools/` |
 | report | One text or JSON output of a tool |
-| the oracle | `diffFunc.ts`, which compares bytes with the original |
+| the oracle | `diffFunc.ts`, which compares bytes with the original. It backs the tools rather than being one |
 | stub | A `.c` file that includes the original assembly instead of C |
 
 ## Status
@@ -477,6 +477,92 @@ Each terminal state means one thing:
 A run that stops early never reports `exhausted-no-exact`. The tool never
 copies a candidate into `src/`.
 
+### Step 4b: name the pass that owns the residual
+
+`reversePipeline.ts` runs the compiler backward. It lifts the original bytes and
+the candidate object through the same chain of inverse passes — assembler,
+delay-slot filling, register allocation — and compares the two at each waypoint.
+The oldest waypoint at which they differ names the pass that introduced the
+residual.
+
+```bash
+npx tsx tools/agent/reversePipeline.ts <function>
+npx tsx tools/agent/reversePipeline.ts <function> --source <path>
+npx tsx tools/agent/reversePipeline.ts <function...> --backtest
+```
+
+Read it before any allocator or scheduler forensics. It separates "the source
+computes something different" from "the same program, allocated differently",
+and it recognizes a copy one side coalesced away as an allocation decision
+rather than an instruction-count delta — a count delta that is really an
+allocation choice sends a session to the wrong end of the pipeline.
+
+The report has three parts:
+
+- the waypoint ladder, with the pass that owns the residual named;
+- the round-trip checks, which replay each inverse against the compiler's own
+  `-da` dumps and say how much the ladder can be trusted;
+- the decisions: the independent choices that account for the whole residual,
+  each with its source lever. Consequences are folded under their cause, so
+  thirty webs in the wrong register read as the one scheduling decision that
+  displaced them.
+
+`--backtest` perturbs a matching source in ways whose stage is known in advance
+and checks the chain names the right one. `tools/agent/pipeline-reversal/README.md`
+documents the inverses and their limits.
+
+### Step 4c: iterate on the residual, not the byte score
+
+`diffFunc` answers the terminal question — are the bytes identical — and it
+keeps answering it. It is not what an iteration should hill-climb on. The byte
+score is not a distance: an edit that fixes the cause of a residual rotates the
+register assignment downstream of it and scores *worse* than one that froze a
+wrong schedule into a lucky assignment, so a greedy loop keeps the wrong one.
+It is also global, one number for the whole function, so nothing can tell that
+a variant fixed one block and disturbed another.
+
+`residualObjective.ts` scores candidates on the staged, per-block residual
+instead:
+
+```bash
+npx tsx tools/agent/residualObjective.ts <function>
+npx tsx tools/agent/residualObjective.ts <function> --dir build/variants --block 6
+```
+
+```
+  variant              verdict    words    cfg  pop  sched  alloc  b2      b3     b6     b8
+  baseline             baseline   220/263  0    0    10     35     0/5/19  0/1/2  0/2/4  0/2/10
+  v1:v1-hoist-len.c    traded     222/260  0    0    12     32     0/5/19  0/1/2  0/3/4  0/3/7
+  v2:v2-hoist-first.c  identical  220/263  0    0    10     35     0/5/19  0/1/2  0/2/4  0/2/10
+
+NEXT: block 6 (0x80021128) — population 0, schedule 2, allocation 4
+      same residual shape as block 8 — one source fix should close all of them
+```
+
+The v1 row is the whole argument: two more matching words, and further from
+the target. The terms are compared lexicographically in the order the passes
+run — control flow, then instruction population, then schedule, then
+allocation — because allocation is downstream of the sched1 order and any
+agreement bought by a worse schedule is coincidental.
+
+Six verdicts, each a distinct instruction to a caller:
+
+| Verdict | Meaning |
+|---|---|
+| `EXACT` | the bytes match; confirm with `diffFunc` and finalize |
+| `better` | strictly closer on the staged key |
+| `traded` | lost an earlier term, won a later one — keep it as a branch, do not discard |
+| `same` | different code, same residual |
+| `identical` | byte-identical output; not a new experiment, so do not count it as one |
+| `worse` | strictly further |
+
+`NEXT` names the block to work and which other blocks the same fix should
+close. Blocks whose residual has the same shape are one work item: cases of a
+switch that differ only in a constant produce the same difference twice.
+
+The variant laboratory and the shape searcher rank on the same key, and the
+autonomous loop reports it to each turn in place of the word count.
+
 ### Step 5: compare a small set of hypotheses
 
 `fuzzVariants.ts` is a variant laboratory. It is not a source permuter. A JSON
@@ -531,6 +617,17 @@ order of adjacent PSY-Q macro calls.
 The oracle is `diffFunc.ts`. It compiles one function, relocates the object to
 the original addresses, and compares it with the original bytes. It reports
 MATCH, MISMATCH, or UNDETERMINED.
+
+It is no longer a registered tool. Two things replaced it, and each is better
+at one half of its old job: `residualObjective.ts` reports the same verdict
+from the same oracle at the same cost, plus a residual that is a distance,
+which its score was not; and `psx_finalize_function` is the terminal gate — the
+exact diff plus the linked build, the scope check, and the clean-source check.
+A pre-link byte comparison is not a finish line, and a score that rewards a
+lucky register assignment over a fixed cause is not a gradient. The CLI stays,
+and the build, the gates, and the autonomous loop still call it;
+`.pi/extensions/psx-decomp/tools/diagnostics.ts` records the exclusion and the
+reason, and a test keeps it honest.
 
 `psx_finalize_function` is the last gate. It runs the exact function diff, the
 full binary check, the scope check, and the clean-source check.
@@ -654,6 +751,8 @@ The main tools under `tools/agent/` are:
 | `searchSourceShapes.ts` | Searches an explicit finite grammar |
 | `synthesizeSourceShapes.ts` | Derives a grammar from the requirements |
 | `searchResidualSourceSpace.ts` | Searches the residual source space automatically |
+| `reversePipeline.ts` | Runs the compiler backward and names the pass that owns the residual |
+| `residualObjective.ts` | Scores and ranks candidate sources on the staged residual — the iteration metric |
 | `fuzzVariants.ts` | Compares mechanism hypotheses |
 | `contextExport.ts` | Exports the matched signatures |
 | `sourcePolicy.ts` | Audits the sources for forbidden constructs |

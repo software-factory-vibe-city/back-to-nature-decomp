@@ -51,6 +51,53 @@ export async function runFunctionDiff(projectRoot: string, functionName: string,
   };
 }
 
+/**
+ * The residual reading the loop should steer by.
+ *
+ * The word count is a progress reading and a bad gradient: a source edit that
+ * fixes the cause of a residual rotates the register assignment downstream and
+ * scores worse than one that froze a wrong schedule into a lucky assignment.
+ * The residual objective is staged and per-block, so a turn can be told which
+ * block to work and can tell whether its last edit helped that block.
+ *
+ * Never fatal. It needs a built candidate object and the original disassembly,
+ * and a turn that has neither still deserves its diff verdict.
+ */
+export async function runResidualObjective(
+  projectRoot: string,
+  functionName: string,
+  timeoutMs = 120_000,
+  signal?: AbortSignal,
+): Promise<ResidualReading | null> {
+  try {
+    const command = await runCommand("npx", ["tsx", "tools/agent/residualObjective.ts", functionName, "--json"], {
+      cwd: projectRoot,
+      timeoutMs,
+      maxCaptureBytes: 4 * 1024 * 1024,
+      signal,
+    });
+    if (command.code !== 0) return null;
+    const parsed = JSON.parse(command.stdout) as {
+      entries: Array<{ objective: { exact: boolean; controlFlow: number; population: number; schedule: number; allocation: number } }>;
+      work: Array<{ block: { block: number; vram?: number; population: number; schedule: number; allocation: number; coalescing: number }; duplicates: number[]; reason: string }>;
+    };
+    const objective = parsed.entries[0]?.objective;
+    if (!objective) return null;
+    return { objective, work: parsed.work ?? [] };
+  } catch {
+    return null;
+  }
+}
+
+export interface ResidualReading {
+  objective: { exact: boolean; controlFlow: number; population: number; schedule: number; allocation: number };
+  work: Array<{
+    block: { block: number; vram?: number; population: number; schedule: number; allocation: number; coalescing: number };
+    duplicates: number[];
+    reason: string;
+  }>;
+}
+
 export async function runBuildCheck(projectRoot: string, timeoutMs = 5 * 60_000, signal?: AbortSignal) {
   return runCommand("make", ["check"], { cwd: projectRoot, timeoutMs, signal, maxCaptureBytes: 4 * 1024 * 1024 });
 }

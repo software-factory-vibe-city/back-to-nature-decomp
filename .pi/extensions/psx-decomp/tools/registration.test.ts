@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TOOL_SPECS } from "./diagnostics.ts";
+import { TOOL_SPECS, UNEXPOSED_CLIS } from "./diagnostics.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../../../..");
@@ -38,10 +38,25 @@ test("every tools/agent CLI is registered as a Pi tool", () => {
   const registered = individuallyRegistered();
   for (const spec of TOOL_SPECS) registered.add(spec.script.replace(/\.ts$/, ""));
 
-  const missing = commandLineTools().filter((name) => !registered.has(name));
+  const missing = commandLineTools()
+    .filter((name) => !registered.has(name))
+    .filter((name) => !(name in UNEXPOSED_CLIS));
   assert.deepEqual(missing, [],
     `unregistered CLI(s): ${missing.join(", ")}. Add an entry to TOOL_SPECS in ` +
-    "diagnostics.ts, or a dedicated tool file — a CLI that is not a tool is invisible.");
+    "diagnostics.ts, a dedicated tool file, or UNEXPOSED_CLIS with a reason — a CLI " +
+    "that is not a tool is invisible.");
+});
+
+/* An exclusion is a decision, so it carries its reasoning and cannot outlive
+   the CLI it names. */
+test("every deliberately unexposed CLI still exists and says why", () => {
+  const present = new Set(commandLineTools());
+  for (const [name, reason] of Object.entries(UNEXPOSED_CLIS)) {
+    assert.ok(present.has(name), `${name} is listed as unexposed but no such CLI exists`);
+    assert.ok(reason.length > 80, `${name} needs a real reason for not being a tool`);
+    const registered = new Set(TOOL_SPECS.map((spec) => spec.script.replace(/\.ts$/, "")));
+    assert.ok(!registered.has(name), `${name} is both registered and listed as unexposed`);
+  }
 });
 
 test("tool names and backing scripts are unique", () => {

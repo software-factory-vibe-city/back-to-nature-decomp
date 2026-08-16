@@ -1,3 +1,4 @@
+import type { ResidualReading } from "../autonomous/gates.ts";
 import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import type { HandoffSummary } from "./types.ts";
 
@@ -6,7 +7,15 @@ export const DECOMPILE_SKILL = "psx-decompile-function";
 /** The nudge the loop sends on every return that is not yet a match. */
 export const KEEP_GOING = "keep going, there is clean c that will match this function 100%";
 
-export function matchReport(diff: DiffResult): string {
+/**
+ * What the turn is told about where it stands.
+ *
+ * The verdict decides; the word count is context. What the turn should *steer
+ * by* is the residual: it names the pass that owns the difference and the block
+ * to work next, and unlike the word count it goes down when the source moves
+ * toward the target rather than when the registers happen to line up.
+ */
+export function matchReport(diff: DiffResult, residual?: ResidualReading | null): string {
   const lines = [
     `Oracle: ${diff.functionName} verdict ${diff.verdict.toUpperCase()} — ${diff.matchedInstructions}/${diff.totalInstructions} words (${diff.matchPercent}%).`,
   ];
@@ -14,6 +23,29 @@ export function matchReport(diff: DiffResult): string {
     lines.push(
       `Instruction count delta versus target: ${diff.instructionCountDelta > 0 ? "+" : ""}${diff.instructionCountDelta}.`,
     );
+  }
+  if (residual && !residual.objective.exact) {
+    const { controlFlow, population, schedule, allocation } = residual.objective;
+    lines.push(
+      `Residual (steer by this, not the word count): control-flow ${controlFlow}, population ${population}, ` +
+      `schedule ${schedule}, allocation ${allocation}.`,
+    );
+    if (population > 0 || controlFlow > 0) {
+      lines.push("The two programs do not contain the same instructions, so no allocation or scheduling reading applies yet — fix the semantics first.");
+    }
+    const next = residual.work[0];
+    if (next) {
+      lines.push(
+        `Next block: ${next.block.block}` +
+        `${next.block.vram === undefined ? "" : ` (0x${next.block.vram.toString(16).toUpperCase()})`}` +
+        ` — population ${next.block.population}, schedule ${next.block.schedule}, ` +
+        `allocation ${next.block.allocation + next.block.coalescing}. ${next.reason}`,
+      );
+      if (next.duplicates.length > 0) {
+        lines.push(`Fixing it should also close block ${next.duplicates.join(", ")}.`);
+      }
+    }
+    lines.push("Run `npx tsx tools/agent/reversePipeline.ts " + diff.functionName + "` for the decisions and their source levers, and `residualObjective.ts` with --source to rank candidate edits.");
   }
   return lines.join("\n");
 }
@@ -104,7 +136,10 @@ export function handoffBlock(summary: HandoffSummary): string {
     "wins and the summary was wrong.",
     "",
     "In particular, a hypothesis listed as ruled out is only ruled out if the evidence given",
-    "actually rules it out. Check the evidence, not the verdict.",
+    "actually rules it out. Check the evidence, not the verdict. Most eliminations are",
+    "conditional without saying so: a source form shown to be unreachable under the schedule or",
+    "allocation the previous tier happened to produce is not unreachable when that state is",
+    "itself the thing you are changing. Re-read every 'proven blocked' with that in mind.",
   ].join("\n");
 }
 

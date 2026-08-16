@@ -52,6 +52,26 @@ function functionTool(
   };
 }
 
+/**
+ * CLIs deliberately not offered to the model, and why.
+ *
+ * The default is that every CLI is a tool: a diagnostic nobody can call is a
+ * diagnostic nobody uses. An entry here is a claim that exposing the CLI makes
+ * the workflow worse, and it has to say how — the registration test requires a
+ * reason, so an exclusion cannot be a silent omission.
+ */
+export const UNEXPOSED_CLIS: Record<string, string> = {
+  diffFunc:
+    "Two better tools split its job. `psx_residual_objective` gives the same MATCH " +
+    "verdict from the same oracle at the same cost, plus a residual that is a distance " +
+    "— diffFunc's score is not one, and the style guide had to teach reading around it. " +
+    "`psx_finalize_function` is the terminal gate and is strictly stronger: the exact " +
+    "diff plus the linked build, the scope check and the clean-source check. Leaving " +
+    "diffFunc exposed invites treating a pre-link byte comparison as done, and invites " +
+    "hill-climbing a number that rewards a lucky register assignment over a fixed cause. " +
+    "The CLI stays: the build, the gates and the autonomous loop all still shell out to it.",
+};
+
 export const TOOL_SPECS: ToolSpec[] = [
   /* ---- pre-flight: run before authoring source ---- */
   functionTool(
@@ -226,6 +246,41 @@ export const TOOL_SPECS: ToolSpec[] = [
         ...(p.source ? ["--source", p.source as string] : []),
         ...(p.json ? ["--json"] : [])],
       timeout: 3_600_000 },
+  ),
+
+  /* ---- deterministic pipeline reversal ---- */
+  functionTool(
+    "psx_reverse_pipeline", "PSX Pipeline Reversal", "reversePipeline.ts",
+    "Run the deterministic backward chain over the original bytes and the candidate object, and report which compiler pass owns the residual. Output is a waypoint ladder (machine, dbr, mach, greg, lreg), the round-trip checks that license it, and a short list of independent decisions with the source lever for each. Read it before any allocator or scheduler forensics: it separates 'the source computes the wrong thing' from 'the same program, allocated differently', and it recognizes a coalesced copy as an allocation decision rather than a count delta. `backtest` perturbs the named sources in known ways and checks the chain names the right pass.",
+    { extra: {
+        source: Type.Optional(Type.String({ description: "Alternate source; it is compiled and used as the candidate" })),
+        object: Type.Optional(Type.String({ description: "Candidate object to read instead of the built one" })),
+        noReplay: Type.Optional(Type.Boolean({ description: "Skip the round-trip check against the -da dumps" })),
+        backtest: Type.Optional(Type.Boolean({ description: "Perturb the source in known ways and check the reported stage" })),
+      },
+      argv: (p) => [p.functionName as string,
+        ...(p.source ? ["--source", p.source as string] : []),
+        ...(p.object ? ["--object", p.object as string] : []),
+        ...(p.noReplay ? ["--no-replay"] : []),
+        ...(p.backtest ? ["--backtest"] : []),
+        ...(p.json ? ["--json"] : [])],
+      timeout: 600_000 },
+  ),
+
+  functionTool(
+    "psx_residual_objective", "PSX Residual Objective", "residualObjective.ts",
+    "Score candidate sources on the staged, per-block residual and rank them. This is the iteration metric: the byte score is not a distance, so an edit that fixes the cause of a difference rotates the register assignment downstream and scores worse while moving closer. Verdicts are better / worse / traded (lost an earlier term, won a later one — keep as a branch) / same / identical (byte-identical output, not a new experiment) / EXACT. It also names the block to work next and which other blocks one fix should close. Use `diffFunc` for the terminal MATCH verdict, never for choosing between variants.",
+    { extra: {
+        source: Type.Optional(Type.Array(Type.String({ description: "Candidate source to score" }), { description: "One or more candidate sources" })),
+        dir: Type.Optional(Type.String({ description: "Score every .c file in this directory" })),
+        block: Type.Optional(Type.Number({ description: "Rank for this basic block rather than the whole function" })),
+      },
+      argv: (p) => [p.functionName as string,
+        ...((p.source as string[] | undefined) ?? []).flatMap((path) => ["--source", path]),
+        ...(p.dir ? ["--dir", p.dir as string] : []),
+        ...(p.block !== undefined ? ["--block", String(p.block)] : []),
+        ...(p.json ? ["--json"] : [])],
+      timeout: 900_000 },
   ),
 
   /* ---- policy and prompts ---- */

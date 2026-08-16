@@ -16,7 +16,10 @@ Before editing, read completely:
 1. `AGENTS.md`
 2. `configs/project-profile.md`
 3. `prompts/c-style-guide.md` — mandatory distilled matching doctrine, not an
-   optional reference
+   optional reference. `tools/agent/pipeline-reversal/README.md` when a
+   residual reaches allocation or scheduling: it states what each inverse
+   proves, what the staged residual means term by term, and where the chain
+   reports itself unreliable
 4. the target source and original assembly
 5. the target call-graph entry and relevant generated/shared declarations.
    For an indirect call, inspect the plausible table-member callees before
@@ -151,9 +154,12 @@ initializer calls; the 24 dependency-valid orders were then exhausted directly.
 
 In fresh mode, inspect `src/<target>.c`. Call `psx_m2c` only if it is missing
 or still an assembly stub. Never overwrite an existing clean-C attempt. In
-resume/fix mode, preserve the source and begin from its current diff — but
-re-derive the classification yourself (triage, then `psx_explain_diff`)
-before adopting any prior session's causal model. A research note's
+resume/fix mode, preserve the source and begin from its current residual — but
+re-derive the classification yourself before adopting any prior session's
+causal model. Start with `psx_reverse_pipeline`: it names the pass that owns
+the residual from the bytes alone, so it is the cheapest way to find out that
+an inherited story is about the wrong pass entirely. Then triage and
+`psx_explain_diff` for the fix classification. A research note's
 quantitative allocator story (web counts, priority thresholds, live-range
 figures) is one solution of an inequality, not a measurement of the
 original; verify it against the current dumps before searching for the
@@ -163,11 +169,20 @@ evidence. The style guide's resume section is mandatory here.
 
 ## Measurement discipline — non-negotiable
 
-`psx_diff_function` is the only thing in this workflow that knows what the
+`psx_residual_objective` is the only thing in this workflow that knows what the
 compiler actually did. **Every deliberate edit is followed by a
-`psx_diff_function` call, without exception, before you form any opinion about
-what to do next.** Not the obvious edits, not the small ones, not the ones you
-already reasoned through and are sure about. One edit, one diff.
+`psx_residual_objective` call, without exception, before you form any opinion
+about what to do next.** Not the obvious edits, not the small ones, not the ones
+you already reasoned through and are sure about. One edit, one measurement.
+
+Read its verdict, not a word count. `better` and `worse` compare the staged
+residual — control flow, then instruction population, then schedule, then
+allocation — in the order the passes run. `traded` means the edit lost an
+earlier term and won a later one: keep it as a branch, do not make it the
+baseline. `identical` means the edit produced the same code and is therefore
+not a new experiment; re-spelling the same value again is the same
+non-experiment, so move to a different axis. `EXACT` means the bytes match and
+the terminal gate is next.
 
 Prohibited, and treated as a process failure regardless of the outcome:
 
@@ -182,6 +197,10 @@ Prohibited, and treated as a process failure regardless of the outcome:
   which frees the temp, so then..." — everything past the first unmeasured
   step is fiction. Compile the first step and read what actually moved.
 - Reporting any score, category, count, or residual you did not just measure.
+- Steering by the word count. It is not a distance: an edit that fixes the
+  cause of a difference rotates the register assignment downstream of it and
+  can match fewer words while standing closer to the target. The staged
+  residual is the number that goes down as the source approaches the original.
 
 The recurring failure this rule exists to stop: an agent builds a long,
 internally consistent causal story about ordering or allocation, edits several
@@ -196,13 +215,20 @@ of reasoning with no recent diff in it means you have drifted off the evidence
 and are now decompiling from imagination. Get back to a measured state before
 continuing.
 
-A diff that reports no change is itself a measurement and a useful one — it
+A measurement that reports `identical` is itself a result and a useful one — it
 proves the source shapes compiled to the same RTL, which retires an entire
 axis. Record it and move to a different axis; do not re-litigate it in prose.
 
+`psx_reverse_pipeline` is the companion: it names the pass that owns the
+residual, lists the independent decisions with the source lever for each, and
+with a block number prints that block's instructions target beside candidate.
+Use it to choose the next edit; use `psx_residual_objective` to judge it.
+
 ## Evidence-driven matching loop
 
-1. Call `psx_explain_diff` before editing.
+1. Call `psx_reverse_pipeline` before editing — it names the pass that owns the
+   residual and the block to work next. Call `psx_explain_diff` for the fix
+   classification.
 2. Apply only the fix class reported by the classifier and described in the
    mandatory style guide. Treat the classifier's WEB-PARITY and PROVENANCE
    sections as gates: unmatched register webs or a value-provenance
@@ -210,9 +236,16 @@ axis. Record it and move to a different axis; do not re-litigate it in prose.
    masks/temporaries, an operand read from the wrong value behind a
    coincidentally matching register name). Fix those before any
    allocation or scheduling interpretation — an "allocation swap" with
-   failing web parity is a symptom, not a cause. Any instruction-count
-   delta beyond entry moves is structural; read the reported count-delta
-   decomposition instead of treating it as allocation noise. A count delta
+   failing web parity is a symptom, not a cause. An instruction-count delta
+   is structural with one exception, and the exception is common enough to
+   matter: a register-to-register copy whose two ends receive the same register
+   becomes a no-op move and `jump_optimize` deletes it, so one side can be a
+   copy short with both sides computing the same values. `psx_reverse_pipeline`
+   separates the two readings — it reports a coalesced copy as an allocation
+   decision and a real population difference as a source one — and reading a
+   coalescing choice as missing semantics sends the session to the wrong end of
+   the pipeline. Read the reported count-delta decomposition rather than
+   treating a delta as allocation noise. A count delta
    accompanied by branch-sense differences is a **semantics** question:
    state what the target computes and returns in words, read out of its own
    branches, before interpreting anything else. Inherited header comments
@@ -236,7 +269,9 @@ axis. Record it and move to a different axis; do not re-litigate it in prose.
    base/offset/result birth order, and a named constant at the scheduler's
    required birth site. Preserve a lower-scoring variant when it solves one
    independently measured allocation relation; match percentage is not a
-   mechanism verdict. The compact case study is
+   mechanism verdict. `psx_residual_objective` reports exactly this case as
+   `traded` — an earlier term lost, a later one won — so keep such a variant as
+   a branch rather than making it the baseline. The compact case study is
    `notes/retros/2026-08-10-func_8001A574-retro.md`.
 3. The moment the classifier reports a scheduling category, call
    `psx_scheduler_trace` — before authoring a single source variant. The
@@ -267,7 +302,7 @@ axis. Record it and move to a different axis; do not re-litigate it in prose.
    `psx_mine_statement_order` — per-block
    emission-order evidence (hi16 formation order, store order, delay-slot
    occupant) constrains source statement order directly.
-4. After every deliberate edit, call `psx_diff_function` — see "Measurement
+4. After every deliberate edit, call `psx_residual_objective` — see "Measurement
    discipline" above; this step is mandatory and has no exceptions. Do not
    proceed to the next edit, the next hypothesis, or the next tool until the
    current edit has been measured. Reclassify whenever the mismatch signature
@@ -332,10 +367,11 @@ axis. Record it and move to a different axis; do not re-litigate it in prose.
    generated header is not a fix, and a local redeclaration that silences the
    compiler has moved the defect rather than removed it.
 
-Do not run raw `diffFunc.ts --src` commands concurrently: alternate-source CLI
-compiles can share intermediate paths and cross-contaminate variant results.
-Use `psx_fuzz_variants` or the isolated source-search tools for parallel work,
-or run raw alternate-source diffs sequentially.
+Do not run alternate-source compiles concurrently: they can share intermediate
+paths and cross-contaminate variant results. Use `psx_fuzz_variants`, the
+isolated source-search tools, or a single `psx_residual_objective` call listing
+every candidate — it scores them in one run under distinct directories. Never
+launch several alternate-source runs in parallel.
 
 If a source change has no effect, locate the first divergent compiler dump and
 read that exact pass in the vendored compiler source before trying another
@@ -349,10 +385,11 @@ a form is unreachable ends a search, and a failed experiment does not.
 
 ## Finish
 
-A function is accepted on byte-level evidence: `diffFunc` must report
-`VERDICT: MATCH`, and the full binary must still match. `diffFunc` resolves
-relocations against the original addresses before comparing, so symbol
-identity is visible in the diff itself — two same-shaped accesses to
+A function is accepted on byte-level evidence: `psx_residual_objective` must
+report `EXACT`, `psx_finalize_function` must pass, and the full binary must
+still match. The oracle behind that verdict resolves relocations against the
+original addresses before comparing, so symbol identity is part of the
+comparison — two same-shaped accesses to
 different globals show up as differing words, and the fix is to swap the
 order of the corresponding accesses in the source. `UNDETERMINED` is a third
 outcome, not a near-match: a relocation the tool could not resolve, named on
@@ -407,7 +444,9 @@ mechanism that explains another:
 Search these by the signature you are actually looking at (frame size, an
 unexpected stack load, `$ra` stored through a non-`$sp` base, a store-block
 ordering gap, an allocation swap that survives source-order swaps), not by
-the target's name. Grep across all four rather than browsing one directory's
+the target's name. The residual owner narrows the search before you start: a
+note about allocation is not about your function if the reversal says the
+populations differ. Grep across all four rather than browsing one directory's
 titles. Select only the case study whose documented mismatch signature matches
 the current one; do not load every note indiscriminately. For a suspected
 compiler/assembler boundary, select the project's boundary-analysis note
@@ -422,9 +461,13 @@ When a note's structural claim (an arity, a register assignment, an argument
 mapping) contradicts the assembly, the assembly wins. Correct the note in the
 same session; a wrong note propagates into every attempt that follows.
 
-If still stuck, leave the best clean-C state and report the category, first
-remaining divergence, compiler-pass evidence, and structural hypotheses
-tested. Do not commit.
+If still stuck, leave the best clean-C state and report, in this order: the
+pass that owns the residual, the per-block residual, the open decisions with
+the source lever each carries, the hypotheses tested and what each did to the
+residual, and which of them produced identical code and are therefore not
+experiments worth repeating. `psx_reverse_pipeline` and
+`psx_residual_objective` emit all of it; a word count is not a report. Do not
+commit.
 
 ## Reporting discipline
 

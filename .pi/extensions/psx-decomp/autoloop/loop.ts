@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { runResidualObjective } from "../autonomous/gates.ts";
 import type { PolicyFinding } from "../autonomous/types.ts";
 import { commitMatchedFunction } from "./commit.ts";
 import {
@@ -433,7 +434,10 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
       setStatus(deps, `◎ ${functionName} · oracle`);
       const match = await isMatched(oracle(current), functionName);
       if (!match.matched) {
-        lastReport = matchReport(match.diff);
+        /* The verdict already decided; the residual is what the next turn
+         * should steer by, so it is read only when there is a next turn. */
+        const residual = await runResidualObjective(deps.projectRoot, functionName);
+        lastReport = matchReport(match.diff, residual);
         continue;
       }
 

@@ -159,6 +159,18 @@ export interface VariantResult {
   exactCandidate: boolean;
   exactCandidateBasis: ExactCandidateBasis;
   exactCandidateReason?: string;
+  /**
+   * The staged residual, from the pipeline reversal. It ranks variants above
+   * the raw instruction count because it is a distance and the count is not:
+   * an edit that fixes the cause of a residual rotates the register assignment
+   * downstream and comes out worse by count, while this reads it as progress
+   * on the term that owns it.
+   */
+  residual?: {
+    /** [control-flow, population, schedule, allocation]; lower is better. */
+    key: [number, number, number, number];
+    summary: string;
+  };
   category?: DiffCategory | string;
   exact?: number;
   total?: number;

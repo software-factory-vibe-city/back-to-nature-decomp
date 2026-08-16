@@ -85,6 +85,106 @@ waypoint (the manual method used throughout the func_8001A284 session).
 - Failures are diagnoses with enumerated alternatives — exactly the
   interface a small orchestrating model can drive.
 
+## Status — first implementation, 2026-08-15
+
+Built: `tools/agent/pipeline-reversal/` and the `reversePipeline.ts` CLI.
+Items 1, 2 (assembler + reorg), and 7 are done; item 4's allocation half is
+done as CFG web recovery; items 3, 5, 6 and jump2's inverse are not started.
+`tools/agent/pipeline-reversal/README.md` documents what each inverse does and
+where it stops.
+
+Measured on this repository:
+
+- round trip against the compiler's own `.mach` dumps, over the 261 matching
+  non-`INCLUDE_ASM` functions: 144 exact, 104 with a small residual (usually
+  one to five instructions, from the delay-slot fiber), 13 not checkable
+  because the function contains inline assembly;
+- perturbation backtest over 12 already-decompiled functions: 9 confirmed,
+  0 wrong-stage. A statement swap is always attributed to allocation or
+  scheduling and never to the source; a changed constant always to the source;
+- on a matching function the chain reports zero decisions, so a non-empty
+  report always means work.
+
+Four facts the writing above had wrong or did not have, all from the vendored
+source and confirmed by the round trip:
+
+1. **`jump2` runs after `sched2`**, not before it. The tail order is
+   greg → flow2 → sched2 → jump2 → mach → dbr.
+2. **The forward phase of `fill_simple_delay_slots` can only fill a call's
+   slot.** Its eligibility test is guarded by `target == 0`, and `target` is
+   set to `JUMP_LABEL (insn)` for every jump. Modeling it as available to
+   branches silently steals every eager thread fill.
+3. **A call does not reference memory** with delayed effects off — `case CALL:`
+   in `resource.c` says the first operand "doesn't really reference memory" —
+   which is why a store lands in a call's delay slot.
+4. **Only length-1 instructions enter a delay slot.** cc1 declares length 2 for
+   a bare-symbol memory reference, so a gp-relative access is never a slot
+   candidate however conflict-free it looks.
+
+Two defects found and fixed in existing tools while building this:
+`classifyRtlEmission` counted every call and the `(return)` as zero-width
+(no `(set `, a `(clobber)` present), which shifted `emission-alignment`'s
+fallback; and the shared register table spells hard register 30 `fp` while
+objdump spells it `s8`, so a frame pointer's definitions and uses were
+invisible to every web analysis that read a disassembly.
+
+The interesting negative result: reordering two uninitialized local
+declarations never changed a byte in any function tried. GCC 2.95 numbers
+pseudos by first use in the RTL, not by declaration order, so the
+declaration-order lattice is not a lever on its own.
+
+## Status — the iteration metric, 2026-08-15
+
+Second change, same day: the byte score is no longer what an iteration
+hill-climbs on. `tools/agent/pipeline-reversal/objective.ts` derives a staged,
+per-block residual from the waypoint comparison, and
+`tools/agent/residualObjective.ts` scores and ranks candidate sources on it.
+
+```
+key = [control-flow, population, schedule, allocation]   lexicographic, lower better
+```
+
+Wired into every place that ranked variants: the variant laboratory, the shape
+searcher, and the autonomous loop's per-turn report. `diffFunc` keeps the
+terminal MATCH verdict and loses the ranking job.
+
+Demonstrated on func_80020E58: a variant that hoists the length computation
+into a local scores 222/260 matching words against the baseline's 220/263 — two
+words better — while moving from `sched 10 alloc 35` to `sched 12 alloc 32`,
+which is further from the target on the causally prior term. A byte-score loop
+accepts it and locks in a worse schedule. The objective calls it `traded` and
+keeps it as a branch rather than the new baseline.
+
+Three verdicts exist for reasons worth keeping: `traded` because the staged
+ordering is a claim about causality, not a certainty, so a caller sees the
+exchange rate instead of a flat "worse"; `identical` because CSE collapses most
+re-spellings of a value and a loop that counts them as experiments never
+terminates (the experiment-ledger item of the gaps plan, now enforced); and
+`degraded` because a control-flow difference means "block 6" does not name the
+same code on both sides.
+
+`diffFunc` is no longer a registered tool. Its two jobs now belong to tools
+that do each of them better: `psx_residual_objective` for the per-edit
+measurement, `psx_finalize_function` for the terminal gate. The CLI remains and
+the build, gates and loop still shell out to it; the exclusion and its reason
+live in `UNEXPOSED_CLIS`, and a test asserts that every unexposed CLI exists,
+is not also registered, and carries a real reason. Losing the tool would have
+lost two signals, so both were added first: undetermined words now have their
+own column and a loud line in the reversal report, and `reversePipeline --block
+N` prints a block target-beside-candidate for when the decisions are not enough
+or the chain reports itself degraded.
+
+`rankBlocks` automates the attack order a human would pick: population first,
+then payoff over difficulty, where payoff counts every block sharing the same
+residual signature. On func_80020E58 it independently reproduces the order a
+hand analysis chose — block 6 first because block 8 is the same problem, then
+block 3, then the 72-instruction block 2 last.
+
+One more defect found and fixed while measuring: dropped call-clobber webs kept
+their pre-filter ids, which aliased live webs and mis-attributed allocation
+differences across blocks. The reported allocation residual for func_80020E58
+moved from 32 to 34 once the aliasing was gone.
+
 ## Build order
 
 1. Lifter: bytes → dependency-annotated RTL (webs, deps, relocs, CFG) —

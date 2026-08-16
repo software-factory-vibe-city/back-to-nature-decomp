@@ -83,7 +83,13 @@ export interface RtlEmission {
   uid: number;
   stage: string;
   classification: EmissionClass;
-  reason: "recognized-machine-pattern" | "empty-volatile-asm" | "use-or-clobber" | "unknown-pattern";
+  reason:
+    | "recognized-machine-pattern"
+    | "empty-volatile-asm"
+    | "use-or-clobber"
+    | "jump-table-data"
+    | "scheduling-blockage"
+    | "unknown-pattern";
   confidence: TraceConfidence;
   evidence: string[];
 }

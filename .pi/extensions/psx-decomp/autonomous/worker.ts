@@ -35,7 +35,7 @@ function promptFor(options: WorkerOptions): string {
   if (!options.functionName) throw new Error(`${options.mode} requires a function name`);
   if (options.mode === "targeted-refinement") return `/skill:psx-refine-function Target: ${options.functionName}.`;
   if (options.continueSession) {
-    return `Continue matching ${options.functionName}. The deterministic supervisor rejected the previous result. Re-run the exact diff and clean-source checks, classify the remaining mismatch, and continue without forbidden workarounds.`;
+    return `Continue matching ${options.functionName}. The deterministic supervisor rejected the previous result. Re-run psx_residual_objective and the clean-source checks, re-derive which pass owns the remaining residual with psx_reverse_pipeline, and continue without forbidden workarounds.`;
   }
   const handoff = options.handoff ? ` Prior deterministic evidence: ${options.handoff}` : "";
   return `/skill:psx-decompile-function Target: ${options.functionName}. Mode: resume/fix if clean C exists, otherwise fresh decompilation. Work only on this function and do not commit.${handoff}`;

@@ -75,6 +75,12 @@ full verification gate before reporting success. A generated binary match does
 not excuse forbidden source constructs, out-of-scope edits, or hand-edited
 generated files.
 
+While iterating on one function, the narrowest check is the staged residual,
+not a byte score. A byte score is not a distance — an edit that fixes the cause
+of a difference rotates everything downstream of it and can match fewer words
+while standing closer — so it ranks a lucky register assignment above a fixed
+cause. Measure every edit, and measure it with the residual.
+
 When a verification step fails, continue from its concrete output or restore
 the last known-good state. Do not leave unrelated source broken to preserve an
 experiment.
