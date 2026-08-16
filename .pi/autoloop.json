@@ -3,13 +3,13 @@
     {
       "provider": "qwen36-llama",
       "model": "qwen3.8-27b",
-      "thinking": "low",
+      "thinking": "off",
       "label": "qwen3.8-27b (local)"
     },
     {
       "provider": "qwen36-llama",
       "model": "qwen3.8-27b",
-      "thinking": "xhigh",
+      "thinking": "medium",
       "label": "qwen3.8-27b (local)"
     },
     {
@@ -25,7 +25,7 @@
       "label": "gpt-5.6-sol"
     }
   ],
-  "returnsPerTier": 2,
+  "returnsPerTier": 1,
   "maxFunctions": 50,
   "clearContextBetween": true,
   "handoffSummary": true,
