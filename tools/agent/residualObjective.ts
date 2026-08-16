@@ -18,9 +18,11 @@
  *   npx tsx tools/agent/residualObjective.ts <function> --dir build/variants --block 6
  */
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { ROOT, normalizeFunctionName } from "./decompToolchain.js";
+import { ROOT, normalizeFunctionName, resolveSource } from "./decompToolchain.js";
+import { type EnsuredArtifact, projectPath, renderProvenance } from "./provenance.js";
+import { priorMeasurement, recordExperiment } from "./experimentLedger.js";
 import { createHash } from "node:crypto";
 import {
   compareObjectives,
@@ -46,6 +48,8 @@ interface Entry {
    * a loop that counts them separately never terminates.
    */
   objectHash: string;
+  /** What the scored object was derived from, and whether it was rebuilt. */
+  provenance: EnsuredArtifact<{ object: string; source: string }>;
 }
 
 interface CliOptions {
@@ -109,6 +113,7 @@ function score(functionName: string, label: string, source?: string): Entry {
     objectHash: createHash("sha256")
       .update(artifacts.candidate.machine.insns.map((insn) => (insn.word ?? 0).toString(16)).join(","))
       .digest("hex"),
+    provenance: artifacts.candidateProvenance,
   };
   if (source) entry.source = source;
   return entry;
@@ -220,14 +225,59 @@ function render(functionName: string, entries: Entry[], block: number | undefine
     }
   }
   if (best.objective.degraded) lines.push(`DEGRADED: ${best.objective.reason}`);
+  lines.push("");
+  lines.push(renderProvenance(entries.map((entry) => ({ label: entry.label, ensured: entry.provenance }))));
   return lines.join("\n");
+}
+
+/**
+ * Record each scored row and report any that repeats earlier work.
+ *
+ * The warning matters more than the record. A variant that compiles to words
+ * already measured is not a new experiment however differently it is spelled,
+ * and the sessions this ledger exists for spent turns discovering that by hand
+ * — after paying for the compile and, worse, after building a story about what
+ * the edit would do.
+ */
+function recordAndWarn(functionName: string, entries: Entry[]): string {
+  const at = new Date().toISOString();
+  const lines: string[] = [];
+  for (const entry of entries) {
+    const sourcePath = entry.source ?? resolveSource(functionName);
+    const sourceText = readFileSync(sourcePath, "utf8");
+    const prior = priorMeasurement(functionName, sourceText, entry.objectHash);
+    if (prior.sameOutput && prior.sameOutput.sourceHash !== prior.sameSource?.sourceHash) {
+      lines.push(`  ${entry.label} compiles to words already measured on ${prior.sameOutput.at.slice(0, 10)} ` +
+        `from ${prior.sameOutput.source} — same experiment, different spelling`);
+    }
+    recordExperiment({
+      functionName,
+      source: sourcePath,
+      sourceText,
+      outputHash: entry.objectHash,
+      objective: entry.objective,
+      matchedWords: entry.matchedWords,
+      totalWords: entry.totalWords,
+      verdict: entry === entries[0] ? "baseline" : "scored",
+      at,
+    });
+  }
+  const ledgerLine = `  recorded in build/experimentLedger/${functionName}.jsonl (psx_experiment_ledger to read it)`;
+  return lines.length > 0
+    ? ["ALREADY MEASURED", ...lines, "", ledgerLine].join("\n")
+    : ledgerLine;
 }
 
 const isCLI = process.argv[1]?.endsWith("residualObjective.ts");
 if (isCLI) {
   try {
     const options = parseCli(process.argv.slice(2));
-    const entries: Entry[] = [score(options.functionName, "baseline")];
+    /* The baseline row is labelled with the file it measured, not "baseline".
+     * A row that names no source reads as "the current state" whatever it was
+     * actually derived from, which is how a stale object went unnoticed for a
+     * day of iteration. */
+    const baselineSource = projectPath(resolveSource(options.functionName));
+    const entries: Entry[] = [score(options.functionName, baselineSource)];
     options.sources.forEach((source, index) => {
       entries.push(score(options.functionName, `v${index + 1}:${source.split("/").pop()}`, source));
     });
@@ -241,10 +291,19 @@ if (isCLI) {
           matchedWords: entry.matchedWords,
           totalWords: entry.totalWords,
           objective: entry.objective,
+          provenance: {
+            derivedFrom: entry.provenance.value.source,
+            regenerated: entry.provenance.regenerated,
+            fingerprint: entry.provenance.provenance.fingerprint,
+          },
         })),
         work: rankBlocks(entries[0]!.objective),
       }, null, 2));
-    } else console.log(render(options.functionName, entries, options.block));
+    } else {
+      console.log(render(options.functionName, entries, options.block));
+      console.log("");
+      console.log(recordAndWarn(options.functionName, entries));
+    }
   } catch (error) {
     console.error(`residualObjective: ${error instanceof Error ? error.message : error}`);
     process.exitCode = 1;

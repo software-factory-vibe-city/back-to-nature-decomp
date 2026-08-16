@@ -12,6 +12,7 @@ import { join, relative } from "node:path";
 import { analyzeTargetSchedule } from "./analyzeTargetSchedule.js";
 import {
   ROOT,
+  configuredToolchainIdentity,
   normalizeFunctionName,
   resolveSource,
 } from "./decompToolchain.js";
@@ -101,17 +102,34 @@ function implementationHash(): string {
   return sha256(files.map((path) => `${relative(ROOT, path)}:${sha256File(path)}`).join("\n"));
 }
 
-function findSearchSummary(functionName: string, specPath: string): string | undefined {
+/**
+ * The search run for *this* source and toolchain, not merely for this spec.
+ *
+ * Matching on the spec path alone returned whichever run sorted last among
+ * every run that had ever used that spec, and its candidate lists then fed the
+ * synthesis as though they described the current source. The manifest records
+ * the base source and toolchain it was produced from; both must agree.
+ */
+function findSearchSummary(functionName: string, specPath: string, baseSourcePath: string): string | undefined {
   const root = join(ROOT, "build/sourceShapeSearch", functionName);
   if (!existsSync(root)) return undefined;
-  const expected = projectPath(specPath);
+  const expectedSpec = projectPath(specPath);
+  const expectedSource = sha256File(baseSourcePath);
+  const expectedToolchain = sha256(stableJson(configuredToolchainIdentity()));
   for (const name of readdirSync(root).sort().reverse()) {
     const manifestPath = join(root, name, "search-manifest.json");
     const summaryPath = join(root, name, "summary.json");
     if (!existsSync(manifestPath) || !existsSync(summaryPath)) continue;
     try {
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { specPath?: string };
-      if (manifest.specPath === expected) return summaryPath;
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+        specPath?: string;
+        baseSourceHash?: string;
+        toolchainHash?: string;
+      };
+      if (manifest.specPath !== expectedSpec) continue;
+      if (manifest.baseSourceHash !== expectedSource) continue;
+      if (manifest.toolchainHash !== expectedToolchain) continue;
+      return summaryPath;
     } catch {
       continue;
     }
@@ -204,7 +222,7 @@ async function main(): Promise<void> {
       if (result.error || result.status !== 0) {
         status = "search-failed";
       } else {
-        const found = findSearchSummary(options.functionName, specPath);
+        const found = findSearchSummary(options.functionName, specPath, sourcePath);
         if (found) {
           searchSummaryPath = found;
           const search = JSON.parse(readFileSync(found, "utf8")) as {

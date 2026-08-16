@@ -1,11 +1,32 @@
 import type { ResidualReading } from "../autonomous/gates.ts";
 import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import type { HandoffSummary } from "./types.ts";
+import { readLedger } from "../../../../tools/agent/experimentLedger.ts";
 
 export const DECOMPILE_SKILL = "psx-decompile-function";
 
-/** The nudge the loop sends on every return that is not yet a match. */
-export const KEEP_GOING = "keep going, there is clean c that will match this function 100%";
+/**
+ * The nudge the loop sends on every return that is not yet a match.
+ *
+ * It states the protocol rather than offering encouragement. A turn told only
+ * to keep going will often spend most of its context reasoning forward from the
+ * last report — building a chain about what the compiler would do, several
+ * unmeasured steps deep, before making any edit at all. Naming the four steps
+ * each time costs a few lines and is the difference between a turn that
+ * produces a measurement and one that produces an argument.
+ */
+export const KEEP_GOING = [
+  "Keep going — there is clean C that matches this function 100%.",
+  "",
+  "One turn is one experiment:",
+  "1. OBSERVE — run one tool. Three bullets of what it printed. No inference.",
+  "2. HYPOTHESISE — one sentence: <edit> should lower <term> in block <n>, because <mechanism>.",
+  "   If you cannot fill every slot from step 1, observe once more, then stop.",
+  "3. ACT — make that one edit and nothing else.",
+  "4. MEASURE — psx_residual_objective. The turn ends here.",
+  "",
+  "Do not plan the next edit while reading this one's result.",
+].join("\n");
 
 /**
  * What the turn is told about where it stands.
@@ -15,6 +36,40 @@ export const KEEP_GOING = "keep going, there is clean c that will match this fun
  * to work next, and unlike the word count it goes down when the source moves
  * toward the target rather than when the registers happen to line up.
  */
+/**
+ * Whether the last few measurements moved the residual at all.
+ *
+ * Read from the ledger rather than from loop state, because the ledger is what
+ * survives a context clear and a model change. Three measurements with no
+ * improvement is the point at which re-spelling the same axis stops being
+ * search and starts being repetition.
+ */
+function stallLine(functionName: string): string | undefined {
+  const entries = readLedger(functionName);
+  if (entries.length < 4) return undefined;
+
+  const better = (left: number[], right: number[]): boolean => {
+    for (let index = 0; index < Math.max(left.length, right.length); index++) {
+      const difference = (left[index] ?? 0) - (right[index] ?? 0);
+      if (difference !== 0) return difference < 0;
+    }
+    return false;
+  };
+
+  const recent = entries.slice(-3);
+  const earlier = entries.slice(0, -3);
+  const bestEarlier = earlier.reduce((best, entry) => (better(entry.key, best) ? entry.key : best), earlier[0]!.key);
+  if (recent.some((entry) => better(entry.key, bestEarlier))) return undefined;
+
+  return `STALLED: the last ${recent.length} measurements did not improve on [${bestEarlier.join(", ")}]. ` +
+    "The axis is exhausted, not the function — stop re-spelling it and bring heavier evidence. " +
+    "Enumerate the source space (psx_search_residual_source_space, psx_search_source_shapes), " +
+    "solve for the compiler state instead of modelling it (psx_solve_local_allocation, " +
+    "psx_search_scheduler_state, psx_allocator_counterfactual), or read the deciding pass " +
+    "directly (psx_compiler_source). A solver result is a specification for a source shape, " +
+    "and an UNSAT is a real finding that closes a direction. Record what each one closed.";
+}
+
 export function matchReport(diff: DiffResult, residual?: ResidualReading | null): string {
   const lines = [
     `Oracle: ${diff.functionName} verdict ${diff.verdict.toUpperCase()} — ${diff.matchedInstructions}/${diff.totalInstructions} words (${diff.matchPercent}%).`,
@@ -45,7 +100,10 @@ export function matchReport(diff: DiffResult, residual?: ResidualReading | null)
         lines.push(`Fixing it should also close block ${next.duplicates.join(", ")}.`);
       }
     }
-    lines.push("Run `npx tsx tools/agent/reversePipeline.ts " + diff.functionName + "` for the decisions and their source levers, and `residualObjective.ts` with --source to rank candidate edits.");
+    lines.push("`psx_reverse_pipeline` gives the decisions, their source levers and the mechanism sheet to load; " +
+      "`psx_residual_objective` with a source ranks candidate edits and records them.");
+    const stalled = stallLine(diff.functionName);
+    if (stalled) lines.push("", stalled);
   }
   return lines.join("\n");
 }

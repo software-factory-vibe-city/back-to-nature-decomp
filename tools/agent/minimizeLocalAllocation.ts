@@ -6,7 +6,7 @@ import { assembleTarget, normalizeFunctionName, resolveSource, ROOT } from "./de
 import { buildDiagnosticCompiler } from "./compiler-oracle/build.js";
 import { replayLocalAllocation, type LocalAllocationReplay } from "./compiler-oracle/local-allocation.js";
 import { compileOracleVariant, deriveOracleInterventions, instructionComparison } from "./compiler-oracle/run.js";
-import type { AllocatorCounterfactualAnalysis } from "./allocator-counterfactual/types.js";
+import { ensureAllocatorCounterfactual } from "./compiler-oracle/ensure.js";
 import type { CompilerOracleEvent, CompilerOracleInterventions, ForbiddenLocalCandidate, ForcedLocalAssignment } from "./compiler-oracle/types.js";
 
 interface IterationResult {
@@ -43,10 +43,11 @@ const name = args.find((arg) => !arg.startsWith("--"));
 if (!name) usage();
 const functionName = normalizeFunctionName(name);
 const source = resolveSource(functionName);
-const allocatorPath = join(ROOT, "build/allocatorCounterfactual", functionName, "analysis.json");
-if (!existsSync(allocatorPath)) throw new Error(`Missing ${rel(allocatorPath)}`);
-const allocator = JSON.parse(readFileSync(allocatorPath, "utf8")) as AllocatorCounterfactualAnalysis;
-const derived = deriveOracleInterventions(allocator);
+/* The allocator counterfactual is produced here when it is not current for the
+ * source on disk. This tool used to throw `Missing build/allocatorCounterfactual
+ * /<fn>/analysis.json`, which named a path rather than the tool that writes it. */
+const allocator = ensureAllocatorCounterfactual(functionName);
+const derived = deriveOracleInterventions(allocator.value);
 const requests = derived.forcedLocalAssignments;
 const compiler = buildDiagnosticCompiler(args.includes("--force-build"));
 const runId = createHash("sha256").update(JSON.stringify({

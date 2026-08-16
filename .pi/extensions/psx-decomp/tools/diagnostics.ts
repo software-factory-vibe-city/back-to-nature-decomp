@@ -61,6 +61,15 @@ function functionTool(
  * reason, so an exclusion cannot be a silent omission.
  */
 export const UNEXPOSED_CLIS: Record<string, string> = {
+  getPrompt:
+    "A legacy prompt builder for the archived templates under prompts/legacy/, which " +
+    "no active workflow dispatches — the Pi commands and the autonomous workers run " +
+    ".pi/skills/ directly. Exposing it did two kinds of harm. It inlines the whole C " +
+    "style guide into its output, so one call spends tens of thousands of tokens on " +
+    "context the caller already has, against a template nothing else uses. And it is " +
+    "stateful in the way this repository is removing: it needs build/callGraph.json " +
+    "and tells the caller to run callGraph.ts first. The CLI stays for manual and " +
+    "historical reproduction; it is not something an agent should be able to reach for.",
   diffFunc:
     "Two better tools split its job. `psx_residual_objective` gives the same MATCH " +
     "verdict from the same oracle at the same cost, plus a residual that is a distance " +
@@ -268,6 +277,10 @@ export const TOOL_SPECS: ToolSpec[] = [
   ),
 
   functionTool(
+    "psx_experiment_ledger", "PSX Experiment Ledger", "experimentLedger.ts",
+    "Every measurement already taken on this function: the source, the staged residual key, and the compiled-output hash. Read it BEFORE forming a hypothesis — it says which levers are closed and, more usefully, which distinct-looking sources compile to the same words and are therefore the same experiment. `psx_residual_objective` appends to it automatically, so it is the session-to-session memory the research notes could not be.",
+  ),
+  functionTool(
     "psx_residual_objective", "PSX Residual Objective", "residualObjective.ts",
     "Score candidate sources on the staged, per-block residual and rank them. This is the iteration metric: the byte score is not a distance, so an edit that fixes the cause of a difference rotates the register assignment downstream and scores worse while moving closer. Verdicts are better / worse / traded (lost an earlier term, won a later one — keep as a branch) / same / identical (byte-identical output, not a new experiment) / EXACT. It also names the block to work next and which other blocks one fix should close. Use `diffFunc` for the terminal MATCH verdict, never for choosing between variants.",
     { extra: {
@@ -282,6 +295,22 @@ export const TOOL_SPECS: ToolSpec[] = [
         ...(p.json ? ["--json"] : [])],
       timeout: 900_000 },
   ),
+
+  /* ---- doctrine, served one sheet at a time ---- */
+  {
+    name: "psx_reference",
+    label: "PSX Reference Sheet",
+    script: "reference.ts",
+    description:
+      "One mechanism sheet from the matching doctrine, chosen by the pass that owns the residual. Call with no topic to list the sheets and what each answers; call with `population`, `schedule`, `allocation`, `declarations`, `flags`, `sdk` or `stuck` — or with a residual owner the pipeline reversal printed, such as `greg` or `sched2`, which resolves to the right sheet. Load the sheet the evidence points at and only that one: the doctrine used to be a single mandatory file, and reading all of it spent context on passes that did not own the residual.",
+    parameters: Type.Object({
+      topic: Type.Optional(Type.String({
+        description: "Sheet name or residual owner. Omit to list the sheets.",
+      })),
+    }),
+    argv: (p) => (p.topic ? [p.topic as string] : []),
+    timeout: 30_000,
+  },
 
   /* ---- policy and prompts ---- */
   {
@@ -315,10 +344,6 @@ export const TOOL_SPECS: ToolSpec[] = [
     argv: (p) => p.paths as string[],
     timeout: 120_000,
   },
-  functionTool(
-    "psx_get_prompt", "PSX Get Prompt", "getPrompt.ts",
-    "Print the assembled decompilation prompt and context for one function.",
-  ),
 ];
 
 export function registerDiagnosticTools(pi: ExtensionAPI): void {

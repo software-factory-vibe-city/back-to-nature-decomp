@@ -794,7 +794,9 @@ Read the relevant note before you change anything fundamental.
 | `thoughts-on-automated-decomp.md` | The design of the agent pipeline |
 | `decompilation-tooling-ideas.md` | Observability tools, their use, and their limits |
 
-`prompts/c-style-guide.md` holds the matching rules. Read it before you write
+`prompts/c-style-guide.md` holds the always-applicable matching rules; the
+per-pass mechanism sheets are in `prompts/reference/`, served by `psx_reference`
+when the pipeline reversal names the owning pass. Read the guide before you write
 C for this project.
 
 ## Rules

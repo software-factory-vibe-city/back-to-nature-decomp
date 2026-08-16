@@ -212,13 +212,21 @@ function rejectedAssignments(events: CompilerOracleEvent[]): ForcedLocalAssignme
     }))), (item) => `${item.pseudo}:${item.hardRegister}`);
 }
 
-export function runCompilerOracle(functionName: string, options: { forceBuild?: boolean } = {}): CompilerOracleReport {
+export function runCompilerOracle(
+  functionName: string,
+  options: { forceBuild?: boolean; analysis?: AllocatorCounterfactualAnalysis } = {},
+): CompilerOracleReport {
   const source = resolveSource(functionName);
   const analysisPath = join(ROOT, "build/allocatorCounterfactual", functionName, "analysis.json");
-  if (!existsSync(analysisPath)) {
-    throw new Error(`Allocator analysis not found: ${relativePath(analysisPath)}; run analyzeAllocatorCounterfactual.ts first`);
-  }
-  const analysis = JSON.parse(readFileSync(analysisPath, "utf8")) as AllocatorCounterfactualAnalysis;
+  /* Callers reach this through `ensureCompilerOracleReport`, which produces the
+   * allocator counterfactual and hands it over. The file read is the fallback
+   * for a direct call; neither path asks the caller to run a tool first. */
+  const analysis = options.analysis ?? (() => {
+    if (!existsSync(analysisPath)) {
+      throw new Error(`Allocator analysis not found: ${relativePath(analysisPath)}`);
+    }
+    return JSON.parse(readFileSync(analysisPath, "utf8")) as AllocatorCounterfactualAnalysis;
+  })();
   const interventions = deriveOracleInterventions(analysis);
   const diagnostic = buildDiagnosticCompiler(options.forceBuild);
   const productionCompiler = configuredCompilerPath();
@@ -274,6 +282,7 @@ export function runCompilerOracle(functionName: string, options: { forceBuild?: 
     schemaVersion: COMPILER_ORACLE_SCHEMA_VERSION,
     function: functionName,
     source: relativePath(source),
+    runDirectory: relativePath(runDirectory),
     diagnosticCompiler: relativePath(diagnostic.compiler),
     diagnosticCompilerSha256: sha256File(diagnostic.compiler),
     productionCompilerSha256: sha256File(productionCompiler),

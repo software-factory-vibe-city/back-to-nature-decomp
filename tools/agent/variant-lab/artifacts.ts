@@ -1,51 +1,19 @@
-import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { copyFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { ROOT } from "../decompToolchain.js";
+import { implementationHash, projectPath, sha256, sha256File, stableJson, writeStableJson } from "../provenance.js";
 import type { ResolvedVariantHypothesis, ToolIdentity, VariantRunManifest, VariantRunSummary } from "./types.js";
 
-export function sha256(data: string | Buffer): string {
-  return createHash("sha256").update(data).digest("hex");
-}
-
-export function sha256File(path: string): string {
-  return sha256(readFileSync(path));
-}
-
-export function stableValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stableValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, child]) => [key, stableValue(child)]),
-    );
-  }
-  return value;
-}
-
-export function stableJson(value: unknown): string {
-  return `${JSON.stringify(stableValue(value), null, 2)}\n`;
-}
-
-export function writeStableJson(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, stableJson(value));
-}
-
-export function projectPath(path: string): string {
-  if (!isAbsolute(path)) return path.replace(/\\/g, "/");
-  const related = relative(ROOT, path).replace(/\\/g, "/");
-  return related.startsWith("../") ? path : related;
-}
+/* The hashing and stable-JSON primitives live in ../provenance.ts, which owns
+ * artifact freshness for every tool. They are re-exported here so this module's
+ * existing callers keep their import site. */
+export { projectPath, sha256, sha256File, stableJson, stableValue, writeStableJson } from "../provenance.js";
 
 export function variantLabImplementationHash(): string {
-  const directory = join(ROOT, "tools/agent/variant-lab");
-  const paths = [
+  return implementationHash([
     join(ROOT, "tools/agent/fuzzVariants.ts"),
-    ...readdirSync(directory).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts")).sort().map((name) => join(directory, name)),
-  ];
-  return sha256(paths.map((path) => `${relative(ROOT, path)}:${sha256File(path)}`).join("\n"));
+    join(ROOT, "tools/agent/variant-lab"),
+  ]);
 }
 
 export function deterministicRunId(options: {

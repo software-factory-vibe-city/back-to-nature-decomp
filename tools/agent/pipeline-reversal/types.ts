@@ -181,6 +181,17 @@ export interface Decision {
   id: string;
   /** The pass that owns the choice. */
   stage: WaypointName;
+  /**
+   * How firmly the stage is established.
+   *
+   * `exact` when the waypoints decide it. `inferred` when they do not: a block
+   * whose order *and* allocation both differ is equally consistent with a
+   * sched1 reordering that displaced the allocation and with a sched2 movement
+   * that the allocation caused, and this comparison cannot separate them.
+   * Reporting the second case as `sched` sent readers at statement-order levers
+   * that cannot reach a post-reload placement.
+   */
+  confidence: Confidence;
   location: string;
   summary: string;
   /** What in the source could move this decision. */

@@ -6,6 +6,7 @@
  * checks that say how much the ladder can be trusted, then the sites.
  */
 
+import { resolveSheet } from "../reference.js";
 import { summarizeObjective } from "./objective.js";
 import type { MirProgram, ReversalReport } from "./types.js";
 
@@ -63,6 +64,11 @@ export function renderReversal(report: ReversalReport): string {
   lines.push(`RESIDUAL OWNER: ${report.residualOwner}`);
   if (report.firstDivergence) {
     lines.push(`  oldest disagreeing waypoint: ${report.firstDivergence.stage} (${report.firstDivergence.detail})`);
+    /* Name the sheet as well as the pass. The doctrine is split by owning pass
+     * precisely so a caller loads one sheet instead of the whole guide, and it
+     * only works if the tool that knows the pass says which sheet that is. */
+    const sheet = resolveSheet(report.firstDivergence.stage);
+    if (sheet) lines.push(`  mechanism sheet: psx_reference ${sheet}`);
   }
 
   if (report.replay.length > 0) {
@@ -91,9 +97,25 @@ export function renderReversal(report: ReversalReport): string {
     lines.push("DECISIONS: none — nothing has to change.");
   } else {
     lines.push(`DECISIONS: ${report.decisions.length} independent choice(s) account for the whole residual`);
+
+    /* The round trip is the licence for everything below it. When the backward
+     * chain cannot be replayed against the compiler's own dumps, the mach
+     * waypoint is partly reconstruction, and every scheduling decision derived
+     * from it inherits that. Printing the failure above the list and saying
+     * nothing here let a full-confidence decision list stand on a reconstruction
+     * the tool had already reported as unreliable. */
+    const diverged = report.replay.filter((check) => check.status === "diverged");
+    if (diverged.length > 0) {
+      lines.push("  PROVISIONAL: the round trip did not reproduce the compiler's own chain " +
+        `(${diverged.map((check) => check.subject).join("; ")}).`);
+      lines.push("  Treat the ordering decisions below as reconstructed, and confirm one against " +
+        "the .sched log before spending a turn on it.");
+    }
+
     report.decisions.forEach((decision, position) => {
       lines.push("");
-      lines.push(`  ${position + 1}. [${decision.stage}] ${decision.location}`);
+      const qualifier = decision.confidence === "exact" ? "" : ` ${decision.confidence}`;
+      lines.push(`  ${position + 1}. [${decision.stage}${qualifier}] ${decision.location}`);
       lines.push(`     ${decision.summary}`);
       if (decision.affectedVram.length > 0) {
         const shown = decision.affectedVram.slice(0, 6).map((vram) => `0x${vram.toString(16).toUpperCase()}`).join(" ");

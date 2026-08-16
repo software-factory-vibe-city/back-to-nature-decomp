@@ -74,6 +74,8 @@ export interface CompilerOracleReport {
   schemaVersion: typeof COMPILER_ORACLE_SCHEMA_VERSION;
   function: string;
   source: string;
+  /** Project-relative run directory, so the report locates its own artifacts. */
+  runDirectory: string;
   diagnosticCompiler: string;
   diagnosticCompilerSha256: string;
   productionCompilerSha256: string;

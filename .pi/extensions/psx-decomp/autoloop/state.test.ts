@@ -59,5 +59,12 @@ test("the first tier opens a fresh decompilation and every later tier resumes th
 test("every non-matching return carries the same nudge", () => {
   assert.ok(nudgeMessage("report").startsWith(KEEP_GOING));
   assert.ok(escalationMessage("func_80012345", "kimi-k3", "report").includes(KEEP_GOING));
-  assert.equal(KEEP_GOING, "keep going, there is clean c that will match this function 100%");
+  /* The nudge states the four-step protocol, not just encouragement: a turn told
+   * only to keep going spends its context reasoning forward from the last
+   * report instead of producing a measurement. */
+  assert.match(KEEP_GOING, /there is clean C that matches this function 100%/);
+  assert.match(KEEP_GOING, /One turn is one experiment/);
+  for (const step of ["OBSERVE", "HYPOTHESISE", "ACT", "MEASURE"]) {
+    assert.match(KEEP_GOING, new RegExp(step), `the nudge must name the ${step} step`);
+  }
 });

@@ -84,6 +84,7 @@ export function reduceToDecisions(
     decisions.push({
       id: site.id,
       stage: "combine",
+      confidence: "exact",
       location: site.location,
       summary: site.description,
       levers: ["the source computes a different set of values; no later pass can add or remove an instruction"],
@@ -101,6 +102,7 @@ export function reduceToDecisions(
     decisions.push({
       id: `coalesce:${copy.side}:${copy.insnIndex}`,
       stage: "lreg",
+      confidence: "exact",
       location: `block ${insn?.block ?? "?"}: ${copy.text}`,
       summary: `${other} coalesced this copy away; the ${copy.side} kept it`,
       levers: [
@@ -135,6 +137,7 @@ export function reduceToDecisions(
       decisions.push({
         id: `sched:${block.block}:${move.key}`,
         stage: allocation ? "sched" : "sched2",
+        confidence: allocation ? "inferred" : "exact",
         location: `block ${block.block}: ${move.label}`,
         summary: `the target schedules it ${Math.abs(Math.round(delta))} position(s) ${direction} (target ${move.targetPositions.join("/")}, candidate ${move.candidatePositions.join("/")})`,
         levers: [
@@ -144,8 +147,11 @@ export function reduceToDecisions(
         ],
         evidence: [
           allocation
-            ? "this block's allocation also differs, so the reordering is present at sched1 — local-alloc runs before sched2 and could not otherwise see it"
-            : "this block's allocation agrees, so the reordering may be sched2 alone, which allocation never observes",
+            ? "this block's allocation also differs — the reordering is either a sched1 cause of that allocation or a sched2 consequence of it, and this comparison cannot tell them apart"
+            : "this block's allocation agrees, so the reordering is sched2 alone, which allocation never observes",
+          ...(allocation
+            ? ["read the candidate's .sched log before choosing a lever: if the sched1 order already matches the target here, the movement is post-reload and statement order will not reach it"]
+            : []),
         ],
         affectedVram: move.vram,
         consequences: allocation
@@ -160,6 +166,7 @@ export function reduceToDecisions(
     decisions.push({
       id: `alloc:${block}`,
       stage: "lreg",
+      confidence: "exact",
       location: `block ${block}`,
       summary: `${site.members.length} value(s) allocated differently with no reordering to explain it`,
       levers: [

@@ -53,8 +53,7 @@ instructions. It is not a function-decompilation prompt.
   names both, and says which headers are generated outputs that must never be
   hand-edited. A source file must, however, *define*
   (tentatively) every global whose translation unit it is — that is how
-  GP-relative addressing is expressed; see the style guide's small-data
-  section. A definition is not a redeclaration.
+  GP-relative addressing is expressed; see `psx_reference declarations`. A definition is not a redeclaration.
 - Preserve the clean-source policy. For ordinary compiled functions, embedded
   assembly, hard-register pinning, and new assembly stubs are not valid
   decompilation solutions. Honor only exceptions established by the active
@@ -64,7 +63,7 @@ instructions. It is not a function-decompilation prompt.
   witness): add the override with its evidence comment and the matching
   allowlist entry in the same change. Flags are per-TU facts of the original
   build, not hacks. Speculative flag-shopping without a fingerprint remains
-  forbidden. See the style guide's flag-hypothesis section.
+  forbidden. See `psx_reference flags`.
 - Keep edits scoped to the requested task. Do not opportunistically rewrite
   unrelated files.
 

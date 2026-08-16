@@ -6,11 +6,18 @@
  * The result is a located stage and a finite set of choices, not a fix.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import { compareFunction } from "../../lib/functionOracle.js";
 import { loadSymbolIndex } from "../../lib/symbolIndex.js";
 import { ROOT, compileSource, normalizeFunctionName, resolveSource } from "../decompToolchain.js";
+import {
+  type EnsuredArtifact,
+  ensureArtifact,
+  projectPath,
+  stamped,
+  writeStableJson,
+} from "../provenance.js";
 import { deriveBranchPoints, searchSpaceSize } from "./branch-points.js";
 import { compareProgramsAtWaypoint, type ProgramComparison } from "./compare.js";
 import { reduceToDecisions } from "./decisions.js";
@@ -31,8 +38,13 @@ import {
 
 export interface ReverseOptions {
   functionName: string;
-  /** Candidate object; defaults to the one `make` produced. */
+  /**
+   * Candidate object to read instead of compiling. An explicit override for
+   * comparing an object the tree cannot reproduce; its bytes are still
+   * fingerprinted, so the reading names what it read.
+   */
   objectPath?: string;
+  /** Source to compile. Defaults to `src/<function>.c`. */
   source?: string;
   outputDirectory?: string;
   /** Compile the source with `-da` and round-trip the chain against the dumps. */
@@ -43,6 +55,8 @@ export interface ReversalArtifacts {
   report: ReversalReport;
   /** The candidate object that was read, so a caller can hash it. */
   objectPath: string;
+  /** What the candidate object was derived from, and whether it was rebuilt. */
+  candidateProvenance: EnsuredArtifact<{ object: string; source: string }>;
   target: { machine: MirProgram; preDbr: MirProgram; webs: Web[] };
   candidate: { machine: MirProgram; preDbr: MirProgram; webs: Web[] };
   comparison: ProgramComparison;
@@ -65,20 +79,82 @@ function sameOrder(left: MirProgram, right: MirProgram): boolean {
   return left.insns.every((insn, index) => insn.shape === right.insns[index].shape);
 }
 
+/**
+ * The candidate object, compiled from the current source unless the caller
+ * named an object explicitly.
+ *
+ * Cached on the fingerprint of the source, the toolchain and the compile
+ * options, so a repeat call is free and a changed source is never reused. The
+ * cache can only make the call faster; it cannot change the answer.
+ */
+function ensureCandidateObject(
+  functionName: string,
+  outputDirectory: string,
+  options: ReverseOptions,
+): EnsuredArtifact<{ object: string; source: string }> {
+  if (options.objectPath) {
+    return ensureArtifact({
+      artifactPath: join(outputDirectory, "candidate-object.json"),
+      label: `candidate object ${projectPath(options.objectPath)}`,
+      functionName,
+      inputs: { files: [options.objectPath], values: { mode: "explicit-object" } },
+      produce: (provenance) => {
+        writeStableJson(
+          join(outputDirectory, "candidate-object.json"),
+          stamped({ object: projectPath(options.objectPath!), source: "(none — object supplied)" }, provenance),
+        );
+        return { object: options.objectPath!, source: "(none — object supplied)" };
+      },
+      read: () => ({ object: options.objectPath!, source: "(none — object supplied)" }),
+    });
+  }
+
+  const source = resolveSource(functionName, options.source);
+  const candidateDirectory = join(outputDirectory, "candidate");
+
+  return ensureArtifact({
+    artifactPath: join(outputDirectory, "candidate-object.json"),
+    label: `candidate object from ${projectPath(source)}`,
+    functionName,
+    inputs: {
+      files: [source],
+      values: { mode: "compiled" },
+      implementation: [join(ROOT, "tools/agent/decompToolchain.ts")],
+    },
+    produce: (provenance) => {
+      const artifacts = compileSource(source, candidateDirectory, functionName, { assemble: true });
+      writeStableJson(
+        join(outputDirectory, "candidate-object.json"),
+        stamped({ object: projectPath(artifacts.object), source: projectPath(source) }, provenance),
+      );
+      return { object: artifacts.object, source: projectPath(source) };
+    },
+    read: (stored) => {
+      const value = stored as { object?: string; source?: string };
+      /* A stamp whose object has since been removed is not a hit; throwing here
+       * makes `ensureArtifact` fall through and recompile. */
+      if (!value.object) throw new Error("stored candidate object has no path");
+      const absolute = isAbsolute(value.object) ? value.object : join(ROOT, value.object);
+      if (!existsSync(absolute)) throw new Error("stored candidate object is missing");
+      return { object: absolute, source: value.source ?? projectPath(source) };
+    },
+  });
+}
+
 export function reversePipeline(options: ReverseOptions): ReversalArtifacts {
   const functionName = normalizeFunctionName(options.functionName);
   const outputDirectory = options.outputDirectory ?? join(ROOT, "build/pipelineReversal", functionName);
   mkdirSync(outputDirectory, { recursive: true });
 
-  /* A source given without an object is compiled here, which is what makes a
-   * historical version of a function comparable: the residual of a source that
-   * no longer exists in the tree is exactly what a backtest needs to read. */
-  let objectPath = options.objectPath;
-  if (!objectPath && options.source) {
-    const artifacts = compileSource(options.source, join(outputDirectory, "candidate"), functionName, { assemble: true });
-    objectPath = artifacts.object;
-  }
-  const oracle = compareFunction(functionName, objectPath ? { objectPath } : {});
+  /* The candidate object is always derived from a source in this call. It is
+   * never read from `build/src`, which only `make` writes: a source edited
+   * since the last build would otherwise score as its previous self, and the
+   * reading would report a state nobody is in. Compiling a named source is
+   * also what makes a historical version comparable — the residual of a source
+   * that no longer exists in the tree is exactly what a backtest needs. */
+  const candidateProvenance = ensureCandidateObject(functionName, outputDirectory, options);
+  const objectPath = candidateProvenance.value.object;
+  const oracle = compareFunction(functionName, { objectPath });
   const index = loadSymbolIndex();
 
   const targetMachine = liftWords({ functionName, words: oracle.targetWords, index });
@@ -223,7 +299,8 @@ export function reversePipeline(options: ReverseOptions): ReversalArtifacts {
 
   return {
     report,
-    objectPath: objectPath ?? join(ROOT, "build/src", `${functionName}.c.o`),
+    objectPath,
+    candidateProvenance,
     target: { machine: targetMachine, preDbr: targetDbr.program, webs: targetAlloc.webs },
     candidate: { machine: candidateMachine, preDbr: candidateDbr.program, webs: candidateAlloc.webs },
     comparison,
