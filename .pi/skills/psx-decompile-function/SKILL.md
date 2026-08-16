@@ -11,18 +11,32 @@ from memory. Do not commit or create a worktree unless asked.
 
 ## The one rule
 
-**A turn is one experiment.** Observe, form one hypothesis, make one edit,
-measure it. The measurement ends the turn.
+**You do not stop until the function is byte-exact.**
 
-Everything below serves that. The failure this guards against is not a wrong
-edit — a wrong edit costs one cheap compile. It is a long chain of reasoning
-about what the compiler *would* do, built on an unmeasured step, that survives
-many edits before anything contradicts it. A compile takes under a second. Your
-reasoning does not.
+One *experiment* is one edit and one measurement. A session runs experiments
+back to back — ten, thirty, as many as it takes — and does not pause between
+them to summarise, check in, or report. There is no per-response budget of one
+experiment, and there is no such thing as a good stopping point that is not a
+match.
 
-## Open the session
+Two things end the work, and only two:
 
-Run these three, in this order, before touching source. Each is one call.
+- `psx_finalize_function` passes; or
+- you hit something only a human can decide — an allowlist entry, a policy
+  exception. Say which, and say it in one paragraph.
+
+"I classified the residual and identified the next experiment" is not a result.
+If you can name the next experiment, **you have time to run it**: the compile is
+under a second. Never write "next experiment, when resuming" — run it, measure
+it, and keep going.
+
+The single experiment is small for one reason only: attribution. Two edits and
+one measurement attribute to neither. That is a rule about *pairing*, never
+about pace.
+
+## Open the session — once
+
+Run these three, in this order, before touching source.
 
 1. `psx_experiment_ledger` — what has already been measured. Levers recorded
    here as closed are closed; sources listed as compiling to the same words are
@@ -36,21 +50,26 @@ Run these three, in this order, before touching source. Each is one call.
 If the target is a bare `INCLUDE_ASM` stub, generate a first source with
 `psx_m2c` and clean it before step 3 has anything to read.
 
-## The loop
+**This is the only classification pass you get.** The residual is now
+classified. From here, every diagnostic you run must be followed by an edit and
+a measurement before you run another one. A second and third read of the same
+report is not evidence-gathering, it is avoidance — the most common way this
+work fails is a beautifully argued classification with one measurement under it.
 
-Repeat until the residual is zero. The loop does not have a give-up condition:
-when an axis runs out, the next section says what to reach for instead.
+## The experiment
+
+Repeat continuously. There is no give-up condition: when an axis runs out, the
+next section says what to reach for instead.
 
 ### 1. OBSERVE — one tool
 
-Run exactly one tool. Write **at most three bullets**, each a fact the tool
-printed. No inference, no consequences, no plan. If you catch yourself writing
-"which means", you have left this step.
+Run one tool. Write **at most three bullets**, each a fact the tool printed. No
+inference, no consequences, no plan. If you catch yourself writing "which
+means", you have left this step.
 
-Three OBSERVE calls without an ACT is the ceiling. Reaching it means this class
-of evidence is not going to name the edit; measure the best-supported guess, or
-escalate to a heavier tool under "When it stalls". A measured wrong guess is
-worth more than a fourth reading of the same report.
+You may not run a second diagnostic without an intervening measurement. If the
+report you have does not name an edit, guess from the best evidence in it and
+measure the guess — a measured wrong guess is worth more than a fourth reading.
 
 ### 2. HYPOTHESISE — one sentence
 
@@ -63,20 +82,17 @@ The terms are the staged residual's, in pass order: control flow, population,
 schedule, allocation. A hypothesis that names no term and no block is not
 testable and does not count.
 
-If a slot will not fill, you do not have a hypothesis. Go back to OBSERVE once.
-If it still will not fill, the evidence you have is too weak for this residual —
-go to "When it stalls" and bring a heavier tool. Do not edit on a feeling and
-reverse-engineer the reason afterwards.
+If a slot will not fill, take the best-supported guess and measure it anyway, or
+go to "When it stalls" for a heavier tool. Do not edit on a feeling and
+reverse-engineer the reason afterwards, and do not stop.
 
 Consult the reference sheet for the owning pass only now, and only the one:
 `psx_reference population | schedule | allocation | declarations | flags | sdk`.
-It carries the mechanism that pass obeys and the source levers that reach it.
 
 ### 3. ACT — one edit
 
 Make the edit in the hypothesis. Nothing else — not a rename you noticed, not a
-comment, not a second idea that arrived while typing. Two edits and one
-measurement attribute to neither.
+comment, not a second idea that arrived while typing.
 
 ### 4. MEASURE — `psx_residual_objective`
 
@@ -86,19 +102,17 @@ the word count:
 | verdict | meaning | what to do |
 |---|---|---|
 | `better` | an earlier term fell | keep it; this is the new baseline |
-| `worse` | an earlier term rose | revert; record why in the ledger note |
+| `worse` | an earlier term rose | revert, and start the next experiment |
 | `traded` | lost an earlier term, won a later one | keep as a branch, not as the baseline |
 | `identical` | same compiled words | not an experiment; change axis, not spelling |
 | `EXACT` | bytes match | go to Finish |
 
-`ALREADY MEASURED` in the output means a previous session ran this experiment.
-Believe it and move on.
+`ALREADY MEASURED` means a previous session ran this experiment. Believe it and
+move on.
 
-### 5. RECORD
-
-The ledger appends automatically. The turn is over. Do not begin the next
-hypothesis in the same breath as reading this result — that is how an unmeasured
-chain starts.
+**Then immediately begin the next experiment.** The ledger appends by itself;
+there is nothing to write up. Do not narrate the result, do not restate the
+residual, do not plan two moves ahead — pick the next hypothesis and run it.
 
 ## When it stalls, go deeper — do not stop
 
@@ -151,7 +165,7 @@ in the ledger note, so the next session starts from it instead of re-deriving
 it. Park a function only when a human decision is required — an allowlist
 entry, a policy exception — never merely because it is hard.
 
-## What ends a turn badly
+## What wastes the session
 
 - **Batching.** Two edits, one diff. Both are now unattributable.
 - **Predicting instead of compiling.** Emission order, delay-slot occupancy and
@@ -160,6 +174,10 @@ entry, a policy exception — never merely because it is hard.
   frees the temp, so then…" — everything past the first unmeasured step is
   fiction.
 - **Reporting a number you did not just measure.**
+- **Stopping to report progress.** A status summary mid-search costs a
+  measurement and buys nothing; the ledger already has the history.
+- **Deferring a named experiment to a later session.** If you can describe
+  it, you can run it.
 - **Steering by the word count.** An edit that fixes a cause rotates everything
   downstream and can match fewer words while standing closer.
 
@@ -194,9 +212,20 @@ allowlist entry, and that is a human decision — file it, do not grant it.
 
 ## Reporting
 
-Report what you measured. If the function did not match, say so plainly with the
-residual key and the axes tried; do not present a partial result as a finish.
-If a step was skipped, say which.
+There is no progress report. The ledger holds every measurement with its
+residual key, so a written summary of where things stand duplicates it and costs
+an experiment.
+
+You write exactly one of two things, at the end:
+
+- **A match.** What `psx_finalize_function` verified.
+- **A human decision.** The one thing that needs deciding — an allowlist entry,
+  a policy exception — in a paragraph, with the residual key and the axes the
+  ledger shows as closed.
+
+Anything else means you stopped early. A classification with one measurement
+under it is not a result no matter how well argued; if the analysis is good
+enough to write down, it was good enough to test.
 
 ## Going deeper
 

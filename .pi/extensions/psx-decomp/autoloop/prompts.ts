@@ -16,16 +16,16 @@ export const DECOMPILE_SKILL = "psx-decompile-function";
  * produces a measurement and one that produces an argument.
  */
 export const KEEP_GOING = [
-  "Keep going — there is clean C that matches this function 100%.",
+  "Keep going — there is clean C that matches this function 100%, and you stop only when it does.",
   "",
-  "One turn is one experiment:",
+  "One experiment is one edit and one measurement:",
   "1. OBSERVE — run one tool. Three bullets of what it printed. No inference.",
   "2. HYPOTHESISE — one sentence: <edit> should lower <term> in block <n>, because <mechanism>.",
-  "   If you cannot fill every slot from step 1, observe once more, then stop.",
   "3. ACT — make that one edit and nothing else.",
-  "4. MEASURE — psx_residual_objective. The turn ends here.",
+  "4. MEASURE — psx_residual_objective, then start the next experiment immediately.",
   "",
-  "Do not plan the next edit while reading this one's result.",
+  "Run them back to back. Do not stop to summarise, and do not defer an experiment",
+  "you can already name — running it costs less than describing it.",
 ].join("\n");
 
 /**
@@ -121,11 +121,38 @@ export function findingsReport(findings: PolicyFinding[]): string {
     .join("\n");
 }
 
+/**
+ * The message that opens work on a function.
+ *
+ * It carries the protocol, because with `returnsPerTier` at 1 it is the only
+ * message an agent ever receives — `nudgeMessage` is sent from the second
+ * return onward and never fires. A protocol that lives only in the nudge is a
+ * protocol nothing reads.
+ *
+ * The pacing is stated here in the harness's own vocabulary. "Turn" means one
+ * assistant response to this harness and one loop iteration in the skill, and
+ * an agent that resolves the two the wrong way concludes it owes exactly one
+ * measurement — which is what happened: 30 minutes of work, one measurement, a
+ * classification report, and a named next experiment left unrun.
+ */
 export function openingMessage(functionName: string): string {
   return [
     `/skill:${DECOMPILE_SKILL} Target: ${functionName}. Mode: fresh decompilation.`,
     "Create an m2c draft only if the source is still an INCLUDE_ASM stub; never overwrite an existing clean-C attempt.",
-    "This turn runs inside an automated escalation loop: work until the function is byte-exact, then stop.",
+    "",
+    "Do not stop until the function is byte-exact and psx_finalize_function passes.",
+    "Run experiments back to back — one edit and one psx_residual_objective call each,",
+    "as many as it takes — without pausing to summarise, check in, or report progress.",
+    "The single-experiment rule is about attribution, never about pace: there is no",
+    "budget of one measurement, and no good stopping point short of a match.",
+    "",
+    "If you can name the next experiment, run it. A compile is under a second, so",
+    "'next experiment, when resuming' is always the wrong sentence — the run costs",
+    "less than writing that down. Classify once at the start; after that every",
+    "diagnostic must be followed by an edit and a measurement before the next one.",
+    "",
+    "Return only when the function is byte-exact, or when something genuinely needs a",
+    "human decision (an allowlist entry, a policy exception) — then say which, briefly.",
     "Do not commit, do not create a worktree, and do not edit files outside src/, include/, and configs/.",
   ].join(" ");
 }
@@ -210,8 +237,10 @@ export function escalationMessage(
   return [
     `/skill:${DECOMPILE_SKILL} Target: ${functionName}. Mode: resume/fix.`,
     `The previous escalation tier did not reach a match; you are now ${tierLabel}.`,
-    "Preserve the current clean-C attempt, classify its existing diff, and continue from there.",
-    "Re-derive the structural premises rather than trusting the previous tier's conclusions.",
+    "Preserve the current clean-C attempt, classify its existing diff once, and continue from there.",
+    "Re-derive the structural premises rather than trusting the previous tier's conclusions —",
+    "but read psx_experiment_ledger first: re-deriving a classification is warranted, re-running",
+    "an experiment it already records is not.",
     "",
     lastReport,
     ...(handoff ? ["", handoffBlock(handoff)] : []),

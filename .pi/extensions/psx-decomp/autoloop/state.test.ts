@@ -63,8 +63,23 @@ test("every non-matching return carries the same nudge", () => {
    * only to keep going spends its context reasoning forward from the last
    * report instead of producing a measurement. */
   assert.match(KEEP_GOING, /there is clean C that matches this function 100%/);
-  assert.match(KEEP_GOING, /One turn is one experiment/);
+  assert.match(KEEP_GOING, /One experiment is one edit and one measurement/);
+  /* "Turn" is the harness's word for one assistant response. Using it for a
+   * loop iteration told an agent it owed exactly one measurement per response,
+   * and it stopped after one. The pacing words must never say "turn". */
+  assert.doesNotMatch(KEEP_GOING, /\bturn\b/i);
   for (const step of ["OBSERVE", "HYPOTHESISE", "ACT", "MEASURE"]) {
     assert.match(KEEP_GOING, new RegExp(step), `the nudge must name the ${step} step`);
   }
+});
+
+test("the opening message carries the protocol, because the nudge may never fire", () => {
+  /* `nudgeMessage` is sent from the second return onward. With returnsPerTier
+   * at 1 it never fires, so the opening message is the only thing an agent
+   * reads — and a protocol that lives only in the nudge is read by nothing. */
+  const opening = openingMessage("func_80012345");
+  assert.match(opening, /Do not stop until the function is byte-exact/);
+  assert.match(opening, /back to back/);
+  assert.match(opening, /psx_residual_objective/);
+  assert.doesNotMatch(opening, /This turn runs/);
 });
