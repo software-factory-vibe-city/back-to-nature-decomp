@@ -25,6 +25,7 @@ export const DEFAULT_LOOP_CONFIG: Omit<LoopConfig, "runtimeDir"> = {
   returnsPerTier: 2,
   maxFunctions: 25,
   clearContextBetween: true,
+  compactAtTokens: 350_000,
   handoffSummary: true,
   updateFileGroupings: true,
   commitOnMatch: true,
@@ -45,6 +46,15 @@ function positiveInteger(value: unknown, fallback: number, field: string): numbe
   if (value === undefined) return fallback;
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
     throw new Error(`${field} must be a positive integer`);
+  }
+  return value;
+}
+
+/** A ceiling that 0 turns off, so switching compaction off needs no second field. */
+function threshold(value: unknown, fallback: number, field: string): number {
+  if (value === undefined) return fallback;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new Error(`${field} must be a non-negative integer`);
   }
   return value;
 }
@@ -85,6 +95,7 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
       "returnsPerTier",
       "maxFunctions",
       "clearContextBetween",
+      "compactAtTokens",
       "handoffSummary",
       "updateFileGroupings",
       "commitOnMatch",
@@ -109,6 +120,7 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
       raw.clearContextBetween === undefined
         ? DEFAULT_LOOP_CONFIG.clearContextBetween
         : Boolean(raw.clearContextBetween),
+    compactAtTokens: threshold(raw.compactAtTokens, DEFAULT_LOOP_CONFIG.compactAtTokens, "compactAtTokens"),
     handoffSummary:
       raw.handoffSummary === undefined ? DEFAULT_LOOP_CONFIG.handoffSummary : Boolean(raw.handoffSummary),
     updateFileGroupings:

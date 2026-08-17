@@ -20,6 +20,8 @@ export interface LoopConfig {
   maxFunctions: number;
   /** Clear the conversation before each escalation and each new function. */
   clearContextBetween: boolean;
+  /** Compact before any turn that would start above this many context tokens; 0 disables. */
+  compactAtTokens: number;
   /** Have the outgoing tier summarize its findings for the incoming one. */
   handoffSummary: boolean;
   /** Give the agent one notes-only turn to record grouping evidence before committing. */

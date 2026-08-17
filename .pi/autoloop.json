@@ -7,9 +7,10 @@
       "label": "deepseek-v4-flash"
     }
   ],
-  "returnsPerTier": 2,
+  "returnsPerTier": 3,
   "maxFunctions": 50,
   "clearContextBetween": true,
+  "compactAtTokens": 350000,
   "handoffSummary": true,
   "updateFileGroupings": true,
   "commitOnMatch": true,

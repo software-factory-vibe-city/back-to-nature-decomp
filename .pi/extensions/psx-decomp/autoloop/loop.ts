@@ -3,6 +3,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-c
 import { runResidualObjective } from "../autonomous/gates.ts";
 import type { PolicyFinding } from "../autonomous/types.ts";
 import { commitMatchedFunction, commitParkedFunction } from "./commit.ts";
+import { needsCompaction, requestCompaction } from "./context.ts";
 import {
   environmentIsIntact,
   finalize,
@@ -65,6 +66,8 @@ export interface LoopSinks {
 /** How long a sent message may take to become a running agent turn. */
 const TURN_START_TIMEOUT_MS = 120_000;
 const TURN_POLL_MS = 100;
+/** How long a compaction may take before the loop stops waiting on it. */
+const COMPACTION_TIMEOUT_MS = 10 * 60_000;
 
 export interface LoopDeps {
   pi: ExtensionAPI;
@@ -113,6 +116,8 @@ async function applyTier(deps: LoopDeps, tier: LoopTier): Promise<boolean> {
 async function turn(deps: LoopDeps, message: string): Promise<boolean> {
   await deps.ctx.waitForIdle();
   if (deps.flag.aborted) return false;
+  await compactIfLarge(deps);
+  if (deps.flag.aborted) return false;
 
   const before = deps.sink.gate.settled;
   deps.pi.sendUserMessage(message);
@@ -135,6 +140,42 @@ async function turn(deps: LoopDeps, message: string): Promise<boolean> {
     return false;
   }
   return outcome === "settled" && !deps.flag.aborted;
+}
+
+/**
+ * Hold the working context under the configured ceiling.
+ *
+ * Checked where every turn passes and while the session is idle, because that
+ * is the only moment a compaction can run without landing in the middle of a
+ * tier's reasoning. The reading is the one the last response left behind, so it
+ * measures the context this turn would actually start from.
+ *
+ * A compaction that fails or never reports is not fatal. The turn still has its
+ * message, the tree still has the evidence, and the harness has its own
+ * overflow recovery — losing the ceiling costs the loop nothing it cannot get
+ * back, while stopping the loop over it would.
+ */
+async function compactIfLarge(deps: LoopDeps): Promise<void> {
+  const usage = deps.ctx.getContextUsage();
+  if (!needsCompaction(usage, deps.config.compactAtTokens)) return;
+
+  const tokens = usage?.tokens ?? 0;
+  setStatus(deps, `◎ autoloop · compacting (${tokens} tokens)`);
+  const result = await requestCompaction({
+    compact: (handlers) => deps.ctx.compact({ onComplete: () => handlers.onComplete(), onError: handlers.onError }),
+    timeoutMs: COMPACTION_TIMEOUT_MS,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  });
+
+  if (result.outcome === "compacted") {
+    notify(deps, `Compacted the conversation at ${tokens} context tokens (ceiling ${deps.config.compactAtTokens}).`, "info");
+  } else {
+    notify(deps, `Compaction ${result.outcome} at ${tokens} context tokens; continuing. ${result.detail}`, "warning");
+  }
+
+  /* Whatever the outcome, the summarizing run may still be settling, and the
+   * next thing the caller does is send a message into that session. */
+  await deps.ctx.waitForIdle();
 }
 
 /**
@@ -188,8 +229,10 @@ async function captureHandoff(
  * its wrong premises — the whole point of escalating is a fresh reading of the
  * same evidence. The evidence itself is not in the conversation: it is the
  * source file on disk, the oracle report carried in the message, and the
- * project's own notes. So the loop clears rather than compacts, and every
- * message it sends after a clear is self-contained.
+ * project's own notes. So at a boundary the loop clears rather than compacts,
+ * and every message it sends after a clear is self-contained. Compaction is for
+ * the other case — a context that outgrows its ceiling while one tier is still
+ * working one function, where a summary keeps reasoning a clear would discard.
  */
 async function clearContext(deps: LoopDeps): Promise<void> {
   if (!deps.config.clearContextBetween) return;
