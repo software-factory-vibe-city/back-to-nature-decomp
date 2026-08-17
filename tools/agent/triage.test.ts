@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, type TargetFacts } from "./triage.js";
+import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, premiseSurvivalFrom, type TargetFacts } from "./triage.js";
 import { sha256 } from "./variant-lab/artifacts.js";
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
@@ -518,4 +518,75 @@ test("search-domain: a sampled run cannot lend a verdict", () => {
   assert.match(findings[0]!.summary, /64 of 500000/);
   assert.match(findings[0]!.summary, /not a ranking over the domain/);
   rmSync(root, { recursive: true, force: true });
+});
+
+/* --- premise survival --- */
+
+function ledgerEntry(index: number, key: number[], outputHash = `h${index}`) {
+  return {
+    schemaVersion: 1,
+    function: "func_1",
+    at: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(),
+    source: "src/func_1.c",
+    sourceHash: `s${index}`,
+    outputHash,
+    key,
+    matchedWords: 0,
+    totalWords: 100,
+    verdict: "worse",
+  };
+}
+
+test("premise-survival: a plateau shorter than the threshold says nothing", () => {
+  const entries = [ledgerEntry(0, [0, 0, 4, 9]), ...Array.from({ length: 7 }, (_, i) => ledgerEntry(i + 1, [0, 0, 5, 9]))];
+  assert.deepEqual(premiseSurvivalFrom(entries), []);
+});
+
+test("premise-survival: enough distinct programs with no improvement is a finding", () => {
+  const entries = [ledgerEntry(0, [0, 0, 4, 9]), ...Array.from({ length: 8 }, (_, i) => ledgerEntry(i + 1, [0, 0, 5, 9]))];
+  const findings = premiseSurvivalFrom(entries);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, "signal");
+  assert.match(findings[0]!.summary, /8 distinct programs/);
+  assert.match(findings[0]!.summary, /the answer is not a spelling/);
+});
+
+test("premise-survival: respellings are not failed experiments", () => {
+  /* Ten entries, but every one after the first compiles to a program already
+   * measured. Nothing has been tried, so nothing has been exhausted. */
+  const entries = [
+    ledgerEntry(0, [0, 0, 4, 9], "same"),
+    ...Array.from({ length: 9 }, (_, i) => ledgerEntry(i + 1, [0, 0, 4, 9], "same")),
+  ];
+  assert.deepEqual(premiseSurvivalFrom(entries), []);
+});
+
+test("premise-survival: an improvement inside the window resets it", () => {
+  const entries = [
+    ...Array.from({ length: 6 }, (_, i) => ledgerEntry(i, [0, 0, 5, 9])),
+    ledgerEntry(6, [0, 0, 4, 9]),
+    ...Array.from({ length: 6 }, (_, i) => ledgerEntry(i + 7, [0, 0, 5, 9])),
+  ];
+  assert.deepEqual(premiseSurvivalFrom(entries), []);
+});
+
+test("premise-survival: a solved function is not stalled", () => {
+  const entries = [
+    ...Array.from({ length: 9 }, (_, i) => ledgerEntry(i, [0, 0, 5, 9])),
+    ledgerEntry(9, [0, 0, 0, 0]),
+    ...Array.from({ length: 9 }, (_, i) => ledgerEntry(i + 10, [0, 0, 5, 9])),
+  ];
+  assert.deepEqual(premiseSurvivalFrom(entries), []);
+});
+
+test("premise-survival: the live axis is named from the residual, not assumed", () => {
+  const population = premiseSurvivalFrom(
+    [ledgerEntry(0, [0, 3, 4, 9]), ...Array.from({ length: 8 }, (_, i) => ledgerEntry(i + 1, [0, 4, 4, 9]))],
+  );
+  assert.match(population[0]!.evidence[0]!, /do not compute the same set/);
+
+  const allocation = premiseSurvivalFrom(
+    [ledgerEntry(0, [0, 0, 4, 9]), ...Array.from({ length: 8 }, (_, i) => ledgerEntry(i + 1, [0, 0, 5, 9]))],
+  );
+  assert.match(allocation[0]!.evidence[0]!, /different order or different registers/);
 });

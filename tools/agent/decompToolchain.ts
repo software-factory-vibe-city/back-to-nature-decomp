@@ -235,6 +235,27 @@ export function detectImplicitDeclarations(preprocessed: string, stem: string): 
 }
 
 /**
+ * Run only the preprocessor, and return the path to the `.i`.
+ *
+ * The preprocessed text is the exact set of declarations the compiler saw, so
+ * it is the only sound answer to "what prototype is in scope here" — a scan of
+ * the headers on disk answers a different question, because it counts
+ * declarations this translation unit never includes.
+ *
+ * This shares `CPP` and `CPP_FLAGS` with `compileSource` on purpose: a second
+ * spelling of the preprocessor invocation is a second thing to keep in step
+ * with the project configuration, and it would drift silently.
+ */
+export function preprocessOnly(source: string, outputDir: string, stem: string): string {
+  const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
+  const absoluteOutput = isAbsolute(outputDir) ? outputDir : join(ROOT, outputDir);
+  mkdirSync(absoluteOutput, { recursive: true });
+  const preprocessed = join(absoluteOutput, `${stem}.i`);
+  runTool(CPP, [...CPP_FLAGS, absoluteSource, "-o", preprocessed]);
+  return preprocessed;
+}
+
+/**
  * `-dp` annotates the first assembly line of each RTL instruction with its
  * UID, pattern name and declared length, which is the only sound way to learn
  * where one RTL instruction emitted several machine instructions. It is

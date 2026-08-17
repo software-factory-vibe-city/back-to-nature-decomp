@@ -69,6 +69,8 @@ import {
   renderSignature,
 } from "./frameMap.js";
 import { recognizeIdioms, sdkReconstructionGap } from "./sdkIdioms.js";
+import { auditCallees, type TruthReport } from "./calleeTruth.js";
+import { measurements, readLedger, type LedgerEntry } from "./experimentLedger.js";
 import { readReport, targetHashOf, toolchainHash, type FlagProbeReport } from "./flagProbe.js";
 import { sha256 } from "./variant-lab/artifacts.js";
 import { compareInventories, renderReport } from "./inventory.js";
@@ -437,6 +439,182 @@ function detectUndeclaredCallee(compiled: CompiledFacts): Finding[] {
       "notes/retros/2026-08-06-func_80022738-retro.md",
     ],
   }];
+}
+
+/**
+ * How many genuinely different programs may be measured without improving the
+ * residual before the spelling family, rather than the residual, is the thing
+ * that has been exhausted.
+ *
+ * Calibrated against a real stalled ledger rather than chosen: the session
+ * that produced it ran seventeen distinct programs without a lexicographic
+ * improvement while arguing that the residual was unreachable, and improved
+ * steadily for the fifteen before that. Eight sits inside the stall and
+ * outside the productive stretch. Respellings do not count toward it — a
+ * source that compiles to a program already measured is the same experiment
+ * arrived at again, and treating it as a failed one would fire this on a
+ * session that is simply exploring.
+ */
+const DISTINCT_PROGRAMS_BEFORE_PREMISE_DOUBT = 8;
+
+/** Lexicographic order over the staged residual: the worst term decides. */
+function residualImproves(candidate: number[], incumbent: number[]): boolean {
+  for (let index = 0; index < Math.max(candidate.length, incumbent.length); index++) {
+    const difference = (candidate[index] ?? 0) - (incumbent[index] ?? 0);
+    if (difference !== 0) return difference < 0;
+  }
+  return false;
+}
+
+/**
+ * A residual that survives many different programs is evidence about the
+ * premises, not about the residual.
+ *
+ * Every instrument in this repository takes the declarations, the operation
+ * boundaries and the symbol boundary as the fixed background, and searches the
+ * space of sources written against them. That makes a wrong premise invisible
+ * to all of them at once: it is not a point in the space they search, it is
+ * the space. Worse, it is self-confirming — each rewrite that fails to remove
+ * what the premise manufactured reads as evidence that the residual is hard.
+ *
+ * The escape is not more variation. A session that fires a dozen genuinely
+ * different spellings and moves nothing has not found a hard residual; it has
+ * found that the answer is not a spelling. That is a positive result, and it
+ * points somewhere specific — at the facts outside the function body, and at
+ * the two records of what the original author actually wrote, which are the
+ * vendored SDK headers and the already-matched functions in the same file
+ * group. This detector exists to say so at the point the ledger can support
+ * it, because an agent inside the wrong frame has no instrument that can
+ * report the frame is wrong.
+ */
+export function detectPremiseSurvival(name: string): Finding[] {
+  return premiseSurvivalFrom(readLedger(name));
+}
+
+/** The ledger reading, separated from the ledger, so it can be tested. */
+export function premiseSurvivalFrom(entries: LedgerEntry[]): Finding[] {
+  const distinct = measurements(entries);
+  if (distinct.length === 0) return [];
+
+  let best = distinct[0]!.key;
+  let lastImprovement = 0;
+  distinct.forEach((entry, index) => {
+    if (index > 0 && residualImproves(entry.key, best)) {
+      best = entry.key;
+      lastImprovement = index;
+    }
+  });
+  if (best.every((term) => term === 0)) return [];
+
+  const since = distinct.length - 1 - lastImprovement;
+  if (since < DISTINCT_PROGRAMS_BEFORE_PREMISE_DOUBT) return [];
+
+  const [controlFlow = 0, population = 0, schedule = 0, allocation = 0] = best;
+  const differs = controlFlow > 0
+    ? "the two programs do not even have the same shape"
+    : population > 0
+      ? "the two programs still do not compute the same set of things"
+      : "the two programs compute the same things, in a different order or different registers";
+
+  return [{
+    detector: "premise-survival",
+    severity: "signal",
+    summary:
+      `${since} distinct programs have been measured since the residual last improved, and it is ` +
+      `still [${controlFlow}, ${population}, ${schedule}, ${allocation}]. Respellings are excluded, ` +
+      "so these were genuinely different programs and every one of them left the residual where it " +
+      "was. That is not evidence that the residual is hard — it is evidence that the answer is not " +
+      "a spelling, and the next place to look is the premises this source was written under.",
+    evidence: [
+      `best residual [control-flow ${controlFlow}, population ${population}, schedule ${schedule}, ` +
+      `allocation ${allocation}] — ${differs}`,
+      `${distinct.length} distinct programs in the ledger; the last ${since} moved nothing`,
+      "",
+      "what has not been audited, cheapest to refute first:",
+      "  callee prototypes    — psx_callee_truth confronts every declaration in scope with the",
+      "                         vendored SDK headers and the callees' own compiled code. A wrong",
+      "                         one adds call setup no rewrite of this body can remove.",
+      "  operation boundaries — psx_sdk_idioms. Hand-rolled arithmetic where the SDK has a macro",
+      "                         computes the right value as the wrong program.",
+      "  the symbol boundary  — psx_scan_read_before_def, and the evidence list in the stuck sheet.",
+      "  the authoring idiom  — the matched functions in this target's file group are this",
+      "                         project's only record of how the original author wrote things:",
+      "                         which locals they kept, how they walked arrays, what they hoisted.",
+      "                         notes/file-groupings.md names the group; read the members.",
+    ],
+    see: ["prompts/reference/stuck.md", "notes/file-groupings.md"],
+  }];
+}
+
+/**
+ * Confront the declarations with the evidence, before anything reads the
+ * residual they produce.
+ *
+ * Every other detector here — and every tool the skill escalates to — takes
+ * the prototypes as the fixed background against which the source varies. A
+ * wrong prototype is therefore not something they can find: it is not a point
+ * in the space they search, it is the space. It manufactures call-setup moves
+ * and a return handling the target never had, and each experiment that fails
+ * to remove them reads as evidence that the residual is hard rather than as
+ * evidence that the premise is false.
+ *
+ * This runs before the residual is classified because a measurement taken
+ * under a contradicted declaration is a measurement of a different program.
+ */
+function detectCalleeTruth(name: string, sourcePath: string, scratch: string): Finding[] {
+  let report: TruthReport;
+  try {
+    report = auditCallees(name, sourcePath, scratch);
+  } catch {
+    return [];
+  }
+
+  const findings: Finding[] = [];
+  const contradicted = report.callees.filter((item) => item.status === "contradicted");
+  if (contradicted.length > 0) {
+    findings.push({
+      detector: "callee-truth",
+      severity: "blocker",
+      summary:
+        `${contradicted.length} callee declaration(s) in scope are contradicted by evidence that ` +
+        "does not depend on this source. Each one changes the code emitted at its call site, so no " +
+        "rewrite of this function's body can remove what it adds — and every measurement taken " +
+        "under it scored a different program. Fix the declaration and re-measure from scratch.",
+      evidence: contradicted.flatMap((item) => [
+        `${item.callee}: in scope as ${item.declared?.signature ?? "(none)"}`,
+        ...item.contradictions.filter((c) => c.proven).map((c) => `  ${c.message}`),
+      ]),
+      see: ["prompts/reference/declarations.md", "prompts/reference/stuck.md"],
+    });
+  }
+
+  /* Authored signatures nothing outside this repository corroborates. Not a
+   * defect — most functions in the binary have no header — but it is the set
+   * a stuck session should re-derive before it concludes anything is
+   * unreachable, because it is the set it invented. */
+  const unwitnessed = report.callees.filter((item) => item.status === "unwitnessed");
+  const disputed = report.callees.filter((item) => item.status === "disputed");
+  if (unwitnessed.length > 0 || disputed.length > 0) {
+    findings.push({
+      detector: "callee-truth",
+      severity: "signal",
+      summary:
+        `${unwitnessed.length} callee signature(s) rest on nothing but this project's own ` +
+        `authoring, and ${disputed.length} disagree with another reconstruction without costing ` +
+        "an instruction today. Neither blocks a measurement. Both are where a residual that " +
+        "survives every rewrite usually turns out to have come from.",
+      evidence: [
+        ...unwitnessed.map((item) =>
+          `${item.callee}: authored as ${item.declared?.signature ?? "(none)"} — ` +
+          `${item.witnesses.find((w) => w.kind === "target")?.arity
+            ? `the target proves arity >= ${item.witnesses.find((w) => w.kind === "target")!.arity!.min}`
+            : "no target evidence"}`),
+        ...disputed.flatMap((item) => item.contradictions.map((c) => `${item.callee}: ${c.message}`)),
+      ],
+      see: ["prompts/reference/stuck.md", "notes/file-groupings.md"],
+    });
+  }
+  return findings;
 }
 
 /**
@@ -1320,6 +1498,7 @@ function main(): void {
   let frameConverged = false;
   if (sourceState === "c" && srcText !== undefined) {
     findings.push(...detectAsmPolicy(name, srcText));
+    findings.push(...detectCalleeTruth(name, resolveSource(name, srcOverride), scratch));
     const compiled = readCompiled(name, resolveSource(name, srcOverride), scratch);
     if (compiled) {
       findings.push(...detectUndeclaredCallee(compiled));
@@ -1342,6 +1521,7 @@ function main(): void {
   findings.push(...detectCaptureRa(target));
   findings.push(...detectFlagFingerprint(name, sourceState === "c" ? srcText : undefined));
   findings.push(...detectSearchDomain(name, sourceState === "c" ? srcText : undefined));
+  findings.push(...detectPremiseSurvival(name));
   rmSync(scratch, { recursive: true, force: true });
 
   if (json) {

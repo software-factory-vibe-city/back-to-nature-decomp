@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { analyzeFrame } from "./frameMap.js";
+import { analyzeFrame, analyzeReturnValue } from "./frameMap.js";
 import type { DisassembledInstruction } from "./decompToolchain.js";
 
 /* Instructions are transcribed inline rather than read from build/asm, which
@@ -122,4 +122,38 @@ test("frameMap: a fifth argument and an address-taken local coexist", () => {
   assert.equal(frame.argAreaSize, 0x18, "the word at 0x10 is still an argument");
   assert.deepEqual(frame.addressTaken.map((entry) => entry.offset), [0x18]);
   assert.equal(frame.varsSize, 0x10, "0x18 is a local, not a seventh argument");
+});
+
+/* --- return type --- */
+
+test("a function that never writes $v0 and returns normally is proven void", () => {
+  const value = analyzeReturnValue("f", code(["addiu $sp,$sp,-8", "jr $ra", "addiu $sp,$sp,8"]));
+  assert.equal(value.type, "void");
+  assert.equal(value.basis, "proven");
+});
+
+test("a BIOS trampoline proves nothing about its return value", () => {
+  /* memcpy in this binary is three instructions that jump into the kernel
+   * table. It writes no $v0 and it returns whatever the BIOS routine leaves
+   * there, so reading it as proven void makes every caller's correct
+   * declaration look like a defect. */
+  const value = analyzeReturnValue("memcpy", code([
+    "addiu $t2,$zero,0xa0",
+    "jr $t2",
+    "addiu $t1,$zero,0x2a",
+  ]));
+  assert.notEqual(value.basis, "proven");
+  assert.match(value.evidence[0]!, /leaves without returning/);
+});
+
+test("a symbol with no return at all is not read as a whole function", () => {
+  /* A mis-split boundary: three instructions of a longer routine. Nothing
+   * about its interface can be read off the fragment. */
+  const value = analyzeReturnValue("VectorNormalSS", code([
+    "lh $t0,0x0($a0)",
+    "lh $t1,0x2($a0)",
+    "lh $t2,0x4($a0)",
+  ]));
+  assert.notEqual(value.basis, "proven");
+  assert.match(value.evidence[0]!, /no `jr \$ra`/);
 });

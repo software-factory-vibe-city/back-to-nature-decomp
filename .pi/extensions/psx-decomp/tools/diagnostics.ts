@@ -90,6 +90,12 @@ export const TOOL_SPECS: ToolSpec[] = [
       argv: (p) => [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(
+    "psx_callee_truth", "PSX Callee Truth", "calleeTruth.ts",
+    "Confront every callee declaration in scope with evidence that does not depend on this source: the vendored SDK headers, the callees' own matched definitions, and the callees' own compiled code. Every other tool in this project takes the prototypes as the fixed background and varies the source against them, so a wrong prototype is invisible to all of them at once — it is not a point in the space they search, it is the space, and each rewrite that fails to remove what it manufactured reads as evidence that the residual is hard. Run it before authoring, and again the moment a residual survives rewrites that should have moved it. `include/functions.h` is deliberately not a witness: it is generated from src/, so a wrong signature comes back out of it wearing the authority of a project header.",
+    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to audit instead of src/<function>.c" })) },
+      argv: (p) => [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])] },
+  ),
+  functionTool(
     "psx_frame_map", "PSX Frame Map", "frameMap.ts",
     "Exact frame decomposition (outgoing argument area, locals, saved registers) and the signature the ABI implies. Stack parameter types are read off load width and signedness and are exact — take them rather than re-deriving them. Never report a frame size that did not come from here.",
   ),

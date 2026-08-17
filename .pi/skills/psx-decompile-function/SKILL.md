@@ -43,7 +43,11 @@ Run these three, in this order, before touching source.
    the same experiment however differently they read. Start from this, not from
    a research note.
 2. `psx_triage` — a `blocker` means the current direction cannot ship whatever
-   the residual says. Resolve it before anything else.
+   the residual says. Resolve it before anything else. A `callee-truth` blocker
+   is stronger than that: it says a declaration in scope is contradicted by
+   evidence outside this source, so the compiler has been building a different
+   program than the one you think you are measuring. Fix it and discard the
+   readings taken under it.
 3. `psx_reverse_pipeline` — the pass that owns the residual, the per-block
    breakdown, and the independent decisions behind it.
 
@@ -125,9 +129,48 @@ progress and it is not a stall either, so do not report one as a finding. Every 
 100%; a residual that survives hand-authored variants is a signal to bring
 heavier evidence, not to give up.
 
-Stop re-spelling and escalate the class of evidence:
+**Exhausting a spelling family is a positive result, not a failure.** A dozen
+genuinely different sources that all leave the residual where it was have
+proved something: the answer is not a spelling. Firing more variation at the
+same declarations, over the same semantic program, will keep confirming it.
+Change the class of evidence instead — and note that a search, a solver and a
+pass reading all answer the same question, *is this source's output reachable*.
+None of them can tell you the source is wrong about the *program*. The two
+steps that can are first for that reason.
 
-1. **Enumerate the source space instead of guessing at it.**
+1. **Audit the premises before you model anything.** Every instrument below
+   takes the declarations, the operation boundaries and the symbol boundary as
+   given, so a wrong one is invisible to all of them at once and makes each
+   failed experiment read as evidence that the residual is hard.
+   `psx_callee_truth` confronts every callee declaration in scope with the
+   vendored SDK headers, the callees' own matched definitions and the callees'
+   own compiled code; a proven contradiction invalidates every measurement
+   taken under it. `psx_sdk_idioms` does the same for operation boundaries.
+   `psx_reference stuck` lists the rest — the symbol boundary, the declarations
+   in scope, the predicate, the idiom frame. Each has cost this project a full
+   session while presenting as a codegen impossibility, because from inside the
+   function that is exactly what it looks like.
+
+   A prototype you wrote is a claim, not a fact, and a comment in your own file
+   explaining why the vendored header is wrong is the shape this failure takes
+   from the inside. When your reconstruction and the vendor disagree, the
+   vendor is right.
+
+2. **Read what the author wrote before you model what the compiler did.** The
+   compiler-side tools can only tell you whether the current source's output is
+   reachable; they cannot tell you what the original source was. Two things in
+   this repository can. The vendored SDK headers give the real signature and
+   the real operation for anything the SDK provides. The already-matched
+   functions in this target's file group are the only record of how this author
+   actually wrote code — which locals they kept live, how they walked an array,
+   what they hoisted out of a loop, how they spelled a guard. Byte-exact
+   neighbours are the idiom dictionary; `notes/file-groupings.md` names the
+   group, and reading three of its members is cheaper than one pass reading.
+
+   A residual that survives every rewrite of your own idiom is usually somebody
+   else's idiom.
+
+3. **Enumerate the source space instead of guessing at it.**
    `psx_search_residual_source_space` derives the semantics-preserving closure
    of the current source and prices it. A domain of one candidate is a finding:
    it says the residual is not reachable by rewriting this source, and points
@@ -161,7 +204,7 @@ Stop re-spelling and escalate the class of evidence:
    sentence — it names the axis, the size of the trade, and where it happened.
    Take the next experiment from that, not from the match count.
 
-2. **Solve for the compiler state, do not model it.**
+4. **Solve for the compiler state, do not model it.**
    `psx_solve_local_allocation` solves for the local-alloc quantity priorities
    and lifetimes that would reproduce the target's assignment, and reports
    `UNSAT_WITHIN_BOUNDS` when none exists inside the bound — which is a real
@@ -174,18 +217,13 @@ Stop re-spelling and escalate the class of evidence:
    A solution is a **specification for a source shape**, never a solution by
    itself, and a solver witness is never promoted directly.
 
-3. **Read the pass that decides it.** `psx_compiler_source` searches the exact
+5. **Read the pass that decides it.** `psx_compiler_source` searches the exact
    patched compiler tree cc1 is built from. One read of the function that makes
    the choice can end a search outright: a proof that a form is unreachable is
    worth more than any number of failed experiments, and it is the only evidence
    that converts "we could not find it" into "it is not there".
 
-4. **Audit the facts outside the function.** `psx_reference stuck` — the symbol
-   boundary, the declarations in scope, the predicate, the idiom frame. Each has
-   produced a wasted session in this project by presenting as a codegen
-   impossibility.
-
-5. **Test the flag hypothesis.** `psx_flag_probe`. Per-file overrides are per-TU
+6. **Test the flag hypothesis.** `psx_flag_probe`. Per-file overrides are per-TU
    facts of the original build, not hacks, and are permitted on the evidence bar
    in `psx_reference flags`. A matrix showing baseline equal to the delta kills
    the hypothesis cheaply, which is itself worth knowing.
@@ -210,6 +248,12 @@ entry, a policy exception — never merely because it is hard.
   it, you can run it.
 - **Steering by the word count.** An edit that fixes a cause rotates everything
   downstream and can match fewer words while standing closer.
+- **Proving something unreachable without re-deriving what it was proved
+  under.** An impossibility result is conditioned on its inputs. A capable,
+  internally consistent proof aimed at a fabricated premise emits no signal
+  that it is aimed wrong — it just gets more convincing the longer you work.
+  Before writing "blocked", say what the block is conditional on, and check
+  that.
 
 ## Before you write source
 
@@ -220,11 +264,15 @@ generated outputs that must never be hand-edited.
 Two things are worth checking once, up front, because getting them wrong
 poisons every later reading:
 
-- **Callee prototypes.** For an indirect call, inspect the plausible table
-  members before accepting a callback signature. Values left in `$a1`–`$a3` at
-  a `jalr` may be dead address-generation state, not arguments. A wrong
-  prototype adds call-setup moves and corrupts every web and allocation
-  analysis downstream.
+- **Callee prototypes.** Run `psx_callee_truth`. A wrong prototype adds
+  call-setup moves and corrupts every web and allocation analysis downstream,
+  and nothing else in the stack can see it — the residual, the reversal and the
+  solvers all take the declarations as given. Do not author a signature the
+  tool then has to refute: take it from the vendored header or the callee's own
+  matched definition. For an indirect call, which no declaration scan can
+  reach, inspect the plausible table members before accepting a callback
+  signature; values left in `$a1`–`$a3` at a `jalr` may be dead
+  address-generation state, not arguments.
 - **SDK operation boundaries.** Run `psx_sdk_idioms`. Hand-rolled bitfield
   arithmetic where the SDK has a macro is a reconstruction error, not a style
   choice. Restore the operation boundary before reading allocation or

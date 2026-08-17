@@ -527,6 +527,35 @@ function callersOf(name: string): string[] {
 }
 
 /**
+ * Outward control transfers that are not a return to the caller.
+ *
+ * The never-writes-$v0 proof of voidness assumes control comes back from
+ * inside this function. A BIOS trampoline (`jr $t2` into the kernel table) and
+ * an ordinary tail call both break that assumption: the function writes no
+ * $v0 itself and still returns whatever it jumped to. Without this check every
+ * trampoline in the binary reads as proven void.
+ */
+function tailTransfers(instructions: DisassembledInstruction[]): string[] {
+  const found: string[] = [];
+  /* A symbol with no return at all is not a whole function — a mis-split
+   * boundary, or a fragment. Nothing about $v0 can be read off it. */
+  if (!instructions.some((insn) => insn.mnemonic === "jr" && registerOf(insn.operands[0] ?? "") === "ra")) {
+    found.push("the symbol contains no `jr $ra`, so it is not a complete function");
+  }
+  for (const insn of instructions) {
+    if (insn.mnemonic === "jr") {
+      const register = registerOf(insn.operands[0] ?? "");
+      if (register && register !== "ra") found.push(insn.raw.trim());
+      continue;
+    }
+    /* A `j` with a relocation leaves the symbol; without one it is a local
+     * branch inside the same function. */
+    if (insn.mnemonic === "j" && insn.relocation) found.push(insn.raw.trim());
+  }
+  return found;
+}
+
+/**
  * The return type is the one part of a signature the callee cannot settle
  * alone: a void function is free to leave junk in $v0, so "something writes
  * $v0" proves nothing. Only the never-written case is decidable locally. The
@@ -538,7 +567,8 @@ function callersOf(name: string): string[] {
  */
 export function analyzeReturnValue(name: string, instructions: DisassembledInstruction[]): ReturnValue {
   const definesV0 = instructions.some((insn) => defUse(insn).defs.includes("v0"));
-  if (!definesV0) {
+  const escapes = tailTransfers(instructions);
+  if (!definesV0 && escapes.length === 0) {
     return {
       type: "void",
       basis: "proven",
@@ -546,15 +576,20 @@ export function analyzeReturnValue(name: string, instructions: DisassembledInstr
     };
   }
 
+  /* Why the callee cannot settle its own return type, in its own terms. Both
+   * reasons defeat the never-writes-$v0 proof, and a reader who is told the
+   * wrong one will go looking for a write that is not there. */
+  const localReason = definesV0
+    ? "$v0 is written, which a void function may also do — not decidable from this function"
+    : `no instruction writes $v0, but control leaves without returning (${escapes[0]}) — ` +
+      "whatever it transfers to writes $v0 on this function's behalf";
+
   const callers = callersOf(name);
   if (callers.length === 0) {
     return {
       type: "unknown",
       basis: "unknown",
-      evidence: [
-        "$v0 is written, which a void function may also do — not decidable from this function",
-        "no callers recorded in build/callGraph.json to settle it",
-      ],
+      evidence: [localReason, "no callers recorded in build/callGraph.json to settle it"],
     };
   }
 
@@ -577,7 +612,7 @@ export function analyzeReturnValue(name: string, instructions: DisassembledInstr
   }
 
   const evidence = [
-    `$v0 is written, so void is not decidable here; consulted ${callers.length} caller(s)`,
+    `${localReason}; consulted ${callers.length} caller(s)`,
     ...(tally.consumed.length > 0 ? [`reads the result: ${tally.consumed.join(", ")}`] : []),
     ...(tally.ignored.length > 0 ? [`discards the result: ${tally.ignored.join(", ")}`] : []),
     ...(tally.propagated.length > 0

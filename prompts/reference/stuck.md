@@ -43,6 +43,53 @@ note or ADR is true *given* what it assumed; re-read the assumption before
 accepting the wall. A capable, internally consistent analysis aimed at the
 wrong premise emits no signal that it is aimed wrong.
 
+### The premises are checkable, and one tool checks them
+
+`psx_callee_truth` confronts every callee declaration in scope with three
+sources that do not depend on the current source: the vendored SDK headers, the
+callees' own matched definitions, and the callees' own compiled code. Run it
+before modelling anything. A proven contradiction is not a style defect — it
+changes the code emitted at the call site, so no rewrite of the body can remove
+what it added, and every measurement taken under it scored a different program.
+
+Two habits keep this failure alive. The first is authoring a signature and then
+treating it as a fact: a prototype nothing corroborates is a hypothesis you
+wrote down, and the tool reports it as `unwitnessed` for exactly that reason.
+The second is explaining away a disagreement — a comment in your own file
+saying the vendored header does not describe this call is the shape the error
+takes from the inside, and finishing that thought is the whole fix. When the
+reconstruction and the vendor disagree, the vendor is right.
+
+Note also that `include/functions.h` is generated from `src/`. It cannot
+corroborate a declaration; a wrong signature written into a source file comes
+back out of it wearing the authority of a project header.
+
+### The author frame: two records of what was actually written
+
+Every compiler-side instrument here — the residual, the reversal, the solvers,
+the source search, the pass source — answers one question: whether the current
+source's output is reachable. None of them can answer what the original source
+*was*. When a residual survives an exhausted spelling family, that is the
+question you are actually stuck on, and this repository holds two records that
+answer it.
+
+**The vendored SDK headers** give the real signature, the real return type and
+the real operation for anything the SDK provides. Read the header, not your
+reconstruction of what the disassembly implies the header must say.
+
+**The already-matched functions in the same file group** are the only record of
+how this author wrote code: which locals they kept live across a region, how
+they walked an array, what they hoisted out of a loop, how they spelled a
+guard, whether they took a base pointer once or re-indexed each time. A
+neighbour that is byte-exact is a proven idiom, not a suggestion.
+`notes/file-groupings.md` names the group. Reading three of its members is
+cheaper than one pass reading, and a residual that survives every rewrite of
+your own idiom is usually somebody else's idiom.
+
+A stall that has resisted a search and a solver is more often an authoring
+question than a mechanism question. Ask what the author typed before asking
+what the allocator did.
+
 ### Reading the compiler
 
 When several traced, mechanism-directed source edits fail, stop permuting and

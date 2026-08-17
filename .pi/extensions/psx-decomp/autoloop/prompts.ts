@@ -37,6 +37,19 @@ export const KEEP_GOING = [
  * toward the target rather than when the registers happen to line up.
  */
 /**
+ * Distinct measurements with no improvement before the current axis counts as
+ * exhausted, and before the whole spelling family does.
+ *
+ * The first is the point at which re-spelling one axis stops being search and
+ * starts being repetition. The second is calibrated against a real stalled
+ * ledger: the session that produced it ran seventeen distinct programs without
+ * an improvement while arguing the residual was unreachable, and improved
+ * steadily for the fifteen before that.
+ */
+const AXIS_EXHAUSTED = 3;
+const SPELLING_EXHAUSTED = 8;
+
+/**
  * Whether the last few measurements moved the residual at all.
  *
  * Read from the ledger rather than from loop state, because the ledger is what
@@ -60,24 +73,60 @@ function stallLine(functionName: string): string | undefined {
     return false;
   };
 
-  const recent = entries.slice(-3);
-  const earlier = entries.slice(0, -3);
-  const bestEarlier = earlier.reduce((best, entry) => (better(entry.key, best) ? entry.key : best), earlier[0]!.key);
-  if (recent.some((entry) => better(entry.key, bestEarlier))) return undefined;
+  let best = entries[0]!.key;
+  let lastImprovement = 0;
+  entries.forEach((entry, index) => {
+    if (index > 0 && better(entry.key, best)) {
+      best = entry.key;
+      lastImprovement = index;
+    }
+  });
+  const since = entries.length - 1 - lastImprovement;
+  if (since < AXIS_EXHAUSTED) return undefined;
 
-  return `STALLED: the last ${recent.length} distinct measurements did not improve on [${bestEarlier.join(", ")}]. ` +
-    "The axis is exhausted, not the function — stop re-spelling it and bring heavier evidence. " +
-    "Enumerate the source space (psx_search_residual_source_space, psx_search_source_shapes), " +
-    "solve for the compiler state instead of modelling it (psx_solve_local_allocation, " +
-    "psx_search_scheduler_state, psx_allocator_counterfactual), or read the deciding pass " +
-    "directly (psx_compiler_source). A solver result is a specification for a source shape, " +
-    "and an UNSAT is a real finding that closes a direction. Record what each one closed. " +
-    "When a search reports no exact candidate, that is not the end of its output: read the " +
-    "per-class residual axes and the runs each class moved, and take the next experiment from " +
-    "the axis that moved rather than from the match count. Before trusting any search verdict, " +
-    "check its caveats for constructs the grammar refused, its axis-effect block for axes that " +
-    "are counted but inert, and its coverage — a --derive-only run sampled, and a sample " +
-    "supports no statement about the domain.";
+  const lines = [
+    `STALLED: ${since} distinct measurements since the residual last improved on ` +
+    `[${best.join(", ")}]. The axis is exhausted, not the function — stop re-spelling it and ` +
+    "bring heavier evidence.",
+    "Audit the premises first, because everything else is conditioned on them and cannot see " +
+    "them: psx_callee_truth confronts every callee declaration in scope with the vendored SDK " +
+    "headers and the callees' own code, psx_sdk_idioms does the same for operation boundaries. " +
+    "A wrong declaration adds call setup no rewrite of this body can remove, and every " +
+    "measurement taken under it scored a different program.",
+    "Then: enumerate the source space (psx_search_residual_source_space, " +
+    "psx_search_source_shapes), solve for the compiler state instead of modelling it " +
+    "(psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), " +
+    "or read the deciding pass directly (psx_compiler_source). A solver result is a " +
+    "specification for a source shape, and an UNSAT is a real finding that closes a direction. " +
+    "Record what each one closed. When a search reports no exact candidate, that is not the end " +
+    "of its output: read the per-class residual axes and the runs each class moved, and take the " +
+    "next experiment from the axis that moved rather than from the match count. Before trusting " +
+    "any search verdict, check its caveats for constructs the grammar refused, its axis-effect " +
+    "block for axes that are counted but inert, and its coverage — a --derive-only run sampled, " +
+    "and a sample supports no statement about the domain.",
+  ];
+
+  /* Past this point the loop has produced many genuinely different programs
+   * and moved nothing, which is not evidence that the residual is hard. It is
+   * evidence that the answer is not a spelling, and the tools above cannot say
+   * so: they all answer whether the current source's output is reachable, and
+   * the open question has become what the original source was. */
+  if (since >= SPELLING_EXHAUSTED) {
+    lines.push(
+      `${since} distinct programs is past the point where more variation is informative. ` +
+      "Exhausting a spelling family is a positive result: the answer is not a spelling. Switch " +
+      "to the author's frame, which the compiler-side tools cannot reach. The vendored SDK " +
+      "headers give the real signature and the real operation for anything the SDK provides — " +
+      "read the header rather than your reconstruction of what the disassembly implies it must " +
+      "say. The already-matched functions in this target's file group are the only record of how " +
+      "this author wrote code: which locals they kept live, how they walked an array, what they " +
+      "hoisted, whether they took a base pointer once or re-indexed each time. A byte-exact " +
+      "neighbour is a proven idiom. notes/file-groupings.md names the group; read three of its " +
+      "members before reading another pass. A residual that survives every rewrite of your own " +
+      "idiom is usually somebody else's idiom.",
+    );
+  }
+  return lines.join(" ");
 }
 
 export function matchReport(diff: DiffResult, residual?: ResidualReading | null): string {
