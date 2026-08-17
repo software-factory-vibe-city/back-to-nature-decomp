@@ -930,22 +930,26 @@ has been removed. What the bytes actually are:
   attributing 0x8DC while the function was still a stub — is exactly the
   inconsistent state the tool's check mode rejects.
 
-## D_8005F0C8 table-scan family — func_8001945C / func_800198E0 (confidence: medium)
+## D_8005F0C8 table-scan family — func_8001929C / func_8001945C / func_800198E0 (confidence: medium)
 
-Two self-recursive u16-table scanners that read the same 4096-pointer table
+Three self-recursive u16-table scanners that read the same 4096-pointer table
 D_8005F0C8 (`[halfword & 0xFFF]`, absolute-addressed). Same-shape signature
-`s32 (u16 *buf, u16 hay/needle, s16 limit)` and the same idiom cluster:
+`s32 (u16 *buf, u16 hay/needle, s16 limit)` (func_8001929C adds a 4th
+`u16 *out` that receives the terminating count) and the same idiom cluster:
 plain `u16 *` walking pointer, an `(entry & 0xF000) == 0x4000` / `& 0x4000`
 command-bit check, a `u16` parameter whose entry zero-extension is the
-assign_parms conversion, and a recursive count-armed scan. func_800198E0 is
-byte-exact (MATCHED, the idiom twin to match func_8001945C against);
-func_8001945C now also byte-exact. Both reach D_8005F0C8 and nothing else in
-the game reaches that table, so the defining TU is among this pair
-(tentative/extern declaration split unconfirmed). func_8001945C also calls
-func_8001A284 (0x8001A574 family TU) and is called by func_800183E0 (the
-table-slot CD-loader cluster) — cross-group edges only, not membership.
+assign_parms conversion, and a recursive count-armed scan. All three are
+byte-exact. All three reach D_8005F0C8 and nothing else in the game reaches
+that table, so the defining TU is among this trio (tentative/extern
+declaration split unconfirmed). func_8001945C and func_8001929C also call
+func_8001A284 (0x8001A574 family TU) and are both called by func_800183E0
+(the table-slot CD-loader cluster, which calls func_8001929C twice) —
+cross-group edges only, not membership.
 
 Members (address order):
+- func_8001929C (m) — count/terminator scan with out-count; recursive when
+  `func_8001A284(*buf)` is nonzero, else on D_8005F0C8[*buf & 0xFFF]; calls
+  func_8001A284 exactly like func_8001945C
 - func_8001945C (m) — count/terminator scan; per-entry `func_8001A284(*buf)`
   with a D_8005F0C8 fallback, recursive on a nonzero result
 - func_800198E0 (m) — same signature; additive scan without the 0xFFFF
