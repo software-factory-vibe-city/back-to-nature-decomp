@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildApprovalNote, canonicalStub, composeParkedSource, planPark } from "./park.ts";
+import { buildApprovalNote, canonicalStub, composeParkedSource, planPark, stripPreviousPark } from "./park.ts";
 import { isNotesPath, restoreDrift, snapshotFiles } from "./scope-guard.ts";
 import type { ParkRecord } from "./types.ts";
 
@@ -112,6 +112,30 @@ test("re-parking does not nest the stub inside its own disabled block", async ()
     assert.equal(plan.preserved, false);
     assert.match(plan.reasons.join("\n"), /itself an INCLUDE_ASM stub/);
     assert.equal(plan.source.match(/INCLUDE_ASM/g)?.length, 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test("parking a function whose committed source is already a park does not stack the parks", async () => {
+  const { dir, cleanup } = scratch();
+  try {
+    const first = composeParkedSource({ ...base, base: STUB, attemptSource: ATTEMPT, preserveAttempt: true });
+    assert.equal(stripPreviousPark(first), STUB);
+
+    const plan = await planPark({
+      ...base,
+      projectRoot: PROJECT_ROOT,
+      runtimeDir: dir,
+      attemptSource: "#include \"common.h\"\n\nint func_80012345(int a) {\n    return a + 2;\n}\n",
+      committedSource: first,
+    });
+
+    assert.equal(plan.reasons.join("\n").includes("synthesized a canonical stub"), false);
+    assert.equal(plan.source.match(/PARKED by/g)?.length, 1);
+    assert.equal(plan.source.match(/#if 0/g)?.length, 1);
+    assert.equal(plan.source.includes("return a + 1;"), false);
+    assert.ok(plan.source.includes("return a + 2;"));
   } finally {
     cleanup();
   }

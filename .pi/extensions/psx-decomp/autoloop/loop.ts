@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { runResidualObjective } from "../autonomous/gates.ts";
 import type { PolicyFinding } from "../autonomous/types.ts";
-import { commitMatchedFunction } from "./commit.ts";
+import { commitMatchedFunction, commitParkedFunction } from "./commit.ts";
 import {
   environmentIsIntact,
   finalize,
@@ -10,6 +10,7 @@ import {
   isMatched,
   loopChangedFiles,
   nextTarget,
+  scopedLoopChanges,
   type OracleContext,
 } from "./oracles.ts";
 import {
@@ -487,7 +488,63 @@ export interface LoopOptions {
   maxFunctions?: number;
 }
 
-export async function runLoop(deps: LoopDeps, options: LoopOptions = {}): Promise<FunctionOutcome[]> {
+/**
+ * Close a function out: commit what the loop owes the tree, and stop charging
+ * the rest of it to whoever comes next.
+ *
+ * Anything the loop dirtied while working a function belongs to that function.
+ * Left in the tree it becomes indistinguishable from the next function's own
+ * edits: it fails that function's scope gate, or rides into its `match` commit
+ * under the wrong subject line — and either way one function's leftovers park
+ * every function after it. So the committable part is committed here, and
+ * whatever cannot be committed — paths outside the project's integration roots
+ * — is reported and folded into the loop's baseline, where it stands as dirt
+ * that pre-dates every remaining function, exactly as it now does.
+ */
+async function closeOut(
+  deps: LoopDeps,
+  state: LoopState,
+  outcome: FunctionOutcome & { kind: "parked" },
+): Promise<void> {
+  const ctx = { projectRoot: deps.projectRoot, baseline: deps.baseline, state };
+
+  if (deps.config.commitOnPark) {
+    setStatus(deps, `◎ ${outcome.functionName} · commit park`);
+    const { committable, outOfScope } = await scopedLoopChanges(ctx);
+    if (outOfScope.length > 0) {
+      notify(deps, `Left uncommitted (outside the integration roots): ${outOfScope.join(", ")}`, "warning");
+    }
+    const commit = await commitParkedFunction(
+      deps.projectRoot,
+      outcome.functionName,
+      outcome.record.reason,
+      outcome.record.reachedTier,
+      noteRelativePath(deps.config, `${outcome.functionName}.md`),
+      committable,
+    );
+    if (commit.committed) {
+      outcome.commit = commit.detail;
+      notify(deps, `Committed the park of ${outcome.functionName} as ${commit.detail}`, "info");
+    } else {
+      notify(deps, `Park not committed: ${outcome.functionName} — ${commit.detail}`, "warning");
+    }
+  }
+
+  const remaining = (await loopChangedFiles(ctx)).changedFiles;
+  if (remaining.length === 0) return;
+  for (const file of remaining) deps.baseline.add(file);
+  notify(
+    deps,
+    `Not charging the next function for what ${outcome.functionName} left behind: ${remaining.join(", ")}`,
+    "warning",
+  );
+}
+
+export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promise<FunctionOutcome[]> {
+  /* The loop forgives its own leftovers as it goes, and it does so on its own
+   * copy: what it stops charging to the next function is not thereby forgiven
+   * for every other tool sharing the session's baseline. */
+  const deps: LoopDeps = { ...input, baseline: new Set(input.baseline) };
   mkdirSync(deps.config.runtimeDir, { recursive: true });
   const savedModel = deps.ctx.model;
   const savedThinking = deps.pi.getThinkingLevel();
@@ -530,7 +587,9 @@ export async function runLoop(deps: LoopDeps, options: LoopOptions = {}): Promis
       }
 
       /* A match already proved the build green inside the finalize gate; only a
-       * park changes the tree afterwards, so only a park needs re-checking. */
+       * park changes the tree afterwards, so only a park needs re-checking. A
+       * park that does not build is not committed: it is left in the tree,
+       * where the human it is addressed to can see it. */
       if (run.outcome.kind === "parked") {
         setStatus(deps, "◎ autoloop · environment check");
         const environment = await environmentIsIntact({
@@ -543,6 +602,7 @@ export async function runLoop(deps: LoopDeps, options: LoopOptions = {}): Promis
           notify(deps, `Loop stopped: the tree no longer builds after parking ${target}.\n${environment.detail}`, "error");
           break;
         }
+        await closeOut(deps, state, run.outcome);
       }
     }
   } finally {
@@ -571,7 +631,9 @@ export function summarize(outcomes: FunctionOutcome[]): string {
   const parked = outcomes.filter((outcome) => outcome.kind === "parked").length;
   const broken = outcomes.some((outcome) => outcome.kind === "environment-broken");
   const aborted = outcomes.some((outcome) => outcome.kind === "aborted");
-  const committed = outcomes.filter((outcome) => outcome.kind === "matched" && outcome.commit).length;
+  const committed = outcomes.filter(
+    (outcome) => (outcome.kind === "matched" || outcome.kind === "parked") && outcome.commit,
+  ).length;
   const parts = [`${matched} matched`, `${committed} committed`, `${parked} parked`];
   if (aborted) parts.push("aborted");
   if (broken) parts.push("environment guard tripped");

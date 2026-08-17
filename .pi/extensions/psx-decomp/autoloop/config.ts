@@ -28,6 +28,7 @@ export const DEFAULT_LOOP_CONFIG: Omit<LoopConfig, "runtimeDir"> = {
   handoffSummary: true,
   updateFileGroupings: true,
   commitOnMatch: true,
+  commitOnPark: true,
   approvalsDir: "notes/human-needed-approvals",
 };
 
@@ -87,6 +88,7 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
       "handoffSummary",
       "updateFileGroupings",
       "commitOnMatch",
+      "commitOnPark",
       "runtimeDir",
       "approvalsDir",
     ],
@@ -114,6 +116,7 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
         ? DEFAULT_LOOP_CONFIG.updateFileGroupings
         : Boolean(raw.updateFileGroupings),
     commitOnMatch: raw.commitOnMatch === undefined ? DEFAULT_LOOP_CONFIG.commitOnMatch : Boolean(raw.commitOnMatch),
+    commitOnPark: raw.commitOnPark === undefined ? DEFAULT_LOOP_CONFIG.commitOnPark : Boolean(raw.commitOnPark),
     runtimeDir: isAbsolute(runtimeDir) ? runtimeDir : resolve(projectRoot, runtimeDir),
     approvalsDir,
   };

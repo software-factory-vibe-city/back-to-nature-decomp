@@ -13,6 +13,7 @@
   "handoffSummary": true,
   "updateFileGroupings": true,
   "commitOnMatch": true,
+  "commitOnPark": true,
   "runtimeDir": "run_output/autoloop",
   "approvalsDir": "notes/human-needed-approvals"
 }

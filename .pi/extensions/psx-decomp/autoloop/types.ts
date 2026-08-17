@@ -26,6 +26,8 @@ export interface LoopConfig {
   updateFileGroupings: boolean;
   /** Commit each byte-exact, finalized function before moving to the next one. */
   commitOnMatch: boolean;
+  /** Commit each parked function before moving to the next one. */
+  commitOnPark: boolean;
   /** Where durable loop state is written (absolute). */
   runtimeDir: string;
   /** Directory for documents that need a human decision (project-relative). */
@@ -61,7 +63,7 @@ export interface LoopState {
 
 export type FunctionOutcome =
   | { kind: "matched"; functionName: string; tier: string; changedFiles: string[]; commit?: string }
-  | { kind: "parked"; functionName: string; record: ParkRecord }
+  | { kind: "parked"; functionName: string; record: ParkRecord; commit?: string }
   | { kind: "aborted"; functionName: string }
   | { kind: "environment-broken"; functionName: string; detail: string };
 

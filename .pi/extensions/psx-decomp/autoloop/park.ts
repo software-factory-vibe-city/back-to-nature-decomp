@@ -15,6 +15,24 @@ export function canonicalStub(functionName: string): string {
   ].join("\n");
 }
 
+/** The opening of a park's header comment; also how a re-park recognizes one. */
+export const PARK_MARKER = "/* PARKED by /auto_decompilation_loop on ";
+
+/**
+ * Take a previous park back off a file before parking it again.
+ *
+ * A committed park is what `HEAD` holds for a parked function, so the base for
+ * a second park is the first one — header, disabled attempt and all. Composing
+ * on top of that would stack a park inside a park and grow the file by one
+ * dead attempt per visit. Everything from the header onwards was written by a
+ * park, so cutting there leaves exactly the translation unit the park was
+ * applied to.
+ */
+export function stripPreviousPark(source: string): string {
+  const index = source.indexOf(PARK_MARKER);
+  return index < 0 ? source : `${source.slice(0, index).replace(/\s*$/, "")}\n`;
+}
+
 export interface ComposeInput {
   functionName: string;
   /** The park base: a translation unit that hands the function back to the assembler. */
@@ -47,7 +65,7 @@ export function composeParkedSource(input: ComposeInput): string {
 
   const header = [
     "",
-    `/* PARKED by /auto_decompilation_loop on ${input.parkedAt}.`,
+    `${PARK_MARKER}${input.parkedAt}.`,
     ` * Reason: ${input.reason}.`,
     ` * Escalation reached: ${input.reachedTier}.`,
     ...(preserve ? [" * The best non-matching attempt is preserved verbatim below, disabled."] : []),
@@ -105,7 +123,7 @@ async function inspectText(input: PlanParkInput, name: string, source: string): 
 export async function planPark(input: PlanParkInput): Promise<ParkPlan> {
   const reasons: string[] = [];
 
-  const committed = input.committedSource;
+  const committed = input.committedSource === undefined ? undefined : stripPreviousPark(input.committedSource);
   const stubFacts = committed ? await inspectText(input, "base", committed) : undefined;
   const base =
     committed && stubFacts && declaresIncludeAsm(stubFacts, input.functionName)

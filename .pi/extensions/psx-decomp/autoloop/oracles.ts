@@ -1,7 +1,7 @@
 import { loadCallGraph, rebuildCallGraph } from "../autonomous/call-graph.ts";
 import { loadConfig } from "../autonomous/config.ts";
 import { runBuildCheck, runFunctionDiff, runGate } from "../autonomous/gates.ts";
-import { checkSourcePolicy } from "../autonomous/source-policy.ts";
+import { checkSourcePolicy, withinAllowedRoots } from "../autonomous/source-policy.ts";
 import type { AutodecompConfig, CallGraphEntry, DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import {
   changedFilesBetweenTrees,
@@ -73,6 +73,25 @@ export async function loopChangedFiles(ctx: OracleContext): Promise<{ changedFil
     ]),
   ].sort();
   return { changedFiles: filterNewChanges(all, ctx.baseline).newFiles, patch };
+}
+
+/**
+ * Split the loop's own changed files by what it is allowed to commit.
+ *
+ * A commit the loop makes on the user's branch may only carry the paths the
+ * project's integration roots name. Anything the loop dirtied outside them is
+ * not committable and not the loop's to keep — it is reported, and the caller
+ * decides what to do with it.
+ */
+export async function scopedLoopChanges(
+  ctx: OracleContext,
+): Promise<{ committable: string[]; outOfScope: string[] }> {
+  const config = gateConfig(ctx.projectRoot, ctx.state);
+  const { changedFiles } = await loopChangedFiles(ctx);
+  return {
+    committable: changedFiles.filter((file) => withinAllowedRoots(config, file)),
+    outOfScope: changedFiles.filter((file) => !withinAllowedRoots(config, file)),
+  };
 }
 
 export async function finalize(ctx: OracleContext, functionName: string): Promise<FinalizeVerdict> {

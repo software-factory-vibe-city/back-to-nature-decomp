@@ -17,7 +17,7 @@ function normalizedPath(path: string): string {
   return path.split(sep).join("/").replace(/^\.\//, "");
 }
 
-function allowed(config: AutodecompConfig, file: string): boolean {
+export function withinAllowedRoots(config: AutodecompConfig, file: string): boolean {
   const normalized = normalizedPath(file);
   return config.integration.allowedRoots.some((root) => normalized === root || normalized.startsWith(`${root}/`));
 }
@@ -228,7 +228,7 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
 
 export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
   const changedFiles = [...new Set((options.changedFiles ?? []).map(normalizedPath))].sort();
-  const outOfScopeFiles = changedFiles.filter((file) => !allowed(options.config, file));
+  const outOfScopeFiles = changedFiles.filter((file) => !withinAllowedRoots(options.config, file));
   const hardFailures: PolicyFinding[] = outOfScopeFiles.map((file) => ({
     kind: "out-of-scope",
     file,
