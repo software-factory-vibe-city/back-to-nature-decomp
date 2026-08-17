@@ -25,6 +25,8 @@ import {
   type PilotArtifact,
 } from "./cost-report.js";
 import { coverageReport, terminalStatus } from "./coverage.js";
+import { measureAxisEffects } from "./axis-effect.js";
+import { compareResidualAxes } from "./residual-axes.js";
 import { buildDomain, sdkCallOrderRegions, shardSize, type DomainRuntime, type ShardSpec } from "./enumerate.js";
 import { evaluateDomain, freshEvaluationState, type CandidateClassRuntime, type EvaluationState } from "./evaluate.js";
 import { loadMacroRegistry } from "./macro-forms.js";
@@ -74,6 +76,9 @@ export interface RunResidualSearchOptions {
 const WHOLE_DOMAIN: ShardSpec = { index: 1, count: 1 };
 
 /** The lever that is not a knob, printed with every projection. */
+/** No class table was produced at all, so nothing can be read as a ranking. */
+const NO_CLASSES = { sampled: false, evaluatedCandidates: "0", totalCandidates: "0" } as const;
+
 const RESIDUAL_LEVER =
   "The only lever on this cost is the residual itself: a smaller machine diff " +
   "produces a smaller causal closure, which produces a smaller domain.";
@@ -128,10 +133,21 @@ function checkpointToState(checkpoint: SearchCheckpoint): EvaluationState {
   return state;
 }
 
+/**
+ * Best first, by residual rather than by match count.
+ *
+ * A match count ranks a lucky register assignment above a fixed cause: an edit
+ * that removes the reason for a difference rotates everything downstream of
+ * it, matching fewer words while standing closer. The axes are ordered worst
+ * kind first, so a class that trades population for allocation sorts below one
+ * that does not, whatever the counts say. Count remains the last tiebreak, for
+ * classes the axes cannot separate.
+ */
 function rankClasses(state: EvaluationState): CandidateClassRuntime[] {
   return [...state.classes.values()].sort((left, right) =>
     Number(Boolean(right.fullObjectExact)) - Number(Boolean(left.fullObjectExact)) ||
     Number(right.cc1Exact) - Number(left.cc1Exact) ||
+    (left.residual && right.residual ? compareResidualAxes(left.residual, right.residual) : 0) ||
     right.exactInstructions - left.exactInstructions ||
     left.classId.localeCompare(right.classId));
 }
@@ -161,7 +177,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     return summary;
   };
   const refusalSummary = (status: TerminalStatus, detail: string, caveats: string[] = []): ResidualSearchSummary =>
-    finish({ ...summaryBase, status, statusDetail: detail, classes: [], exactCandidates: [], caveats });
+    finish({ ...summaryBase, status, statusDetail: detail, classes: [], classesSource: NO_CLASSES, exactCandidates: [], caveats });
 
   /* Deliverable 1: eligibility and immutable baseline bundle. */
   const baselineOptions: Parameters<typeof establishBaseline>[0] = {
@@ -188,6 +204,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
       statusDetail: baseline.refusal.reason,
       baseline: baselineSummary,
       classes: [],
+      classesSource: NO_CLASSES,
       exactCandidates: [],
       caveats: baseline.refusal.evidence,
     });
@@ -223,6 +240,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
       baseline: baselineSummary,
       closure: closureBlock,
       classes: [],
+      classesSource: NO_CLASSES,
       exactCandidates: [],
       caveats: refusedByClosure.evidence,
     });
@@ -278,6 +296,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
         projectedMs: null,
       },
       classes: [],
+      classesSource: NO_CLASSES,
       exactCandidates: [],
       caveats: [...bundle.caveats, ...graph.caveats, ...closure.caveats, ...derived.grammar.caveats, RESIDUAL_LEVER],
     });
@@ -308,12 +327,19 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     regions: derived.regions.length,
     totalCandidates: domain.total.toString(),
   };
+  /* Before anything is priced or evaluated: does each counted digit move the
+   * program? An inert axis inflates the total and the projection, and reads
+   * afterwards as an axis that was searched. */
+  const axisEffects = measureAxisEffects({ source, graph, view, domain });
+  writeStableJson(join(runRoot, "axis-effect.json"), { function: functionName, runId, axes: axisEffects.axes });
+
   const derivationCaveats = [
     ...bundle.caveats,
     ...graph.caveats,
     ...closure.caveats,
     ...derived.grammar.caveats,
     ...domain.caveats,
+    ...axisEffects.caveats,
   ];
 
   /* Baseline drift gate before any compilation, estimate included. */
@@ -405,7 +431,13 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
       closure: closureBlock,
       domain: domainBlock,
       estimate,
+      axisEffects: axisEffects.axes,
       classes: rankClasses(pilotState),
+      classesSource: {
+        sampled: true,
+        evaluatedCandidates: ranks.length.toString(),
+        totalCandidates: domain.total.toString(),
+      },
       exactCandidates: pilotState.exacts,
       caveats: [...derivationCaveats, ...pilotState.caveats, RESIDUAL_LEVER],
     });
@@ -452,6 +484,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     timing.ratio = evaluationMs / Math.max(1, priorEstimate.estimate.projectedMs);
     timing.projectionFrom = priorEstimate.runId;
   }
+  const coverage = coverageReport(domain.total, shard, state);
   const summary: ResidualSearchSummary = {
     ...summaryBase,
     status: outcome.status,
@@ -459,9 +492,15 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     baseline: baselineSummary,
     closure: closureBlock,
     domain: domainBlock,
-    coverage: coverageReport(domain.total, shard, state),
+    coverage,
     timing,
+    axisEffects: axisEffects.axes,
     classes: rankClasses(state),
+    classesSource: {
+      sampled: !coverage.complete,
+      evaluatedCandidates: coverage.evaluatedCandidates,
+      totalCandidates: coverage.totalCandidates,
+    },
     exactCandidates: state.exacts,
     caveats: [
       ...derivationCaveats,

@@ -117,7 +117,11 @@ residual, do not plan two moves ahead — pick the next hypothesis and run it.
 ## When it stalls, go deeper — do not stop
 
 Three consecutive measurements with no `better` and no `traded` means the *axis*
-is exhausted, not the function. Every function here has clean C that matches it
+is exhausted, not the function. A respelling does not count toward that three:
+a source that reaches a program the ledger has already measured is the same
+program arrived at again, not a measurement that failed to move. That is worth
+knowing — it is how an idea is shown to have been tried — but it is not
+progress and it is not a stall either, so do not report one as a finding. Every function here has clean C that matches it
 100%; a residual that survives hand-authored variants is a signal to bring
 heavier evidence, not to give up.
 
@@ -130,6 +134,32 @@ Stop re-spelling and escalate the class of evidence:
    the search at declarations, flags or the translation unit instead.
    `psx_search_source_shapes` and `psx_synthesize_source_shapes` generate and
    score shapes from the target's own requirements rather than from a hunch.
+
+   Read three things before you read the verdict, because each one decides
+   whether the verdict means anything:
+
+   - **The caveats and the suppressed rules.** They name the constructs the
+     grammar refused. A construct it refused is a place the search did not
+     look, and an exhaustion over a domain that excludes your residual's
+     location is not evidence about your residual.
+   - **The axis-effect block.** An axis can be counted and still change
+     nothing. An inert axis inflates the candidate total and the projected
+     cost, and afterwards reads as an axis that was searched.
+   - **The coverage.** A `--derive-only` run samples a few dozen coordinates to
+     time a compile. Its class table is not a ranking over the domain and
+     supports no statement about what the domain contains. Exhaust it, or say
+     you sampled.
+
+   `psx_triage` reports all three as `search-domain` findings, so run it before
+   you reason from any prior search result, including your own.
+
+   Then read the classes as a **direction**, not a score. Each carries
+   `[pop, sched, alloc]`, its delta from the baseline, and the runs it moved.
+   Population is the worst axis and allocation the mildest: a class that buys
+   register matches with new population differences has gone backwards, however
+   many more words it matches. `moved: run16(alloc -8, pop +3)` is the useful
+   sentence — it names the axis, the size of the trade, and where it happened.
+   Take the next experiment from that, not from the match count.
 
 2. **Solve for the compiler state, do not model it.**
    `psx_solve_local_allocation` solves for the local-alloc quantity priorities

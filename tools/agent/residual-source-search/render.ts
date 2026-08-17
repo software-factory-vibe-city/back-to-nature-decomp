@@ -1,3 +1,4 @@
+import { basePointerText } from "./base-pointer.js";
 import type { CandidatePlan } from "./enumerate.js";
 import { groupNameAt } from "./enumerate.js";
 import type { WebView } from "./web-partitions.js";
@@ -91,6 +92,53 @@ export function renderCandidate(
   const regionNodeIds = new Set(plan.partition.regions.flatMap((region) => region.nodeIds));
   const replacements: Replacement[] = [];
 
+  /* ---------------------------------------------------------------- */
+  /* Base pointers: rewrite uses inside statement text, not as spans.  */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * A lifted subscript sits inside a statement that a region may also reorder
+   * and a partition may also rename, and all three want the same bytes. Region
+   * and rename both work on the node's text, so this does too: the use spans
+   * are converted to node-relative offsets and applied before renaming, which
+   * is why the index that moved into the declaration is no longer there to be
+   * renamed twice.
+   */
+  const liftedUses = new Map<string, Array<{ start: number; end: number; text: string }>>();
+  const liftedSites = (plan.basePointers ?? []);
+  for (const site of liftedSites) {
+    const { useText } = basePointerText(site);
+    for (const use of site.uses) {
+      const bucket = liftedUses.get(use.nodeId) ?? [];
+      bucket.push({ start: use.start, end: use.end, text: useText(use.offset) });
+      liftedUses.set(use.nodeId, bucket);
+    }
+  }
+  const applyLifts = (nodeId: string, text: string, baseOffset: number): string => {
+    const uses = liftedUses.get(nodeId);
+    if (!uses || uses.length === 0) return text;
+    /* Right to left, so an earlier replacement cannot move a later offset. */
+    let result = text;
+    for (const use of [...uses].sort((left, right) => right.start - left.start)) {
+      const from = use.start - baseOffset;
+      const to = use.end - baseOffset;
+      if (from < 0 || to > text.length) continue;
+      result = result.slice(0, from) + use.text + result.slice(to);
+    }
+    return result;
+  };
+  const emitText = (node: SemanticNode, renames: Map<string, string>): string =>
+    renameIdentifiers(applyLifts(node.id, node.text, node.span.start), renames);
+
+  /**
+   * Where each pointer's assignment goes, by the statement it precedes. A
+   * region emits its statements as one replacement, so an assignment landing
+   * inside one has to join that list rather than claim a span of its own —
+   * two replacements over the same bytes is how a renderer corrupts a
+   * candidate silently.
+   */
+  const assignmentsBefore = new Map<string, string[]>();
+
   const renameMapOf = (node: SemanticNode): Map<string, string> => {
     const renames = new Map<string, string>();
     for (const variable of node.reads) {
@@ -103,6 +151,16 @@ export function renderCandidate(
     }
     return renames;
   };
+
+  for (const site of liftedSites) {
+    const { assignment } = basePointerText(site);
+    const defineNode = nodeById.get(site.defineBeforeNodeId);
+    assignmentsBefore.set(site.defineBeforeNodeId, [
+      ...(assignmentsBefore.get(site.defineBeforeNodeId) ?? []),
+      defineNode ? renameIdentifiers(assignment, renameMapOf(defineNode)) : assignment,
+    ]);
+  }
+  const regionOwned = new Set(plan.partition.regions.flatMap((region) => region.nodeIds));
 
   /* ---------------------------------------------------------------- */
   /* Regions: reorder, drop birth definitions, apply renames.          */
@@ -136,15 +194,25 @@ export function renderCandidate(
     const identical =
       moved.size === 0 &&
       emittedIds.join(",") === originalIds.join(",") &&
-      [...renamed.values()].every((map) => map.size === 0);
+      [...renamed.values()].every((map) => map.size === 0) &&
+      !originalIds.some((id) => liftedUses.has(id) || assignmentsBefore.has(id));
     if (identical) continue;
     const first = nodeById.get(originalIds[0]!)!;
     const last = nodeById.get(originalIds[originalIds.length - 1]!)!;
     const indent = lineIndent(source, first.span.start);
     const text = emittedIds
-      .map((id) => renameIdentifiers(resolveNode(id).text, renamed.get(id)!))
+      .flatMap((id) => [...(assignmentsBefore.get(id) ?? []), emitText(resolveNode(id), renamed.get(id)!)])
       .join(`\n${indent}`);
     replacements.push({ start: first.span.start, end: last.span.end, text });
+  }
+
+  /* Which group each dropped definition is reborn on, needed both by the
+   * scoped declarations below and by the entry cluster further down. */
+  const birthByGroup = new Map<string, SemanticNode>();
+  for (const id of plan.birthNodes) {
+    const node = nodeById.get(id)!;
+    const group = groupNameAt(view, named, id, node.writes[0]!, "write");
+    birthByGroup.set(group, node);
   }
 
   /* ---------------------------------------------------------------- */
@@ -152,27 +220,82 @@ export function renderCandidate(
   /* ---------------------------------------------------------------- */
 
   for (const node of graph.nodes) {
-    if (regionNodeIds.has(node.id) || node.kind === "declaration") continue;
-    if (node.kind === "unknown" || node.kind === "call" || node.kind === "barrier") continue;
+    if (regionNodeIds.has(node.id)) continue;
+    /* Entry-block declarations belong to the cluster rewritten below. A
+     * declaration in an opened case body has a scope of its own, so it is
+     * renamed where it stands — including its initializer, which the cluster
+     * has no way to reach, and including a birth, whose definition the region
+     * has already dropped. */
+    if (node.kind === "declaration") {
+      if (node.block === 0) continue;
+      const renames = renameMapOf(node);
+      const declared = renames.get(node.declName!) ?? node.declName!;
+      const birth = birthByGroup.get(declared);
+      if (birth) {
+        const rhs = renameIdentifiers(birth.rhs!, renameMapOf(birth));
+        replacements.push({
+          start: node.span.start,
+          end: node.span.end,
+          text: `${node.declType} ${declared} = ${rhs};`,
+        });
+      } else if (renames.size > 0 || liftedUses.has(node.id)) {
+        replacements.push({ start: node.span.start, end: node.span.end, text: emitText(node, renames) });
+      }
+      continue;
+    }
+    /* A call's argument list is ordinary text over exact reads and writes, so
+     * it renames like any other statement. An unknown node's text may hold a
+     * nested scope or identifiers that are not variables at all, and a barrier
+     * holds no identifiers, so neither is rewritten. */
+    if (node.kind === "unknown" || node.kind === "barrier") continue;
     if (node.kind === "if") {
       const renames = new Map<string, string>();
       for (const variable of node.reads) {
         const group = groupNameAt(view, named, node.id, variable, "read");
         if (group !== variable) renames.set(variable, group);
       }
-      if (renames.size > 0 && node.condSpan) {
+      if ((renames.size > 0 || liftedUses.has(node.id)) && node.condSpan) {
+        const condition = source.slice(node.condSpan.start, node.condSpan.end);
         replacements.push({
           start: node.condSpan.start,
           end: node.condSpan.end,
-          text: renameIdentifiers(source.slice(node.condSpan.start, node.condSpan.end), renames),
+          text: renameIdentifiers(applyLifts(node.id, condition, node.condSpan.start), renames),
         });
       }
       continue;
     }
     const renames = renameMapOf(node);
-    if (renames.size > 0) {
-      replacements.push({ start: node.span.start, end: node.span.end, text: renameIdentifiers(node.text, renames) });
+    if (renames.size > 0 || liftedUses.has(node.id)) {
+      replacements.push({ start: node.span.start, end: node.span.end, text: emitText(node, renames) });
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Base-pointer declarations, at the top of the block they serve.    */
+  /* ---------------------------------------------------------------- */
+
+  /* The declaration always claims its own zero-width insertion at the block
+   * top. The assignment does too, but only when its statement is not inside a
+   * region that already emitted it above. */
+  const insertions = new Map<string, string[]>();
+  for (const site of liftedSites) {
+    const { declaration } = basePointerText(site);
+    insertions.set(site.declareBeforeNodeId,
+      [...(insertions.get(site.declareBeforeNodeId) ?? []), declaration]);
+  }
+  for (const [nodeId, lines] of assignmentsBefore) {
+    if (regionOwned.has(nodeId)) continue;
+    insertions.set(nodeId, [...(insertions.get(nodeId) ?? []), ...lines]);
+  }
+  for (const [nodeId, lines] of insertions) {
+    const node = nodeById.get(nodeId);
+    if (!node) continue;
+    const indent = lineIndent(source, node.span.start);
+    replacements.push({
+      start: node.span.start,
+      end: node.span.start,
+      text: `${lines.join(`\n${indent}`)}\n${indent}`,
+    });
   }
 
   /* ---------------------------------------------------------------- */
@@ -203,13 +326,6 @@ export function renderCandidate(
       const web = view.websById.get(webId);
       if (web) partitionedNames.add(web.variable);
     }
-  }
-
-  const birthByGroup = new Map<string, SemanticNode>();
-  for (const id of plan.birthNodes) {
-    const node = nodeById.get(id)!;
-    const group = groupNameAt(view, named, id, node.writes[0]!, "write");
-    birthByGroup.set(group, node);
   }
 
   const lines: string[] = [];

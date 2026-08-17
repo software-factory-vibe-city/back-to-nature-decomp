@@ -121,6 +121,42 @@ function appendExperiment(input: RecordInput, sourceHash: string): LedgerEntry {
   return entry;
 }
 
+/**
+ * A measurement, plus whether it is one.
+ *
+ * An entry whose compiled output was already in the ledger is a *respelling*:
+ * a different source reaching a program that has been measured. That is a real
+ * and useful thing to record — it is how a promising-looking idea is shown to
+ * be one already tried — but it is not a new measurement, and anything that
+ * counts progress has to tell the two apart. Three respellings in a row is a
+ * search enlarging its own space, not a search failing to move, and reading
+ * them as failure is how a loop gives up while it is working.
+ *
+ * Derived rather than stored: the grouping is exact, costs a pass, needs no
+ * schema change, and applies to every ledger already on disk.
+ */
+export interface AnnotatedEntry extends LedgerEntry {
+  /** The `at` of the first entry that reached this output, when not the first. */
+  respellingOf?: string;
+}
+
+export function annotateRespellings(entries: LedgerEntry[]): AnnotatedEntry[] {
+  const firstReached = new Map<string, string>();
+  return entries.map((entry) => {
+    const first = firstReached.get(entry.outputHash);
+    if (first === undefined) {
+      firstReached.set(entry.outputHash, entry.at);
+      return { ...entry };
+    }
+    return { ...entry, respellingOf: first };
+  });
+}
+
+/** The entries that measured a program for the first time. */
+export function measurements(entries: LedgerEntry[]): AnnotatedEntry[] {
+  return annotateRespellings(entries).filter((entry) => entry.respellingOf === undefined);
+}
+
 export interface PriorMeasurement {
   /** A previous entry whose compiled output matched this one. */
   sameOutput?: LedgerEntry;
@@ -186,10 +222,14 @@ export function renderLedger(functionName: string, entries: LedgerEntry[]): stri
     }
   }
 
-  lines.push("", "  history (most recent last)");
-  for (const entry of entries) {
+  const annotated = annotateRespellings(entries);
+  const distinctMeasurements = annotated.filter((entry) => entry.respellingOf === undefined).length;
+  lines.push("", `  history (most recent last) — ${distinctMeasurements} measurement(s), ` +
+    `${annotated.length - distinctMeasurements} respelling(s) of a program already measured`);
+  for (const entry of annotated) {
     const note = entry.note ? ` — ${entry.note}` : "";
-    lines.push(`    ${entry.at.slice(0, 19)}  [${entry.key.join(",")}]  ${entry.verdict.padEnd(12)} ${entry.source}${note}`);
+    const respelling = entry.respellingOf ? `  RESPELLING of ${entry.respellingOf.slice(0, 19)}` : "";
+    lines.push(`    ${entry.at.slice(0, 19)}  [${entry.key.join(",")}]  ${entry.verdict.padEnd(12)} ${entry.source}${note}${respelling}`);
   }
   return lines.join("\n");
 }

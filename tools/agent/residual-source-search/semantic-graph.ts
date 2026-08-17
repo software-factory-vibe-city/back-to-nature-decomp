@@ -10,6 +10,7 @@ import {
   field,
   namedChildren,
   parseC,
+  walk,
   type Node,
 } from "./tree-sitter-c.js";
 import {
@@ -719,6 +720,66 @@ function containsOwnContinue(node: Node): boolean {
   return found;
 }
 
+/** Statements that transfer control somewhere the block model cannot follow. */
+const CASE_ESCAPE_TYPES = new Set([
+  "break_statement", "continue_statement", "goto_statement", "return_statement", "labeled_statement",
+]);
+
+/**
+ * The statements of one `case`, with the label and comments removed and a lone
+ * brace unwrapped.
+ *
+ * `case X: { ... }` is the ordinary C89 spelling whenever the case needs a
+ * local, because a declaration needs a block to live in. The braces buy that
+ * declaration a scope and change nothing about control flow, so the body they
+ * hold is the case's body. Braces followed by anything else are left alone —
+ * that is not the idiom, and unwrapping would lose the statements after them.
+ */
+function caseBodyStatements(item: Node, label: Node | undefined): Node[] {
+  const direct = namedChildren(item).filter((child) => child.type !== "comment" && child.id !== label?.id);
+  if (direct.length !== 1 || direct[0]!.type !== "compound_statement") return direct;
+  return namedChildren(direct[0]!).filter((child) => child.type !== "comment");
+}
+
+/**
+ * Whether a `case` body is a plain statement sequence: one entry at the label,
+ * one exit at the terminator, and no control transfer from its interior.
+ *
+ * Such a body is a basic-block sequence exactly like a `then` block, so its
+ * statements can be ordered and can join the causal closure. The predicate is
+ * deliberately syntactic and refuses on anything it cannot see through — a
+ * nested `switch` or loop owns its own `break`, but proving which one a given
+ * `break` belongs to is the control-flow modelling this schema still lacks, so
+ * a body containing one is refused rather than assumed.
+ *
+ * `statements` is the case's statement list with the label and comments
+ * already removed, and with a lone brace unwrapped — see `caseBodyStatements`.
+ */
+export function caseBodyIsSequential(statements: Node[]): { ok: true } | { ok: false; reason: string } {
+  if (statements.length === 0) return { ok: false, reason: "the case is empty and falls through" };
+  const last = statements[statements.length - 1]!;
+  if (last.type !== "break_statement" && last.type !== "return_statement") {
+    return { ok: false, reason: "the case does not terminate in break or return" };
+  }
+  const body = last.type === "break_statement" ? statements.slice(0, -1) : statements;
+
+  for (const statement of body) {
+    let escape: string | undefined;
+    walk(statement, (item) => {
+      if (escape !== undefined) return false;
+      if (CASE_ESCAPE_TYPES.has(item.type)) {
+        escape = item.type;
+        return false;
+      }
+      return true;
+    });
+    if (escape !== undefined) {
+      return { ok: false, reason: `a ${escape.replace("_statement", "")} inside the case body leaves it by a path the schema does not model` };
+    }
+  }
+  return { ok: true };
+}
+
 /**
  * Model one header expression as a statement node in its own block. `for`
  * headers hold bare expressions rather than statements, so the span is the
@@ -819,6 +880,7 @@ function buildSwitch(state: BuildState, blockIndex: number, statement: Node): Se
   const conditionInner = condition ? unwrapParentheses(condition) : undefined;
   const body = field(statement, "body");
   const caseBlocks: number[] = [];
+  const frozenItems: Node[] = [];
   for (const item of body ? namedChildren(body) : []) {
     if (item.type !== "case_statement") continue;
     const index = state.blocks.length;
@@ -831,26 +893,56 @@ function buildSwitch(state: BuildState, blockIndex: number, statement: Node): Se
       controllingConstruct: id,
     };
     if (label) block.caseLabel = stripComments(label.text).trim();
+    const statements = caseBodyStatements(item, label);
+
+    /* Admissibility is decided before the body is built, so `blockIsFrozen`
+     * gives the same answer during the build as it will afterwards. */
+    const sequential = caseBodyIsSequential(statements);
+    const name = block.caseLabel === undefined ? "default" : `case ${block.caseLabel}`;
+    if (sequential.ok) {
+      block.sequentialCase = true;
+    } else {
+      block.caseRefusal = sequential.reason;
+      frozenItems.push(item);
+      state.caveats.push(
+        `${name} at line ${lineAt(source, item.startIndex)} stays inside the switch summary: ${sequential.reason}.`,
+      );
+    }
+
     state.blocks.push(block);
     caseBlocks.push(index);
-    const statements = namedChildren(item).filter((child) => child.type !== "comment" && child.id !== label?.id);
     buildBlockBody(state, index, statements);
   }
 
-  const effects = analyzeExpression(statement, state.context);
+  /* The summary covers the dispatch and every case the schema could not open.
+   * A sequential case is covered by its own statement nodes and its own flow
+   * edges instead, so naming its variables here too would be no safer — it
+   * would only mark them touched by an unknown-effect node, which freezes
+   * their webs and renaming for no reason. Memory stays `*unknown*`: the
+   * construct is a barrier wherever it sits, and a frozen case's stores have
+   * nowhere else to be recorded. */
+  const conditionEffects = analyzeExpression(conditionInner, state.context);
+  const frozenNames = frozenItems.flatMap((item) => analyzeExpression(item, state.context).reads);
+  const summarized = [...new Set([...conditionEffects.reads, ...frozenNames])].sort();
+  const sequentialCount = caseBlocks.filter((index) => state.blocks[index]!.sequentialCase === true).length;
   const node: SemanticNode = {
     id,
     kind: "unknown",
     block: blockIndex,
     span: nodeSpan(source, statement),
     text: statement.text,
-    reads: effects.reads,
-    writes: effects.reads,
+    reads: summarized,
+    /* A frozen construct may write anything it mentions. */
+    writes: summarized,
     killingWrite: false,
     memoryReads: ["*unknown*"],
     memoryWrites: ["*unknown*"],
     movable: false,
-    evidence: ["A switch is frozen verbatim in this grammar version; its cases are modelled but not its effects."],
+    evidence: [
+      "The switch construct itself is never moved or reshaped, and its memory effects stay an unknown-effect summary.",
+      `${sequentialCount} of ${caseBlocks.length} cases are sequential; their statements are modelled individually, ` +
+      `and the summary names only the condition and the ${frozenItems.length} case(s) that stayed frozen.`,
+    ],
     bodyBlock: caseBlocks[0],
     caseBlocks,
   };
@@ -921,18 +1013,35 @@ function classifyCall(
   }
 
   const effects = analyzeExpression(statement, context);
+
+  /* An unregistered callee's memory effects are unknown, but its effect on the
+   * caller's scalars is not. C passes them by value: the callee cannot write
+   * one back. The single channel that would let it — a pointer to a local —
+   * is `&x` in the argument list, which is visible here and is the whole of
+   * this node's scalar writes. Claiming instead to write every name read was
+   * conservative in the wrong currency: it marked those names touched by an
+   * unknown-effect node, which froze their webs, and a local that is passed to
+   * any call is most locals. Reads stay over-approximate, which only merges
+   * webs; writes do not, because a spurious write invents a definition and
+   * cuts the web at the call. */
+  const escapes = addressEscapingNames(statement, variables);
   return {
     ...base,
     id: newNodeId(state),
     kind: "call",
     movable: false,
     reads: effects.reads,
-    writes: effects.reads,
+    writes: [...escapes].sort(),
     memoryReads: ["*unknown*"],
     memoryWrites: ["*unknown*"],
-    evidence: [macro
-      ? `${name} is registered but the call shape or argument purity did not match; treated as unknown effect.`
-      : `${name ?? "the callee"} is not in the configured known-macro registry; treated as an unknown-effect call.`],
+    evidence: [
+      macro
+        ? `${name} is registered but the call shape or argument purity did not match; memory effects are unknown.`
+        : `${name ?? "the callee"} is not in the configured known-macro registry; memory effects are unknown.`,
+      escapes.size === 0
+        ? "No local's address is passed, so the call writes no scalar this model tracks."
+        : `Writes only the local(s) whose address is passed: ${[...escapes].sort().join(", ")}.`,
+    ],
   };
 }
 
@@ -1044,13 +1153,16 @@ export function classifySyntheticStatement(
 /* ------------------------------------------------------------------ */
 
 /**
- * True when the block sits inside a loop or a case, directly or through an
- * enclosing `if`. Everything under a frozen construct is frozen with it.
+ * True when the block sits inside a construct the grammar cannot reason about,
+ * directly or through an enclosing `if`. Everything under a frozen construct is
+ * frozen with it. A `case` block is frozen unless it was admitted as sequential
+ * when the switch was built.
  */
 export function blockIsFrozen(blocks: SemanticBlock[], index: number): boolean {
   let current: SemanticBlock | undefined = blocks[index];
   while (current) {
     if (!REORDERABLE_BLOCK_KINDS.has(current.kind)) return true;
+    if (current.kind === "case" && current.sequentialCase !== true) return true;
     current = current.parent === undefined ? undefined : blocks[current.parent];
   }
   return false;
@@ -1294,7 +1406,10 @@ export function buildSemanticGraph(
 
   const declarationNodes = state.nodes.filter((node) => node.kind === "declaration" && node.declName);
   const duplicateNames = new Set<string>();
-  const seenNames = new Set<string>();
+  /* A parameter counts as already seen. An entry-block declaration can never
+   * shadow one — that is the same scope — but a sequential case body is a
+   * scope of its own, so opening those bodies made the collision reachable. */
+  const seenNames = new Set<string>(parsedParameters.map((parameter) => parameter.name));
   for (const node of declarationNodes) {
     if (seenNames.has(node.declName!)) duplicateNames.add(node.declName!);
     seenNames.add(node.declName!);
@@ -1307,9 +1422,16 @@ export function buildSemanticGraph(
    * into another web or merged with a scalar. */
   const escaped = addressEscapingNames(body, variables);
   for (const name of state.arrayLocals) escaped.add(name);
+  /* A name an unknown node touches is frozen: that node's read and write sets
+   * are summaries over a subtree, so the model can neither place a definition
+   * in it nor rewrite the text it holds. A `call` node is not that. Its scalar
+   * reads and writes are exact (see `classifyCall`) and its argument list is
+   * ordinary renameable text, so a call is no longer a reason to freeze the
+   * locals it takes — which is what emptied the partition axis on any function
+   * whose locals reach a callee. */
   const unsupportedTouch = new Set<string>();
   for (const node of state.nodes) {
-    if (node.kind === "unknown" || node.kind === "call") {
+    if (node.kind === "unknown") {
       for (const name of [...node.reads, ...node.writes]) unsupportedTouch.add(name);
     }
   }
@@ -1341,10 +1463,18 @@ export function buildSemanticGraph(
       typeText: parameter.typeText,
       pointer: parameter.pointer,
       addressEscapes: escaped.has(parameter.name),
-      supported: !unsupportedTouch.has(parameter.name),
-      evidence: unsupportedTouch.has(parameter.name)
-        ? ["Accessed by an unknown-effect node; renaming and web analysis are frozen."]
-        : [],
+      /* Shadowing freezes both ends. A case-body local of the same name is a
+       * different variable that the flat model cannot tell from this one, so
+       * neither may be renamed or web-analyzed. */
+      supported: !unsupportedTouch.has(parameter.name) && !duplicateNames.has(parameter.name),
+      evidence: [
+        ...unsupportedTouch.has(parameter.name)
+          ? ["Accessed by an unknown-effect node; renaming and web analysis are frozen."]
+          : [],
+        ...duplicateNames.has(parameter.name)
+          ? ["A local of the same name shadows this parameter; the flat variable model freezes both."]
+          : [],
+      ],
     });
   }
   for (const node of declarationNodes) {
@@ -1441,8 +1571,17 @@ export function buildFlow(graph: SemanticGraph): GraphFlow {
     return followerOf(block.parent, parent.nodeIds.indexOf(block.controllingIf ?? block.controllingConstruct ?? ""));
   };
 
-  /* A case block is structure, not flow: fall-through and `break` are control
-   * this schema does not model, so a switch stays a summary node. */
+  /**
+   * The live cases of a switch: the ones admitted as sequential. A frozen case
+   * contributes no edges, exactly as every case did before schema 6 — its
+   * effects stay covered by the switch node's own unknown-effect summary, so
+   * leaving it out of the flow under-approximates nothing.
+   */
+  const liveCaseEntries = (node: SemanticNode): string[] => (node.caseBlocks ?? [])
+    .filter((index) => !blockIsFrozen(graph.blocks, index))
+    .map((index) => entryOf(firstOf(index)))
+    .filter((id): id is string => id !== undefined);
+
   for (const block of graph.blocks) {
     if (blockIsFrozen(graph.blocks, block.index)) continue;
     for (let position = 0; position < block.nodeIds.length; position++) {
@@ -1459,6 +1598,14 @@ export function buildFlow(graph: SemanticGraph): GraphFlow {
         /* A do/while always runs its body once; treating the exit as reachable
          * from the test as well only widens the reaching-definition sets. */
         const targets = [firstOf(node.bodyBlock) ?? firstOf(node.updateBlock) ?? follower, follower];
+        successors.set(id, [...new Set(targets.filter((target): target is string => target !== undefined))]);
+      } else if (node.caseBlocks !== undefined) {
+        /* The switch reaches each live case, and reaches past itself: no case
+         * need match, and a frozen case is only visible as the fall-past edge.
+         * Every live case ends in `break` or `return`, so a case body never
+         * reaches its neighbour — which is what `followerOf` already returns
+         * for a case block. */
+        const targets = [...liveCaseEntries(node), follower];
         successors.set(id, [...new Set(targets.filter((target): target is string => target !== undefined))]);
       } else if (node.kind === "return") {
         successors.set(id, []);
@@ -1481,6 +1628,12 @@ export function buildFlow(graph: SemanticGraph): GraphFlow {
         if (node.initBlock !== undefined) walkBlock(node.initBlock);
         if (node.bodyBlock !== undefined) walkBlock(node.bodyBlock);
         if (node.updateBlock !== undefined) walkBlock(node.updateBlock);
+      } else if (node.caseBlocks !== undefined) {
+        /* Only live cases: a frozen case has no successors, and a node in the
+         * order without successors would shrink the live sets computed over it. */
+        for (const index of node.caseBlocks) {
+          if (!blockIsFrozen(graph.blocks, index)) walkBlock(index);
+        }
       }
     }
   };

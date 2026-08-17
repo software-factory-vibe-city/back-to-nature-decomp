@@ -1,7 +1,7 @@
 import type { ResidualReading } from "../autonomous/gates.ts";
 import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import type { HandoffSummary } from "./types.ts";
-import { readLedger } from "../../../../tools/agent/experimentLedger.ts";
+import { measurements, readLedger } from "../../../../tools/agent/experimentLedger.ts";
 
 export const DECOMPILE_SKILL = "psx-decompile-function";
 
@@ -45,7 +45,11 @@ export const KEEP_GOING = [
  * search and starts being repetition.
  */
 function stallLine(functionName: string): string | undefined {
-  const entries = readLedger(functionName);
+  /* Respellings are excluded: a source that reaches an already-measured
+   * program is not a measurement that failed to move, it is the same program
+   * arrived at again. Counting them as failures makes a loop that is opening
+   * its own search space look like a loop that has run out of ideas. */
+  const entries = measurements(readLedger(functionName));
   if (entries.length < 4) return undefined;
 
   const better = (left: number[], right: number[]): boolean => {
@@ -61,13 +65,19 @@ function stallLine(functionName: string): string | undefined {
   const bestEarlier = earlier.reduce((best, entry) => (better(entry.key, best) ? entry.key : best), earlier[0]!.key);
   if (recent.some((entry) => better(entry.key, bestEarlier))) return undefined;
 
-  return `STALLED: the last ${recent.length} measurements did not improve on [${bestEarlier.join(", ")}]. ` +
+  return `STALLED: the last ${recent.length} distinct measurements did not improve on [${bestEarlier.join(", ")}]. ` +
     "The axis is exhausted, not the function — stop re-spelling it and bring heavier evidence. " +
     "Enumerate the source space (psx_search_residual_source_space, psx_search_source_shapes), " +
     "solve for the compiler state instead of modelling it (psx_solve_local_allocation, " +
     "psx_search_scheduler_state, psx_allocator_counterfactual), or read the deciding pass " +
     "directly (psx_compiler_source). A solver result is a specification for a source shape, " +
-    "and an UNSAT is a real finding that closes a direction. Record what each one closed.";
+    "and an UNSAT is a real finding that closes a direction. Record what each one closed. " +
+    "When a search reports no exact candidate, that is not the end of its output: read the " +
+    "per-class residual axes and the runs each class moved, and take the next experiment from " +
+    "the axis that moved rather than from the match count. Before trusting any search verdict, " +
+    "check its caveats for constructs the grammar refused, its axis-effect block for axes that " +
+    "are counted but inert, and its coverage — a --derive-only run sampled, and a sample " +
+    "supports no statement about the domain.";
 }
 
 export function matchReport(diff: DiffResult, residual?: ResidualReading | null): string {

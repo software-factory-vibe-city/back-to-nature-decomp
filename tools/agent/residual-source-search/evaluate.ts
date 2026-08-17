@@ -7,6 +7,7 @@ import type { TargetScheduleAnalysis } from "../target-schedule/types.js";
 import { projectPath, sha256, stableJson, writeStableJson } from "../variant-lab/artifacts.js";
 import { normalizeDisassembly, parseCc1Assembly } from "../variant-lab/compile.js";
 import { compareResidual, residualIsExact } from "./align.js";
+import { residualAxes } from "./residual-axes.js";
 import { findEmptyMemoryBarriers, findGeneratedGlobalDefinitions, validateVariantSource } from "../variant-lab/manifest.js";
 import type { NormalizedInstruction } from "../variant-lab/types.js";
 import { canonicalSourceHash, type CanonicalContext } from "./canonicalize.js";
@@ -366,6 +367,7 @@ export async function evaluateDomain(options: EvaluateRunOptions): Promise<StopR
         exactInstructions: comparison.exact,
         totalInstructions: comparison.total,
         cc1Exact,
+        residual: residualAxes({ target, candidate: compiled, comparison }),
         requirementResults,
       };
       if (comparison.firstDivergence) classRecord.firstDivergenceStage = comparison.firstDivergence;

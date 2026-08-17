@@ -18,9 +18,34 @@ export const RESIDUAL_SEARCH_SCHEMA_VERSION = 2 as const;
  * loop structure: a loop's header and body are modelled and reorderable under
  * loop-carried dependencies, the loop-update-placement stratum searches a
  * `for` header's updates against the same statements at the body tail, and the
- * switch-form stratum searches a jump table against a compare chain.
+ * switch-form stratum searches a jump table against a compare chain. Schema 6
+ * opens the body of a sequential `case`: a case whose statements terminate in
+ * `break` or `return` with no other control transfer out of them has one entry
+ * and one exit, so its statements form order regions and join the causal
+ * closure like any other block's. A case that falls through, or that transfers
+ * control from its interior, stays frozen.
+ *
+ * Schema 7 does not add a rule; it stops three exclusions from emptying the
+ * ones already there. A call node's scalar writes narrow to the locals whose
+ * address it is passed, so a local that reaches a callee is no longer frozen
+ * out of web analysis. Web partition and declaration-birth accept a
+ * declaration in any block the grammar reasons about, not only the entry
+ * block. And an initializer no longer freezes a declaration that renders in
+ * place. The rule set is identical to schema 6's and the domain is strictly
+ * larger, which is exactly why the number moves: an exhaustion claim names
+ * this version, and the same name has to mean the same domain.
+ *
+ * Schema 8 adds the base-pointer stratum, the shared-address subset of the
+ * common-subexpression reuse that schema 7 still listed as excluded.
+ * Subscripts of one data symbol that share an index are addresses off one
+ * base, and the source can either recompute each of them or name the base:
+ * `s32 *p; p = &A[i];` and then `*p`, `p[1]`, `p[2]`. Which one the original
+ * wrote is not cosmetic — it decides what is live and for how long — and
+ * hand-authored variants of exactly this shape are what have moved this
+ * project's allocation residual. The rule was added because the search kept
+ * exhausting the axes that could not reach them.
  */
-export const RESIDUAL_GRAMMAR_SCHEMA_VERSION = 5 as const;
+export const RESIDUAL_GRAMMAR_SCHEMA_VERSION = 8 as const;
 
 export interface SourceSpan {
   start: number;
@@ -108,16 +133,27 @@ export interface SemanticBlock {
   controllingConstruct?: string;
   /** For case blocks: the label text, or absent for `default`. */
   caseLabel?: string;
+  /**
+   * For case blocks: the statements terminate in `break` or `return` and no
+   * other statement transfers control out of the body, so the block has one
+   * entry and one exit and its statements may be reasoned about. Absent or
+   * false leaves the case frozen inside the switch's summary node.
+   */
+  sequentialCase?: boolean;
+  /** For a case left frozen: why it was not admitted, for the caveat list. */
+  caseRefusal?: string;
 }
 
 /**
  * Blocks whose statements the reordering grammar reasons about. A loop's
  * header and body joined once loop-carried dependencies could constrain them.
- * A `case` block still cannot: fall-through and `break` are control flow this
- * schema does not model, so a switch remains a summary node.
+ * A `case` block joins only when it is sequential — see `sequentialCase`,
+ * which `blockIsFrozen` checks in addition to this set. Fall-through and an
+ * interior `break` are control flow the schema still does not model, so a
+ * switch with any non-sequential case keeps that case inside its summary.
  */
 export const REORDERABLE_BLOCK_KINDS: ReadonlySet<SemanticBlock["kind"]> =
-  new Set<SemanticBlock["kind"]>(["entry", "then", "else", "loop-init", "loop-update", "loop-body"]);
+  new Set<SemanticBlock["kind"]>(["entry", "then", "else", "loop-init", "loop-update", "loop-body", "case"]);
 
 export interface GraphParameter {
   name: string;
@@ -294,11 +330,40 @@ export type RewriteRuleId =
   | "loop-form"
   | "loop-update-placement"
   | "switch-form"
-  | "sdk-call-order";
+  | "sdk-call-order"
+  | "base-pointer-form";
 
 export interface SuppressedRule {
   rule: RewriteRuleId;
   reason: string;
+  evidence: string[];
+}
+
+/**
+ * A set of subscripts on one data symbol that share an index expression, and
+ * the pointer that would name their common base.
+ *
+ * Lifting it is a real source decision, not a spelling: `p[1]` computes its
+ * address from a pointer the source keeps live, where `D_80049370[i + 1]`
+ * recomputes it from `i`. Which one the original wrote is visible in what the
+ * allocator did, which is why the search has to be able to write both.
+ */
+export interface BasePointerSite {
+  siteId: string;
+  /** `D_80049370`, or `(&D_8006BF48)` for the address-of-scalar run idiom. */
+  symbol: string;
+  /** The shared index expression, as written. */
+  indexText: string;
+  /** Element type, from a declaration in the configured include path. */
+  elementType: string;
+  /** Fresh pointer name, collision-checked against the function's own names. */
+  variable: string;
+  block: number;
+  /** The pointer's `T *p;` is emitted before this statement (block top). */
+  declareBeforeNodeId: string;
+  /** The pointer's assignment is emitted before this statement. */
+  defineBeforeNodeId: string;
+  uses: Array<{ nodeId: string; start: number; end: number; offset: number }>;
   evidence: string[];
 }
 
@@ -476,6 +541,8 @@ export interface ResidualGrammar {
   administrativeSites?: AdministrativeCopySite[];
   /** Switches this grammar may also spell as an if/else-if chain. */
   switchFormSites?: SwitchFormSite[];
+  /** Every admissible shared-base group the base-pointer rule may lift. */
+  basePointerSites?: BasePointerSite[];
   /** Adjacent SDK macro-call runs whose order this domain enumerates. */
   sdkCallOrderRegions?: SdkCallOrderRegion[];
   /** Citation of the scheduler-constraint witness that activated rule 4.7. */
@@ -506,6 +573,8 @@ export interface Coordinate {
   materializedSites: string[];
   /** Switch node ids spelled as an if/else-if chain under this coordinate. */
   switchForms?: string[];
+  /** Base-pointer site ids lifted to a pointer under this coordinate. */
+  basePointers?: string[];
   /** Administrative copy site ids active under this coordinate (rule 4.7). */
   administrativeCopies?: string[];
   /** Per region (in grammar order): chosen split mask, birth mask, and order rank. */
@@ -539,6 +608,40 @@ export interface EvaluatedCandidate {
   fullObjectExact?: boolean;
 }
 
+/** Counts of each kind of difference; `total` is their sum. */
+export interface AxisResidual {
+  /** One side computes something the other does not. */
+  population: number;
+  /** Both sides have the instruction, in different positions. */
+  schedule: number;
+  /** Both sides compute the value, in a different register. */
+  allocation: number;
+  total: number;
+}
+
+export interface BlockAxisResidual extends AxisResidual {
+  /**
+   * Index of the straight-line run this difference sits in — a union of one or
+   * more basic blocks, ending after each control transfer and its delay slot.
+   * See `blockOfIndex`; it is not a basic-block index and does not correspond
+   * to one the lifter would produce.
+   */
+  block: number;
+}
+
+/**
+ * The residual of one candidate class, as a direction rather than a score.
+ *
+ * A match count is not a distance. These three axes are ordered worst first,
+ * and `key` is the lexicographic comparison a search ranks by.
+ */
+export interface ClassResidual extends AxisResidual {
+  key: [number, number, number];
+  blocks: BlockAxisResidual[];
+  /** Differences no basic block could be named for, counted rather than placed. */
+  unattributed: number;
+}
+
 export interface CandidateClass {
   classId: string;
   stage: "assembly";
@@ -548,6 +651,8 @@ export interface CandidateClass {
   exactInstructions: number;
   totalInstructions: number;
   cc1Exact: boolean;
+  /** Which axes this class differs on, and where. */
+  residual?: ClassResidual;
   fullObjectExact?: boolean;
   requirementResults?: Array<{ requirementId: string; status: string }>;
   firstDivergenceStage?: string;
@@ -664,9 +769,40 @@ export interface ResidualSearchSummary {
   estimate?: CostEstimate;
   /** Present on runs that evaluated the domain. */
   timing?: RunTiming;
+  /** Per-axis evidence that each counted digit changes the rendered program. */
+  axisEffects?: AxisEffect[];
   classes: CandidateClass[];
+  /**
+   * Where `classes` came from. A `--derive-only` run fills it from the cost
+   * pilot, which is a spaced sample sized to time a compile — never a ranking
+   * over the domain. Readers that show classes must show this next to them,
+   * because a sampled table and an exhaustive one are otherwise identical.
+   */
+  classesSource: {
+    sampled: boolean;
+    evaluatedCandidates: string;
+    totalCandidates: string;
+  };
   exactCandidates: Array<{ globalRank: string; canonicalHash: string; artifacts: string }>;
   caveats: string[];
+}
+
+/**
+ * One digit of the domain odometer, and whether moving it moves the program.
+ *
+ * `distinct` counts canonical sources produced across `sampled` values of the
+ * digit while every other digit is held at the baseline. `inert` says the axis
+ * produced one program; when `sampled` is short of `radix` that is a statement
+ * about the sample, not a proof about the axis.
+ */
+export interface AxisEffect {
+  id: string;
+  kind: "section" | "region";
+  radix: string;
+  sampled: number;
+  distinct: number;
+  inert: boolean;
+  detail: string;
 }
 
 export interface SearchCheckpoint {

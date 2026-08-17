@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
-import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, type TargetFacts } from "./triage.js";
+import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, type TargetFacts } from "./triage.js";
+import { sha256 } from "./variant-lab/artifacts.js";
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
 import type { DisassembledInstruction } from "./decompToolchain.js";
@@ -404,4 +408,114 @@ test("param-residence: a single entry copy from an incoming slot stays silent", 
   ]));
 
   assert.equal(findings.length, 0);
+});
+
+/* ------------------------------------------------------------------ */
+/* search-domain                                                       */
+/* ------------------------------------------------------------------ */
+
+function searchRun(
+  root: string,
+  name: string,
+  runId: string,
+  source: string,
+  grammar: Record<string, unknown>,
+  status: string,
+  classesSource: { sampled: boolean; evaluatedCandidates: string; totalCandidates: string } = {
+    sampled: false, evaluatedCandidates: "1", totalCandidates: "1",
+  },
+): void {
+  const directory = join(root, name, runId);
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, "baseline.json"), JSON.stringify({ sourceHash: sha256(source) }));
+  writeFileSync(join(directory, "grammar.json"), JSON.stringify(grammar));
+  writeFileSync(join(directory, "summary.json"), JSON.stringify({ status, classes: [], classesSource }));
+}
+
+const SEARCH_SOURCE = "int f(void) { return 0; }\n";
+
+const EMPTY_PARTITION = {
+  grammarSchemaVersion: 6,
+  activeRules: ["web-partition", "statement-order"],
+  partitionWebIds: [],
+  webs: [{ id: "a#0" }, { id: "b#0" }],
+  regions: [{ id: "r0-0" }],
+  caveats: ["len is declared inside a frozen construct; its webs stay frozen."],
+};
+
+test("search-domain: an exhausted run with an empty active axis is a blocker", () => {
+  const root = mkdtempSync(join(tmpdir(), "triage-search-"));
+  searchRun(root, "func_1", "run0001", SEARCH_SOURCE, EMPTY_PARTITION, "exhausted-no-exact");
+
+  const findings = detectSearchDomain("func_1", SEARCH_SOURCE, root);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, "blocker");
+  assert.match(findings[0]!.summary, /web-partition/);
+  assert.match(findings[0]!.summary, /0 of 2 value web\(s\)/);
+  /* The exclusion reason is the actionable half and must be carried through. */
+  assert.equal(findings[0]!.evidence.some((line) => /its webs stay frozen/.test(line)), true);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("search-domain: a non-empty axis produces no finding", () => {
+  const root = mkdtempSync(join(tmpdir(), "triage-search-"));
+  searchRun(root, "func_1", "run0001", SEARCH_SOURCE, {
+    ...EMPTY_PARTITION,
+    partitionWebIds: ["a#0"],
+  }, "exhausted-no-exact");
+
+  assert.deepEqual(detectSearchDomain("func_1", SEARCH_SOURCE, root), []);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("search-domain: a run against different source is not a reading of this one", () => {
+  const root = mkdtempSync(join(tmpdir(), "triage-search-"));
+  searchRun(root, "func_1", "run0001", "int other(void) { return 1; }\n", EMPTY_PARTITION, "exhausted-no-exact");
+
+  assert.deepEqual(detectSearchDomain("func_1", SEARCH_SOURCE, root), []);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("search-domain: an unfinished run downgrades to a signal", () => {
+  const root = mkdtempSync(join(tmpdir(), "triage-search-"));
+  searchRun(root, "func_1", "run0001", SEARCH_SOURCE, EMPTY_PARTITION, "incomplete-budget");
+
+  const findings = detectSearchDomain("func_1", SEARCH_SOURCE, root);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, "signal");
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("search-domain: the strongest run wins, not the newest, and a partial is skipped", () => {
+  const root = mkdtempSync(join(tmpdir(), "triage-search-"));
+  /* An exhaustive run and a later sample of the same source: the exhaustive
+     one is the reading, whichever was written last. */
+  searchRun(root, "func_1", "aaa-full", SEARCH_SOURCE, EMPTY_PARTITION, "exhausted-no-exact", {
+    sampled: false, evaluatedCandidates: "500", totalCandidates: "500",
+  });
+  searchRun(root, "func_1", "zzz-sample", SEARCH_SOURCE, EMPTY_PARTITION, "derived", {
+    sampled: true, evaluatedCandidates: "64", totalCandidates: "500",
+  });
+  /* A directory with no summary.json is an interrupted run, not a reading. */
+  mkdirSync(join(root, "func_1", "partial"), { recursive: true });
+  writeFileSync(join(root, "func_1", "partial", "baseline.json"), JSON.stringify({ sourceHash: sha256(SEARCH_SOURCE) }));
+
+  const findings = detectSearchDomain("func_1", SEARCH_SOURCE, root);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.summary, /run aaa-full/);
+  assert.equal(findings[0]!.severity, "blocker");
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("search-domain: a sampled run cannot lend a verdict", () => {
+  const root = mkdtempSync(join(tmpdir(), "triage-search-"));
+  searchRun(root, "func_1", "run0001", SEARCH_SOURCE, {
+    ...EMPTY_PARTITION, partitionWebIds: ["a#0"],
+  }, "derived", { sampled: true, evaluatedCandidates: "64", totalCandidates: "500000" });
+
+  const findings = detectSearchDomain("func_1", SEARCH_SOURCE, root);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.summary, /64 of 500000/);
+  assert.match(findings[0]!.summary, /not a ranking over the domain/);
+  rmSync(root, { recursive: true, force: true });
 });

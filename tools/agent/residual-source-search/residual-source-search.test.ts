@@ -12,12 +12,16 @@ import { canonicalContext, canonicalSourceHash } from "./canonicalize.js";
 import { validateSearchCheckpoint } from "./checkpoint.js";
 import { domainAxes, median, pilotRanks, projectWallMs } from "./cost-report.js";
 import { deriveCausalClosure } from "./compiler-closure.js";
+import { measureAxisEffects } from "./axis-effect.js";
+import { basePointerSites, basePointerText, symbolTypes } from "./base-pointer.js";
+import { blockOfIndex, compareResidualAxes, residualAxes, residualDelta } from "./residual-axes.js";
+import type { NormalizedInstruction } from "../variant-lab/types.js";
 import { buildDomain, candidateAt, regionNodeView, sdkCallOrderRegions, shardRank, shardSize } from "./enumerate.js";
 import { loadMacroRegistry, splitComponents } from "./macro-forms.js";
 import { renderCandidate, renameIdentifiers } from "./render.js";
 import { deriveGrammar, macroComponents } from "./rewrite-catalog.js";
 import { runResidualSourceSearch } from "./run.js";
-import { blockIsFrozen, buildSemanticGraph, memoryReadTokens } from "./semantic-graph.js";
+import { blockIsFrozen, buildFlow, buildSemanticGraph, memoryReadTokens } from "./semantic-graph.js";
 import {
   MAX_REGION_NODES,
   RegionOrderModel,
@@ -377,38 +381,238 @@ test("a switch models one block per case, labels included", () => {
   assert.equal(graph.caveats.some((line) => /switch frozen at line 4/.test(line)), true);
 });
 
-test("a case block never becomes an order region", () => {
+const SEQUENTIAL_CASE_FIXTURE = [
+  "int fixture(int *out, int n) {",
+  "    int a;",
+  "    int b;",
+  "    a = n;",
+  "    b = n + 1;",
+  "    switch (n) {",
+  "        case 1:",
+  "            out[0] = a;",
+  "            out[1] = b;",
+  "            break;",
+  "        default:",
+  "            break;",
+  "    }",
+  "    return a + b;",
+  "}",
+  "",
+].join("\n");
+
+test("a sequential case block becomes an order region", () => {
+  const source = SEQUENTIAL_CASE_FIXTURE;
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+
+  /* One entry at the label, one exit at the `break`, nothing leaving from the
+     interior: the body is a statement sequence like any other block's. */
+  const switchNode = graph.nodes.find((item) => item.caseBlocks !== undefined)!;
+  const caseBlock = graph.blocks[switchNode.caseBlocks![0]!]!;
+  assert.equal(caseBlock.sequentialCase, true);
+  assert.equal(blockIsFrozen(graph.blocks, caseBlock.index), false);
+
+  const caseRegions = derived.regions.filter((region) => region.block === caseBlock.index);
+  assert.equal(caseRegions.length, 1);
+  assert.deepEqual(caseRegions[0]!.nodeIds, caseBlock.nodeIds.slice(0, 2));
+
+  /* The switch construct itself is still never moved or reshaped. */
+  assert.equal(switchNode.movable, false);
+  assert.deepEqual(switchNode.memoryWrites, ["*unknown*"]);
+
+  /* Declaration-birth stays an entry-block rule, so an opened case gains
+     ordering without gaining a scope the flat variable model cannot carry. */
+  for (const region of caseRegions) assert.deepEqual(region.birthEligible, []);
+
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  for (const region of derived.regions) {
+    for (const id of region.nodeIds) assert.equal(byId.get(id)!.block, region.block);
+  }
+});
+
+test("a case that falls through or escapes from its interior stays frozen", () => {
+  const cases: Array<{ label: string; body: string[]; reason: RegExp }> = [
+    { label: "falls through", body: ["            out[0] = a;"], reason: /does not terminate in break or return/ },
+    {
+      label: "interior break",
+      body: ["            if (n > 2) break;", "            out[0] = a;", "            break;"],
+      reason: /break inside the case body/,
+    },
+    {
+      label: "interior goto",
+      body: ["            if (n > 2) goto done;", "            out[0] = a;", "            break;"],
+      reason: /goto inside the case body/,
+    },
+    {
+      label: "brace followed by more statements",
+      body: ["            { out[0] = a; }", "            out[1] = a;"],
+      reason: /does not terminate in break or return/,
+    },
+  ];
+
+  for (const item of cases) {
+    const source = [
+      "int fixture(int *out, int n) {",
+      "    int a;",
+      "    a = n;",
+      "    switch (n) {",
+      "        case 1:",
+      ...item.body,
+      "        default:",
+      "            break;",
+      "    }",
+      "done:",
+      "    return a;",
+      "}",
+      "",
+    ].join("\n");
+    const graph = graphOf(source);
+    const view = analyzeWebs(graph);
+    const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+
+    const switchNode = graph.nodes.find((entry) => entry.caseBlocks !== undefined)!;
+    const caseBlock = graph.blocks[switchNode.caseBlocks![0]!]!;
+    assert.equal(caseBlock.sequentialCase, undefined, item.label);
+    assert.equal(blockIsFrozen(graph.blocks, caseBlock.index), true, item.label);
+    assert.match(caseBlock.caseRefusal ?? "", item.reason, item.label);
+    assert.equal(graph.caveats.some((line) => item.reason.test(line)), true, item.label);
+    for (const region of derived.regions) assert.notEqual(region.block, caseBlock.index, item.label);
+  }
+});
+
+test("a braced case body is the case's body, and repeated case locals freeze", () => {
+  /* `case X: { ... }` is how C89 spells a case that needs a local. The braces
+     buy the declaration a scope and change no control flow. */
   const source = [
     "int fixture(int *out, int n) {",
-    "    int a;",
-    "    int b;",
-    "    a = n;",
-    "    b = n + 1;",
     "    switch (n) {",
     "        case 1:",
-    "            out[0] = a;",
-    "            out[1] = b;",
+    "        {",
+    "            int len;",
+    "            len = n + 1;",
+    "            out[0] = len;",
+    "            out[1] = len;",
     "            break;",
+    "        }",
+    "        case 5:",
+    "        {",
+    "            int value;",
+    "            value = n + 2;",
+    "            out[2] = value;",
+    "            break;",
+    "        }",
+    "        case 9:",
+    "        {",
+    "            int value;",
+    "            value = n + 3;",
+    "            out[3] = value;",
+    "            break;",
+    "        }",
     "        default:",
     "            break;",
     "    }",
-    "    return a + b;",
+    "    return n;",
     "}",
     "",
   ].join("\n");
   const graph = graphOf(source);
   const view = analyzeWebs(graph);
   const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
-  /* Fall-through and `break` are control this schema does not model, so the
-     statements of a case stay outside every order region. */
-  const frozenBlocks = new Set(graph.blocks
-    .filter((block) => blockIsFrozen(graph.blocks, block.index))
-    .map((block) => block.index));
-  assert.ok(frozenBlocks.size >= 2);
-  for (const region of derived.regions) assert.equal(frozenBlocks.has(region.block), false);
+  const switchNode = graph.nodes.find((item) => item.caseBlocks !== undefined)!;
+  const blocks = switchNode.caseBlocks!.map((index) => graph.blocks[index]!);
+
+  for (const block of blocks) assert.equal(block.sequentialCase, true, block.caseLabel ?? "default");
+
+  /* The declaration is a statement of the case block, not a frozen brace. */
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
-  for (const region of derived.regions) {
-    for (const id of region.nodeIds) assert.equal(byId.get(id)!.block, region.block);
+  const firstCase = blocks[0]!;
+  assert.deepEqual(firstCase.nodeIds.map((id) => byId.get(id)!.kind), ["declaration", "assign", "store", "store", "unknown"]);
+
+  /* The declaration ends a run, so the region is the three statements after
+     it — the assignment and the two stores that read it. */
+  const region = derived.regions.find((entry) => entry.block === firstCase.index);
+  assert.notEqual(region, undefined);
+  assert.deepEqual(region!.nodeIds, firstCase.nodeIds.slice(1, 4));
+
+  /* `value` is declared in two different case scopes. The flat variable model
+     cannot tell them apart, so it freezes the name rather than merging them. */
+  assert.equal(graph.caveats.some((line) => /Shadowed declarations frozen: value/.test(line)), true);
+  assert.equal(graph.variables.find((entry) => entry.name === "value")!.supported, false);
+  assert.equal(graph.variables.find((entry) => entry.name === "len")!.supported, true);
+});
+
+test("a case-body local that shadows a parameter freezes the name", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    switch (*out) {",
+    "        case 1:",
+    "        {",
+    "            int n;",
+    "            n = 3;",
+    "            out[0] = n;",
+    "            break;",
+    "        }",
+    "        default:",
+    "            break;",
+    "    }",
+    "    return n;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  assert.equal(graph.caveats.some((line) => /Shadowed declarations frozen: n/.test(line)), true);
+  assert.equal(graph.variables.find((entry) => entry.name === "n")!.supported, false);
+});
+
+test("flow reaches every live case from the switch and never between two cases", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int a;",
+    "    a = n;",
+    "    switch (n) {",
+    "        case 1:",
+    "            a = n + 1;",
+    "            out[0] = a;",
+    "            break;",
+    "        case 5:",
+    "            out[1] = a;",
+    "            break;",
+    "        default:",
+    "            break;",
+    "    }",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const flow = buildFlow(graph);
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const switchNode = graph.nodes.find((item) => item.caseBlocks !== undefined)!;
+  const blocks = switchNode.caseBlocks!.map((index) => graph.blocks[index]!);
+  const returnId = graph.blocks[0]!.nodeIds[graph.blocks[0]!.nodeIds.length - 1]!;
+
+  /* Every case is entered from the switch, and the switch also reaches past
+     itself: no case need match. */
+  const targets = new Set(flow.successors.get(switchNode.id) ?? []);
+  for (const block of blocks) {
+    if (block.nodeIds.length === 0) continue;
+    assert.equal(targets.has(block.nodeIds[0]!), true, `case ${block.caseLabel ?? "default"} is entered`);
+  }
+  assert.equal(targets.has(returnId), true, "the switch reaches the statement after it");
+
+  /* A case body ends at the statement after the switch, never at its
+     neighbour: that is what `break` means and what fall-through would not. */
+  const firstCase = blocks[0]!;
+  const lastOfFirst = firstCase.nodeIds[firstCase.nodeIds.length - 1]!;
+  assert.deepEqual(flow.successors.get(lastOfFirst), [returnId]);
+  const secondCaseFirst = blocks[1]!.nodeIds[0]!;
+  assert.equal((flow.successors.get(lastOfFirst) ?? []).includes(secondCaseFirst), false);
+
+  /* Case statements are in the deterministic order, so liveness is computed
+     over them rather than around them. */
+  for (const block of blocks) {
+    for (const id of block.nodeIds) assert.equal(flow.order.includes(id), true, byId.get(id)!.text);
   }
 });
 
@@ -1928,4 +2132,375 @@ test("sdk-call-order: macro calls stay atomic — a component split is a separat
      the region as `splittable` rather than as an order. */
   for (const call of regions[0].calls) assert.match(call.text, /^set\w+\(/);
   assert.ok(derived.regions.every((region) => region.nodeIds.length === regions[0].calls.length));
+});
+
+/* ------------------------------------------------------------------ */
+/* Axis effect                                                         */
+/* ------------------------------------------------------------------ */
+
+test("axis-effect probes one digit at a time and reports what each one changes", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int a;",
+    "    int b;",
+    "    a = n + 1;",
+    "    b = n + 2;",
+    "    out[0] = a;",
+    "    out[1] = b;",
+    "    return a + b;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  const domain = buildDomain({ graph, view, derived });
+
+  /* The stub renders each coordinate as its own digits, so a probe that
+     failed to hold the other digits fixed would show up as extra variation
+     rather than as a silent wrong answer. */
+  const probed: string[] = [];
+  const digitsOf = (rank: bigint): string => {
+    const plan = candidateAt(domain, rank);
+    /* A region digit decomposes into a variant plus an order rank, so both
+       halves have to appear or two distinct digits look identical here. */
+    return [
+      `p${plan.coordinate.partitionIndex}`,
+      ...plan.coordinate.regionChoices.map((choice) =>
+        `${choice.splitMask}.${choice.updateMask}.${choice.birthMask}.${choice.orderRank}`),
+    ].join("/");
+  };
+  const { axes } = measureAxisEffects({
+    source,
+    graph,
+    view,
+    domain,
+    hashAt: (rank) => {
+      probed.push(digitsOf(rank));
+      return digitsOf(rank);
+    },
+  });
+
+  const baseline = digitsOf(domain.partitions[0]!.offset);
+  for (const entry of probed) {
+    const digits = entry.split("/");
+    const baseDigits = baseline.split("/");
+    const moved = digits.filter((digit, index) => digit !== baseDigits[index]);
+    assert.ok(moved.length <= 1, `probe ${entry} moved ${moved.length} digits away from ${baseline}`);
+  }
+  assert.ok(axes.length > 0);
+  for (const axis of axes) {
+    assert.equal(axis.inert, false, axis.id);
+    assert.equal(axis.distinct, axis.sampled, axis.id);
+  }
+});
+
+test("axis-effect names an inert axis and says whether the sample proves it", () => {
+  const source = [
+    "int fixture(int *out, int n) {",
+    "    int a;",
+    "    int b;",
+    "    a = n + 1;",
+    "    b = n + 2;",
+    "    out[0] = a;",
+    "    out[1] = b;",
+    "    return a + b;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  const domain = buildDomain({ graph, view, derived });
+
+  /* One program for every coordinate: the odometer turns and nothing moves. */
+  const { axes, caveats } = measureAxisEffects({ source, graph, view, domain, hashAt: () => "same" });
+  assert.ok(axes.length > 0);
+  for (const axis of axes) {
+    assert.equal(axis.inert, true, axis.id);
+    assert.equal(axis.distinct, 1, axis.id);
+  }
+  assert.equal(caveats.length, axes.length);
+  /* An axis probed at every value is proven inert; a sampled one is not. */
+  for (const axis of axes) {
+    const line = caveats.find((entry) => entry.includes(`Axis ${axis.id} `))!;
+    assert.notEqual(line, undefined, axis.id);
+    if (BigInt(axis.sampled) >= BigInt(axis.radix)) {
+      assert.match(line, /which is all of them/);
+      assert.match(line, /inflated by/);
+    } else {
+      assert.match(line, /sampled value\(s\)/);
+      assert.match(line, /unmeasured rather than searched/);
+    }
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* Base pointers                                                       */
+/* ------------------------------------------------------------------ */
+
+function sitesOf(source: string) {
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const flow = buildFlow(graph);
+  return {
+    graph,
+    view,
+    ...basePointerSites({
+      graph,
+      source,
+      closureNodes: new Set(graph.nodes.map((node) => node.id)),
+      flowOrder: flow.order,
+      reserved: new Set(graph.variables.map((variable) => variable.name)),
+    }),
+  };
+}
+
+test("base-pointer: element types come from the include path, never from the use", () => {
+  const types = symbolTypes();
+  /* An array declaration gives its element type directly. */
+  assert.equal(types.arrays.get("D_80049370"), "s32");
+  /* The generated header spells a run of s32 as a scalar macro over a cast;
+     `(&D_8006BF48)[i]` is only an s32 because that cast says so. */
+  assert.equal(types.scalars.get("D_8006BF48"), "s32");
+  assert.equal(types.arrays.get("no_such_symbol_anywhere"), undefined);
+});
+
+test("base-pointer: subscripts sharing an index become one ranked site", () => {
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    int a;",
+    "    i = n;",
+    "    a = D_80049370[i + 2] - D_80049370[i];",
+    "    D_8005E57C = D_80049370[i + 1];",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const { sites, refusals } = sitesOf(source);
+  assert.equal(sites.length, 1, refusals.join("; "));
+  const site = sites[0]!;
+  assert.equal(site.symbol, "D_80049370");
+  assert.equal(site.indexText, "i");
+  assert.equal(site.elementType, "s32");
+  assert.deepEqual(site.uses.map((use) => use.offset).sort((l, r) => l - r), [0, 1, 2]);
+
+  /* Declared at the block top, assigned once the index is ready. */
+  const { declaration, assignment, useText } = basePointerText(site);
+  assert.equal(declaration, `s32 *${site.variable};`);
+  assert.equal(assignment, `${site.variable} = &D_80049370[i];`);
+  assert.equal(useText(0), `*${site.variable}`);
+  assert.equal(useText(2), `${site.variable}[2]`);
+});
+
+test("base-pointer: a call between two uses refuses the group", () => {
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    int a;",
+    "    i = n;",
+    "    a = D_80049370[i];",
+    "    func_80021604(a);",
+    "    D_8005E57C = D_80049370[i + 1];",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const { sites, refusals } = sitesOf(source);
+  assert.equal(sites.length, 0);
+  assert.equal(refusals.some((line) => /unknown memory effects/.test(line)), true, refusals.join("; "));
+});
+
+test("base-pointer: a call inside a use's own statement does not refuse it", () => {
+  /* The subscripts are that call's arguments, so they are evaluated before it
+     runs; only a call sitting between two uses can move the address. */
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    int a;",
+    "    i = n;",
+    "    a = func_80014988(9, D_80049370[i], D_80049370[i + 1] - D_80049370[i], 0, 0);",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const { sites, refusals } = sitesOf(source);
+  assert.equal(sites.length, 1, refusals.join("; "));
+  assert.deepEqual(sites[0]!.uses.map((use) => use.offset).sort((l, r) => l - r), [0, 0, 1]);
+});
+
+test("base-pointer: a write to the index between the uses refuses the group", () => {
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    int a;",
+    "    i = n;",
+    "    a = D_80049370[i];",
+    "    i = n + 1;",
+    "    D_8005E57C = D_80049370[i];",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const { sites, refusals } = sitesOf(source);
+  assert.equal(sites.length, 0);
+  assert.equal(refusals.some((line) => /writes i/.test(line)), true, refusals.join("; "));
+});
+
+test("base-pointer: uses in different blocks are different decisions", () => {
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    int a;",
+    "    i = n;",
+    "    a = 0;",
+    "    if (n > 1) {",
+    "        a = D_80049370[i] + D_80049370[i + 1];",
+    "    }",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const { sites } = sitesOf(source);
+  /* One site, scoped to the branch that holds both uses — not to the function. */
+  assert.equal(sites.length, 1);
+  assert.notEqual(sites[0]!.block, 0);
+});
+
+test("base-pointer: a single use is not a shared base", () => {
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    i = n;",
+    "    D_8005E57C = D_80049370[i];",
+    "    return i;",
+    "}",
+    "",
+  ].join("\n");
+  assert.deepEqual(sitesOf(source).sites, []);
+});
+
+test("base-pointer: the lifted candidate compiles and the baseline is unchanged", async () => {
+  const source = [
+    "int fixture(int n) {",
+    "    int i;",
+    "    int a;",
+    "    i = n;",
+    "    a = D_80049370[i + 2] - D_80049370[i];",
+    "    D_8005E57C = D_80049370[i + 1];",
+    "    return a;",
+    "}",
+    "",
+  ].join("\n");
+  const graph = graphOf(source);
+  const view = analyzeWebs(graph);
+  const derived = deriveGrammar({ graph, view, closure: allNodesClosure(graph, view.webs), source, registry });
+  assert.equal(derived.basePointers.length, 1);
+  const domain = buildDomain({ graph, view, derived });
+
+  /* Rank 0 is still the input, byte for byte. */
+  assert.equal(renderCandidate(source, graph, view, candidateAt(domain, 0n)), source);
+
+  /* Some coordinate lifts the pointer, and what it renders is the split form. */
+  const lifted = [...Array(Number(domain.total)).keys()]
+    .map((rank) => renderCandidate(source, graph, view, candidateAt(domain, BigInt(rank))))
+    .find((text) => /\*p0/.test(text));
+  assert.notEqual(lifted, undefined);
+  assert.match(lifted!, /s32 \*p0;/);
+  assert.match(lifted!, /p0 = &D_80049370\[i\];/);
+  assert.match(lifted!, /\*p0/);
+  assert.match(lifted!, /p0\[2\]/);
+  /* The index moved into the assignment, so no subscript of the array is left. */
+  assert.equal(/D_80049370\[i/.test(lifted!.replace(/p0 = &D_80049370\[i\];/, "")), false);
+});
+
+/* ------------------------------------------------------------------ */
+/* Residual axes                                                       */
+/* ------------------------------------------------------------------ */
+
+function insns(lines: string[]): NormalizedInstruction[] {
+  return lines.map((line) => {
+    const [mnemonic, rest = ""] = line.trim().split(/\s+(.*)/);
+    const operands = rest ? rest.split(",").map((operand) => operand.trim()).filter(Boolean) : [];
+    return { mnemonic: mnemonic!, operands, canonical: line.trim() };
+  });
+}
+
+function axesOf(target: string[], candidate: string[]) {
+  const left = insns(target);
+  const right = insns(candidate);
+  return residualAxes({ target: left, candidate: right, comparison: compareResidual(left, right) });
+}
+
+test("residual-axes: a register difference is allocation, not population", () => {
+  const residual = axesOf(
+    ["lw v0,0(a0)", "addu v0,v0,a1", "sw v0,0(a0)"],
+    ["lw v1,0(a0)", "addu v1,v1,a1", "sw v1,0(a0)"],
+  );
+  assert.equal(residual.population, 0);
+  assert.equal(residual.schedule, 0);
+  assert.equal(residual.allocation, 3);
+  assert.deepEqual(residual.key, [0, 0, 3]);
+});
+
+test("residual-axes: a transposition is schedule, not population", () => {
+  const residual = axesOf(
+    ["lw v0,0(a0)", "lw v1,4(a0)", "addu a2,v0,v1"],
+    ["lw v1,4(a0)", "lw v0,0(a0)", "addu a2,v0,v1"],
+  );
+  assert.equal(residual.population, 0);
+  assert.equal(residual.allocation, 0);
+  assert.ok(residual.schedule > 0);
+});
+
+test("residual-axes: an instruction only one side has is population", () => {
+  const residual = axesOf(
+    ["lw v0,0(a0)", "nop2", "sw v0,0(a0)"],
+    ["lw v0,0(a0)", "sw v0,0(a0)"],
+  );
+  assert.equal(residual.population, 1);
+  assert.equal(residual.allocation, 0);
+});
+
+test("residual-axes: a different offset is population, not allocation", () => {
+  /* The offset is part of what the program computes; only the register is
+     the allocator's choice. */
+  const residual = axesOf(["lw v0,32(sp)"], ["lw v0,36(sp)"]);
+  assert.equal(residual.allocation, 0);
+  assert.ok(residual.population > 0);
+});
+
+test("residual-axes: runs end after a control transfer and its delay slot", () => {
+  const runs = blockOfIndex(insns([
+    "lw v0,0(a0)",
+    "beq v0,zero,label",
+    "nop",
+    "addu v1,v0,a1",
+    "jr ra",
+    "nop",
+    "sw v1,0(a0)",
+  ]));
+  /* The delay slot belongs to its branch, so the run turns after it. */
+  assert.deepEqual(runs, [0, 0, 0, 1, 1, 1, 2]);
+});
+
+test("residual-axes: ordering prefers a smaller worse-axis over a smaller count", () => {
+  const populationHeavy = axesOf(["lw v0,0(a0)", "sw v0,0(a0)"], ["lw v0,0(a0)"]);
+  const allocationHeavy = axesOf(
+    ["lw v0,0(a0)", "sw v0,0(a0)", "addu v0,v0,a1"],
+    ["lw v1,0(a0)", "sw v1,0(a0)", "addu v1,v1,a1"],
+  );
+  /* Three register differences beat one missing instruction: the programs
+     agree on what they compute, which the count alone would hide. */
+  assert.ok(allocationHeavy.total > populationHeavy.total);
+  assert.ok(compareResidualAxes(allocationHeavy, populationHeavy) < 0);
+});
+
+test("residual-axes: the delta names the axis and the run that moved", () => {
+  const before = axesOf(["lw v0,0(a0)", "addu v0,v0,a1"], ["lw v1,0(a0)", "addu v1,v1,a1"]);
+  const after = axesOf(["lw v0,0(a0)", "addu v0,v0,a1"], ["lw v0,0(a0)", "addu v1,v1,a1"]);
+  const delta = residualDelta(before, after);
+  assert.equal(delta.allocation < 0, true);
+  assert.equal(delta.blocks.some((block) => block.allocation < 0), true);
 });

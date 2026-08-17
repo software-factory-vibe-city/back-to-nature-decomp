@@ -1,10 +1,30 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { priorMeasurement, recordExperiment, readLedger, renderLedger } from "./experimentLedger.js";
+import {
+  annotateRespellings,
+  measurements,
+  priorMeasurement,
+  recordExperiment,
+  readLedger,
+  renderLedger,
+  type LedgerEntry,
+} from "./experimentLedger.js";
 import type { ResidualObjective } from "./pipeline-reversal/objective.js";
 
 /* The ledger writes under build/, so each test uses its own function name to
  * stay independent of run order and of whatever else is on disk. */
+function row(overrides: Partial<LedgerEntry> & Pick<LedgerEntry, "at" | "sourceHash" | "outputHash" | "key">): LedgerEntry {
+  return {
+    schemaVersion: 1,
+    function: "func_1",
+    source: `src/${overrides.sourceHash}.c`,
+    matchedWords: 0,
+    totalWords: 1,
+    verdict: "mismatch",
+    ...overrides,
+  };
+}
+
 let counter = 0;
 function uniqueFunction(): string {
   counter += 1;
@@ -77,4 +97,46 @@ test("an empty ledger says so rather than failing", () => {
   const name = uniqueFunction();
   assert.deepEqual(readLedger(name), []);
   assert.match(renderLedger(name, []), /no measurements recorded yet/);
+});
+
+test("a respelling is recorded but is not a measurement", () => {
+  const at = (n: number) => `2026-08-17T00:0${n}:00.000Z`;
+  const entries: LedgerEntry[] = [
+    row({ at: at(1), sourceHash: "s1", outputHash: "o1", key: [0, 0, 6, 30] }),
+    row({ at: at(2), sourceHash: "s2", outputHash: "o2", key: [0, 0, 6, 28] }),
+    /* Different source, same compiled words: an idea already tried. */
+    row({ at: at(3), sourceHash: "s3", outputHash: "o1", key: [0, 0, 6, 30] }),
+  ];
+
+  const annotated = annotateRespellings(entries);
+  assert.equal(annotated[0]!.respellingOf, undefined);
+  assert.equal(annotated[1]!.respellingOf, undefined);
+  assert.equal(annotated[2]!.respellingOf, at(1));
+
+  /* The count that drives progress sees two, not three. */
+  assert.deepEqual(measurements(entries).map((item) => item.at), [at(1), at(2)]);
+});
+
+test("respellings are named in the rendered history", () => {
+  const at = (n: number) => `2026-08-17T00:0${n}:00.000Z`;
+  const entries: LedgerEntry[] = [
+    row({ at: at(1), sourceHash: "s1", outputHash: "o1", key: [0, 0, 6, 30] }),
+    row({ at: at(2), sourceHash: "s2", outputHash: "o1", key: [0, 0, 6, 30] }),
+  ];
+  const text = renderLedger("func_1", entries);
+  assert.match(text, /1 measurement\(s\), 1 respelling\(s\)/);
+  assert.match(text, /RESPELLING of 2026-08-17T00:01:00/);
+});
+
+test("the first entry to reach an output is the measurement, whatever its source", () => {
+  const at = (n: number) => `2026-08-17T00:0${n}:00.000Z`;
+  /* Three spellings of one program: one measurement and two respellings, and
+     the first one stays the measurement no matter how many follow. */
+  const entries: LedgerEntry[] = [
+    row({ at: at(1), sourceHash: "s1", outputHash: "o1", key: [0, 1, 0, 0] }),
+    row({ at: at(2), sourceHash: "s2", outputHash: "o1", key: [0, 1, 0, 0] }),
+    row({ at: at(3), sourceHash: "s3", outputHash: "o1", key: [0, 1, 0, 0] }),
+  ];
+  assert.deepEqual(measurements(entries).map((item) => item.at), [at(1)]);
+  assert.deepEqual(annotateRespellings(entries).map((item) => item.respellingOf), [undefined, at(1), at(1)]);
 });

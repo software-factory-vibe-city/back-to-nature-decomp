@@ -27,6 +27,7 @@ import {
   type SdkCallOrderRegion,
   type SemanticGraph,
   type SemanticNode,
+  type BasePointerSite,
   type SwitchFormSite,
 } from "./types.js";
 
@@ -73,6 +74,8 @@ export interface PartitionRuntime {
   switchForms: string[];
   /** Rule 4.7 copy site ids active in this section. */
   administrativeCopies: string[];
+  /** Shared-base groups lifted to a pointer in this section. */
+  basePointers: string[];
   regions: RegionRuntime[];
   /** Component, materialization-def, copy-def, and adjusted-host statements for this section. */
   syntheticNodes: Map<string, SemanticNode>;
@@ -86,6 +89,8 @@ export interface DomainRuntime {
   domain: ResidualDomain;
   /** Every admissible switch chain form, by switch node id. */
   switchFormSites: Map<string, SwitchFormSite>;
+  /** Every admissible shared-base group, in mask-bit order. */
+  basePointerSites: BasePointerSite[];
   caveats: string[];
 }
 
@@ -408,6 +413,16 @@ export function buildDomain(options: {
     switchSelections.push(derived.switchForms.filter((_site, index) => (mask & (1 << index)) !== 0).map((site) => site.nodeId));
   }
 
+  /* Each admissible shared-base group doubles the sections the same way: the
+   * pointer either exists in the source or it does not, and which one the
+   * original wrote is exactly what the allocation residual is asking. */
+  const basePointerSelections: string[][] = [];
+  for (let mask = 0; mask < (1 << derived.basePointers.length); mask++) {
+    basePointerSelections.push(
+      derived.basePointers.filter((_site, index) => (mask & (1 << index)) !== 0).map((site) => site.siteId));
+  }
+
+  for (const basePointers of basePointerSelections) {
   for (const switchForms of switchSelections) {
   for (const materialization of derived.materializations) {
     /* Per-choice synthetic statements: defs, copies, and arg-adjusted hosts. */
@@ -576,6 +591,7 @@ export function buildDomain(options: {
         named: namedWithSynthetic,
         materializedSites: materialization.sites.map((site) => site.siteId),
         switchForms,
+        basePointers,
         administrativeCopies: materialization.copySites.map((site) => site.siteId),
         regions,
         syntheticNodes,
@@ -584,6 +600,7 @@ export function buildDomain(options: {
       });
       offset += size;
     }
+  }
   }
   }
 
@@ -596,6 +613,7 @@ export function buildDomain(options: {
       partitionIndex: partition.index,
       materializedSites: partition.materializedSites,
       ...(partition.switchForms.length > 0 ? { switchForms: partition.switchForms } : {}),
+      ...(partition.basePointers.length > 0 ? { basePointers: partition.basePointers } : {}),
       ...(partition.administrativeCopies.length > 0 ? { administrativeCopies: partition.administrativeCopies } : {}),
       partition: {
         rgs: partition.named.rgs,
@@ -617,7 +635,7 @@ export function buildDomain(options: {
       size: partition.size.toString(),
     })),
     totalCandidates: offset.toString(),
-    coordinateSchema: "globalRank = sectionOffset + mixedRadix(regions, digit = variantCumulative + orderRank); sections ordered by (switchFormMask, administrativeSelection, materializationMask, partition), variants by (splitMask, updateMask, birthMask)",
+    coordinateSchema: "globalRank = sectionOffset + mixedRadix(regions, digit = variantCumulative + orderRank); sections ordered by (basePointerMask, switchFormMask, administrativeSelection, materializationMask, partition), variants by (splitMask, updateMask, birthMask)",
     caveats: [...(derived.tooLarge ? [derived.tooLarge] : []), ...caveats],
   };
 
@@ -626,6 +644,7 @@ export function buildDomain(options: {
     total: offset,
     domain,
     switchFormSites: new Map(derived.switchForms.map((site) => [site.nodeId, site])),
+    basePointerSites: derived.basePointers,
     caveats,
   };
 }
@@ -640,6 +659,8 @@ export interface CandidatePlan {
   movedUpdates: Map<string, string[]>;
   /** Switch node id -> its chain form, for the switches this coordinate spells that way. */
   switchForms: Map<string, SwitchFormSite>;
+  /** Shared-base groups this coordinate lifts to a pointer. */
+  basePointers: BasePointerSite[];
   syntheticNodes: Map<string, SemanticNode>;
 }
 
@@ -697,12 +718,14 @@ export function candidateAt(domain: DomainRuntime, globalRank: bigint): Candidat
     partitionIndex: partition.index,
     materializedSites: partition.materializedSites,
     ...(partition.switchForms.length > 0 ? { switchForms: partition.switchForms } : {}),
+    ...(partition.basePointers.length > 0 ? { basePointers: partition.basePointers } : {}),
     regionChoices,
   };
   if (partition.administrativeCopies.length > 0) coordinate.administrativeCopies = partition.administrativeCopies;
   return {
     globalRank,
     coordinate,
+    basePointers: domain.basePointerSites.filter((site) => partition.basePointers.includes(site.siteId)),
     partition,
     regionOrders,
     birthNodes,

@@ -1,4 +1,5 @@
 import { splitComponents, type MacroRegistry } from "./macro-forms.js";
+import { basePointerSites } from "./base-pointer.js";
 import { blockIsFrozen, buildFlow, classifySyntheticStatement, splitTopLevel, stripComments } from "./semantic-graph.js";
 import { memoryEffectsConflict, parseMemoryToken, MAX_REGION_NODES } from "./topological-orders.js";
 import { baselinePartition, enumeratePartitions, nameGroups, websCompatible, type WebView } from "./web-partitions.js";
@@ -7,6 +8,7 @@ import {
   RESIDUAL_GRAMMAR_SCHEMA_VERSION,
   RESIDUAL_SEARCH_SCHEMA_VERSION,
   type AdministrativeCopySite,
+  type BasePointerSite,
   type CausalClosure,
   type MaterializationSite,
   type OrderRegion,
@@ -53,6 +55,8 @@ export interface DerivedGrammar {
   sites: MaterializationSite[];
   /** Switches with an admissible chain form; mask bit k selects switchForms[k]. */
   switchForms: SwitchFormSite[];
+  /** Admissible shared-base groups; mask bit k selects basePointers[k]. */
+  basePointers: BasePointerSite[];
   /** One entry per materialization mask, ascending; mask 0 is first. */
   materializations: MaterializationChoice[];
   partitionComplete: boolean;
@@ -72,7 +76,7 @@ export const GRAMMAR_ASSUMPTIONS = [
 const SUPPRESSED_BASE: SuppressedRule[] = [
   {
     rule: "expression-materialization",
-    reason: "schema 4 materializes only literal known-macro constant arguments whose values appear in mismatched target instructions; general pure-expression, common-subexpression, and result-reuse forms remain excluded",
+    reason: "schema 8 materializes literal known-macro constant arguments, and the base-pointer rule covers the shared-address subset of common-subexpression reuse; general pure-expression and non-address result-reuse forms remain excluded",
     evidence: [],
   },
   {
@@ -301,12 +305,23 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     if (!info || !info.supported || info.addressEscapes || !info.typeText) continue;
     if (info.kind === "local") {
       const declaration = info.declarationId ? nodeById.get(info.declarationId) : undefined;
-      if (!declaration || declaration.block !== 0) {
-        caveats.push(`${variable} is declared outside the entry block; its webs stay frozen.`);
+      /* The declaration has to be somewhere the renderer can rewrite it. Any
+       * block the grammar reasons about qualifies — an opened case body is a
+       * scope of its own and renders in place. */
+      if (!declaration || blockIsFrozen(graph.blocks, declaration.block)) {
+        caveats.push(`${variable} is declared inside a frozen construct; its webs stay frozen.`);
         continue;
       }
-      if (declaration.initializer !== undefined) {
-        caveats.push(`${variable} is declared with an initializer; grammar schema 1 freezes its webs.`);
+      /* An entry-block declaration is emitted from the declaration cluster,
+       * which rebuilds the line and cannot carry an initializer's renamed
+       * reads. A declaration in an opened block is renamed where it stands,
+       * text and initializer together, so an initializer is no obstacle
+       * there. */
+      if (declaration.initializer !== undefined && declaration.block === 0) {
+        caveats.push(
+          `${variable} is an entry-block declaration with an initializer; the declaration cluster cannot ` +
+          "rename inside it, so its webs stay frozen.",
+        );
         continue;
       }
     }
@@ -408,7 +423,8 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
   const regions: OrderRegion[] = [];
   const frozenNodeIds = new Set(graph.nodes.map((node) => node.id));
   for (const block of graph.blocks) {
-    /* Loop and case blocks are modelled but not reorderable in this version. */
+    /* Frozen blocks are modelled structurally but hold no order region: a
+     * non-sequential case, and anything nested under one. */
     if (blockIsFrozen(graph.blocks, block.index)) continue;
     let run: string[] = [];
     let regionIndex = 0;
@@ -584,7 +600,19 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
       while (reserved.has(freshVariable)) freshVariable = `${freshVariable}_`;
       const group: AdministrativeCopySite[] = [];
       for (const region of keptRegions) {
-        if (region.block !== 0) continue;
+        /* `redirected` below selects reads by program-order position, which is
+         * only the same as "reads the copy reaches" when the host region runs
+         * on every path to them. That holds in the entry block and nowhere
+         * else: a copy placed in one opened case body would capture reads in a
+         * sibling case that never runs after it. Lifting this needs dominance,
+         * not a position compare, so the gate stays and says why. */
+        if (region.block !== 0) {
+          adminRefusals.push(
+            `phantom ${phantom.templateId}: region ${region.id} is outside the entry block, and copy redirection ` +
+            "selects reads by program order rather than by dominance",
+          );
+          continue;
+        }
         if (region.nodeIds.length + 1 > MAX_REGION_NODES) {
           caveats.push(`Region ${region.id} cannot host the ${phantom.templateId} copy within the exact-counting bound of ${MAX_REGION_NODES}.`);
           continue;
@@ -746,8 +774,35 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
   /* ---------------------------------------------------------------- */
 
   const switchForms: SwitchFormSite[] = [];
+  const keptRegionBlocks = new Set(keptRegions.map((region) => region.block));
   for (const node of graph.nodes) {
     if (node.caseBlocks === undefined || !closureNodes.has(node.id)) continue;
+
+    /* The chain text is built once, from the source as written. A coordinate
+     * that also reorders or renames inside a case body would need the chain
+     * rebuilt from those emitted statements instead, so the two rewrites
+     * cannot both apply to one switch. Schema 6 resolves it in favour of the
+     * case bodies: they carry order, partition, and closure reach, where the
+     * chain carries one binary spelling. Recorded, not silent. */
+    const live = node.caseBlocks.filter((index) => keptRegionBlocks.has(index));
+    if (live.length > 0) {
+      caveats.push(
+        `Switch at line ${node.span.lineStart} keeps its form: ${live.length} of its cases are sequential and ` +
+        "hold order regions, and the chain form cannot compose with edits inside the bodies it inlines.",
+      );
+      suppressedRules.push({
+        rule: "switch-form",
+        reason:
+          `the switch at line ${node.span.lineStart} has ${live.length} case body region(s); the chain text is ` +
+          "derived from the source as written and cannot carry per-coordinate case-body edits",
+        evidence: live.map((index) => {
+          const block = graph.blocks[index]!;
+          return `case ${block.caseLabel ?? "default"} is sequential and holds an order region`;
+        }),
+      });
+      continue;
+    }
+
     const outcome = switchChainForm(graph, source, node);
     if ("refusal" in outcome) {
       caveats.push(`Switch at line ${node.span.lineStart} keeps its form: ${outcome.refusal}.`);
@@ -760,6 +815,29 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     switchForms.push(outcome.site);
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Base pointers: one pointer for subscripts that share an index.    */
+  /* ---------------------------------------------------------------- */
+
+  const basePointers = basePointerSites({
+    graph,
+    source,
+    closureNodes,
+    flowOrder: flow.order,
+    reserved: new Set([...graph.variables.map((variable) => variable.name), ...partitions.flatMap((partition) =>
+      partition.groups.map((group) => group.name))]),
+  });
+  for (const refusal of basePointers.refusals) {
+    caveats.push(`Base pointer refused: ${refusal}.`);
+  }
+  if (basePointers.sites.length === 0) {
+    suppressedRules.push({
+      rule: "base-pointer-form",
+      reason: "no set of subscripts on one data symbol shares an index expression under the admissibility checks",
+      evidence: basePointers.refusals,
+    });
+  }
+
   const grammar: ResidualGrammar = {
     schemaVersion: RESIDUAL_SEARCH_SCHEMA_VERSION,
     grammarSchemaVersion: RESIDUAL_GRAMMAR_SCHEMA_VERSION,
@@ -769,6 +847,7 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
       ...(adminSites.length > 0 ? ["administrative-form" as const] : []),
       ...(keptRegions.some((region) => region.movableUpdates.length > 0) ? ["loop-update-placement" as const] : []),
       ...(switchForms.length > 0 ? ["switch-form" as const] : []),
+      ...(basePointers.sites.length > 0 ? ["base-pointer-form" as const] : []),
     ],
     suppressedRules,
     assumptions: [...GRAMMAR_ASSUMPTIONS],
@@ -780,6 +859,7 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
   };
   if (adminSites.length > 0) grammar.administrativeSites = adminSites;
   if (switchForms.length > 0) grammar.switchFormSites = switchForms;
+  if (basePointers.sites.length > 0) grammar.basePointerSites = basePointers.sites;
   if (witness) {
     grammar.witness = {
       runId: witness.runId,
@@ -797,6 +877,7 @@ export function deriveGrammar(options: DeriveGrammarOptions): DerivedGrammar {
     regions: keptRegions,
     sites,
     switchForms,
+    basePointers: basePointers.sites,
     materializations,
     partitionComplete: tooLarge === undefined,
     registry: options.registry,
@@ -811,15 +892,24 @@ function regionHasBirthCandidate(region: OrderRegion, options: DeriveGrammarOpti
 
 /**
  * Partition-independent declaration-birth admissibility (rule 4.5): a killing
- * entry-block scalar assignment whose pure right-hand side reads only
- * untouched parameter-entry values and whose memory reads cannot be disturbed
- * by any earlier effect. The per-partition first-definition and dependency
- * checks happen during domain construction.
+ * scalar assignment in a block the grammar reasons about, whose pure
+ * right-hand side reads only untouched parameter-entry values and whose memory
+ * reads cannot be disturbed by any earlier effect. The per-partition
+ * first-definition and dependency checks happen during domain construction.
+ *
+ * The block was the entry block until schema 6. A birth folds the assignment
+ * into its variable's declaration, so what it actually requires is that both
+ * sit in the same renderable scope — which an opened case body satisfies.
  */
 export function isBirthPreCandidate(nodeId: string, options: DeriveGrammarOptions): boolean {
   const { graph, view } = options;
   const node = graph.nodes.find((item) => item.id === nodeId);
-  if (!node || node.kind !== "assign" || !node.killingWrite || !node.movable || node.block !== 0) return false;
+  if (!node || node.kind !== "assign" || !node.killingWrite || !node.movable) return false;
+  if (blockIsFrozen(graph.blocks, node.block)) return false;
+  /* The declaration the initializer would land on must share the block. */
+  const declaration = graph.variables.find((item) => item.name === node.writes[0])?.declarationId;
+  const declarationNode = declaration ? graph.nodes.find((item) => item.id === declaration) : undefined;
+  if (declarationNode !== undefined && declarationNode.block !== node.block) return false;
   if (node.rhs === undefined || node.lhs === undefined) return false;
   const reaching = view.reaching.get(nodeId);
   for (const read of node.reads) {

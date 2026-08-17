@@ -32,6 +32,10 @@
  *   flag-fingerprint  symbolic lui/lw self-clobber pairs (per-file flag class)
  *   asm-policy      embedded asm without a sourcePolicy allowlist entry
  *   asm-dead        an embedded asm block whose output is clobbered unused
+ *   search-domain   a residual-source-search run that cannot support the
+ *                   conclusion it looks like: an active rule whose axis is
+ *                   empty or inert, or a class table that came from the cost
+ *                   pilot rather than from evaluating the domain
  *
  * Usage:
  *   npx tsx tools/agent/triage.ts func_80016B7C
@@ -39,7 +43,7 @@
  *   npx tsx tools/agent/triage.ts func_80016B7C --src /tmp/experiment.c
  */
 
-import { existsSync, readFileSync, rmSync } from "fs";
+import { existsSync, readFileSync, readdirSync, rmSync } from "fs";
 import { join } from "path";
 import {
   ROOT,
@@ -77,6 +81,23 @@ const CALL_CLOBBERED = new Set([
   "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
   "12", "13", "14", "15", "24", "25",
 ]);
+
+/** The fields `detectSearchDomain` reads out of a search run's artifacts. */
+interface SearchGrammar {
+  grammarSchemaVersion?: number;
+  activeRules?: string[];
+  partitionWebIds?: string[];
+  webs?: unknown[];
+  regions?: unknown[];
+  caveats?: string[];
+}
+
+interface SearchSummary {
+  status?: string;
+  classes?: unknown[];
+  classesSource?: { sampled: boolean; evaluatedCandidates: string; totalCandidates: string };
+  axisEffects?: Array<{ id: string; radix: string; sampled: number; inert: boolean }>;
+}
 
 type Severity = "blocker" | "signal" | "info";
 
@@ -686,6 +707,133 @@ export function detectBackendPacket(target: TargetFacts): Finding[] {
   return findings;
 }
 
+/**
+ * An exhausted search whose axis was empty.
+ *
+ * `searchResidualSourceSpace` reports a terminal `exhausted-no-exact` against
+ * the grammar it derived, which is honest and easy to over-read: a rule can be
+ * active and still have nothing to enumerate, because every candidate it would
+ * have acted on was excluded upstream. Exhausting a domain that excludes the
+ * thing you are looking for proves nothing about it, and the result looks
+ * exactly like proof.
+ *
+ * So this reads the run's own grammar and reports the axes that were empty,
+ * with the recorded reasons. Only runs whose baseline source hash still equals
+ * the source on disk are read; a stale run is not a reading of this program.
+ */
+export function detectSearchDomain(
+  name: string,
+  srcText?: string,
+  searchRoot: string = join(ROOT, "build/residualSourceSearch"),
+): Finding[] {
+  if (srcText === undefined) return [];
+  const root = join(searchRoot, name);
+  if (!existsSync(root)) return [];
+
+  const wanted = sha256(srcText);
+  /* Among the runs that are readings of *this* source, the one to report is
+   * the strongest evidence, never the most recent: a terminal run outranks a
+   * sample, more coverage outranks less, and the run id breaks the tie so the
+   * choice is deterministic. Picking by modification time would make the
+   * finding depend on which run happened to be re-run last. */
+  const strength = (summary: SearchSummary): [number, number] => [
+    summary.classesSource?.sampled === false ? 1 : 0,
+    Number(summary.classesSource?.evaluatedCandidates ?? "0"),
+  ];
+  let newest: { grammar: SearchGrammar; summary: SearchSummary; runId: string } | undefined;
+  for (const entry of readdirSync(root).sort()) {
+    const directory = join(root, entry);
+    try {
+      const baseline = JSON.parse(readFileSync(join(directory, "baseline.json"), "utf-8")) as { sourceHash?: string };
+      if (baseline.sourceHash !== wanted) continue;
+      const grammar = JSON.parse(readFileSync(join(directory, "grammar.json"), "utf-8")) as SearchGrammar;
+      const summary = JSON.parse(readFileSync(join(directory, "summary.json"), "utf-8")) as SearchSummary;
+      if (newest) {
+        const [terminal, covered] = strength(summary);
+        const [bestTerminal, bestCovered] = strength(newest.summary);
+        if (terminal < bestTerminal || (terminal === bestTerminal && covered <= bestCovered)) continue;
+      }
+      newest = { grammar, summary, runId: entry };
+    } catch {
+      /* A partial or interrupted run directory is not a reading. */
+    }
+  }
+  if (!newest) return [];
+
+  const { grammar, summary, runId } = newest;
+  const terminal = summary.status === "exhausted-no-exact";
+  const active = new Set(grammar.activeRules ?? []);
+  const findings: Finding[] = [];
+
+  /* Reasons the run already wrote down for excluding something. These are the
+   * actionable half: they name what to change to make the axis non-empty. */
+  const exclusions = (grammar.caveats ?? []).filter((line) =>
+    /stays frozen|stays inside|frozen at|Shadowed|cannot compose|declared /.test(line));
+
+  const empty: Array<{ rule: string; what: string }> = [];
+  if (active.has("web-partition") && (grammar.partitionWebIds ?? []).length === 0) {
+    empty.push({
+      rule: "web-partition",
+      what: `0 of ${(grammar.webs ?? []).length} value web(s) were partitionable`,
+    });
+  }
+  if (active.has("statement-order") && (grammar.regions ?? []).length === 0) {
+    empty.push({ rule: "statement-order", what: "no block produced an order region" });
+  }
+  for (const axis of summary.axisEffects ?? []) {
+    if (axis.inert) empty.push({ rule: `axis ${axis.id}`, what: `radix ${axis.radix}, one program across ${axis.sampled} value(s)` });
+  }
+
+  /* A run that only sampled has no verdict to lend, whatever its class table
+   * looks like. This is separate from an empty axis: the axes may be fine and
+   * the run still not be a result. */
+  if (summary.classesSource?.sampled && summary.classes !== undefined) {
+    findings.push({
+      detector: "search-domain",
+      severity: "signal",
+      summary:
+        `the strongest residual-source-search run for this source (${runId.slice(0, 8)}) evaluated ` +
+        `${summary.classesSource.evaluatedCandidates} of ${summary.classesSource.totalCandidates} candidate(s). ` +
+        "Its class table is a sample sized to time a compile, not a ranking over the domain, so nothing in it " +
+        "supports a statement about what the domain does or does not contain. Exhaust it before concluding.",
+      evidence: [
+        `status: ${summary.status}`,
+        `artifacts: build/residualSourceSearch/${name}/${runId}/summary.txt`,
+      ],
+      see: ["tools/agent/residual-source-search/README.md"],
+    });
+  }
+
+  if (empty.length === 0) return findings;
+
+  findings.push({
+    detector: "search-domain",
+    severity: terminal ? "blocker" : "signal",
+    summary:
+      `residual-source-search run ${runId.slice(0, 8)} lists ${empty.map((item) => item.rule).join(" and ")} as ` +
+      `active, but ${empty.length === 1 ? "that axis is" : "those axes are"} empty ` +
+      `(${empty.map((item) => item.what).join("; ")}). ` +
+      (terminal
+        ? "The run reported exhausted-no-exact, which is a claim about the domain it built, not about the " +
+          "rewrites the axis would have covered. Do not read it as a closure over that axis — read the " +
+          "exclusion reasons below and make the axis non-empty first."
+        : "Anything this run concludes will not cover that axis."),
+    evidence: [
+      `status: ${summary.status}`,
+      `grammar schema ${grammar.grammarSchemaVersion}, active rules: ${[...active].join(", ")}`,
+      ...(exclusions.length > 0
+        ? exclusions.map((line) => `exclusion: ${line}`)
+        : ["the run recorded no exclusion reason for the empty axis; that is itself worth reporting"]),
+      `artifacts: build/residualSourceSearch/${name}/${runId}/grammar.json`,
+    ],
+    see: [
+      "tools/agent/residual-source-search/README.md",
+      "notes/research/func_80020E58-allocation-residual.md",
+    ],
+  });
+  return findings;
+}
+
 function detectArityStack(target: TargetFacts): Finding[] {
   const incoming = target.frame.incoming;
   if (incoming.length === 0) return [];
@@ -1193,6 +1341,7 @@ function main(): void {
   findings.push(...detectLoopIdiom(target));
   findings.push(...detectCaptureRa(target));
   findings.push(...detectFlagFingerprint(name, sourceState === "c" ? srcText : undefined));
+  findings.push(...detectSearchDomain(name, sourceState === "c" ? srcText : undefined));
   rmSync(scratch, { recursive: true, force: true });
 
   if (json) {
