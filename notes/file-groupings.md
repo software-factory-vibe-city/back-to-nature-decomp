@@ -954,3 +954,25 @@ Members (address order):
   with a D_8005F0C8 fallback, recursive on a nonzero result
 - func_800198E0 (m) — same signature; additive scan without the 0xFFFF
   terminator; recurses directly on D_8005F0C8[...]
+
+## D_8005E2BA cursor-offset family — func_80017A38 / func_80019030 / func_80019CBC (confidence: low)
+
+Three functions whose TUs all tentatively define the same u16 `D_8005E2BA`
+(reached GP-relatively in every matched member), a menu cursor/offset value:
+`func_80017A38` is the setter, the other two are consumers. A file only gets
+GP-relative access when it owns a tentative definition, so each member's TU
+defines the symbol (tentative definitions can still span TUs via -fcommon;
+TU membership unconfirmed — a common options/menu screen is plausible given
+the cursor/index semantics, but nothing proves the TUs are one file).
+Fingerprint: identical `u16 D_8005E2BA;` tentative definition in each member's
+compiled TU, and `lh … %gp_rel(D_8005E2BA)` in the consumers.
+
+Members (address order):
+- func_80017A38 (m) — setter: writes `D_8005E2B8 = arg0; D_8005E2BA = arg1;`
+  (cursor/scroller position pair)
+- func_80019030 (m) — cursor-position consumer; reads D_8005E2BA and the
+  D_8005E444/D_8005E4A8/D_8005E47A family to return an adjusted s16 position
+- func_80019CBC (m) — menu line/row adjuster: increments/decrements `*arg2`
+  clamped by `arg3`, and when unchanged calls func_80019E14 with a position
+  derived from `(s16)D_8005E2BA + 0xC`; also reads the D_8005E3A8/D_8005E3C0
+  graphics-display-object pointers (absolute addressing — not TU-owned)
