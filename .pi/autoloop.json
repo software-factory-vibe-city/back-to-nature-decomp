@@ -1,28 +1,10 @@
 {
   "ladder": [
     {
-      "provider": "qwen36-llama",
-      "model": "qwen3.8-27b",
-      "thinking": "off",
-      "label": "qwen3.8-27b (local)"
-    },
-    {
-      "provider": "qwen36-llama",
-      "model": "qwen3.8-27b",
-      "thinking": "medium",
-      "label": "qwen3.8-27b (local)"
-    },
-    {
-      "provider": "openrouter",
-      "model": "deepseek/deepseek-v4-flash-0731",
+      "provider": "runinfra",
+      "model": "deepseek-v4-flash",
       "thinking": "xhigh",
       "label": "deepseek-v4-flash"
-    },
-    {
-      "provider": "openai-codex",
-      "model": "gpt-5.6-sol",
-      "thinking": "xhigh",
-      "label": "gpt-5.6-sol"
     }
   ],
   "returnsPerTier": 1,
