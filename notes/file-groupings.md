@@ -645,7 +645,10 @@ func_80020E58 and func_800214FC share a GP-relative cluster
 D_8005E538, D_8005E54C, D_8005E554, D_8005E572 (both define them tentatively
 and access via %gp_rel — func_80020E38 also defines D_8005E554).
 Members: func_80020E38 (m) — helper: indexed load from D_8006BF48;
-func_80020E58 (s) — transfer setup/dispatcher; func_800214FC (m) —
+func_80020E58 (m) — transfer setup/dispatcher; byte-exact clean C: calls
+SsVabOpenHead (PSY-Q 2-arg prototype) and memcpy, materializes
+C028/C068/BFA8 base pointers (same idiom as func_80020818), owns the rodata
+jump table at 0xA24; func_800214FC (m) —
 selects a D_80049370 span and starts a CD load operation; func_800215EC (m) —
 writes the first three transfer-state words; func_80021604 (m) — initializes
 transfer progress from adjacent D_80049370 entries; func_80021668 (m) —
@@ -656,7 +659,7 @@ func_80011370 (main loop); address adjacency (0x18C4 is 0x194 past previous
 boundary); func_800218C4 uses all absolute addressing (no shared gp-rel
 cluster with core members — likely a different TU or the boundary member).
 
-References: src/func_800218C4.c.
+References: src/func_800218C4.c, src/func_80020E58.c.
 
 ## SPU voice allocation and playback — around 0x800212A8–0x80021820 (confidence: medium)
 

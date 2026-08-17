@@ -176,6 +176,7 @@ s32 func_80020818(void);
 void func_80020A40(void);
 s32 func_80020A94(void);
 s32 func_80020E38(void);
+s32 func_80020E58(void);
 s32 func_800212A8(s32 soundId, s32 lo, s32 hi);
 s32 func_80021484(s32 arg0);
 void func_800214FC(s16 arg0);
