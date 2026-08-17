@@ -297,6 +297,32 @@ via the gp-rel declarations; membership unverified.
 References: notes/retros/2026-08-06-func_80022738-retro.md,
 notes/research/func_80022F1C-shift-fusion-and-address-legitimization.md.
 
+## callback driver family — 0x80023600–0x80023910 (confidence: medium)
+
+Mode-driven callback family: func_80023600 selects one of six immediately-
+adjacent callbacks by D_8005E338 (1 or 2) and the display command word at
+GfxObj+8 (0x40 / 0x20 / else), then reports the outcome through the sound
+hook func_8001FABC.
+
+Fingerprints:
+- internal call graph: func_80023600 takes the addresses of each member and
+  dispatches through registers ($a1/$a2/$a3) — every callback is an indirect
+  call target of the driver;
+- all seven functions are consecutive in link order, with no unrelated code
+  between them (0x80023600 ends exactly at func_800236EC;
+  func_800237FC ends at func_80023910).
+
+Members (address order):
+- func_80023600 (m) — dispatcher: mode = D_8005E338 (1 or 2), command =
+  D_8005E3A8->field +8 (0x40 / 0x20 / else)
+- func_800236EC (s) — mode-1 callback for the cmd==0x40 path
+- func_8002374C (s) — mode-1 callback for the cmd==0x20 path
+- func_80023794 (s) — mode-1 callback for the default path (returns s16,
+  stored to D_8005E33A)
+- func_80023710 (s) — mode-2 callback for the cmd==0x40 path
+- func_80023774 (s) — mode-2 callback for the cmd==0x20 path
+- func_800237FC (s) — mode-2 callback for the default path
+
 ## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: low)
 
 D-pad cursor movement on a 14-column grid (menu/keyboard screen?).
