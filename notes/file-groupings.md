@@ -323,17 +323,19 @@ Members (address order):
 - func_80023774 (s) — mode-2 callback for the cmd==0x20 path
 - func_800237FC (s) — mode-2 callback for the default path
 
-## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: low)
+## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: medium)
 
 D-pad cursor movement on a 14-column grid (menu/keyboard screen?).
 Fingerprints: func_800241EC (m) directly calls func_800243D0 (s) as its
 default vertical-move handler (call graph + address adjacency, 0x800243D0
 begins just past 0x800241EC's end); shared absolute-addressed parallel
 table cluster D_80055994/D_800559BC (bounds byte-table bases) and
-D_800559C4 (handler function pointers). func_80023DBC (s)(?) is the sole
-caller. Handlers stored in D_800559C4 are unidentified — resolving them
-would extend the group.
-Members: func_80023DBC (s)(?), func_800241EC (m), func_800243D0 (s).
+D_800559C4 (handler function pointers). func_80023DBC (m) is the sole
+caller — its matched body drives the switch over the current input mode
+and feeds D_8005E356 (cursor) / D_8005E358 (set) into func_800241EC and
+func_800244FC. Handlers stored in D_800559C4 are unidentified — resolving
+them would extend the group.
+Members: func_80023DBC (m), func_800241EC (m), func_800243D0 (s).
 
 ## sprite frame-index helpers — 0x80024408–0x800245C8 (confidence: medium)
 
