@@ -929,3 +929,24 @@ has been removed. What the bytes actually are:
   residues mechanically). The original hand edit by the autoloop —
   attributing 0x8DC while the function was still a stub — is exactly the
   inconsistent state the tool's check mode rejects.
+
+## D_8005F0C8 table-scan family — func_8001945C / func_800198E0 (confidence: medium)
+
+Two self-recursive u16-table scanners that read the same 4096-pointer table
+D_8005F0C8 (`[halfword & 0xFFF]`, absolute-addressed). Same-shape signature
+`s32 (u16 *buf, u16 hay/needle, s16 limit)` and the same idiom cluster:
+plain `u16 *` walking pointer, an `(entry & 0xF000) == 0x4000` / `& 0x4000`
+command-bit check, a `u16` parameter whose entry zero-extension is the
+assign_parms conversion, and a recursive count-armed scan. func_800198E0 is
+byte-exact (MATCHED, the idiom twin to match func_8001945C against);
+func_8001945C now also byte-exact. Both reach D_8005F0C8 and nothing else in
+the game reaches that table, so the defining TU is among this pair
+(tentative/extern declaration split unconfirmed). func_8001945C also calls
+func_8001A284 (0x8001A574 family TU) and is called by func_800183E0 (the
+table-slot CD-loader cluster) — cross-group edges only, not membership.
+
+Members (address order):
+- func_8001945C (m) — count/terminator scan; per-entry `func_8001A284(*buf)`
+  with a D_8005F0C8 fallback, recursive on a nonzero result
+- func_800198E0 (m) — same signature; additive scan without the 0xFFFF
+  terminator; recurses directly on D_8005F0C8[...]
