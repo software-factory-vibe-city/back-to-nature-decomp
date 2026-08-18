@@ -932,6 +932,24 @@ has been removed. What the bytes actually are:
   attributing 0x8DC while the function was still a stub — is exactly the
   inconsistent state the tool's check mode rejects.
 
+## u16-text wrapper run — func_80019564 / func_800195F4 / func_80019600 (confidence: low)
+
+Byte-adjacent trio headed by func_80019564, each ending exactly where the
+next begins (0x80019564 → 0x800195F4 → 0x80019600, zero padding) and each
+called solely by func_800183E0 (table-slot CD-loader cluster's consumer) —
+an adjacency the call graph and link order agree on. func_80019564 is a
+near-twin of func_80017B3C (both
+`func_80011FD8(func_80018B98(arg0, func_80011F5C(0), arg1, x, y, 0x1000, <0|1>, 0,0,0,0))`),
+but 0x80017B3C lives earlier (0x80017B3C), so the twin is a copied-wrapper
+signal, not TU membership. The trio sits in the same no-gap run as the
+D_8005F0C8 table-scan family, but does not reach D_8005F0C8 itself.
+
+Members (address order):
+- func_80019564 (m) — text wrapper: func_80011FD8(func_80018B98(arg0,
+  func_80011F5C(0), arg1, (s16)arg2, (s16)arg3, 0x1000, 1, 0, 0, 0))
+- func_800195F4 (m) — tiny matched callee of func_800183E0
+- func_80019600 (m) — tiny matched callee of func_800183E0
+
 ## D_8005F0C8 table-scan family — func_8001929C / func_8001945C / func_800198E0 (confidence: medium)
 
 Three self-recursive u16-table scanners that read the same 4096-pointer table
