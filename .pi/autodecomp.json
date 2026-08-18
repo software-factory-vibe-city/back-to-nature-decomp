@@ -1,110 +1,113 @@
 {
-  "runtimeDir": "run_output/autodecomp",
-  "parallelism": 1,
-  "requireCleanTrackedTree": true,
-  "matching": {
-    "models": [
-      {
-        "thinking": "high",
-        "maxAttempts": 2
-      }
-    ],
-    "turnLimit": 60,
-    "timeoutMinutes": 90,
-    "idleTimeoutMinutes": 15
-  },
-  "refinement": {
-    "targetedEveryMatches": 5,
-    "targetedBatchSize": 2,
-    "projectEveryMatches": 25,
-    "projectAtFinalization": true
-  },
-  "retry": {
-    "retryParkedAfterEpoch": true,
-    "retryOnNeighborHashChange": true,
-    "blockedSleepMinutes": 30
-  },
-  "integration": {
-    "mode": "patch",
-    "allowCommits": false,
-    "allowedRoots": [
-      "src",
-      "include",
-      "configs",
-      ".pi/autodecomp.json",
-      "notes"
-    ]
-  },
-  "budgets": {
-    "maxCostUsd": null,
-    "maxRuntimeHours": null,
-    "maxAttemptsPerFunctionPerEpoch": 4
-  },
-  "sourcePolicy": {
-    "allowEmptyMemoryBarrier": true,
-    "allowlist": {
-      "func_80019070": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_80016280": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_80016054": [
-        "embedded-asm"
-      ],
-      "func_80015704": [
-        "embedded-asm"
-      ],
-      "func_8001d2d8": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_8001dfd4": [
-        "embedded-asm"
-      ],
-      "func_80038674": [
-        "embedded-asm"
-      ],
-      "func_8002437c": [
-        "embedded-asm"
-      ],
-      "func_8001e9f8": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_80020e38": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_80021820": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_800142d8": [
-        "embedded-asm"
-      ],
-      "func_80014494": [
-        "flag-override"
-      ],
-      "func_80015644": [
-        "embedded-asm"
-      ],
-      "func_80012598": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_8001FEA4": [
-        "register-asm",
-        "embedded-asm"
-      ],
-      "func_80014cbc": [
-        "embedded-asm"
-      ],
-      "func_8001a284": [
-        "embedded-asm"
-      ]
-    }
+ "runtimeDir": "run_output/autodecomp",
+ "parallelism": 1,
+ "requireCleanTrackedTree": true,
+ "matching": {
+  "models": [
+   {
+    "thinking": "high",
+    "maxAttempts": 2
+   }
+  ],
+  "turnLimit": 60,
+  "timeoutMinutes": 90,
+  "idleTimeoutMinutes": 15
+ },
+ "refinement": {
+  "targetedEveryMatches": 5,
+  "targetedBatchSize": 2,
+  "projectEveryMatches": 25,
+  "projectAtFinalization": true
+ },
+ "retry": {
+  "retryParkedAfterEpoch": true,
+  "retryOnNeighborHashChange": true,
+  "blockedSleepMinutes": 30
+ },
+ "integration": {
+  "mode": "patch",
+  "allowCommits": false,
+  "allowedRoots": [
+   "src",
+   "include",
+   "configs",
+   ".pi/autodecomp.json",
+   "notes"
+  ]
+ },
+ "budgets": {
+  "maxCostUsd": null,
+  "maxRuntimeHours": null,
+  "maxAttemptsPerFunctionPerEpoch": 4
+ },
+ "sourcePolicy": {
+  "allowEmptyMemoryBarrier": true,
+  "allowlist": {
+   "func_80019070": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_80016280": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_80016054": [
+    "embedded-asm"
+   ],
+   "func_80015704": [
+    "embedded-asm"
+   ],
+   "func_8001d2d8": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_8001dfd4": [
+    "embedded-asm"
+   ],
+   "func_80038674": [
+    "embedded-asm"
+   ],
+   "func_8002437c": [
+    "embedded-asm"
+   ],
+   "func_8001e9f8": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_80020e38": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_80021820": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_800142d8": [
+    "embedded-asm"
+   ],
+   "func_80014494": [
+    "flag-override"
+   ],
+   "func_80015644": [
+    "embedded-asm"
+   ],
+   "func_80012598": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_8001FEA4": [
+    "register-asm",
+    "embedded-asm"
+   ],
+   "func_80014cbc": [
+    "embedded-asm"
+   ],
+   "func_8001a284": [
+    "embedded-asm"
+   ],
+   "func_80018B98": [
+    "flag-override"
+   ]
   }
+ }
 }

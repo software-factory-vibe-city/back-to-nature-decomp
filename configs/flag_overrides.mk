@@ -78,3 +78,27 @@
 # applied (checked 2026-08-09).
 CC1FLAGS_func_80014494 := -fno-cse-skip-blocks
 
+# func_80018B98: -fno-gcse.
+#
+# Fingerprint (proved unreachable from any C shape at baseline, no source
+# needed): the target reloads D_8005E446 at the post-arg8 merge point
+# (0x80018C98 lhu v0,%gp_rel(D_8005E446)) and pairs `addiu v0,v0,-7` /
+# `sltiu s5,v0,3` with the `bne s2,v1,.L80018CEC` in its delay slot. Under
+# -fgcse (default) the D_8005E446 load and the flag computation are
+# loop-invariant-hoisted to the entry block, above the arg8-block calls, and
+# the flag's sltiu cannot occupy that delay slot — verified over the
+# semantics-preserving source closure (184320 candidates, all still diverged
+# at prologue allocation) and over micro-compilations showing the hoist is
+# robust to source statement position. -fno-gcse removes exactly that hoist:
+# the merge-point reload and sltiu-in-delay-slot reappear.
+#
+# Flag column: -fno-gcse takes the natural source from 42/292 to 86/294
+# byte-matched words and lands the instruction count exactly at the target's
+# 294 (the only matrix row to do so; baseline is 292).
+#
+# No contrary regional witness: func_80018B98.c is its own TU (single
+# function per src file), so the override cannot disturb the matched
+# neighbours; the source family was scored at baseline and only -fno-gcse
+# beats it.
+CC1FLAGS_func_80018B98 := -fno-gcse
+
