@@ -975,6 +975,28 @@ Members (address order):
 - func_800198E0 (m) — same signature; additive scan without the 0xFFFF
   terminator; recurses directly on D_8005F0C8[...]
 
+## func_800199F8 — width-measuring text wrapper (confidence: low)
+
+Byte-exact (2026-08-17). A u16-text wrapper in the same shape as
+func_80019564 (`func_80011FD8(func_80018B98(arg0, func_80011F5C(0), arg2,
+temp, a4, a6, 0,0,0,0))`), but the x argument is computed as
+`(s16)((arg3+arg5) - func_800198E0(arg2, arg6, arg7))` — it measures the
+text's width via func_800198E0 before rendering. Touches no globals (no
+gp-rel access, no tentative definitions), so no TU-ownership fingerprint.
+
+Fingerprints:
+- internal call graph + zero-gap address adjacency with func_800198E0:
+  func_800198E0 ends at exactly 0x800199F8 and func_800199F8 begins there;
+  func_800199F8 ends at exactly 0x80019AD0. Same contiguous no-gap run
+  as the D_8005F0C8 family and the u16-text wrapper trio.
+- sole width source is func_800198E0 (D_8005F0C8 family member).
+
+Member: func_800199F8 (m).
+
+Negative/twin note: identical wrapper shape to func_80019564 and
+func_80017B3C, both of which live elsewhere — the copied-wrapper signal
+says don't use shape for TU membership, only call graph + adjacency.
+
 ## D_8005E2BA cursor-offset family — func_80017A38 / func_80019030 / func_80019CBC (confidence: low)
 
 Three functions whose TUs all tentatively define the same u16 `D_8005E2BA`
