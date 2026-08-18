@@ -966,7 +966,18 @@ func_8001A284 (0x8001A574 family TU) and are both called by func_800183E0
 (the table-slot CD-loader cluster, which calls func_8001929C twice) —
 cross-group edges only, not membership.
 
+func_800191B4 is the run's immediate address predecessor: it ends at
+exactly 0x8001929C where func_8001929C begins (zero gap) and it calls
+func_8001945C directly — a call-graph + zero-gap edge placing it in the
+same no-gap run as the scanners. It never reaches D_8005F0C8 and never
+calls func_8001A284, and its shape is different (u16* occurrence-search
+that returns a table pointer, gated by a func_8001945C cumulative-index
+limit), so it stays out of the "defining TU among the trio" claim rather
+than weakening it.
+
 Members (address order):
+- func_800191B4 (m) — occurrence-search at the run's head; calls
+  func_8001945C, reaches no shared table (see run note above)
 - func_8001929C (m) — count/terminator scan with out-count; recursive when
   `func_8001A284(*buf)` is nonzero, else on D_8005F0C8[*buf & 0xFFF]; calls
   func_8001A284 exactly like func_8001945C
