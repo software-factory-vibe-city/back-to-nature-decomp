@@ -992,6 +992,12 @@ Fingerprints:
 - sole width source is func_800198E0 (D_8005F0C8 family member).
 
 Member: func_800199F8 (m).
+Member: func_800197FC (m) — same width-measuring shape, but x is
+  `(s16)(arg3 + ((arg5 - func_800198E0(...)) / 2))`; ends at exactly
+  0x800198E0 where func_800198E0 begins (zero gap), and is itself
+  called by func_80019610 (still a stub at 0x80019610, which ends
+  exactly where func_800197FC begins). Same internal-callgraph +
+  zero-gap adjacency fingerprints as func_800199F8.
 
 Negative/twin note: identical wrapper shape to func_80019564 and
 func_80017B3C, both of which live elsewhere — the copied-wrapper signal
