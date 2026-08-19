@@ -334,6 +334,23 @@ Members (address order):
 - func_80023774 (s) — mode-2 callback for the cmd==0x20 path
 - func_800237FC (s) — mode-2 callback for the default path
 
+## menu / text-label setup — around 0x800239F8–0x80023C2C (confidence: low)
+
+Label/text region between the callback driver family (ends 0x80023910) and
+grid-cursor.c (starts 0x80023DBC).
+Fingerprints:
+- func_80023A9C (m) fills the absolute u16 table D_800A0708 with a
+  period-idiom naive indexed loop (0xFFD x16, entry 15 = 0xFFFF), then
+  hands it to the immediately-adjacent stubs func_80023B5C /
+  func_80023C2C (consecutive link order, both walk D_800A0708 by 2-byte
+  units);
+- func_80023A9C drives the same D_8005E3C0->field_D8 text-draw calls as
+grid-cursor's confirmed func_80023D08 (func_80022580 on +0x68,
+func_80017B3C on +0x64);
+- func_800239F8 (s) is the sole caller of func_80023A9C; func_8002348C
+also references D_800A0708 (lui v0,%hi / addiu s0,%lo base).
+Members: func_80023A9C (m).
+
 ## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: medium)
 
 D-pad cursor movement on a 14-column grid (menu/keyboard screen?).
