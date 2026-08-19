@@ -102,3 +102,38 @@ CC1FLAGS_func_80014494 := -fno-cse-skip-blocks
 # beats it.
 CC1FLAGS_func_80018B98 := -fno-gcse
 
+
+# func_80022794: -fno-rerun-cse-after-loop (+ allowlisted register pin / empty asm in src).
+#
+# Evidence: at baseline the else-branch register copy that carries the pre-
+# shift quotient into $a0 ("move a0,v0) is unreachable from any clean-C shape.
+# cse2 (rerun-cse-after-loop) folds the (set temp prod) copy into the product
+# mult — combine merges the hoisted copy, cse2 then rewrites the +0xFFF in-
+# place so the temp never materialises (6/6 else-branch respellings — ternary,
+# unconditional-copy-first, in-place shift, shared product/temp variable,
+# var_a0-reuse, products split/merged — all compile byte-identically folded;
+# instrumented compiler-oracle derives no scheduler edge and no forced local
+# assignment). The target KEEPS that copy (move a0,v0 / addiu a0,v0,0xFFF /
+# sra v1,a0,12) and the whole residual under baseline is its absence.
+#
+# With the override restoring the copy, the copy still incarnates in $v1 not
+# $a0: cse1 canonicalizes the copy into the round branch (temp outlives the
+# shared prod web; .rtl/.jump bgez v0 -> .cse bgez v1), which pins the copy
+# before the branch and hands find_reg the numeric-order $v1. The completion
+# is the allowlisted hybrid in src/ (user-authorized): `register s32 
+# temp_v1 asm("$4")` pins the round temp to $a0, and `__asm__("" : : 
+# "r"(prod))` (a zero-byte use-only asm that survives cse) gives prod a
+# later last-use so cse1 leaves the branch on v0 and the copy lands in the
+# bgez delay slot. With that, the whole remaining diff is a 4-position move
+# of a2=arg2 into the mult->mflo gap, fixed by sourcing var_a2 = arg2 before
+# the round; residual went [0,0,0,1] -> EXACT 116/116.
+#
+# Flag column: -fno-rerun-cse-after-loop is the only matrix row reaching the
+# target's instruction shape — 110/116 masked vs 59/116 baseline, and the only
+# row whose instruction count equals the target's 116. CSE2 is the pass that
+# folds the copy (see retros/2026-08-09-func_800142D8 for the same pass
+# deleting a kept copy), matching the observed folded vs kept asymmetry.
+#
+# No contrary regional witness: func_80022794.c is its own TU (single function
+# per src file) in the 0x8002261C-0x80022B20 "unknown group B" region.
+CC1FLAGS_func_80022794 := -fno-rerun-cse-after-loop
