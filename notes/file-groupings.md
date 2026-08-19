@@ -347,6 +347,17 @@ and feeds D_8005E356 (cursor) / D_8005E358 (set) into func_800241EC and
 func_800244FC. Handlers stored in D_800559C4 are unidentified — resolving
 them would extend the group.
 Members: func_80023DBC (m), func_800241EC (m), func_800243D0 (s).
+Confirmed member 2026-08-19:
+- func_80023D08 (m) — reads D_8005E358 (the same "set" flag
+  func_80023DBC's switch feeds into func_800241EC / func_800244FC) and
+  forwards it into text calls (func_80017A38, func_80017B3C,
+  func_80022580 on D_8005E3C0->field_D8). New evidence to include it in
+  the TU: literal link-order adjacency (func_80023D08 starts at 0x80023D08
+  and its 0xB4 bytes end exactly where func_80023DBC begins) plus the
+  gp-relative D_8005E358 access, for which this TU tentatively declares
+  s16 D_8005E358 exactly as the func_80023DBC reconstruction does
+  (ADR-0001 §2.4 — gp-rel access proves the original TU declared the
+  global). Both consume the D_8005E3C0 draw-buffer descriptor.
 
 ## sprite frame-index helpers — 0x80024408–0x800245C8 (confidence: medium)
 
