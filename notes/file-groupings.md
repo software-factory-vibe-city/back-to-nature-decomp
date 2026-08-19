@@ -257,7 +257,10 @@ Fingerprints:
   pointer variable (byte-verified idiom in both);
 - func_80022738's target reaches D_8005E5CC and D_8005E5B4 gp-relatively,
   so the original TU declares both (ASPSX gp-rel rule — see the
-  func_80016C08 entry);
+  func_80016C08 entry); the same rule now also proves func_80022B20's TU
+  declares D_8005E5CC (matched 2026-08-19: `addiu v1, gp, %gp_rel(D_8005E5CC)`
+  for the &D_8005E5CC argument, while D_8005E3C0 stays absolute; the matching
+  source ships a tentative definition of D_8005E5CC to reproduce it);
 - SetVal8005E2BC and SetVal8005E334 are void-returning: func_80022738
   matches only with void prototypes (an implicit-int/s32 declaration adds a
   dead `$v0` call def that blocks the target's `$v0` scratch allocation);
@@ -276,6 +279,14 @@ Members (address order):
   handshake, then a 5/6 re-queue path guarded by C4==-1); writes D_8005E5A8/AC
   and D_8005E5C4/C8; declares D_8005E5A8/AC/B4/C4/C8
 - func_80022738 (m) — flag-slot state check/advance (byte at +0xCC, 4 -> 5)
+- func_80022794 (?) — nine-arg query/scratch helper (s16 X/Y/W/H + scale
+  progression into *arg6); sole parent in this gap is the new confirmed caller
+  func_80022B20; address squarely inside the range — membership unverified, no
+  gp-rel declaration observed on its own target
+- func_80022B20 (m, 2026-08-19) — 9-arg query into D_8005E5CC via
+  func_80022794 (TH, 0x1A/0xA4 bounds, 0x10B/0x3E size, arg7=0xC, arg8=1); on
+  ==1 sets the D_8006C904 flag byte to 4; declares D_8005E5CC gp-relatively,
+  reads D_8005E3C0 absolutely — the range's upper-boundary member
 - func_80022DF8 (m) — reads the s32 flag word at D_8006C838+0xC (bit 27), OR/ANDs
   it, clears the +0xCC state byte (struct struct_8006C838_view in
   globals_override.h), then (de)queues a script/timer via func_8002261C; declares
