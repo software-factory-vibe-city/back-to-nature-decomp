@@ -981,6 +981,11 @@ Members (address order):
 - func_8001929C (m) — count/terminator scan with out-count; recursive when
   `func_8001A284(*buf)` is nonzero, else on D_8005F0C8[*buf & 0xFFF]; calls
   func_8001A284 exactly like func_8001945C
+- func_800193F0 (m) — run member; calls func_800191B4 then func_8001945C on
+  the same buffer, returns the occurrence result (+2 when nonzero) and
+  subtracts a masked scan count from D_8005E444; zero-gap on both sides
+  (ends exactly where func_8001945C begins), so it sits in the same run as
+  the scanners but reaches no shared table (see run note above)
 - func_8001945C (m) — count/terminator scan; per-entry `func_8001A284(*buf)`
   with a D_8005F0C8 fallback, recursive on a nonzero result
 - func_800198E0 (m) — same signature; additive scan without the 0xFFFF
