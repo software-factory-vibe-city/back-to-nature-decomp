@@ -298,9 +298,13 @@ Members (address order):
   D_8006C838+0xC, calls func_80014CBC(func_80022AF0(), D_8005E5A8 << 13,
   0x2000, D_8006C838+0xD8, 0, 1), sets +0xCC byte to 2; declares
   D_8005E5A8/B4/BC/C0/CC
-- func_800229F4 (s) — similar CD read via func_80014CBC(func_80022AF0(),
-  D_8005E5A8 << 13, ...) into a D_8006C910-based buffer, then drives the
-  D_8005E3C0 struct; reaches D_8005E5A8/B0/CC gp-relatively
+- func_800229F4 (m, 2026-08-19) — CD read into a D_8006C910-based buffer
+  via the same func_80014CBC(func_80022AF0(), D_8005E5A8 << 13, 0x2000, &D_8006C910, ...)
+  shape but flag words (0, 0); then drives the D_8005E3C0 struct and writes
+  the buffer-12 byte (cb = s1==1 ? 4 : 3). Confirms the group: reaches
+  D_8005E5A8/B0/CC gp-relatively (tentative defs reproduce it) while
+  D_8005E3C0/D_8006C910/D_800A06D8/D_800977F8 stay absolute; byte-exact
+  clean C with baseline flags (no per-file override)
 
 The GetVal8005E5B4/GetVal8005E5B8 accessors are natural same-TU candidates
 via the gp-rel declarations; membership unverified.
