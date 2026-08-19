@@ -136,6 +136,40 @@ The whole lattice for one loop is a dozen compiles. A pass-modelling session
 that skips it can prove a form unreachable inside the wrong frame — the proof
 will be internally correct and aimed at source the original never contained.
 
+### Array index the table read when a store-block load must drift to the top
+
+Concrete version of the loop-idiom rewrite above, from func_8001A19C: an
+order-only sched residual where a single-set (birth-boosted) load in a drain
+loop's store block settles mid-block instead of at the top next to the call's
+argument load. Identical instruction sets, only the load's slot differs, and
+statement order inside the store block is provably inert — the scheduler picks
+those stores by LUID and the block fills bottom-up, so rearranging the stores
+is the same experiment every time.
+
+  - Try **array indexing** (`D_80049070[i]`) before explicit walking pointers
+    (`*tab` with `tab++` in the latch). Loop strength reduction births the
+    indexed load at the induction top-of-block, which changes its scheduler
+    ready/issue state exactly the way a late-born pointer deref cannot.
+    This was the single load-bearing spelling; it went from 3 residual words
+    to byte-exact with no other change.
+  - **Read-through-global pins store-before-load and still folds to the direct
+    offset.** `if (*D_8005E4A8 == 0xFFFE)` after `D_8005E4A8 = v + 1` emits
+    `sw v0,E4A8` then `lhu v1,2(a0)` (the target order) while CSE collapses the
+    global read back to `2(a0)` — no extra instruction. The bare `v[1]
+    spelling alone lets sched2 hoist the load above the store. A matched
+    sibling (func_8001A11C) reads through the global too.
+  - **Web rewrites that do NOT work here** (all measured): a cross-block 2-set
+    web de-boosts the load and fixes the block, but inherits an argument
+    register at its birth and rotates the block's `$v0/$v1`; same-block web
+    reuse is split into separate quantities by GCC and never drops the boost;
+    a scheduler-state search cannot derive the order because it is a
+    memory-unit issue-window property, not a priority/LUID ranking.
+
+The absolute-addressed table read this idiom assumes is reproduced by
+`extern u16 D_80049068[];` (incomplete-array) in the override header — unknown
+size keeps `SYMBOL_REF_FLAG` clear so cc1 emits the split `lui/addiu` form; see
+the declarations sheet. Case write-up: notes/retros/2026-08-19-func_8001A19C-retro.md.
+
 ### Observe the scheduler; do not model it
 
 Every mechanism in the table above is *observable*. The legacy scheduler writes

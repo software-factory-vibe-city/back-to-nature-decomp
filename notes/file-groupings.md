@@ -917,8 +917,18 @@ Members (address order):
   D_8005E444 length, fills a buffer via func_800191B4(0xFFB); on success
   advances D_8005E4A8 past a 0xFFFE sentinel, clears E4AC/E4A2, sets
   D_8005E4A0=3, E4B4=1, clears E4B8, calls func_80019600. Owns gp-rel
-  cluster D_8005E4A0/E4A2/E4AC/E4B4/E4B8 (no other function touches it);
-  shares D_8005E444/D_8005E4A8 with func_80019030.
+  cluster D_8005E4A0/E4A2/E4AC/E4B4/E4B8 (shared with func_8001A19C, see
+  below); shares D_8005E444/D_8005E4A8 with func_80019030.
+- func_8001A19C (m, outside range, zero-gap at 0x8001A19C — func_8001A11C's
+  0x80 run ends exactly here) — u16-table drain: loops 3 (message, slot)
+  pairs, calling func_800191B4, then func_8001945C; on hit sets
+  D_8005E4A0/E4AC/E4A2/E4B4/E4B8/E4A4 (=3/0/0/1/0/0), advances D_8005E4A8
+  past the 0xFFFE tag, stores the table's parallel slot word to D_8005E446
+  and the drain count to D_8005E444. Tuple evidence: zero-gap adjacency
+  with func_8001A11C + same func_800191B4/func_8001945C drain idiom + the
+  shared GP cluster (defines D_8005E444/D_8005E4A8/D_8005E4A0/…/D_8005E446
+  tentatively). Absolute-addressed tables D_80049068/D_80049070 live in the
+  override header (incomplete arrays keep the split two-register form).
 - func_8001A574 (s) — dispatcher/insert: arg0/3 → q,r; dispatch
   `D_80049078[r](q)`; scans the gap in
   `p_table = D_8005E4A8 + D_8005E444`; memmove/memcpy shift; sentinel

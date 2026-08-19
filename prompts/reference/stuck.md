@@ -86,6 +86,13 @@ neighbour that is byte-exact is a proven idiom, not a suggestion.
 cheaper than one pass reading, and a residual that survives every rewrite of
 your own idiom is usually somebody else's idiom.
 
+Concrete worked example: an order-only residual that resisted the whole source
+family, a web-population change, a scheduler-state search and a flag probe —
+and fell to switching a store-block table read from an explicit walking
+pointer to array indexing, so loop strength reduction births it at the
+induction top. See the schedule sheet's "array index the table read" block and
+notes/retros/2026-08-19-func_8001A19C-retro.md.
+
 A stall that has resisted a search and a solver is more often an authoring
 question than a mechanism question. Ask what the author typed before asking
 what the allocator did.

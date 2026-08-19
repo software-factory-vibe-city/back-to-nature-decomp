@@ -605,4 +605,13 @@ extern s32 D_80054BBC[4];
 extern s32 D_8005175C[4];
 extern s32 D_80051768;
 
+/* D_80049068 / D_80049070 - u16 message tables read by func_8001A19C under
+ * split absolute addressing (`lui %hi` / `addiu r,%lo` with the base in a
+ * scratch register, not the self-clobber `la` pair). Declared as incomplete
+ * arrays so cc1 leaves SYMBOL_REF_FLAG unset (size unknown > -G8) and emits
+ * the split two-register address form matching the target. Not classified
+ * in globals.h. */
+extern u16 D_80049068[];
+extern u16 D_80049070[];
+
 #endif /* GLOBALS_OVERRIDE_H */
