@@ -589,10 +589,20 @@ extern struct_8006C7B8 _D_8005E850[1] __asm__("D_8005E850");
  * <=-G8 self-clobber macro pair. Not classified in globals.h. */
 extern s32 D_80054BC0[3];
 
+/* D_80054BBC - s32 quad read by func_80024108 / func_80023D08 (grid-cursor
+ * TU): split two-register address (`lui r,%hi` / `lw r2,%lo(r)` with
+ * base register != load destination). Declared array size 16 bytes (> -G8)
+ * so cc1 emits the split two-register form rather than the <=-G8
+ * self-clobber macro pair. Not classified in globals.h. */
+extern s32 D_80054BBC[4];
+
 /* D_8005175C / D_80051768 - s32 scalars whose addresses func_8001A284
  * materializes with the unsplit `la` form (expanded by ASPSX to a
- * self-clobbering lui/addiu pair). */
-extern s32 D_8005175C;
+ * self-clobbering lui/addiu pair). D_8005175C declared as an array so its
+ * size exceeds -G8: func_80024108's target materializes &D_8005175C with
+ * the SPLIT two-insn form (lui %hi / addiu %lo as separate defs), which
+ * cc1 only emits for a symbol classified >small data. */
+extern s32 D_8005175C[4];
 extern s32 D_80051768;
 
 #endif /* GLOBALS_OVERRIDE_H */
