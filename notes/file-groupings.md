@@ -938,8 +938,12 @@ Members (address order):
 - func_8001A790 (m) — third dispatch callee
 - func_8001A808 (m) — per-entry helper called by 668/6FC; flag-gated
   strcat chain appended into D_80049084
-- func_8001A870 (m), func_8001A8D0 (m), func_8001A970 (m) — later members;
-  A8D0/A970 are clean scalar helpers (charset / number-to-string)
+- func_8001A870 (m), func_8001A8D0 (m), func_8001A970 (m), func_8001AAF4 (m)
+  — later members; A8D0/A970 are clean scalar helpers (charset /
+  number-to-string); func_8001AAF4 is the display driver: formats into
+  the shared D_8005F0A8 digit buffer via func_8001A970, skips leading
+  0xFFD markers (same do-while idiom as func_8001A870), then draws via
+  func_80017B3C.
 
 References:
 - notes/research/func_8001A808-D80049084-address-split.md

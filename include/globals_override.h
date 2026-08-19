@@ -101,6 +101,11 @@ struct struct_8006C838_view {
     u8 field_CC;            /* 0xCC */
 };
 
+/* D_8005F0A8 - s16 digit buffer. >8-byte declaration for the genuine split
+ * address form (shared lui %hi base, see func_8001205C research).
+ * func_8001A970 writes up to 10 halfwords (digits + terminator). */
+extern s16 D_8005F0A8[10];
+
 /* D_80055988 - s16 array accessed with absolute addressing (lui+addiu+lh)
  * Index: (s16)arg. Array size of 5 ensures >8 byte declaration for absolute addressing */
 extern s16 D_80055988[5];
