@@ -298,6 +298,17 @@ typedef struct {
 } struct_8005E3C0;
 extern struct_8005E3C0 *D_8005E3C0;
 
+/* D_800A0708 - 32-byte halfword table (u16[0x10]), absolute addressing.
+ * func_80023A9C fills it with a walking halfword pointer (16 stores at
+ * byte offsets 0..0x1E, stride 2) then writes entry 15 via a base+0x1E
+ * displacement (the target's ori v0,0xFFFF proves unsigned typing);
+ * func_80023B5C/func_80023C2C walk it by 2-byte units; a >8-byte element
+ * keeps it out of the -G8 small-data range so it stays lui/lo_sum
+ * addressed. Declared as an array so the target's array-index store
+ * (base register + 30 displacement) is reachable. */
+extern u16 _D_800A0708[0x10] __asm__("D_800A0708");
+#define D_800A0708 (*(u16 (*)[0x10])_D_800A0708)
+
 /* D_8005E3B4 — pointer to s32, absolute addressing (func_800134C4 loads with
  * lui/lw self-clobber, then dereferences the loaded pointer). */
 extern s32 *D_8005E3B4;
