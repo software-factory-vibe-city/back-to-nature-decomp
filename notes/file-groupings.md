@@ -844,6 +844,9 @@ gp-rel cluster. Fingerprints:
   func_8001A018 begins.
 - func_800183E0 also reaches the u16 family's D_8005E444/D_8005E4A8
   GP-relatively, linking this cluster to the 0x8001A574 family's TU.
+- func_8001A11C (in the heading's address range) is NOT a slot-loader
+  member: it holds a private gp-rel cluster and shares E444/E4A8 with the
+  u16-table family — see the u16 family section.
 - internal call graph: func_8001AD6C → func_8001A018(slot, 1) →
   func_80019FC4(slot); func_800183E0 and func_8001ACBC also call
   func_8001A018.
@@ -882,6 +885,12 @@ Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
   sense (bnez vs beqz) — classic source-level twin.
 
 Members (address order):
+- func_8001A11C (m, outside range at 0x8001A11C) — u16-table init: reads
+  D_8005E444 length, fills a buffer via func_800191B4(0xFFB); on success
+  advances D_8005E4A8 past a 0xFFFE sentinel, clears E4AC/E4A2, sets
+  D_8005E4A0=3, E4B4=1, clears E4B8, calls func_80019600. Owns gp-rel
+  cluster D_8005E4A0/E4A2/E4AC/E4B4/E4B8 (no other function touches it);
+  shares D_8005E444/D_8005E4A8 with func_80019030.
 - func_8001A574 (s) — dispatcher/insert: arg0/3 → q,r; dispatch
   `D_80049078[r](q)`; scans the gap in
   `p_table = D_8005E4A8 + D_8005E444`; memmove/memcpy shift; sentinel
