@@ -108,6 +108,9 @@
       "func_80018B98": [
         "flag-override"
       ],
+      "func_80019610": [
+        "flag-override"
+      ],
       "func_80022794": [
         "flag-override",
         "register-asm",
