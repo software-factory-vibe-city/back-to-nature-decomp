@@ -368,7 +368,14 @@ grid-cursor's confirmed func_80023D08 (func_80022580 on +0x68,
 func_80017B3C on +0x64);
 - func_800239F8 (s) is the sole caller of func_80023A9C; func_8002348C
 also references D_800A0708 (lui v0,%hi / addiu s0,%lo base).
-Members: func_80023A9C (m).
+Members:
+- func_80023A9C (m) — fills the D_800A0708 label slate via the text-draw helpers
+- func_8002348C (m, 2026-08-28) — label-grid layout: same func_80022580 (+0x68) /
+  func_80017B3C (+0x64) text-draw pair on D_8005E3C0->field_D8 as the confirmed
+  members, builds 4 column-rows (0x2A0000..0x1E0000 bases, 0x400000 steps) into
+  D_800A0708 through func_8001AA7C, then prints a 30-entry label set per row via
+  func_8001AAF4; reaches D_800A0708 absolutely and defines no globals (no gp-rel
+  TU-ownership signal, so membership here is fingerprint-only, not proof).
 
 ## "grid-cursor.c" — around 0x80023DBC–0x800243D0 (confidence: medium)
 
