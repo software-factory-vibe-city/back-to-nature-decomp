@@ -346,6 +346,12 @@ Members (address order):
 - func_80023710 (s) — mode-2 callback for the cmd==0x40 path
 - func_80023774 (s) — mode-2 callback for the cmd==0x20 path
 - func_800237FC (s) — mode-2 callback for the default path
+- func_80023910 (m, 2026-08-20) — family endpoint: gate entry after the
+  func_80024108(0x3A7, ...) reset; same D_8005E3A8->field_8 dispatch
+  (0x40 / 0x20 / else) into func_8001FABC (arg 0 / 1 / 5) and
+  func_80022738, storing D_8005E340->unk4 to D_8005E33A; calls the sound
+  hook with no prototype (implicit int), like func_80024030; byte-exact
+  with baseline flags; 0xE8 bytes end exactly where func_800239F8 begins
 
 ## menu / text-label setup — around 0x800239F8–0x80023C2C (confidence: low)
 
