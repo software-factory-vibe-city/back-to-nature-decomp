@@ -281,7 +281,9 @@ extern s32 _D_8006C0A8[6][1] __asm__("D_8006C0A8");
 /* D_8005E3C0 - pointer stored by func_80011370, accessed GP-relative.
    Scalar declaration (4 bytes) keeps it within -G8 threshold for %gp_rel. */
 typedef struct {
-    /* 0x000 */ char    pad_0[0xD8];
+    /* 0x000 */ char    pad_0[0x2];
+    /* 0x002 */ u16     field_2;        /* u16 read by func_800183E0 (rect.y base) */
+    /* 0x004 */ char    pad_4[0xD8 - 0x4];
     /* 0xD8 */  s32     field_D8;
     /* 0xDC */  s32     field_DC;
     /* 0xE0 */  s32     field_E0;
