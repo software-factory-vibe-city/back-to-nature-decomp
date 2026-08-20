@@ -49,7 +49,7 @@ function buildReferencedAddresses(): Set<number> {
 
   const payload = readFileSync(BINARY_PATH);
 
-  // Scan for jal targets (opcode 0x0C = bits 31:26)
+  // Scan for jal targets (opcode 0x03 in bits 31:26)
   for (let off = PAYLOAD_OFFSET; off + 4 <= payload.length; off += 4) {
     const word = payload.readUInt32LE(off);
     const op = (word >>> 26) & 0x3F;
@@ -70,7 +70,12 @@ const referencedAddrs = buildReferencedAddresses();
 // Parse subsegments from splat.yaml
 const lines = readFileSync(SPLAT_YAML, "utf-8").split("\n");
 
-const segRegex = /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(asm|c)(?:,\s*(\S+))?\]\s*#\s*(0x[0-9A-Fa-f]+)\s+(\S+)/;
+/* Most splat segments carry their VRAM in the trailing "# 0xVRAM name" comment,
+   but a handful omit it; either way the address is offset + VRAM_FROM_OFFSET,
+   the same binary geometry the dead-code scan above uses. */
+const VRAM_FROM_OFFSET = 0x80010000 - PAYLOAD_OFFSET;
+const segRegex =
+  /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(asm|c)(?:,\s*(\S+))?\]\s*(?:#\s*(0x[0-9A-Fa-f]+)\s+(\S+))?/;
 const nextOffsetRegex = /^\s*-\s*\[(0x[0-9A-Fa-f]+)/;
 
 interface RawSeg {
@@ -86,12 +91,15 @@ const allOffsets: number[] = [];
 for (const line of lines) {
   const match = line.match(segRegex);
   if (match) {
-    const [, offsetStr, type, , vram, funcName] = match;
+    const [, offsetStr, type, bracketName, vramHex, commentName] = match;
+    const offset = parseInt(offsetStr, 16);
+    const name = commentName ?? bracketName;
+    if (!name) continue;
     rawSegments.push({
-      offset: parseInt(offsetStr, 16),
+      offset,
       type,
-      vram,
-      name: funcName,
+      vram: vramHex ?? `0x${(offset + VRAM_FROM_OFFSET).toString(16)}`,
+      name,
     });
   }
   const offMatch = line.match(nextOffsetRegex);
@@ -147,7 +155,7 @@ for (const seg of rawSegments) {
   const addr = parseInt(seg.vram, 16);
   const dead = referencedAddrs.size > 0 && !referencedAddrs.has(addr);
 
-  if (handwritten !== "asm" && !dead) {
+  if (handwritten === false && !dead) {
     totalFuncs++;
     totalBytes += size;
     if (decompiled) {
@@ -169,7 +177,7 @@ const deadCount = funcs.filter((f) => f.dead).length;
 const deadBytes = funcs.filter((f) => f.dead).reduce((s, f) => s + f.size, 0);
 console.log(`Decompiled: ${decompFuncs} / ${totalFuncs} functions (${funcPct}%)`);
 console.log(`Decompiled: ${decompBytes} / ${totalBytes} bytes (${bytePct}%)`);
-if (gteCount > 0) console.log(`GTE functions (C + coprocessor): ${gteCount} (included in counts)`);
+if (gteCount > 0) console.log(`GTE functions (C + coprocessor): ${gteCount} (excluded from counts)`);
 if (asmCount > 0) console.log(`Pure asm: ${asmCount} functions (excluded from counts)`);
 if (deadCount > 0) console.log(`Dead code: ${deadCount} functions, ${deadBytes} bytes (excluded from counts)`);
 

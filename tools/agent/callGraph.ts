@@ -24,10 +24,20 @@ const args = process.argv.slice(2);
 const topIdx = args.indexOf("--top");
 const topN = topIdx >= 0 ? parseInt(args[topIdx + 1], 10) : 0;
 
+/* Binary geometry shared by Step 1's VRAM recovery and Step 3b's dead-code
+   scan. splat.yaml offsets are file offsets a fixed PAYLOAD_OFFSET below the
+   loaded image; every segment satisfies vram = offset + (LOAD_ADDR - PAYLOAD_OFFSET). */
+const PAYLOAD_OFFSET = 0x800;
+const LOAD_ADDR = 0x80010000;
+
 // --- Step 1: Parse splat.yaml for function list + sizes ---
 
 const yamlLines = readFileSync(SPLAT_YAML, "utf-8").split("\n");
-const segRegex = /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(asm|c)(?:,\s*(\S+))?\]\s*#\s*(0x[0-9A-Fa-f]+)\s+(\S+)/;
+/* Most splat segments carry their VRAM in the trailing "# 0xVRAM name" comment,
+   but a handful omit it; either way the bracket names the function and the
+   address is always offset + (LOAD_ADDR - PAYLOAD_OFFSET). */
+const segRegex =
+  /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(asm|c)(?:,\s*(\S+))?\]\s*(?:#\s*(0x[0-9A-Fa-f]+)\s+(\S+))?/;
 const nextOffsetRegex = /^\s*-\s*\[(0x[0-9A-Fa-f]+)/;
 
 interface RawSeg {
@@ -43,12 +53,15 @@ const allOffsets: number[] = [];
 for (const line of yamlLines) {
   const match = line.match(segRegex);
   if (match) {
-    const [, offsetStr, type, , vram, funcName] = match;
+    const [, offsetStr, type, bracketName, vramHex, commentName] = match;
+    const offset = parseInt(offsetStr, 16);
+    const name = commentName ?? bracketName;
+    if (!name) continue;
     rawSegments.push({
-      offset: parseInt(offsetStr, 16),
+      offset,
       type,
-      vram,
-      name: funcName,
+      vram: vramHex ?? `0x${(offset + (LOAD_ADDR - PAYLOAD_OFFSET)).toString(16)}`,
+      name,
     });
   }
   const offMatch = line.match(nextOffsetRegex);
@@ -175,8 +188,6 @@ for (const entry of funcMap.values()) {
 // --- Step 3b: Detect dead code (no callers, no pointer references) ---
 
 const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
-const PAYLOAD_OFFSET = 0x800;
-const LOAD_ADDR = 0x80010000;
 
 function detectDeadCode(): void {
   if (!existsSync(BINARY_PATH)) {
@@ -186,19 +197,29 @@ function detectDeadCode(): void {
 
   const payload = readFileSync(BINARY_PATH);
 
-  // Build set of function addresses that appear as 32-bit values in the binary
-  // (function pointer / data references — jal refs are already covered by calledBy)
-  const ptrReferenced = new Set<number>();
+  /* Liveness must be judged against the raw image, not the residual call
+     graph. The graph's calledBy edges cover only jals emitted by functions that
+     still have a nonmatching .s on disk; once a caller is decompiled its .s is
+     gone and every jal it made disappears with it, so a callee called only by
+     matched code looks callerless and is misclassified dead. Decode jal targets
+     (and literal 32-bit pointer words) directly from the bytes, range-checked
+     to PS1 RAM for the small data-word/jal-shaped false-positive floor,
+     mirroring tools/diagnostics/progress.ts so both tools agree on liveness. */
+  const referenced = new Set<number>();
   for (let off = PAYLOAD_OFFSET; off + 4 <= payload.length; off += 4) {
     const word = payload.readUInt32LE(off);
-    ptrReferenced.add(word);
+    if (((word >>> 26) & 0x3f) === 0x03) {
+      // jal: target = KSEG0 base | (instr_index << 2)
+      const target = (0x80000000 | ((word & 0x03ffffff) << 2)) >>> 0;
+      if (target >= 0x80000000 && target < 0x80200000) referenced.add(target);
+    }
+    referenced.add(word);
   }
 
   for (const entry of funcMap.values()) {
     const addr = parseInt(entry.vram, 16);
     const hasCallers = entry.calledBy.length > 0;
-    const hasPtrRef = ptrReferenced.has(addr);
-    entry.dead = !hasCallers && !hasPtrRef;
+    entry.dead = !hasCallers && !referenced.has(addr);
   }
 }
 
