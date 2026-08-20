@@ -325,9 +325,18 @@ Fingerprints:
   call target of the driver;
 - all seven functions are consecutive in link order, with no unrelated code
   between them (0x80023600 ends exactly at func_800236EC;
-  func_800237FC ends at func_80023910).
+  func_800237FC ends at func_80023910);
+- shared gp-rel cluster D_8005E338/D_8005E340 with the D_8005E340 cursor
+  pointer read via %gp_rel across the family and written by func_80023030.
 
 Members (address order):
+- func_80023030 (s) — cluster anchor: writes D_8005E340 (= arg) and
+  D_8005E338 (= 1), both gp-rel, after func_8002301C
+- func_800233B4 (m, 2026-08-19) — level-guarded consumer of the same
+  cluster: draws via D_8005E3C0->field_D8 text calls, branches on
+  D_8005E338 >= 2 / >= 3, and draws D_8005E340->unk4 + 1 as a number
+  (func_8001AAF4) exactly as func_80023910 reads D_8005E340->unk4;
+  byte-exact clean C with baseline flags
 - func_80023600 (m) — dispatcher: mode = D_8005E338 (1 or 2), command =
   D_8005E3A8->field +8 (0x40 / 0x20 / else)
 - func_800236EC (s) — mode-1 callback for the cmd==0x40 path
