@@ -844,6 +844,9 @@ libspu SpuSetCommonAttr; libcd CdControl.
 func_80011370 (main loop) calls func_80020818.
 
 Members (address order):
+- func_8001FE7C (m) — sound/seq pre-init driver: calls func_80020A40 (stereo
+  setter) then func_800218C4 (STR/*.XA search); address-adjacent to func_8001FEA4
+  (ends at 0x8001FEA0, immediately before it) and calls a cluster member
 - func_8001FEA4 (m) — sound reset: clears D_8005E538/D_8005E53C/D_8005E558,
   sets D_8005E55C=1, initializes SpuCommonAttr D_8006C368, calls SsInit /
   SsSetTableSize / SsSetTickMode / SsUtReverbOff / SpuSetCommonAttr
