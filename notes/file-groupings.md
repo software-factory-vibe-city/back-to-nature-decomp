@@ -889,7 +889,7 @@ Members (address order):
   parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
   caller and address predecessor; shared gp-rel globals unverified.
 
-## table-slot CD-loader cluster — 0x800183E0 / 0x80019FC4–0x8001A11C / 0x8001AD6C (confidence: medium)
+## table-slot CD-loader cluster — 0x80017BC8 / 0x800183E0 / 0x80019FC4–0x8001A11C / 0x8001AD6C (confidence: medium)
 
 Slot-based table loading: a 16-bit "slot" selects a 0x1800-byte region read
 from CD into D_8006C910 via func_80014CBC; per-slot state lives in a small
@@ -912,6 +912,10 @@ gp-rel cluster. Fingerprints:
   func_8001A018.
 
 Members (address order):
+- func_80017BC8 (m) — thin 6-arg wrapper forwarding directly to func_800183E0
+  (s16 stack args 4/5 sign-extended onto the outgoing frame); nearest
+  address predecessor of func_800183E0 and its only direct caller — strong
+  same-TU evidence
 - func_800183E0 (s) — u16-table consumer over the loaded buffer
   (0xFFFF-sentinel scan); reaches D_8005E4B0, D_8005E4A8, D_8005E444,
   D_8005E45C, D_8005E46C GP-relatively; calls func_8001A018
