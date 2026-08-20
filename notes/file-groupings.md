@@ -388,6 +388,12 @@ Confirmed member 2026-08-19:
   s16 D_8005E358 exactly as the func_80023DBC reconstruction does
   (ADR-0001 §2.4 — gp-rel access proves the original TU declared the
   global). Both consume the D_8005E3C0 draw-buffer descriptor.
+- func_80024030 (m) — inside the group's span; gate after the
+  func_80024108(0x3A6, ...) reset, then the same D_8005E3A8->field_8
+  dispatch (0x40 / 0x20 / else) into func_8001FABC / func_80022738.
+  Evidence: tentatively defines the same gp-rel D_8005E344/D_8005E354
+  cluster that confirmed member func_80023DBC declares (gp-rel access,
+  ADR-0001 §2.4) and shares the func_8001FABC outcome hook.
 
 ## sprite frame-index helpers — 0x80024408–0x800245C8 (confidence: medium)
 
