@@ -1,19 +1,4 @@
 #include "common.h"
-#include "include_asm.h"
-
-INCLUDE_ASM("build/asm/nonmatchings/func_80023288", func_80023288);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-08-20T02:21:48.348Z.
- * Reason: asm-needs-human-approval.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/func_80023288.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
 #include "globals_override.h"
 
 void func_800233B4(void);
@@ -47,4 +32,3 @@ void func_80023288(void) {
     func_8002348C();
     func_80023600();
 }
-#endif

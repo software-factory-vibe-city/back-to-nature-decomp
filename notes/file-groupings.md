@@ -327,11 +327,21 @@ Fingerprints:
   between them (0x80023600 ends exactly at func_800236EC;
   func_800237FC ends at func_80023910);
 - shared gp-rel cluster D_8005E338/D_8005E340 with the D_8005E340 cursor
-  pointer read via %gp_rel across the family and written by func_80023030.
+  pointer read via %gp_rel across the family and written by func_80023030;
+- func_80023288 (m, 2026-08-20) — top-level driver over the same D_8005E338
+  state: shares the SetVal8005E334/SetVal8005E2BC/func_8002261C(3, 0x3A9)
+  queue-reset trio with func_800239F8/func_80024108, then branches on
+  D_8005E338 (==3 -> func_80023910, ==1/==2 -> func_800248B0 with
+  D_8005E33A-scaled coordinates) and ends by invoking func_8002348C + the
+  family dispatcher func_80023600; tentatively defines gp-rel
+  D_8005E338/D_8005E33A.
 
 Members (address order):
 - func_80023030 (s) — cluster anchor: writes D_8005E340 (= arg) and
   D_8005E338 (= 1), both gp-rel, after func_8002301C
+- func_80023288 (m, 2026-08-20) — top-level driver: D_8005E338 state
+  branch (==1/==2/==3) into func_800248B0 / func_80023910, then
+  func_8002348C + func_80023600; defines gp-rel D_8005E338/D_8005E33A
 - func_800233B4 (m, 2026-08-19) — level-guarded consumer of the same
   cluster: draws via D_8005E3C0->field_D8 text calls, branches on
   D_8005E338 >= 2 / >= 3, and draws D_8005E340->unk4 + 1 as a number
