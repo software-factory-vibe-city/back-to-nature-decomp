@@ -247,7 +247,7 @@ Members (address order):
 - func_800224F0 (s) — callback forwarding grid entries to func_80015EE8
 - func_80022528 (s) — callback forwarding grid entries to func_80015E3C
 
-## unknown group B — around 0x8002261C–0x80022B20 (confidence: medium)
+## unknown group B — around 0x8002261C–0x80022F1C (confidence: medium)
 
 Game-state/flags readers and CD-script readers over the D_8006C838 struct
 array and the D_8005E5A8–E5CC state cluster.
@@ -267,7 +267,8 @@ Fingerprints:
 - func_80022964's target reaches D_8005E5A8/B4/BC/C0/CC gp-relatively (TU
   declares all five) and func_800229F4's reaches D_8005E5A8/B0/CC
   gp-relatively — the same cluster the earlier members declare, now spanning
-  the whole address range;
+  the whole address range, and func_80022B98's reaches D_8005E5B0/B4/B8/CC/334
+  gp-relatively (D_8005E334 is new to the cluster);
 - func_80022964 and func_800229F4 both consume func_80022AF0's `$v0` as a
   full word with no 16-bit extension (`jal; addu a0, v0, zero`), pinning the
   caller-side prototype to an s32 return (per-TU declaration effect, byte-
@@ -287,6 +288,17 @@ Members (address order):
   func_80022794 (TH, 0x1A/0xA4 bounds, 0x10B/0x3E size, arg7=0xC, arg8=1); on
   ==1 sets the D_8006C904 flag byte to 4; declares D_8005E5CC gp-relatively,
   reads D_8005E3C0 absolutely — the range's upper-boundary member
+- func_80022B98 (m, 2026-08-20) — state-dispatch driver: a 0..13 jump-table
+  switch on D_8005E5B4 after a func_80017BC8 query (0x1E/0xA8/0x107/0x3A
+  bounds on the same D_8005E3C0->field_D8 text-draw path func_800229F4 uses);
+  sets the +0xCC state byte and D_8005E5B8, then a guarded func_80022580
+  (+0xC: 0x1A/0xA4/0x10B/0x3E) / func_80022EA4 tail. Same-TU evidence
+  (byte-verified clean C): reaches D_8005E5B0/B4/B8/CC/334 gp-relatively (its
+  TU declared all five — subset of the cluster func_80022964/229F4/22DF8/22738
+  declare), walks D_8006C838 via the struct_8006C838_view cast idiom, and
+  sits sandwiched in link order between confirmed members func_80022B20 and
+  func_80022DF8 (reads D_8005E3C0 absolutely, as they do); gp-rel D_8005E334
+  is a new cluster member
 - func_80022DF8 (m) — reads the s32 flag word at D_8006C838+0xC (bit 27), OR/ANDs
   it, clears the +0xCC state byte (struct struct_8006C838_view in
   globals_override.h), then (de)queues a script/timer via func_8002261C; declares

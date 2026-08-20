@@ -44,6 +44,7 @@ segments:
       - [0xA1C, rodata]
       - [0xA24, .rodata, func_80020E58]
       - [0xB18, rodata]
+      - [0xB78, .rodata, func_80022B98]
       - [0xBB0, o, ../lib/libmath/sin00, .rdata] # lib/libmath/sin00.o
       - [0xC00, o, ../lib/libmath/sin01, .rdata] # lib/libmath/sin01.o
       - [0xC10, o, ../lib/libspu/spu, .rdata] # lib/libspu/spu.o
