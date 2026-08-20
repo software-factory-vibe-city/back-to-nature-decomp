@@ -366,9 +366,19 @@ Fingerprints:
 - func_80023A9C drives the same D_8005E3C0->field_D8 text-draw calls as
 grid-cursor's confirmed func_80023D08 (func_80022580 on +0x68,
 func_80017B3C on +0x64);
-- func_800239F8 (s) is the sole caller of func_80023A9C; func_8002348C
-also references D_800A0708 (lui v0,%hi / addiu s0,%lo base).
+- func_800239F8 (m) is the sole caller of func_80023A9C; func_8002348C
+also references D_800A0708 (lui v0,%hi / addiu s0,%lo base);
+- func_800239F8 (m, 2026-08-20) — menu/text reset entry: zeroes the
+  SetVal8005E334 + SetVal8005E2BC state bytes, queues via func_8002261C(3,
+  0x3A8), calls func_80023A9C(D_8005E35C), then routes to func_80024030
+  when the D_8005E344 gp-rel state is 2, else func_80024448/func_80023D08/
+  func_80023DBC — tying func_80023A9C's TU to grid-cursor.c's reset chain;
+  tentatively defines gp-rel D_8005E35C/D_8005E344/D_8005E356 (same
+  D_8005E344 cluster that func_80024030/func_80023DBC declare).
 Members:
+- func_800239F8 (m, 2026-08-20) — menu/text reset entry: sole caller of
+  func_80023A9C, then func_80024030 or func_80024448/func_80023D08/
+  func_80023DBC; defines gp-rel D_8005E35C/D_8005E344/D_8005E356
 - func_80023A9C (m) — fills the D_800A0708 label slate via the text-draw helpers
 - func_8002348C (m, 2026-08-28) — label-grid layout: same func_80022580 (+0x68) /
   func_80017B3C (+0x64) text-draw pair on D_8005E3C0->field_D8 as the confirmed
