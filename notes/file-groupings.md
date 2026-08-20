@@ -675,9 +675,12 @@ D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4, D_8005E3BC and D_800
 - func_80011370 (m) — game entry / main loop: init sequence then an infinite
   loop with a 0x15-entry switch on D_8005E39C (scene id). Owns D_8005E3A8 and
   D_8005E3AC outright (sole gp-relative accessor). Byte-verified 2026-08-08
-- func_80011C24 (s) — called at the bottom of the main loop every iteration
+- func_80011C24 (m) — draw-sync / VSync cadence loop (waits on DrawSync, then per-frame Rand + scene update); toggles the double-buffer scene pointer D_8005E3C0 / D_8005E3B4 between bases at D_8005E5E8/D_8005E5D8 (+0x134, +8) and calls the D_8005E384() scene callback two ways. Reaches D_8005E384/88/8C/90/A0/A4/B4/C0 all GP-relative (must declare them as small data). Sole GP-relative accessor of D_8005E38C and D_8005E390 (owns them outright); shares D_8005E3A0 GP-relatively with func_80011EF0. Called at the bottom of the main loop every iteration (0x80011C14).
 - func_80011DB0 (s), func_80011F5C (s), func_80011FD8 (s) — share D_8005E3C0
   and D_8005E3B4
+- func_80011EF0 (s) — tiny 8-byte stub reaching D_8005E394/D_8005E39C/D_8005E3A0
+  GP-relatively (verified), so it shares the cluster with func_80011C24 / the
+  boot TU rather than touching the cluster absolutely from outside
 - func_8001202C (s), func_80012098 (s), func_8001231C (s) — share D_8005E3B0
 - func_80012598 (m) — graphics-heap carve and double-buffer/ordering-table
   init over D_8005E5E8[2]; owns D_8005E3B0/B8/BC gp-relatively. Its second
