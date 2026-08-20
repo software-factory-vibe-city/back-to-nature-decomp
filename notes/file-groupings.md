@@ -495,7 +495,7 @@ func_8001413C, while func_80014250 calls func_800142D8 to turn byte coordinates
 centered on 0x80 into a dead-zone/clamped stick magnitude. func_80013CD0 also
 calls func_80014494, which shares GP-relative D_8005E3E8/D_8005E3EC with
 func_80013B04/func_80014064 and writes D_8005EA18 (pad actuator buffer).
-Members: func_80013B04 (m) — pad-state driver; func_80013CD0 (s) — per-pad
+Members: func_80013B04 (m) — pad-state driver; func_80013CD0 (m) — per-pad
 processing driver; func_80013F90 (m) — clears a per-port state object;
 func_80013FC0 (m) — calls the decoded-input path; func_80014064 (m) —
 initializes pad buffers and starts communication; func_800140C8 (m) — polls one

@@ -74,7 +74,10 @@ typedef struct {
     /* 0x06 */ s16 field_6;     /* timer or counter */
 } ObjectState;
 
-/* Struct initialized by func_80013F90; contains padded regions at 0x18 and 0x2C */
+/* Per-pad input/auto-repeat state object (0x38 bytes, 4 ports at D_8005E870).
+ * Cleared restfully by func_80013F90; func_80013CD0 (per-pad processing
+ * driver) drives the hold/edge/auto-repeat state machine, reading threshold
+ * fields 0x18/0x1C and 0x2C/0x30 that func_80013F90 leaves alone. */
 typedef struct {
     /* 0x00 */ s32 field_0x00;
     /* 0x04 */ s32 field_0x04;
@@ -82,13 +85,32 @@ typedef struct {
     /* 0x0C */ s32 field_0x0C;
     /* 0x10 */ s32 field_0x10;
     /* 0x14 */ s32 field_0x14;
-    /* 0x18 */ char pad_18[0x08];
+    /* 0x18 */ s32 field_0x18;
+    /* 0x1C */ s32 field_0x1C;
     /* 0x20 */ s32 field_0x20;
     /* 0x24 */ s32 field_0x24;
     /* 0x28 */ s32 field_0x28;
-    /* 0x2C */ char pad_2C[0x08];
+    /* 0x2C */ s32 field_0x2C;
+    /* 0x30 */ s32 field_0x30;
     /* 0x34 */ s16 field_0x34;
+    /* 0x36 */ u8 field_0x36;
+    /* 0x37 */ u8 field_0x37;
 } Struct80013F90;
+
+/* D_8006C838 view for func_80013CD0: s32 flag word at 0xC (bit 16 = pad
+ * mutes actuator sync) and a pointer at 0x1C (the actuator object written by
+ * func_80021DA8) whose store base has an s32 at 0 and a u16 at 4. */
+typedef struct {
+    /* 0x00 */ s32 field_0;
+    /* 0x04 */ u16 field_4;
+} D8006C838Inner;
+
+typedef struct {
+    /* 0x00 */ char pad_00[0x0C];
+    /* 0x0C */ s32 field_0C;
+    /* 0x10 */ char pad_10[0x0C];
+    /* 0x1C */ D8006C838Inner *field_1C;
+} D8006C838View;
 
 /* Sprite data header: tag + offsets into the sprite's sub-tables.
  * Tag 0xE is the expected magic value (func_80015704 validates this).
