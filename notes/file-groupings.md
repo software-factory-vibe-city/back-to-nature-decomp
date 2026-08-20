@@ -1074,6 +1074,12 @@ Fingerprints:
 - sole width source is func_800198E0 (D_8005F0C8 family member).
 
 Member: func_800199F8 (m).
+Member: func_80019AD0 (m) — caller of func_800199F8; ends the same contiguous no-gap run.
+  func_80019AD0 is byte-identical to func_80019610 (each a 0xA0-frame 9-arg text-width/
+  sentinel-scan body; the only difference is the callee: func_800199F8 vs func_800197FC),
+  and siblings func_800199F8/func_800197FC are the twin width-measuring wrappers — so the
+  two caller stubs (func_80019AD0, func_80019610) and their two callees form one
+  self-contained module group. func_80019610 begins exactly where func_800197FC ends.
 Member: func_800197FC (m) — same width-measuring shape, but x is
   `(s16)(arg3 + ((arg5 - func_800198E0(...)) / 2))`; ends at exactly
   0x800198E0 where func_800198E0 begins (zero gap), and is itself
