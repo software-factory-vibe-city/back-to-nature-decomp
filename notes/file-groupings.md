@@ -570,7 +570,11 @@ scheduling (the fingerprint this subgroup now pins with a per-TU
 -fno-schedule-insns -fno-schedule-insns2 override). Shared-data + adjacency +
 idiom cluster (same-TU evidence). Members:
 - func_8002495C (m) — mod-60 frame counter on D_8005E5D1, pure (no call)
-- func_8002470C — mod-N frame counter on D_8005E5D0, pure (no call)
+- func_8002470C (m) — mod-120 frame counter on D_8005E5D0, pure (no call);
+  carries the same per-TU -fno-schedule-insns -fno-schedule-insns2 override
+  as func_8002495C (second member confirming the subgroup's flag fact;
+  baseline sched1 drifts its shared sentinel/-1 pseudo above the s16
+  sign-extension, the override pins the li to its expand-time position)
 - func_800249C0 — mod-N count on the same D_8005E5D1, then dispatches via
   func_80024A4C (bridges the counter into the sprite renderer)
 

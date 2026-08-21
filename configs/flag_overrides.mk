@@ -175,3 +175,31 @@ CC1FLAGS_func_80022794 := -fno-rerun-cse-after-loop
 # birth and empty delay slots; none is matched yet, and none shows a
 # sched2-filled delay slot.
 CC1FLAGS_func_8002495C := -fno-schedule-insns -fno-schedule-insns2
+
+# func_8002470C: -fno-schedule-insns -fno-schedule-insns2.
+#
+# Flag probe matrix (psx_flag_probe, current clean C): the only row reaching
+# the target's full masked score is -fno-schedule-insns{,2} at 25/25 vs 22/25
+# baseline; every other row (gcse/cse/rerun-cse/mno-split-addresses) stays at
+# the baseline 22. That row also lands the instruction count exactly (25) at
+# the same 25-everything count every other row already has.
+#
+# Target fingerprint: the head of block 0 materialises the sentinel
+# -1 (addiu v0,zero,-1) between the sra (sign-extension to s16) and the beq,
+# i.e. sll a0 / sra a0 / addiu v0,zero,-1 / beq a0,v0,taken — the constant
+# keeps its expand-time position, after the s16 extension and before the
+# branch. Under baseline -fschedule-insns (sched1 on), the shared pseudo that
+# is set twice in the function (tv = -1 for the sentinel, then tv = D_8005E5D0
+# + 1 for the raw byte) is a multi-set destination, and sched1 drifts its
+# first set (the li -1) to the top of block 0, above the sll/sra extension:
+# candidate emits li v0,-1 / sll a0 / sra a0 / beq and only the li position
+# differs (23/24 words). The same mechisism and override are documented on the
+# sibling func_8002495C (mod-60 counter, same-TU idiom cluster, same shared
+# sentinel/raw-byte pseudo reuse); psx_reverse_pipeline for this function
+# confirms a single sched2 owner with the li at target position 2 vs
+# candidate 0.
+#
+# No contrary regional witness: func_8002470C.c is its own TU (single function
+# per src file) in the 0x8002470C-0x800249C0 counter cluster; the sibling
+# func_8002495C carries the identical override.
+CC1FLAGS_func_8002470C := -fno-schedule-insns -fno-schedule-insns2
