@@ -385,9 +385,24 @@ export function classifyEntries(
  * Infer section boundaries from classification results.
  * Returns { rodataStart, textStart, dataStart, sdataStart, fileEnd } as ROM offsets.
  */
+/**
+ * The geometry a layout inference needs, independent of container kind.
+ *
+ * A PS-X EXE supplies these from its header; an overlay member supplies them
+ * from the Deliverable 3 base solver. `PsxExeInfo` satisfies this shape, so
+ * every existing caller is unaffected.
+ */
+export interface ImageGeometry {
+  loadAddr: number;
+  payloadOffset: number;
+  fileEnd: number;
+  /** Zero when the container defines no small data — every overlay. */
+  gpValue: number;
+}
+
 export function inferSectionBoundaries(
   results: HeuristicResult[],
-  info: PsxExeInfo,
+  info: ImageGeometry,
 ): { rodataStart: number; textStart: number; dataStart: number; sdataStart: number; fileEnd: number } {
   // Build contiguous sections from classification
   const sections: { startAddr: number; endAddr: number; type: Classification }[] = [];
@@ -441,6 +456,13 @@ export function inferSectionBoundaries(
     }
   }
   dataStart = lastCodeEnd;
+
+  /* No gp base means no small-data section to find. Inferring one from a
+     gp of zero would put every data section "in range" and split .data at an
+     arbitrary point. */
+  if (info.gpValue === 0) {
+    return { rodataStart, textStart, dataStart, sdataStart: info.fileEnd, fileEnd: info.fileEnd };
+  }
 
   // Find sdata: data section that starts within GP range
   for (const s of sections) {

@@ -10,6 +10,14 @@ tools/build/*
 !tools/build/genProjectProfile.ts
 !tools/build/deriveTuOwnedGlobals.ts
 !tools/build/deriveRodataSplits.ts
+# Overlay container pipeline (plans/overlay-decompilation-enablement.md).
+!tools/build/extractArchive.ts
+!tools/build/classifyArchiveMembers.ts
+!tools/build/solveOverlayBase.ts
+!tools/build/bootstrapOverlay.ts
+!tools/build/disassemble.ts
+!tools/build/exportEngineSymbols.ts
+!tools/build/genDisasmSymbols.ts
 tools/vendor/old-gcc/build-gcc-*/
 tools/vendor/homebrew-psyq/
 # Logs

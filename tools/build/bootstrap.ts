@@ -22,20 +22,15 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "fs";
 import { execSync } from "child_process";
 import { join } from "path";
-import {
-  loadPsxExeInfo,
-  ROOT,
-  type PsxExeInfo,
-  type SectionLayout,
-} from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, ROOT, type PsxExeInfo, type SectionLayout, exeSplatYamlPath, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
 import {
   classifyEntries,
   inferSectionBoundaries,
   parseCSV,
 } from "./analyzeLayout.ts";
 
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
-const SYMBOL_ADDRS = join(ROOT, "configs/symbol_addrs.txt");
+const SPLAT_YAML = exeSplatYamlPath();
+const SYMBOL_ADDRS = exeSymbolAddrsPath();
 const DISASM_SYMBOL_ADDRS = join(ROOT, "build", "disassembler_symbol_addrs.txt");
 const LAYOUT_PATH = join(ROOT, "build/sectionLayout.json");
 const FUNCTIONS_CSV = join(ROOT, "build/functions.csv");
@@ -76,52 +71,17 @@ function writeDisasmSymAddrs(info: PsxExeInfo, writeMode: boolean): void {
   });
 }
 
-/** Run spimdisasm to produce functions.csv */
-function runDisassembler(info: PsxExeInfo): void {
-  mkdirSync(join(ROOT, "build"), { recursive: true });
-
-  const gpHex = `0x${info.gpValue.toString(16).toUpperCase()}`;
-  const cmd = [
-    "spimdisasm singleFileDisasm",
-    "--arch-level MIPS1",
-    "--disasm-unknown",
-    info.binaryPath,
-    "build",
-    `--start 0x${info.payloadOffset.toString(16)}`,
-    `--vram 0x${info.loadAddr.toString(16).toUpperCase()}`,
-    "--instr-category r3000gte",
-    "--split-functions build/functions",
-    "--function-info build/functions.csv",
-    "--compiler PSYQ",
-    "--endian little",
-    `--gp ${gpHex}`,
-    `--symbol-addrs ${DISASM_SYMBOL_ADDRS}`,
-  ].join(" \\\n  ");
-
+/**
+ * Run the disassembler.
+ *
+ * Delegates to tools/build/disassemble.ts rather than restating the invocation:
+ * that tool takes its target, load address, gp value and output prefix from the
+ * container model, so there is one place that knows how to disassemble and no
+ * game's filenames appear here.
+ */
+function runDisassembler(_info: PsxExeInfo): void {
   console.log("Running spimdisasm...");
-  execSync(cmd, { cwd: ROOT, stdio: "inherit" });
-  // Clean up text files that we don't need
-  execSync("rm -f build/slus_011_*.text.s", { cwd: ROOT });
-
-  /* Second pass WITHOUT --disasm-unknown, for layout analysis only
-   * (see LAYOUT_CSV comment above). */
-  mkdirSync(join(ROOT, "build/without-unknown"), { recursive: true });
-  const layoutCmd = [
-    "spimdisasm singleFileDisasm",
-    "--arch-level MIPS1",
-    info.binaryPath,
-    "build/without-unknown",
-    `--start 0x${info.payloadOffset.toString(16)}`,
-    `--vram 0x${info.loadAddr.toString(16).toUpperCase()}`,
-    "--instr-category r3000gte",
-    "--function-info build/without-unknown/functions.csv",
-    "--compiler PSYQ",
-    "--endian little",
-    `--gp ${gpHex}`,
-    `--symbol-addrs ${DISASM_SYMBOL_ADDRS}`,
-  ].join(" \\\n  ");
-  execSync(layoutCmd, { cwd: ROOT, stdio: "inherit" });
-  execSync("rm -f build/without-unknown/slus_011_*.text.s", { cwd: ROOT });
+  execSync("npx tsx tools/build/disassemble.ts --container exe", { cwd: ROOT, stdio: "inherit" });
   console.log("Disassembly complete");
 }
 

@@ -14,12 +14,12 @@ import { readFileSync, writeFileSync, existsSync, renameSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, ROOT, exeSplatYamlPath, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
-const SYMBOLS_PATH = join(ROOT, "configs/symbol_addrs.txt");
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
+const SYMBOLS_PATH = exeSymbolAddrsPath();
+const SPLAT_YAML = exeSplatYamlPath();
 const SRC_DIR = join(ROOT, "src");
 
 interface LibMatch {

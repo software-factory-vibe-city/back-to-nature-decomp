@@ -14,6 +14,7 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
+import { exeSplatYamlPath } from "../lib/psxExeInfo.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 const writeMode = process.argv.includes("--write");
@@ -21,7 +22,7 @@ const writeMode = process.argv.includes("--write");
 // --- Read gp_value from splat.yaml ---
 
 function readGpValue(): number {
-  const yaml = readFileSync(join(ROOT, "configs/splat.yaml"), "utf-8");
+  const yaml = readFileSync(exeSplatYamlPath(), "utf-8");
   const match = yaml.match(/gp_value:\s*(0x[0-9a-fA-F]+)/);
   if (!match) {
     console.error("Could not find gp_value in configs/splat.yaml");

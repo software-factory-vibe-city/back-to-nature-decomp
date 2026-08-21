@@ -31,7 +31,15 @@ import { execFileSync } from "child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { type PsxExeInfo, ROOT, loadPsxExeInfo, vramToRom } from "./psxExeInfo.js";
+import { ROOT } from "./psxExeInfo.js";
+import {
+  EXE_CONTAINER_ID,
+  containerPath,
+  containerTargetPath,
+  requireContainer,
+  vramToRom,
+  type Container,
+} from "./container.js";
 import {
   type SymbolIndex,
   loadFunctionDataSubsegments,
@@ -479,9 +487,14 @@ export interface OracleResult extends OracleComparison {
 }
 
 export interface OracleOptions {
-  /** Defaults to `build/src/<name>.c.o`. */
+  /** Defaults to the container's object directory, `<objDir>/<name>.c.o`. */
   objectPath?: string;
-  info?: PsxExeInfo;
+  /**
+   * Which binary the function belongs to. Defaults to `exe`; an overlay
+   * function is compared against its own extracted member bytes, at its own
+   * solved load address, using its own symbol map.
+   */
+  container?: Container | string;
   index?: SymbolIndex;
 }
 
@@ -494,9 +507,13 @@ export interface OracleOptions {
  * the only sound source for a compiled jump table's base. Anything else is
  * left unknown, and the words that reference it come out undetermined.
  */
-function resolveSectionBases(functionName: string, textBase: number): Map<string, number> {
+function resolveSectionBases(
+  functionName: string,
+  textBase: number,
+  container: Container
+): Map<string, number> {
   const bases = new Map<string, number>([[".text", textBase]]);
-  for (const [section, vram] of loadFunctionDataSubsegments(functionName)) bases.set(section, vram);
+  for (const [section, vram] of loadFunctionDataSubsegments(functionName, container)) bases.set(section, vram);
   /* cc1 emits `.rdata`; splat names the same subsegment `.rodata`. */
   if (bases.has(".rodata") && !bases.has(".rdata")) bases.set(".rdata", bases.get(".rodata")!);
   if (bases.has(".rdata") && !bases.has(".rodata")) bases.set(".rodata", bases.get(".rdata")!);
@@ -527,16 +544,19 @@ export function locateFunctionSymbol(
 }
 
 export function compareFunction(functionName: string, options: OracleOptions = {}): OracleResult {
-  const info = options.info ?? loadPsxExeInfo();
-  const index = options.index ?? loadSymbolIndex();
-  const objectPath = options.objectPath ?? join(ROOT, "build/src", `${functionName}.c.o`);
+  const container =
+    typeof options.container === "string"
+      ? requireContainer(options.container)
+      : options.container ?? requireContainer(EXE_CONTAINER_ID);
+  const index = options.index ?? loadSymbolIndex(container);
+  const objectPath = options.objectPath ?? join(containerPath(container, "objDir"), `${functionName}.c.o`);
   const notes: string[] = [];
 
-  const span = loadFunctionSpans().find((entry) => entry.name === functionName);
-  if (!span) throw new Error(`${functionName} has no subsegment in configs/splat.yaml`);
+  const span = loadFunctionSpans(container).find((entry) => entry.name === functionName);
+  if (!span) throw new Error(`${functionName} has no subsegment in ${container.paths.splat}`);
   if (!existsSync(objectPath)) throw new Error(`Object not found: ${objectPath}`);
 
-  const symbolAddresses = loadSymbolAddresses();
+  const symbolAddresses = loadSymbolAddresses(container);
   /* `--special-syms`: objdump hides `.L`-prefixed symbols by default, and
    * splat's local labels are exactly those — a relocation against one is
    * unresolvable without them. */
@@ -547,7 +567,7 @@ export function compareFunction(functionName: string, options: OracleOptions = {
   }
 
   const textBase = span.vram - functionSymbol.offset;
-  const sectionBases = resolveSectionBases(functionName, textBase);
+  const sectionBases = resolveSectionBases(functionName, textBase, container);
   const definedInObject = new Map(symbols.map((symbol) => [symbol.name, symbol]));
 
   /**
@@ -604,7 +624,7 @@ export function compareFunction(functionName: string, options: OracleOptions = {
     }
     text.writeUInt32LE(
       relocatedField(relocation.type, field, address, {
-        gp: info.gpValue,
+        gp: container.gpValue,
         lowField: lowField ? text.readUInt32LE(lowField.offset) : 0,
         place: textBase + relocation.offset,
       }),
@@ -623,13 +643,13 @@ export function compareFunction(functionName: string, options: OracleOptions = {
     }
   }
 
-  const image = readFileSync(info.binaryPath);
-  const rom = vramToRom(span.vram, info);
+  const image = readFileSync(containerTargetPath(container));
+  const rom = vramToRom(container, span.vram);
   const targetBytes = image.subarray(rom, rom + span.size);
 
   const context: SymbolContext = {
     index,
-    gp: info.gpValue,
+    gp: container.gpValue,
     functionName,
     functionStart: span.vram,
     functionExtent: Math.max(span.size, candidateSize),
@@ -653,7 +673,7 @@ export function compareFunction(functionName: string, options: OracleOptions = {
   }
   if (!sectionBases.has(".rodata") && relocations.some((relocation) => relocation.symbol === ".rodata")) {
     notes.push(
-      "This object emits a .rodata block (a jump table) and configs/splat.yaml has no",
+      `This object emits a .rodata block (a jump table) and ${container.paths.splat} has no`,
       `  '.rodata, ${functionName}' subsegment, so its original base address is unknown and`,
       "  every word that reaches it is undetermined. Run `make split` to generate the",
       "  subsegment — do not edit splat.yaml by hand, it is regenerated.",

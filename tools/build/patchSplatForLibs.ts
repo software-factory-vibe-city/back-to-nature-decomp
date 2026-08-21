@@ -26,14 +26,14 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { Buffer } from "buffer";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT, exeSplatYamlPath, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
 import {
   buildSegmentSpans,
   isStrictlyInsideSegmentSpan,
 } from "../lib/textSegmentSpans.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
+const SPLAT_YAML = exeSplatYamlPath();
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
 const LOAD_ADDR = _info.loadAddr;
@@ -85,7 +85,7 @@ function loadFuncAddrsInRange(
   vramStart: number,
   vramEnd: number
 ): { vram: number; name: string }[] {
-  const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+  const symAddrsPath = exeSymbolAddrsPath();
   const content = readFileSync(symAddrsPath, "utf-8");
   const funcs: { vram: number; name: string }[] = [];
   const re = /^(\w+)\s*=\s*(0x[0-9A-Fa-f]+)\s*;.*type:func/;
@@ -103,7 +103,7 @@ function loadFuncAddrsInRange(
 
 /** Load ALL symbol names by VRAM address (not just type:func) */
 function loadSymbolsByVram(): Map<number, string> {
-  const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+  const symAddrsPath = exeSymbolAddrsPath();
   const content = readFileSync(symAddrsPath, "utf-8");
   const map = new Map<number, string>();
   for (const line of content.split("\n")) {
@@ -849,7 +849,7 @@ function main() {
 
   // Update symbol_addrs.txt with new type:func entries
   if (newSymbols.length > 0) {
-    const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+    const symAddrsPath = exeSymbolAddrsPath();
     let symContent = readFileSync(symAddrsPath, "utf-8");
     const symLines = symContent.split("\n");
 
@@ -890,7 +890,7 @@ function main() {
 
   // Also ensure existing symbols used in gaps have type:func
   {
-    const symAddrsPath = join(ROOT, "configs/symbol_addrs.txt");
+    const symAddrsPath = exeSymbolAddrsPath();
     let symContent = readFileSync(symAddrsPath, "utf-8");
     let updatedCount = 0;
 
@@ -968,7 +968,7 @@ function main() {
   // instead of deleted (splat would otherwise scaffold an INCLUDE_ASM stub,
   // silently regressing a matched decompilation).
   const vramToCName = new Map<number, string>();
-  const symLines = readFileSync(join(ROOT, "configs/symbol_addrs.txt"), "utf-8").split("\n");
+  const symLines = readFileSync(exeSymbolAddrsPath(), "utf-8").split("\n");
   for (const line of symLines) {
     const m = line.match(/^(\S+)\s*=\s*(0x[0-9A-Fa-f]+);\s*\/\/\s*type:func/);
     if (m && cSegNames.has(m[1])) {

@@ -71,6 +71,27 @@ export function configuredCc1Flags(): string[] {
   return makefileFlags("CC1FLAGS");
 }
 
+/**
+ * cc1 flags for one container kind.
+ *
+ * Overlay translation units were built `-G0`: 145,741 words of overlay `.text`
+ * contain not one gp-relative access against 17.99 per 1000 words in the PS-X
+ * EXE's. The threshold is the only difference, and it is swapped rather than
+ * restated so the rest of the set stays sourced from the Makefile.
+ * Reproduce the fingerprint: tools/diagnostics/overlayFlagFingerprint.ts
+ */
+export function configuredCc1FlagsForContainer(kind: "exe" | "overlay"): string[] {
+  const base = configuredCc1Flags();
+  if (kind === "exe") return base;
+  const threshold = makefileFlags("OVERLAY_G")[0] ?? "-G0";
+  return base.map((flag) => (flag === "-G8" ? threshold : flag));
+}
+
+/** Assembler flags for one container kind; same small-data reasoning. */
+export function configuredAsFlagsForContainer(kind: "exe" | "overlay"): string[] {
+  return kind === "exe" ? configuredAsFlags() : anchorIncludes(makefileFlags("OVERLAY_ASFLAGS"));
+}
+
 export function configuredAsFlags(): string[] {
   return anchorIncludes(makefileFlags("ASFLAGS"));
 }

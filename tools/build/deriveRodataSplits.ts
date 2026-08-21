@@ -29,10 +29,10 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { execFileSync } from "child_process";
-import { loadPsxExeInfo, vramToRom, ROOT } from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, vramToRom, ROOT, exeSplatYamlPath, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
 
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
-const SYMBOL_ADDRS = join(ROOT, "configs/symbol_addrs.txt");
+const SPLAT_YAML = exeSplatYamlPath();
+const SYMBOL_ADDRS = exeSymbolAddrsPath();
 const OBJDUMP = "mips-linux-gnu-objdump";
 
 interface FuncExtent {

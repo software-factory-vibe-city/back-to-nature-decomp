@@ -16,7 +16,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
+import { ROOT as ROOT_DIR, loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
 
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
@@ -207,6 +207,26 @@ function main() {
 
   if (bestVersion) {
     console.log(`\nBest match: PSY-Q ${bestVersion} (${bestCount} signatures)\n`);
+  }
+
+  /* Publish the verdict so tools/lib/toolchainProfile.ts can read it instead of
+     re-implementing the scan. One signature matcher in the project. */
+  if (bestVersion && !versionFilter) {
+    const ranked = [...allMatches.entries()].sort((a, b) => b[1].length - a[1].length);
+    const runner = ranked[1];
+    const report = {
+      generatedBy: "tools/diagnostics/matchSignatures.ts",
+      best: {
+        version: bestVersion,
+        matches: bestCount,
+        ...(runner ? { runnerUp: runner[0], runnerUpMatches: runner[1].length } : {}),
+      },
+      perVersion: ranked.map(([version, matches]) => ({ version, matches: matches.length })),
+    };
+    const outPath = path.join(ROOT_DIR, "build/sdkVersion.json");
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
+    console.log(`Wrote ${outPath}`);
   }
 
   // Show diffs between adjacent versions

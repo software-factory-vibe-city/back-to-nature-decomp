@@ -15,7 +15,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
-import { loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
+import { exeSymbolAddrsPath, loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
 
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
@@ -430,7 +430,12 @@ function main() {
   }
 
   // Load symbol addresses for relocation verification (used in dedup + Pass 2)
-  const symbolAddrs = loadSymbolAddrs("configs/symbol_addrs.txt");
+  /* Absolute, and resolved through the container layout. A CWD-relative path
+     here read nothing whenever the tool ran from anywhere but the repository
+     root, and `loadSymbolAddrs` answers a missing file with an empty map — so
+     relocation verification silently lost its evidence and mis-assigned
+     symbols instead of failing. */
+  const symbolAddrs = loadSymbolAddrs(exeSymbolAddrsPath());
 
   // Cache relocations per .o path
   const relocCache = new Map<string, Relocation[]>();

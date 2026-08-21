@@ -21,13 +21,13 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT, exeSplatYamlPath, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
 const ASM_DIR = join(ROOT, "build/asm");
-const SYMBOLS_PATH = join(ROOT, "configs/symbol_addrs.txt");
+const SYMBOLS_PATH = exeSymbolAddrsPath();
 
 const LOAD_ADDR = _info.loadAddr;
 const HEADER_SIZE = _info.payloadOffset;
@@ -288,7 +288,7 @@ writeFileSync(SYMBOLS_PATH, content);
 console.log(`\nUpdated ${SYMBOLS_PATH}`);
 
 // Also add c entries to splat.yaml for new function symbols
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
+const SPLAT_YAML = exeSplatYamlPath();
 const PAYLOAD_OFFSET = _info.payloadOffset;
 
 let yamlContent = readFileSync(SPLAT_YAML, "utf-8");

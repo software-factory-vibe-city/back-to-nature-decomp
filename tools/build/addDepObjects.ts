@@ -19,12 +19,12 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, requireSectionLayout, ROOT, exeSplatYamlPath } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
+const SPLAT_YAML = exeSplatYamlPath();
 const CACHE_PATH = join(ROOT, "build/libSections.json");
 const DEP_SYMS_PATH = join(ROOT, "build/dep_syms.txt");
 const LOAD_ADDR = _info.loadAddr;

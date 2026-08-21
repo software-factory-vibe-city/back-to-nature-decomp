@@ -50,6 +50,7 @@ import {
   configuredToolchainIdentity,
 } from "./decompToolchain.js";
 import { sha256, stableJson } from "./variant-lab/artifacts.js";
+import { exeSplatYamlPath } from "../lib/psxExeInfo.js";
 
 /* Version is project configuration (Makefile GCC_VERSION), not a constant. */
 const GCC_VERSION = configuredGccVersion();
@@ -136,7 +137,7 @@ function run(cmd: string): string {
 
 /** splat.yaml lookup (same conventions as diffFunc.ts) */
 export function getFuncInfo(name: string): { vram: number; size: number } | null {
-  const yaml = readFileSync(join(ROOT, "configs/splat.yaml"), "utf-8");
+  const yaml = readFileSync(exeSplatYamlPath(), "utf-8");
   const segRe = /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(?:asm|c)(?:,\s*\S+)?\]\s*#\s*(0x[0-9A-Fa-f]+)\s+(\S+)/;
   const nextRe = /^\s*-\s*\[(0x[0-9A-Fa-f]+)/;
   const offsets: number[] = [];

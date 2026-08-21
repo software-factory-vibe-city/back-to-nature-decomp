@@ -1,34 +1,44 @@
 /**
- * progress.ts
+ * progress.ts — how much of the project matches, per container and in total.
  *
- * Reports decompilation progress by analyzing splat.yaml segments
- * and checking for INCLUDE_ASM usage in C source files.
+ * Deliverables 2 and 9 of plans/overlay-decompilation-enablement.md. Two things
+ * changed here and both change the number.
+ *
+ * Liveness is judged over every container. Judged against the PS-X EXE alone it
+ * classified 97 overlay-facing engine functions dead and dropped them from the
+ * denominator; the rule now lives in tools/lib/liveness.ts, shared with
+ * tools/agent/callGraph.ts so the metric and the work queue cannot disagree.
+ *
+ * And the PS-X EXE is no longer the project. Its game code is roughly a sixth
+ * of the target; the thirteen overlay code members hold the rest. A headline
+ * that omits them overstates completion by about a factor of six.
  *
  * Usage:
- *   npx tsx tools/diagnostics/progress.ts              # summary only
- *   npx tsx tools/diagnostics/progress.ts --list       # list all functions with status
- *   npx tsx tools/diagnostics/progress.ts --remaining  # list only remaining (not decompiled)
- *   npx tsx tools/diagnostics/progress.ts --done       # list only decompiled functions
- *   npx tsx tools/diagnostics/progress.ts --markdown  # markdown table with links to source and asm
+ *   npx tsx tools/diagnostics/progress.ts                    # per container + total
+ *   npx tsx tools/diagnostics/progress.ts --container exe    # one container
+ *   npx tsx tools/diagnostics/progress.ts --list             # list all functions with status
+ *   npx tsx tools/diagnostics/progress.ts --remaining        # only what is left
+ *   npx tsx tools/diagnostics/progress.ts --done             # only what matches
+ *   npx tsx tools/diagnostics/progress.ts --markdown         # markdown table
  */
 
 import { readFileSync, existsSync, readdirSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "../..");
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
-const SRC_DIR = join(ROOT, "src");
-const ASM_DIR = join(ROOT, "build/asm/nonmatchings");
+import { join } from "path";
+import { ROOT } from "../lib/psxExeInfo.js";
+import { computeLiveness, isOverlayOnlyReference } from "../lib/liveness.js";
+import { containerPath, loadContainers, requireContainer, type Container } from "../lib/container.js";
+import { loadFunctionSpans } from "../lib/symbolIndex.js";
 
 const args = process.argv.slice(2);
 const showList = args.includes("--list");
 const showRemaining = args.includes("--remaining");
 const showDone = args.includes("--done");
 const showMarkdown = args.includes("--markdown");
+const containerIdx = args.indexOf("--container");
+const onlyContainer = containerIdx >= 0 ? args[containerIdx + 1] : undefined;
 
 interface FuncInfo {
+  container: string;
   name: string;
   vram: string;
   offset: number;
@@ -36,188 +46,182 @@ interface FuncInfo {
   decompiled: boolean;
   handwritten: false | "asm" | "gte";
   dead: boolean;
+  /** Referenced only from overlay members — the engine API this metric used to omit. */
+  overlayOnly: boolean;
 }
 
-// --- Dead code detection: scan binary for jal + data references ---
-
-const BINARY_PATH = join(ROOT, "extracted/iso/slus_011.15");
-const PAYLOAD_OFFSET = 0x800;
-
-function buildReferencedAddresses(): Set<number> {
-  const refs = new Set<number>();
-  if (!existsSync(BINARY_PATH)) return refs;
-
-  const payload = readFileSync(BINARY_PATH);
-
-  // Scan for jal targets (opcode 0x03 in bits 31:26)
-  for (let off = PAYLOAD_OFFSET; off + 4 <= payload.length; off += 4) {
-    const word = payload.readUInt32LE(off);
-    const op = (word >>> 26) & 0x3F;
-    if (op === 0x03) { // jal
-      // jal: target = PC[31:28] | (imm26 << 2) — all code is in KSEG0 (0x80000000)
-      const target = (0x80000000 | ((word & 0x03FFFFFF) << 2)) >>> 0;
-      refs.add(target);
-    }
-    // Also record every 32-bit value as a potential pointer reference
-    refs.add(word);
-  }
-
-  return refs;
+interface ContainerTotals {
+  container: Container;
+  funcs: FuncInfo[];
+  totalFuncs: number;
+  decompFuncs: number;
+  totalBytes: number;
+  decompBytes: number;
 }
 
-const referencedAddrs = buildReferencedAddresses();
+const liveness = computeLiveness();
 
-// Parse subsegments from splat.yaml
-const lines = readFileSync(SPLAT_YAML, "utf-8").split("\n");
+function measure(container: Container): ContainerTotals {
+  const asmDir = join(containerPath(container, "asmDir"), "nonmatchings");
+  const srcDir = containerPath(container, "srcDir");
+  const funcs: FuncInfo[] = [];
+  let totalFuncs = 0;
+  let decompFuncs = 0;
+  let totalBytes = 0;
+  let decompBytes = 0;
 
-/* Most splat segments carry their VRAM in the trailing "# 0xVRAM name" comment,
-   but a handful omit it; either way the address is offset + VRAM_FROM_OFFSET,
-   the same binary geometry the dead-code scan above uses. */
-const VRAM_FROM_OFFSET = 0x80010000 - PAYLOAD_OFFSET;
-const segRegex =
-  /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(asm|c)(?:,\s*(\S+))?\]\s*(?:#\s*(0x[0-9A-Fa-f]+)\s+(\S+))?/;
-const nextOffsetRegex = /^\s*-\s*\[(0x[0-9A-Fa-f]+)/;
+  for (const span of loadFunctionSpans(container)) {
+    let decompiled = false;
+    let handwritten: false | "asm" | "gte" = false;
 
-interface RawSeg {
-  offset: number;
-  type: string;
-  vram: string;
-  name: string;
-}
-
-const rawSegments: RawSeg[] = [];
-const allOffsets: number[] = [];
-
-for (const line of lines) {
-  const match = line.match(segRegex);
-  if (match) {
-    const [, offsetStr, type, bracketName, vramHex, commentName] = match;
-    const offset = parseInt(offsetStr, 16);
-    const name = commentName ?? bracketName;
-    if (!name) continue;
-    rawSegments.push({
-      offset,
-      type,
-      vram: vramHex ?? `0x${(offset + VRAM_FROM_OFFSET).toString(16)}`,
-      name,
-    });
-  }
-  const offMatch = line.match(nextOffsetRegex);
-  if (offMatch) {
-    allOffsets.push(parseInt(offMatch[1], 16));
-  }
-}
-
-allOffsets.sort((a, b) => a - b);
-
-const funcs: FuncInfo[] = [];
-let totalFuncs = 0;
-let decompFuncs = 0;
-let totalBytes = 0;
-let decompBytes = 0;
-
-for (const seg of rawSegments) {
-  const idx = allOffsets.indexOf(seg.offset);
-  const nextOffset = idx >= 0 && idx + 1 < allOffsets.length ? allOffsets[idx + 1] : seg.offset;
-  const size = nextOffset - seg.offset;
-
-  let decompiled = false;
-  let handwritten: false | "asm" | "gte" = false;
-
-  // Check if handwritten assembly (marker from spimdisasm)
-  let sFile = join(ASM_DIR, seg.name, `${seg.name}.s`);
-  if (!existsSync(sFile)) {
-    const dir = join(ASM_DIR, seg.name);
-    if (existsSync(dir)) {
-      const files = readdirSync(dir).filter((f: string) => f.endsWith(".s"));
-      if (files.length === 1) sFile = join(dir, files[0]);
-    }
-  }
-  if (existsSync(sFile)) {
-    const sContent = readFileSync(sFile, "utf-8");
-    if (sContent.includes("Handwritten function")) {
-      const gtePattern = /\b(cfc2|ctc2|lwc2|swc2|mfc2|mtc2|cop2)\b/;
-      handwritten = gtePattern.test(sContent) ? "gte" : "asm";
-    }
-  }
-
-  if (seg.type === "c" && handwritten !== "asm") {
-    const cFile = join(SRC_DIR, `${seg.name}.c`);
-    if (existsSync(cFile)) {
-      const content = readFileSync(cFile, "utf-8");
-      const hasIncludeAsm = content.includes(`INCLUDE_ASM(`) && content.includes(seg.name);
-      if (!hasIncludeAsm) {
-        decompiled = true;
+    let sFile = join(asmDir, span.name, `${span.name}.s`);
+    if (!existsSync(sFile)) {
+      const dir = join(asmDir, span.name);
+      if (existsSync(dir)) {
+        const files = readdirSync(dir).filter((f: string) => f.endsWith(".s"));
+        if (files.length === 1) sFile = join(dir, files[0]!);
       }
     }
-  }
-
-  const addr = parseInt(seg.vram, 16);
-  const dead = referencedAddrs.size > 0 && !referencedAddrs.has(addr);
-
-  if (handwritten === false && !dead) {
-    totalFuncs++;
-    totalBytes += size;
-    if (decompiled) {
-      decompFuncs++;
-      decompBytes += size;
+    if (existsSync(sFile)) {
+      const sContent = readFileSync(sFile, "utf-8");
+      if (sContent.includes("Handwritten function")) {
+        const gtePattern = /\b(cfc2|ctc2|lwc2|swc2|mfc2|mtc2|cop2)\b/;
+        handwritten = gtePattern.test(sContent) ? "gte" : "asm";
+      }
     }
+
+    if (span.kind === "c" && handwritten !== "asm") {
+      const cFile = join(srcDir, `${span.name}.c`);
+      if (existsSync(cFile)) {
+        const content = readFileSync(cFile, "utf-8");
+        const hasIncludeAsm = content.includes("INCLUDE_ASM(") && content.includes(span.name);
+        if (!hasIncludeAsm) decompiled = true;
+      }
+    }
+
+    /* An overlay's own functions are live by construction: the member is loaded
+       and run as a unit, and the engine reaches into it through dispatch tables
+       this scan cannot see. Only the PS-X EXE's functions are judged. */
+    const dead =
+      container.kind === "exe" && liveness.referenced.size > 0 && !liveness.referenced.has(span.vram);
+    const overlayOnly = container.kind === "exe" && isOverlayOnlyReference(liveness, span.vram);
+
+    if (handwritten === false && !dead) {
+      totalFuncs++;
+      totalBytes += span.size;
+      if (decompiled) {
+        decompFuncs++;
+        decompBytes += span.size;
+      }
+    }
+
+    funcs.push({
+      container: container.id,
+      name: span.name,
+      vram: `0x${span.vram.toString(16)}`,
+      offset: span.rom,
+      size: span.size,
+      decompiled,
+      handwritten,
+      dead,
+      overlayOnly,
+    });
   }
 
-  funcs.push({ name: seg.name, vram: seg.vram, offset: seg.offset, size, decompiled, handwritten, dead });
+  return { container, funcs, totalFuncs, decompFuncs, totalBytes, decompBytes };
 }
 
-// Summary
-const funcPct = totalFuncs > 0 ? ((decompFuncs / totalFuncs) * 100).toFixed(2) : "0.00";
-const bytePct = totalBytes > 0 ? ((decompBytes / totalBytes) * 100).toFixed(2) : "0.00";
+const containers = onlyContainer ? [requireContainer(onlyContainer)] : loadContainers();
+const measured = containers.map(measure);
 
-const gteCount = funcs.filter((f) => f.handwritten === "gte").length;
-const asmCount = funcs.filter((f) => f.handwritten === "asm").length;
-const deadCount = funcs.filter((f) => f.dead).length;
-const deadBytes = funcs.filter((f) => f.dead).reduce((s, f) => s + f.size, 0);
-console.log(`Decompiled: ${decompFuncs} / ${totalFuncs} functions (${funcPct}%)`);
-console.log(`Decompiled: ${decompBytes} / ${totalBytes} bytes (${bytePct}%)`);
-if (gteCount > 0) console.log(`GTE functions (C + coprocessor): ${gteCount} (excluded from counts)`);
-if (asmCount > 0) console.log(`Pure asm: ${asmCount} functions (excluded from counts)`);
-if (deadCount > 0) console.log(`Dead code: ${deadCount} functions, ${deadBytes} bytes (excluded from counts)`);
+function percent(part: number, whole: number): string {
+  return whole > 0 ? ((part / whole) * 100).toFixed(2) : "0.00";
+}
+
+function reportContainer(totals: ContainerTotals): void {
+  const { container, funcs } = totals;
+  const gteCount = funcs.filter((f) => f.handwritten === "gte").length;
+  const asmCount = funcs.filter((f) => f.handwritten === "asm").length;
+  const deadCount = funcs.filter((f) => f.dead).length;
+  const deadBytes = funcs.filter((f) => f.dead).reduce((s, f) => s + f.size, 0);
+  const overlayOnlyFuncs = funcs.filter((f) => f.overlayOnly && f.handwritten === false);
+  const overlayOnlyDone = overlayOnlyFuncs.filter((f) => f.decompiled).length;
+
+  console.log(
+    `${container.id} (${container.kind === "exe" ? "PS-X EXE game code" : `overlay member at 0x${container.loadAddr.toString(16)}`})`
+  );
+  console.log(
+    `  Decompiled: ${totals.decompFuncs} / ${totals.totalFuncs} functions (${percent(totals.decompFuncs, totals.totalFuncs)}%)`
+  );
+  console.log(
+    `  Decompiled: ${totals.decompBytes} / ${totals.totalBytes} bytes (${percent(totals.decompBytes, totals.totalBytes)}%)`
+  );
+  if (gteCount > 0) console.log(`  GTE functions (C + coprocessor): ${gteCount} (excluded from counts)`);
+  if (asmCount > 0) console.log(`  Pure asm: ${asmCount} functions (excluded from counts)`);
+  if (deadCount > 0) console.log(`  Dead code: ${deadCount} functions, ${deadBytes} bytes (excluded from counts)`);
+  if (overlayOnlyFuncs.length > 0) {
+    console.log(
+      `  Engine API: ${overlayOnlyDone} / ${overlayOnlyFuncs.length} functions reached only from overlays ` +
+        `(counted live; see tools/diagnostics/engineApi.ts)`
+    );
+  }
+}
+
+console.log(`Liveness basis: ${liveness.basis}`);
+if (!liveness.overlaysIncluded) {
+  console.log("WARNING: overlay evidence unavailable, so this denominator omits the overlay-facing engine API.");
+}
+console.log();
+
+for (const totals of measured) reportContainer(totals);
+
+if (measured.length > 1) {
+  const totalFuncs = measured.reduce((s, m) => s + m.totalFuncs, 0);
+  const decompFuncs = measured.reduce((s, m) => s + m.decompFuncs, 0);
+  const totalBytes = measured.reduce((s, m) => s + m.totalBytes, 0);
+  const decompBytes = measured.reduce((s, m) => s + m.decompBytes, 0);
+  console.log();
+  console.log(`TOTAL across ${measured.length} containers`);
+  console.log(`  Decompiled: ${decompFuncs} / ${totalFuncs} functions (${percent(decompFuncs, totalFuncs)}%)`);
+  console.log(`  Decompiled: ${decompBytes} / ${totalBytes} bytes (${percent(decompBytes, totalBytes)}%)`);
+}
 
 // Detailed list
 if (showList || showRemaining || showDone || showMarkdown) {
-  const filtered = funcs.filter((f) => {
-    if (f.handwritten === "asm") return false;
-    if (showRemaining) return !f.decompiled;
-    if (showDone) return f.decompiled;
-    return true;
-  });
+  const filtered = measured
+    .flatMap((m) => m.funcs)
+    .filter((f) => {
+      if (f.handwritten === "asm") return false;
+      if (showRemaining) return !f.decompiled;
+      if (showDone) return f.decompiled;
+      return true;
+    });
 
   if (showMarkdown) {
     console.log();
-    console.log("| Status | VRAM | Size | Source | ASM |");
-    console.log("|--------|------|------|--------|-----|");
+    console.log("| Status | Container | VRAM | Size | Source | ASM |");
+    console.log("|--------|-----------|------|------|--------|-----|");
     for (const f of filtered) {
-      const status = f.dead ? "DEAD" : f.decompiled ? "OK" : "";
-      const srcPath = `src/${f.name}.c`;
-      const asmPath = `build/asm/nonmatchings/${f.name}/${f.name}.s`;
-      console.log(`| ${status} | ${f.vram} | ${f.size} | [${f.name}.c](${srcPath}) | [${f.name}.s](${asmPath}) |`);
+      const container = containers.find((c) => c.id === f.container)!;
+      const status = f.dead ? "DEAD" : f.decompiled ? "OK" : f.overlayOnly ? "API" : "";
+      const srcPath = `${container.paths.srcDir}/${f.name}.c`;
+      const asmPath = `${container.paths.asmDir}/nonmatchings/${f.name}/${f.name}.s`;
+      console.log(`| ${status} | ${f.container} | ${f.vram} | ${f.size} | [${f.name}.c](${srcPath}) | [${f.name}.s](${asmPath}) |`);
     }
     console.log();
     console.log(`${filtered.length} functions listed`);
   } else {
     console.log();
-
-    // Column widths
-    const header = `${"STATUS".padEnd(6)} ${"VRAM".padEnd(12)} ${"SIZE".padStart(6)}  NAME`;
+    const header = `${"STATUS".padEnd(6)} ${"CONTAINER".padEnd(9)} ${"VRAM".padEnd(12)} ${"SIZE".padStart(6)}  NAME`;
     console.log(header);
     console.log("-".repeat(header.length + 10));
-
     for (const f of filtered) {
-      const status = f.dead ? " DEAD " : f.decompiled ? "  OK  " : "      ";
-      const vram = f.vram.padEnd(12);
-      const size = f.size.toString().padStart(6);
-      console.log(`${status} ${vram} ${size}  ${f.name}`);
+      const status = f.dead ? " DEAD " : f.decompiled ? "  OK  " : f.overlayOnly ? " API  " : "      ";
+      console.log(`${status} ${f.container.padEnd(9)} ${f.vram.padEnd(12)} ${f.size.toString().padStart(6)}  ${f.name}`);
     }
-
     console.log();
     console.log(`${filtered.length} functions listed`);
   }
 }
+
+export type { FuncInfo };

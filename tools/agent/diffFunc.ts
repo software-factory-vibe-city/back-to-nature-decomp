@@ -24,8 +24,8 @@ import { execSync } from "child_process";
 import { watchFile, existsSync, writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import {
-  configuredAsFlags,
-  configuredCc1Flags,
+  configuredAsFlagsForContainer,
+  configuredCc1FlagsForContainer,
   configuredCppFlags,
   configuredGccVersion,
   configuredMaspsxFlags,
@@ -37,8 +37,8 @@ import {
   renderDiff,
   renderVerdict,
 } from "../lib/functionOracle.js";
-import { loadPsxExeInfo, vramToRom } from "../lib/psxExeInfo.js";
-import { loadFunctionSpans } from "../lib/symbolIndex.js";
+import { requireFunctionLocation } from "../lib/symbolIndex.js";
+import { containerPath, containerTargetPath, vramToRom, type Container } from "../lib/container.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
@@ -52,8 +52,6 @@ const AS = `${CROSS}as`;
 const CPP = `${CROSS}cpp`;
 
 const CPPFLAGS = configuredCppFlags().join(" ");
-const CC1FLAGS = configuredCc1Flags().join(" ");
-const ASFLAGS = configuredAsFlags().join(" ");
 const MASPSXFLAGS = configuredMaspsxFlags().join(" ");
 
 /** Parse configs/flag_overrides.mk for CC1FLAGS_<stem> := <flags> lines */
@@ -123,17 +121,22 @@ function runStep(label: string, cmd: string): string {
  * diagnostics look for it (`build/diffFunc/<func>.s`), and picks up the same
  * per-file flag override the build would apply to that function.
  */
-function compile(src: string, stem: string): string {
+function compile(src: string, stem: string, kind: "exe" | "overlay" = "exe"): string {
   const dir = "build/diffFunc";
   const i = `${dir}/${stem}.i`;
   const s = `${dir}/${stem}.s`;
   const o = `${dir}/${stem}.c.o`;
   run(`mkdir -p ${dir}`);
+  /* The small-data threshold is a per-container fact: overlay translation units
+     were built -G0. Compiling one at -G8 here would diagnose a different
+     program from the one the build produces. */
+  const baseFlags = configuredCc1FlagsForContainer(kind).join(" ");
+  const asFlags = configuredAsFlagsForContainer(kind).join(" ");
   const extraFlags = flagOverrides.get(stem) || "";
-  const cc1flags = extraFlags ? `${CC1FLAGS} ${extraFlags}` : CC1FLAGS;
+  const cc1flags = extraFlags ? `${baseFlags} ${extraFlags}` : baseFlags;
   runStep("cpp", `${CPP} ${CPPFLAGS} ${src} -o ${i}`);
   runStep("cc1", `${CC} ${cc1flags} ${i} -o ${s}`);
-  runStep("maspsx", `${MASPSX} ${MASPSXFLAGS} --gnu-as-path ${AS} -o ${o} ${ASFLAGS} ${s}`);
+  runStep("maspsx", `${MASPSX} ${MASPSXFLAGS} --gnu-as-path ${AS} -o ${o} ${asFlags} ${s}`);
   return join(ROOT, o);
 }
 
@@ -173,13 +176,13 @@ function renderColumns(result: OracleResult): void {
   }
 }
 
-function doDiff(funcName: string, src: string): void {
-  console.log(`target:  original bytes of ${funcName}`);
+function doDiff(funcName: string, src: string, container: Container): void {
+  console.log(`target:  original bytes of ${funcName}${container.kind === "exe" ? "" : ` in ${container.id}`}`);
   console.log(`source:  ${src}\n`);
   let result: OracleResult;
   try {
-    const object = compile(src, funcName);
-    result = compareFunction(funcName, { objectPath: object });
+    const object = compile(src, funcName, container.kind);
+    result = compareFunction(funcName, { objectPath: object, container });
   } catch (e: any) {
     console.error("Compile error:", e.stderr || e.message);
     return;
@@ -208,24 +211,19 @@ function doDiff(funcName: string, src: string): void {
  * function was placed where the original put it. It needs the whole build to
  * link, so it is opt-in rather than something the oracle depends on.
  */
-function verifyLinkedBytes(funcName: string): boolean {
-  const span = loadFunctionSpans().find((entry) => entry.name === funcName);
-  if (!span) {
-    console.log(`BYTE VERIFY SKIPPED: ${funcName} has no subsegment in configs/splat.yaml`);
-    return false;
-  }
+function verifyLinkedBytes(funcName: string, container: Container): boolean {
+  const span = requireFunctionLocation(funcName, container.id).span;
   try {
-    run("make -j1 build/slus_011.bin");
+    run(`make -j1 ${container.paths.builtBin}`);
   } catch (e: any) {
     console.log("BYTE VERIFY UNAVAILABLE: the full build does not link. The per-function");
     console.log("  verdict above does not depend on this; fix the build to check placement:");
     console.log((e.stderr || e.message || "").trim().split("\n").slice(-4).join("\n"));
     return false;
   }
-  const info = loadPsxExeInfo();
-  const offset = vramToRom(span.vram, info);
-  const orig = readFileSync(info.binaryPath).subarray(offset, offset + span.size);
-  const built = readFileSync(join(ROOT, "build/slus_011.bin")).subarray(offset, offset + span.size);
+  const offset = vramToRom(container, span.vram);
+  const orig = readFileSync(containerTargetPath(container)).subarray(offset, offset + span.size);
+  const built = readFileSync(containerPath(container, "builtBin")).subarray(offset, offset + span.size);
   if (orig.equals(built)) {
     console.log("VERIFIED: byte-identical in the linked binary, at the original address.");
     return true;
@@ -248,30 +246,47 @@ const columnsMode = rawArgs.includes("--columns");
 const bytesMode = rawArgs.includes("--bytes");
 const srcIndex = rawArgs.indexOf("--src");
 const srcOverride = srcIndex >= 0 ? rawArgs[srcIndex + 1] : undefined;
-const positional = rawArgs.filter((arg, index) =>
-  !arg.startsWith("--") && !(srcIndex >= 0 && index === srcIndex + 1));
+const containerIndex = rawArgs.indexOf("--container");
+const containerOverride = containerIndex >= 0 ? rawArgs[containerIndex + 1] : undefined;
+const consumed = new Set([srcIndex + 1, containerIndex + 1].filter((i) => i > 0));
+const positional = rawArgs.filter((arg, index) => !arg.startsWith("--") && !consumed.has(index));
 
 if (positional.length !== 1) {
-  console.error("Usage: npx tsx tools/agent/diffFunc.ts <func_name> [--src <file.c>] [--watch|--columns|--bytes]");
+  console.error(
+    "Usage: npx tsx tools/agent/diffFunc.ts <func_name> [--container <id>] [--src <file.c>] [--watch|--columns|--bytes]"
+  );
   process.exit(1);
 }
 
 const funcName = positional[0].replace(/^src\//, "").replace(/\.c$/, "");
-const src = srcOverride ?? `src/${funcName}.c`;
+
+/* The container a function belongs to is derived, not typed by the operator.
+   `--container` only settles a genuine ambiguity: two overlays that share a RAM
+   slot can hold different functions with the same name. */
+let location;
+try {
+  location = requireFunctionLocation(funcName, containerOverride);
+} catch (e: any) {
+  console.error(e.message);
+  process.exit(1);
+}
+const container = location.container;
+
+const src = srcOverride ?? join(container.paths.srcDir, `${funcName}.c`);
 if (!existsSync(join(ROOT, src)) && !existsSync(src)) {
   console.error(`Not found: ${src}`);
   process.exit(1);
 }
 
 if (bytesMode) {
-  compile(src, funcName);
-  verifyLinkedBytes(funcName);
+  compile(src, funcName, container.kind);
+  verifyLinkedBytes(funcName, container);
 } else {
-  doDiff(funcName, src);
+  doDiff(funcName, src, container);
 }
 
 if (watchMode) {
   watchFile(src, { interval: 500 }, () => {
-    doDiff(funcName, src);
+    doDiff(funcName, src, container);
   });
 }

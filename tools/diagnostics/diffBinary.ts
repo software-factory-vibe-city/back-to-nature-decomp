@@ -11,7 +11,7 @@
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadPsxExeInfo, loadSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import { loadPsxExeInfo, loadSectionLayout, ROOT, exeSplatYamlPath } from "../lib/psxExeInfo.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -22,7 +22,7 @@ const ORIGINAL = _info.binaryPath;
 const BUILT = join(ROOT, "build/slus_011.bin");
 const MAP_FILE = join(ROOT, "build/slus_011.map");
 const LIB_SECTIONS = join(ROOT, "build/libSections.json");
-const SPLAT_YAML = join(ROOT, "configs/splat.yaml");
+const SPLAT_YAML = exeSplatYamlPath();
 
 const PAYLOAD_OFFSET = _info.payloadOffset;
 const PAYLOAD_SIZE = _info.payloadSize;

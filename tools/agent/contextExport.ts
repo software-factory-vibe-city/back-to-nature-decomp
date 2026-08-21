@@ -5,23 +5,30 @@
  * this tool extracts its signature and adds it to the m2c context so that future
  * m2c runs and LLM agents have type context.
  *
- * Two files are generated, and m2c must be given them in this order:
- *   include/sdk_types.h  — definitions of every type the signatures name
- *   include/functions.h  — the signatures themselves
+ * Files are generated per container, and m2c must be given them in this order:
+ *   include/sdk_types.h        — definitions of every type any signature names
+ *   include/functions.h        — the PS-X EXE's signatures: the engine API
+ *   include/overlays/<id>.h    — one overlay container's own signatures
  *
- * Both are m2c context only. Nothing #includes them, and they carry no
+ * Deliverable 7 of plans/overlay-decompilation-enablement.md splits the second
+ * file. Types stay shared, because the structures both bodies mutate are the
+ * same structures; signatures do not, because two overlays sharing a RAM slot
+ * can hold different functions at one address.
+ *
+ * All of them are m2c context only. Nothing #includes them, and they carry no
  * preprocessor directives, because m2c parses its context as plain C with no
  * preprocessor.
  *
  * Usage:
  *   npx tsx tools/agent/contextExport.ts func_80011F08          # extract from src/func_80011F08.c
- *   npx tsx tools/agent/contextExport.ts --all                   # extract from all decompiled src/*.c
+ *   npx tsx tools/agent/contextExport.ts --all                   # every container
+ *   npx tsx tools/agent/contextExport.ts --container ovl_11 --all
  *   npx tsx tools/agent/contextExport.ts func_80011F08 --dry-run # show what would be added
  */
 
 import { execFileSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, rmSync } from "fs";
+import { dirname, join } from "path";
 import {
   extractPrototypesFromSource,
   extractSignaturesFromSource,
@@ -33,10 +40,36 @@ import {
   type Resolution,
 } from "./sdkTypes.js";
 
+import {
+  EXE_CONTAINER_ID,
+  loadContainers,
+  requireContainer,
+  type Container,
+} from "../lib/container.js";
+import { requireFunctionLocation } from "../lib/symbolIndex.js";
+
 const ROOT = new URL("../..", import.meta.url).pathname;
 
 const SDK_TYPES_HEADER = "include/sdk_types.h";
 const FUNCTIONS_HEADER = "include/functions.h";
+
+/** Where a container publishes the signatures its own translation units define. */
+export function functionsHeaderFor(container: Container): string {
+  return container.kind === "exe" ? FUNCTIONS_HEADER : `include/overlays/${container.id}.h`;
+}
+
+/**
+ * The context files an m2c run for this container must be given, in order.
+ *
+ * An overlay translation unit calls the engine constantly — 246 measured entry
+ * points — so the engine header is context for it too, and leaving it out is
+ * how a callee gets declared implicit-int and poisons the caller's registers.
+ */
+export function contextFilesFor(container: Container): string[] {
+  return container.kind === "exe"
+    ? [SDK_TYPES_HEADER, FUNCTIONS_HEADER]
+    : [SDK_TYPES_HEADER, FUNCTIONS_HEADER, functionsHeaderFor(container)];
+}
 
 interface ExportResult {
   signatures: string[];
@@ -126,10 +159,11 @@ function renderFunctionsHeader(signatures: Map<string, string>): string {
  */
 export function verifyContextParses(
   rootDir: string,
+  container: Container = requireContainer(EXE_CONTAINER_ID),
 ): { ok: boolean; skipped?: string; diagnostic?: string } {
-  const asmRoot = join(rootDir, "build/asm/nonmatchings");
+  const asmRoot = join(rootDir, container.paths.asmDir, "nonmatchings");
   if (!existsSync(asmRoot)) {
-    return { ok: true, skipped: "build/asm/nonmatchings is absent (gitignored); cannot verify" };
+    return { ok: true, skipped: `${container.paths.asmDir}/nonmatchings is absent (gitignored); cannot verify` };
   }
   const dirs = readdirSync(asmRoot).sort();
   let probe: { fn: string; sFile: string } | undefined;
@@ -152,7 +186,8 @@ export function verifyContextParses(
   ];
   const globalsCtx = join(rootDir, "build/m2c_globals.ctx");
   if (existsSync(globalsCtx)) args.push("--context", "build/m2c_globals.ctx");
-  args.push("--context", SDK_TYPES_HEADER, "--context", FUNCTIONS_HEADER, probe.sFile);
+  for (const context of contextFilesFor(container)) args.push("--context", context);
+  args.push(probe.sFile);
 
   let output: string;
   try {
@@ -176,11 +211,19 @@ export function verifyContextParses(
  * tool project-wide. On failure both files are restored and the error is
  * raised: this must never return having left a context its consumer rejects.
  */
-export function writeContext(rootDir: string, signatures: Map<string, string>): void {
+export function writeContext(
+  rootDir: string,
+  signatures: Map<string, string>,
+  container: Container = requireContainer(EXE_CONTAINER_ID),
+  typeSignatures: Map<string, string> = signatures,
+): void {
   const sdkPath = join(rootDir, SDK_TYPES_HEADER);
-  const funcsPath = join(rootDir, FUNCTIONS_HEADER);
+  const funcsPath = join(rootDir, functionsHeaderFor(container));
 
-  const { resolution, defs, referencedBy } = resolveContextTypes(rootDir, signatures);
+  /* Types are resolved over every container's signatures, not just this one's:
+     one shared type header serves them all, so writing it from a subset would
+     drop whatever the other containers name. */
+  const { resolution, defs, referencedBy } = resolveContextTypes(rootDir, typeSignatures);
 
   for (const name of resolution.unresolved) {
     const users = referencedBy.get(name) ?? [];
@@ -198,10 +241,11 @@ export function writeContext(rootDir: string, signatures: Map<string, string>): 
     [funcsPath, existsSync(funcsPath) ? readFileSync(funcsPath, "utf-8") : null],
   ]);
 
+  mkdirSync(dirname(funcsPath), { recursive: true });
   writeFileSync(sdkPath, renderSdkTypesHeader(resolution, defs));
   writeFileSync(funcsPath, renderFunctionsHeader(signatures));
 
-  const check = verifyContextParses(rootDir);
+  const check = verifyContextParses(rootDir, container);
   if (check.skipped) {
     console.warn(`warning: context self-check skipped — ${check.skipped}`);
     return;
@@ -221,8 +265,12 @@ export function writeContext(rootDir: string, signatures: Map<string, string>): 
  * Export context for a single function. Returns extracted signatures.
  * This is the entry point used by the orchestrator.
  */
-export function exportContext(funcName: string, rootDir: string = ROOT): ExportResult {
-  const cFile = join(rootDir, "src", `${funcName}.c`);
+export function exportContext(
+  funcName: string,
+  rootDir: string = ROOT,
+  container: Container = requireContainer(EXE_CONTAINER_ID),
+): ExportResult {
+  const cFile = join(rootDir, container.paths.srcDir, `${funcName}.c`);
 
   if (!existsSync(cFile)) {
     return { signatures: [], skipped: true, reason: "file not found" };
@@ -239,7 +287,7 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
    * lists that the caller's byte match depends on). Publishing a
    * conflicting prototype in functions.h would break those TUs, so skip
    * and report instead of writing. */
-  const srcDirGuard = join(rootDir, "src");
+  const srcDirGuard = join(rootDir, container.paths.srcDir);
   const conflicting = readdirSync(srcDirGuard)
     .filter((f) => f.endsWith(".c") && f !== `${funcName}.c`)
     .filter((f) =>
@@ -253,20 +301,44 @@ export function exportContext(funcName: string, rootDir: string = ROOT): ExportR
     };
   }
 
-  const existing = readExistingHeader(join(rootDir, FUNCTIONS_HEADER));
+  const existing = readExistingHeader(join(rootDir, functionsHeaderFor(container)));
   for (const { name, signature } of pairs) existing.set(name, signature);
 
-  writeContext(rootDir, existing);
+  writeContext(rootDir, existing, container, unionSignatures(rootDir, container, existing));
   return { signatures: sigs, skipped: false };
+}
+
+/**
+ * Every container's published signatures, with this container's in-progress set
+ * substituted in. The shared type header is resolved over this union so it
+ * never loses a type another container names.
+ */
+function unionSignatures(
+  rootDir: string,
+  container: Container,
+  current: Map<string, string>,
+): Map<string, string> {
+  const union = new Map<string, string>(current);
+  for (const other of loadContainers()) {
+    if (other.id === container.id) continue;
+    for (const [name, signature] of readExistingHeader(join(rootDir, functionsHeaderFor(other)))) {
+      if (!union.has(name)) union.set(name, signature);
+    }
+  }
+  return union;
 }
 
 /**
  * Collect the signatures published by every decompiled (non-stub) file in src/.
  */
-function collectAllSignatures(rootDir: string): { signatures: Map<string, string>; exported: string[]; skipped: string[] } {
-  const srcDir = join(rootDir, "src");
+function collectAllSignatures(
+  rootDir: string,
+  container: Container = requireContainer(EXE_CONTAINER_ID),
+): { signatures: Map<string, string>; exported: string[]; skipped: string[] } {
+  const srcDir = join(rootDir, container.paths.srcDir);
+  if (!existsSync(srcDir)) return { signatures: new Map(), exported: [], skipped: [] };
   const files = readdirSync(srcDir).filter((f) => f.endsWith(".c"));
-  const signatures = readExistingHeader(join(rootDir, FUNCTIONS_HEADER));
+  const signatures = readExistingHeader(join(rootDir, functionsHeaderFor(container)));
   const exported: string[] = [];
   const skipped: string[] = [];
 
@@ -289,14 +361,32 @@ function collectAllSignatures(rootDir: string): { signatures: Map<string, string
 /**
  * Export context for all decompiled (non-stub) C files in src/.
  */
-export function exportAll(rootDir: string = ROOT): { exported: string[]; skipped: string[] } {
-  const srcDir = join(rootDir, "src");
-  if (!existsSync(srcDir)) return { exported: [], skipped: [] };
+export function exportAll(
+  rootDir: string = ROOT,
+  containers: Container[] = loadContainers(),
+): { exported: string[]; skipped: string[] } {
+  const perContainer = containers.map((container) => ({
+    container,
+    ...collectAllSignatures(rootDir, container),
+  }));
 
-  const { signatures, exported, skipped } = collectAllSignatures(rootDir);
+  /* One resolution over every container's signatures, so the shared type header
+     covers all of them whichever container is written last. */
+  const union = new Map<string, string>();
+  for (const entry of perContainer) {
+    for (const [name, signature] of entry.signatures) if (!union.has(name)) union.set(name, signature);
+  }
 
-  if (exported.length > 0) {
-    writeContext(rootDir, signatures);
+  const exported: string[] = [];
+  const skipped: string[] = [];
+  for (const entry of perContainer) {
+    exported.push(...entry.exported);
+    skipped.push(...entry.skipped);
+    /* An overlay with nothing matched yet still gets its header, empty, so the
+       m2c context file list is the same shape for every container. */
+    if (entry.exported.length > 0 || entry.container.kind === "overlay") {
+      writeContext(rootDir, entry.signatures, entry.container, union);
+    }
   }
 
   return { exported, skipped };
@@ -308,7 +398,9 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const all = args.includes("--all");
-  const funcName = args.find((a) => !a.startsWith("--"));
+  const containerIdx = args.indexOf("--container");
+  const containerId = containerIdx >= 0 ? args[containerIdx + 1] : undefined;
+  const funcName = args.find((a, i) => !a.startsWith("--") && i !== containerIdx + 1);
 
   if (!all && !funcName) {
     console.error("Usage: npx tsx tools/agent/contextExport.ts <func_name> [--dry-run]");
@@ -319,7 +411,7 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
   try {
     if (all) {
       if (dryRun) {
-        const { signatures } = collectAllSignatures(ROOT);
+        const { signatures } = collectAllSignatures(ROOT, requireContainer(containerId ?? EXE_CONTAINER_ID));
         const { resolution, defs } = resolveContextTypes(ROOT, signatures);
         console.log(renderSdkTypesHeader(resolution, defs));
         console.log(renderFunctionsHeader(signatures));
@@ -328,18 +420,19 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
           `${resolution.unresolved.length} unresolved (dry run, nothing written)`,
         );
       } else {
-        const result = exportAll();
+        const result = exportAll(ROOT, containerId ? [requireContainer(containerId)] : loadContainers());
         console.log(`Exported ${result.exported.length} function(s), skipped ${result.skipped.length} stub(s)`);
         if (result.exported.length > 0) {
-          console.log(`Updated ${SDK_TYPES_HEADER} and ${FUNCTIONS_HEADER}`);
+          console.log(`Updated ${SDK_TYPES_HEADER} and each container's function header`);
         }
       }
     } else {
-      const cFile = join(ROOT, "src", `${funcName}.c`);
+      const location = requireFunctionLocation(funcName!, containerId);
+      const cFile = join(ROOT, location.container.paths.srcDir, `${funcName}.c`);
       const sigs = extractSignatures(cFile);
 
       if (sigs.length === 0) {
-        console.log(`No function definitions found in src/${funcName}.c (stub or missing)`);
+        console.log(`No function definitions found in ${location.container.paths.srcDir}/${funcName}.c (stub or missing)`);
         process.exit(0);
       }
 
@@ -350,9 +443,9 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
       if (dryRun) {
         console.log(`(dry run, nothing written)`);
       } else {
-        const result = exportContext(funcName!);
+        const result = exportContext(funcName!, ROOT, location.container);
         if (!result.skipped) {
-          console.log(`Updated ${SDK_TYPES_HEADER} and ${FUNCTIONS_HEADER}`);
+          console.log(`Updated ${SDK_TYPES_HEADER} and ${functionsHeaderFor(location.container)}`);
         } else if (result.reason) {
           console.log(`Skipped: ${result.reason}`);
         }

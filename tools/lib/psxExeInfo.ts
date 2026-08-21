@@ -7,8 +7,8 @@
  * Also provides section layout reading from build/sectionLayout.json.
  */
 
-import { readFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from "fs";
+import { basename, join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,15 +33,35 @@ export interface SectionLayout {
 }
 
 /**
- * Parse configs/splat.yaml header fields without a full YAML parser.
+ * The PS-X EXE's splat config.
+ *
+ * Deliverable 7 of the overlay plan moves it into the per-container layout.
+ * The pre-move path is still honoured so the move is a move, not a code change,
+ * and so a tree checked out at an older commit still reads. This is resolved
+ * here rather than through tools/lib/container.ts because the container model
+ * reads this module, not the other way round.
+ */
+export function exeSplatYamlPath(): string {
+  const moved = join(ROOT, "configs/splat/exe.yaml");
+  return existsSync(moved) ? moved : join(ROOT, "configs/splat.yaml");
+}
+
+/** The PS-X EXE's `NAME = 0xADDR;` table, at whichever of the two paths exists. */
+export function exeSymbolAddrsPath(): string {
+  const moved = join(ROOT, "configs/symbols/exe.txt");
+  return existsSync(moved) ? moved : join(ROOT, "configs/symbol_addrs.txt");
+}
+
+/**
+ * Parse the PS-X EXE's splat header fields without a full YAML parser.
  * Returns target_path and gp_value if present.
  */
-function parseSplatYamlHeader(): { targetPath?: string; gpValue?: number } {
-  const yamlPath = join(ROOT, "configs/splat.yaml");
+function parseSplatYamlHeader(): { targetPath?: string; gpValue?: number; basename?: string } {
+  const yamlPath = exeSplatYamlPath();
   if (!existsSync(yamlPath)) return {};
 
   const content = readFileSync(yamlPath, "utf-8");
-  const result: { targetPath?: string; gpValue?: number } = {};
+  const result: { targetPath?: string; gpValue?: number; basename?: string } = {};
 
   const targetMatch = content.match(/target_path:\s*(\S+)/);
   if (targetMatch) result.targetPath = targetMatch[1];
@@ -49,7 +69,69 @@ function parseSplatYamlHeader(): { targetPath?: string; gpValue?: number } {
   const gpMatch = content.match(/gp_value:\s*(0x[0-9A-Fa-f]+)/);
   if (gpMatch) result.gpValue = parseInt(gpMatch[1], 16);
 
+  const basenameMatch = content.match(/^\s*basename:\s*(\S+)/m);
+  if (basenameMatch) result.basename = basenameMatch[1];
+
   return result;
+}
+
+/** splat's `basename` for the main executable, from the project config. */
+export function exeBasename(): string {
+  const configured = parseSplatYamlHeader().basename;
+  if (configured) return configured;
+  /* Fall back to the target file's own stem rather than a literal: the
+     executable names itself, and no game's name belongs in this file. */
+  const target = discoverPsxExe();
+  return target ? basename(target).replace(/\.[^.]*$/, "").replace(/\./g, "_") : "main";
+}
+
+/** Is this file a PS-X EXE? The magic is the whole test. */
+function isPsxExe(path: string): boolean {
+  try {
+    const header = Buffer.alloc(8);
+    const fd = openSync(path, "r");
+    try {
+      readSync(fd, header, 0, 8, 0);
+    } finally {
+      closeSync(fd);
+    }
+    return header.toString("ascii") === "PS-X EXE";
+  } catch {
+    return null as unknown as boolean;
+  }
+}
+
+/**
+ * Find the PS-X EXE under `extracted/` by its magic.
+ *
+ * Used only when the project config names no target. Discovery beats a
+ * hardcoded filename: the executable's name is a fact about one game, and the
+ * magic is a fact about the platform.
+ */
+export function discoverPsxExe(root = join(ROOT, "extracted")): string | null {
+  const stack = [root];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    if (!existsSync(dir)) continue;
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const entry of entries.sort()) {
+      const path = join(dir, entry);
+      let stats;
+      try {
+        stats = statSync(path);
+      } catch {
+        continue;
+      }
+      if (stats.isDirectory()) stack.push(path);
+      else if (stats.size >= 0x800 && isPsxExe(path)) return path;
+    }
+  }
+  return null;
 }
 
 /**
@@ -90,10 +172,14 @@ function discoverGp(binary: Buffer, entryFileOffset: number): number | null {
  */
 export function loadPsxExeInfo(): PsxExeInfo {
   const yaml = parseSplatYamlHeader();
-  const binaryPath = join(ROOT, yaml.targetPath ?? "extracted/iso/slus_011.15");
+  const binaryPath = yaml.targetPath ? join(ROOT, yaml.targetPath) : discoverPsxExe();
 
-  if (!existsSync(binaryPath)) {
-    throw new Error(`PSX-EXE binary not found: ${binaryPath}`);
+  if (!binaryPath || !existsSync(binaryPath)) {
+    throw new Error(
+      yaml.targetPath
+        ? `PSX-EXE binary not found: ${binaryPath}`
+        : "No target_path in the project config and no PS-X EXE found under extracted/"
+    );
   }
 
   const buf = readFileSync(binaryPath);
