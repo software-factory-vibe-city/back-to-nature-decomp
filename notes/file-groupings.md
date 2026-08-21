@@ -586,7 +586,7 @@ Fingerprints:
   the `$a1` constant and which incoming register supplies arg3.
 
 Members (address order):
-- func_800245F4–func_80024A10 (14 wrappers, 7× m + 7× s) — thin wrappers with
+- func_800245F4–func_80024A10 (14 wrappers, 8× m + 6× s) — thin wrappers with
   sprite-header id constants (0x7–0x2B, 0x27 shared by four); all call func_80024A4C;
   func_8002462C (m) matched (id 0x27 — one of the four 0x27 wrappers, pinning
   that constant to a named member), func_80024664 (m) matched (id 0x27 — second
@@ -594,7 +594,8 @@ Members (address order):
   of the four 0x27 wrappers, level 1, frame 1 passthrough of $a0 with arg3 = $a1 sext,
   arg4 = $a2 sext on stack), func_800246D4 (m) matched (id 0x27 — fourth of the
   four 0x27 wrappers, level 3, completing the four-way level 0/2/1/3 run on the
-  shared 0x27 id), func_800248B0 (m) matched (id 0xB),
+  shared 0x27 id), func_800248E8 (m) matched (id 0x18),
+  func_800248B0 (m) matched (id 0xB),
   func_80024924 (m) matched (id 0x1E), func_80024A10 (m) matched (id 0x2B)
 - func_80024A4C (m) — core dispatcher: header-cache check + func_80015EE8 call
 
