@@ -448,10 +448,18 @@ state machine, immediately preceding the callback driver family. Evidence
   D_8005E350..D_8005E35C cleared); func_80023100/80023130/80023170/800231AC/
   800231E8 are contiguous in link order, and func_800231AC → func_80023A74
   crosses the 0x80023A74 slot inside the menu/text-label span.
+- func_80023170 is a near-identical twin of func_800231AC: byte-identical
+  compiled body differing only in D_8005E348 = 0 (vs 1), sharing the same
+  call graph (→ func_80023100, func_80023A74), the same gp-rel trio, and a
+  contiguous 0x3C-at-0x3C slot (each body is exactly 0x3C bytes, one right
+  after the other) — replicates the phrase-by-duplication source shape.
 Members (address order):
 - func_80023100 (m) — state reset: zeroes/clears the D_8005E344..D_8005E35C
   cluster and marks it live (matches the pair below)
-- func_800231AC (m, 2026-08-28) — install+fill driver: calls func_80023100,
+- func_80023170 (m, 2026-09) — install+fill twin 0: calls func_80023100,
+  stores arg0 (buffer ptr) into D_8005E360, calls func_80023A74, then sets
+  D_8005E348=0 / D_8005E344=1
+- func_800231AC (m, 2026-08-28) — install+fill twin 1: calls func_80023100,
   stores arg0 (buffer ptr) into D_8005E360, calls func_80023A74, then sets
   D_8005E348=1 / D_8005E344=1 and returns 1
 
