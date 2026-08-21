@@ -670,6 +670,9 @@ idiom cluster (same-TU evidence). Members:
   dispatches via func_80024A4C with sprite-header id 0xD (bridging role, same
   shape as func_800249C0; gp-rel access to the shared D_8005E5D0 u8 confirms
   the tentative-definition merge with func_8002470C)
+- func_80024860 (m) — mod-30 of D_8005E5D0 (same idiom), body byte-identical
+  to func_80024810 except the sprite-header id constant 0xC, then dispatches
+  via func_80024A4C (same bridging role and D_8005E5D0 gp-rel merge)
 
 ## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
 
