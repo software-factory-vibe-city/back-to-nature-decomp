@@ -1,0 +1,57 @@
+name: ovl_10
+sha1: 5bd53acbc7123d550a1e663491dcd25e47725f27
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_10
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_10/ovl_10.ld
+  target_path: extracted/overlays/ovl_10.bin
+  asm_path: build/ovl_10/asm
+  src_path: src/overlays/ovl_10
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_10.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_10/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_10/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_10
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0xA7C, c, ovl_10_func_800B889C]
+      - [0xC3C, c, ovl_10_func_800B8A5C]
+      - [0xDF4, c, ovl_10_func_800B8C14]
+      - [0x1240, c, ovl_10_func_800B9060]
+      - [0x12E8, c, ovl_10_func_800B9108]
+      - [0x148C, c, ovl_10_func_800B92AC]
+      - [0x14B0, c, ovl_10_func_800B92D0]
+      - [0x1638, c, ovl_10_func_800B9458]
+      - [0x1684, c, ovl_10_func_800B94A4]
+      - [0x174C, c, ovl_10_func_800B956C]
+      - [0x1784, c, ovl_10_func_800B95A4]
+      - [0x17D0, c, ovl_10_func_800B95F0]
+      - [0x1C88, c, ovl_10_func_800B9AA8]
+      - [0x1F04, c, ovl_10_func_800B9D24]
+      - [0x22FC, c, ovl_10_func_800BA11C]
+      - [0x2480, c, ovl_10_func_800BA2A0]
+      - [0x2574, c, ovl_10_func_800BA394]
+      - [0x2CF0, c, ovl_10_func_800BAB10]
+      - [0x2E9C, c, ovl_10_func_800BACBC]
+      - [0x2F84, c, ovl_10_func_800BADA4]
+      - [0x3444, c, ovl_10_func_800BB264]
+      - [0x3908, c, ovl_10_func_800BB728]
+      - [0x399C, data]
+  - [0x4000]

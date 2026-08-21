@@ -1,0 +1,1103 @@
+{
+  "generatedBy": "tools/build/extractArchive.ts",
+  "archive": {
+    "indexPath": "extracted/iso/a_file.hdt",
+    "dataPath": "extracted/iso/a_file.bin",
+    "dataSize": 133935104,
+    "indexSha256": "0cae44d6bdb29e078a182d7cd9a780c21e35dc54f55eb94c2d9ea8deb20c82dd",
+    "dataSha256": "612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+    "sectorSize": 2048,
+    "format": "u32-offset-table",
+    "formatDescription": "little-endian u32 byte offsets, one per member, trailing sentinel if the last equals the file size",
+    "formatScore": 1,
+    "formatMargin": 0.25454545454545463,
+    "formatRunnerUp": "u32-sector-table",
+    "formatEvidence": [
+      "final entry equals the data size (133935104), read as a trailing sentinel: 32 members",
+      "inRange: 32/32 members satisfy 0 <= start <= end <= 133935104",
+      "strictlyIncreasing: 31/31 consecutive starts increase",
+      "sectorAligned: 32/32 starts are 2048-byte aligned",
+      "nonEmpty: 32/32 members have a positive size",
+      "tilesExactly: members tile the file with no gap or overlap",
+      "endsAtDataSize: last member ends at 133935104"
+    ]
+  },
+  "members": [
+    {
+      "index": 0,
+      "id": "ovl_00",
+      "offset": 0,
+      "end": 64475136,
+      "size": 64475136,
+      "sector": 0,
+      "sectorCount": 31482,
+      "tag": "0x000a100d",
+      "sha256": "1c4d6ac425374dc04ffc755ce36ff0659f79e865d6ca4e5b5ce7f3312f5022c8",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "16118784 words, 61.7% decode as R3000 instructions overall",
+          "0 jr ra, 33 stack prologues",
+          "18598/340684 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x000a100d",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\gf.bin"
+    },
+    {
+      "index": 1,
+      "id": "ovl_01",
+      "offset": 64475136,
+      "end": 66158592,
+      "size": 1683456,
+      "sector": 31482,
+      "sectorCount": 822,
+      "tag": "0x0002100d",
+      "sha256": "049e61d1e2483ebb243dad447ab78d0abe72e4299a4ad44b92a58864dcbe11dd",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "420864 words, 67.7% decode as R3000 instructions overall",
+          "0 jr ra, 1 stack prologues",
+          "64/2497 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0002100d",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\face.bin"
+    },
+    {
+      "index": 2,
+      "id": "ovl_02",
+      "offset": 66158592,
+      "end": 81313792,
+      "size": 15155200,
+      "sector": 32304,
+      "sectorCount": 7400,
+      "tag": "0xffffffff",
+      "sha256": "a7206cc54163b7d9e46cf64b425bc803d55b13c4dbaa98229d76f05ceb2b94b8",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "3788800 words, 73.3% decode as R3000 instructions overall",
+          "0 jr ra, 2 stack prologues",
+          "337/27900 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0xffffffff",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\messege0.bin"
+    },
+    {
+      "index": 3,
+      "id": "ovl_03",
+      "offset": 81313792,
+      "end": 98197504,
+      "size": 16883712,
+      "sector": 39704,
+      "sectorCount": 8244,
+      "tag": "0xffffffff",
+      "sha256": "a7f584a01aaacfcb0178cf3d6005bb433e980481163603a46d194c1e168e7849",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "4220928 words, 73.6% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "384/35416 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0xffffffff",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\messege1.bin"
+    },
+    {
+      "index": 4,
+      "id": "ovl_04",
+      "offset": 98197504,
+      "end": 103530496,
+      "size": 5332992,
+      "sector": 47948,
+      "sectorCount": 2604,
+      "tag": "0xffffffff",
+      "sha256": "85459f45cc6e33e7f8e4b53d1d63b64f34886c9fb875740896bdb8a97089db1a",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "1333248 words, 86.4% decode as R3000 instructions overall",
+          "0 jr ra, 1 stack prologues",
+          "38/9712 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0xffffffff",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\messege2.bin"
+    },
+    {
+      "index": 5,
+      "id": "ovl_05",
+      "offset": 103530496,
+      "end": 114941952,
+      "size": 11411456,
+      "sector": 50552,
+      "sectorCount": 5572,
+      "tag": "0xffffffff",
+      "sha256": "2d0a592786b40f17c48af7aedb5105b67bf7167485626e9e24bc9ea5a02cadbe",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "2852864 words, 96.9% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "0/20161 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0xffffffff",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\messege3.bin"
+    },
+    {
+      "index": 6,
+      "id": "ovl_06",
+      "offset": 114941952,
+      "end": 115400704,
+      "size": 458752,
+      "sector": 56124,
+      "sectorCount": 224,
+      "tag": "0x00000068",
+      "sha256": "90c48b131d68e46576ff42c924882ad71dac90b0375c3f6beecdd9ee5ec5a675",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "114688 words, 77.2% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "8/893 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x00000068",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\messege4.bin"
+    },
+    {
+      "index": 7,
+      "id": "ovl_07",
+      "offset": 115400704,
+      "end": 115464192,
+      "size": 63488,
+      "sector": 56348,
+      "sectorCount": 31,
+      "tag": "0x0003100d",
+      "sha256": "81cc6976c1c8d0fe0100dd37c9e73633593e80fbff06a18d87dd49d7971b5b3b",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "15872 words, 54.2% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "3/800 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0003100d",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "data\\font\\Font_all.tex"
+    },
+    {
+      "index": 8,
+      "id": "ovl_08",
+      "offset": 115464192,
+      "end": 115466240,
+      "size": 2048,
+      "sector": 56379,
+      "sectorCount": 1,
+      "tag": "0x00000004",
+      "sha256": "918ace094e631452b03fcec1af22227a2c1ae801c92d07e88439e895ceeca363",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "512 words, 85.7% decode as R3000 instructions overall",
+          "5 jr ra, 5 stack prologues",
+          "16/16 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x00000004",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x1f4..0x6e0",
+          "return-clustering: 0x1f4..0x6e0",
+          "within the 1 code region(s): 100.0% decode, 4.06 returns/KB over 1.2KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.06 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.5999999999999999,
+        "evidence": [
+          "0 distinct internal jal targets, 5 internal j targets",
+          "5 stack prologues offered as candidate function entries",
+          "1 jal/j-shaped words rejected by the PS1 RAM range check",
+          "3 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 0 of 0 internal jal targets",
+          "runner-up 0x8012DDE8 scores 0.400 on 0 votes"
+        ]
+      },
+      "alias": "obj\\DEBUG.bin"
+    },
+    {
+      "index": 9,
+      "id": "ovl_09",
+      "offset": 115466240,
+      "end": 121473024,
+      "size": 6006784,
+      "sector": 56380,
+      "sectorCount": 2933,
+      "tag": "0x56414270",
+      "sha256": "3b3b92dddea87a9f1ebb157ee8ab44c32f4bc78f885f78a5976d62510c8fe501",
+      "classification": {
+        "verdict": "data",
+        "format": "VAB",
+        "evidence": [
+          "1501696 words, 51.3% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "601/74878 jal-shaped words target valid PS1 RAM",
+          "magic: VABp header, version 7",
+          "leading word 0x56414270",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\sound.stm"
+    },
+    {
+      "index": 10,
+      "id": "ovl_10",
+      "offset": 121473024,
+      "end": 121489408,
+      "size": 16384,
+      "sector": 59313,
+      "sectorCount": 8,
+      "tag": "0x00000005",
+      "sha256": "fd6846d5255da2bd210d2687c82358356d95742c8060e78cea3a382ee912e4df",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "4096 words, 91.8% decode as R3000 instructions overall",
+          "22 jr ra, 21 stack prologues",
+          "199/199 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x00000005",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0xa7c..0x399c",
+          "return-clustering: 0xa7c..0x399c",
+          "within the 1 code region(s): 100.0% decode, 1.87 returns/KB over 11.8KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 1.87 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.7030812324929971,
+        "evidence": [
+          "21 distinct internal jal targets, 91 internal j targets",
+          "21 stack prologues offered as candidate function entries",
+          "14 jal/j-shaped words rejected by the PS1 RAM range check",
+          "0 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 19 of 21 internal jal targets",
+          "runner-up 0x800B7A28 scores 0.297 on 2 votes"
+        ]
+      },
+      "alias": "obj\\PdaSamp.bin"
+    },
+    {
+      "index": 11,
+      "id": "ovl_11",
+      "offset": 121489408,
+      "end": 121972736,
+      "size": 483328,
+      "sector": 59321,
+      "sectorCount": 236,
+      "tag": "0x00000006",
+      "sha256": "165c3cca1f3bd7ec8a37ef6ac0fa75eff2e79479816738379380f776da703742",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "120832 words, 97.9% decode as R3000 instructions overall",
+          "1913 jr ra, 1171 stack prologues",
+          "5946/5994 jal-shaped words target valid PS1 RAM",
+          "structure: leading count 6 followed by 6 valid PS1 RAM pointers",
+          "leading word 0x00000006",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x3e14..0x69960",
+          "return-clustering: 0x3e14..0x69960",
+          "within the 1 code region(s): 100.0% decode, 4.70 returns/KB over 406.8KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.70 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.6273555027711798,
+        "evidence": [
+          "1263 distinct internal jal targets, 1689 internal j targets",
+          "1171 stack prologues offered as candidate function entries",
+          "103 jal/j-shaped words rejected by the PS1 RAM range check",
+          "248 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 858 of 1263 internal jal targets",
+          "runner-up 0x800B7F58 scores 0.371 on 32 votes",
+          "residual: selfCallsAtEntry: 1260/1263 internal jal targets land on a function entry, here or in a slot mate",
+          "residual: jumpsResolve: 1686/1689 internal j targets land on a decodable instruction, here or in a slot mate"
+        ]
+      },
+      "alias": "obj\\GF_FARM.bin"
+    },
+    {
+      "index": 12,
+      "id": "ovl_12",
+      "offset": 121972736,
+      "end": 132851712,
+      "size": 10878976,
+      "sector": 59557,
+      "sectorCount": 5312,
+      "tag": "0x00050180",
+      "sha256": "5ce3db2463684692c88130adb26e27ae4722a6c52b3b63b21022921c3a065e7e",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "2719744 words, 49.5% decode as R3000 instructions overall",
+          "0 jr ra, 4 stack prologues",
+          "1413/18307 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x00050180",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\event_s.bin"
+    },
+    {
+      "index": 13,
+      "id": "ovl_13",
+      "offset": 132851712,
+      "end": 132921344,
+      "size": 69632,
+      "sector": 64869,
+      "sectorCount": 34,
+      "tag": "0x2828fd93",
+      "sha256": "2cb00d814a9cb28c5e5c521447c21a44cf3e626bcede4e58c25ea5ab2ff8f7a6",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "17408 words, 57.4% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "36/252 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x2828fd93",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "objcg\\evch.bin"
+    },
+    {
+      "index": 14,
+      "id": "ovl_14",
+      "offset": 132921344,
+      "end": 132958208,
+      "size": 36864,
+      "sector": 64903,
+      "sectorCount": 18,
+      "tag": "0x0000000e",
+      "sha256": "b1b758420978244a74a207720a92b530a4c1d723e4eded6b6ecd5710ddb0082b",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "9216 words, 53.5% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "1/36 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\Status.Bin"
+    },
+    {
+      "index": 15,
+      "id": "ovl_15",
+      "offset": 132958208,
+      "end": 133056512,
+      "size": 98304,
+      "sector": 64921,
+      "sectorCount": 48,
+      "tag": "0x00000010",
+      "sha256": "c0bcec6ec5f70d1758f5a049c69b26f6703041808073646821b471420bcf5368",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "24576 words, 99.9% decode as R3000 instructions overall",
+          "139 jr ra, 122 stack prologues",
+          "530/530 jal-shaped words target valid PS1 RAM",
+          "structure: leading count 16 followed by 16 valid PS1 RAM pointers",
+          "leading word 0x00000010",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x374..0x979c",
+          "return-clustering: 0x374..0x979c",
+          "within the 1 code region(s): 100.0% decode, 3.75 returns/KB over 37.0KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 3.75 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148720104,
+        "loadOffset": 0,
+        "margin": 0.4541666666666666,
+        "evidence": [
+          "132 distinct internal jal targets, 138 internal j targets",
+          "122 stack prologues offered as candidate function entries",
+          "0 jal/j-shaped words rejected by the PS1 RAM range check",
+          "25 leading pointer-table entries",
+          "winning base 0x8012DDE8 proposed by 115 of 132 internal jal targets",
+          "runner-up 0x8012DD78 scores 0.446 on 22 votes",
+          "residual: slotAgreement: no other member was solved to this base"
+        ]
+      },
+      "alias": "Obj\\saveload.bin"
+    },
+    {
+      "index": 16,
+      "id": "ovl_16",
+      "offset": 133056512,
+      "end": 133060608,
+      "size": 4096,
+      "sector": 64969,
+      "sectorCount": 2,
+      "tag": "0x00000010",
+      "sha256": "688ddcdc75fc71f451cb6db1e1b9a7638a4e9caf1d4105cde78d94208f7630cb",
+      "classification": {
+        "verdict": "data",
+        "format": "TIM",
+        "evidence": [
+          "1024 words, 78.1% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "0/0 jal-shaped words target valid PS1 RAM",
+          "magic: TIM id 0x10, flags 0x8",
+          "leading word 0x00000010",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\Slp.Bin"
+    },
+    {
+      "index": 17,
+      "id": "ovl_17",
+      "offset": 133060608,
+      "end": 133087232,
+      "size": 26624,
+      "sector": 64971,
+      "sectorCount": 13,
+      "tag": "0x00000007",
+      "sha256": "c5cad849690b1b74edbb6a28530a1eef84092f7234987f97a75f6c7a7233bcb0",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "6656 words, 99.3% decode as R3000 instructions overall",
+          "66 jr ra, 46 stack prologues",
+          "245/257 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x00000007",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x18..0x3634",
+          "return-clustering: 0x18..0x3634",
+          "within the 1 code region(s): 100.0% decode, 4.88 returns/KB over 13.5KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.88 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.5845238095238096,
+        "evidence": [
+          "42 distinct internal jal targets, 16 internal j targets",
+          "46 stack prologues offered as candidate function entries",
+          "12 jal/j-shaped words rejected by the PS1 RAM range check",
+          "5 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 27 of 42 internal jal targets",
+          "runner-up 0x800B7DAC scores 0.415 on 5 votes"
+        ]
+      },
+      "alias": "Obj\\GF_MG1.Bin"
+    },
+    {
+      "index": 18,
+      "id": "ovl_18",
+      "offset": 133087232,
+      "end": 133212160,
+      "size": 124928,
+      "sector": 64984,
+      "sectorCount": 61,
+      "tag": "0x0000000e",
+      "sha256": "ffcc6e33f03568d496ebe1d95556ef109d58f11f4af0bf939c38263a6c797d88",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "31232 words, 47.0% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "11/242 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\MG1.Bin"
+    },
+    {
+      "index": 19,
+      "id": "ovl_19",
+      "offset": 133212160,
+      "end": 133244928,
+      "size": 32768,
+      "sector": 65045,
+      "sectorCount": 16,
+      "tag": "0x00000008",
+      "sha256": "bd4145a8a17418287ac9377dda625cf73291d8f7966767c2e11ad466872845d5",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "8192 words, 98.9% decode as R3000 instructions overall",
+          "77 jr ra, 66 stack prologues",
+          "349/351 jal-shaped words target valid PS1 RAM",
+          "structure: leading count 8 followed by 8 valid PS1 RAM pointers",
+          "leading word 0x00000008",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0xb8..0x3f54",
+          "return-clustering: 0xb8..0x3f54",
+          "within the 1 code region(s): 100.0% decode, 4.92 returns/KB over 15.7KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.92 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.59,
+        "evidence": [
+          "55 distinct internal jal targets, 48 internal j targets",
+          "66 stack prologues offered as candidate function entries",
+          "4 jal/j-shaped words rejected by the PS1 RAM range check",
+          "27 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 42 of 55 internal jal targets",
+          "runner-up 0x800B758C scores 0.410 on 5 votes"
+        ]
+      },
+      "alias": "Obj\\GF_MG2.Bin"
+    },
+    {
+      "index": 20,
+      "id": "ovl_20",
+      "offset": 133244928,
+      "end": 133355520,
+      "size": 110592,
+      "sector": 65061,
+      "sectorCount": 54,
+      "tag": "0x0000000e",
+      "sha256": "338f200bd41cbe8c391195bae4233c2b6962ba3f79cb589a9e487e35527e6cb1",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "27648 words, 39.3% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "4/310 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\MG2.Bin"
+    },
+    {
+      "index": 21,
+      "id": "ovl_21",
+      "offset": 133355520,
+      "end": 133392384,
+      "size": 36864,
+      "sector": 65115,
+      "sectorCount": 18,
+      "tag": "0x00000009",
+      "sha256": "29c2975ae9250c47f68f017e186852eed7faf2786b50a4147bbeba229841e82c",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "9216 words, 99.4% decode as R3000 instructions overall",
+          "83 jr ra, 59 stack prologues",
+          "295/301 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x00000009",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x1c..0x3c64",
+          "return-clustering: 0x1c..0x3c64",
+          "within the 1 code region(s): 100.0% decode, 5.51 returns/KB over 15.1KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 5.51 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.5845238095238096,
+        "evidence": [
+          "42 distinct internal jal targets, 34 internal j targets",
+          "59 stack prologues offered as candidate function entries",
+          "6 jal/j-shaped words rejected by the PS1 RAM range check",
+          "6 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 33 of 42 internal jal targets",
+          "runner-up 0x800B7AA8 scores 0.415 on 4 votes"
+        ]
+      },
+      "alias": "Obj\\GF_MG3.Bin"
+    },
+    {
+      "index": 22,
+      "id": "ovl_22",
+      "offset": 133392384,
+      "end": 133484544,
+      "size": 92160,
+      "sector": 65133,
+      "sectorCount": 45,
+      "tag": "0x0000000e",
+      "sha256": "2e2d978898ace9b0988bb12fdd9a16ebee286845e6dc6045499b7239cedeb6c7",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "23040 words, 49.7% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "6/139 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\MG3.Bin"
+    },
+    {
+      "index": 23,
+      "id": "ovl_23",
+      "offset": 133484544,
+      "end": 133519360,
+      "size": 34816,
+      "sector": 65178,
+      "sectorCount": 17,
+      "tag": "0x0000000a",
+      "sha256": "39098e4f952c4443794fa1bcea4b33fdb240947c2ad033bfd208798c401b9883",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "8704 words, 99.1% decode as R3000 instructions overall",
+          "64 jr ra, 45 stack prologues",
+          "224/232 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000a",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x84..0x3a40",
+          "return-clustering: 0x84..0x3a40",
+          "within the 1 code region(s): 100.0% decode, 4.43 returns/KB over 14.4KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.43 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.5976190476190476,
+        "evidence": [
+          "42 distinct internal jal targets, 45 internal j targets",
+          "45 stack prologues offered as candidate function entries",
+          "8 jal/j-shaped words rejected by the PS1 RAM range check",
+          "5 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 30 of 42 internal jal targets",
+          "runner-up 0x800B7CF4 scores 0.402 on 3 votes"
+        ]
+      },
+      "alias": "Obj\\GF_MG4.Bin"
+    },
+    {
+      "index": 24,
+      "id": "ovl_24",
+      "offset": 133519360,
+      "end": 133646336,
+      "size": 126976,
+      "sector": 65195,
+      "sectorCount": 62,
+      "tag": "0x0000000e",
+      "sha256": "b5a764999b49a05f9168e186599d70a92df4a52b7743688ed19d79da1ba8bf2f",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "31744 words, 41.8% decode as R3000 instructions overall",
+          "0 jr ra, 1 stack prologues",
+          "18/342 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\MG4.Bin"
+    },
+    {
+      "index": 25,
+      "id": "ovl_25",
+      "offset": 133646336,
+      "end": 133681152,
+      "size": 34816,
+      "sector": 65257,
+      "sectorCount": 17,
+      "tag": "0x0000000b",
+      "sha256": "eba69247e5402f00cc0531f022338e6857fe94c25b3d8e08921e3bd3a3ec93cc",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "8704 words, 99.3% decode as R3000 instructions overall",
+          "74 jr ra, 54 stack prologues",
+          "285/292 jal-shaped words target valid PS1 RAM",
+          "structure: leading count 11 followed by 11 valid PS1 RAM pointers",
+          "leading word 0x0000000b",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x94..0x3d20",
+          "return-clustering: 0x94..0x3d20",
+          "within the 1 code region(s): 100.0% decode, 4.89 returns/KB over 15.1KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.89 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.5996511627906976,
+        "evidence": [
+          "50 distinct internal jal targets, 43 internal j targets",
+          "54 stack prologues offered as candidate function entries",
+          "7 jal/j-shaped words rejected by the PS1 RAM range check",
+          "19 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 39 of 50 internal jal targets",
+          "runner-up 0x800B6D84 scores 0.400 on 4 votes"
+        ]
+      },
+      "alias": "Obj\\GF_MG5.Bin"
+    },
+    {
+      "index": 26,
+      "id": "ovl_26",
+      "offset": 133681152,
+      "end": 133756928,
+      "size": 75776,
+      "sector": 65274,
+      "sectorCount": 37,
+      "tag": "0x0000000e",
+      "sha256": "340603a263870027c714f79bf4729cb62972f6e13e42325216cf64330d4404bb",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "18944 words, 46.3% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "11/212 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\MG5.Bin"
+    },
+    {
+      "index": 27,
+      "id": "ovl_27",
+      "offset": 133756928,
+      "end": 133814272,
+      "size": 57344,
+      "sector": 65311,
+      "sectorCount": 28,
+      "tag": "0x0000000c",
+      "sha256": "ea6a7aef3d522bc1c905417cbf641d0a3bfd79b5aa68a95edd06f4d880f84b9e",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "14336 words, 83.6% decode as R3000 instructions overall",
+          "53 jr ra, 47 stack prologues",
+          "277/301 jal-shaped words target valid PS1 RAM",
+          "structure: leading count 12 followed by 12 valid PS1 RAM pointers",
+          "leading word 0x0000000c",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0xcc..0x2e40",
+          "return-clustering: 0xcc..0x2e40",
+          "within the 1 code region(s): 100.0% decode, 4.66 returns/KB over 11.4KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 4.66 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.5602910602910603,
+        "evidence": [
+          "37 distinct internal jal targets, 13 internal j targets",
+          "47 stack prologues offered as candidate function entries",
+          "52 jal/j-shaped words rejected by the PS1 RAM range check",
+          "13 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 30 of 37 internal jal targets",
+          "runner-up 0x800B7D20 scores 0.424 on 4 votes",
+          "residual: jumpsResolve: 12/13 internal j targets land on a decodable instruction, here or in a slot mate"
+        ]
+      },
+      "alias": "Obj\\GF_TITLE.Bin"
+    },
+    {
+      "index": 28,
+      "id": "ovl_28",
+      "offset": 133814272,
+      "end": 133826560,
+      "size": 12288,
+      "sector": 65339,
+      "sectorCount": 6,
+      "tag": "0x0000000d",
+      "sha256": "f2d391a23eea6bcb679661c8bf1490cc5c6676e464264f524ea82f7b617eda48",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "3072 words, 99.8% decode as R3000 instructions overall",
+          "28 jr ra, 19 stack prologues",
+          "75/209 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000d",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x4..0x154c",
+          "return-clustering: 0x4..0x154c",
+          "within the 1 code region(s): 100.0% decode, 5.26 returns/KB over 5.3KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 5.26 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.6352941176470588,
+        "evidence": [
+          "15 distinct internal jal targets, 15 internal j targets",
+          "19 stack prologues offered as candidate function entries",
+          "135 jal/j-shaped words rejected by the PS1 RAM range check",
+          "0 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 7 of 15 internal jal targets",
+          "runner-up 0x800B7DBC scores 0.365 on 3 votes"
+        ]
+      },
+      "alias": "Obj\\GF_STAFF.Bin"
+    },
+    {
+      "index": 29,
+      "id": "ovl_29",
+      "offset": 133826560,
+      "end": 133902336,
+      "size": 75776,
+      "sector": 65345,
+      "sectorCount": 37,
+      "tag": "0xffff232b",
+      "sha256": "5350946744f81d6538a3de7b136efef23d5a7982601051039453a42223b0bfed",
+      "classification": {
+        "verdict": "data",
+        "format": null,
+        "evidence": [
+          "18944 words, 69.4% decode as R3000 instructions overall",
+          "0 jr ra, 0 stack prologues",
+          "64/873 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0xffff232b",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: no code region",
+          "return-clustering: no code region",
+          "no code region of measurable size was found by any applicable strategy"
+        ]
+      },
+      "alias": "ObjCg\\MesEv.Bin"
+    },
+    {
+      "index": 30,
+      "id": "ovl_30",
+      "offset": 133902336,
+      "end": 133931008,
+      "size": 28672,
+      "sector": 65382,
+      "sectorCount": 14,
+      "tag": "0x0000000f",
+      "sha256": "d03a4f7d6a2bb2f1556f0be8fc675c63ffe61f3c254c789041ec0eba9057abe8",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "7168 words, 92.1% decode as R3000 instructions overall",
+          "39 jr ra, 25 stack prologues",
+          "186/186 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000f",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x11fc..0x6188",
+          "return-clustering: 0x11f8..0x6188",
+          "within the 1 code region(s): 100.0% decode, 1.96 returns/KB over 19.9KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 1.96 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148720104,
+        "loadOffset": 0,
+        "margin": 0.39495798319327735,
+        "evidence": [
+          "21 distinct internal jal targets, 45 internal j targets",
+          "25 stack prologues offered as candidate function entries",
+          "12 jal/j-shaped words rejected by the PS1 RAM range check",
+          "0 leading pointer-table entries",
+          "winning base 0x8012DDE8 proposed by 5 of 21 internal jal targets",
+          "runner-up 0x8012DDE0 scores 0.605 on 2 votes"
+        ]
+      },
+      "alias": "Obj\\GF_swind.bin"
+    },
+    {
+      "index": 31,
+      "id": "ovl_31",
+      "offset": 133931008,
+      "end": 133935104,
+      "size": 4096,
+      "sector": 65396,
+      "sectorCount": 2,
+      "tag": "0x0000000e",
+      "sha256": "f9cb5488db0ab1d2a4cb86b2a1d480356aa9249b46ce5d7d13b4f762e13ba88a",
+      "classification": {
+        "verdict": "code",
+        "format": null,
+        "evidence": [
+          "1024 words, 94.9% decode as R3000 instructions overall",
+          "6 jr ra, 6 stack prologues",
+          "48/48 jal-shaped words target valid PS1 RAM",
+          "no recognised asset magic in the leading words",
+          "leading word 0x0000000e",
+          "toolchain profile psyq (detected) selects 2 of 2 strategies: psyq-section-order, return-clustering",
+          "psyq-section-order: 0x1ac..0x9d0",
+          "return-clustering: 0x1ac..0x9d0",
+          "within the 1 code region(s): 100.0% decode, 2.95 returns/KB over 2.0KB",
+          "reference (PS-X EXE .text): 100.0% decode, 5.12 returns/KB",
+          "code: decode 100.0% >= 98.0% and 2.95 >= 1.28 returns/KB (reference / 4)"
+        ]
+      },
+      "base": {
+        "verdict": "resolved",
+        "base": 2148236832,
+        "loadOffset": 0,
+        "margin": 0.6352941176470588,
+        "evidence": [
+          "5 distinct internal jal targets, 11 internal j targets",
+          "6 stack prologues offered as candidate function entries",
+          "3 jal/j-shaped words rejected by the PS1 RAM range check",
+          "0 leading pointer-table entries",
+          "winning base 0x800B7E20 proposed by 5 of 5 internal jal targets",
+          "runner-up 0x800B7DC0 scores 0.365 on 1 votes"
+        ]
+      },
+      "alias": "Obj\\gf_mcard.bin"
+    }
+  ]
+}

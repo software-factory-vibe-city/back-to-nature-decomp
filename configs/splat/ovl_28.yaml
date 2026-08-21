@@ -1,0 +1,62 @@
+name: ovl_28
+sha1: d650ace7fcd46f46fb4da527902579e1c7290633
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_28
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_28/ovl_28.ld
+  target_path: extracted/overlays/ovl_28.bin
+  asm_path: build/ovl_28/asm
+  src_path: src/overlays/ovl_28
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_28.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_28/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_28/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_28
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x4, c, ovl_28_func_800B7E24]
+      - [0x60, c, ovl_28_func_800B7E80]
+      - [0x110, c, ovl_28_func_800B7F30]
+      - [0x160, c, ovl_28_func_800B7F80]
+      - [0x1B4, c, ovl_28_func_800B7FD4]
+      - [0x304, c, ovl_28_func_800B8124]
+      - [0x4E4, c, ovl_28_func_800B8304]
+      - [0x524, c, ovl_28_func_800B8344]
+      - [0x5A0, c, ovl_28_func_800B83C0]
+      - [0x5F4, c, ovl_28_func_800B8414]
+      - [0x658, c, ovl_28_func_800B8478]
+      - [0x83C, c, ovl_28_func_800B865C]
+      - [0x8B8, c, ovl_28_func_800B86D8]
+      - [0xB3C, c, ovl_28_func_800B895C]
+      - [0xB74, c, ovl_28_func_800B8994]
+      - [0xC00, c, ovl_28_func_800B8A20]
+      - [0xC88, c, ovl_28_func_800B8AA8]
+      - [0xCEC, c, ovl_28_func_800B8B0C]
+      - [0xD50, c, ovl_28_func_800B8B70]
+      - [0xE74, c, ovl_28_func_800B8C94]
+      - [0xEC4, c, ovl_28_func_800B8CE4]
+      - [0xF28, c, ovl_28_func_800B8D48]
+      - [0x107C, c, ovl_28_func_800B8E9C]
+      - [0x1254, c, ovl_28_func_800B9074]
+      - [0x14D0, c, ovl_28_func_800B92F0]
+      - [0x1508, c, ovl_28_func_800B9328]
+      - [0x153C, c, ovl_28_func_800B935C]
+      - [0x154C, data]
+  - [0x3000]

@@ -1,0 +1,102 @@
+name: ovl_21
+sha1: fa5869a2df00a34c6ab53261f82a786ba15f3105
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_21
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_21/ovl_21.ld
+  target_path: extracted/overlays/ovl_21.bin
+  asm_path: build/ovl_21/asm
+  src_path: src/overlays/ovl_21
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_21.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_21/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_21/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_21
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x1C, c, ovl_21_func_800B7E3C]
+      - [0x78, c, ovl_21_func_800B7E98]
+      - [0x1A8, c, ovl_21_func_800B7FC8]
+      - [0x24C, c, ovl_21_func_800B806C]
+      - [0x2B4, c, ovl_21_func_800B80D4]
+      - [0x314, c, ovl_21_func_800B8134]
+      - [0x408, c, ovl_21_func_800B8228]
+      - [0x500, c, ovl_21_func_800B8320]
+      - [0x54C, c, ovl_21_func_800B836C]
+      - [0x77C, c, ovl_21_func_800B859C]
+      - [0x834, c, ovl_21_func_800B8654]
+      - [0x898, c, ovl_21_func_800B86B8]
+      - [0x8FC, c, ovl_21_func_800B871C]
+      - [0xA80, c, ovl_21_func_800B88A0]
+      - [0xC04, c, ovl_21_func_800B8A24]
+      - [0xC60, c, ovl_21_func_800B8A80]
+      - [0xD1C, c, ovl_21_func_800B8B3C]
+      - [0x1178, c, ovl_21_func_800B8F98]
+      - [0x12A4, c, ovl_21_func_800B90C4]
+      - [0x1358, c, ovl_21_func_800B9178]
+      - [0x14A8, c, ovl_21_func_800B92C8]
+      - [0x15D0, c, ovl_21_func_800B93F0]
+      - [0x16B4, c, ovl_21_func_800B94D4]
+      - [0x1718, c, ovl_21_func_800B9538]
+      - [0x1770, c, ovl_21_func_800B9590]
+      - [0x17CC, c, ovl_21_func_800B95EC]
+      - [0x1824, c, ovl_21_func_800B9644]
+      - [0x1890, c, ovl_21_func_800B96B0]
+      - [0x1978, c, ovl_21_func_800B9798]
+      - [0x19D4, c, ovl_21_func_800B97F4]
+      - [0x1A24, c, ovl_21_func_800B9844]
+      - [0x1AAC, c, ovl_21_func_800B98CC]
+      - [0x1AEC, c, ovl_21_func_800B990C]
+      - [0x1C00, c, ovl_21_func_800B9A20]
+      - [0x1E84, c, ovl_21_func_800B9CA4]
+      - [0x211C, c, ovl_21_func_800B9F3C]
+      - [0x24E0, c, ovl_21_func_800BA300]
+      - [0x26A0, c, ovl_21_func_800BA4C0]
+      - [0x26D0, c, ovl_21_func_800BA4F0]
+      - [0x26F0, c, ovl_21_func_800BA510]
+      - [0x27B0, c, ovl_21_func_800BA5D0]
+      - [0x2850, c, ovl_21_func_800BA670]
+      - [0x2878, c, ovl_21_func_800BA698]
+      - [0x29D0, c, ovl_21_func_800BA7F0]
+      - [0x2A48, c, ovl_21_func_800BA868]
+      - [0x2B24, c, ovl_21_func_800BA944]
+      - [0x2BD8, c, ovl_21_func_800BA9F8]
+      - [0x2BF8, c, ovl_21_func_800BAA18]
+      - [0x2C18, c, ovl_21_func_800BAA38]
+      - [0x2D08, c, ovl_21_func_800BAB28]
+      - [0x2DD8, c, ovl_21_func_800BABF8]
+      - [0x2E90, c, ovl_21_func_800BACB0]
+      - [0x2EF8, c, ovl_21_func_800BAD18]
+      - [0x3000, c, ovl_21_func_800BAE20]
+      - [0x3080, c, ovl_21_func_800BAEA0]
+      - [0x30CC, c, ovl_21_func_800BAEEC]
+      - [0x3150, c, ovl_21_func_800BAF70]
+      - [0x31DC, c, ovl_21_func_800BAFFC]
+      - [0x32D8, c, ovl_21_func_800BB0F8]
+      - [0x3318, c, ovl_21_func_800BB138]
+      - [0x3430, c, ovl_21_func_800BB250]
+      - [0x3494, c, ovl_21_func_800BB2B4]
+      - [0x3508, c, ovl_21_func_800BB328]
+      - [0x377C, c, ovl_21_func_800BB59C]
+      - [0x3828, c, ovl_21_func_800BB648]
+      - [0x3A98, c, ovl_21_func_800BB8B8]
+      - [0x3C1C, c, ovl_21_func_800BBA3C]
+      - [0x3C64, data]
+  - [0x9000]

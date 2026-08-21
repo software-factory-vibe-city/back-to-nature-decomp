@@ -1,0 +1,6 @@
+ovl_31_func_800B7FCC = 0x800B7FCC; // type:func
+ovl_31_func_800B82E8 = 0x800B82E8; // type:func
+ovl_31_func_800B8348 = 0x800B8348; // type:func
+ovl_31_func_800B83B8 = 0x800B83B8; // type:func
+ovl_31_func_800B8490 = 0x800B8490; // type:func
+ovl_31_func_800B8600 = 0x800B8600; // type:func

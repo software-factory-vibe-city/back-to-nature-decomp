@@ -1,0 +1,40 @@
+name: ovl_08
+sha1: db326272a61cdddfee55837d3dc3c8f8849d497d
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_08
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_08/ovl_08.ld
+  target_path: extracted/overlays/ovl_08.bin
+  asm_path: build/ovl_08/asm
+  src_path: src/overlays/ovl_08
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_08.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_08/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_08/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_08
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x1F4, c, ovl_08_func_800B8014]
+      - [0x234, c, ovl_08_func_800B8054]
+      - [0x2DC, c, ovl_08_func_800B80FC]
+      - [0x314, c, ovl_08_func_800B8134]
+      - [0x5E0, c, ovl_08_func_800B8400]
+      - [0x6E0, data]
+  - [0x800]

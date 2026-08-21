@@ -1,0 +1,70 @@
+name: ovl_30
+sha1: 5e3b1cfbd70462400a97491b88e9ebefc1b0f4ba
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_30
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_30/ovl_30.ld
+  target_path: extracted/overlays/ovl_30.bin
+  asm_path: build/ovl_30/asm
+  src_path: src/overlays/ovl_30
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_30.txt
+    - build/engine_syms.txt
+    - configs/symbols/ovl_11.txt
+  undefined_funcs_auto_path: build/ovl_30/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_30/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_30
+    type: code
+    start: 0x0
+    vram: 0x8012DDE8
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x11FC, c, ovl_30_func_8012EFE4]
+      - [0x1218, c, ovl_30_func_8012F000]
+      - [0x1238, c, ovl_30_func_8012F020]
+      - [0x1240, c, ovl_30_func_8012F028]
+      - [0x1248, c, ovl_30_func_8012F030]
+      - [0x129C, c, ovl_30_func_8012F084]
+      - [0x15EC, c, ovl_30_func_8012F3D4]
+      - [0x1628, c, ovl_30_func_8012F410]
+      - [0x1664, c, ovl_30_func_8012F44C]
+      - [0x166C, c, ovl_30_func_8012F454]
+      - [0x2004, c, ovl_30_func_8012FDEC]
+      - [0x2080, c, ovl_30_func_8012FE68]
+      - [0x20AC, c, ovl_30_func_8012FE94]
+      - [0x2104, c, ovl_30_func_8012FEEC]
+      - [0x2168, c, ovl_30_func_8012FF50]
+      - [0x21CC, c, ovl_30_func_8012FFB4]
+      - [0x28A8, c, ovl_30_func_80130690]
+      - [0x290C, c, ovl_30_func_801306F4]
+      - [0x2E38, c, ovl_30_func_80130C20]
+      - [0x3318, c, ovl_30_func_80131100]
+      - [0x37F8, c, ovl_30_func_801315E0]
+      - [0x3E50, c, ovl_30_func_80131C38]
+      - [0x412C, c, ovl_30_func_80131F14]
+      - [0x42E0, c, ovl_30_func_801320C8]
+      - [0x4878, c, ovl_30_func_80132660]
+      - [0x48DC, c, ovl_30_func_801326C4]
+      - [0x4B90, c, ovl_30_func_80132978]
+      - [0x4E44, c, ovl_30_func_80132C2C]
+      - [0x50F8, c, ovl_30_func_80132EE0]
+      - [0x5130, c, ovl_30_func_80132F18]
+      - [0x5430, c, ovl_30_func_80133218]
+      - [0x566C, c, ovl_30_func_80133454]
+      - [0x5B8C, c, ovl_30_func_80133974]
+      - [0x5CA4, c, ovl_30_func_80133A8C]
+      - [0x6188, data]
+  - [0x7000]

@@ -1,0 +1,100 @@
+name: ovl_25
+sha1: fb62c8beef6479720e97919dbbf7634050199a9f
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_25
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_25/ovl_25.ld
+  target_path: extracted/overlays/ovl_25.bin
+  asm_path: build/ovl_25/asm
+  src_path: src/overlays/ovl_25
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_25.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_25/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_25/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_25
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x94, c, ovl_25_func_800B7EB4]
+      - [0x11C, c, ovl_25_func_800B7F3C]
+      - [0x284, c, ovl_25_func_800B80A4]
+      - [0x31C, c, ovl_25_func_800B813C]
+      - [0x394, c, ovl_25_func_800B81B4]
+      - [0x3D4, c, ovl_25_func_800B81F4]
+      - [0x494, c, ovl_25_func_800B82B4]
+      - [0x520, c, ovl_25_func_800B8340]
+      - [0x580, c, ovl_25_func_800B83A0]
+      - [0x658, c, ovl_25_func_800B8478]
+      - [0x71C, c, ovl_25_func_800B853C]
+      - [0x7EC, c, ovl_25_func_800B860C]
+      - [0x908, c, ovl_25_func_800B8728]
+      - [0xA28, c, ovl_25_func_800B8848]
+      - [0xC10, c, ovl_25_func_800B8A30]
+      - [0xECC, c, ovl_25_func_800B8CEC]
+      - [0xF50, c, ovl_25_func_800B8D70]
+      - [0xFD4, c, ovl_25_func_800B8DF4]
+      - [0x13E8, c, ovl_25_func_800B9208]
+      - [0x159C, c, ovl_25_func_800B93BC]
+      - [0x15C4, c, ovl_25_func_800B93E4]
+      - [0x15FC, c, ovl_25_func_800B941C]
+      - [0x1660, c, ovl_25_func_800B9480]
+      - [0x1790, c, ovl_25_func_800B95B0]
+      - [0x1938, c, ovl_25_func_800B9758]
+      - [0x195C, c, ovl_25_func_800B977C]
+      - [0x19C4, c, ovl_25_func_800B97E4]
+      - [0x1BF0, c, ovl_25_func_800B9A10]
+      - [0x1C64, c, ovl_25_func_800B9A84]
+      - [0x1CE0, c, ovl_25_func_800B9B00]
+      - [0x1D08, c, ovl_25_func_800B9B28]
+      - [0x1E70, c, ovl_25_func_800B9C90]
+      - [0x1F2C, c, ovl_25_func_800B9D4C]
+      - [0x2000, c, ovl_25_func_800B9E20]
+      - [0x2064, c, ovl_25_func_800B9E84]
+      - [0x24C8, c, ovl_25_func_800BA2E8]
+      - [0x25EC, c, ovl_25_func_800BA40C]
+      - [0x2710, c, ovl_25_func_800BA530]
+      - [0x279C, c, ovl_25_func_800BA5BC]
+      - [0x2938, c, ovl_25_func_800BA758]
+      - [0x29D0, c, ovl_25_func_800BA7F0]
+      - [0x29F8, c, ovl_25_func_800BA818]
+      - [0x2A38, c, ovl_25_func_800BA858]
+      - [0x2AE8, c, ovl_25_func_800BA908]
+      - [0x2B84, c, ovl_25_func_800BA9A4]
+      - [0x2BD4, c, ovl_25_func_800BA9F4]
+      - [0x2C3C, c, ovl_25_func_800BAA5C]
+      - [0x2C8C, c, ovl_25_func_800BAAAC]
+      - [0x2DA4, c, ovl_25_func_800BABC4]
+      - [0x2E08, c, ovl_25_func_800BAC28]
+      - [0x2E7C, c, ovl_25_func_800BAC9C]
+      - [0x3100, c, ovl_25_func_800BAF20]
+      - [0x31AC, c, ovl_25_func_800BAFCC]
+      - [0x3498, c, ovl_25_func_800BB2B8]
+      - [0x364C, c, ovl_25_func_800BB46C]
+      - [0x3694, c, ovl_25_func_800BB4B4]
+      - [0x36F0, c, ovl_25_func_800BB510]
+      - [0x3760, c, ovl_25_func_800BB580]
+      - [0x3808, c, ovl_25_func_800BB628]
+      - [0x3968, c, ovl_25_func_800BB788]
+      - [0x3A54, c, ovl_25_func_800BB874]
+      - [0x3B50, c, ovl_25_func_800BB970]
+      - [0x3BB0, c, ovl_25_func_800BB9D0]
+      - [0x3C10, c, ovl_25_func_800BBA30]
+      - [0x3C5C, c, ovl_25_func_800BBA7C]
+      - [0x3D20, data]
+  - [0x8800]

@@ -176,12 +176,16 @@ typedef struct {
     /* 0x0C */ s32 field_0x0C;
     /* 0x10 */ s32 field_0x10;
     /* 0x14 */ s32 field_0x14;
-    /* 0x18 */ char pad_18[0x08];
+    /* 0x18 */ s32 field_0x18;
+    /* 0x1C */ s32 field_0x1C;
     /* 0x20 */ s32 field_0x20;
     /* 0x24 */ s32 field_0x24;
     /* 0x28 */ s32 field_0x28;
-    /* 0x2C */ char pad_2C[0x08];
+    /* 0x2C */ s32 field_0x2C;
+    /* 0x30 */ s32 field_0x30;
     /* 0x34 */ s16 field_0x34;
+    /* 0x36 */ u8 field_0x36;
+    /* 0x37 */ u8 field_0x37;
 } Struct80013F90;
 
 typedef struct {
@@ -252,6 +256,10 @@ typedef struct {
 	u_char	r0, g0, b0, code;
 	short	x0, 	y0;
 } TILE_1;
+
+typedef struct {
+    u8 b[4];
+} TextFlag;
 
 typedef struct {
     s32 x;

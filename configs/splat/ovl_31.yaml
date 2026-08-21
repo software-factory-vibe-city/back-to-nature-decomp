@@ -1,0 +1,41 @@
+name: ovl_31
+sha1: c7163f7ae3def37d33b2228c8a4f975c32f6023b
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_31
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_31/ovl_31.ld
+  target_path: extracted/overlays/ovl_31.bin
+  asm_path: build/ovl_31/asm
+  src_path: src/overlays/ovl_31
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_31.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_31/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_31/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_31
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x1AC, c, ovl_31_func_800B7FCC]
+      - [0x4C8, c, ovl_31_func_800B82E8]
+      - [0x528, c, ovl_31_func_800B8348]
+      - [0x598, c, ovl_31_func_800B83B8]
+      - [0x670, c, ovl_31_func_800B8490]
+      - [0x7E0, c, ovl_31_func_800B8600]
+      - [0x9D0, data]
+  - [0x1000]

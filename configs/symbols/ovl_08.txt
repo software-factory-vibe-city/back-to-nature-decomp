@@ -1,0 +1,5 @@
+ovl_08_func_800B8014 = 0x800B8014; // type:func
+ovl_08_func_800B8054 = 0x800B8054; // type:func
+ovl_08_func_800B80FC = 0x800B80FC; // type:func
+ovl_08_func_800B8134 = 0x800B8134; // type:func
+ovl_08_func_800B8400 = 0x800B8400; // type:func

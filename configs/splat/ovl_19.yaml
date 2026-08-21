@@ -1,0 +1,111 @@
+name: ovl_19
+sha1: a156211b51d61f56019feee3af9428951e9eada4
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_19
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_19/ovl_19.ld
+  target_path: extracted/overlays/ovl_19.bin
+  asm_path: build/ovl_19/asm
+  src_path: src/overlays/ovl_19
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_19.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_19/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_19/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_19
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0xB8, c, ovl_19_func_800B7ED8]
+      - [0x114, c, ovl_19_func_800B7F34]
+      - [0x244, c, ovl_19_func_800B8064]
+      - [0x2C8, c, ovl_19_func_800B80E8]
+      - [0x330, c, ovl_19_func_800B8150]
+      - [0x370, c, ovl_19_func_800B8190]
+      - [0x498, c, ovl_19_func_800B82B8]
+      - [0x61C, c, ovl_19_func_800B843C]
+      - [0x65C, c, ovl_19_func_800B847C]
+      - [0x724, c, ovl_19_func_800B8544]
+      - [0x7D4, c, ovl_19_func_800B85F4]
+      - [0x86C, c, ovl_19_func_800B868C]
+      - [0x8BC, c, ovl_19_func_800B86DC]
+      - [0x9A4, c, ovl_19_func_800B87C4]
+      - [0xA10, c, ovl_19_func_800B8830]
+      - [0xAE8, c, ovl_19_func_800B8908]
+      - [0xBA8, c, ovl_19_func_800B89C8]
+      - [0xE54, c, ovl_19_func_800B8C74]
+      - [0xF88, c, ovl_19_func_800B8DA8]
+      - [0xFC8, c, ovl_19_func_800B8DE8]
+      - [0x1068, c, ovl_19_func_800B8E88]
+      - [0x1118, c, ovl_19_func_800B8F38]
+      - [0x1230, c, ovl_19_func_800B9050]
+      - [0x1304, c, ovl_19_func_800B9124]
+      - [0x1468, c, ovl_19_func_800B9288]
+      - [0x1590, c, ovl_19_func_800B93B0]
+      - [0x160C, c, ovl_19_func_800B942C]
+      - [0x1634, c, ovl_19_func_800B9454]
+      - [0x17B4, c, ovl_19_func_800B95D4]
+      - [0x1B6C, c, ovl_19_func_800B998C]
+      - [0x1C90, c, ovl_19_func_800B9AB0]
+      - [0x1FA8, c, ovl_19_func_800B9DC8]
+      - [0x1FB0, c, ovl_19_func_800B9DD0]
+      - [0x1FF4, c, ovl_19_func_800B9E14]
+      - [0x2058, c, ovl_19_func_800B9E78]
+      - [0x20BC, c, ovl_19_func_800B9EDC]
+      - [0x2120, c, ovl_19_func_800B9F40]
+      - [0x2190, c, ovl_19_func_800B9FB0]
+      - [0x2234, c, ovl_19_func_800BA054]
+      - [0x2280, c, ovl_19_func_800BA0A0]
+      - [0x243C, c, ovl_19_func_800BA25C]
+      - [0x24B4, c, ovl_19_func_800BA2D4]
+      - [0x251C, c, ovl_19_func_800BA33C]
+      - [0x2648, c, ovl_19_func_800BA468]
+      - [0x2724, c, ovl_19_func_800BA544]
+      - [0x2744, c, ovl_19_func_800BA564]
+      - [0x2794, c, ovl_19_func_800BA5B4]
+      - [0x2808, c, ovl_19_func_800BA628]
+      - [0x283C, c, ovl_19_func_800BA65C]
+      - [0x291C, c, ovl_19_func_800BA73C]
+      - [0x2930, c, ovl_19_func_800BA750]
+      - [0x2950, c, ovl_19_func_800BA770]
+      - [0x2A14, c, ovl_19_func_800BA834]
+      - [0x2D2C, c, ovl_19_func_800BAB4C]
+      - [0x2E20, c, ovl_19_func_800BAC40]
+      - [0x2E30, c, ovl_19_func_800BAC50]
+      - [0x2E3C, c, ovl_19_func_800BAC5C]
+      - [0x2E5C, c, ovl_19_func_800BAC7C]
+      - [0x2E7C, c, ovl_19_func_800BAC9C]
+      - [0x2F30, c, ovl_19_func_800BAD50]
+      - [0x2F8C, c, ovl_19_func_800BADAC]
+      - [0x2FD8, c, ovl_19_func_800BADF8]
+      - [0x318C, c, ovl_19_func_800BAFAC]
+      - [0x326C, c, ovl_19_func_800BB08C]
+      - [0x32E8, c, ovl_19_func_800BB108]
+      - [0x34F8, c, ovl_19_func_800BB318]
+      - [0x3538, c, ovl_19_func_800BB358]
+      - [0x3650, c, ovl_19_func_800BB470]
+      - [0x36B4, c, ovl_19_func_800BB4D4]
+      - [0x3728, c, ovl_19_func_800BB548]
+      - [0x37B4, c, ovl_19_func_800BB5D4]
+      - [0x3A28, c, ovl_19_func_800BB848]
+      - [0x3AD4, c, ovl_19_func_800BB8F4]
+      - [0x3D28, c, ovl_19_func_800BBB48]
+      - [0x3EAC, c, ovl_19_func_800BBCCC]
+      - [0x3EF4, c, ovl_19_func_800BBD14]
+      - [0x3F54, data]
+  - [0x8000]

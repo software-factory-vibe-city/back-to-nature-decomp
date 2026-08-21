@@ -1,0 +1,90 @@
+name: ovl_23
+sha1: 92c84ec83376667cd233a076cefad3232daeaa14
+options:
+  platform: psx
+  compiler: GCC
+  basename: ovl_23
+  base_path: ../..
+  build_path: build
+  ld_script_path: build/ovl_23/ovl_23.ld
+  target_path: extracted/overlays/ovl_23.bin
+  asm_path: build/ovl_23/asm
+  src_path: src/overlays/ovl_23
+  asset_path: assets
+  symbol_addrs_path:
+    - configs/symbols/ovl_23.txt
+    - build/engine_syms.txt
+  undefined_funcs_auto_path: build/ovl_23/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/ovl_23/undefined_syms_auto.txt
+  find_file_boundaries: false
+  disasm_unknown: true
+  section_order: [".rodata", ".text", ".data", ".sdata", ".sbss", ".bss"]
+  extensions_path: tools/vendor/splat_ext
+  subalign: 4
+
+segments:
+  - name: ovl_23
+    type: code
+    start: 0x0
+    vram: 0x800B7E20
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0x84, c, ovl_23_func_800B7EA4]
+      - [0xE0, c, ovl_23_func_800B7F00]
+      - [0x1F8, c, ovl_23_func_800B8018]
+      - [0x264, c, ovl_23_func_800B8084]
+      - [0x2AC, c, ovl_23_func_800B80CC]
+      - [0x2E4, c, ovl_23_func_800B8104]
+      - [0x38C, c, ovl_23_func_800B81AC]
+      - [0x41C, c, ovl_23_func_800B823C]
+      - [0x470, c, ovl_23_func_800B8290]
+      - [0x534, c, ovl_23_func_800B8354]
+      - [0x6EC, c, ovl_23_func_800B850C]
+      - [0x71C, c, ovl_23_func_800B853C]
+      - [0x764, c, ovl_23_func_800B8584]
+      - [0x7DC, c, ovl_23_func_800B85FC]
+      - [0x824, c, ovl_23_func_800B8644]
+      - [0x934, c, ovl_23_func_800B8754]
+      - [0x9D8, c, ovl_23_func_800B87F8]
+      - [0xD74, c, ovl_23_func_800B8B94]
+      - [0xDF8, c, ovl_23_func_800B8C18]
+      - [0x1184, c, ovl_23_func_800B8FA4]
+      - [0x14C8, c, ovl_23_func_800B92E8]
+      - [0x14F0, c, ovl_23_func_800B9310]
+      - [0x155C, c, ovl_23_func_800B937C]
+      - [0x1634, c, ovl_23_func_800B9454]
+      - [0x16B0, c, ovl_23_func_800B94D0]
+      - [0x172C, c, ovl_23_func_800B954C]
+      - [0x19C0, c, ovl_23_func_800B97E0]
+      - [0x1A7C, c, ovl_23_func_800B989C]
+      - [0x1BE0, c, ovl_23_func_800B9A00]
+      - [0x1CF8, c, ovl_23_func_800B9B18]
+      - [0x1EAC, c, ovl_23_func_800B9CCC]
+      - [0x1FE4, c, ovl_23_func_800B9E04]
+      - [0x23C0, c, ovl_23_func_800BA1E0]
+      - [0x2458, c, ovl_23_func_800BA278]
+      - [0x24EC, c, ovl_23_func_800BA30C]
+      - [0x2548, c, ovl_23_func_800BA368]
+      - [0x2594, c, ovl_23_func_800BA3B4]
+      - [0x2674, c, ovl_23_func_800BA494]
+      - [0x27F0, c, ovl_23_func_800BA610]
+      - [0x291C, c, ovl_23_func_800BA73C]
+      - [0x2C40, c, ovl_23_func_800BAA60]
+      - [0x2DB8, c, ovl_23_func_800BABD8]
+      - [0x31DC, c, ovl_23_func_800BAFFC]
+      - [0x3220, c, ovl_23_func_800BB040]
+      - [0x32A8, c, ovl_23_func_800BB0C8]
+      - [0x32B8, c, ovl_23_func_800BB0D8]
+      - [0x32C8, c, ovl_23_func_800BB0E8]
+      - [0x3330, c, ovl_23_func_800BB150]
+      - [0x3398, c, ovl_23_func_800BB1B8]
+      - [0x33F4, c, ovl_23_func_800BB214]
+      - [0x3668, c, ovl_23_func_800BB488]
+      - [0x3714, c, ovl_23_func_800BB534]
+      - [0x3938, c, ovl_23_func_800BB758]
+      - [0x3980, c, ovl_23_func_800BB7A0]
+      - [0x39E0, c, ovl_23_func_800BB800]
+      - [0x3A40, data]
+  - [0x8800]
