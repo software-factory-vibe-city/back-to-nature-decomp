@@ -53,7 +53,8 @@ finishing, exhaust the semantic evidence:
 When this evidence establishes the semantics, rename the function from its
 placeholder symbol to a precise name in the active project's convention:
 
-1. Rename in `configs/symbol_addrs.txt` and the `configs/splat.yaml` segment
+1. Rename in the container's symbol table (`configs/symbols/<container>.txt`) and its
+   splat segment (`configs/splat/<container>.yaml`)
    list (both the entry and its trailing comment).
 2. Run the active project's regeneration command. It must regenerate assembly,
    linker inputs, and caller references and migrate the old source path to the

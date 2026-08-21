@@ -1,10 +1,155 @@
 # Plan: enable overlay decompilation
 
-**Status: proposed.** Written 2026-08-16; revised twice the same day as
-measurement accumulated. Origin: a scope discovery made while scoping
-`plans/static-recompilation.md` — `extracted/iso/a_file.bin` contains overlay
-executables holding roughly five times as much game code as the PS-X EXE this
-project has been decompiling.
+**Status: Deliverables 1–12 implemented and verified 2026-08-21. Deliverable 13
+not started.** See "Implementation status" below for what landed, what the
+measurements corrected, and what remains. Findings are recorded in
+`notes/overlay-enablement.md`; the from-nothing sequence is
+`notes/bootstrapping.md`.
+
+Written 2026-08-16; revised twice the same day as measurement accumulated.
+Origin: a scope discovery made while scoping `plans/static-recompilation.md` —
+`extracted/iso/a_file.bin` contains overlay executables holding roughly five
+times as much game code as the PS-X EXE this project has been decompiling.
+
+---
+
+# Implementation status
+
+## Definition of done, against the built pipeline
+
+```
+make setup          # unchanged
+make disassemble    # EXE, then archive detect/classify/solve/identify   DONE
+make split-all      # asm stubs for every function in every container    DONE
+make check-all      # 14 SHA-256 comparisons, all pass                   DONE
+make config-check   # converges; a second split moves no tracked file    DONE
+make progress       # per container and total, on corrected liveness     DONE
+```
+
+`make check-all` passes 14/14. `npm test` passes 523/523. Every overlay builds
+from pure `INCLUDE_ASM` stubs to a binary byte-identical to its extracted
+member — the gate this plan set for itself — and that round trip was reproduced
+from an empty tree with no decompiled sources, no configuration and no linked
+executable.
+
+The remaining half of the stated outcome is Deliverable 13: a single overlay
+function can be taken from stub to matching C *through the documented agent
+workflow*. The build supports it (`diffFunc` returns MATCH for an overlay
+function and a correct residual for a perturbed one); the autonomous controller
+does not yet, because its state is still keyed by `vram` alone.
+
+## Per deliverable
+
+| # | deliverable | status |
+|---|---|---|
+| 1 | archive extraction and member manifest | done — `extractArchive.ts`, `configs/overlays.json` |
+| 2 | liveness correction and engine API report | done — `tools/lib/liveness.ts`, `engineApi.ts` |
+| 3 | overlay base-address solver | done — 13/13 resolved with certificates |
+| 4 | container model | done — `tools/lib/container.ts`; oracle output byte-identical across the refactor |
+| 5 | container-scoped symbols and member classification | done |
+| 6 | per-container disassembly and split pipeline | done |
+| 7 | repository and build layout | done — configs moved; EXE build bit-identical |
+| 8 | engine symbol export | done — `exportEngineSymbols.ts`, with a stated fallback |
+| 9 | container-aware oracle and progress | done |
+| 10 | overlay identity and cross-container call graph | done |
+| 11 | overlay global classification | done — `ramMap.ts`, nothing unclassified |
+| 12 | overlay flag fingerprint | done — `-G0`, applied per container |
+| 13 | agent workflow and knowledge base | **not started** |
+
+## What the measurements corrected in this plan
+
+The plan's own findings were re-measured during implementation. Four did not
+survive.
+
+**`ovl_08` is code.** The plan expected a function-pointer table
+("Member #8 is probably misclassified"). It holds five real functions between
+two data regions; the leading word is the overlay id, and the words after it
+point at those functions.
+
+**Overlays are not mutually independent.** The plan recorded that there are no
+cross-overlay calls and that the thirteen overlays can be worked in any order by
+any number of workers. `ovl_30` (`Obj\GF_swind.bin`, slot B) calls ten functions
+inside `ovl_11` (`Obj\GF_FARM.bin`, slot A), every one landing on a function
+entry. The scheduling argument needs that edge in it.
+
+**The loader copies each member whole.** Listed as unmeasured, and called out as
+something "every round trip depends on getting right". Eleven members of
+different sizes agree on the address of their *leading id word*, which is only
+possible if that word is at a fixed slot address. Two slots: `0x800B7E20`
+(11 members) and `0x8012DDE8` (2).
+
+**The shared region's upper edge is `0x800B7E20`, not `0x800AFFFF`.** It ends
+where the first solved slot begins. The two slots overlap by 56 bytes of
+`ovl_11`'s sector padding; its content ends at `0x80128807`, so nothing is
+contended.
+
+Also: `func_80017B3C`, listed as a hot stub, was already matched. `func_8001AC10`
+was not, and moved from priority 446 of 464 to 85.
+
+## Beyond the plan: the harness is toolchain-parameterised
+
+The plan assumed PSY-Q throughout. Discovery tools that assume one game's
+toolchain are worth less than the measurements they produce, so the assumptions
+were pulled behind a detected profile:
+
+- `tools/lib/toolchainProfile.ts` detects the SDK from vendor strings the SDK
+  leaves in the image, the project config, and library byte-pattern signatures.
+- `tools/lib/overlayStrategies.ts` is a registry of layout strategies, each
+  declaring which profile it holds for. `psyq-section-order` encodes PSYLINK's
+  `.rodata`/`.text`/`.data` order; `return-clustering` assumes nothing about
+  section order and runs for any toolchain. All applicable strategies run and
+  their answers are compared — on this game they agree on all 13 members, so the
+  PSY-Q assumption is corroborated rather than relied on.
+- Member classification is judged against a *reference body of known code from
+  the same project* — the executable's own `.text` — instead of thresholds
+  calibrated on this archive.
+- The naming convention that separates code members from asset members is
+  derived from the data (`leading directory`: code side `obj`, data side
+  `objcg`, `data`), not asserted.
+- The archive is found by testing the format detector against file pairs under
+  `extracted/`, not by filename. The executable is found by its magic when the
+  project config does not name it.
+
+## Two defects surfaced and fixed on the way
+
+- `detectLibFunctions.ts` read the symbol table through a CWD-relative path, and
+  its loader answers a missing file with an empty map. Moving the config exposed
+  it: relocation verification silently lost its evidence and mis-assigned two
+  library symbols instead of failing.
+- An `INCLUDE_ASM` stub's object carried no dependency on the assembly it
+  includes, so a re-split that renamed a call target left a stale object in
+  place and the link either failed on a name that no longer existed or succeeded
+  against the wrong one.
+
+## What remains
+
+**Deliverable 13, in full.** The plan's own table of surfaces still stands:
+`scheduler.ts` and `state.ts` keyed by `vram`, `m2cFunc.ts`'s per-container `.s`
+resolution, `triage.ts`'s `-G8` detectors that do not apply to overlay TUs,
+`.pi/autodecomp.json`'s bare-filename allowlist, `notes/file-groupings.md`'s
+missing container column, and the matching skill's single-binary assumptions.
+
+One thing has changed since the plan was written and it shrinks the work:
+overlay symbols carry their container as a prefix (`ovl_11_func_800C1234`), so a
+function name is globally unique and every tool keyed by name is already
+correct. The collision the plan feared — "one entry for two functions" in
+controller state — is now only reachable through the raw `vram` key, not through
+names.
+
+**Outside Deliverable 13:**
+
+- The executable's library-integration chain does not complete from a wiped
+  configuration (`notes/bootstrapping.md` records the failure and why). It is
+  not on this plan's critical path, but it is on the path of applying the
+  harness to a second game.
+- `include/overlays/<id>.h` exists for every container but is empty apart from
+  the trivially-matched functions, so the type-recovery substrate Deliverable 11
+  produces is not yet feeding declarations back.
+- No overlay function has been decompiled beyond the 18 the split recovered
+  trivially. That was always a non-goal here — "this plan ends when one can be
+  attempted" — and it can be attempted now.
+
+---
 
 Scope is the **decompilation** pipeline only. The static recompiler is a
 separate direction planned in `plans/static-recompilation.md`; Deliverable 3

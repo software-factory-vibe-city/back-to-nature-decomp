@@ -11,12 +11,15 @@ original PS-X EXE. The build checks the result with SHA-256 each time.
 | Term | Meaning in this project |
 |---|---|
 | the original binary | The PS-X EXE payload in `extracted/iso/slus_011.15` |
+| container | One binary the project builds: the PS-X EXE (`exe`) or one overlay member (`ovl_NN`) |
+| overlay | A code member of the `a_file.bin` archive, loaded into a RAM slot at run time |
 | the target | The original machine code of one function |
 | the candidate | The machine code that our C source makes |
 | to match | To be byte-identical to the target |
 | function | One symbol in the original binary that holds code |
-| live function | A function that the game uses |
-| dead function | Unused code from the PSY-Q libraries |
+| live function | A function referenced from the PS-X EXE image or from any overlay member |
+| dead function | A function no container references. Measured, not assumed: the unreferenced set is interleaved with live game code throughout the game region rather than clustered where statically linked library objects sit, so it is not "unused library code" |
+| engine API | A PS-X EXE function that overlay code calls. 246 entry points; see `tools/diagnostics/engineApi.ts` |
 | tool | One TypeScript program under `tools/` |
 | report | One text or JSON output of a tool |
 | the oracle | `diffFunc.ts`, which compares bytes with the original. It backs the tools rather than being one |
@@ -25,19 +28,29 @@ original PS-X EXE. The build checks the result with SHA-256 each time.
 ## Status
 
 The numbers below come from `npx tsx tools/diagnostics/progress.ts` and from a
-census of `src/`. The date of the measurement is 2026-08-13.
+census of `src/`. The date of the measurement is 2026-08-21.
 
 ### Progress
 
+Liveness is computed over every container. Before that correction the
+denominator was the PS-X EXE alone, which classified 97 overlay-facing engine
+functions as dead and excluded them; the percentage below is lower than the
+previously published one because it is measured over the corrected denominator.
+
 | Measurement | Value |
 |---|---|
-| Live functions that match | 198 of 257 (77.04%) |
-| Live bytes that match | 31,884 of 57,804 (55.16%) |
-| Dead functions (not counted) | 206 functions, 22,256 bytes |
+| Live functions that match | 264 of 347 (76.08%) |
+| Live bytes that match | 48,704 of 62,200 (78.30%) |
+| Dead functions (not counted) | 110 functions, 11,392 bytes |
+| Engine API functions reached only from overlays | 94, of which 15 match |
 | GTE functions (counted) | 10 |
 | Pure assembly functions (not counted) | 1 |
 | Files in `src/` | 464 |
-| Files that are still a stub | 217 |
+| Files that are still a stub | 166 |
+
+The PS-X EXE's game code is roughly 17% of the project's true target. The
+thirteen overlay code members hold about five times as much game code again;
+`plans/overlay-decompilation-enablement.md` records the measurement.
 
 `make check` passes. The build makes a binary that matches the original
 payload.

@@ -120,7 +120,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | Order | File | Role |
 |---|---|---|
 | 1 | `disassemble.sh` | Runs spimdisasm on the EXE → `build/functions/`, `build/functions.csv` |
-| 2 | `bootstrap.ts` | Generates `configs/splat.yaml` + `symbol_addrs.txt` from scratch when missing (incl. per-function `asm` subsegments); always refreshes `build/sectionLayout.json`. Wraps `analyzeLayout.ts`. |
+| 2 | `bootstrap.ts` | Generates `configs/splat/exe.yaml` + `configs/symbols/exe.txt` from scratch when missing (incl. per-function `asm` subsegments); always refreshes `build/sectionLayout.json`. Wraps `analyzeLayout.ts`. The overlay counterpart is `bootstrapOverlay.ts`. |
 | — | `analyzeLayout.ts` | Byte-level heuristics classifying spimdisasm entries as code vs data; finds section boundaries. Library of `bootstrap.ts`. |
 | 3 | `mergeFragments.ts` | Merges functions spimdisasm split at internal branch targets. Runs **twice** in the split target (before and after lib patching). |
 | 4 | `addLibSymbols.ts` | Orchestrator for library detection: runs `detectLibFunctions.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`; merges named lib function labels into `symbol_addrs.txt`. |
