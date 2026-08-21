@@ -1182,3 +1182,35 @@ Members (address order):
   clamped by `arg3`, and when unchanged calls func_80019E14 with a position
   derived from `(s16)D_8005E2BA + 0xC`; also reads the D_8005E3A8/D_8005E3C0
   graphics-display-object pointers (absolute addressing — not TU-owned)
+
+## u16 text renderer core — func_80018B98 (and func_80019070) (confidence: medium)
+
+The u16 command-stream renderer that the matched wrappers func_80019564 /
+func_80017B3C / func_800199F8 / func_800197FC all call
+(`func_80018B98(arg0, func_80011F5C(0), text, x, y, 0x1000, 0|1, 0,0,0)`), and
+the sprite/TPAGE packets it builds are the SPRT model of the adjacent matched
+func_80019070. func_80018B98 is conspicuously the only member of the text
+module that does full token processing, but every family above is in its
+reach: it tentatively defines D_8005E2B8/D_8005E2BA (the cursor-offset pair
+that func_80017A38 sets and func_80019030/node-80019CBC consume), it walks
+the D_8005E444/D_8005E446 event counter/flag pair (func_80017AE8 /
+func_80017ACC / func_800195F4 / func_80019600 semantics), and it calls the
+matched glyph lookup func_8001A284 and blit func_80019070.
+
+Fingerprints:
+- zero-gap run: func_80018B98 ends exactly where func_80019030 begins, and
+  its own bloated tail borders func_80019070 (its direct callee at
+  0x80018FAC).
+- same-globals reach across the matched text family (D_8005E44C/E444/E446/
+  E478/E47A/E47C/E47E/E480/E498 + D_8005E2B8/E2BA).
+- signature corroborated by the byte-exact wrappers; frame map (10 args, arg8
+  4-byte BLKmode struct) matches every caller.
+
+Member: func_80018B98 (in progress — 257/292 clean C; residual is pure greg
+  register assignment). Same residual class as func_80019070: block-0
+  prologue allocation plus a hard-register rotation that two exhaustive
+  source-space searches and 60+ measured experiments place outside the
+  reachable clean-C domain. func_80019070's governed resolution was a
+  narrowly allowlisted embedded-asm/register-asm hybrid
+  (notes/research/func_80019070-prologue-allocation-and-arg2-truncation.md);
+  func_80018B98 is expected to need the same exception category.
