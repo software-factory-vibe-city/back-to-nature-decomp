@@ -176,6 +176,33 @@ Members (address order):
 - func_8001F8A4 (s) — caller of func_8001F774; role unknown
 - func_8001FA0C (s) — caller of func_8001F774; role unknown
 
+## sound-sequencer slot wrappers — 0x8001FAE8–0x8001FCDC (confidence: low)
+
+Unassigned gap between the gradient-interpolation cluster (ends 0x8001FABC)
+and the volume/pan-fade run (starts 0x8001FCE4), a contiguous run of small
+functions whose matched edge links them into the SsSeq sound-control family.
+
+Fingerprints:
+- call graph (new 2026-08-21): func_8001FBBC → func_80020414; func_80020A94
+  (confirmed sound-init member) is the only other caller of func_80020414, so
+  both callers sit in the SsSeq stop/sequencer domain;
+- func_8001FBBC, func_8001FBE4, func_8001FBF0, func_8001FCDC are
+  consecutive in link order with no gap between them;
+- no shared globals, register quirks, or gp-rel cluster found — TU
+  membership unproven.
+
+Members (address order):
+- func_8001FBBC (m, 2026-08-21) — wrapper: calls func_80020414(s16 arg0
+  sign-extended, 0) and returns 0; no globals
+- func_8001FBE4 (s) — role unknown
+- func_8001FBF0 (s) — role unknown
+- func_8001FCDC (s) — role unknown
+
+Adjacent confirmed sound-group callee: func_80020414 (m) — stop the
+sequence in track slot (arg0, arg1) via SsSeqStop and mark it empty; sits
+inside the sound-init/control span but reaches D_8006C088/D_8006BFC8
+absolutely, so same-TU membership there is likewise unproven.
+
 ## sprite frame setup and OT — 0x8001AFE0–0x8001B118 (confidence: medium)
 
 Sprite data-area setup: clear the OT ring at D_8005F2E8, load sprite data,
