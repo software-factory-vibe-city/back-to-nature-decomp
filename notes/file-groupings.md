@@ -1052,6 +1052,10 @@ Members (address order):
   D_8005E548/D_8005E54C/D_8005E544, bumps D_8005E558, resets via func_8001FF98
 - func_80020818 (m) — sound init: opens sequences, calls SsStart, sets
   D_8005E53C, configures stereo/mono from D_8005E55C
+- func_80020790 / func_800207E4 (m)(s) — libsnd volume wrappers: call
+  SsUtSetVVol (E4 with all three args; 90 with zeroed right/left); SDK idiom
+  matches the group's libsnd fingerprint and both sit inside the group's
+  address range (confidence: low — adjacency + shared SDK idiom)
 - func_80020A14 (m) — mono setter: calls SsSetMono, clears D_8005E55C
   (matched 2026: mirror image of func_80020A40, shares the D_8005E55C GP-relative
   definition with this cluster; confirmed membership)
