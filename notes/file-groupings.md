@@ -676,7 +676,12 @@ idiom cluster (same-TU evidence). Members:
 - func_80024770 (m) — mod-30 of D_8005E5D0 (same 0x88888889 idiom), body
   byte-identical to func_80024860 except the sprite-header id constant 0x29,
   then dispatches via func_80024A4C (same bridging role and D_8005E5D0 gp-rel
-  merge; third member of the mod-30 trio)
+  merge; third member of the mod-30 quartet)
+- func_800247C0 (m) — mod-30 of D_8005E5D0 (same idiom, byte-identical to
+  func_80024770 except the sprite-header id constant 0x28), then dispatches
+  via func_80024A4C (same bridging role and D_8005E5D0 gp-rel merge; fourth
+  member of the mod-30 quartet, filling the 0x800247C0 gap between
+  func_80024770 and func_80024810)
 
 ## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
 
