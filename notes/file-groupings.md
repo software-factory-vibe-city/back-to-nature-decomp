@@ -933,6 +933,30 @@ tentative defs merge via -fcommon regardless. Members:
 - func_80021CD8 (m) — sets D_8005E324 = 1, seeks CD position via
   CdIntToPos/CdControl for a track from D_80049A80
 
+## sound volume/pan fade state — D_80061F08 cluster, 0x8001FCE4–0x8001FE6C (confidence: medium)
+
+Contiguous no-gap run of six matched functions all touching the same
+absolute-addressed 32-bit volume/fade state: D_80061F08 (flag at field_04,
+position accumulator field_08, computed result field_0C, targets field_10/
+field_14), plus the adjacent getters D_80061F0C and D_80061F1C. Shared
+fixed-point domain (clamp/saturation constant 0x7F0000, division-based fade
+timing). func_8001FE7C at 0x8001FE7C — immediately above and already a
+sound-init member — calls the stereo setter func_80020A40, linking this run
+to the sound-init group below; the run's func_8001FD10 also calls VAB-transfer
+members func_80020E38/func_80020E58.
+
+Members (address order):
+- func_8001FCE4 (m) — initializes D_80061F08's six words: 0/0/0x7F0000/0/0x7F0000/1
+- func_8001FD10 (m) — drive: if func_80020E38() != -1 calls func_80020E58, else
+  sets field_14=1; when field_04 != 0 calls func_8001FD84
+- func_8001FD74 (m) — returns D_80061F1C != 0 (Boolean getter)
+- func_8001FD84 (m) — adds field_0C into field_08, clamps field_08 to [0,
+  0x7F0000], clears field_04 at both saturations
+- func_8001FE00 (m) — divides field_10 by arg0 into field_0C, sets field_04=1
+- func_8001FE34 (m) — negates field_08, divides by arg0 into field_0C, sets
+  field_04=2; matched 2026-08-21
+- func_8001FE6C (m) — returns D_80061F0C (getter)
+
 ## sound init and control — around 0x8001FEA4–0x80020A94 (confidence: medium)
 
 Sound system initialization, stereo/mono control, and score sequence opening.

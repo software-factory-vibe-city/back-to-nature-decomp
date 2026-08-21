@@ -1,4 +1,6 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001FE34", func_8001FE34);
+void func_8001FE34(s32 arg0) {
+    D_80061F08.field_0C = -D_80061F08.field_08 / arg0;
+    D_80061F08.field_04 = 2;
+}
