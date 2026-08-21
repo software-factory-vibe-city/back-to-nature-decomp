@@ -448,6 +448,13 @@ state machine, immediately preceding the callback driver family. Evidence
   D_8005E350..D_8005E35C cleared); func_80023100/80023130/80023170/800231AC/
   800231E8 are contiguous in link order, and func_800231AC → func_80023A74
   crosses the 0x80023A74 slot inside the menu/text-label span.
+- func_80023130 (matched 2026-09) is the fuller twin: same install+fill
+  shape as 80023170/800231AC (u16* arg0 → D_8005E360, → func_80023100,
+  → func_80023A74) but sets three globals to 1 (D_8005E348, D_8005E35C,
+  D_8005E344) and sits immediately after its reset sibling func_80023100 at
+  0x80023130. Matching it required the twins' exact source idiom — pointer-
+  typed D_8005E360/arg0 and locally declared callee prototypes — confirming
+  the same TU idiom and the D_8005E35C member of the cluster.
 - func_80023170 is a near-identical twin of func_800231AC: byte-identical
   compiled body differing only in D_8005E348 = 0 (vs 1), sharing the same
   call graph (→ func_80023100, func_80023A74), the same gp-rel trio, and a
@@ -456,6 +463,9 @@ state machine, immediately preceding the callback driver family. Evidence
 Members (address order):
 - func_80023100 (m) — state reset: zeroes/clears the D_8005E344..D_8005E35C
   cluster and marks it live (matches the pair below)
+- func_80023130 (m, 2026-09) — install+fill twin 2: calls func_80023100,
+  stores arg0 (buffer ptr) into D_8005E360, calls func_80023A74, then sets
+  D_8005E348=1 / D_8005E35C=1 / D_8005E344=1
 - func_80023170 (m, 2026-09) — install+fill twin 0: calls func_80023100,
   stores arg0 (buffer ptr) into D_8005E360, calls func_80023A74, then sets
   D_8005E348=0 / D_8005E344=1
