@@ -433,6 +433,28 @@ via the gp-rel declarations; membership unverified.
 References: notes/retros/2026-08-06-func_80022738-retro.md,
 notes/research/func_80022F1C-shift-fusion-and-address-legitimization.md.
 
+## text-input install/fill state — around 0x80023100–0x800231E8 (confidence: low)
+
+Reset / install / fill trio at the head of the D_8005E344..D_8005E360 text-input
+state machine, immediately preceding the callback driver family. Evidence
+(2026-08, func_800231AC matched):
+- func_800231AC (0x800231AC) directly calls func_80023100 (0x80023100, its
+  reset sibling) then func_80023A74, and tentatively defines the same gp-rel
+  cluster D_8005E360/D_8005E348/D_8005E344 that func_80023A74.c (D_8005E360)
+  and func_80023100.c (D_8005E344/D_8005E348) define — same cluster
+  grid-cursor's confirmed func_80023DBC/func_80024030 and func_800239F8
+  declare (ADR-0001 §2.4 gp-rel access = original TU declared it).
+- func_80023100 (0x80023100) inits the state (D_8005E344=0, D_8005E348=1,
+  D_8005E350..D_8005E35C cleared); func_80023100/80023130/80023170/800231AC/
+  800231E8 are contiguous in link order, and func_800231AC → func_80023A74
+  crosses the 0x80023A74 slot inside the menu/text-label span.
+Members (address order):
+- func_80023100 (m) — state reset: zeroes/clears the D_8005E344..D_8005E35C
+  cluster and marks it live (matches the pair below)
+- func_800231AC (m, 2026-08-28) — install+fill driver: calls func_80023100,
+  stores arg0 (buffer ptr) into D_8005E360, calls func_80023A74, then sets
+  D_8005E348=1 / D_8005E344=1 and returns 1
+
 ## callback driver family — 0x80023600–0x80023910 (confidence: medium)
 
 Mode-driven callback family: func_80023600 selects one of six immediately-
@@ -511,6 +533,9 @@ Members:
   func_80023A9C, then func_80024030 or func_80024448/func_80023D08/
   func_80023DBC; defines gp-rel D_8005E35C/D_8005E344/D_8005E356
 - func_80023A9C (m) — fills the D_800A0708 label slate via the text-draw helpers
+- func_80023A74 (m) — fills the D_8005E360 u16 buffer with 0xFFFF from +0x10
+  backward (8 entries); consumes the pointer func_800231AC installs (sole
+  caller + shared gp-rel D_8005E360, see text-input install/fill group)
 - func_8002348C (m, 2026-08-28) — label-grid layout: same func_80022580 (+0x68) /
   func_80017B3C (+0x64) text-draw pair on D_8005E3C0->field_D8 as the confirmed
   members, builds 4 column-rows (0x2A0000..0x1E0000 bases, 0x400000 steps) into
