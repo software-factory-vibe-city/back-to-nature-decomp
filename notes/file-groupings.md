@@ -1194,9 +1194,13 @@ D_8005F0C8 (`[halfword & 0xFFF]`, absolute-addressed). Same-shape signature
 plain `u16 *` walking pointer, an `(entry & 0xF000) == 0x4000` / `& 0x4000`
 command-bit check, a `u16` parameter whose entry zero-extension is the
 assign_parms conversion, and a recursive count-armed scan. All three are
-byte-exact. All three reach D_8005F0C8 and nothing else in the game reaches
-that table, so the defining TU is among this trio (tentative/extern
-declaration split unconfirmed). func_8001945C and func_8001929C also call
+byte-exact. func_80017A08 (byte-exact 2026-08-21) is the table's WRITER:
+`D_8005F0C8[(u16)(arg0 & 0xFFFF) clamped to 10] = arg1` (4-byte pointer
+store, absolute-addressed like the readers) — it updates the low-numbered
+entries (0..10) that the scanners walk through `[halfword & 0xFFF]`, so the
+table's defining TU is among the trio-plus-writer, not the trio alone
+(tentative/extern declaration split unconfirmed). func_8001945C and
+func_8001929C also call
 func_8001A284 (0x8001A574 family TU) and are both called by func_800183E0
 (the table-slot CD-loader cluster, which calls func_8001929C twice) —
 cross-group edges only, not membership.
@@ -1211,6 +1215,14 @@ limit), so it stays out of the "defining TU among the trio" claim rather
 than weakening it.
 
 Members (address order):
+- func_80017A08 (m) — table writer/setter: stores a pointer into
+  D_8005F0C8[sliced index clamped to 10]. Same `var_a0 = arg0; if (>= N)
+  var_a0 = K; store` clamp idiom as the matched neighbor func_80017A48
+  (both unreferenced library setters), and ends at exactly 0x80017A38 where
+  func_80017A38 (the D_8005E2BA cursor-offset setter) begins — same
+  contiguous no-gap run as the 0x80017A38/0x80017A48 setter block, while
+  the D_8005F0C8 write puts it in the same-global cluster with the scanners
+  below
 - func_800191B4 (m) — occurrence-search at the run's head; calls
   func_8001945C, reaches no shared table (see run note above)
 - func_8001929C (m) — count/terminator scan with out-count; recursive when
