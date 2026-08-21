@@ -666,6 +666,10 @@ idiom cluster (same-TU evidence). Members:
   sign-extension, the override pins the li to its expand-time position)
 - func_800249C0 — mod-N count on the same D_8005E5D1, then dispatches via
   func_80024A4C (bridges the counter into the sprite renderer)
+- func_80024810 (m) — mod-30 of D_8005E5D0 (same 0x88888889 magic idiom), then
+  dispatches via func_80024A4C with sprite-header id 0xD (bridging role, same
+  shape as func_800249C0; gp-rel access to the shared D_8005E5D0 u8 confirms
+  the tentative-definition merge with func_8002470C)
 
 ## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
 
