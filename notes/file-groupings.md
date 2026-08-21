@@ -561,6 +561,19 @@ Members (address order):
   func_800248B0 (m) matched (id 0xB), func_80024A10 (m) matched (id 0x2B)
 - func_80024A4C (m) — core dispatcher: header-cache check + func_80015EE8 call
 
+### mod-N frame counters interleaved inside the wrapper span
+
+Not every span member is a wrapper: three functions maintain a GP-relative u8
+frame-counter run (D_8005E5D0 then D_8005E5D1) via the same 0x88888889
+magic-division idiom, with empty delay slots and no pre/post-reload
+scheduling (the fingerprint this subgroup now pins with a per-TU
+-fno-schedule-insns -fno-schedule-insns2 override). Shared-data + adjacency +
+idiom cluster (same-TU evidence). Members:
+- func_8002495C (m) — mod-60 frame counter on D_8005E5D1, pure (no call)
+- func_8002470C — mod-N frame counter on D_8005E5D0, pure (no call)
+- func_800249C0 — mod-N count on the same D_8005E5D1, then dispatches via
+  func_80024A4C (bridges the counter into the sprite renderer)
+
 ## pad initialization and state — 0x80013B04–0x80014554 (confidence: high)
 
 Pad setup, per-port state polling, decoded controller input, analog-stick

@@ -137,3 +137,41 @@ CC1FLAGS_func_80018B98 := -fno-gcse
 # No contrary regional witness: func_80022794.c is its own TU (single function
 # per src file) in the 0x8002261C-0x80022B20 "unknown group B" region.
 CC1FLAGS_func_80022794 := -fno-rerun-cse-after-loop
+
+# func_8002495C: -fno-schedule-insns2.
+#
+# Flag probe matrix (psx_flag_probe, fork-A s32/temp_v0 shape): the only row
+# that reaches the target's instruction count (25) and dominates the mask
+# score is -fno-schedule-insns2, 19/25 masked vs 4/25 baseline; every other
+# row (gcse/cse/rerun-cse/mno-split-addresses) stays at the baseline count.
+#
+# Target fingerprint: the target's post-branch sequence loads the DIVISION
+# CONSTANT 0x88888889 into the raw-load register $v0 only AFTER the andi
+# truncation has died (lbu v0 / addiu v0,1 / andi a0,v0,0xff / lui v0 / ori v0
+# / multu a0,v0), i.e. the constant inherits the dying raw byte's register.
+# That forces an explicit load-delay nop after the lbu and pins block 1's
+# allocation (raw=$v0, trunc=$a0, const=$v0). Under baseline -fschedule-insns2
+# the post-reload scheduler instead hoists the constant load into the lbu's
+# load-delay gap (constant lives in $v1, truncated byte in $v0) and the whole
+# block rotates: the residual is a pure local-alloc/sched2 rotation that the
+# local-allocation solver and the instrumented compiler oracle both prove
+# UNREACHABLE from clean C under baseline (solver UNSAT_WITHIN_BOUNDS; oracle
+# forcedLocalRejected for every target assignment; ~24 semantics- and
+# spelling-preserving variants all compile to the same words). The constant's
+# late birth in $v0 is precisely the allocation sched2 would undo, so a
+# post-reload scheduler being off is the natural prime-fact state.
+#
+# The completed match additionally requires -fno-schedule-insns (sched1 off):
+# the matched source reuses one variable for the block-0 sentinel (-1, a real
+# materialised addiu v0,zero,-1 feeding the beq) and the block-1 raw byte, so
+# that pseudo is set twice in the function; sched1 refuses to promote
+# multi-set destinations and drifts that set insn to the top of block 0
+# (v63.i.combine has the target's sll/sra/li/beq order; v63.i.sched shows the
+# scheduler moving the li above the sll). The target keeps the li between the
+# sra and the beq, i.e. it is built with no pre-reload scheduling pass.
+#
+# No contrary regional witness: the same division-constant idiom appears in
+# sibling funcs 0x800247C0/0x80024810/0x800249C0 with the same late constant
+# birth and empty delay slots; none is matched yet, and none shows a
+# sched2-filled delay slot.
+CC1FLAGS_func_8002495C := -fno-schedule-insns -fno-schedule-insns2

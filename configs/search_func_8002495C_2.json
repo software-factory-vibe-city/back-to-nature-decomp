@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 2,
+  "function": "func_8002495C",
+  "baseSourcePath": "src/func_8002495C.c",
+  "analysisPath": "build/targetSchedule/func_8002495C/analysis.json",
+  "maxVariants": 400,
+  "assembleUniqueDbr": false,
+  "traceAllPreprocessed": true,
+  "constraints": {
+    "forbidInstructionCountGrowth": true,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "scheduleComparison": {
+    "enabled": true,
+    "analyze": "traced-classes",
+    "maxInterventions": 8
+  },
+  "dimensions": [
+    {
+      "id": "tv-life",
+      "mechanism": "fresh-vs-reused-web",
+      "expectedPass": "lreg",
+      "invariants": [
+        "final stored byte equals (D_8005E5D1 + 1) modulo 60"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "tv reused for raw+1 and remainder", "invariants": [] },
+        {
+          "id": "tv-q",
+          "expectedEffect": "tv reused for raw+1 and masked quotient",
+          "edits": [
+            {
+              "find": "        tv = D_8005E5D1 + 1;\n        t = (u8)tv;\n        tv = t - ((((t / 60U) & 0xFF)) * 60);\n        D_8005E5D1 = (u8)tv;",
+              "occurrences": 1,
+              "replace": "        tv = D_8005E5D1 + 1;\n        t = (u8)tv;\n        tv = (t / 60U) & 0xFF;\n        tv = t - (tv * 60);\n        D_8005E5D1 = (u8)tv;"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "minuend",
+      "mechanism": "result-vs-input-reuse",
+      "expectedPass": "lreg",
+      "invariants": [
+        "final stored byte equals (D_8005E5D1 + 1) modulo 60"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "minuend is truncated t", "invariants": [] },
+        {
+          "id": "minuend-raw",
+          "expectedEffect": "minuend is raw tv",
+          "edits": [
+            {
+              "find": "tv = t - ((((t / 60U) & 0xFF)) * 60);",
+              "occurrences": 1,
+              "replace": "tv = (u8)tv - ((((t / 60U) & 0xFF)) * 60);"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "rem-binding",
+      "mechanism": "fresh-vs-reused-web",
+      "expectedPass": "lreg",
+      "invariants": [
+        "final stored byte equals (D_8005E5D1 + 1) modulo 60"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "rem stored through tv", "invariants": [] },
+        {
+          "id": "store-rem-fresh-tv-after",
+          "expectedEffect": "fresh rem stored; tv reassigned after",
+          "edits": [
+            {
+              "find": "        s32 tv;\n        u8 t;\n\n        tv = D_8005E5D1 + 1;\n        t = (u8)tv;\n        tv = t - ((((t / 60U) & 0xFF)) * 60);\n        D_8005E5D1 = (u8)tv;",
+              "occurrences": 1,
+              "replace": "        s32 tv;\n        u8 t;\n        u8 rem;\n\n        tv = D_8005E5D1 + 1;\n        t = (u8)tv;\n        rem = t - ((((t / 60U) & 0xFF)) * 60);\n        D_8005E5D1 = rem;\n        tv = (s32)rem;"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    }
+  ]
+}
