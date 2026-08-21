@@ -458,7 +458,7 @@ Fingerprints:
   D_8005E338/D_8005E33A.
 
 Members (address order):
-- func_80023030 (s) — cluster anchor: writes D_8005E340 (= arg) and
+- func_80023030 (m, 2026-08-21) — cluster anchor: writes D_8005E340 (= arg) and
   D_8005E338 (= 1), both gp-rel, after func_8002301C
 - func_80023288 (m, 2026-08-20) — top-level driver: D_8005E338 state
   branch (==1/==2/==3) into func_800248B0 / func_80023910, then
