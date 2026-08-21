@@ -311,7 +311,7 @@ Members (address order):
 - func_800224F0 (s) — callback forwarding grid entries to func_80015EE8
 - func_80022528 (s) — callback forwarding grid entries to func_80015E3C
 
-## unknown group B — around 0x8002261C–0x80022F1C (confidence: medium)
+## unknown group B — around 0x800225C4–0x80022F1C (confidence: medium)
 
 Game-state/flags readers and CD-script readers over the D_8006C838 struct
 array and the D_8005E5A8–E5CC state cluster.
@@ -337,9 +337,24 @@ Fingerprints:
   full word with no 16-bit extension (`jal; addu a0, v0, zero`), pinning the
   caller-side prototype to an s32 return (per-TU declaration effect, byte-
   verified), and both call func_80014CBC with the same 6-word shape
-  (`func_80022AF0()`, `D_8005E5A8 << 13`, 0x2000, base+0xD8, words, words).
+  (`func_80022AF0()`, `D_8005E5A8 << 13`, 0x2000, base+0xD8, words, words);
+- func_800225C4 (m, 2026-08-21) is the top-level state-machine dispatcher
+  over the same +0xCC state byte: rodata table at D_80010358
+  (0x80010358, absolute-addressed, not TU-owned) holds function pointers to
+  the group's own members — idx 1 func_80022964, 2 func_800229F4, 3
+  func_80022B20, 4 func_80022B98, 5 func_80022D70, 6 func_80022DF8 —
+  selected by D_8006C838.field_CC (0 -> return 1, else call table[st]
+  with &D_8006C838); reads D_8006C838 through the same
+  struct_8006C838_view cast idiom as func_80022B98/22DF8, and the target's
+  single loaded byte reused as branch test and table index pins the
+  `if (st == 0) return 1; ...; fn = table[st]; return fn(s);` shape
+  (byte-exact clean C, baseline flags); link-adjacent, sandwiched between
+  GetVal8005E5B8 (0x800225B8) and confirmed member func_8002261C
+  (0x8002261C). func_80022D70 is a fourth table-confirmed group member.
 
 Members (address order):
+- func_800225C4 (m) — state-machine dispatcher: return 1 when
+  D_8006C838.field_CC==0, else call D_80010358[field_CC](&D_8006C838)
 - func_8002261C (m) — queue worker over the +0xCC state byte (0 -> 1
   handshake, then a 5/6 re-queue path guarded by C4==-1); writes D_8005E5A8/AC
   and D_8005E5C4/C8; declares D_8005E5A8/AC/B4/C4/C8
