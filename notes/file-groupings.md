@@ -1103,7 +1103,7 @@ Members (address order):
   guard, calls func_8001A018(slot, 1), then func_80019FC4(slot) if
   D_8005E460 == slot
 
-## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001A970 (confidence: medium)
+## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001AAF4 (confidence: medium)
 
 Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
 - shared absolute-addressed cluster: D_80049078 (3-entry fn-pointer dispatch
@@ -1148,12 +1148,20 @@ Members (address order):
 - func_8001A790 (m) — third dispatch callee
 - func_8001A808 (m) — per-entry helper called by 668/6FC; flag-gated
   strcat chain appended into D_80049084
-- func_8001A870 (m), func_8001A8D0 (m), func_8001A970 (m), func_8001AAF4 (m)
-  — later members; A8D0/A970 are clean scalar helpers (charset /
-  number-to-string); func_8001AAF4 is the display driver: formats into
-  the shared D_8005F0A8 digit buffer via func_8001A970, skips leading
-  0xFFD markers (same do-while idiom as func_8001A870), then draws via
-  func_80017B3C.
+- func_8001A870 (m), func_8001A8D0 (m), func_8001A970 (m), func_8001AA7C (m),
+  func_8001AAB8 (m, 2026-08-21), func_8001AAF4 (m) — later members; A8D0/A970
+  are clean scalar helpers (charset / number-to-string); func_8001AAF4 is the
+  display driver: formats into the shared D_8005F0A8 digit buffer via
+  func_8001A970, skips leading 0xFFD markers (same do-while idiom as
+  func_8001A870), then draws via func_80017B3C.
+- func_8001AA7C (m, 2026-08-21), func_8001AAB8 (m, 2026-08-21) — u16 copy
+  twins, address-adjacent (0x8001AA7C ends exactly where 0x8001AAB8 begins)
+  and byte-structural mirrors: same signed countdown do-while copy loop, same
+  sll/addu/sll base-scale, differ only in stride/count (D_8004908C stride 0xC,
+  6 elements vs D_800490BC stride 6, 3 elements). Both read absolutely
+  addressed u16 tables immediately after the family's D_80049078/D_80049084
+  cluster in the same data slide; func_8001AA7C is called by func_8002348C,
+  the same caller that drives func_8001AAF4.
 
 References:
 - notes/research/func_8001A808-D80049084-address-split.md
