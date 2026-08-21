@@ -586,10 +586,11 @@ Fingerprints:
   the `$a1` constant and which incoming register supplies arg3.
 
 Members (address order):
-- func_800245F4–func_80024A10 (14 wrappers, 3× m + 11× s) — thin wrappers with
+- func_800245F4–func_80024A10 (14 wrappers, 4× m + 10× s) — thin wrappers with
   sprite-header id constants (0x7–0x2B, 0x27 shared by four); all call func_80024A4C;
-  func_800248B0 (m) matched (id 0xB), func_80024924 (m) matched (id 0x1E),
-  func_80024A10 (m) matched (id 0x2B)
+  func_8002462C (m) matched (id 0x27 — one of the four 0x27 wrappers, pinning
+  that constant to a named member), func_800248B0 (m) matched (id 0xB),
+  func_80024924 (m) matched (id 0x1E), func_80024A10 (m) matched (id 0x2B)
 - func_80024A4C (m) — core dispatcher: header-cache check + func_80015EE8 call
 
 ### mod-N frame counters interleaved inside the wrapper span
