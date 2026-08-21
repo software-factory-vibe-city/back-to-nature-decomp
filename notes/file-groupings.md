@@ -388,6 +388,14 @@ Members (address order):
 - func_8002261C (m) — queue worker over the +0xCC state byte (0 -> 1
   handshake, then a 5/6 re-queue path guarded by C4==-1); writes D_8005E5A8/AC
   and D_8005E5C4/C8; declares D_8005E5A8/AC/B4/C4/C8
+- func_800226F0 (m, 2026-08-21) — reset of the same state cluster:
+  zeroes D_8005E5C0, calls func_80022DF8, zeroes the D_8006C904 flag, calls
+  SetVal8005E2BC/334, then writes D_8005E5B4=-rel 2 and D_8005E5C4=-rel -1
+  (target reaches D_8005E5C0/B4/C4 gp-relatively, so the TU declares all three
+  — a subset of the cluster func_80022964/22DF8/22738 declare); needs the same
+  local void SetVal8005E2BC/334 prototypes as func_80022738 (implicit int adds
+  a dead `$v0` call def that blocks `$v0` for the following constant store);
+  link-adjacent between func_8002261C and func_80022738
 - func_80022738 (m) — flag-slot state check/advance (byte at +0xCC, 4 -> 5)
 - func_80022794 (?) — nine-arg query/scratch helper (s16 X/Y/W/H + scale
   progression into *arg6); sole parent in this gap is the new confirmed caller
