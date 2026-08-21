@@ -107,10 +107,25 @@ function ensureSymlink(target: string, link: string): void {
   symlinkSync(target, link);
 }
 
+/**
+ * The make goals that populate a workspace's generated sources.
+ *
+ * `null` — an unpinned run — means every container, which is `split-all`. A
+ * pinned run splits the executable plus each named container; `split-exe` is
+ * spelled `split`, the target that predates containers and every note that
+ * names it.
+ */
+export function splitTargets(containers: string[] | null): string[] {
+  if (containers === null) return ["split-all"];
+  const overlays = containers.filter((id) => id !== "exe").map((id) => `split-${id}`);
+  return ["split", ...overlays];
+}
+
 export async function createWorkspace(
   projectRoot: string,
   config: AutodecompConfig,
   id: string = randomUUID(),
+  containers: string[] | null = null,
 ): Promise<WorkspaceInfo> {
   const baseHead = await headRevision(projectRoot);
   const baselineTree = await createTreeFromWorktree(projectRoot, projectRoot, config.integration.allowedRoots);
@@ -148,8 +163,14 @@ export async function createWorkspace(
       }
     }
 
-    const split = await runCommand("make", ["split"], { cwd: path, timeoutMs: 5 * 60_000 });
-    if (split.code !== 0) throw new Error(`Workspace make split failed:\n${split.stderr || split.stdout}`);
+    /* Every container this workspace may have to build. The executable is
+       always split — every overlay links against its symbol export — and beyond
+       that either the named containers or, when the run is not pinned, all of
+       them. Splitting only the executable leaves an overlay with no assembly to
+       include and a link that fails on symbols the workspace never saw. */
+    const targets = splitTargets(containers);
+    const split = await runCommand("make", targets, { cwd: path, timeoutMs: 15 * 60_000 });
+    if (split.code !== 0) throw new Error(`Workspace ${targets.join(" ")} failed:\n${split.stderr || split.stdout}`);
     return { id, path, baseHead, baselineTree };
   } catch (error) {
     await removeWorkspace(projectRoot, path);

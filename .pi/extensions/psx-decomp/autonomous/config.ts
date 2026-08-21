@@ -4,6 +4,7 @@ import type { AutodecompConfig, ModelTierConfig } from "./types.ts";
 
 export const DEFAULT_CONFIG: AutodecompConfig = {
   runtimeDir: "run_output/autodecomp",
+  containers: null,
   parallelism: 1,
   requireCleanTrackedTree: true,
   matching: {
@@ -82,6 +83,22 @@ function modelTiers(value: unknown): ModelTierConfig[] {
   });
 }
 
+/**
+ * The containers a run may take work from.
+ *
+ * Absent or `null` means every container. An empty array is rejected rather
+ * than read as "all": it is the shape a mistake takes, and a run that silently
+ * widened from "no containers" to "every container" would work the whole
+ * project under a config that asked for none of it.
+ */
+export function containerScope(value: unknown): string[] | null {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== "string" || !entry)) {
+    throw new Error("containers must be null or a non-empty array of container ids");
+  }
+  return [...new Set(value as string[])];
+}
+
 export function loadConfig(projectRoot: string): AutodecompConfig {
   const path = resolve(projectRoot, ".pi", "autodecomp.json");
   const raw = existsSync(path) ? object(JSON.parse(readFileSync(path, "utf8"))) : {};
@@ -92,7 +109,7 @@ export function loadConfig(projectRoot: string): AutodecompConfig {
   const budgets = object(raw.budgets);
   const sourcePolicy = object(raw.sourcePolicy);
 
-  rejectUnknown(raw, ["runtimeDir", "parallelism", "requireCleanTrackedTree", "matching", "refinement", "retry", "integration", "budgets", "sourcePolicy"], "autodecomp config");
+  rejectUnknown(raw, ["runtimeDir", "containers", "parallelism", "requireCleanTrackedTree", "matching", "refinement", "retry", "integration", "budgets", "sourcePolicy"], "autodecomp config");
   rejectUnknown(matching, ["models", "turnLimit", "timeoutMinutes", "idleTimeoutMinutes"], "matching");
   rejectUnknown(refinement, ["targetedEveryMatches", "targetedBatchSize", "projectEveryMatches", "projectAtFinalization"], "refinement");
   rejectUnknown(retry, ["retryParkedAfterEpoch", "retryOnNeighborHashChange", "blockedSleepMinutes"], "retry");
@@ -132,6 +149,7 @@ export function loadConfig(projectRoot: string): AutodecompConfig {
 
   return {
     runtimeDir: isAbsolute(runtimeDir) ? runtimeDir : resolve(projectRoot, runtimeDir),
+    containers: containerScope(raw.containers),
     parallelism: 1,
     requireCleanTrackedTree: raw.requireCleanTrackedTree === undefined
       ? DEFAULT_CONFIG.requireCleanTrackedTree

@@ -1,7 +1,24 @@
 export type HandwrittenKind = false | "asm" | "gte";
 
+/**
+ * `<container>:<VRAM>` — the identity of one function in the work queue.
+ *
+ * A VRAM address alone is not an identity here. Overlays that share a RAM slot
+ * hold different functions at the same address and are never resident together,
+ * so a queue keyed by address carries one entry for two functions and hands the
+ * agent the wrong target — a wrong answer that presents as a bad match rather
+ * than a bad address. Build one with `functionKey`; never concatenate by hand.
+ */
+export type FunctionKey = string;
+
 export interface CallGraphEntry {
   name: string;
+  /** The container whose image defines this function. */
+  container: string;
+  /** Project-relative C file that defines it, whether or not it exists yet. */
+  source?: string;
+  /** First argument of its `INCLUDE_ASM` stub: `<asmDir>/nonmatchings/<name>`. */
+  includeAsmPath?: string;
   vram: string;
   size: number;
   tier: number;
@@ -135,6 +152,7 @@ export interface WorkerResult {
 export interface AttemptRecord {
   id: string;
   mode: WorkMode;
+  functionContainer?: string;
   functionVram?: string;
   functionName?: string;
   model?: string;
@@ -152,6 +170,8 @@ export interface AttemptRecord {
 }
 
 export interface FunctionState {
+  /** The container whose image defines this function. */
+  container: string;
   vram: string;
   currentName: string;
   previousNames: string[];
@@ -175,7 +195,11 @@ export interface FunctionState {
 }
 
 export interface ControllerState {
-  schemaVersion: 1;
+  /**
+   * 1 — `functions` keyed by VRAM alone.
+   * 2 — keyed by `<container>:<VRAM>`; every entry carries its container.
+   */
+  schemaVersion: 2;
   projectRoot: string;
   status: ControllerStatus;
   controllerPid?: number;
@@ -189,10 +213,10 @@ export interface ControllerState {
   lastProjectRefinedGraphHash?: string;
   matchesSinceTargeted: number;
   matchesSinceProject: number;
-  functions: Record<string, FunctionState>;
+  functions: Record<FunctionKey, FunctionState>;
   attempts: Record<string, AttemptRecord>;
   activeAttemptId?: string;
-  activeFunctionVram?: string;
+  activeFunctionKey?: FunctionKey;
   totalUsage: WorkerUsage;
   lastError?: string;
 }
@@ -205,6 +229,16 @@ export interface ModelTierConfig {
 
 export interface AutodecompConfig {
   runtimeDir: string;
+  /**
+   * Containers this run may take work from; `null` means every container.
+   *
+   * The engine API is the dependency frontier and the overlays sit behind it,
+   * so a run pinned to one container needs no coordination with any other
+   * beyond the shared engine symbol export. One documented exception exists in
+   * this game and will exist in others: an overlay that calls into another
+   * overlay. `tools/agent/callGraph.ts` reports those edges per container.
+   */
+  containers: string[] | null;
   parallelism: 1;
   requireCleanTrackedTree: boolean;
   matching: {
@@ -249,6 +283,9 @@ export interface WorkspaceInfo {
 
 export interface WorkItem {
   mode: WorkMode;
+  /** `functionKey(container, vram)` — set for every function-scoped mode. */
+  functionKey?: FunctionKey;
+  functionContainer?: string;
   functionVram?: string;
   functionName?: string;
   modelTier: number;

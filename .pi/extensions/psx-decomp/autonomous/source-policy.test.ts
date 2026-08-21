@@ -126,3 +126,85 @@ test("rejects out-of-scope files and added flag overrides", () => {
   assert(result.hardFailures.some((finding) => finding.kind === "out-of-scope"));
   assert(result.hardFailures.some((finding) => finding.kind === "flag-override"));
 });
+
+test("an overlay's translation unit is scanned where it actually lives", () => {
+  const root = mkdtempSync(join(tmpdir(), "autodecomp-policy-overlay-"));
+  mkdirSync(join(root, "src", "overlays", "ovl_31"), { recursive: true });
+  mkdirSync(join(root, "configs"), { recursive: true });
+  writeFileSync(join(root, "configs", "flag_overrides.mk"), "");
+  writeFileSync(
+    join(root, "src", "overlays", "ovl_31", "ovl_31_target.c"),
+    `void ovl_31_target(void) {\n    __asm__(\"nop\");\n}\n`,
+  );
+  const config = structuredClone(DEFAULT_CONFIG);
+  config.runtimeDir = join(root, "run_output");
+
+  /* Without the source map the scan looks under `src/`, finds nothing, and
+     reports a clean function it never opened — a pass, not an error. */
+  const blind = checkSourcePolicy({ projectRoot: root, config, functionName: "ovl_31_target", scanFunctions: ["ovl_31_target"] });
+  assert.equal(blind.pass, true);
+
+  const placed = checkSourcePolicy({
+    projectRoot: root,
+    config,
+    functionName: "ovl_31_target",
+    functionContainer: "ovl_31",
+    functionSources: { ovl_31_target: "src/overlays/ovl_31/ovl_31_target.c" },
+    scanFunctions: ["ovl_31_target"],
+  });
+  assert.equal(placed.pass, false);
+  assert(placed.hardFailures.some((finding) => finding.kind === "embedded-asm"));
+});
+
+test("a patch to an overlay source is attributed to the function, not to the path tail", () => {
+  const root = mkdtempSync(join(tmpdir(), "autodecomp-policy-patch-"));
+  mkdirSync(join(root, "configs"), { recursive: true });
+  const config = structuredClone(DEFAULT_CONFIG);
+  config.runtimeDir = join(root, "run_output");
+  config.sourcePolicy.allowlist = { ovl_31_target: ["embedded-asm"] };
+
+  const patch = [
+    "+++ b/src/overlays/ovl_31/ovl_31_target.c",
+    "@@ -1,0 +2,1 @@",
+    '+    __asm__("nop");',
+  ].join("\n");
+
+  /* The allowlist is keyed by the function's name. Reading the path tail as the
+     name yields `overlays/ovl_31/ovl_31_target`, which matches no entry. */
+  const result = checkSourcePolicy({ projectRoot: root, config, changedFiles: [], patch });
+  assert.equal(result.newlyAddedForbiddenConstructs.length, 0);
+});
+
+test("a bare-address allowlist key is the executable's, never another container's", () => {
+  const root = mkdtempSync(join(tmpdir(), "autodecomp-policy-keys-"));
+  mkdirSync(join(root, "src", "overlays", "ovl_30"), { recursive: true });
+  mkdirSync(join(root, "src"), { recursive: true });
+  mkdirSync(join(root, "configs"), { recursive: true });
+  writeFileSync(join(root, "configs", "flag_overrides.mk"), "");
+  const body = `void f(void) {\n    __asm__(\"nop\");\n}\n`;
+  writeFileSync(join(root, "src", "exe_fn.c"), body);
+  writeFileSync(join(root, "src", "overlays", "ovl_30", "ovl_30_fn.c"), body);
+
+  const config = structuredClone(DEFAULT_CONFIG);
+  config.runtimeDir = join(root, "run_output");
+  config.sourcePolicy.allowlist = { "0x800b7e24": ["embedded-asm"] };
+
+  const scan = (name: string, container: string, source: string) => checkSourcePolicy({
+    projectRoot: root,
+    config,
+    functionName: name,
+    functionVram: "0x800B7E24",
+    functionContainer: container,
+    functionSources: { [name]: source },
+    scanFunctions: [name],
+  });
+
+  /* Same address, same exception key, two different functions. Granting it to
+     both is how one function's policy exception licenses another's assembly. */
+  assert.equal(scan("exe_fn", "exe", "src/exe_fn.c").pass, true);
+  assert.equal(scan("ovl_30_fn", "ovl_30", "src/overlays/ovl_30/ovl_30_fn.c").pass, false);
+
+  config.sourcePolicy.allowlist = { "ovl_30:0x800b7e24": ["embedded-asm"] };
+  assert.equal(scan("ovl_30_fn", "ovl_30", "src/overlays/ovl_30/ovl_30_fn.c").pass, true);
+  assert.equal(scan("exe_fn", "exe", "src/exe_fn.c").pass, false);
+});

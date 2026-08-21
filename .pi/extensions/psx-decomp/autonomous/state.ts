@@ -1,6 +1,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { ControllerState, WorkerUsage } from "./types.ts";
+import type { ControllerState, FunctionState, WorkerUsage } from "./types.ts";
+import { DEFAULT_CONTAINER, functionKey } from "./call-graph.ts";
+
+/** The schema this build reads and writes. */
+export const STATE_SCHEMA_VERSION = 2;
 
 const EMPTY_USAGE: WorkerUsage = {
   turns: 0,
@@ -11,9 +15,62 @@ const EMPTY_USAGE: WorkerUsage = {
   costUsd: 0,
 };
 
+/** State as written by schema 1: `functions` keyed by VRAM, no container. */
+interface LegacyControllerState extends Omit<ControllerState, "schemaVersion" | "functions" | "activeFunctionKey"> {
+  schemaVersion: number;
+  functions: Record<string, Omit<FunctionState, "container"> & { container?: string }>;
+  activeFunctionVram?: string;
+}
+
+/**
+ * Bring a persisted state file up to the current schema, or refuse it.
+ *
+ * Schema 1 predates containers, so every function it holds is the PS-X EXE's —
+ * there was no other container to have queued work from, and the plan that
+ * introduced them forbade adding one until this rekey landed. That makes the
+ * migration total and lossless: each entry gains `container: "exe"` and moves
+ * from its bare VRAM key to `exe:<VRAM>`. Attempts keep their identifiers, so
+ * every recorded session, patch and gate survives the move.
+ *
+ * A schema this build does not know is an error, never a silent reinterpretation
+ * of somebody else's fields.
+ */
+export function migrateState(raw: ControllerState | LegacyControllerState): ControllerState {
+  const version = raw.schemaVersion;
+  if (version === STATE_SCHEMA_VERSION) return raw as ControllerState;
+  if (version !== 1) throw new Error(`Unsupported state schema ${version}`);
+
+  const legacy = raw as LegacyControllerState;
+  const functions: ControllerState["functions"] = {};
+  for (const [oldKey, fn] of Object.entries(legacy.functions)) {
+    const container = fn.container ?? DEFAULT_CONTAINER;
+    const vram = fn.vram ?? oldKey;
+    functions[functionKey(container, vram)] = { ...fn, container, vram };
+  }
+
+  const attempts: ControllerState["attempts"] = {};
+  for (const [id, attempt] of Object.entries(legacy.attempts)) {
+    attempts[id] = attempt.functionVram
+      ? { ...attempt, functionContainer: attempt.functionContainer ?? DEFAULT_CONTAINER }
+      : attempt;
+  }
+
+  const { activeFunctionVram, ...rest } = legacy;
+  const migrated: ControllerState = {
+    ...(rest as unknown as ControllerState),
+    schemaVersion: STATE_SCHEMA_VERSION,
+    functions,
+    attempts,
+  };
+  if (activeFunctionVram) {
+    migrated.activeFunctionKey = functionKey(DEFAULT_CONTAINER, activeFunctionVram);
+  }
+  return migrated;
+}
+
 export function createState(projectRoot: string): ControllerState {
   return {
-    schemaVersion: 1,
+    schemaVersion: STATE_SCHEMA_VERSION,
     projectRoot: resolve(projectRoot),
     status: "idle",
     updatedAt: new Date().toISOString(),
@@ -42,12 +99,11 @@ export class StateStore {
     for (const path of [this.statePath, this.backupPath]) {
       if (!existsSync(path)) continue;
       try {
-        const state = JSON.parse(readFileSync(path, "utf8")) as ControllerState;
-        if (state.schemaVersion !== 1) throw new Error(`Unsupported state schema ${state.schemaVersion}`);
-        if (resolve(state.projectRoot) !== resolve(this.projectRoot)) {
-          throw new Error(`State belongs to another project: ${state.projectRoot}`);
+        const raw = JSON.parse(readFileSync(path, "utf8")) as ControllerState;
+        if (resolve(raw.projectRoot) !== resolve(this.projectRoot)) {
+          throw new Error(`State belongs to another project: ${raw.projectRoot}`);
         }
-        return state;
+        return migrateState(raw);
       } catch (error) {
         if (path === this.backupPath) throw error;
       }

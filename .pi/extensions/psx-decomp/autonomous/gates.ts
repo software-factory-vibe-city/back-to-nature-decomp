@@ -23,8 +23,18 @@ export function parseFunctionDiffSummary(output: string): Pick<DiffResult, "matc
   };
 }
 
-export async function runFunctionDiff(projectRoot: string, functionName: string, timeoutMs = 60_000, signal?: AbortSignal): Promise<DiffResult> {
-  const command = await runCommand("npx", ["tsx", "tools/agent/diffFunc.ts", functionName], {
+export async function runFunctionDiff(
+  projectRoot: string,
+  functionName: string,
+  timeoutMs = 60_000,
+  signal?: AbortSignal,
+  container?: string,
+): Promise<DiffResult> {
+  /* The container is passed when the caller already knows it — it settles the
+     one ambiguity a name cannot: two overlays sharing a RAM slot. Without it
+     the oracle derives the container from the name, which is right for every
+     other case. */
+  const command = await runCommand("npx", ["tsx", "tools/agent/diffFunc.ts", functionName, ...(container ? ["--container", container] : [])], {
     cwd: projectRoot,
     timeoutMs,
     maxCaptureBytes: 4 * 1024 * 1024,
@@ -98,8 +108,23 @@ export interface ResidualReading {
   }>;
 }
 
+/**
+ * The byte-identity gate: every container the project builds.
+ *
+ * Measured on this project, warm: `make check-all` is 7.9s against `make
+ * check`'s 7.7s — the thirteen overlay comparisons add about two tenths of a
+ * second, because an untouched container relinks nothing. That settles the
+ * question the plan left open. The full gate stays the gate; the per-container
+ * targets (`make check-<id>`, 0.45s after a one-file edit) are the iteration
+ * loop inside a turn, not a substitute for it.
+ *
+ * Narrowing it would be wrong as well as unnecessary. Overlays link against the
+ * engine symbol export, so a rename in the executable's sources relinks every
+ * overlay, and a gate scoped to the edited container would pass while another
+ * container's binary had silently changed.
+ */
 export async function runBuildCheck(projectRoot: string, timeoutMs = 5 * 60_000, signal?: AbortSignal) {
-  return runCommand("make", ["check"], { cwd: projectRoot, timeoutMs, signal, maxCaptureBytes: 4 * 1024 * 1024 });
+  return runCommand("make", ["check-all"], { cwd: projectRoot, timeoutMs, signal, maxCaptureBytes: 4 * 1024 * 1024 });
 }
 
 function sourceNames(changedFiles: string[]): string[] {
@@ -114,6 +139,10 @@ export async function runGate(options: {
   mode: WorkMode;
   functionName?: string;
   functionVram?: string;
+  functionContainer?: string;
+  functionVrams?: Record<string, string>;
+  functionContainers?: Record<string, string>;
+  functionSources?: Record<string, string>;
   changedFiles: string[];
   patch: string;
   runBuild?: boolean;
@@ -126,8 +155,12 @@ export async function runGate(options: {
   const policy = checkSourcePolicy({
     projectRoot: options.projectRoot,
     config: options.config,
-    functionName: options.functionName,
-    functionVram: options.functionVram,
+    ...(options.functionName ? { functionName: options.functionName } : {}),
+    ...(options.functionVram ? { functionVram: options.functionVram } : {}),
+    ...(options.functionContainer ? { functionContainer: options.functionContainer } : {}),
+    ...(options.functionVrams ? { functionVrams: options.functionVrams } : {}),
+    ...(options.functionContainers ? { functionContainers: options.functionContainers } : {}),
+    ...(options.functionSources ? { functionSources: options.functionSources } : {}),
     scanFunctions,
     changedFiles: options.changedFiles,
     patch: options.patch,
@@ -136,11 +169,11 @@ export async function runGate(options: {
 
   let diff: DiffResult | undefined;
   if (options.functionName && options.mode !== "project-refinement") {
-    diff = await runFunctionDiff(options.projectRoot, options.functionName, 60_000, options.signal);
+    diff = await runFunctionDiff(options.projectRoot, options.functionName, 60_000, options.signal, options.functionContainer);
     if (!diff.exact) failures.push(`Function oracle verdict is ${diff.verdict.toUpperCase()}, not MATCH (${diff.matchedInstructions}/${diff.totalInstructions} words)`);
   } else if (options.mode === "project-refinement") {
     for (const name of scanFunctions) {
-      const touched = await runFunctionDiff(options.projectRoot, name, 60_000, options.signal);
+      const touched = await runFunctionDiff(options.projectRoot, name, 60_000, options.signal, options.functionContainers?.[name]);
       if (!touched.exact) failures.push(`${name}: function oracle verdict is ${touched.verdict.toUpperCase()}, not MATCH (${touched.matchedInstructions}/${touched.totalInstructions} words)`);
     }
   }

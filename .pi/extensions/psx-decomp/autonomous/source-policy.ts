@@ -7,11 +7,25 @@ interface PolicyOptions {
   config: AutodecompConfig;
   functionName?: string;
   functionVram?: string;
+  functionContainer?: string;
   scanFunctions?: string[];
   functionVrams?: Record<string, string>;
+  /** name -> container id, from the call graph. */
+  functionContainers?: Record<string, string>;
+  /**
+   * name -> project-relative C file, from the call graph.
+   *
+   * Supplied rather than reconstructed: `src/<name>.c` is the executable's
+   * layout, and reconstructing it for an overlay scans a file that does not
+   * exist, which reads as a clean function instead of an unscanned one.
+   */
+  functionSources?: Record<string, string>;
   changedFiles?: string[];
   patch?: string;
 }
+
+/** The container an unqualified identity belongs to. */
+const EXE_CONTAINER = "exe";
 
 function normalizedPath(path: string): string {
   return path.split(sep).join("/").replace(/^\.\//, "");
@@ -22,9 +36,34 @@ export function withinAllowedRoots(config: AutodecompConfig, file: string): bool
   return config.integration.allowedRoots.some((root) => normalized === root || normalized.startsWith(`${root}/`));
 }
 
-function allowlisted(config: AutodecompConfig, name: string | undefined, vram: string | undefined, kind: string): boolean {
-  const keys = [name?.toLowerCase(), vram?.toLowerCase()].filter((key): key is string => Boolean(key));
-  return keys.some((key) => config.sourcePolicy.allowlist[key]?.includes(kind));
+/**
+ * The allowlist keys one function answers to.
+ *
+ * A name is one of them because an overlay's symbols carry their container as a
+ * prefix, which makes the name globally unique. A bare address is honoured only
+ * for the executable: two overlays share a RAM slot, so a bare address there
+ * would hand one function's policy exception to a different function at the
+ * same address. Overlays are keyed `<container>:<address>` instead.
+ */
+export function allowlistKeys(name?: string, vram?: string, container?: string): string[] {
+  const keys: string[] = [];
+  if (name) keys.push(name.toLowerCase());
+  if (vram) {
+    const owner = container ?? EXE_CONTAINER;
+    keys.push(`${owner}:${vram}`.toLowerCase());
+    if (owner === EXE_CONTAINER) keys.push(vram.toLowerCase());
+  }
+  return keys;
+}
+
+function allowlisted(
+  config: AutodecompConfig,
+  name: string | undefined,
+  vram: string | undefined,
+  container: string | undefined,
+  kind: string,
+): boolean {
+  return allowlistKeys(name, vram, container).some((key) => config.sourcePolicy.allowlist[key]?.includes(kind));
 }
 
 /**
@@ -53,11 +92,12 @@ function forbiddenLine(
   config: AutodecompConfig,
   functionName?: string,
   functionVram?: string,
+  functionContainer?: string,
 ): { kind: string; message: string } | undefined {
-  if (/\bINCLUDE_ASM\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, "include-asm")) {
+  if (/\bINCLUDE_ASM\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, functionContainer, "include-asm")) {
     return { kind: "include-asm", message: "Assembly stub is forbidden for an ordinary compiled function" };
   }
-  if (/\bregister\b[^;\n]*\b(?:__asm__|__asm|asm)\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, "register-asm")) {
+  if (/\bregister\b[^;\n]*\b(?:__asm__|__asm|asm)\s*\(/.test(line) && !allowlisted(config, functionName, functionVram, functionContainer, "register-asm")) {
     return { kind: "register-asm", message: "Hard-register pinning is forbidden" };
   }
   /* `__volatile__` is the reserved spelling this project's C89 sources use;
@@ -67,7 +107,7 @@ function forbiddenLine(
     const compact = line.replace(/\s+/g, "").replace(/__volatile__/g, "volatile");
     const emptyMemoryBarrier = compact.includes('__asm__volatile("":::"memory")') || compact.includes('__asm__("":::"memory")');
     if (emptyMemoryBarrier && config.sourcePolicy.allowEmptyMemoryBarrier) return undefined;
-    if (!allowlisted(config, functionName, functionVram, "embedded-asm")) {
+    if (!allowlisted(config, functionName, functionVram, functionContainer, "embedded-asm")) {
       return { kind: "embedded-asm", message: "Embedded assembly is forbidden for an ordinary compiled function" };
     }
   }
@@ -132,7 +172,7 @@ function scanSourceFile(options: PolicyOptions, file: string, findings: PolicyFi
   for (let index = 0; index < lines.length; index++) {
     const stripped = stripComments(lines[index], inBlock);
     inBlock = stripped.inBlock;
-    const violation = forbiddenLine(stripped.code, options.config, options.functionName, options.functionVram);
+    const violation = forbiddenLine(stripped.code, options.config, options.functionName, options.functionVram, options.functionContainer);
     if (violation) {
       findings.push({
         kind: violation.kind,
@@ -163,13 +203,33 @@ function policesConstructs(file: string): boolean {
   return /^src\/.*\.c$/.test(path) || /^include\/.*\.h$/.test(path);
 }
 
-function patchScope(options: PolicyOptions, file: string): { name?: string; vram?: string } {
-  const match = normalizedPath(file).match(/^src\/(.+)\.c$/);
-  const name = match ? match[1] : options.functionName;
+/**
+ * The function a source path names.
+ *
+ * The basename, not the path tail: `src/<name>.c` is the executable's layout
+ * and `src/overlays/<id>/<name>.c` an overlay's, and reading the tail as a name
+ * produced `overlays/ovl_11/ovl_11_func_800BD160`, which matched no allowlist
+ * key and no call-graph entry. A directory below `src/` is the container's, so
+ * it is the fallback when the caller supplied no container map.
+ */
+function sourceIdentity(file: string): { name: string; container?: string } | undefined {
+  const match = normalizedPath(file).match(/^src\/(?:(.*)\/)?([^/]+)\.c$/);
+  if (!match) return undefined;
+  const directory = match[1];
+  const container = directory ? directory.split("/").at(-1) : undefined;
+  return container ? { name: match[2]!, container } : { name: match[2]! };
+}
+
+function patchScope(options: PolicyOptions, file: string): { name?: string; vram?: string; container?: string } {
+  const identity = sourceIdentity(file);
+  const name = identity?.name ?? options.functionName;
   if (!name) return {};
   const vram = options.functionVrams?.[name]
     ?? (name === options.functionName ? options.functionVram : undefined);
-  return { name, vram };
+  const container = options.functionContainers?.[name]
+    ?? (name === options.functionName ? options.functionContainer : undefined)
+    ?? identity?.container;
+  return container ? { name, vram, container } : { name, vram };
 }
 
 function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
@@ -196,7 +256,7 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
       const commentOnly = trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("//");
       const violation = commentOnly || !policesConstructs(file)
         ? undefined
-        : forbiddenLine(text, options.config, scope.name, scope.vram);
+        : forbiddenLine(text, options.config, scope.name, scope.vram, scope.container);
       if (violation) findings.push({ kind: violation.kind, file, line: newLine, message: violation.message, text: text.trim() });
       /* A CC1FLAGS_ line names the stem it overrides, so the allowlist lookup
        * keys on that stem rather than on the patch scope. The scope is empty
@@ -208,7 +268,9 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
       if (overrideStem) {
         const overrideVram = options.functionVrams?.[overrideStem]
           ?? (overrideStem === options.functionName ? options.functionVram : undefined);
-        if (!allowlisted(options.config, overrideStem, overrideVram, "flag-override")) {
+        const overrideContainer = options.functionContainers?.[overrideStem]
+          ?? (overrideStem === options.functionName ? options.functionContainer : undefined);
+        if (!allowlisted(options.config, overrideStem, overrideVram, overrideContainer, "flag-override")) {
           findings.push({
             kind: "flag-override",
             file,
@@ -226,6 +288,17 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
   return findings;
 }
 
+/**
+ * Where a function's translation unit lives.
+ *
+ * The call graph is the authority and supplies the path outright. `src/<name>.c`
+ * is the fallback for a caller that has no graph — the executable's layout, and
+ * the only one that can be assumed without one.
+ */
+function sourceFileOf(options: PolicyOptions, name: string): string {
+  return options.functionSources?.[name] ?? `src/${name}.c`;
+}
+
 export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
   const changedFiles = [...new Set((options.changedFiles ?? []).map(normalizedPath))].sort();
   const outOfScopeFiles = changedFiles.filter((file) => !withinAllowedRoots(options.config, file));
@@ -238,8 +311,13 @@ export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
   const scanNames = options.scanFunctions ?? (options.functionName ? [options.functionName] : []);
   for (const name of scanNames) {
     scanSourceFile(
-      { ...options, functionName: name, functionVram: options.functionVrams?.[name] ?? (name === options.functionName ? options.functionVram : undefined) },
-      `src/${name}.c`,
+      {
+        ...options,
+        functionName: name,
+        functionVram: options.functionVrams?.[name] ?? (name === options.functionName ? options.functionVram : undefined),
+        functionContainer: options.functionContainers?.[name] ?? (name === options.functionName ? options.functionContainer : undefined),
+      },
+      sourceFileOf(options, name),
       hardFailures,
     );
   }
@@ -250,7 +328,8 @@ export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
     const names = options.functionName ? [options.functionName] : scanNames;
     for (const name of names) {
       const vram = options.functionVrams?.[name] ?? (name === options.functionName ? options.functionVram : undefined);
-      if (allowlisted(options.config, name, vram, "flag-override")) continue;
+      const container = options.functionContainers?.[name] ?? (name === options.functionName ? options.functionContainer : undefined);
+      if (allowlisted(options.config, name, vram, container, "flag-override")) continue;
       const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const index = lines.findIndex((line) => new RegExp(`^CC1FLAGS_${escaped}\\s*:?=`).test(line));
       if (index >= 0) {

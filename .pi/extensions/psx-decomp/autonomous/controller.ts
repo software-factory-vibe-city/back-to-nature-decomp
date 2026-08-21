@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.ts";
 import { ControllerLock } from "./lock.ts";
-import { loadCallGraph, rebuildCallGraph, reconcileState, updateNeighborHashes } from "./call-graph.ts";
+import { keyOf, loadCallGraph, parseFunctionKey, rebuildCallGraph, reconcileState, updateNeighborHashes } from "./call-graph.ts";
 import { runBuildCheck, runGate } from "./gates.ts";
 import { runCommand } from "./process.ts";
 import { checkSourcePolicy } from "./source-policy.ts";
@@ -23,6 +23,7 @@ import type {
   CallGraph,
   ControllerState,
   ControlRequest,
+  FunctionKey,
   FunctionState,
   GateResult,
   WorkItem,
@@ -44,10 +45,20 @@ import {
   workspaceChangedFiles,
 } from "./workspace.ts";
 
+/** The container an unqualified identity belongs to. */
+const EXE_CONTAINER = "exe";
+
 export interface ControllerOptions {
   dryRun?: boolean;
   once?: boolean;
   forceLock?: boolean;
+  /**
+   * Pin this run to these containers, overriding the configured scope.
+   *
+   * The scheduling shape the overlay plan argues for: one worker per container,
+   * coordinating through nothing but the shared engine symbol export.
+   */
+  containers?: string[];
 }
 
 export function findProjectRoot(start = process.cwd()): string {
@@ -86,8 +97,26 @@ function compactGate(gate: GateResult): GateResult {
   return gate;
 }
 
-function functionDir(config: AutodecompConfig, vram: string): string {
-  return join(config.runtimeDir, "functions", vram.replace(/^0x/i, ""));
+/**
+ * Where one function's sessions and candidate patches live.
+ *
+ * Keyed by container and address, because the address alone names two different
+ * functions when two overlays share a RAM slot. A run that predates containers
+ * wrote to the bare-address directory; that directory is still used when it is
+ * the one that exists, so the layout change does not orphan a run's history or
+ * invalidate the absolute paths its attempt records already hold.
+ */
+function functionDir(config: AutodecompConfig, key: FunctionKey): string {
+  const { container, vram } = parseFunctionKey(key);
+  const address = vram.replace(/^0x/i, "");
+  const scoped = join(config.runtimeDir, "functions", container, address);
+  if (existsSync(scoped) || container !== EXE_CONTAINER) return scoped;
+  /* Only the executable's history can live at a bare address: it is the only
+     container whose addresses were unambiguous when those directories were
+     written, and an overlay reusing one would adopt a different function's
+     sessions and patches. */
+  const legacy = join(config.runtimeDir, "functions", address);
+  return existsSync(legacy) ? legacy : scoped;
 }
 
 function requestDir(config: AutodecompConfig): string {
@@ -122,22 +151,55 @@ export function readStatus(projectRoot: string): ControllerState {
   return new StateStore(config.runtimeDir, projectRoot).load();
 }
 
-export function statusText(state: ControllerState): string {
+/** `--container a --container b`, or a single comma-separated list. */
+export function parseContainerArgs(argv: string[]): string[] | undefined {
+  const ids: string[] = [];
+  for (let index = 0; index < argv.length; index++) {
+    if (argv[index] !== "--container") continue;
+    const value = argv[index + 1];
+    if (!value || value.startsWith("--")) throw new Error("--container requires a container id");
+    ids.push(...value.split(",").map((entry) => entry.trim()).filter(Boolean));
+  }
+  return ids.length > 0 ? [...new Set(ids)] : undefined;
+}
+
+export function statusText(state: ControllerState, config?: AutodecompConfig): string {
   const functions = Object.values(state.functions);
   const count = (status: string) => functions.filter((fn) => fn.status === status).length;
-  const active = state.activeFunctionVram ? state.functions[state.activeFunctionVram] : undefined;
+  const active = state.activeFunctionKey ? state.functions[state.activeFunctionKey] : undefined;
+  const scope = config?.containers ? `containers ${config.containers.join(", ")}` : "all containers";
   return [
-    `Autodecomp: ${state.status} (epoch ${state.epoch})`,
-    `Matched ${count("matched")}; pending ${pendingEligible(state).length}; parked ${count("parked")}; dead ${count("dead")}; handwritten ${count("handwritten")}`,
-    active ? `Active: ${active.currentName} (${active.vram})` : "Active: none",
+    `Autodecomp: ${state.status} (epoch ${state.epoch}, ${scope})`,
+    `Matched ${count("matched")}; pending ${pendingEligible(state, config).length}; parked ${count("parked")}; dead ${count("dead")}; handwritten ${count("handwritten")}`,
+    active ? `Active: ${active.currentName} (${keyOf(active)})` : "Active: none",
     `Attempts ${Object.keys(state.attempts).length}; turns ${state.totalUsage.turns}; cost $${state.totalUsage.costUsd.toFixed(4)}`,
     state.lastError ? `Last error: ${state.lastError}` : "",
   ].filter(Boolean).join("\n");
 }
 
-function resolveTarget(state: ControllerState, target: string): FunctionState | undefined {
+/**
+ * The one function a control request names.
+ *
+ * A name or a `<container>:<address>` key identifies exactly one function. A
+ * bare address does not, once two overlays share a RAM slot, so an ambiguous
+ * one is refused with the candidates listed rather than resolved to whichever
+ * entry the iteration order reached first — retrying or skipping the wrong
+ * function is a silent wrong answer, not a mis-ordering.
+ */
+function resolveTarget(state: ControllerState, target: string): FunctionState {
   const lowered = target.toLowerCase();
-  return Object.values(state.functions).find((fn) => fn.vram.toLowerCase() === lowered || fn.currentName.toLowerCase() === lowered);
+  const matches = Object.values(state.functions).filter((fn) =>
+    fn.currentName.toLowerCase() === lowered ||
+    keyOf(fn).toLowerCase() === lowered ||
+    fn.vram.toLowerCase() === lowered);
+  if (matches.length === 0) throw new Error(`Unknown target ${target}`);
+  if (matches.length > 1) {
+    throw new Error(
+      `${target} names ${matches.length} functions (${matches.map((fn) => keyOf(fn)).join(", ")}). ` +
+        "Use the container-qualified key or the function name.",
+    );
+  }
+  return matches[0]!;
 }
 
 export class AutodecompController {
@@ -152,7 +214,11 @@ export class AutodecompController {
   private stopping = false;
 
   constructor(readonly projectRoot: string, readonly options: ControllerOptions = {}) {
-    this.config = loadConfig(projectRoot);
+    const configured = loadConfig(projectRoot);
+    /* A `--container` on the command line pins this run without editing the
+       project config, which is what lets thirteen runs work thirteen overlays
+       from one checkout. */
+    this.config = options.containers ? { ...configured, containers: [...options.containers] } : configured;
     this.store = new StateStore(this.config.runtimeDir, projectRoot);
     this.lock = new ControllerLock(this.config.runtimeDir, projectRoot);
     this.state = this.store.load();
@@ -174,9 +240,9 @@ export class AutodecompController {
     try {
       await this.initialize();
       if (this.options.dryRun) {
-        console.log(statusText(this.state));
+        console.log(statusText(this.state, this.config));
         const next = nextMatchingWork(this.state, this.config);
-        console.log(next ? `Next: ${next.functionName} (${next.functionVram})` : "No matching target ready");
+        console.log(next ? `Next: ${next.functionName} (${next.functionKey})` : "No matching target ready");
         this.state.status = "stopped";
         this.store.save(this.state);
         return;
@@ -241,7 +307,7 @@ export class AutodecompController {
 
         const work = nextMatchingWork(this.state, this.config);
         if (work) {
-          const fn = this.state.functions[work.functionVram!];
+          const fn = this.state.functions[work.functionKey!]!;
           if (fn.graphDecompiled && fn.attempts.length === 0 && fn.status === "pending") {
             const imported = await this.auditExisting(fn);
             completedUnits++;
@@ -285,7 +351,7 @@ export class AutodecompController {
         }
 
         this.state.status = "blocked";
-        this.store.event("controller_blocked", { pending: pendingEligible(this.state).length });
+        this.store.event("controller_blocked", { pending: pendingEligible(this.state, this.config).length, containers: this.config.containers });
         this.store.save(this.state);
         if (this.options.once) break;
         await this.waitWhileBlocked(this.config.retry.blockedSleepMinutes * 60_000);
@@ -297,9 +363,9 @@ export class AutodecompController {
       if (!["complete", "paused", "failed"].includes(this.state.status)) this.state.status = "stopped";
       this.state.controllerPid = undefined;
       this.state.activeAttemptId = undefined;
-      this.state.activeFunctionVram = undefined;
+      this.state.activeFunctionKey = undefined;
       this.store.save(this.state);
-      console.log(statusText(this.state));
+      console.log(statusText(this.state, this.config));
       void completedUnits;
     } catch (error) {
       this.state.status = "failed";
@@ -396,6 +462,31 @@ export class AutodecompController {
     this.store.save(this.state);
   }
 
+  /**
+   * The name-keyed tables the policy gate needs to place a function.
+   *
+   * All three come from the call graph, which is the authority on where a
+   * function lives. Reconstructing a source path from a naming convention is
+   * exactly the failure this replaces: `src/<name>.c` is the executable's
+   * layout, and using it for an overlay scans a file that does not exist, which
+   * a policy checker reports as a clean function rather than an unscanned one.
+   */
+  private graphTables(): {
+    functionVrams: Record<string, string>;
+    functionContainers: Record<string, string>;
+    functionSources: Record<string, string>;
+  } {
+    const functionVrams: Record<string, string> = {};
+    const functionContainers: Record<string, string> = {};
+    const functionSources: Record<string, string> = {};
+    for (const entry of this.graph?.functions ?? []) {
+      functionVrams[entry.name] = entry.vram;
+      functionContainers[entry.name] = entry.container;
+      if (entry.source) functionSources[entry.name] = entry.source;
+    }
+    return { functionVrams, functionContainers, functionSources };
+  }
+
   private async auditExisting(fn: FunctionState): Promise<boolean> {
     fn.status = "gating";
     this.store.save(this.state);
@@ -405,6 +496,8 @@ export class AutodecompController {
       mode: "audit",
       functionName: fn.currentName,
       functionVram: fn.vram,
+      functionContainer: fn.container,
+      ...this.graphTables(),
       changedFiles: [],
       patch: "",
       runBuild: false,
@@ -417,26 +510,30 @@ export class AutodecompController {
     }
     fn.status = "retry-ready";
     fn.parkedReason = `Import audit failed: ${gate.failures.join("; ")}`;
-    this.store.event("function_audit_failed", { vram: fn.vram, name: fn.currentName, failures: gate.failures });
+    this.store.event("function_audit_failed", { key: keyOf(fn), name: fn.currentName, failures: gate.failures });
     this.store.save(this.state);
     return false;
   }
 
   private async executeWork(work: WorkItem): Promise<boolean> {
-    const fn = work.functionVram ? this.state.functions[work.functionVram] : undefined;
+    const fn = work.functionKey ? this.state.functions[work.functionKey] : undefined;
     if (fn) fn.status = work.mode === "targeted-refinement" ? "refining" : "preparing";
-    this.state.activeFunctionVram = work.functionVram;
+    this.state.activeFunctionKey = work.functionKey;
     this.store.save(this.state);
 
     const groupId = `${Date.now()}-${randomUUID().slice(0, 8)}`;
-    const workspace = await createWorkspace(this.projectRoot, this.config, groupId);
+    /* The workspace splits the executable plus whichever containers this run can
+       reach, so the target's `INCLUDE_ASM` stubs and its container's link inputs
+       exist there. Splitting only the executable left an overlay's assembly
+       absent and its link failing on a symbol the workspace had never seen. */
+    const workspace = await createWorkspace(this.projectRoot, this.config, groupId, this.workspaceContainers(work));
     let success = false;
     let lastGate: GateResult | undefined;
     const sessionDir = work.mode === "project-refinement"
       ? join(this.config.runtimeDir, "refinements", "project", groupId, "sessions")
       : work.mode === "targeted-refinement"
-        ? join(this.config.runtimeDir, "refinements", "targeted", work.functionVram!.replace(/^0x/i, ""), groupId, "sessions")
-        : join(functionDir(this.config, work.functionVram!), "sessions", groupId);
+        ? join(this.config.runtimeDir, "refinements", "targeted", work.functionContainer ?? EXE_CONTAINER, work.functionVram!.replace(/^0x/i, ""), groupId, "sessions")
+        : join(functionDir(this.config, work.functionKey!), "sessions", groupId);
 
     try {
       const maxAttempts = work.mode === "match"
@@ -454,6 +551,7 @@ export class AutodecompController {
         const attempt: AttemptRecord = {
           id: attemptId,
           mode: work.mode,
+          functionContainer: work.functionContainer,
           functionVram: work.functionVram,
           functionName: work.functionName,
           model: model.model,
@@ -471,7 +569,7 @@ export class AutodecompController {
           fn.attempts.push(attemptId);
           if (work.mode === "match") fn.attemptsThisEpoch++;
         }
-        this.store.event("worker_started", { attemptId, mode: work.mode, vram: work.functionVram, model: model.model });
+        this.store.event("worker_started", { attemptId, mode: work.mode, key: work.functionKey, model: model.model });
         this.store.save(this.state);
 
         const worker = await runPiWorker({
@@ -513,7 +611,7 @@ export class AutodecompController {
         const changedFiles = [...new Set([...treeChanged, ...workspaceChanged])].sort();
         const patchDir = work.mode === "project-refinement"
           ? join(this.config.runtimeDir, "refinements", "project", groupId)
-          : functionDir(this.config, work.functionVram!);
+          : functionDir(this.config, work.functionKey!);
         mkdirSync(join(patchDir, "patches"), { recursive: true });
         const patchPath = join(patchDir, "patches", `${attemptId}.patch`);
         writeFileSync(patchPath, patch);
@@ -525,6 +623,8 @@ export class AutodecompController {
           mode: work.mode,
           functionName: work.functionName,
           functionVram: work.functionVram,
+          functionContainer: work.functionContainer,
+          ...this.graphTables(),
           changedFiles,
           patch,
           signal: this.abortController.signal,
@@ -554,7 +654,7 @@ export class AutodecompController {
     } finally {
       await removeWorkspace(this.projectRoot, workspace.path);
       this.state.activeAttemptId = undefined;
-      this.state.activeFunctionVram = undefined;
+      this.state.activeFunctionKey = undefined;
     }
 
     if (work.mode === "match" && fn) {
@@ -570,7 +670,7 @@ export class AutodecompController {
       fn.lastGate = lastGate;
       fn.lastRefinedNeighborHash = fn.lastNeighborHash;
       this.state.matchesSinceTargeted = 0;
-      this.store.event("targeted_refinement_processed", { vram: fn.vram, accepted: success });
+      this.store.event("targeted_refinement_processed", { key: keyOf(fn), accepted: success });
     } else if (work.mode === "project-refinement") {
       this.state.lastProjectRefinedGraphHash = this.state.graphHash;
       this.state.matchesSinceProject = 0;
@@ -578,6 +678,20 @@ export class AutodecompController {
     }
     this.store.save(this.state);
     return success;
+  }
+
+  /**
+   * The containers a workspace has to split before it can build.
+   *
+   * The executable is implicit — every container links against its symbol
+   * export. Beyond that: the work item's own container, or, when a work item
+   * names none (a project-wide refinement), whatever the run is scoped to.
+   * `null` scope means every container, which the workspace expresses by
+   * splitting all of them.
+   */
+  private workspaceContainers(work: WorkItem): string[] | null {
+    if (work.functionContainer) return [work.functionContainer];
+    return this.config.containers;
   }
 
   private modelTierForCount(attempts: number): number | undefined {
@@ -616,12 +730,14 @@ export class AutodecompController {
         mode: work.mode,
         functionName: work.functionName,
         functionVram: work.functionVram,
+        functionContainer: work.functionContainer,
+        ...this.graphTables(),
         changedFiles,
         patch,
         signal: this.abortController.signal,
       }));
       if (!trunkGate.pass) {
-        this.store.event("integration_gate_failed", { vram: work.functionVram, failures: trunkGate.failures });
+        this.store.event("integration_gate_failed", { key: work.functionKey, failures: trunkGate.failures });
         if (applied) await reversePatch(this.projectRoot, patchPath);
         return false;
       }
@@ -629,7 +745,7 @@ export class AutodecompController {
       this.store.save(this.state);
       this.store.event("patch_integrated", {
         mode: work.mode,
-        vram: work.functionVram,
+        key: work.functionKey,
         changedFiles,
         patchHash: patchHash(patch),
         workspaceGate: workspaceGate.pass,
@@ -655,7 +771,7 @@ export class AutodecompController {
     fn.parkedReason = undefined;
     this.state.matchesSinceTargeted++;
     this.state.matchesSinceProject++;
-    this.store.event("function_matched", { vram: fn.vram, name: fn.currentName, reason });
+    this.store.event("function_matched", { key: keyOf(fn), name: fn.currentName, reason });
     this.store.save(this.state);
   }
 
@@ -670,7 +786,7 @@ export class AutodecompController {
       this.store.save(this.state);
       return false;
     }
-    const split = await runCommand("make", ["split"], {
+    const split = await runCommand("make", ["split-all"], {
       cwd: this.projectRoot,
       timeoutMs: 10 * 60_000,
       signal: this.abortController.signal,
@@ -708,7 +824,7 @@ export class AutodecompController {
       scanFunctions: this.graph.functions
         .filter((entry) => !entry.dead && entry.handwritten === false)
         .map((entry) => entry.name),
-      functionVrams: Object.fromEntries(this.graph.functions.map((entry) => [entry.name, entry.vram])),
+      ...this.graphTables(),
       changedFiles,
       patch,
     });
@@ -734,7 +850,8 @@ export class AutodecompController {
       "",
       `- Generated: ${now()}`,
       `- Matched: ${functions.filter((fn) => fn.status === "matched").length}`,
-      `- Pending eligible: ${pendingEligible(this.state).length}`,
+      `- Containers: ${this.config.containers?.join(", ") ?? "all"}`,
+      `- Pending eligible: ${pendingEligible(this.state, this.config).length}`,
       `- Parked: ${functions.filter((fn) => fn.status === "parked").length}`,
       `- Attempts: ${Object.keys(this.state.attempts).length}`,
       `- Turns: ${this.state.totalUsage.turns}`,
@@ -778,7 +895,6 @@ export class AutodecompController {
       try {
         const request = JSON.parse(readFileSync(path, "utf8")) as ControlRequest;
         const fn = resolveTarget(this.state, request.target);
-        if (!fn) throw new Error(`Unknown target ${request.target}`);
         if (request.action === "skip") {
           fn.manuallySkipped = true;
           fn.status = "manually-skipped";
@@ -788,7 +904,7 @@ export class AutodecompController {
           fn.attemptsThisEpoch = 0;
           fn.parkedReason = undefined;
         }
-        this.store.event("control_request", { action: request.action, target: request.target, vram: fn.vram });
+        this.store.event("control_request", { action: request.action, target: request.target, key: keyOf(fn) });
       } catch (error) {
         this.store.event("control_request_failed", { file: name, error: String(error) });
       } finally {
@@ -815,15 +931,17 @@ async function main(): Promise<void> {
   const command = process.argv[2] ?? "start";
   const root = findProjectRoot();
   if (command === "start" || command === "run") {
+    const containers = parseContainerArgs(process.argv.slice(3));
     await runController(root, {
       dryRun: process.argv.includes("--dry-run"),
       once: process.argv.includes("--once"),
       forceLock: process.argv.includes("--force-lock"),
+      ...(containers ? { containers } : {}),
     });
     return;
   }
   if (command === "status") {
-    console.log(statusText(readStatus(root)));
+    console.log(statusText(readStatus(root), loadConfig(root)));
     return;
   }
   if (command === "logs") {
@@ -837,7 +955,7 @@ async function main(): Promise<void> {
   }
   if (["retry", "skip", "unblock"].includes(command)) {
     const target = process.argv[3];
-    if (!target) throw new Error(`${command} requires a function name or VRAM`);
+    if (!target) throw new Error(`${command} requires a function name or a <container>:<address> key`);
     writeRequest(root, command as ControlRequest["action"], target);
     console.log(`Autodecomp ${command} requested for ${target}.`);
     return;
