@@ -1052,7 +1052,9 @@ Members (address order):
   D_8005E548/D_8005E54C/D_8005E544, bumps D_8005E558, resets via func_8001FF98
 - func_80020818 (m) — sound init: opens sequences, calls SsStart, sets
   D_8005E53C, configures stereo/mono from D_8005E55C
-- func_80020A14 (s) — mono setter: calls SsSetMono, clears D_8005E55C
+- func_80020A14 (m) — mono setter: calls SsSetMono, clears D_8005E55C
+  (matched 2026: mirror image of func_80020A40, shares the D_8005E55C GP-relative
+  definition with this cluster; confirmed membership)
 - func_80020A40 (m) — stereo setter: calls SsSetStereo, sets D_8005E55C
 - GetVal8005E55C (s) — getter: returns D_8005E55C
 - GetVal8005E544 (s)(?) — adjacent getter; membership unverified
