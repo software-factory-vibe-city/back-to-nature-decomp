@@ -799,8 +799,20 @@ SetVal8005E29C, SetVal8005E27C and GetFlag8005E274 directly, and sits at
 defines `D_8005E29C`, which func_80012D30 also defines, so it is the same TU.
 func_8001328C (m) defines the same six-global cluster GP-relative and sits only
 0x2C below func_800132B8, so it is the same TU.
+func_80013400 (m, 2026-08) defines D_8005E294 and sits immediately below
+func_80013394 at 0x80013394, so it is the same TU. It also settled two
+boundary facts for the group: (1) the splat split at 0x80013430 was spurious —
+"func_80013430" is the switch's shared return-0 epilogue (`jr ra; nop`), the
+tail of a single 0x38-byte function, merged into func_80013400 in
+configs/splat/exe.yaml + configs/symbols/exe.txt (src/func_80013430.c
+deleted); this is the binary's only `j` onto another function start, and
+gcc 2.95.2-psx has no sibling-call support, which is why the bytes cannot
+come from two functions. (2) func_80013400's access is a plain switch that
+GCC did not fold into its `xori/sltu/sll` trick — the fold needs a bare
+`return 0` fall-through; a `return` inside each `case` keeps three separate
+return blocks.
 Shared gp-rel cluster is the same evidence class as the boot/main-loop TU;
-four functions now agree on it. Note func_80012D30 reads D_8005E3A4/D_8005E3B4/
+five functions now agree on it. Note func_80012D30 reads D_8005E3A4/D_8005E3B4/
 D_8005E3C0 *absolutely* (the boot/main-loop TU's cluster), confirming it is
 not a member there. func_80011370 calls func_800132B8, so this is a different
 TU. Intermediate func_800132F0 and func_80013328 are stubs; GetFlag8005E274,
@@ -815,6 +827,7 @@ Members (address order):
 - func_800132F0 (s)(?) — stub; intermediate
 - func_80013328 (s)(?) — stub; intermediate
 - func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
+- func_80013400 (m, 2026-08-21) — mode-dispatch query: `switch (D_8005E294)` → 1 / 2 / 0; tail return-0 block was mis-split as "func_80013430", now merged
 - SetVal8005E29C (m) — setter for D_8005E29C (shared with func_80012D30)
 
 ## Full-screen primitive setup — 0x800134C4–0x800139F8 (confidence: medium)

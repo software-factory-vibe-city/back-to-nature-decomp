@@ -114,8 +114,7 @@ segments:
       - [0x3AF0, c, func_800132F0]       # 0x800132F0 func_800132F0
       - [0x3B28, c, func_80013328]       # 0x80013328 func_80013328
       - [0x3B94, c, func_80013394]       # 0x80013394 func_80013394
-      - [0x3C00, c, func_80013400]       # 0x80013400 func_80013400
-      - [0x3C30, c, func_80013430]
+      - [0x3C00, c, func_80013400]       # 0x80013400 func_80013400, spans 0x3C00-0x3C38 (was split at 0x3C30)
       - [0x3C38, c, SetVal8005E29C]       # 0x80013438 SetVal8005E29C
       - [0x3C44, c, GetVal8005E29C]       # 0x80013444 GetVal8005E29C
       - [0x3C50, c, func_80013450]       # 0x80013450 func_80013450
