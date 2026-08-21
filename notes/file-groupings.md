@@ -1520,3 +1520,32 @@ Members (address order):
 - func_80013394 (s) — state query: booleans from D_8005E294/D_8005E3CC
   vs D_8005E3CE+offsets
 - func_80013400 (s) — switch over D_8005E294
+
+## `exe` sprite-load wrapper cluster — 0x800171CC–0x80017284 (confidence: low)
+
+Three thin, skeletal-twin wrappers over the 1324-byte worker `func_80017300`,
+followed by a fourth function that also reaches into the same wider data-loading
+family. Confidence low: three of the four are still stubs, so same-TU
+membership is unproven.
+
+Fingerprints:
+- internal call graph: `func_800171CC`, `func_80017200`, `func_80017240` all
+  call `func_80017300` only; the worker calls nothing in the cluster.
+- address adjacency: the three wrappers are contiguous with no gap
+  (0x800171CC → 0x80017200 → 0x80017240), and the worker starts immediately
+  after `func_80017284`.
+- shared skeleton: the wrappers are identical thin frames differing only in the
+  constant/tag and pass-through args they present to the worker
+  (tag 1 / tag 0 / tag 2), the classic "parameterized worker + public facades"
+  same-file shape.
+
+Members (address order):
+- func_8001719C (m) — small value helper (no callees, many external callers);
+  not clearly part of this cluster
+- func_800171CC (s) — wrapper: func_80017300(tag=1, zeros, 0)
+- func_80017200 (m) — wrapper: func_80017300(tag=0, four s16 args pass-through) (matched 2026-08-21)
+- func_80017240 (s) — wrapper: func_80017300(tag=2, four s16 args pass-through, same frame shape as func_80017200)
+- func_80017284 (s) — distinct shape: func_80015AAC → func_80015B24 →
+  func_8001782C with D_8005EA28 global; sibling, not a twin
+- func_80017300 (m) — worker: RLE loader for 0xD-tagged compressed sprite/palette
+  streams (writes via DrawSync/rect machinery)
