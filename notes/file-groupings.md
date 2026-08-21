@@ -1338,3 +1338,33 @@ Member: func_80018B98 (in progress — 257/292 clean C; residual is pure greg
   narrowly allowlisted embedded-asm/register-asm hybrid
   (notes/research/func_80019070-prologue-allocation-and-arg2-truncation.md);
   func_80018B98 is expected to need the same exception category.
+
+## fade/option-dim state machine — 0x8001328C–0x80013400 (confidence: medium)
+
+Shared gp-rel cluster D_8005E294 / D_8005E298 / D_8005E2A0 / D_8005E3CC /
+D_8005E3CE / D_8005E3D0, plus a peripheral D_8005E3C8 in the same short
+run. func_80012D30 is the mode driver: D_8005E294 selects mode 1/2/3
+(rising / waiting / falling), D_8005E3CC is the animation counter that
+paces toward the target D_8005E3CE, D_8005E298 is a tick/step flag,
+D_8005E2A0 a delta and D_8005E3D0 a boolean that gates a fast path
+(`0xFF000 / D_8005E3CE`). All members *define* the six globals as
+tentative definitions (GP-relative), the strongest same-TU signal; the
+(short,short) pair D_8005E3CC/D_8005E3CE is adjacent in memory.
+
+Members (address order):
+- func_80012AB0 (s)(?) — adjacent; membership unproven, no cluster touches
+- func_80012D30 (s) — mode driver; long switch over D_8005E294, paces
+  D_8005E3CC toward D_8005E3CE, uses D_8005E298, D_8005E3D0, D_8005E2A0;
+  also D_8005E3C8 before the pair
+- func_8001316C (s)(?) — adjacent; membership unproven
+- func_8001328C (s) — init: D_8005E294=1, D_8005E3CE=0x3C, D_8005E3CC=0,
+  D_8005E298=0, D_8005E2A0=2, D_8005E3D0=0
+- func_800132B8 (s) — init: D_8005E294=1, D_8005E3CE=(s16)arg0,
+  D_8005E3CC=(s16)arg0-1, D_8005E298=0, D_8005E2A0=arg2,
+  D_8005E3D0=(s16)arg1
+- func_800132F0 (m, 2026-08-21) — init: D_8005E294=2, D_8005E3CC=0,
+  D_8005E3CE=(s16)arg0+1, D_8005E298=0, D_8005E2A0=arg2,
+  D_8005E3D0=(s16)arg1
+- func_80013394 (s) — state query: booleans from D_8005E294/D_8005E3CC
+  vs D_8005E3CE+offsets
+- func_80013400 (s) — switch over D_8005E294
