@@ -1,0 +1,3 @@
+#include "common.h"
+
+INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800FD5E8", ovl_11_func_800FD5E8);
