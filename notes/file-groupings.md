@@ -664,8 +664,10 @@ idiom cluster (same-TU evidence). Members:
   as func_8002495C (second member confirming the subgroup's flag fact;
   baseline sched1 drifts its shared sentinel/-1 pseudo above the s16
   sign-extension, the override pins the li to its expand-time position)
-- func_800249C0 — mod-N count on the same D_8005E5D1, then dispatches via
-  func_80024A4C (bridges the counter into the sprite renderer)
+- func_800249C0 (m) — mod-30 count on the same D_8005E5D1, then dispatches
+  via func_80024A4C (bridges the counter into the sprite renderer; same
+  gp-rel tentative-definition merge with func_8002495C; matches with DEFAULT
+  flags — no -fno-schedule-insns override, unlike the pure counters)
 - func_80024810 (m) — mod-30 of D_8005E5D0 (same 0x88888889 magic idiom), then
   dispatches via func_80024A4C with sprite-header id 0xD (bridging role, same
   shape as func_800249C0; gp-rel access to the shared D_8005E5D0 u8 confirms
