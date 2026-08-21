@@ -116,7 +116,7 @@ Fingerprints:
 
 Members (address order):
 - SetVal8005E51C 0x8001E334 (m) — tolerance setter
-- func_8001E340 (s)(?) — tiny; touches no cluster globals
+- func_8001E340 (m) — sets each collision-cell's flag to 1 (grid at *arg0, cells 0x1C-stride from +0xC, flag at +0x18); tiny, touches no cluster globals
 - func_8001E38C (m) — post-hit consumer, guards on D_8005E528
 - func_8001E4C0 (s) — driver: clears flags, installs query pointer
 - func_8001E6FC (s) — small; query pointer + D_8005E524
