@@ -900,6 +900,23 @@ after the gradient-interpolation cluster (0x8001FABC), far from this range —
 sound-playback role by call graph, non-adjacent by link order; TU membership
 unproven.
 
+## CD-music state flag family — 0x80021B20–0x80021CD8 (confidence: low)
+
+Shared gp-rel `s16 D_8005E324` ("noise/music playing" flag): written by
+func_80021B20 (=0, after SsSetSerialVol/SdStandby mute) and func_80021CD8
+(=1, before Cd position control); read by func_80021B64 as a state query.
+All three TUs tentatively define D_8005E324 to reach it GP-relatively, and
+the three are address-adjacent in link order. func_80021B20 is also a CD-
+loader callee (of func_80014CBC), so TU membership is unconfirmed — the
+tentative defs merge via -fcommon regardless. Members:
+- func_80021B20 (m) — mute/standby: if D_8005E324 != 0, silences serial
+  output and CD, then clears the flag
+- func_80021B64 (m, 2026-08-21) — state query: 0 / 2 / 1 by
+  D_8005E324 value; called only from ovl_11 (800CE834, 800E58DC,
+  800E6AB0, 800FFF7C, 8011F608)
+- func_80021CD8 (m) — sets D_8005E324 = 1, seeks CD position via
+  CdIntToPos/CdControl for a track from D_80049A80
+
 ## sound init and control — around 0x8001FEA4–0x80020A94 (confidence: medium)
 
 Sound system initialization, stereo/mono control, and score sequence opening.
