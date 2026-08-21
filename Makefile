@@ -210,26 +210,27 @@ check: $(BUILT_BIN)
 # Overlay containers
 # ---------------------------------------------------------------------------
 
-# The PS-X EXE's symbol table, as absolute definitions for every overlay link.
+# The PS-X EXE's symbol table, as absolute definitions for every overlay link,
+# and the source of the names in every overlay's own symbol table.
 #
-# Once the EXE links, the linked ELF is the authority and is a declared
-# prerequisite, so renaming a function in src/ relinks every overlay. A stale
-# list would link cleanly and call the wrong function, which is why the link
-# rule below re-checks it rather than trusting the timestamp.
+# The linked ELF is the authority, so the export links it first. That recursive
+# call is what makes a cold tree converge in one pass: `wildcard` is resolved
+# when make reads this file, so on a tree with no build the ELF cannot be named
+# as a prerequisite at all, and without the call the export would silently
+# prefer the weaker source — leaving `func_800403FC` in an overlay's table where
+# the engine defines `MemCardSync`. Where the ELF does already exist it is a
+# declared prerequisite, so renaming a function in src/ relinks every overlay.
+# A stale list would link cleanly and call the wrong function, which is why the
+# link rule below re-checks it rather than trusting the timestamp.
 #
-# Before the EXE links — a new project whose library integration is not finished
-# — the export falls back to the project's own symbol tables. That is weaker: it
-# cannot see a symbol only the link defines. It is offered anyway because it is
-# what lets overlay work begin before the executable is buildable, and the tool
-# names which source it used.
-ifeq ($(wildcard $(BUILT_ELF)),)
-$(ENGINE_SYMS):
-	@echo "note: no linked PS-X EXE yet — the engine export falls back to the project symbol tables"
+# The failure is tolerated on purpose. A project whose library integration is
+# not finished cannot link its executable yet, and overlay work is not supposed
+# to wait for it: the fallback cannot see a symbol only the link defines, and
+# the tool names which source it used.
+$(ENGINE_SYMS): $(wildcard $(BUILT_ELF))
+	@$(MAKE) --no-print-directory $(BUILT_ELF) || \
+		echo "note: the executable does not link yet — the engine export falls back to the project symbol tables"
 	npx tsx tools/build/exportEngineSymbols.ts --write
-else
-$(ENGINE_SYMS): $(BUILT_ELF)
-	npx tsx tools/build/exportEngineSymbols.ts --write
-endif
 
 define OverlayRules
 $(1)_C_SRCS := $$(wildcard src/overlays/$(1)/*.c)
@@ -264,7 +265,11 @@ check-$(1): $(BUILD_DIR)/$(1)/$(1).bin
 
 $(1): $(BUILD_DIR)/$(1)/$(1).bin
 
-split-$(1):
+# The engine export is a real input: an overlay's symbol table names its
+# external calls from it, so a split run against a stale or absent export
+# writes `func_800403FC` where the engine defines `MemCardSync`, and any C
+# that calls the function by name fails to link.
+split-$(1): $(ENGINE_SYMS)
 	npx tsx tools/build/bootstrapOverlay.ts --container $(1) --write
 	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat/$(1).yaml
 	@cat $(BUILD_DIR)/$(1)/ld_includes.txt >> $(BUILD_DIR)/$(1)/$(1).ld

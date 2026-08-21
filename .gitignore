@@ -10,6 +10,8 @@ tools/build/*
 !tools/build/genProjectProfile.ts
 !tools/build/deriveTuOwnedGlobals.ts
 !tools/build/deriveRodataSplits.ts
+# Colocated tests for the build tools, which the npm test script runs.
+!tools/build/*.test.ts
 # Overlay container pipeline (plans/overlay-decompilation-enablement.md).
 !tools/build/extractArchive.ts
 !tools/build/classifyArchiveMembers.ts

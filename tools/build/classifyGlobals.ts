@@ -15,6 +15,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { exeSplatYamlPath } from "../lib/psxExeInfo.js";
+import { field, namedChildren, parseC } from "../agent/residual-source-search/tree-sitter-c.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 const writeMode = process.argv.includes("--write");
@@ -173,6 +174,15 @@ function inferTypesFromBinary(symbols: SymbolInfo[]): void {
   }
 }
 
+/**
+ * Types read off gp-relative accesses in the assembly still on disk.
+ *
+ * Weaker than the source, and deliberately runs before it: the tree only holds
+ * assembly for functions that have not been decompiled yet, and it accumulates
+ * — splat does not remove a directory when a function is promoted to C. That
+ * makes this pass's evidence a function of build history rather than of the
+ * tree, so anything the source can answer must override it.
+ */
 function inferTypesFromAsm(symbols: SymbolInfo[]): void {
   /* Scan nonmatchings asm for GP-relative symbols */
   const nonmatchingsDir = join(ROOT, "build/asm/nonmatchings");
@@ -216,8 +226,42 @@ function inferTypesFromAsm(symbols: SymbolInfo[]): void {
   }
 }
 
+const SCALAR_TYPES = new Set(["s8", "u8", "s16", "u16", "s32", "u32", "void"]);
+
+/**
+ * File-scope declarations of a symbol in one translation unit, with their type.
+ *
+ * Both spellings count and for the same reason. `extern s16 D_X;` is a
+ * reference; `s16 D_X;` is the tentative definition that expresses TU
+ * ownership, which is how gp-relative addressing is asked for here. The
+ * definition was the one being missed: the file that owns a global names its
+ * type there and nowhere else, so the type had to be recovered from build
+ * artifacts instead — see `inferTypesFromAsm`.
+ *
+ * Parsed rather than matched. A regex cannot tell a file-scope declaration from
+ * one inside a function body, or from the same text inside a comment or an
+ * `#if 0` block, and this file is generated from the answer.
+ */
+export function fileScopeDeclarations(source: string): Map<string, string> {
+  const found = new Map<string, string>();
+  const root = parseC(source).rootNode;
+  for (const node of namedChildren(root)) {
+    if (node.type !== "declaration") continue;
+    const type = field(node, "type");
+    if (!type || !SCALAR_TYPES.has(type.text)) continue;
+    for (const child of namedChildren(node)) {
+      /* Pointers and arrays are a different declaration than the scalar the
+         generated header emits, so they are left to the other inference
+         passes rather than typed as the scalar they are built from. */
+      if (child.type !== "identifier") continue;
+      found.set(child.text, type.text);
+    }
+  }
+  return found;
+}
+
 function inferTypesFromSource(symbols: SymbolInfo[]): void {
-  /* Scan decompiled C source for explicit extern declarations (GP-relative only) */
+  /* Scan decompiled C source for file-scope declarations (GP-relative only) */
   const srcDir = join(ROOT, "src");
   if (!existsSync(srcDir)) return;
 
@@ -226,19 +270,35 @@ function inferTypesFromSource(symbols: SymbolInfo[]): void {
     if (s.inGpRange) symByName.set(s.name, s);
   }
 
-  const externRe = /extern\s+(s8|u8|s16|u16|s32|u32|void)\s+(\w+)\s*[\[;]/gm;
-  for (const file of readdirSync(srcDir)) {
-    if (!file.endsWith(".c")) continue;
-    const content = readFileSync(join(srcDir, file), "utf-8");
+  for (const file of sourceFiles(srcDir)) {
+    const content = readFileSync(file, "utf-8");
     if (content.includes("INCLUDE_ASM(")) continue;
-    let m: RegExpExecArray | null;
-    externRe.lastIndex = 0;
-    while ((m = externRe.exec(content)) !== null) {
-      const [, cType, name] = m;
+    for (const [name, cType] of fileScopeDeclarations(content)) {
       const sym = symByName.get(name);
       if (sym) sym.cType = cType;
     }
   }
+}
+
+/**
+ * Every C file under `src/`, including each container's own directory.
+ *
+ * A flat read of `src/` sees the executable's translation units and none of the
+ * overlays', so a global an overlay owns would be typed from build artifacts or
+ * left at the default.
+ */
+function sourceFiles(root: string): string[] {
+  const found: string[] = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) stack.push(path);
+      else if (entry.name.endsWith(".c")) found.push(path);
+    }
+  }
+  return found.sort();
 }
 
 function inferTypes(symbols: SymbolInfo[]): void {

@@ -21,8 +21,8 @@
  *   npx tsx tools/build/genDisasmSymbols.ts --write   # write the file
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { loadPsxExeInfo, ROOT, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
 
 const SYMBOL_ADDRS = exeSymbolAddrsPath();
@@ -57,6 +57,10 @@ function main() {
     return;
   }
 
+  /* First writer into the build directory on a cold tree — `make split` runs
+     before anything has created it, which is the path every autonomous
+     workspace takes. */
+  mkdirSync(dirname(OUT_PATH), { recursive: true });
   writeFileSync(OUT_PATH, out);
   console.log(`Wrote ${lines.length} symbols to ${OUT_PATH}`);
 }
