@@ -309,7 +309,7 @@ Fingerprints:
 
 Members (address order):
 - func_8002238C (m) — wrapper pairing func_800223D4 with func_800224F0
-- func_800223B0 (s) — wrapper pairing func_800223D4 with func_80022528
+- func_800223B0 (m) — wrapper pairing func_800223D4 with func_80022528
 - func_800223D4 (m) — sprite-source grid callback driver
 - func_800224F0 (s) — callback forwarding grid entries to func_80015EE8
 - func_80022528 (s) — callback forwarding grid entries to func_80015E3C
