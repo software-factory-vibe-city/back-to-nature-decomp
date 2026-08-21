@@ -40,6 +40,8 @@ export type ParkReason = "escalation-exhausted" | "asm-needs-human-approval" | "
 
 export interface ParkRecord {
   functionName: string;
+  /** Project-relative C file, so a note names the container's path, not `src/`. */
+  sourcePath?: string;
   reason: ParkReason;
   parkedAt: string;
   /** Ladder tier the loop reached before parking. */

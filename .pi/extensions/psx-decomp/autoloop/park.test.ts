@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -141,6 +141,37 @@ test("parking a function whose committed source is already a park does not stack
   }
 });
 
+test("a synthesized stub names the container's own assembly directory", () => {
+  const { dir, cleanup } = scratch();
+  try {
+    /* The call graph places the function; the stub has to follow it. A stub
+       written against `build/asm/nonmatchings/` for an overlay compiles — the
+       macro takes a string — and then fails the link on a missing symbol, which
+       reads as a broken park rather than a wrong path. */
+    mkdirSync(join(dir, "build"), { recursive: true });
+    writeFileSync(join(dir, "build", "callGraph.json"), JSON.stringify({
+      functions: [{
+        name: "ovl_31_func_800B82E8",
+        container: "ovl_31",
+        source: "src/overlays/ovl_31/ovl_31_func_800B82E8.c",
+        includeAsmPath: "build/ovl_31/asm/nonmatchings/ovl_31_func_800B82E8",
+        vram: "0x800B82E8",
+        dead: false,
+      }],
+    }));
+
+    assert.match(
+      canonicalStub(dir, "ovl_31_func_800B82E8"),
+      /INCLUDE_ASM\("build\/ovl_31\/asm\/nonmatchings\/ovl_31_func_800B82E8", ovl_31_func_800B82E8\);/,
+    );
+    /* A function the graph does not place falls back to the executable's
+       layout, which is the only one assumable without a graph. */
+    assert.match(canonicalStub(dir, "func_80012345"), /INCLUDE_ASM\("build\/asm\/nonmatchings\/func_80012345", func_80012345\);/);
+  } finally {
+    cleanup();
+  }
+});
+
 test("planning synthesizes a stub when the committed source no longer declares one", async () => {
   const { dir, cleanup } = scratch();
   try {
@@ -152,7 +183,7 @@ test("planning synthesizes a stub when the committed source no longer declares o
       committedSource: "int func_80012345(int a) { return a; }\n",
     });
     assert.match(plan.reasons.join("\n"), /synthesized a canonical stub/);
-    assert.ok(plan.source.startsWith(canonicalStub("func_80012345").trimEnd().split("\n")[0]));
+    assert.ok(plan.source.startsWith(canonicalStub(PROJECT_ROOT, "func_80012345").trimEnd().split("\n")[0]));
     assert.match(plan.source, /INCLUDE_ASM\("build\/asm\/nonmatchings\/func_80012345", func_80012345\);/);
   } finally {
     cleanup();

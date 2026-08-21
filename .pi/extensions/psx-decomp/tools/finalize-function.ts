@@ -21,6 +21,7 @@ export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
       onUpdate?.({ content: [{ type: "text", text: `Finalizing ${params.functionName}...` }], details: {} });
       const config = loadConfig(ctx.cwd);
       const entry = loadCallGraph(ctx.cwd).functions.find((candidate) => candidate.name === params.functionName);
+      const containerNote = entry && entry.container !== "exe" ? ` in ${entry.container}` : "";
       const tree = await createTreeFromWorktree(ctx.cwd, ctx.cwd, config.integration.allowedRoots);
       const patch = await treePatch(ctx.cwd, "HEAD", tree, config.integration.allowedRoots);
       const allChangedFiles = [...new Set([
@@ -29,12 +30,21 @@ export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
       ])].sort();
       const baseline = await getSessionBaseline(ctx.cwd);
       const { newFiles: changedFiles, preExisting } = filterNewChanges(allChangedFiles, baseline);
+      /* The graph places the function; the gate needs it placed. Without the
+         container and the source path the policy scan looks for an overlay's
+         translation unit under `src/`, finds nothing, and reports a clean
+         function it never opened. */
+      const graph = loadCallGraph(ctx.cwd);
       const gate = await runGate({
         projectRoot: ctx.cwd,
         config,
         mode: "match",
         functionName: params.functionName,
-        functionVram: entry?.vram,
+        ...(entry?.vram ? { functionVram: entry.vram } : {}),
+        ...(entry?.container ? { functionContainer: entry.container } : {}),
+        functionVrams: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.vram])),
+        functionContainers: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.container])),
+        functionSources: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.source ?? `src/${candidate.name}.c`])),
         changedFiles,
         patch,
         signal,
@@ -43,7 +53,7 @@ export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
         ? `\nScope gate ignored ${preExisting.length} pre-existing workspace change(s): ${preExisting.join(", ")}`
         : "";
       const text = gate.pass
-        ? `${params.functionName} passed exact diff, full build, scope, and clean-source gates.${scopeNote}`
+        ? `${params.functionName}${containerNote} passed exact diff, full build, scope, and clean-source gates.${scopeNote}`
         : `${params.functionName} failed finalization:\n${gate.failures.map((failure) => `- ${failure}`).join("\n")}${scopeNote}`;
       return {
         content: [{ type: "text", text }],

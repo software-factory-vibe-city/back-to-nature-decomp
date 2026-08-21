@@ -86,13 +86,13 @@ export const TOOL_SPECS: ToolSpec[] = [
   functionTool(
     "psx_triage", "PSX Triage", "triage.ts",
     "Pre-flight symptom detectors for one function: frame map, PSY-Q SDK idioms, target-versus-source inventory, arity, debug-hook and source-policy classes. Works on a bare INCLUDE_ASM stub. Run before writing the first line of source and again after every structural edit; a `blocker` finding means the current direction cannot ship regardless of diff score.",
-    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of src/<function>.c" })) },
+    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of the function's own source file" })) },
       argv: (p) => [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(
     "psx_callee_truth", "PSX Callee Truth", "calleeTruth.ts",
     "Confront every callee declaration in scope with evidence that does not depend on this source: the vendored SDK headers, the callees' own matched definitions, and the callees' own compiled code. Every other tool in this project takes the prototypes as the fixed background and varies the source against them, so a wrong prototype is invisible to all of them at once — it is not a point in the space they search, it is the space, and each rewrite that fails to remove what it manufactured reads as evidence that the residual is hard. Run it before authoring, and again the moment a residual survives rewrites that should have moved it. `include/functions.h` is deliberately not a witness: it is generated from src/, so a wrong signature comes back out of it wearing the authority of a project header.",
-    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to audit instead of src/<function>.c" })) },
+    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to audit instead of the function's own source file" })) },
       argv: (p) => [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(
@@ -106,7 +106,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   functionTool(
     "psx_inventory", "PSX Inventory", "inventory.ts",
     "Order-independent content diff against the target: memory offsets, constants and shift amounts as multisets. Invariant to scheduling and allocation, so anything marked TARGET ONLY is a semantic defect. An empty inventory is a precondition for allocation or ordering work, not a nicety.",
-    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of src/<function>.c" })) },
+    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of the function's own source file" })) },
       argv: (p) => [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(
@@ -124,7 +124,7 @@ export const TOOL_SPECS: ToolSpec[] = [
     "psx_scheduler_trace", "PSX Scheduler Trace", "schedulerTrace.ts",
     "The scheduler's own per-cycle record of why a block came out in this order: every insn's priority at the moment it competed, the ready list it was chosen from, and whether it won on priority, on a function-unit hazard, or on a tie. Run as soon as a residual is classified as scheduling, BEFORE authoring source variants — spellings that compile to the same RTL are the same experiment, and this says which lever actually moved. The unpromoted list is the actionable output: a non-store insn is unpromoted when its destination pseudo is assigned more than once, which in C is a variable written twice.",
     { extra: {
-        src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of src/<function>.c" })),
+        src: Type.Optional(Type.String({ description: "Alternate source file to compile instead of the function's own source file" })),
         pass: Type.Optional(Type.String({ enum: ["sched", "sched2", "both"], description: "Scheduling pass: sched (pre-reload, default), sched2 (post-reload), or both" })),
         block: Type.Optional(Type.Integer({ minimum: 0, description: "Restrict output to one basic block" })),
       },

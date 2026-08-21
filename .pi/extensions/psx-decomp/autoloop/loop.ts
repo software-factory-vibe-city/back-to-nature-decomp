@@ -22,6 +22,7 @@ import {
   noteRelativePath,
   planPark,
   readSource,
+  sourceRelativePath,
   writeNote,
   writeSource,
 } from "./park.ts";
@@ -308,7 +309,7 @@ async function adjudicate(
   deps.sink.verdict.verdict = undefined;
   setVerdictToolActive(deps.pi, true);
   try {
-    await turn(deps, reviewMessage(functionName, findings));
+    await turn(deps, reviewMessage(functionName, findings, sourceRelativePath(deps.projectRoot, functionName)));
   } finally {
     setVerdictToolActive(deps.pi, false);
     deps.sink.verdict.awaiting = undefined;
@@ -339,8 +340,10 @@ async function park(
   findings: PolicyFinding[],
 ): Promise<{ state: LoopState; record: ParkRecord }> {
   const attempt = readSource(deps.projectRoot, functionName);
+  const sourcePath = sourceRelativePath(deps.projectRoot, functionName);
   const record: ParkRecord = {
     functionName,
+    sourcePath,
     reason,
     parkedAt: new Date().toISOString(),
     reachedTier,
@@ -354,7 +357,7 @@ async function park(
     runtimeDir: deps.config.runtimeDir,
     functionName,
     attemptSource: attempt,
-    committedSource: await committedSource(deps.projectRoot, `src/${functionName}.c`),
+    committedSource: await committedSource(deps.projectRoot, sourcePath),
     reason,
     reachedTier,
     notePath,

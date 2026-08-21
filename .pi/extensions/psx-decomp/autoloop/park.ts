@@ -1,16 +1,25 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { functionPaths } from "../autonomous/call-graph.ts";
 import { runCommand } from "../autonomous/process.ts";
 import type { PolicyFinding } from "../autonomous/types.ts";
 import { declaresIncludeAsm, inspectSource, type SourceFacts } from "./c-ast.ts";
 import type { LoopConfig, ParkRecord, ParkReason } from "./types.ts";
 
-export function canonicalStub(functionName: string): string {
+/**
+ * The stub a parked function is returned to.
+ *
+ * The assembly path is the one the function's own container publishes, not the
+ * executable's. A stub written against the wrong directory compiles — the macro
+ * takes a string — and fails at link time on a missing symbol, which reads as a
+ * broken park rather than a wrong path.
+ */
+export function canonicalStub(projectRoot: string, functionName: string): string {
   return [
     '#include "common.h"',
     '#include "include_asm.h"',
     "",
-    `INCLUDE_ASM("build/asm/nonmatchings/${functionName}", ${functionName});`,
+    `INCLUDE_ASM("${functionPaths(projectRoot, functionName).includeAsmPath}", ${functionName});`,
     "",
   ].join("\n");
 }
@@ -128,7 +137,7 @@ export async function planPark(input: PlanParkInput): Promise<ParkPlan> {
   const base =
     committed && stubFacts && declaresIncludeAsm(stubFacts, input.functionName)
       ? committed
-      : canonicalStub(input.functionName);
+      : canonicalStub(input.projectRoot, input.functionName);
   if (committed && stubFacts && !declaresIncludeAsm(stubFacts, input.functionName)) {
     reasons.push("committed source no longer declares the INCLUDE_ASM placeholder; synthesized a canonical stub");
   }
@@ -191,7 +200,7 @@ export function buildApprovalNote(record: ParkRecord, attemptSource: string, pla
     `- **Parked:** ${record.parkedAt}`,
     `- **Reason:** ${record.reason}`,
     `- **Escalation reached:** ${record.reachedTier}`,
-    `- **Source:** \`src/${record.functionName}.c\` (INCLUDE_ASM restored)`,
+    `- **Source:** \`${record.sourcePath ?? `src/${record.functionName}.c`}\` (INCLUDE_ASM restored)`,
     ...(planReasons.length ? [`- **Parking notes:** ${planReasons.join("; ")}`] : []),
     "",
     "## What the loop needs",
@@ -265,8 +274,13 @@ export async function committedSource(projectRoot: string, path: string): Promis
   return result.code === 0 ? result.stdout : undefined;
 }
 
+/** The function's C file, project-relative — for git, notes and patches. */
+export function sourceRelativePath(projectRoot: string, functionName: string): string {
+  return functionPaths(projectRoot, functionName).source;
+}
+
 export function sourcePath(projectRoot: string, functionName: string): string {
-  return resolve(projectRoot, "src", `${functionName}.c`);
+  return resolve(projectRoot, sourceRelativePath(projectRoot, functionName));
 }
 
 export function readSource(projectRoot: string, functionName: string): string {

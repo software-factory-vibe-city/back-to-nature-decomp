@@ -341,14 +341,14 @@ export function groupingsMessage(functionName: string): string {
   ].join("\n");
 }
 
-export function reviewMessage(functionName: string, findings: PolicyFinding[]): string {
+export function reviewMessage(functionName: string, findings: PolicyFinding[], sourcePath = `src/${functionName}.c`): string {
   return [
     `Policy review for ${functionName}. A lower escalation tier introduced source constructs the`,
     "clean-source policy forbids for an ordinary compiled function:",
     "",
     findingsReport(findings),
     "",
-    "Read `src/" + functionName + ".c`, the original assembly, and the project's clean-source policy in",
+    "Read `" + sourcePath + "`, the original assembly, and the project's clean-source policy in",
     "AGENTS.md and prompts/c-style-guide.md. Decide one question only: is the forbidden construct the",
     "correct answer for this function — a genuine, documented exception class — or is it a workaround",
     "for a structural hypothesis the tier failed to find?",
