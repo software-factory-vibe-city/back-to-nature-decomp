@@ -846,7 +846,13 @@ return blocks.
 Shared gp-rel cluster is the same evidence class as the boot/main-loop TU;
 five functions now agree on it. Note func_80012D30 reads D_8005E3A4/D_8005E3B4/
 D_8005E3C0 *absolutely* (the boot/main-loop TU's cluster), confirming it is
-not a member there. func_80011370 calls func_800132B8, so this is a different
+not a member there.
+func_8001316C (m, 2026-08) starts at exactly 0x8001316C, the end of
+func_80012D30 (0x80012D30 + 0x43C), and composes the same full-screen
+POLY_F4 + DR_MODE packet pair against the sibling buffer pair
+D_8005E930/D_8005E960 (func_80012D30 uses D_8005E8E0/D_8005E910), indexed
+by the same D_8005E3A4 and linked through D_8005E3C0 read absolutely. Same
+SDK idiom cluster plus exact adjacency; no shared gp-rel cluster of its own. func_80011370 calls func_800132B8, so this is a different
 TU. Intermediate func_800132F0 and func_80013328 are stubs; GetFlag8005E274,
 SetVal8005E27C and func_80012A68 are matched leaf helpers in the same address
 span but with no cluster evidence, membership unverified.
@@ -854,6 +860,9 @@ span but with no cluster evidence, membership unverified.
 Members (address order):
 - func_80012D30 (m) — render-context transition helper: game-state mode/counter
   driver that composes a per-frame full-screen POLY_F4 + DR_MODE packet pair
+- func_8001316C (m) — full-screen POLY_F4 + DR_MODE packet pair into the
+  D_8005E930/D_8005E960 buffer pair, quad 0x140×0xF0 filled from three packed
+  u32 color args (>>12 each); immediate successor of func_80012D30
 - func_800132B8 (m) — game-state initializer (sets mode, counters, sizes)
 - func_8001328C (m) — game-state initializer, constant-argument twin of func_800132B8 (mode=1, counter limit 0x3C, resets counters)
 - func_800132F0 (s)(?) — stub; intermediate
@@ -1420,7 +1429,9 @@ Members (address order):
 - func_80012D30 (s) — mode driver; long switch over D_8005E294, paces
   D_8005E3CC toward D_8005E3CE, uses D_8005E298, D_8005E3D0, D_8005E2A0;
   also D_8005E3C8 before the pair
-- func_8001316C (s)(?) — adjacent; membership unproven
+- func_8001316C (m) — full-screen POLY_F4/DR_MODE pair into D_8005E930/D_8005E960;
+  same-TU evidence as func_80012D30 (exact successor, same idiom) — see the
+  game-state init and query group above
 - func_8001328C (s) — init: D_8005E294=1, D_8005E3CE=0x3C, D_8005E3CC=0,
   D_8005E298=0, D_8005E2A0=2, D_8005E3D0=0
 - func_800132B8 (s) — init: D_8005E294=1, D_8005E3CE=(s16)arg0,

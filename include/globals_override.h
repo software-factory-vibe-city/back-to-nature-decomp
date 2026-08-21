@@ -439,6 +439,13 @@ typedef struct {
 extern packet_0x18 D_8005E8E0[];
 extern packet_0x0C D_8005E910[];
 
+/* D_8005E930 / D_8005E960 — packet arrays indexed by D_8005E3A4
+ * (func_8001316C). Same shape as the D_8005E8E0 / D_8005E910 pair:
+ * element strides 0x18 and 0xC; absolute-addressed (lui/addiu base in
+ * the target; this TU does not define either symbol). */
+extern packet_0x18 D_8005E930[];
+extern packet_0x0C D_8005E960[];
+
 /* D_8005E5D8 — pointer toggled between two buffer bases (func_80011370).
  * Target uses absolute lui/lw addressing. Array size forces >8 bytes. */
 extern s32 _D_8005E5D8[3] __asm__("D_8005E5D8");
