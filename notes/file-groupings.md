@@ -993,6 +993,19 @@ Members (address order):
   parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
   caller and address predecessor; shared gp-rel globals unverified.
 
+## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
+
+func_800183B8 and ClearVal8005E49C are exactly address-adjacent
+(func_800183B8's last word is 0x800183CC, ClearVal8005E49C begins at
+0x800183D0, zero gap) and share the same contiguous 4-halfword gp-rel
+cluster D_8005E498/D_8005E49A/D_8005E49C/D_8005E49E: func_800183B8 writes
+all four (arg0->E498, arg1->E49A, clears E49C/E49E), ClearVal8005E49C is a
+leaf that only performs the same clear pair (E49C=0; E49E=0). Shared idiom
+and data ownership; both TUs tentatively define E49C/E49E. Members:
+- func_800183B8 (m) — sets halfword pair from args and clears the following
+  halfword pair; matched clean-C 2026-08-21 (4 tentative gp-rel defs)
+- ClearVal8005E49C (m) — clears the same E49C/E49E pair (standalone src TU)
+
 ## table-slot CD-loader cluster — 0x80017BC8 / 0x800183E0 / 0x80019FC4–0x8001A11C / 0x8001AD6C (confidence: medium)
 
 Slot-based table loading: a 16-bit "slot" selects a 0x1800-byte region read
