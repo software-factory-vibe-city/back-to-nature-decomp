@@ -1,4 +1,5 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80024664", func_80024664);
+void func_80024664(s32 arg0, s16 arg1, s16 arg2) {
+    func_80024A4C(arg0, 0x27, 2, (s32) arg1, (s16) (s32) arg2);
+}
