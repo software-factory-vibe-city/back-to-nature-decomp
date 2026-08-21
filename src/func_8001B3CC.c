@@ -1,4 +1,9 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001B3CC", func_8001B3CC);
+/* Callee prototype (from include/functions.h; declared locally to avoid
+ * pulling the generated header). Pass-through: leaves $a0 untouched. */
+void func_8001B4E4(s32 arg0);
+
+void func_8001B3CC(s32 arg0) {
+    func_8001B4E4(arg0);
+}

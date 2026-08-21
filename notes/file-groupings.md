@@ -217,13 +217,16 @@ Fingerprints:
   reached gp-relatively by func_8001B2CC, func_8001B3EC, func_8001B4D0,
   func_8001B4E4
 - internal call graph: func_8001B3EC → func_8001B4E4 (deactivate when
-  entry byte is 0xFF)
+  entry byte is 0xFF), func_8001B3CC → func_8001B4E4 (per-id deactivate)
 - both B3EC and B4E4 write struct_8005E870 field_36/field_37 (offsets
   0x36/0x37)
 - address adjacency: B2CC–B4E4 is consecutive with no unrelated code between
 
 Members (address order):
 - func_8001B2CC (s) — touches T_8005E4C8; likely same entry family
+- func_8001B3CC (m) — per-id deactivation pass-through: calls func_8001B4E4
+  with its own argument untouched (leaves $a0 alone); smallest function in
+  the entry family
 - func_8001B3EC (m) — entry processing: reads D_8005E4C8[arg0] pointer, bumps
   D_8005E4C0[arg0] counter, compares counter against (byte at +2) >> 1; on
   overflow advances pointer by 3 and resets counter; calls B4E4 on 0xFF byte;
