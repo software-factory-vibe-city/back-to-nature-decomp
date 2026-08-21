@@ -797,8 +797,10 @@ and reads them GP-relatively. func_80012D30 (m) defines the same cluster
 SetVal8005E29C, SetVal8005E27C and GetFlag8005E274 directly, and sits at
 0x80012D30 immediately below the group. SetVal8005E29C (at 0x80013438)
 defines `D_8005E29C`, which func_80012D30 also defines, so it is the same TU.
+func_8001328C (m) defines the same six-global cluster GP-relative and sits only
+0x2C below func_800132B8, so it is the same TU.
 Shared gp-rel cluster is the same evidence class as the boot/main-loop TU;
-three functions now agree on it. Note func_80012D30 reads D_8005E3A4/D_8005E3B4/
+four functions now agree on it. Note func_80012D30 reads D_8005E3A4/D_8005E3B4/
 D_8005E3C0 *absolutely* (the boot/main-loop TU's cluster), confirming it is
 not a member there. func_80011370 calls func_800132B8, so this is a different
 TU. Intermediate func_800132F0 and func_80013328 are stubs; GetFlag8005E274,
@@ -809,6 +811,7 @@ Members (address order):
 - func_80012D30 (m) — render-context transition helper: game-state mode/counter
   driver that composes a per-frame full-screen POLY_F4 + DR_MODE packet pair
 - func_800132B8 (m) — game-state initializer (sets mode, counters, sizes)
+- func_8001328C (m) — game-state initializer, constant-argument twin of func_800132B8 (mode=1, counter limit 0x3C, resets counters)
 - func_800132F0 (s)(?) — stub; intermediate
 - func_80013328 (s)(?) — stub; intermediate
 - func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
