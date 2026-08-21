@@ -55,6 +55,21 @@ interface FuncEntry {
   name: string;
   /** Which binary defines this function. */
   container: string;
+  /**
+   * The project-relative C file that defines this function, whether or not it
+   * exists yet. Emitted so that nothing downstream has to reconstruct a source
+   * path from a container id and a layout convention — a reconstruction that is
+   * silently wrong for every container it does not know about.
+   */
+  source: string;
+  /**
+   * The first argument this function's `INCLUDE_ASM` stub takes — its
+   * container's assembly directory, not the executable's. Emitted for the same
+   * reason as `source`: a stub written against a reconstructed path points at a
+   * directory that does not exist, and the failure surfaces as a link error
+   * about a symbol rather than as a wrong path.
+   */
+  includeAsmPath: string;
   vram: string;
   size: number;
   tier: number;
@@ -87,6 +102,8 @@ for (const container of containers) {
     funcMap.set(span.name, {
       name: span.name,
       container: container.id,
+      source: join(container.paths.srcDir, `${span.name}.c`),
+      includeAsmPath: join(container.paths.asmDir, "nonmatchings", span.name),
       vram: `0x${span.vram.toString(16)}`,
       size: span.size,
       tier: 1,

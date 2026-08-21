@@ -3,6 +3,13 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { basename, dirname, isAbsolute, join, resolve } from "path";
 import { fileURLToPath } from "url";
+import {
+  EXE_CONTAINER_ID,
+  containerOfSymbol,
+  loadContainers,
+  symbolPrefix,
+  type Container,
+} from "../lib/container.js";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -50,16 +57,38 @@ export function configuredCppFlags(): string[] {
 
 export const CPP_FLAGS = configuredCppFlags();
 
-/** One Makefile variable, tokenised, with `$(...)` expansions dropped. */
+/** The literal right-hand side of one simple Makefile assignment. */
+function makefileAssignment(makefile: string, name: string): string | undefined {
+  return makefile.match(new RegExp(`^${name}\\s*:?=\\s*(.*)$`, "m"))?.[1];
+}
+
+/**
+ * One Makefile variable, tokenised, with plain references expanded.
+ *
+ * A reference to another simple variable is expanded, because dropping it
+ * silently changes the flag set: `OVERLAY_ASFLAGS` names its small-data
+ * threshold as `$(OVERLAY_G)`, and dropping that assembled every overlay
+ * diagnostic without the threshold the build passes. A reference whose own name
+ * is computed — `$(CC1FLAGS_$(basename $<))`, the per-file override hook — is
+ * still dropped: it has no value outside a rule, and `loadFlagOverrides`
+ * applies it separately.
+ */
 function makefileFlags(name: string): string[] {
   const makefile = readFileSync(join(ROOT, "Makefile"), "utf-8");
-  const line = makefile.match(new RegExp(`^${name}\\s*:?=\\s*(.*)$`, "m"))?.[1];
+  const line = makefileAssignment(makefile, name);
   if (line === undefined) throw new Error(`Makefile does not define ${name}; cannot resolve the configured flags.`);
-  /* CC1FLAGS ends in $(CC1FLAGS_$(basename ...)) for per-file overrides, which
-   * is applied separately by loadFlagOverrides. Strip innermost-first so
-   * nested calls disappear cleanly. */
+
+  /* Innermost-first, so a nested call collapses before its parent is judged. */
   let text = line;
-  while (/\$\([^()]*\)/.test(text)) text = text.replace(/\$\([^()]*\)/g, "");
+  let guard = 0;
+  while (/\$\([^()]*\)/.test(text) && guard++ < 16) {
+    text = text.replace(/\$\(([^()]*)\)/g, (_match, reference: string) => {
+      const referenced = /^[A-Za-z_][A-Za-z0-9_]*$/.test(reference.trim())
+        ? makefileAssignment(makefile, reference.trim())
+        : undefined;
+      return referenced ?? "";
+    });
+  }
   return text.trim().split(/\s+/).filter(Boolean);
 }
 
@@ -94,6 +123,53 @@ export function configuredAsFlagsForContainer(kind: "exe" | "overlay"): string[]
 
 export function configuredAsFlags(): string[] {
   return anchorIncludes(makefileFlags("ASFLAGS"));
+}
+
+/**
+ * The container that defines a symbol, derived from the symbol itself.
+ *
+ * Overlay symbols carry their container id as a prefix and the executable's do
+ * not, so the name settles the question and no caller has to name a container.
+ * That is the point: an agent working one function should never need to know
+ * which binary it is in — its source path, its original assembly and its
+ * compiler flags all resolve from here.
+ *
+ * Answers `null`, never a guess, when the container model cannot be loaded at
+ * all (an unconfigured tree, a fixture), so callers fall back to the
+ * single-binary layout rather than failing.
+ */
+export function containerForSymbol(name: string): Container | null {
+  try {
+    const containers = loadContainers();
+    return (
+      containerOfSymbol(name, containers) ??
+      containers.find((container) => container.id === EXE_CONTAINER_ID) ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Container kind for a symbol; `exe` whenever the name does not say otherwise. */
+export function containerKindForSymbol(name: string): "exe" | "overlay" {
+  return containerForSymbol(name)?.kind ?? "exe";
+}
+
+/** The directory a symbol's translation unit belongs in. */
+export function sourceDirFor(name: string): string {
+  return join(ROOT, containerForSymbol(name)?.paths.srcDir ?? "src");
+}
+
+/**
+ * Where a function's C source belongs, whether or not it exists yet.
+ *
+ * `resolveSource` is the same answer for a file that must exist; this is for
+ * the callers that have to decide whether it exists at all — a stub check, an
+ * m2c first pass, a policy sweep.
+ */
+export function sourcePathFor(name: string): string {
+  return join(sourceDirFor(name), `${name}.c`);
 }
 
 export function configuredMaspsxFlags(): string[] {
@@ -197,7 +273,8 @@ export function normalizeFunctionName(value: string): string {
 }
 
 export function resolveSource(funcName: string, requested?: string): string {
-  const source = requested || join("src", `${funcName}.c`);
+  const container = containerForSymbol(funcName);
+  const source = requested || join(container?.paths.srcDir ?? "src", `${funcName}.c`);
   const absolute = isAbsolute(source) ? source : join(ROOT, source);
   if (!existsSync(absolute)) throw new Error(`Source file not found: ${source}`);
   return absolute;
@@ -216,13 +293,17 @@ export function loadFlagOverrides(): Map<string, string[]> {
   return result;
 }
 
-export function assembleCompilerOutput(assembly: string, object: string): string {
+export function assembleCompilerOutput(
+  assembly: string,
+  object: string,
+  kind: "exe" | "overlay" = "exe",
+): string {
   runTool("python3", [
     MASPSX,
     ...configuredMaspsxFlags(),
     "--gnu-as-path", AS,
     "-o", object,
-    ...AS_FLAGS,
+    ...configuredAsFlagsForContainer(kind),
     assembly,
   ]);
   return object;
@@ -245,7 +326,11 @@ export function parseImplicitDeclarationWarnings(stderr: string): string[] {
  * already-preprocessed unit with -Wimplicit and read the warnings.
  */
 export function detectImplicitDeclarations(preprocessed: string, stem: string): string[] {
-  const flags = [...CC1_FLAGS, ...(loadFlagOverrides().get(stem) || []), "-Wimplicit"];
+  const flags = [
+    ...configuredCc1FlagsForContainer(containerKindForSymbol(stem)),
+    ...(loadFlagOverrides().get(stem) || []),
+    "-Wimplicit",
+  ];
   const result = spawnSync(CC, [...flags, preprocessed, "-o", "/dev/null"], {
     cwd: ROOT,
     encoding: "utf-8",
@@ -293,6 +378,13 @@ export function compileSource(
     useOverrides?: boolean;
     extraCc1Flags?: string[];
     emissionAttribution?: boolean;
+    /**
+     * Which container's flag set to compile under. Derived from `stem` when
+     * omitted, which is what keeps every existing call site correct without
+     * knowing containers exist. Pass it only when the stem is not the
+     * function's own name.
+     */
+    containerKind?: "exe" | "overlay";
   } = {},
 ): CompileArtifacts {
   const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
@@ -308,14 +400,15 @@ export function compileSource(
   const overrides = options.useOverrides === false
     ? []
     : (loadFlagOverrides().get(stem) || []);
-  const cc1Flags = [...CC1_FLAGS, ...overrides, ...(options.extraCc1Flags || [])];
+  const kind = options.containerKind ?? containerKindForSymbol(stem);
+  const cc1Flags = [...configuredCc1FlagsForContainer(kind), ...overrides, ...(options.extraCc1Flags || [])];
   if (options.dumps) cc1Flags.push("-da");
   if (options.emissionAttribution) cc1Flags.push("-dp");
 
   /* Running cc1 in the artifact directory keeps all -da files together. */
   runTool(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput);
 
-  if (options.assemble) assembleCompilerOutput(assembly, object);
+  if (options.assemble) assembleCompilerOutput(assembly, object, kind);
 
   const result: CompileArtifacts = {
     source: absoluteSource,
@@ -333,7 +426,13 @@ export async function compileSourceAsync(
   source: string,
   outputDir: string,
   stem: string,
-  options: { dumps?: boolean; assemble?: boolean; useOverrides?: boolean; signal?: AbortSignal } = {},
+  options: {
+    dumps?: boolean;
+    assemble?: boolean;
+    useOverrides?: boolean;
+    signal?: AbortSignal;
+    containerKind?: "exe" | "overlay";
+  } = {},
 ): Promise<CompileArtifacts> {
   const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
   const absoluteOutput = isAbsolute(outputDir) ? outputDir : join(ROOT, outputDir);
@@ -343,13 +442,14 @@ export async function compileSourceAsync(
   const object = join(absoluteOutput, `${stem}.c.o`);
   await runToolAsync(CPP, [...CPP_FLAGS, absoluteSource, "-o", preprocessed], ROOT, options.signal);
   const overrides = options.useOverrides === false ? [] : (loadFlagOverrides().get(stem) || []);
-  const cc1Flags = [...CC1_FLAGS, ...overrides];
+  const kind = options.containerKind ?? containerKindForSymbol(stem);
+  const cc1Flags = [...configuredCc1FlagsForContainer(kind), ...overrides];
   if (options.dumps) cc1Flags.push("-da");
   await runToolAsync(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput, options.signal);
   if (options.assemble) {
     await runToolAsync("python3", [
       MASPSX, ...configuredMaspsxFlags(),
-      "--gnu-as-path", AS, "-o", object, ...AS_FLAGS, assembly,
+      "--gnu-as-path", AS, "-o", object, ...configuredAsFlagsForContainer(kind), assembly,
     ], ROOT, options.signal);
   }
   const result: CompileArtifacts = { source: absoluteSource, preprocessed, assembly, outputDir: absoluteOutput, stem, cc1Flags };
@@ -358,7 +458,11 @@ export async function compileSourceAsync(
 }
 
 export function resolveAsmSource(funcName: string): string | null {
-  const directory = join(ROOT, "build/asm/nonmatchings", funcName);
+  const container = containerForSymbol(funcName);
+  const asmDir = join(ROOT, container?.paths.asmDir ?? "build/asm");
+  const disasmDir = join(ROOT, container?.paths.disasmDir ?? "build");
+
+  const directory = join(asmDir, "nonmatchings", funcName);
   const expected = join(directory, `${funcName}.s`);
   if (existsSync(expected)) return expected;
   if (existsSync(directory)) {
@@ -366,16 +470,33 @@ export function resolveAsmSource(funcName: string): string | null {
     if (files.length === 1) return join(directory, files[0]);
   }
 
-  /* disassemble.sh keeps originals here even after splat promotes a function to C. */
-  const archived = join(ROOT, "build/functions", `${funcName}.s`);
-  return existsSync(archived) ? archived : null;
+  /* The disassembler keeps originals here even after splat promotes a function
+     to C. It names each file as it found the function — before the project
+     prefixes an overlay's symbols with its container — so both spellings are
+     tried rather than the archive being declared missing for every overlay. */
+  const prefix = container ? symbolPrefix(container) : "";
+  const stems = prefix && funcName.startsWith(prefix)
+    ? [funcName, funcName.slice(prefix.length)]
+    : [funcName];
+  for (const stem of stems) {
+    const archived = join(disasmDir, "functions", `${stem}.s`);
+    if (existsSync(archived)) return archived;
+  }
+  return null;
 }
 
 export function assembleTarget(funcName: string, outputDir: string): string {
   const asmSource = resolveAsmSource(funcName);
   if (!asmSource) {
-    throw new Error(`Original assembly not found for ${funcName}; run make disassemble to populate build/functions`);
+    const container = containerForSymbol(funcName);
+    const where = container ? containerPathHint(container) : "build/functions";
+    throw new Error(`Original assembly not found for ${funcName}; run make disassemble to populate ${where}`);
   }
+  /* The small-data threshold is a per-container fact, and it reaches the
+     assembler as well as the compiler. Assembling an overlay's target under the
+     executable's `-G8` puts its own reference bytes in a different section from
+     the candidate's, so the comparison would be against the wrong target. */
+  const asFlags = configuredAsFlagsForContainer(containerKindForSymbol(funcName));
 
   const absoluteOutput = isAbsolute(outputDir) ? outputDir : join(ROOT, outputDir);
   mkdirSync(absoluteOutput, { recursive: true });
@@ -390,8 +511,13 @@ export function assembleTarget(funcName: string, outputDir: string): string {
     `.include "${relativeAsm}"\n`,
   );
 
-  runTool(AS, [...AS_FLAGS, wrapper, "-o", object]);
+  runTool(AS, [...asFlags, wrapper, "-o", object]);
   return object;
+}
+
+/** Where a container's disassembly archive lives, for an error message. */
+function containerPathHint(container: Container): string {
+  return `${container.paths.disasmDir}/functions`;
 }
 
 export interface DisassembledInstruction {

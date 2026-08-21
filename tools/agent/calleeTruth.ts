@@ -48,6 +48,8 @@ import {
   normalizeFunctionName,
   preprocessOnly,
   resolveSource,
+  sourceDirFor,
+  sourcePathFor,
   type DisassembledInstruction,
 } from "./decompToolchain.js";
 import { analyzeFrame, analyzeReturnValue, maximumArity, minimumArity } from "./frameMap.js";
@@ -325,13 +327,20 @@ function definesFunction(text: string, callee: string): boolean {
  * function, because it is the thing the declaration is supposed to describe.
  */
 export function definitionPrototype(callee: string): Prototype | undefined {
-  const direct = join(ROOT, "src", `${callee}.c`);
+  /* Scoped to the callee's own container: an overlay's translation units live
+     under its own source directory, and the executable's under the project's.
+     Sweeping the wrong directory answers "no definition" for every overlay
+     callee, which reads as an absence of evidence rather than a wrong path. */
+  const direct = sourcePathFor(callee);
+  const sourceDir = sourceDirFor(callee);
   const candidates = existsSync(direct)
     ? [direct]
-    : readdirSync(join(ROOT, "src"))
-      .filter((name) => name.endsWith(".c"))
-      .map((name) => join(ROOT, "src", name))
-      .filter((path) => definesFunction(readFileSync(path, "utf-8"), callee));
+    : !existsSync(sourceDir)
+      ? []
+      : readdirSync(sourceDir)
+        .filter((name) => name.endsWith(".c"))
+        .map((name) => join(sourceDir, name))
+        .filter((path) => definesFunction(readFileSync(path, "utf-8"), callee));
 
   for (const path of candidates) {
     const text = readFileSync(path, "utf-8");

@@ -42,15 +42,19 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import {
   ROOT,
-  configuredAsFlags,
-  configuredCc1Flags,
+  configuredAsFlagsForContainer,
+  configuredCc1FlagsForContainer,
   configuredCppFlags,
   configuredGccVersion,
   configuredMaspsxFlags,
   configuredToolchainIdentity,
+  containerKindForSymbol,
+  resolveAsmSource,
+  sourcePathFor,
 } from "./decompToolchain.js";
 import { sha256, stableJson } from "./variant-lab/artifacts.js";
-import { exeSplatYamlPath } from "../lib/psxExeInfo.js";
+import { containerTargetPath, vramToRom, type Container } from "../lib/container.js";
+import { addressEncodedInName, locateFunction } from "../lib/symbolIndex.js";
 
 /* Version is project configuration (Makefile GCC_VERSION), not a constant. */
 const GCC_VERSION = configuredGccVersion();
@@ -58,9 +62,25 @@ const CC = `tools/vendor/old-gcc/build-gcc-${GCC_VERSION}-psx/cc1`;
 const MASPSX = "python3 tools/vendor/maspsx/maspsx.py";
 const CROSS = "mips-linux-gnu-";
 const CPPFLAGS = configuredCppFlags().join(" ");
-const CC1FLAGS = configuredCc1Flags().join(" ");
-const ASFLAGS = configuredAsFlags().join(" ");
 const MASPSXFLAGS = configuredMaspsxFlags().join(" ");
+
+/**
+ * The compiler and assembler flags this function's translation unit was built
+ * with — its container's, not the executable's.
+ *
+ * The small-data threshold is a per-container fact: overlay units were built
+ * `-G0`. Probing an overlay function under the executable's `-G8` measures a
+ * translation unit the original build never produced, and the whole matrix —
+ * baseline included — then scores a program that is wrong for reasons the flag
+ * columns cannot show.
+ */
+function flagsFor(name: string): { cc1: string; as: string } {
+  const kind = containerKindForSymbol(name);
+  return {
+    cc1: configuredCc1FlagsForContainer(kind).join(" "),
+    as: configuredAsFlagsForContainer(kind).join(" "),
+  };
+}
 
 export const BASELINE_LABEL = "baseline";
 
@@ -135,39 +155,33 @@ function run(cmd: string): string {
   return execSync(cmd, { cwd: ROOT, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
 }
 
-/** splat.yaml lookup (same conventions as diffFunc.ts) */
-export function getFuncInfo(name: string): { vram: number; size: number } | null {
-  const yaml = readFileSync(exeSplatYamlPath(), "utf-8");
-  const segRe = /^\s*-\s*\[(0x[0-9A-Fa-f]+),\s*(?:asm|c)(?:,\s*\S+)?\]\s*#\s*(0x[0-9A-Fa-f]+)\s+(\S+)/;
-  const nextRe = /^\s*-\s*\[(0x[0-9A-Fa-f]+)/;
-  const offsets: number[] = [];
-  let funcOffset = -1, funcVram = 0;
-  for (const line of yaml.split("\n")) {
-    const m = line.match(nextRe);
-    if (m) offsets.push(parseInt(m[1], 16));
-    const seg = line.match(segRe);
-    if (seg && seg[3] === name) { funcOffset = parseInt(seg[1], 16); funcVram = parseInt(seg[2], 16); }
-  }
-  if (funcOffset < 0) return null;
-  offsets.sort((a, b) => a - b);
-  const idx = offsets.indexOf(funcOffset);
-  const size = idx >= 0 && idx + 1 < offsets.length ? offsets[idx + 1] - funcOffset : 0;
-  return { vram: funcVram, size };
+/**
+ * Where the project's configuration places this function, and in which binary.
+ *
+ * The container model answers both, so nothing here parses a splat file or
+ * assumes a load address. That matters twice over: a function may be in any of
+ * the project's containers, and the executable's own name and base are facts
+ * about one game rather than about the platform.
+ */
+export function getFuncInfo(name: string): { vram: number; size: number; container: Container } | null {
+  const found = locateFunction(name);
+  const location = found.length === 1 ? found[0] : found.find((entry) => entry.container.kind === "exe") ?? found[0];
+  if (!location) return null;
+  return { vram: location.span.vram, size: location.span.size, container: location.container };
 }
 
 function vramForStem(stem: string): number | null {
-  const m = stem.match(/^func_([0-9A-Fa-f]{8})$/);
-  if (m) return parseInt(m[1], 16);
   const info = getFuncInfo(stem);
-  return info ? info.vram : null;
+  if (info) return info.vram;
+  return addressEncodedInName(stem);
 }
 
-/** Read the function's words from the original executable. */
-function targetWords(info: { vram: number; size: number }): number[] {
-  const bin = readFileSync(join(ROOT, "extracted/iso/slus_011.15"));
-  const off = 0x800 + (info.vram - 0x80010000);
+/** Read the function's original words out of its own container's image. */
+function targetWords(info: { vram: number; size: number; container: Container }): number[] {
+  const image = readFileSync(containerTargetPath(info.container));
+  const off = vramToRom(info.container, info.vram);
   const words: number[] = [];
-  for (let i = 0; i + 4 <= info.size; i += 4) words.push(bin.readUInt32LE(off + i));
+  for (let i = 0; i + 4 <= info.size; i += 4) words.push(image.readUInt32LE(off + i));
   return words;
 }
 
@@ -255,8 +269,8 @@ function maskedInstrs(objdumpOut: string): string[] {
 }
 
 function targetAsmPath(name: string): string | null {
-  const relative = `build/asm/nonmatchings/${name}/${name}.s`;
-  return existsSync(join(ROOT, relative)) ? relative : null;
+  const resolved = resolveAsmSource(name);
+  return resolved ? resolved.slice(ROOT.length + 1) : null;
 }
 
 function assembleTargetInstrs(name: string): string[] | null {
@@ -267,7 +281,7 @@ function assembleTargetInstrs(name: string): string[] | null {
   const wrapper = `${dir}/${name}.target.s`;
   writeFileSync(join(ROOT, wrapper),
     `.include "include/macro.inc"\n.set noat\n.set noreorder\n.include "${asmSrc}"\n`);
-  run(`${CROSS}as ${ASFLAGS} ${wrapper} -o ${dir}/${name}.target.o`);
+  run(`${CROSS}as ${flagsFor(name).as} ${wrapper} -o ${dir}/${name}.target.o`);
   return maskedInstrs(run(`${CROSS}objdump -d --no-show-raw-insn ${dir}/${name}.target.o`));
 }
 
@@ -280,15 +294,16 @@ function compileRow(
   sourcePath?: string,
 ): FlagMatrixRow {
   const dir = "build/flagProbe";
-  const src = sourcePath ?? `src/${name}.c`;
+  const src = sourcePath ?? sourcePathFor(name).slice(ROOT.length + 1);
+  const flags = flagsFor(name);
   const row: FlagMatrixRow = {
     label, flags: extraFlags, source: sourceLabel,
     masked: null, instructions: null, targetInstructions: target.length,
   };
   try {
     run(`${CROSS}cpp ${CPPFLAGS} ${src} -o ${dir}/${name}.i`);
-    run(`${CC} ${CC1FLAGS} ${extraFlags} ${dir}/${name}.i -o ${dir}/${name}.s`);
-    run(`${MASPSX} ${MASPSXFLAGS} --gnu-as-path ${CROSS}as -o ${dir}/${name}.o ${ASFLAGS} ${dir}/${name}.s`);
+    run(`${CC} ${flags.cc1} ${extraFlags} ${dir}/${name}.i -o ${dir}/${name}.s`);
+    run(`${MASPSX} ${MASPSXFLAGS} --gnu-as-path ${CROSS}as -o ${dir}/${name}.o ${flags.as} ${dir}/${name}.s`);
   } catch (error: any) {
     row.error = "compile failed";
     return row;
@@ -400,17 +415,28 @@ export function concludeMatrix(options: {
 
 /* ---- regional override context ---- */
 
-export function nearbyOverrides(vram: number): string[] {
+/**
+ * Existing per-file overrides, with the ones close enough to be the same
+ * translation unit flagged.
+ *
+ * Proximity is only evidence inside one container. Two containers share RAM, so
+ * an override 0x200 away in another binary is not a regional witness for this
+ * function — it is a different program at a coincidentally similar address.
+ */
+export function nearbyOverrides(vram: number, container?: Container): string[] {
   const path = join(ROOT, "configs/flag_overrides.mk");
   if (!existsSync(path)) return [];
   const out: string[] = [];
   for (const line of readFileSync(path, "utf-8").split("\n")) {
     const m = line.match(/^CC1FLAGS_(\S+)\s*:=\s*(.+)$/);
     if (!m) continue;
-    const v = vramForStem(m[1]);
+    const info = getFuncInfo(m[1]);
+    const v = info ? info.vram : vramForStem(m[1]);
+    const sameContainer = !container || !info || info.container.id === container.id;
     const dist = v !== null ? Math.abs(v - vram) : null;
-    const tag = dist !== null && dist <= 0x8000 ? "  <-- NEARBY (possible same TU)" : "";
-    out.push(`  ${m[1]}${v !== null ? ` @0x${v.toString(16).toUpperCase()}` : ""}: ${m[2].trim()}${tag}`);
+    const tag = sameContainer && dist !== null && dist <= 0x8000 ? "  <-- NEARBY (possible same TU)" : "";
+    const where = info && container && info.container.id !== container.id ? ` [${info.container.id}]` : "";
+    out.push(`  ${m[1]}${v !== null ? ` @0x${v.toString(16).toUpperCase()}` : ""}${where}: ${m[2].trim()}${tag}`);
   }
   return out;
 }
@@ -435,7 +461,7 @@ export function targetHashOf(name: string): string | null {
 }
 
 export interface ProbeResult {
-  info: { vram: number; size: number };
+  info: { vram: number; size: number; container: Container };
   report: FlagProbeReport;
   nearby: string[];
   /** Set when no target assembly exists, so no matrix was scored. */
@@ -444,11 +470,11 @@ export interface ProbeResult {
 
 export function probe(name: string, extraSources: string[] = []): ProbeResult {
   const info = getFuncInfo(name);
-  if (!info || !info.size) throw new Error(`${name} not found in configs/splat.yaml`);
+  if (!info || !info.size) throw new Error(`${name} has no sized subsegment in any container's splat config`);
 
   const words = targetWords(info);
   const fingerprints = fingerprintsOf(words);
-  const sourcePath = join(ROOT, `src/${name}.c`);
+  const sourcePath = sourcePathFor(name);
   const sourceHash = existsSync(sourcePath) ? sha256(readFileSync(sourcePath, "utf-8")) : null;
 
   const matrix: FlagMatrixRow[] = [];
@@ -487,7 +513,7 @@ export function probe(name: string, extraSources: string[] = []): ProbeResult {
     matrix,
     ...verdict,
   };
-  const result: ProbeResult = { info, report, nearby: nearbyOverrides(info.vram) };
+  const result: ProbeResult = { info, report, nearby: nearbyOverrides(info.vram, info.container) };
   if (matrixSkipped) result.matrixSkipped = matrixSkipped;
   return result;
 }

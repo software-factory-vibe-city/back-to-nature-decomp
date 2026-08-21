@@ -9,7 +9,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { compareFunction } from "../../lib/functionOracle.js";
-import { loadSymbolIndex } from "../../lib/symbolIndex.js";
+import { loadSymbolIndex, requireFunctionLocation } from "../../lib/symbolIndex.js";
 import { ROOT, compileSource, normalizeFunctionName, resolveSource } from "../decompToolchain.js";
 import {
   type EnsuredArtifact,
@@ -154,8 +154,13 @@ export function reversePipeline(options: ReverseOptions): ReversalArtifacts {
    * that no longer exists in the tree is exactly what a backtest needs. */
   const candidateProvenance = ensureCandidateObject(functionName, outputDirectory, options);
   const objectPath = candidateProvenance.value.object;
-  const oracle = compareFunction(functionName, { objectPath });
-  const index = loadSymbolIndex();
+  /* The container the function is actually in. Left to default, the oracle
+     looks the function up in the executable's splat config and reports it has
+     no subsegment — a true statement about the wrong binary. The name carries
+     the container for every overlay symbol, so nothing has to be passed in. */
+  const container = requireFunctionLocation(functionName).container;
+  const oracle = compareFunction(functionName, { objectPath, container });
+  const index = loadSymbolIndex(container);
 
   const targetMachine = liftWords({ functionName, words: oracle.targetWords, index });
   const candidateMachine = liftWords({ functionName, words: oracle.candidateWords, index });

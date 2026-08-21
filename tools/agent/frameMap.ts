@@ -35,6 +35,7 @@ import {
   assembleTarget,
   disassembleObject,
   normalizeFunctionName,
+  resolveAsmSource,
 } from "./decompToolchain.js";
 import { BRANCH_MNEMONICS, buildBlocks, defUse } from "./webAnalysis.js";
 
@@ -463,12 +464,12 @@ function parseSplatAsm(content: string): { insns: SplatInstruction[]; labels: Ma
   return { insns, labels };
 }
 
+/* One resolver for the whole stack. A caller in another container has its
+   assembly under that container's build directory, and looking for it under the
+   executable's reports "no assembly available" — which reads as a gap in the
+   disassembly rather than as a path this tool did not know about. */
 function resolveAsm(name: string): string | null {
-  const candidates = [
-    join(ROOT, "build/asm/nonmatchings", name, `${name}.s`),
-    join(ROOT, "build/functions", `${name}.s`),
-  ];
-  return candidates.find((path) => existsSync(path)) ?? null;
+  return resolveAsmSource(name);
 }
 
 type CallSiteVerdict = "consumed" | "ignored" | "propagated" | "inconclusive";

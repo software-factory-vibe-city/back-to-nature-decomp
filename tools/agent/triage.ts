@@ -53,7 +53,9 @@ import {
   detectImplicitDeclarations,
   disassembleObject,
   normalizeFunctionName,
+  resolveAsmSource,
   resolveSource,
+  sourcePathFor,
 } from "./decompToolchain.js";
 import {
   type FrameMap,
@@ -125,12 +127,11 @@ function stripComment(line: string): string {
   return line.replace(/\/\*.*?\*\//g, " ").trim();
 }
 
+/* The container's own assembly, resolved by the toolchain module — the same
+   answer the oracle and the assembler get, so a detector reading the target
+   text and a measurement of that target never disagree about which file. */
 function resolveTargetAsm(name: string): string | null {
-  const candidates = [
-    join(ROOT, "build/asm/nonmatchings", name, `${name}.s`),
-    join(ROOT, "build/functions", `${name}.s`),
-  ];
-  return candidates.find((path) => existsSync(path)) ?? null;
+  return resolveAsmSource(name);
 }
 
 /**
@@ -1484,7 +1485,7 @@ function main(): void {
   }
 
   const findings: Finding[] = [];
-  const srcPath = srcOverride ?? join(ROOT, "src", `${name}.c`);
+  const srcPath = srcOverride ?? sourcePathFor(name);
   const srcText = existsSync(srcPath) ? readFileSync(srcPath, "utf-8") : undefined;
   const sourceState: "missing" | "stub" | "c" =
     srcText === undefined ? "missing" : /INCLUDE_ASM/.test(srcText) ? "stub" : "c";

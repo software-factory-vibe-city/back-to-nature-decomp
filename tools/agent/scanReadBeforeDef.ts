@@ -34,11 +34,26 @@
 
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
+import { loadContainers } from "../lib/container.js";
+import { resolveAsmSource } from "./decompToolchain.js";
 import { BRANCH_MNEMONICS, buildBlocks, defUse, registersIn } from "./webAnalysis.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
-const NONMATCHINGS = join(ROOT, "build/asm/nonmatchings");
-const FUNCTIONS = join(ROOT, "build/functions");
+
+/**
+ * Every container's stubbed-function tree, in build order.
+ *
+ * A sweep that walks only the executable's reports a clean project while the
+ * overlays — four fifths of this game's code — were never opened. The
+ * executable's path is the fallback for a tree with no container model yet.
+ */
+function nonmatchingsTrees(): string[] {
+  try {
+    return loadContainers().map((container) => join(ROOT, container.paths.asmDir, "nonmatchings"));
+  } catch {
+    return [join(ROOT, "build/asm/nonmatchings")];
+  }
+}
 
 /**
  * A local branch label. splat's nonmatchings tree spells these `.L80011C50`
@@ -243,26 +258,18 @@ function scanFile(path: string): Finding[] {
 }
 
 /**
- * Target assembly for a function, from whichever tree carries it.
+ * Target assembly for a function, from whichever of its container's trees
+ * carries it.
  *
- * `build/asm/nonmatchings` only holds functions still stubbed with
+ * A container's `nonmatchings` tree only holds functions still stubbed with
  * INCLUDE_ASM, so a function that already has C source has no entry there at
- * all. `build/functions` is the disassembler's complete per-function dump and
- * covers matched and unmatched alike, which is what the other diagnostics
- * read. It is preferred only as a fallback because `make split` refreshes the
- * former while only `make disassemble` refreshes the latter.
+ * all. Its `functions` directory is the disassembler's complete per-function
+ * dump and covers matched and unmatched alike. That order is the toolchain
+ * module's, and it is shared rather than restated so a diagnostic and the
+ * measurement it explains always read the same file.
  */
 export function resolveFunctionAsm(functionName: string): string | null {
-  const direct = join(NONMATCHINGS, functionName, `${functionName}.s`);
-  if (existsSync(direct)) return direct;
-  const directory = join(NONMATCHINGS, functionName);
-  if (existsSync(directory)) {
-    const candidates = readdirSync(directory).filter((file) => file.endsWith(".s"));
-    if (candidates.length === 1) return join(directory, candidates[0]);
-  }
-  const dumped = join(FUNCTIONS, `${functionName}.s`);
-  if (existsSync(dumped)) return dumped;
-  return null;
+  return resolveAsmSource(functionName);
 }
 
 function usage(): never {
@@ -280,15 +287,18 @@ if (isCLI) {
   let scanned = 0;
 
   if (args.includes("--all")) {
-    if (!existsSync(NONMATCHINGS)) {
-      console.error(`scanReadBeforeDef: ${NONMATCHINGS} not found (run the build/split first)`);
+    const trees = nonmatchingsTrees().filter((tree) => existsSync(tree));
+    if (trees.length === 0) {
+      console.error("scanReadBeforeDef: no container has a nonmatchings tree yet (run the build/split first)");
       process.exit(1);
     }
-    for (const entry of readdirSync(NONMATCHINGS).sort()) {
-      const directory = join(NONMATCHINGS, entry);
-      for (const file of readdirSync(directory).filter((candidate) => candidate.endsWith(".s"))) {
-        findings.push(...scanFile(join(directory, file)));
-        scanned++;
+    for (const tree of trees) {
+      for (const entry of readdirSync(tree).sort()) {
+        const directory = join(tree, entry);
+        for (const file of readdirSync(directory).filter((candidate) => candidate.endsWith(".s"))) {
+          findings.push(...scanFile(join(directory, file)));
+          scanned++;
+        }
       }
     }
   } else if (positional.length === 1) {
@@ -296,7 +306,7 @@ if (isCLI) {
       ? positional[0]
       : resolveFunctionAsm(positional[0].replace(/^src\//, "").replace(/\.c$/, ""));
     if (!path || !existsSync(path)) {
-      console.error(`scanReadBeforeDef: no assembly found for ${positional[0]} in build/asm/nonmatchings or build/functions (run make split, or make disassemble)`);
+      console.error(`scanReadBeforeDef: no assembly found for ${positional[0]} in any container (run make split-all, or make disassemble)`);
       process.exit(1);
     }
     findings.push(...scanFile(path));

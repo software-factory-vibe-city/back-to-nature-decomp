@@ -46,6 +46,7 @@ import {
   assembleTarget,
   disassembleObject,
   normalizeFunctionName,
+  sourcePathFor,
 } from "./decompToolchain.js";
 import { defUse } from "./webAnalysis.js";
 
@@ -1743,7 +1744,7 @@ function main(): void {
     rmSync(scratch, { recursive: true, force: true });
   }
 
-  const sourcePath = join(ROOT, "src", `${name}.c`);
+  const sourcePath = sourcePathFor(name);
   const sourceText = existsSync(sourcePath) ? readFileSync(sourcePath, "utf-8") : undefined;
   const report = recognizeIdioms(instructions, sourceText);
 

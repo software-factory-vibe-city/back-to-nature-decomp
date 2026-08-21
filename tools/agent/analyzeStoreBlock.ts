@@ -28,6 +28,7 @@
 
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
+import { resolveAsmSource } from "./decompToolchain.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
@@ -194,15 +195,10 @@ function parseGccAsm(path: string): { mn: string; ops: string[] }[] {
   return rows;
 }
 
+/* The container's own assembly. Shared with the oracle rather than restated,
+   so this reads the same file the measurement was taken against. */
 function resolveTargetAsm(name: string): string {
-  const primary = join(ROOT, `build/asm/nonmatchings/${name}/${name}.s`);
-  if (existsSync(primary)) return primary;
-  const dir = join(ROOT, `build/asm/nonmatchings/${name}`);
-  if (existsSync(dir)) {
-    const files = readdirSync(dir).filter((f) => f.endsWith(".s"));
-    if (files.length === 1) return join(dir, files[0]);
-  }
-  return "";
+  return resolveAsmSource(name) ?? "";
 }
 
 function fmtVal(v: Val): string {
@@ -230,7 +226,7 @@ function main() {
 
   const targetPath = flag("--target") ?? resolveTargetAsm(name);
   if (!targetPath || !existsSync(targetPath)) {
-    console.error(`No target asm found for ${name} (looked in build/asm/nonmatchings/). Pass --target.`);
+    console.error(`No target asm found for ${name} in any container. Pass --target.`);
     process.exit(1);
   }
   const { stores, lis } = scan(parseTargetAsm(targetPath));

@@ -394,13 +394,36 @@ export function exportAll(
 
 // --- CLI ---
 
-if (process.argv[1]?.endsWith("contextExport.ts")) {
-  const args = process.argv.slice(2);
-  const dryRun = args.includes("--dry-run");
-  const all = args.includes("--all");
+export interface ContextExportArgs {
+  dryRun: boolean;
+  all: boolean;
+  containerId?: string;
+  funcName?: string;
+}
+
+/**
+ * Parse the CLI arguments.
+ *
+ * Extracted so the one thing that has silently broken here is testable: the
+ * slot `--container` consumes. `indexOf` answers -1 when the flag is absent,
+ * and treating -1 + 1 as a consumed index excluded argument 0 — the function
+ * name — so every single-function invocation printed the usage instead.
+ */
+export function parseContextExportArgs(args: string[]): ContextExportArgs {
   const containerIdx = args.indexOf("--container");
+  const consumed = containerIdx >= 0 ? containerIdx + 1 : -1;
   const containerId = containerIdx >= 0 ? args[containerIdx + 1] : undefined;
-  const funcName = args.find((a, i) => !a.startsWith("--") && i !== containerIdx + 1);
+  const funcName = args.find((a, i) => !a.startsWith("--") && i !== consumed);
+  return {
+    dryRun: args.includes("--dry-run"),
+    all: args.includes("--all"),
+    ...(containerId ? { containerId } : {}),
+    ...(funcName ? { funcName } : {}),
+  };
+}
+
+if (process.argv[1]?.endsWith("contextExport.ts")) {
+  const { dryRun, all, containerId, funcName } = parseContextExportArgs(process.argv.slice(2));
 
   if (!all && !funcName) {
     console.error("Usage: npx tsx tools/agent/contextExport.ts <func_name> [--dry-run]");

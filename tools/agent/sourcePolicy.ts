@@ -37,10 +37,14 @@ async function main(): Promise<void> {
   const finalAudit = args.includes("--final");
   const live = graph.functions.filter((candidate) => !candidate.dead && candidate.handwritten !== "asm");
   const candidates = functionName ? [functionName] : live.map((candidate) => candidate.name);
+  /* The call graph places each function's translation unit. Reconstructing
+     `src/<name>.c` here would look past every overlay's source directory, and a
+     file that is not there reads as a function with no stub to skip. */
+  const sourceOf = new Map(graph.functions.map((candidate) => [candidate.name, candidate.source ?? `src/${candidate.name}.c`]));
   const pendingStubs = functionName || finalAudit
     ? []
     : candidates.filter((name) => {
-      const path = resolve(ROOT, "src", `${name}.c`);
+      const path = resolve(ROOT, sourceOf.get(name) ?? `src/${name}.c`);
       return existsSync(path) && isPendingStub(readFileSync(path, "utf8"));
     });
   const pending = new Set(pendingStubs);
@@ -48,10 +52,13 @@ async function main(): Promise<void> {
   const result = checkSourcePolicy({
     projectRoot: ROOT,
     config,
-    functionName,
-    functionVram: entry?.vram,
+    ...(functionName ? { functionName } : {}),
+    ...(entry?.vram ? { functionVram: entry.vram } : {}),
+    ...(entry?.container ? { functionContainer: entry.container } : {}),
     scanFunctions,
     functionVrams: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.vram])),
+    functionContainers: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.container])),
+    functionSources: Object.fromEntries(sourceOf),
     changedFiles,
     patch,
   });

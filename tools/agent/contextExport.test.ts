@@ -12,7 +12,7 @@ import {
   resolveTypes,
   typeNamesIn,
 } from "./sdkTypes.js";
-import { verifyContextParses, writeContext } from "./contextExport.js";
+import { parseContextExportArgs, verifyContextParses, writeContext } from "./contextExport.js";
 
 const REPO = new URL("../..", import.meta.url).pathname;
 
@@ -331,4 +331,34 @@ test("a context written where none existed is removed when it fails the gate", (
 
   assert.ok(!existsSync(sdkPath), "no stale types may be left behind");
   assert.ok(!existsSync(funcsPath), "no stale signatures may be left behind");
+});
+
+test("the function name survives an argument list with no --container", () => {
+  /* Regression: `indexOf` returns -1 for an absent flag, and -1 + 1 named
+     argument 0 as the flag's consumed value — so `contextExport.ts <name>`
+     found no function name and printed the usage. */
+  assert.deepEqual(parseContextExportArgs(["ovl_11_func_800BCF20"]), {
+    dryRun: false,
+    all: false,
+    funcName: "ovl_11_func_800BCF20",
+  });
+  assert.deepEqual(parseContextExportArgs(["func_80011C24", "--dry-run"]), {
+    dryRun: true,
+    all: false,
+    funcName: "func_80011C24",
+  });
+});
+
+test("--container consumes exactly its own value", () => {
+  assert.deepEqual(parseContextExportArgs(["--container", "ovl_11", "--all"]), {
+    dryRun: false,
+    all: true,
+    containerId: "ovl_11",
+  });
+  assert.deepEqual(parseContextExportArgs(["--container", "ovl_11", "ovl_11_func_800BCF20"]), {
+    dryRun: false,
+    all: false,
+    containerId: "ovl_11",
+    funcName: "ovl_11_func_800BCF20",
+  });
 });
