@@ -26,6 +26,13 @@ assembly stub, or an unevidenced flag override.
 Where a target genuinely requires one of those, it needs an allowlist entry,
 and that is a human decision. File it; do not grant it.
 
+An allowlist entry names one function, and the name is the key. Where an entry
+is keyed by address instead, it must carry the container — `<container>:<address>`
+— because containers share RAM and a bare address grants one function's exception
+to a different function sitting at the same place in another binary. A bare
+address is read as the executable's, which is the only container whose addresses
+are unambiguous.
+
 ## Start from natural C
 
 The original programmers generally wrote straightforward C. Reconstruct the

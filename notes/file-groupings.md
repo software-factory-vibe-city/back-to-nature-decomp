@@ -1,8 +1,8 @@
 # Suspected source-file groupings (ledger)
 
 Lightweight, hand-maintained priors about which functions belonged to the
-same original translation unit. NOT authoritative — `configs/splat.yaml` is
-the source of truth for actual splits; this file records *suspected*
+same original translation unit. NOT authoritative — each container's splat
+config is the source of truth for actual splits; this file records *suspected*
 groupings with the evidence that justifies them.
 
 Why it matters: same-file membership has compiler-visible consequences —
@@ -13,6 +13,11 @@ the group changed func_8001E9F8 from a multi-session mystery into a
 15-minute solve.
 
 Rules:
+- Every group heading names its **container**. A translation unit belongs to
+  one binary, and two overlays that share a RAM slot hold different functions
+  at the same address — so an address range without a container names two
+  different groups. The PS-X EXE is `exe`; overlay containers are `ovl_NN`,
+  and their symbols carry that id as a prefix.
 - Every entry cites its evidence class (shared gp-rel cluster, call graph,
   TU quirk, address adjacency, shared idiom). No evidence, no entry.
 - Update in the same session that produces new grouping evidence (new
@@ -29,9 +34,68 @@ debugging advice, and per-function solve detail belong in
 `notes/research/` or `notes/retros/`; an active decompilation effort belongs
 in its campaign note. Keep this file readable as a map.
 
+## Containers
+
+`npx tsx tools/agent/callGraph.ts` lists every container, its function count,
+and the cross-container call edges between them. What this ledger has recorded
+so far:
+
+| container | alias | groups recorded |
+|---|---|---|
+| `exe` | the PS-X EXE | every group below except where a heading says otherwise |
+| `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
+| `ovl_11` | `Obj\GF_FARM.bin` | none yet — called into by `ovl_30` |
+| `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
+
+Aliases come from `npx tsx tools/diagnostics/overlayIdentity.ts`, which agrees
+three independent sources before adopting one; the member index stays the
+durable identifier regardless.
+
+**Cross-container edges are ordinary call-graph evidence.** `ovl_30` calls ten
+functions inside `ovl_11`, every one landing on a function entry, so the two are
+resident together and a grouping argument may cite an edge between them. Every
+overlay also calls the engine constantly — `ovl_11` alone has 974 edges into
+`exe` — and those edges are evidence about the *engine API*, not about shared
+translation units.
+
 ---
 
-## "collision.c" — 0x8001E334–0x8001EFA4 (confidence: high)
+## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
+
+The whole container is one translation unit: six functions, one of which calls
+the other five and nothing else calls it.
+
+Fingerprints:
+- **the container is the group.** `ovl_31` holds exactly six functions with no
+  gaps; a container this small is one file unless something says otherwise, and
+  nothing does.
+- **single entry point.** `ovl_31_func_800B7FCC` calls all five siblings and has
+  no caller inside the container; the five have no callee inside it. A star with
+  one hub is a file with a driver and its helpers.
+- **one SDK library across every member.** Every helper calls `MemCardSync`
+  first and then exactly one other `libmcrd` entry point
+  (`MemCardFormat`, `MemCardUnformat`, `MemCardGetDirentry`, `MemCardAccept`).
+- **the container's own alias corroborates it**: `Obj\gf_mcard.bin`, adopted by
+  `overlayIdentity.ts` from three agreeing sources.
+
+Members (address order):
+- ovl_31_func_800B7FCC (s) — driver; the only member with an `FntPrint` debug
+  overlay and the only caller of the other five
+- ovl_31_func_800B82E8 (m) — format: `MemCardSync` then `MemCardFormat`,
+  mapping the card's status onto 1 / 0 / -1 (matched 2026-08-21)
+- ovl_31_func_800B8348 (s) — unformat; same shape as the above
+- ovl_31_func_800B83B8 (s) — directory listing; `MemCardGetDirentry` + `sprintf`
+- ovl_31_func_800B8490 (s) — card probe; `MemCardAccept`, `McxCardType`, `McxSync`
+- ovl_31_func_800B8600 (s) — file rename; `sprintf` + `rename`
+
+`ovl_31_func_800B82E8` is the first overlay function decompiled through the
+agent workflow. Its residual was one shape question — a nested `if` chain rather
+than a `&&`, which GCC folds into a single unsigned compare — and it is a fair
+prior for the rest of this group.
+
+---
+
+## `exe` "collision.c" — 0x8001E334–0x8001EFA4 (confidence: high)
 
 Floor/surface collision subsystem: walkmesh quads split into triangle
 tests against a query point, hit recorded in globals.

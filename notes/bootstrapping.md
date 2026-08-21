@@ -162,11 +162,53 @@ make check-all
 One SHA-256 comparison per container. An overlay is compared against its
 extracted member bytes, which is why step 3's extraction has to be reproducible.
 
+An overlay's symbol table names its external calls from `build/engine_syms.txt`,
+and that export is only complete once the executable has linked — a fallback to
+the project's own symbol tables cannot see a symbol that only the link defines.
+So `split-all` links the executable before deriving any overlay's table, and a
+cold tree converges in one pass. Where the executable cannot link yet, the
+export says so and falls back; the overlays still split and still round-trip,
+because a stub calls an address. C that calls such a function by name fails the
+link, loudly, naming the symbol — rerun `split-all` once the executable links.
+
+`make config-check` is the standing check that a repeat pass moves nothing.
+
 ```
 make check-exe             # the executable alone
 make check-ovl_11          # one overlay alone
 make config-check          # re-split everything and assert no tracked file moved
 ```
+
+## 6. Decompile one function
+
+Nothing after this point asks which binary a function is in. The container is
+carried by the symbol name — overlay symbols are prefixed `ovl_NN_`, the
+executable's are bare — and every tool derives it from there: source path,
+original assembly, compiler flags, symbol map, `INCLUDE_ASM` path.
+
+```
+npx tsx tools/agent/callGraph.ts                    # every container, ranked
+npx tsx tools/agent/callGraph.ts --container ovl_11 # scope the ranking to one
+
+npx tsx tools/agent/triage.ts ovl_31_func_800B82E8
+npx tsx tools/agent/m2cFunc.ts ovl_31_func_800B82E8 --write
+npx tsx tools/agent/residualObjective.ts ovl_31_func_800B82E8
+npx tsx tools/agent/contextExport.ts ovl_31_func_800B82E8
+```
+
+The autonomous controller takes a container filter, which is the scheduling
+shape the plan argues for — one run per container, coordinating through nothing
+but the shared engine symbol export:
+
+```
+npx tsx .pi/extensions/psx-decomp/autonomous/controller.ts start --container ovl_11
+npx tsx .pi/extensions/psx-decomp/autonomous/controller.ts status
+```
+
+Its state is keyed by `<container>:<address>`, because two overlays that share a
+RAM slot hold different functions at one address. A control request may name a
+function or that key; a bare address is refused when it is ambiguous rather than
+resolved to whichever entry came first.
 
 ## What completes from nothing, and what does not
 
@@ -180,6 +222,7 @@ Verified from an empty tree:
 | overlay base solving (13/13 with certificates) | yes |
 | overlay split and **byte-identical round trip, all 13** | yes |
 | executable split | yes |
+| per-function workflow on an overlay function (triage, m2c, residual, gate) | yes |
 | executable **link** | **no** — see below |
 
 The executable's link needs the SDK library objects placed and their symbols

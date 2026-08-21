@@ -1,8 +1,8 @@
 # Plan: enable overlay decompilation
 
-**Status: Deliverables 1–12 implemented and verified 2026-08-21. Deliverable 13
-not started.** See "Implementation status" below for what landed, what the
-measurements corrected, and what remains. Findings are recorded in
+**Status: complete. Deliverables 1–13 implemented and verified 2026-08-21.**
+See "Implementation status" below for what landed, what the measurements
+corrected, and what is deliberately left outside. Findings are recorded in
 `notes/overlay-enablement.md`; the from-nothing sequence is
 `notes/bootstrapping.md`.
 
@@ -26,17 +26,18 @@ make config-check   # converges; a second split moves no tracked file    DONE
 make progress       # per container and total, on corrected liveness     DONE
 ```
 
-`make check-all` passes 14/14. `npm test` passes 523/523. Every overlay builds
+`make check-all` passes 14/14. `npm test` passes 544/544. Every overlay builds
 from pure `INCLUDE_ASM` stubs to a binary byte-identical to its extracted
 member — the gate this plan set for itself — and that round trip was reproduced
 from an empty tree with no decompiled sources, no configuration and no linked
 executable.
 
-The remaining half of the stated outcome is Deliverable 13: a single overlay
-function can be taken from stub to matching C *through the documented agent
-workflow*. The build supports it (`diffFunc` returns MATCH for an overlay
-function and a correct residual for a perturbed one); the autonomous controller
-does not yet, because its state is still keyed by `vram` alone.
+The other half of the stated outcome is met: **`ovl_31_func_800B82E8` was taken
+from `INCLUDE_ASM` stub to byte-exact C through the documented workflow**, with
+triage, m2c, callee truth, the residual objective and the terminal gate all
+resolving its container from its name alone. It matched on the second
+experiment; `make check-all` stayed 14/14 afterwards. No step named a container,
+and the operator never had to know it was working on an overlay.
 
 ## Per deliverable
 
@@ -54,7 +55,7 @@ does not yet, because its state is still keyed by `vram` alone.
 | 10 | overlay identity and cross-container call graph | done |
 | 11 | overlay global classification | done — `ramMap.ts`, nothing unclassified |
 | 12 | overlay flag fingerprint | done — `-G0`, applied per container |
-| 13 | agent workflow and knowledge base | **not started** |
+| 13 | agent workflow and knowledge base | done — `(container, vram)` state with a migration, container-scoped runs, one overlay function matched end to end |
 
 ## What the measurements corrected in this plan
 
@@ -110,7 +111,7 @@ were pulled behind a detected profile:
   `extracted/`, not by filename. The executable is found by its magic when the
   project config does not name it.
 
-## Two defects surfaced and fixed on the way
+## Two defects surfaced and fixed on the way (Deliverables 1–12)
 
 - `detectLibFunctions.ts` read the symbol table through a CWD-relative path, and
   its loader answers a missing file with an empty map. Moving the config exposed
@@ -121,33 +122,80 @@ were pulled behind a detected profile:
   place and the link either failed on a name that no longer existed or succeeded
   against the wrong one.
 
+## Deliverable 13, surface by surface
+
+The plan's table of surfaces, as resolved:
+
+| surface | resolution |
+|---|---|
+| `autonomous/state.ts` | schema 2, keyed `<container>:<ADDRESS>`; `migrateState` carries a schema-1 file over losslessly and refuses a schema it does not know |
+| `autonomous/scheduler.ts` | selects on the key, tiebreaks on it, and filters by `config.containers`; `pendingEligible` and `completionReady` are scoped to the run |
+| `autonomous/controller.ts` | `--container` pins a run without editing the project config; per-function runtime directories are container-scoped with a fallback to the pre-container layout; a control request that names an ambiguous bare address is refused, not resolved |
+| `tools/agent/callGraph.ts` | already container-aware from Deliverable 10; now also publishes each function's `source` and `includeAsmPath` so nothing downstream reconstructs a path |
+| `tools/agent/m2cFunc.ts` | assembly, destination, context headers and jump-table data all resolve through the container |
+| `tools/agent/triage.ts` | resolves source and assembly through the container; the flag matrix compiles under the container's own `-G0`/`-G8` |
+| `.pi/autodecomp.json` allowlist | keys are function names (globally unique) or `<container>:<address>`; a bare address is honoured only for the executable |
+| `notes/file-groupings.md` | container column, a container index, and the first overlay group entry |
+| `.pi/skills/psx-decompile-function/` | states the container rule as an imperative: ask by name, use the path the tool answers with, never assemble one |
+| `tools/agent/contextExport.ts` | already per-container from Deliverable 7; its CLI arg parsing is fixed and covered |
+
+Two surfaces the plan did not list turned out to need the same treatment: the
+autoloop's park machinery (which wrote `INCLUDE_ASM` stubs against the
+executable's assembly directory for every container) and `flagProbe.ts` (which
+probed overlay units under the executable's `-G8`, and read the target's words
+out of a hardcoded path to this game's executable).
+
+**Three cold-tree defects surfaced with them**, all on the path every autonomous
+workspace takes — a git worktree with no `build/`:
+
+- `genDisasmSymbols.ts` wrote into `build/` without creating it, so `make split`
+  failed on any tree that had not run `make disassemble` first.
+- `classifyGlobals.ts` recovered a global's type from `build/asm/nonmatchings`,
+  a directory that accumulates and is never pruned. A warm tree still holds
+  assembly for functions long since matched; a cold tree does not, so the two
+  inferred different types and the cold build failed on conflicting
+  declarations. The type now comes from the file-scope declaration in the
+  owning translation unit — parsed, not matched — which is where the author
+  wrote it.
+- An overlay's symbol table is derived from the engine export, which is only
+  complete once the executable links — and neither dependency was declared, so
+  a cold `split-all` named an engine call `func_800403FC` instead of
+  `MemCardSync`. `split-<id>` now takes the export as a prerequisite, and the
+  export links the executable first.
+
+**Build cost, decided rather than discovered.** Warm, `make check-all` is 7.9s
+against `make check`'s 7.7s: an untouched container relinks nothing. The full
+gate stays the gate. Narrowing it would also be unsound — overlays link against
+the engine symbol export, so an executable-side rename relinks every overlay.
+The per-container targets are the iteration loop inside a turn.
+
+**Verified from nothing.** A git worktree with no `build/` — which is what an
+autonomous workspace is — runs `make split-all` then `make check-all` and gets
+14/14 in one pass, with the newly matched overlay C compiled and linked. Before
+the three fixes above, that sequence failed three times over.
+
 ## What remains
 
-**Deliverable 13, in full.** The plan's own table of surfaces still stands:
-`scheduler.ts` and `state.ts` keyed by `vram`, `m2cFunc.ts`'s per-container `.s`
-resolution, `triage.ts`'s `-G8` detectors that do not apply to overlay TUs,
-`.pi/autodecomp.json`'s bare-filename allowlist, `notes/file-groupings.md`'s
-missing container column, and the matching skill's single-binary assumptions.
-
-One thing has changed since the plan was written and it shrinks the work:
-overlay symbols carry their container as a prefix (`ovl_11_func_800C1234`), so a
-function name is globally unique and every tool keyed by name is already
-correct. The collision the plan feared — "one entry for two functions" in
-controller state — is now only reachable through the raw `vram` key, not through
-names.
-
-**Outside Deliverable 13:**
+**Outside this plan:**
 
 - The executable's library-integration chain does not complete from a wiped
   configuration (`notes/bootstrapping.md` records the failure and why). It is
   not on this plan's critical path, but it is on the path of applying the
   harness to a second game.
-- `include/overlays/<id>.h` exists for every container but is empty apart from
-  the trivially-matched functions, so the type-recovery substrate Deliverable 11
+- `include/overlays/<id>.h` exists for every container but holds only the
+  matched functions' signatures, so the type-recovery substrate Deliverable 11
   produces is not yet feeding declarations back.
-- No overlay function has been decompiled beyond the 18 the split recovered
-  trivially. That was always a non-goal here — "this plan ends when one can be
-  attempted" — and it can be attempted now.
+- One overlay function has been decompiled beyond the 18 the split recovered
+  trivially (`ovl_31_func_800B82E8`). Decompiling the rest was always a non-goal
+  here — "this plan ends when one can be attempted" — and 2,214 remain.
+- Several build and diagnostic tools still name this game outright:
+  `patchLinkerBss.ts` and `patchLibBss.ts` (`build/slus_011.ld`),
+  `classifyGlobals.ts` and `headerInfo.ts` (`extracted/iso/slus_011.15`), and
+  `diffBinary.ts` (`build/slus_011.bin`/`.map`). The discovery and per-function
+  paths no longer do — `flagProbe.ts` was the last one and now reads the
+  container's own image — but these five are on the path of applying the harness
+  to a second game, and each has a container-model answer available
+  (`containerTargetPath`, `container.paths.ldScript`, `container.paths.builtBin`).
 
 ---
 

@@ -9,6 +9,17 @@ Work on exactly the target named in the invocation. Derive every game,
 compiler, assembler, SDK, build, and layout fact from the current project, not
 from memory. Do not commit or create a worktree unless asked.
 
+A project builds more than one binary. The target's **container** — which binary
+holds it — decides its source path, its original assembly, its compiler flags
+and its symbol map, and every tool here derives that from the function's name.
+So you do not name a container, look one up, or reconstruct a path from one: ask
+for the function by name and use the path the tool answers with. Two things
+follow and both matter. A path you assemble yourself (`src/<name>.c`) names a
+file that may not exist, and a tool reading a file that is not there reports a
+clean function it never opened. And an address is not an identity: containers
+share RAM, so two functions can sit at one address, and only the name or an
+explicit `<container>:<address>` key tells them apart.
+
 ## The one rule
 
 **You do not stop until the function is byte-exact.**
@@ -167,6 +178,11 @@ steps that can are first for that reason.
    neighbours are the idiom dictionary; `notes/file-groupings.md` names the
    group, and reading three of its members is cheaper than one pass reading.
 
+   A group lives inside one container, so read neighbours from the target's own
+   container. Another binary's code is a different build with its own flags and
+   possibly a different author, and its idioms are a claim about it, not about
+   this target.
+
    A residual that survives every rewrite of your own idiom is usually somebody
    else's idiom.
 
@@ -282,7 +298,9 @@ poisons every later reading:
 
 `psx_finalize_function` is the terminal gate: the exact diff, the linked build,
 the scope check and the clean-source check together. A pre-link byte comparison
-is not a finish line.
+is not a finish line. Its build step compares every container the project
+builds, not only the one you edited — an edit to a shared symbol relinks the
+others, and a gate scoped to one binary would pass while another one changed.
 
 Embedded assembly, hard-register pinning and new assembly stubs are not
 decompilation solutions. Where the target genuinely requires one, it needs an

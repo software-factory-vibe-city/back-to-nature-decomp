@@ -169,3 +169,80 @@ Two defects surfaced along the way and are fixed:
 - An `INCLUDE_ASM` stub's object had no dependency on the assembly it includes,
   so a re-split that renamed a call target left a stale object in place. The
   compile rule now depends on the `.s` too.
+
+## The per-function workflow
+
+Every tool in the matching loop takes a function name and derives the container
+from it: overlay symbols carry their container id as a prefix, the executable's
+do not. That is the whole interface — no tool asks for a container, and a caller
+that reconstructs a path from one is the failure mode, not the design.
+
+Measured on `ovl_31_func_800B82E8`, the first overlay function decompiled:
+triage, m2c, callee truth, the flag probe, the residual objective and the
+terminal gate all run against the overlay's own assembly, source directory,
+symbol table and `-G0` flags. It matched on the second experiment.
+
+### Controller state is keyed by `(container, address)`
+
+Two overlays that share a RAM slot hold different functions at one address.
+State keyed by address alone carries one entry for two functions and hands a
+worker the wrong target — a wrong answer that presents as a bad match rather
+than a bad address. The key is `<container>:<ADDRESS>`; schema 1 state files
+migrate to it losslessly, every schema-1 entry being the executable's because
+no other container could be queued before the rekey.
+
+A run takes `--container`, and a pinned run neither takes another container's
+work nor waits on it before reporting itself complete.
+
+### The full gate stays the gate
+
+The plan left open whether fourteen comparisons per edit would be too slow.
+Measured warm: `make check-all` is 7.9s against `make check`'s 7.7s — the
+thirteen overlay comparisons add about two tenths of a second, because an
+untouched container relinks nothing. A single overlay relink after a one-file
+edit is 0.45s.
+
+Narrowing the gate would also be wrong, not merely unnecessary. Overlays link
+against the engine symbol export, so a rename in the executable's sources
+relinks every overlay; a gate scoped to the edited container would pass while
+another container's binary had silently changed. The per-container targets are
+the iteration loop inside a turn, not a substitute for the gate.
+
+### Three more defects surfaced and fixed
+
+- **The source-policy sweep reported scanning 2,483 functions and opened 268 of
+  them.** It reconstructed `src/<name>.c` for every function, so for all 2,215
+  overlay functions it stat'd a path that does not exist and moved on. A missing
+  file is not a finding, so the sweep passed them as clean. The call graph now
+  publishes each function's real source path and the checker uses it.
+- **`makefileFlags` dropped `$(...)` references instead of expanding them.**
+  `OVERLAY_ASFLAGS` names its small-data threshold as `$(OVERLAY_G)`, so every
+  diagnostic assembled overlay code without the `-G0` the build passes. Simple
+  references are now expanded; a computed one — the per-file override hook — is
+  still dropped, because it has no value outside a rule.
+- **`contextExport.ts <function>` printed its usage instead of running.**
+  `indexOf("--container")` answers -1 when the flag is absent, and treating
+  -1 + 1 as the flag's consumed argument excluded argument 0 — the function
+  name. Every single-function invocation had been broken since the flag was
+  added.
+
+### The engine export is an input to every overlay split
+
+An overlay's symbol table names its external calls from the engine symbol
+export, and that export is only complete once the executable has linked: the
+fallback to the project's own symbol tables cannot see a symbol that only the
+link defines. Derived from the fallback, `ovl_31`'s call to `MemCardSync` was
+named `func_800403FC` — harmless for a stub, which calls the address, and a link
+failure for C that calls the function by name.
+
+Two dependencies were missing and are now declared. `split-<id>` takes the
+export as a prerequisite. The export's own rule links the executable first,
+recursively, tolerating failure — because make resolves `wildcard` when it reads
+the Makefile, so on a tree with no build the ELF cannot be named as a
+prerequisite at all, and without the recursive call the export would silently
+prefer the weaker source. Tolerating the failure is what keeps overlay work
+available to a project whose library integration is not finished.
+
+Measured on a git worktree with no `build/`: `make split-all` links the
+executable, exports 1,236 symbols from the linked ELF, and writes `MemCardSync`
+into `ovl_31`'s table — one pass.
