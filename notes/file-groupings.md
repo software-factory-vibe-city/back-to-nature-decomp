@@ -368,7 +368,7 @@ Fingerprints:
 - address adjacency with no interleaved unrelated code.
 
 Members (address order):
-- func_80017D9C (s) — wrapper, calls 80011F5C/80018B98/80011FD8
+- func_80017D9C (m) — wrapper, calls 80011F5C/80018B98/80011FD8; matched with the sibling's extern `func_80018B98` declaration and identical call shape
 - func_80017E34 (m) — u16 strcat (append)
 - func_80017EA0 (s) — u16 strcpy (copy); void return
 - func_80017EE4 (m) — u16 strcmp (compare); entry is a `j` over the
