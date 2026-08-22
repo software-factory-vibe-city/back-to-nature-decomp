@@ -1,3 +1,9 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800B92AC", ovl_10_func_800B92AC);
+int FntPrint();
+
+extern char D_800B814C[];
+
+void ovl_10_func_800B92AC(void) {
+    FntPrint(&D_800B814C);
+}

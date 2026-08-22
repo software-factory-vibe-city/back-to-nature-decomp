@@ -128,6 +128,39 @@ Members (address order):
 
 ---
 
+## `ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)
+
+Candidate same-TU family of memory-card manager (`Obj\gf_mcard.bin`)
+status/debug printers around 0x800B92AC–0x800BA2A0. Evidence is a contiguous
+rodata string table plus address adjacency; same-TU membership is unproven
+(the strings could straddle neighbouring data pools, as the tail-group note
+warns for its own abutting global).
+
+Fingerprints:
+- shared string cluster: `D_800B814C`—`D_800B821C` is one contiguous block of
+  debug/status format strings — "    no data disp \n", tx/rx/disable mode
+  labels, sat..sun day abbreviations, "    current appli cation :%d \n",
+  "    PDA appli flush access :%s \n", "SUPERIOR"/"INFERIOR",
+  "    current control  sound:%s  infred:%s \n", "ENABLE" — and at least
+  four adjacent functions each pull one or more strings from it;
+- address adjacency: the four member functions sit together in link order
+  (0x800B92AC, 0x800B92D0, 0x800B9458, 0x800BA2A0), immediately after the
+  jtbl_800B811C switch table in the same rodata region.
+
+Members (address order):
+- ovl_10_func_800B92AC (m, matched this session) — prints the "no data
+  disp" status line via `FntPrint(&D_800B814C)`; byte-exact clean C,
+  baseline flags
+- ovl_10_func_800B92D0 (s) — status printer: references `D_800B8194`,
+  `D_800B81B4`, `D_800B81D8`, `D_800B81E4`, `D_800B81F0` (current-app,
+  PDA-flush, SUPERIOR/INFERIOR, sound/infred control lines)
+- ovl_10_func_800B9458 (s) — references `D_800B8194` ("current appli
+  cation :%d")
+- ovl_10_func_800BA2A0 (s) — references `D_800B81D8`/`D_800B81E4`
+  (SUPERIOR/INFERIOR)
+
+---
+
 ## `exe` "collision.c" — 0x8001E334–0x8001EFA4 (confidence: high)
 
 Floor/surface collision subsystem: walkmesh quads split into triangle
