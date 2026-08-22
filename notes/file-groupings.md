@@ -149,9 +149,22 @@ Fingerprints:
 - call graph: `ovl_10_func_800B9108` dispatches to cluster neighbours
   (`800B95A4`, `800B956C`) and `ovl_10_func_800B956C` directly calls
   `800B92AC` — mcard status/app wrappers, a call-graph adjacency
-  consistent with shared-TU membership.
+  consistent with shared-TU membership;
+- extended string pool + shared global: the same rodata region holds the
+  command-menu formats `D_800B7F24`–`D_800B8074` (with `D_800B80C8` "no
+  parameter needed" between them and the documented block), consumed by
+  `ovl_10_func_800B9060`; that menu printer reads the shared label array
+  `D_800BBB3C` which dispatcher `ovl_10_func_800B8C14` fills, and
+  `800B8C14` calls `800B9060` — a call-graph + shared-global adjacency
+  tying this cluster to the memory-card command-dispatcher code.
 
 Members (address order):
+- ovl_10_func_800B9060 (m, matched this session, baseline flags) — mcard
+  debug command-menu printer: six `FntPrint`s from formats
+  `D_800B7F24`/`D_800B7F78`/`D_800B7FCC`/`D_800B8020`/`D_800B8074`/
+  `D_800B7EE8`, each 3-column row fed from shared label array
+  `D_800BBB3C[0..4]`/`[5..9]`/`[10..14]`; called by dispatcher
+  `ovl_10_func_800B8C14`
 - ovl_10_func_800B92AC (m, matched this session) — prints the "no data
   disp" status line via `FntPrint(&D_800B814C)`; byte-exact clean C,
   baseline flags
