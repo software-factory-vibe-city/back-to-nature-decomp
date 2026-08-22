@@ -491,7 +491,19 @@ state machine, immediately preceding the callback driver family. Evidence
   call graph (→ func_80023100, func_80023A74), the same gp-rel trio, and a
   contiguous 0x3C-at-0x3C slot (each body is exactly 0x3C bytes, one right
   after the other) — replicates the phrase-by-duplication source shape.
+- func_80023060 (m, 2026-08-22) — install/dispatch gater that immediately
+  precedes func_80023100 in link order (0x80023060 is 0xA0 bytes, ending
+  exactly at 0x80023100); structural twin of func_800231E8 — same
+  func_80015114 font/geometry call (D_800A3FB0/3FB4), same state-gate then
+  switch-map (4→clear,-1; 5→clear,+1; else 2 on its own u16 D_8005E338), and
+  byte-identical call block; matched under the same -mno-split-addresses
+  override (self-clobber D_8005E3C0/D_800A3FBx loads, see
+  configs/flag_overrides.mk func_80023060). Ties the D_8005E338 cluster
+  (driven by func_80023288/func_80023600) to this family's dispatch-tail
+  idiom.
 Members (address order):
+- func_80023060 (m, 2026-08-22) — D_8005E338-gated dispatch tail: calls
+  func_80015114 + func_80023288, then maps D_8005E338 (4→0,-1; 5→0,+1; else 2)
 - func_80023100 (m) — state reset: zeroes/clears the D_8005E344..D_8005E35C
   cluster and marks it live (matches the pair below)
 - func_80023130 (m, 2026-09) — install+fill twin 2: calls func_80023100,
