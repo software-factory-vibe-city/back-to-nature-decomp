@@ -9,7 +9,7 @@ void func_80021B20(void);
 /* Tentative definitions (merged via -fcommon) so GCC reaches these GP-relatively,
  * matching the target's %gp_rel accesses. Owned by the CD-music state family. */
 s16 D_8005E324;
-u16 D_8005E580;
+s16 D_8005E580;
 s32 D_8005E584;
 s32 D_8005E588;
 s32 D_8005E58C;

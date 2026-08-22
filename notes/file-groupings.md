@@ -1185,15 +1185,22 @@ after the gradient-interpolation cluster (0x8001FABC), far from this range —
 sound-playback role by call graph, non-adjacent by link order; TU membership
 unproven.
 
-## CD-music state flag family — 0x80021B20–0x80021CD8 (confidence: low)
+## CD-music state flag family — 0x8002194C–0x80021CD8 (confidence: low)
 
 Shared gp-rel `s16 D_8005E324` ("noise/music playing" flag): written by
 func_80021B20 (=0, after SsSetSerialVol/SdStandby mute) and func_80021CD8
-(=1, before Cd position control); read by func_80021B64 as a state query.
-All three TUs tentatively define D_8005E324 to reach it GP-relatively, and
-the three are address-adjacent in link order. func_80021B20 is also a CD-
-loader callee (of func_80014CBC), so TU membership is unconfirmed — the
-tentative defs merge via -fcommon regardless. Members:
+(=1, before Cd position control); read by func_8002194C as its entry gate.
+All TUs tentatively define D_8005E324 and the D_8005E580/E584/E58C/E590
+music-state cluster GP-relatively (func_80021B90 defines the full
+D_8005E324..D_8005E59C span) and are address-contiguous in link order
+(func_8002194C runs 0x8002194C–0x80021B20, immediately followed by
+func_80021B20; then func_80021B64, func_80021B90, func_80021CD8 in-range). func_80021B20
+is also a CD-loader callee (of func_80014CBC), so TU membership is
+unconfirmed — the tentative defs merge via -fcommon regardless. Members:
+- func_8002194C (m, 2026-08-21) — CD-music state-machine poll: gate on
+  D_8005E324; picks a per-track step (D_8005E590 0..5) driving
+  CdSync/CdPosToInt/CdControlF and SsSetSerialVol, decrementing D_8005E580;
+  calls func_80021B20 (mute path) and func_80021CD8 (seek path)
 - func_80021B20 (m) — mute/standby: if D_8005E324 != 0, silences serial
   output and CD, then clears the flag
 - func_80021B64 (m, 2026-08-21) — state query: 0 / 2 / 1 by

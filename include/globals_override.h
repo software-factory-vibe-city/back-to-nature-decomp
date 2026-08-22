@@ -467,8 +467,8 @@ extern s16 D_80055974[5];
 /* D_8005E324 — GP-relative s16 (func_80021CD8 writes 1 via sh %gp_rel). */
 extern s16 D_8005E324;
 
-/* D_8005E580 — GP-relative u16 (func_80021CD8 writes via sh %gp_rel). */
-extern u16 D_8005E580;
+/* D_8005E580 — GP-relative s16 (func_80021CD8 writes via sh; func_8002194C reads signed via lh %gp_rel). */
+extern s16 D_8005E580;
 
 /* D_8005E584 — GP-relative s32 (func_80021CD8 reads via lw %gp_rel). */
 extern s32 D_8005E584;

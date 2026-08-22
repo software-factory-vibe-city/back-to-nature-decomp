@@ -4,7 +4,7 @@
 
 /* Tentative definitions for GP-relative globals (target uses %gp_rel). */
 s16 D_8005E324;
-u16 D_8005E580;
+s16 D_8005E580;
 s32 D_8005E584;
 s32 D_8005E588;
 s32 D_8005E58C;
