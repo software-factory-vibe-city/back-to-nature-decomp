@@ -196,8 +196,12 @@ Fingerprints:
   both callers sit in the SsSeq stop/sequencer domain;
 - func_8001FBBC, func_8001FBE4, func_8001FBF0, func_8001FCDC are
   consecutive in link order with no gap between them;
-- no shared globals, register quirks, or gp-rel cluster found — TU
-  membership unproven.
+- no register quirks or gp-rel cluster found historically; new 2026-08-22: func_8001FBF0's TU
+  owns D_8005E31C/D_8005E530 (gp_rel), func_8001FBE4's target reaches D_8005E530 through
+  gp_rel too, and FBF0 forwards that value into func_800200E4 (D_8005E544–558 sound-request
+  slots) — a setter→dispatch→request data flow inside the cluster. TU membership stays
+  unproven (both TUs can emit a common .comm for D_8005E530); the relationship is data, not
+  file.
 - func_8001FB30 (m, 2026-08-22) calls func_800201C4 and the SsUt reverb
   family from inside this span, linking it to the score-table sequencer TU;
   its D_800492E0 table is an as-yet unowned data candidate for that TU.
@@ -210,8 +214,15 @@ Members (address order):
   (absolute, >8 bytes)
 - func_8001FBBC (m, 2026-08-21) — wrapper: calls func_80020414(s16 arg0
   sign-extended, 0) and returns 0; no globals
-- func_8001FBE4 (s) — role unknown
-- func_8001FBF0 (s) — role unknown
+- func_8001FBE4 (s) — setter for the shared D_8005E530 slot; its target writes
+  it through gp_rel (matched bytes), and FBF0 forwards that value into the
+  sound-request path
+- func_8001FBF0 (m, 2026-08-22) — note/level dispatch, byte-exact clean C:
+  clears D_80061F1C; 999→func_80020148(2), 1000→func_80020148(1), 0→
+  SsUtAllKeyOff(0)+func_8001FF70()+func_800200E4(&D_80061F28,D_8005E530,0,0)+
+  func_80020148(0)+D_8005E31C=0 when the slot is clear; otherwise
+  D_80049296[arg0*2]/[arg0*2+1] byte pair → func_80020148/func_80020174(...,2)
+  (D_80049296 is an absolute byte-pair table, adjacent to FB30's D_800492E0)
 - func_8001FCDC (s) — role unknown
 
 Adjacent confirmed sound-group callee: func_80020414 (m) — stop the
