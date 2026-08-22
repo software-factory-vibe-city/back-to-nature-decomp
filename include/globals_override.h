@@ -702,10 +702,11 @@ extern char D_800B8358[];
 extern char D_800B8360[];
 extern char D_800B8368[];
 extern char D_800B8370[];
-/* Further editor strings and status words read/written by
- * ovl_10_func_800BADA4 (the mcard slot/S/R/L button editor).  The byte
- * buffer D_800BBA4C is indexed as (D_800BB8A4 + 1); D_800BBA40 holds the
- * masked button word (arg1 & 0xF000). */
+/* Further editor strings and status words read/written by the mcard
+ * slot/S/R/L button editor (ovl_10_func_800BADA4) and the block/cursor
+ * editor ovl_10_func_800BB264.  The byte buffer D_800BBA4C is indexed as
+ * (D_800BB8A4 + 1); D_800BBA40/D_800BBA44 hold the masked button word
+ * (arg1 & 0xF000). */
 extern char D_800B7E40[];
 extern char D_800B86C4[];
 extern char D_800B87C8[];
@@ -714,11 +715,18 @@ extern char D_800B8840[];
 extern char D_800B885C[];
 extern char D_800B8868[];
 extern char D_800B8878[];
+extern char D_800B8884[];
 extern s32 D_800BB8A4;
 extern s32 D_800BB8A8;
 extern s32 D_800BB8AC;
 extern s32 D_800BB8B0;
 extern s32 D_800BB8B4;
+extern s32 D_800BB8B8;
+extern s32 D_800BB8BC;
+extern s32 D_800BB8C0;
+extern s32 D_800BB8C4;
+extern s32 D_800BB8C8;
+extern s32 D_800BBA44;
 extern s32 D_800BBA40;
 extern unsigned char D_800BBA4C[];
 extern unsigned int D_800BB810[5];
