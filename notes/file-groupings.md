@@ -819,8 +819,12 @@ Members (address order):
 - func_80015AAC (m) — maps two low-byte indices through the source object's
   `field_28`/`field_2C` tables, applies the 0xFFFE guard, then resolves the
   result through `field_20`/`field_24`; sole caller is func_80017284
-- func_80015B24–func_80015DD4 (mixed) — entry lookup and dispatchers;
+- func_80015B24–func_80015D6C (mixed) — entry lookup and dispatchers;
   func_80015BF0–func_80015D6C bridge func_800158E4 to the wrappers below
+- func_80015DD4 (m) — thin func_80016C08 (entry-driver) wrapper and the
+  driver's sole caller; shares the group's extern-only (absolute,
+  non-gp-relative) D_8005E3C0 access and matches under baseline flags,
+  corroborating ADR-0001's withdrawal of -mno-split-addresses
 - func_80015E3C (m) — thin func_80016280 wrapper (8 params: 4 register + 4 stack)
 - func_80015E78 (m) — thin func_800165D8 wrapper
 - func_80015EE8 (m) — packet setup/teardown around func_80016280
