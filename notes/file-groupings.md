@@ -46,6 +46,7 @@ so far:
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
 | `ovl_11` | `Obj\GF_FARM.bin` | none yet — called into by `ovl_30` |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
+| `ovl_10` | (overlay tail group) | tail /15 date-utility pair, low confidence |
 
 Aliases come from `npx tsx tools/diagnostics/overlayIdentity.ts`, which agrees
 three independent sources before adopting one; the member index stays the
@@ -92,6 +93,38 @@ Members (address order):
 agent workflow. Its residual was one shape question — a nested `if` chain rather
 than a `&&`, which GCC folds into a single unsigned compare — and it is a fair
 prior for the rest of this group.
+
+---
+
+## `ovl_10` overlay tail — /15 date-utility pair around 0x800BB728 (confidence: low)
+
+Candidate tail-cluster of `ovl_10` (`Obj\gf_mcard.bin`, the memory-card manager
+overlay). Evidence is a single strong adjacency plus a shared idiom; same-TU
+membership is unproven (the abutting global could belong to a neighbour's data
+pool).
+
+Fingerprints:
+- link-order adjacency: `ovl_10_func_800BB728` is the **last** function in the
+  overlay (0x800BB728, size 0x94, ends 0x800BB7BC) and its end abuts
+  `D_800BB7BC` in the original bytes — a file-scope word (initialised 0)
+  that `ovl_10_func_800B8A5C` reads and writes at four sites
+  (`lw`/`sw`/`lw` %hi/%lo(D_800BB7BC)) followed by that TU's data pool
+  (0xFFFFFFFF, 0, then address tables); a classic code-then-data same-TU tail
+  layout;
+- shared idiom: both `ovl_10_func_800BB728` and `ovl_10_func_800B8A5C` are
+  date/remainder utilities using the `/15` `0x88888889` magic-reciprocal
+  sequence (the documented mod-N idiom of the exe frame counters);
+- call graph: `ovl_10_func_800BB728` is a leaf predicate called from seven
+  container sites (`800B95F0`, `800B9AA8`, `800B9D24`, `800BA394`,
+  `800BAB10`, `800BADA4`, and its immediate predecessor `800BB264`), all
+  testing `beqz` — a shared calendar/day-slot utility.
+
+Members (address order):
+- ovl_10_func_800B8A5C (s) — /15 remainder routine; owner (read/writer) of
+  `D_800BB7BC`, the word that immediately follows `800BB728`
+- ovl_10_func_800BB728 (m, matched 2026-08-22) — leaf date predicate: day slot
+  0–0x50 via `/40`, days at/after 0x50 via `(arg0-0x50)/15`, returning 1 iff
+  the day stays before the next slot boundary; byte-exact clean C, baseline flags
 
 ---
 
