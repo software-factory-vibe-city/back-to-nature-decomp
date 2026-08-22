@@ -145,7 +145,11 @@ Fingerprints:
   four adjacent functions each pull one or more strings from it;
 - address adjacency: the four member functions sit together in link order
   (0x800B92AC, 0x800B92D0, 0x800B9458, 0x800BA2A0), immediately after the
-  jtbl_800B811C switch table in the same rodata region.
+  jtbl_800B811C switch table in the same rodata region;
+- call graph: `ovl_10_func_800B9108` dispatches to cluster neighbours
+  (`800B95A4`, `800B956C`) and `ovl_10_func_800B956C` directly calls
+  `800B92AC` — mcard status/app wrappers, a call-graph adjacency
+  consistent with shared-TU membership.
 
 Members (address order):
 - ovl_10_func_800B92AC (m, matched this session) — prints the "no data
@@ -156,6 +160,9 @@ Members (address order):
   PDA-flush, SUPERIOR/INFERIOR, sound/infred control lines)
 - ovl_10_func_800B9458 (s) — references `D_800B8194` ("current appli
   cation :%d")
+- ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
+  wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
+  return 0`
 - ovl_10_func_800BA2A0 (s) — references `D_800B81D8`/`D_800B81E4`
   (SUPERIOR/INFERIOR)
 
