@@ -151,8 +151,8 @@ Fingerprints:
   `800B92AC` — mcard status/app wrappers, a call-graph adjacency
   consistent with shared-TU membership;
 - shared wrapper skeleton: `ovl_10_func_800BA11C` is a byte-exact twin of
-  cluster members `ovl_10_func_800BA2A0` and `ovl_10_func_800BACBC` —
-  the same four-way 0/1/2/3 arg0 dispatch, the same `?:` ternary
+  cluster members `ovl_10_func_800BA2A0` and `ovl_10_func_800BACBC` — the
+  same four-way 0/1/2/3 arg0 dispatch, the same `?:` ternary
   status-string selection (`D_800BB9A8 ? &D_800B8590 : &D_800B8594`,
   mirroring `D_800BB9B4 ? &D_800B81D8 : &D_800B81E4` and
   `D_800BB8A0 ? &D_800B8430 : &D_800B8434`), and the same case-3
@@ -160,7 +160,13 @@ Fingerprints:
   `D_800BB9A8/AC/B0` abuts `D_800BB9B4` (owned by 800BA2A0) in the same
   data region, and its status strings `D_800B84DC`–`D_800B8594` abut
   `D_800B8598` (owned by 800BA2A0) in the extended string pool past the
-  0x800B821C block;
+  0x800B821C block; `ovl_10_func_800BAB10` is the immediate link-order
+  predecessor of `ovl_10_func_800BACBC` (0x800BAB10's 0x1AC body ends
+  exactly at 800BACBC), carries the same 0/1/2/3 twin skeleton, pulls six
+  status strings `D_800B86E0`–`D_800B876C` that directly abut 800BACBC's
+  `D_800B878C`/`D_800B87AC` in the same rodata pool, and drives status
+  words `D_800BB890`–`D_800BB89C` that abut 800BACBC's `D_800BB8A0` in
+  the same mcard-buffer data region;
 - extended string pool + shared global: the same rodata region holds the
   command-menu formats `D_800B7F24`–`D_800B8074` (with `D_800B80C8` "no
   parameter needed" between them and the documented block), consumed by
@@ -224,6 +230,20 @@ Members (address order):
   `ovl_10_func_800B92AC(); return 0` — byte-exact twin structure of
   `ovl_10_func_800BACBC`, with adjacent status word `D_800BB9B4` played
   exactly as 800BACBC plays `D_800BB8A0`; baseline flags
+- ovl_10_func_800BAB10 (m, matched this session, baseline flags) — mcard
+  status/transition controller, byte-exact from the first clean C draft;
+  immediate link-order predecessor of 800BACBC. arg0==0 updates status words
+  `D_800BB890`/`D_800BB894` from arg1 pad flags (0x20→1, 0x40→0; 0x10 →
+  increments `D_800BB898`, 0x80 → increments `D_800BB89C`, each gated by the
+  /15 date-predicate `ovl_10_func_800BB728` while below 0xFF / above 0;
+  counters cleared on the off-path); arg0==1 prints four status lines from
+  `D_800B86E0`/`D_800B870C`/`D_800B8738`/`D_800B876C`, with the cluster's
+  `?:` status-select ternary over `D_800B8754`/`D_800B8760` for
+  `D_800BB890`; arg0==2 → `McxShowTrans(0, D_800BB890, D_800BB894)` — the
+  show-transition mirror of 800B956C's `McxHideTrans(0)`; arg0==3 →
+  `ovl_10_func_800B92AC(); return 0` — the cluster twin skeleton;
+  status words `D_800BB890`–`D_800BB89C` abut 800BACBC's `D_800BB8A0`,
+  and its strings abut 800BACBC's `D_800B878C`/`D_800B87AC`.
 - ovl_10_func_800BACBC (m, matched this session, baseline flags) — mcard
   status/LED control wrapper: arg0==1 prints a status line
   (`FntPrint(&D_800B878C)` then `FntPrint(&D_800B87AC,
