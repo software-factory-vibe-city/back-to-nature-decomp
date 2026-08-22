@@ -1263,6 +1263,12 @@ Members (address order):
 - func_8001AD6C (s) — dispatcher: after a GetPairedTpage/func_80017C30
   guard, calls func_8001A018(slot, 1), then func_80019FC4(slot) if
   D_8005E460 == slot
+- func_8001ADD8 (m) — plumb-through wrapper: 4 args straight into
+  func_80019E80 with the a1 tpage reversed via GetPairedTpage(arg1);
+  gap-free successor of func_8001AD6C (0x8001AD6C..0x8001AE34 is one
+  contiguous run through func_8001AE34) and shares the GetPairedTpage
+  reach with it, but touches none of the cluster's GP state — same-TU
+  membership unconfirmed
 
 ## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001AAF4 (confidence: medium)
 
