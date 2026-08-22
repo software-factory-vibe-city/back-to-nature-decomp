@@ -211,6 +211,18 @@ Members (address order):
 - ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
   wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
   return 0`
+- ovl_10_func_800B9AA8 (m, matched this session, baseline flags) — mcard
+  data-transfer wrapper: the cluster's 0/1/2/3 twin skeleton with the
+  `ovl_10_func_800B92AC(); return 0` tail; arg0==0 drives status words
+  `D_800BB834`–`D_800BB840` from arg1 pad flags (0x20→1, 0x40→0, 0x10→
+  increment `D_800BB83C`, 0x80→increment `D_800BB840`, each gated by the
+  /15 date-predicate `ovl_10_func_800BB728` while `D_800BB834` < 0xF / >= 2
+  — the counter flip of 800BAB10); arg0==1 prints four status lines and
+  selects `D_800B8430`/`D_800B8434` in the cluster's ternary idiom (the
+  same two strings 800BACBC's ternary selects); arg0==2 →
+  `McxExecFlag(0, D_800BB834, D_800BB838)`, copying the packed 30-byte
+  save struct `D_800B8438`→`D_800BBAFC` on the `MemCardSync(0)` accept
+  path; link-ordered inside the cluster's 0x800B92AC–0x800BA2A0 region
 - ovl_10_func_800BA11C (m, matched this session, baseline flags) — mcard
   sound/infrared menu controller: arg0==0 reads the pad flags (0x10/0x80
   move the cursor word `D_800BB9AC` within 0..3, 0x90 latched into
