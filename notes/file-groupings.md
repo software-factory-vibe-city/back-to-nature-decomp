@@ -767,11 +767,16 @@ Members (address order):
   func_8001530C (LINE family, code 0x40)
 - func_80014FAC (m) — gouraud rect drawer (four corner colors) via
   func_800153BC (POLY_G4)
+- func_80015074 (m) — flat-colour quad (POLY_F4) drawer via
+  func_800154CC (code 0x28/0x2A); same skeleton, matches the 1:1 pairing
 
-Possibly the same TU as the GPU primitive packet initializers that follow;
-func_80015074, func_80015114, and func_800151B4 sit in between and are
-unexamined, so the two entries stay separate until a shared fingerprint
-ties them.
+Matched func_80015074 carries the shared fingerprint (func_80011F5C + one
+initializer, identical halfword-to-signed extraction, same saved-register
+set) that the trio above had, so it joins the drawer group. func_80015114
+(same skeleton, TILE via func_80015594) and func_800151B4 sit in between
+and are still unexamined; the drawer entry and the GPU-primitive entry
+below remain separate lines but func_800154CC is now the demonstrated
+bridge.
 
 ## GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)
 
