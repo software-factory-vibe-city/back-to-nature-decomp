@@ -1769,5 +1769,5 @@ Members:
 - ovl_08_func_800B8054 (s) — kanji-font init; increments D_800B8500
 - ovl_08_func_800B80FC (s) — conditional state advance; increments D_800B8500
 - ovl_08_func_800B8134 (s) — menu renderer; walks D_800B8508 state table
-- ovl_08_func_800B8400 (s) — unclassified
+- ovl_08_func_800B8400 (m) — button/input-driven “PANDO=%d” menu counter: ticks D_800B8608 (8=+1 wrap 0 at 0xB, 2=-1 wrap 0xA), dispatches func_8001B2CC/8001B3CC on field_8 flags 0x40/0x80, prints via FntPrint
 
