@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "function": "func_80020B80",
+  "baseSourcePath": "src/func_80020B80.c",
+  "analysisPath": "build/targetSchedule/func_80020B80/analysis.json",
+  "maxVariants": 180,
+  "assembleUniqueDbr": false,
+  "traceAllPreprocessed": true,
+  "constraints": {
+    "forbidInstructionCountGrowth": true,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "scheduleComparison": {
+    "enabled": true,
+    "analyze": "traced-classes",
+    "maxInterventions": 8
+  },
+  "dimensions": [
+    {
+      "id": "base-pos",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "greg",
+      "invariants": [
+        "D_8006C088/D_8006C0A8 remain [6][1] tables touching every [song][col]"
+      ],
+      "alternatives": [
+        { "id": "idx2", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        {
+          "id": "mat-top",
+          "expectedEffect": "row-pointer bases materialized at function top",
+          "edits": [
+            {
+              "find": "    s32 cur;\n    s32 cand;\n    s32 song;\n    s32 col;\n",
+              "occurrences": 1,
+              "replace": "    s32 cur;\n    s32 cand;\n    s32 song;\n    s32 col;\n    s32 (*r088)[1];\n    s32 (*r0a8)[1];\n\n    r088 = D_8006C088;\n    r0a8 = D_8006C0A8;\n"
+            },
+            {
+              "find": "            D_8006C088[song][col] = -1;\n            D_8006C0A8[song][col] = -1;",
+              "occurrences": 1,
+              "replace": "            r088[song][col] = -1;\n            r0a8[song][col] = -1;"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "store-form",
+      "mechanism": "fresh-vs-reused-web",
+      "expectedPass": "greg",
+      "invariants": [
+        "address written equals D_8006C0A8 + (song*1+col)*4"
+      ],
+      "alternatives": [
+        { "id": "idx", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        {
+          "id": "rowptr",
+          "expectedEffect": "row pointers per outer iteration",
+          "edits": [
+            {
+              "find": "        for (col = 0; col < 1; col++) {\n            D_8006C088[song][col] = -1;\n            D_8006C0A8[song][col] = -1;\n        }",
+              "occurrences": 1,
+              "replace": "        for (col = 0; col < 1; col++) {\n            (&D_8006C088[song][col])[0] = -1;\n            (&D_8006C0A8[song][col])[0] = -1;\n        }"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    }
+  ]
+}
