@@ -190,8 +190,16 @@ Fingerprints:
   consecutive in link order with no gap between them;
 - no shared globals, register quirks, or gp-rel cluster found — TU
   membership unproven.
+- func_8001FB30 (m, 2026-08-22) calls func_800201C4 and the SsUt reverb
+  family from inside this span, linking it to the score-table sequencer TU;
+  its D_800492E0 table is an as-yet unowned data candidate for that TU.
 
 Members (address order):
+- func_8001FB30 (m, 2026-08-22) — reverb wrapper: calls
+  func_800201C4(arg0, 0, arg3, arg3, arg1) then SsUtSetReverbType(
+  D_800492E0[arg2*2]), SsUtReverbOn(), SsUtSetReverbDepth(
+  D_800492E0[arg2*2+1], ...); sole reference to D_800492E0 reverb table
+  (absolute, >8 bytes)
 - func_8001FBBC (m, 2026-08-21) — wrapper: calls func_80020414(s16 arg0
   sign-extended, 0) and returns 0; no globals
 - func_8001FBE4 (s) — role unknown
