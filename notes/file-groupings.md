@@ -158,14 +158,18 @@ Members (address order):
 
 Candidate group in the unassigned gap between viewport/camera (ends 0x8001F24C)
 and sound init (starts 0x8001FEA4). Evidence is internal call graph plus
-address adjacency only — no shared globals, register quirks, or SDK cluster
-have been found; the two callers are still INCLUDE_ASM stubs, so same-TU
-membership is unproven.
+address adjacency — no shared globals or register quirks found, so same-TU
+membership remains unproven; the two callers share a stronger fingerprint
+below.
 
 Fingerprints:
 - internal call graph: func_8001F774 → func_8001F278; func_8001F8A4 →
   func_8001F774; func_8001FA0C → func_8001F774
 - address adjacency: callers/callee are contiguous; link order agrees
+- shared caller idiom (new 2026-08-21): func_8001FA0C and func_8001F8A4 both
+  consume the same GradientCmd struct (include/game_types.h — field_0 source
+  u16*, signed field_4/field_8/field_A, u16 field_C..field_12 RECT) and both
+  end with the byte-identical builder tail: `packet = func_8001E0B8(0, 0x44)`, `SetDrawLoad(packet, &rect)`, `func_8001F774(packet + 0x10, field_0, field_0 + 0x20, arg, field_8)`. func_8001FA0C matched clean C reproducing it exactly.
 
 Members (address order):
 - func_8001F278 (m) — generic 3-element linear interpolation helper
@@ -173,8 +177,12 @@ Members (address order):
 - func_8001F774 (m) — 16-step gradient interpolator: extracts 5-bit fields
   from two u16 inputs, interpolates via F278, packs 3×5-bit result into u16
   (bit 15 set when non-zero); no globals
-- func_8001F8A4 (s) — caller of func_8001F774; role unknown
-- func_8001FA0C (s) — caller of func_8001F774; role unknown
+- func_8001F8A4 (s) — caller of func_8001F774; also drives the same
+  GradientCmd tail; role unknown (mixed s16/u16 field edits before it)
+- func_8001FA0C (m, 2026-08-21) — gradient-draw builder: copies
+  field_C..field_12 into a RECT, allocates a packet via func_8001E0B8(0, 0x44),
+  SetDrawLoad(packet, &rect), then func_8001F774(packet + 0x10, field_0,
+  field_0 + 0x20, arg1, field_8); byte-exact clean C, baseline flags
 
 ## sound-sequencer slot wrappers — 0x8001FAE8–0x8001FCDC (confidence: low)
 

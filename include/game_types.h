@@ -181,3 +181,17 @@ typedef struct {
 } EAE4Query;
 
 #endif /* GAME_TYPES_H */
+
+/* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14
+ * is a RECT handed to SetDrawLoad; field_0/field_8 feed func_8001F774). */
+typedef struct {
+    /* 0x00 */ s32 field_0;     /* source u16 array */
+    /* 0x04 */ s16 field_4;
+    /* 0x06 */ u16 field_6;
+    /* 0x08 */ s16 field_8;     /* gradient step count */
+    /* 0x0A */ s16 field_A;
+    /* 0x0C */ u16 field_C;     /* RECT x */
+    /* 0x0E */ u16 field_E;     /* RECT y */
+    /* 0x10 */ u16 field_10;    /* RECT w */
+    /* 0x12 */ u16 field_12;    /* RECT h */
+} GradientCmd;
