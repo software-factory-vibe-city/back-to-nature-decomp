@@ -1,40 +1,27 @@
 #include "common.h"
-#include "include_asm.h"
-
-INCLUDE_ASM("build/asm/nonmatchings/func_8001C0D4", func_8001C0D4);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-08-22T08:28:47.267Z.
- * Reason: asm-needs-human-approval.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/func_8001C0D4.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
 #include "psyq/stddef.h"
 #include "psyq/libgte.h"
 
 /*
- * POLICY EXCEPTION (owner-authorized flag): embedded-asm scratch-stack switch.
+ * Runs on the PlayStation scratchpad stack.
  *
- * The target switches $sp onto the 1F8003F8 scratchpad slot before its body
- * and restores it afterwards:
+ * The whole body executes with $sp pointing into the 1 KB of single-cycle
+ * memory at 0x1F800000 — the D-cache the console exposes as directly addressed
+ * RAM — instead of into main RAM, which the R3000A does not cache at all. The
+ * caller's $sp is parked in the top word and restored on the way out:
  *
  *     addu t0,v0,zero ; sw sp,0(t0) ; addiu t0,t0,-4 ; addu sp,t0,zero
- *     ... body, calls run on the scratch $sp ...
+ *     ... body, and every callee's frame, on the scratchpad ...
  *     addiu sp,sp,4 ; lw sp,0(sp)
  *
- * No C construct makes GCC 2.95.2-psx emit a store of the live $sp and a
- * subsequent constant hop of $sp except writing the two machines we already
- * verified cc1 emits verbatim for "register u_long asm("$29")" or these asm
- * statements. The game's own sibling (func_8001BFEC) shows the same idiom
- * (documented there); the family already carries "embedded-asm"/
- * "register-asm" allowlist entries (func_8001d2d8 etc. in
- * .pi/autodecomp.json). Everything outside these six statements is ordinary
- * C and matches unaided.
+ * No C construct moves $sp, so the original source can only have contained
+ * inline assembly here; the six statements below are the reconstruction of the
+ * macro it must have been. `sourcePolicy.allowStackPointerSwitch` classifies
+ * this rather than allowlisting the function, because it is the right answer
+ * for the construct and not a judgement about this function.
+ *
+ * The reasoning, the evidence that the stack depth was measured, and the
+ * derivation of the macro form: notes/research/scratchpad-stack-switch.md
  */
 
 s32 D_8005E2D4;
@@ -96,4 +83,3 @@ s16 func_8001C0D4(FuncC0D4Args *arg0, VECTOR *arg1, VECTOR *arg2) {
     __asm__ volatile("lw $sp,0($sp)");
     return D_8005E4E8;
 }
-#endif

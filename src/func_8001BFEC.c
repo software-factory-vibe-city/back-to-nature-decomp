@@ -1,14 +1,23 @@
 #include "common.h"
-#include "include_asm.h"
 
 INCLUDE_ASM("build/asm/nonmatchings/func_8001BFEC", func_8001BFEC);
 
 
-/* PARKED by /auto_decompilation_loop on 2026-08-22T08:04:22.637Z.
- * Reason: asm-needs-human-approval.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/func_8001BFEC.md
+/* PARKED 2026-08-22, reason: one allocation priority inversion.
+ * 47/58 words, residual [0, 2, 0, 5]. The population 2 is an artifact, not a
+ * defect: the reversal cannot derive the word count of inline assembly from
+ * the RTL and says so. What is real is that i, the hoisted 0x1F8003FC
+ * constant and the element offset each land one callee-saved register out of
+ * place.
+ *
+ * The stack switch itself is no longer a policy question: it is classified by
+ * sourcePolicy.allowStackPointerSwitch — see
+ * notes/research/scratchpad-stack-switch.md.
+ *
+ * notes/human-needed-approvals/func_8001BFEC.md has the counterfactual's
+ * requirement as a number, and psx_record_closed has what has been ruled out.
+ *
+ * The best measured clean-C attempt is preserved verbatim below, disabled.
  */
 
 #if 0
@@ -32,16 +41,14 @@ void *D_8005E4D8;
         "lw $sp,0($sp)" : : : "$sp")
 
 void func_8001BFEC(void **arg0) {
-    register s32 i asm("$16");
-    register s32 r_off asm("$18");
-    register unsigned int *slot asm("$17");
-    unsigned int *slot0;
+    s32 i;
+    s32 r_off;
+    unsigned int *slot;
 
     D_8005E4D8 = *arg0;
     PushMatrix();
     if (D_8005E2D4 != 0) {
-        slot0 = (unsigned int *)0x1F8003FC;
-        PUSH_SCRATCH(slot0);
+        PUSH_SCRATCH((unsigned int *)0x1F8003FC);
         func_8001D6B8();
         POP_SCRATCH();
     }

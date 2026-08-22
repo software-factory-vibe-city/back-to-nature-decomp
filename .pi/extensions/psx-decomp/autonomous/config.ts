@@ -36,6 +36,7 @@ export const DEFAULT_CONFIG: AutodecompConfig = {
   },
   sourcePolicy: {
     allowEmptyMemoryBarrier: true,
+    allowStackPointerSwitch: true,
     allowlist: {},
   },
 };
@@ -115,7 +116,7 @@ export function loadConfig(projectRoot: string): AutodecompConfig {
   rejectUnknown(retry, ["retryParkedAfterEpoch", "retryOnNeighborHashChange", "blockedSleepMinutes"], "retry");
   rejectUnknown(integration, ["mode", "allowCommits", "allowedRoots"], "integration");
   rejectUnknown(budgets, ["maxCostUsd", "maxRuntimeHours", "maxAttemptsPerFunctionPerEpoch"], "budgets");
-  rejectUnknown(sourcePolicy, ["allowEmptyMemoryBarrier", "allowlist"], "sourcePolicy");
+  rejectUnknown(sourcePolicy, ["allowEmptyMemoryBarrier", "allowStackPointerSwitch", "allowlist"], "sourcePolicy");
 
   if (raw.parallelism !== undefined && raw.parallelism !== 1) {
     throw new Error("Only parallelism: 1 is supported by the transactional integration backend");
@@ -195,6 +196,9 @@ export function loadConfig(projectRoot: string): AutodecompConfig {
       allowEmptyMemoryBarrier: sourcePolicy.allowEmptyMemoryBarrier === undefined
         ? DEFAULT_CONFIG.sourcePolicy.allowEmptyMemoryBarrier
         : Boolean(sourcePolicy.allowEmptyMemoryBarrier),
+      allowStackPointerSwitch: sourcePolicy.allowStackPointerSwitch === undefined
+        ? DEFAULT_CONFIG.sourcePolicy.allowStackPointerSwitch
+        : Boolean(sourcePolicy.allowStackPointerSwitch),
       allowlist,
     },
   };

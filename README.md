@@ -64,6 +64,7 @@ workaround that the C sources still use.
 |---|---|---|
 | Hard-register pin | 8 | Each file has a `register-asm` entry in the allowlist |
 | Empty assembly barrier | 7 | The style guide permits this as a last resort. The configuration sets `allowEmptyMemoryBarrier`, so these files need no entry |
+| Scratchpad stack switch | 1 | Assembly that does nothing but move `$sp`. No C construct can, so this is a classification rather than an exception: the configuration sets `allowStackPointerSwitch` and these files need no entry. See `notes/research/scratchpad-stack-switch.md` |
 | Assembly block with instructions | 5 | Each file has an `embedded-asm` entry |
 | `CAPTURE_RA` debug hook | 2 | The hook is a target feature, not a workaround |
 | Full function in assembly | 2 | The handwritten-assembly class |

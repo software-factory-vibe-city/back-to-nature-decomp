@@ -87,6 +87,104 @@ function asmLabel(line: string): boolean {
   return declarator.length > 0 && !/[;{}]$/.test(declarator);
 }
 
+/**
+ * Assembly that does nothing but move the stack pointer.
+ *
+ * The PS1's data cache is not a cache: it is 1 KB of single-cycle memory
+ * mapped at 0x1F800000, the "scratchpad", and main RAM has no data cache at
+ * all. So a hot call tree pays bus cycles for every local it touches, and the
+ * standard answer is to point `$sp` at the scratchpad for the duration and
+ * restore it afterwards. This target does exactly that at three sites, with a
+ * byte-identical six-instruction idiom, and 0x1F8003FC is the only scratchpad
+ * address anywhere in the image.
+ *
+ * No C construct moves `$sp`. There is no compiler flag, no SDK call and no
+ * intrinsic for it in PSY-Q — the original source can only have contained
+ * inline assembly, so demanding clean C here demands a program the developers
+ * did not write. That makes this a *classification*, like the empty memory
+ * barrier, rather than a per-function exception a human has to grant: an
+ * allowlist entry asserts "assembly was the right answer for this function",
+ * and here it is the right answer for the construct.
+ *
+ * Recognised narrowly enough that nothing else can travel with it. The
+ * statement must have no output operands, so it cannot deliver a value to C;
+ * every destination must be `$sp` or a caller-saved temp; and the only memory
+ * operations permitted are storing `$sp` and loading `$sp`, so it cannot read
+ * or write anything else. What is left is precisely: compute an address into a
+ * temp, park `$sp` in memory, install a new `$sp`, and undo it.
+ */
+const STACK_POINTER = /^\$(?:sp|29)$/;
+const SCRATCH_REGISTER = /^(?:\$(?:t[0-7]|at|[1]|8|9|1[0-5])|%\d)$/;
+
+function stackSwitchInstruction(text: string): boolean {
+  const instruction = text.trim();
+  if (instruction === "" || instruction === "nop") return true;
+
+  const destinationIsWritable = (operand: string) =>
+    STACK_POINTER.test(operand) || /^\$(?:t[0-7]|at|[1]|8|9|1[0-5])$/.test(operand);
+  const readable = (operand: string) =>
+    STACK_POINTER.test(operand) || SCRATCH_REGISTER.test(operand) || /^\$(?:0|zero)$/.test(operand);
+
+  /* A copy: `move d,s`, `addu d,s,$0`, `or d,s,$0`. */
+  const copy = instruction.match(/^(?:move|addu|add|or)\s+(\S+?),\s*(\S+?)(?:,\s*(\S+))?$/);
+  if (copy) {
+    const [, destination, first, second] = copy;
+    if (!destinationIsWritable(destination!) || !readable(first!)) return false;
+    return second === undefined ? true : /^\$(?:0|zero)$/.test(second) || readable(second);
+  }
+
+  /* An offset: `addiu d,s,imm`. */
+  const offset = instruction.match(/^(?:addiu|addi)\s+(\S+?),\s*(\S+?),\s*(-?(?:0x)?[0-9A-Fa-f]+)$/);
+  if (offset) return destinationIsWritable(offset[1]!) && readable(offset[2]!);
+
+  /* The only memory this may touch is the saved stack pointer itself. */
+  const store = instruction.match(/^sw\s+(\S+?),\s*(-?(?:0x)?[0-9A-Fa-f]+)?\((\S+?)\)$/);
+  if (store) return STACK_POINTER.test(store[1]!) && readable(store[3]!);
+  const load = instruction.match(/^lw\s+(\S+?),\s*(-?(?:0x)?[0-9A-Fa-f]+)?\((\S+?)\)$/);
+  if (load) return STACK_POINTER.test(load[1]!) && readable(load[3]!);
+
+  return false;
+}
+
+export function stackPointerSwitch(line: string): boolean {
+  const open = line.search(/\b(?:__asm__|__asm|asm)\s*(?:(?:__)?volatile(?:__)?\s*)?\(/);
+  if (open < 0) return false;
+  const body = line.slice(line.indexOf("(", open) + 1);
+
+  /* Everything before the first colon is the instruction template; the colon
+     groups are the operand lists. An output operand would let a value reach C,
+     so the first group must be empty. */
+  const colon = body.search(/:(?!:)/);
+  const template = colon < 0 ? body.replace(/\)\s*;?\s*$/, "") : body.slice(0, colon);
+  if (colon >= 0) {
+    const groups = body.slice(colon + 1).replace(/\)\s*;?\s*$/, "").split(":");
+    if ((groups[0] ?? "").trim() !== "") return false;
+  }
+
+  const pieces = [...template.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((match) => match[1]!);
+  if (pieces.length === 0) return false;
+  const instructions = pieces
+    .join(" ")
+    .replace(/\\n\\t|\\n|\\t/g, ";")
+    .split(";")
+    .map((piece) => piece.trim())
+    .filter((piece) => piece.length > 0);
+  if (instructions.length === 0) return false;
+  if (!instructions.every(stackSwitchInstruction)) return false;
+
+  /* A statement that does nothing is not a stack switch, whatever else it
+     satisfies. A bare `__asm__("nop")` breaks no rule above precisely because
+     it has no effect, and "has no effect" is a different claim from "moves the
+     stack pointer" — without this the classification would exempt every no-op
+     asm statement in the project. So at least one instruction has to do one of
+     the three things the idiom is made of: touch `$sp`, take the slot address
+     from a compiler-chosen register (`%N`), or step the temp by a constant. */
+  return instructions.some((instruction) =>
+    /\$(?:sp|29)\b/.test(instruction)
+    || /%\d/.test(instruction)
+    || /^(?:addiu|addi)\s/.test(instruction));
+}
+
 function forbiddenLine(
   line: string,
   config: AutodecompConfig,
@@ -107,6 +205,7 @@ function forbiddenLine(
     const compact = line.replace(/\s+/g, "").replace(/__volatile__/g, "volatile");
     const emptyMemoryBarrier = compact.includes('__asm__volatile("":::"memory")') || compact.includes('__asm__("":::"memory")');
     if (emptyMemoryBarrier && config.sourcePolicy.allowEmptyMemoryBarrier) return undefined;
+    if (config.sourcePolicy.allowStackPointerSwitch && stackPointerSwitch(line)) return undefined;
     if (!allowlisted(config, functionName, functionVram, functionContainer, "embedded-asm")) {
       return { kind: "embedded-asm", message: "Embedded assembly is forbidden for an ordinary compiled function" };
     }

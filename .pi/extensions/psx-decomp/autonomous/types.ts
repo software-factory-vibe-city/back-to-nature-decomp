@@ -272,6 +272,15 @@ export interface AutodecompConfig {
   };
   sourcePolicy: {
     allowEmptyMemoryBarrier: boolean;
+    /**
+     * Permit inline assembly that does nothing but move `$sp`.
+     *
+     * A classification, not an exception: no C construct moves the stack
+     * pointer, so a function that runs on the PS1 scratchpad stack cannot be
+     * written in clean C by anyone, including the original developers. See
+     * `stackPointerSwitch` for how narrowly it is recognised.
+     */
+    allowStackPointerSwitch: boolean;
     allowlist: Record<string, string[]>;
   };
 }
