@@ -171,6 +171,14 @@ Members (address order):
 - ovl_10_func_800B92D0 (s) — status printer: references `D_800B8194`,
   `D_800B81B4`, `D_800B81D8`, `D_800B81E4`, `D_800B81F0` (current-app,
   PDA-flush, SUPERIOR/INFERIOR, sound/infred control lines)
+- ovl_10_func_800B94A4 (m, matched this session) — slot-2 mcard-status
+  wrapper dispatched by `ovl_10_func_800B9108`: if slot == 2,
+  `McxGetTime(0, &D_800BB8F4)`, else prints three status lines from
+  formats `D_800B8244`–`D_800B8278` (string pool extended past the
+  0x800B821C block bound, same as `D_800B822C`) plus one indexed read
+  of `D_800BB7F4`; byte-exact twin structure of `ovl_10_func_800B9458`
+  and `ovl_10_func_800B95A4` (`D_800BB8F4` abuts their `D_800BB8F0`/
+  `D_800BB8FC` mcard buffers in the same data region)
 - ovl_10_func_800B9458 (s) — references `D_800B8194` ("current appli
   cation :%d")
 - ovl_10_func_800B95A4 (m, matched this session) — slot-2 mcard-serial
