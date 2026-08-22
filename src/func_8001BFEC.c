@@ -31,23 +31,23 @@ void *D_8005E4D8;
 void func_8001BFEC(void **arg0) {
     s32 i;
     s32 r_off;
-    unsigned int *slot;
+    u_long *slot;
 
     D_8005E4D8 = *arg0;
     PushMatrix();
     if (D_8005E2D4 != 0) {
-        SP_TO_SCRATCH(SCRATCHPAD_SP_SLOT);
+        SCRATCH_STACK_BEGIN(SCRATCH_STACK_SLOT);
         func_8001D6B8();
-        SP_FROM_SCRATCH();
+        SCRATCH_STACK_END();
     }
     if (*(s32 *)((char *)D_8005E4D8 + 8) > 0) {
         i = 0;
-        slot = SCRATCHPAD_SP_SLOT;
+        slot = SCRATCH_STACK_SLOT;
         r_off = 0xC;
         do {
-            SP_TO_SCRATCH(slot);
+            SCRATCH_STACK_BEGIN(slot);
             func_8001C37C((char *)D_8005E4D8 + 0xC, (char *)D_8005E4D8 + r_off);
-            SP_FROM_SCRATCH();
+            SCRATCH_STACK_END();
             r_off += 0x1C;
         } while (++i < *(s32 *)((char *)D_8005E4D8 + 8));
     }

@@ -101,15 +101,16 @@ must have: `include/scratchpad.h`, beside `include/debughook.h`'s `CAPTURE_RA`,
 which is the same kind of artifact recovered the same way.
 
 ```c
-#define SCRATCHPAD_SP_SLOT ((unsigned int *)0x1F8003FC)
+/* The last word of the pad: 1 KB is 256 words, so index 255. */
+#define SCRATCH_STACK_SLOT getScratchAddr(255)
 
-#define SP_TO_SCRATCH(slot) \
+#define SCRATCH_STACK_BEGIN(slot) \
     __asm__ volatile("addu $8,%0,$0" : : "r"(slot) : "$8"); \
     __asm__ volatile("sw $sp,0($8)"); \
     __asm__ volatile("addiu $8,$8,-4"); \
     __asm__ volatile("addu $sp,$8,$0")
 
-#define SP_FROM_SCRATCH() \
+#define SCRATCH_STACK_END() \
     __asm__ volatile("addiu $sp,$sp,4"); \
     __asm__ volatile("lw $sp,0($sp)")
 ```
@@ -117,11 +118,29 @@ which is the same kind of artifact recovered the same way.
 used as
 
 ```c
-    slot = (u_long *)SCRATCHPAD_SP_SLOT;
-    SP_TO_SCRATCH(slot);
+    slot = SCRATCH_STACK_SLOT;
+    SCRATCH_STACK_BEGIN(slot);
     func_8001D6B8();
-    SP_FROM_SCRATCH();
+    SCRATCH_STACK_END();
 ```
+
+**The address comes from the SDK, not from us.** `include/psyq/libetc.h` carries
+
+```c
+/* scratch pad address 0x1f800000 - 0x1f800400 */
+#define getScratchAddr(offset)  ((u_long *)(0x1f800000+(offset)*4))
+```
+
+so `0x1F8003FC` is `getScratchAddr(255)` — the last of the pad's 256 words — and
+the developers had that spelling available. `libgs.h` takes `u_long *scratch`
+parameters for the same region, which is the vendor's own idea of what it is
+for. Using the SDK macro rather than a literal is both closer to what the
+original source is likely to have said and self-documenting about *which*
+memory this is.
+
+**BEGIN/END rather than PUSH/POP.** Push and pop would promise nesting, and
+this does not nest: the save slot is one fixed address, so an inner switch
+overwrites the outer save.
 
 Two details are load-bearing rather than stylistic, and both match what
 `CAPTURE_RA` already documents for its own case.

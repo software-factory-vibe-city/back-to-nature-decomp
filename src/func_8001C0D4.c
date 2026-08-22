@@ -55,8 +55,8 @@ s16 func_8001C0D4(FuncC0D4Args *arg0, VECTOR *arg1, VECTOR *arg2) {
     s32 vecBase;
 
     D_8005E4E8 = 0;
-    slot = (u_long *)SCRATCHPAD_SP_SLOT;
-    SP_TO_SCRATCH(slot);
+    slot = SCRATCH_STACK_SLOT;
+    SCRATCH_STACK_BEGIN(slot);
 
     batch = arg0->batch;
     vecBase = (s32)arg0->vecs;
@@ -77,6 +77,6 @@ s16 func_8001C0D4(FuncC0D4Args *arg0, VECTOR *arg1, VECTOR *arg2) {
     }
 
     PopMatrix();
-    SP_FROM_SCRATCH();
+    SCRATCH_STACK_END();
     return D_8005E4E8;
 }
