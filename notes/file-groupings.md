@@ -170,7 +170,8 @@ Fingerprints:
 - shared caller idiom (new 2026-08-21): func_8001FA0C and func_8001F8A4 both
   consume the same GradientCmd struct (include/game_types.h — field_0 source
   u16*, signed field_4/field_8/field_A, u16 field_C..field_12 RECT) and both
-  end with the byte-identical builder tail: `packet = func_8001E0B8(0, 0x44)`, `SetDrawLoad(packet, &rect)`, `func_8001F774(packet + 0x10, field_0, field_0 + 0x20, arg, field_8)`. func_8001FA0C matched clean C reproducing it exactly.
+  end with the byte-identical builder tail: `packet = func_8001E0B8(0, 0x44)`, `SetDrawLoad(packet, &rect)`, `func_8001F774(packet + 0x10, field_0, field_0 + 0x20, arg, field_8)`. func_8001FA0C matched clean C reproducing it
+exactly; func_8001F8A4 confirmed matching with the same tail (2026-08-22).
 
 Members (address order):
 - func_8001F278 (m) — generic 3-element linear interpolation helper
@@ -178,8 +179,11 @@ Members (address order):
 - func_8001F774 (m) — 16-step gradient interpolator: extracts 5-bit fields
   from two u16 inputs, interpolates via F278, packs 3×5-bit result into u16
   (bit 15 set when non-zero); no globals
-- func_8001F8A4 (s) — caller of func_8001F774; also drives the same
-  GradientCmd tail; role unknown (mixed s16/u16 field edits before it)
+- func_8001F8A4 (m, 2026-08-22) — gradient-progress counter update: clamps
+  field_A/field_4 to non-negative, folds arg1 (clamped to field_8) into
+  field_A per arg2 (1 = sign-directed incr/decr, else wrap-around clamp),
+  then runs the same gradient-draw tail as func_8001FA0C but passes field_A
+  as func_8001F774's step arg; byte-exact clean C, baseline flags
 - func_8001FA0C (m, 2026-08-21) — gradient-draw builder: copies
   field_C..field_12 into a RECT, allocates a packet via func_8001E0B8(0, 0x44),
   SetDrawLoad(packet, &rect), then func_8001F774(packet + 0x10, field_0,
