@@ -663,4 +663,15 @@ extern u16 D_800558A4[80];
  * nonmatching data file, not classified in globals.h. */
 extern u16 D_80055944[24];
 
+/* D_800B8508 - Kanji font page table: 8-byte entries {glyph pointer, kanji
+ * code}. ovl_08_func_800B8134 draws the six-entry page at entry D_800B8504/6*6
+ * (walking .field_4, 1 entry per character) and reads .field_0 of the entry at
+ * D_800B8504 when confirming a selection. Absolute-addressed (ovl_08 data,
+ * -G0), owned by the nonmatching data file, not classified in globals.h. */
+typedef struct {
+    /* 0x00 */ s32 field_0;
+    /* 0x04 */ s32 field_4;
+} struct_800B8508;
+extern struct_800B8508 D_800B8508[];
+
 #endif /* GLOBALS_OVERRIDE_H */

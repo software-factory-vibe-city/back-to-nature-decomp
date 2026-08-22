@@ -1768,6 +1768,6 @@ Members:
   D_800B8500, passing the table address (matched 2026-08-22)
 - ovl_08_func_800B8054 (s) — kanji-font init; increments D_800B8500
 - ovl_08_func_800B80FC (s) — conditional state advance; increments D_800B8500
-- ovl_08_func_800B8134 (s) — menu renderer; walks D_800B8508 state table
+- ovl_08_func_800B8134 (m) — menu/kanji page renderer; walks the D_800B8508 {glyph, kanji-code} table (6-entry page at D_800B8504/6*6) via strength-reduced pointer, prints via KanjiFntPrint, handles pad rows 13–16 by OR-ing D_8006C838.unk10 and calling func_80011EF0 (matched 2026-08-22)
 - ovl_08_func_800B8400 (m) — button/input-driven “PANDO=%d” menu counter: ticks D_800B8608 (8=+1 wrap 0 at 0xB, 2=-1 wrap 0xA), dispatches func_8001B2CC/8001B3CC on field_8 flags 0x40/0x80, prints via FntPrint
 
