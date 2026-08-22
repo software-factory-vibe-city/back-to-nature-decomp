@@ -160,6 +160,11 @@ Members (address order):
   PDA-flush, SUPERIOR/INFERIOR, sound/infred control lines)
 - ovl_10_func_800B9458 (s) — references `D_800B8194` ("current appli
   cation :%d")
+- ovl_10_func_800B95A4 (m, matched this session) — slot-2 mcard-serial
+  wrapper dispatched by `ovl_10_func_800B9108`: if slot == 2,
+  `McxGetSerial(0, &D_800BB8FC)`, else `FntPrint(&D_800B822C,
+  D_800BB8FC)`; byte-exact twin structure of `ovl_10_func_800B9458`
+  (D_800B822C is a format string just past the string-block bound)
 - ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
   wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
   return 0`
