@@ -968,8 +968,12 @@ D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4, D_8005E3BC and D_800
   Parked with a ready recipe: notes/research/func_8001231C.md
 - func_800120C8 (s) — touches the widest set of the cluster; called from
   func_80011370's init
-- func_800121D4 (s), func_800128DC (s) — share D_8005E3C0; func_800128DC is
-  called from the main loop and from several switch cases
+- func_800121D4 (m), func_800128DC (s) — share D_8005E3C0. func_800121D4
+  byte-matched 2026-08-12 using the exact field read set
+  (D8/DC/E0/E4 + EC/F0/F4/F8 + 120/118/124) and ClearOTagR tail of the
+  byte-exact func_800120C8 — shared-idiom fingerprint confirming the
+  render-context family. func_800128DC is called from the main loop and
+  from several switch cases
 
 Render-context sub-family (evidence: the pool constants, 2026-08-11).
 func_80012598 and func_8001231C are the only two functions in the binary that
@@ -979,8 +983,10 @@ routines. The already-matched relatives that consume what they build are
 func_800120C8 (GsSetWorkBase over field_12C, ClearOTagR), func_800128DC (memcpy
 over field_130), func_8001205C, and func_80011370 (whose SetDefDrawEnv /
 SetDefDispEnv calls fix the DRAWENV/DISPENV part of the field map). Still stubs
-and sharing D_8005E3B0: func_8001202C, func_80012098, func_800121D4 — the last
-is 93% opcode-shingle-covered by the matched func_800120C8, so diff it first.
+and sharing D_8005E3B0: func_8001202C, func_80012098. func_800121D4 is
+now matched (shares the D_8005E3C0 *active-context* side of the family,
+reading field_D8/DC/E0/E4 + EC/F0/F4/F8 + 120/118/124 exactly as
+func_800120C8 does).
 D_8005E3C0 (the *active* context pointer) is read by 36 functions across the
 binary; that is "this function draws", not a grouping signal.
 
