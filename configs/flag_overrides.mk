@@ -76,6 +76,21 @@
 # No contrary regional witness: the other matched members of the
 # 0x80013B04-0x80014554 pad group still match byte-for-byte with this flag
 # applied (checked 2026-08-09).
+# func_800231E8: -mno-split-addresses.
+#
+# Fingerprint (decoded from the original bytes, no source needed): the target
+# loads D_800A3FB4/D_800A3FB0 (extern arrays, >8 bytes, absolute) via self-
+# clobbering unsplit assembler-macro loads (lui $v1 / lh $v1,%lo($v1), lui
+# $a3 / lh $a3,%lo($a3), and lui $v0 / lw $v0,%lo($v0) for D_8005E3C0).
+# Under baseline -msplit-addresses the lui is an independent RTL insn that
+# sched2 lifts to a different register (lui $2 / lh $5). psx_flag_probe
+# matrix: -mno-split-addresses 40/40 masked vs baseline 29/40 — the only
+# row beating baseline. Regional witnesses func_800229F4/func_80024030 show
+# the same self-clobber load shape in matched neighbours; no contrary
+# regional witness. D_8005E3C0's self-clobber is automatic (4-byte extern
+# scalar), the flag is required for the two D_800A3FBx halfword loads.
+CC1FLAGS_func_800231E8 := -mno-split-addresses
+
 CC1FLAGS_func_80014494 := -fno-cse-skip-blocks
 
 # func_80018B98: -fno-gcse.

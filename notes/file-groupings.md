@@ -503,6 +503,13 @@ Members (address order):
 - func_800231AC (m, 2026-08-28) — install+fill twin 1: calls func_80023100,
   stores arg0 (buffer ptr) into D_8005E360, calls func_80023A74, then sets
   D_8005E348=1 / D_8005E344=1 and returns 1
+- func_800231E8 (m, 2026-10) — install/dispatch tail: gates on D_8005E344 and,
+  when live, calls func_80015114 (font/geometry offsets D_800A3FB0/3FB4) and
+  func_800239F8, then maps the resulting state back into D_8005E344
+  (3→clear, -1; 4→clear, +1; else 2). Tentatively defines the same u16
+  D_8005E344 cluster member as func_80023100.c/func_800239F8.c (gp-rel
+  lhu/sw %gp_rel(D_8005E344)); matched under a -mno-split-addresses override
+  (absolute D_800A3FBx halfword loads, see configs/flag_overrides.mk func_800231E8)
 
 ## callback driver family — 0x80023600–0x80023910 (confidence: medium)
 

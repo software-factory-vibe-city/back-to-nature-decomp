@@ -91,6 +91,9 @@
       "func_80014494": [
         "flag-override"
       ],
+      "func_800231E8": [
+        "flag-override"
+      ],
       "func_80015644": [
         "embedded-asm"
       ],
