@@ -663,6 +663,12 @@ extern u16 D_800558A4[80];
  * nonmatching data file, not classified in globals.h. */
 extern u16 D_80055944[24];
 
+/* D_800B8500 - kanji-font init counter (ovl_08). ovl_08_func_800B8054 and
+ * ovl_08_func_800B80FC increment it, ovl_08_func_800B8014 indexes a table with
+ * it. Absolute-addressed (ovl_08 data, -G0): declared extern (8-byte s32)
+ * here, never tentatively defined, so cc1 emits lui+sw/lw %lo. */
+extern s32 D_800B8500;
+
 /* D_800B8508 - Kanji font page table: 8-byte entries {glyph pointer, kanji
  * code}. ovl_08_func_800B8134 draws the six-entry page at entry D_800B8504/6*6
  * (walking .field_4, 1 entry per character) and reads .field_0 of the entry at
