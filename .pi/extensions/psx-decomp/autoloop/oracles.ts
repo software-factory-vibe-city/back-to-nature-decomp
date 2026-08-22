@@ -1,7 +1,9 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { loadCallGraph, rebuildCallGraph } from "../autonomous/call-graph.ts";
 import { loadConfig } from "../autonomous/config.ts";
 import { runBuildCheck, runFunctionDiff, runGate } from "../autonomous/gates.ts";
-import { checkSourcePolicy, withinAllowedRoots } from "../autonomous/source-policy.ts";
+import { checkSourcePolicy, isPendingStub, withinAllowedRoots } from "../autonomous/source-policy.ts";
 import type { AutodecompConfig, CallGraphEntry, DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import {
   changedFilesBetweenTrees,
@@ -114,6 +116,14 @@ export async function finalize(ctx: OracleContext, functionName: string): Promis
  * Assembly the current turn introduced, judged by the same rules the finalize
  * gate uses. Only source-policy findings are returned — an out-of-scope file or
  * a failing diff is not an approval question, it is an ordinary gate failure.
+ *
+ * A source that is still nothing but its `INCLUDE_ASM` placeholder is exempt,
+ * and that exemption is the difference between "the turn proposed assembly" and
+ * "the turn produced nothing". They read identically to the scan and need
+ * opposite responses: the first is a policy question for a human, the second is
+ * a turn to retry. `func_8001F2EC` was parked for a human decision on the stub
+ * it was handed — no C was ever written for it, and it turned out to be nine
+ * lines of clean C that match on the first draft.
  */
 export async function introducedForbiddenConstructs(
   ctx: OracleContext,
@@ -130,7 +140,17 @@ export async function introducedForbiddenConstructs(
     changedFiles,
     patch,
   });
-  return policy.hardFailures.filter((finding) => finding.kind !== "out-of-scope");
+  const untouched = pendingStub(ctx.projectRoot, functionName);
+  return policy.hardFailures.filter((finding) =>
+    finding.kind !== "out-of-scope" && !(untouched && finding.kind === "include-asm"));
+}
+
+/** Is this function's source still nothing but the placeholder it started as? */
+function pendingStub(projectRoot: string, functionName: string): boolean {
+  const relative = callGraphEntry(projectRoot, functionName)?.source ?? `src/${functionName}.c`;
+  const path = resolve(projectRoot, relative);
+  if (!existsSync(path)) return false;
+  return isPendingStub(readFileSync(path, "utf8"));
 }
 
 /** The environment guard: the tree the loop hands to the next function must build. */

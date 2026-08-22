@@ -1,19 +1,4 @@
 #include "common.h"
-#include "include_asm.h"
-
-INCLUDE_ASM("build/asm/nonmatchings/func_80020B80", func_80020B80);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-08-22T05:30:25.018Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/func_80020B80.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
 #include "psyq/libsnd.h"
 
 /* Game callee (signature from include/functions.h). */
@@ -44,15 +29,11 @@ s32 func_80020B80(s32 arg0, s32 arg1) {
         cand = (&D_8006C028)[arg1];
         if (((u32)cand < (u32)cur) && cand != -1) {
             D_8005E548 = cand;
-            song = arg1;
         } else {
             D_8005E548 = cur;
-            song = arg1;
         }
-    } else {
-        song = arg1;
     }
-    arg1 = song;
+    song = arg1;
     if (song < 6) {
         do {
             col = 0;
@@ -96,4 +77,3 @@ s32 func_80020B80(s32 arg0, s32 arg1) {
     D_8005E550 = 0;
     return 0;
 }
-#endif
