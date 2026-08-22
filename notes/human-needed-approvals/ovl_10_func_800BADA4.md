@@ -1,17 +1,33 @@
-#include "common.h"
+# ovl_10_func_800BADA4 — human decision needed
 
-INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800BADA4", ovl_10_func_800BADA4);
+- **Parked:** 2026-08-22T12:29:58.051Z
+- **Reason:** escalation-exhausted
+- **Escalation reached:** deepseek-v4-flash
+- **Source:** `src/overlays/ovl_10/ovl_10_func_800BADA4.c` (INCLUDE_ASM restored)
 
+## What the loop needs
 
-/* PARKED by /auto_decompilation_loop on 2026-08-22T12:29:58.051Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_10_func_800BADA4.md
- */
+Every tier on the escalation ladder returned without a byte-exact match. The function
+needs either a new structural hypothesis or a policy decision that the ladder cannot
+make on its own. The preserved attempt and the oracle report below are the starting
+point.
 
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
+## Policy findings
+
+- none recorded
+
+## Last oracle report
+
+```
+Oracle: ovl_10_func_800BADA4 verdict MISMATCH — 299/304 words (98.4%).
+Residual (steer by this, not the word count): control-flow 0, population 0, schedule 3, allocation 1.
+Next block: 45 (0x800BB0E4) — population 0, schedule 1, allocation 0. smallest open residual
+`psx_reverse_pipeline` gives the decisions, their source levers and the mechanism sheet to load; `psx_residual_objective` with a source ranks candidate edits and records them.
+```
+
+## Preserved attempt
+
+```c
 #include "common.h"
 
 int FntPrint();
@@ -156,4 +172,4 @@ int ovl_10_func_800BADA4(int arg0, int arg1) {
         return 0;
     }
 }
-#endif
+```
