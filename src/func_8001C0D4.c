@@ -1,6 +1,7 @@
 #include "common.h"
 #include "psyq/stddef.h"
 #include "psyq/libgte.h"
+#include "scratchpad.h"
 
 /*
  * Runs on the PlayStation scratchpad stack.
@@ -54,11 +55,8 @@ s16 func_8001C0D4(FuncC0D4Args *arg0, VECTOR *arg1, VECTOR *arg2) {
     s32 vecBase;
 
     D_8005E4E8 = 0;
-    slot = (u_long *)0x1F8003FC;
-    __asm__ volatile("addu $8,%0,$0" : : "r"(slot) : "$8");
-    __asm__ volatile("sw $sp,0($8)");
-    __asm__ volatile("addiu $8,$8,-4");
-    __asm__ volatile("addu $sp,$8,$0");
+    slot = (u_long *)SCRATCHPAD_SP_SLOT;
+    SP_TO_SCRATCH(slot);
 
     batch = arg0->batch;
     vecBase = (s32)arg0->vecs;
@@ -79,7 +77,6 @@ s16 func_8001C0D4(FuncC0D4Args *arg0, VECTOR *arg1, VECTOR *arg2) {
     }
 
     PopMatrix();
-    __asm__ volatile("addiu $sp,$sp,4");
-    __asm__ volatile("lw $sp,0($sp)");
+    SP_FROM_SCRATCH();
     return D_8005E4E8;
 }

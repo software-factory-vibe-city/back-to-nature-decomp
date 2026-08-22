@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { stackPointerSwitch } from "./source-policy.ts";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { checkSourcePolicy, stackPointerSwitch } from "./source-policy.ts";
+import { DEFAULT_CONFIG } from "./config.ts";
 
 /* The six instructions this target actually uses, at all three sites. */
 test("the scratchpad stack switch and its restore are recognised", () => {
@@ -58,4 +62,52 @@ test("assembly that does nothing is not a stack switch", () => {
   /* And a copy between two scratch registers, which names neither $sp nor a C
      operand, buys nothing and is refused with them. */
   assert.equal(stackPointerSwitch('__asm__ volatile("move $8,$9");'), false);
+});
+
+test("a macro spread over continuations is judged as the statement it is", () => {
+  /* The way a header actually defines this. Read physically, the opening line
+     carries no template and every classifier would say no; read as the logical
+     line C sees, it is the stack switch it plainly is. */
+  const root = mkdtempSync(join(tmpdir(), "stackswitch-"));
+  mkdirSync(join(root, "src"), { recursive: true });
+  writeFileSync(join(root, "src", "target.c"), [
+    "#define SP_TO_SCRATCH(slot)                        \\",
+    "    __asm__ volatile(                              \\",
+    '        "addu $8,%0,$0\\n\\t"                       \\',
+    '        "sw $sp,0($8)\\n\\t"                        \\',
+    '        "addiu $8,$8,-4\\n\\t"                      \\',
+    '        "addu $sp,$8,$0"                           \\',
+    '        : : "r"(slot) : "$8")',
+    "",
+    "void target(void) {",
+    "    SP_TO_SCRATCH((unsigned int *)0x1F8003FC);",
+    "}",
+  ].join("\n"));
+
+  const config = structuredClone(DEFAULT_CONFIG);
+  config.runtimeDir = join(root, "run_output");
+  const result = checkSourcePolicy({
+    projectRoot: root, config, functionName: "target", scanFunctions: ["target"],
+  });
+  assert.equal(result.pass, true, result.hardFailures.map((f) => `${f.line}: ${f.kind}`).join(", "));
+});
+
+test("a continuation cannot smuggle a violation past the scan", () => {
+  const root = mkdtempSync(join(tmpdir(), "stackswitch-"));
+  mkdirSync(join(root, "src"), { recursive: true });
+  writeFileSync(join(root, "src", "target.c"), [
+    "#define SNEAK(x)                 \\",
+    "    __asm__ volatile(            \\",
+    '        "mult $8,$9"             \\',
+    '        : : "r"(x) : "$8")',
+    "void target(void) { SNEAK(1); }",
+  ].join("\n"));
+  const config = structuredClone(DEFAULT_CONFIG);
+  config.runtimeDir = join(root, "run_output");
+  const result = checkSourcePolicy({
+    projectRoot: root, config, functionName: "target", scanFunctions: ["target"],
+  });
+  assert.equal(result.pass, false);
+  assert.equal(result.hardFailures[0]!.kind, "embedded-asm");
+  assert.equal(result.hardFailures[0]!.line, 1, "the finding points at the first physical line");
 });

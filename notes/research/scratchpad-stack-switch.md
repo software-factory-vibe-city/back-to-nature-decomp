@@ -96,37 +96,50 @@ Inline assembly in a macro, in a project header. Three lines of evidence:
 3. **The sequence is byte-identical at three sites**, including the redundant
    copy. Hand-repeated assembly drifts; a macro does not.
 
-The reconstruction, then, is a pair of macros:
+The reconstruction is a pair of macros, and it now lives where the original's
+must have: `include/scratchpad.h`, beside `include/debughook.h`'s `CAPTURE_RA`,
+which is the same kind of artifact recovered the same way.
 
 ```c
-#define SP_TO_SCRATCH(slot)                      \
-    __asm__ volatile(                            \
-        "addu $8,%0,$0\n\t"                      \
-        "sw $sp,0($8)\n\t"                       \
-        "addiu $8,$8,-4\n\t"                     \
-        "addu $sp,$8,$0"                         \
-        : : "r"(slot) : "$8")
+#define SCRATCHPAD_SP_SLOT ((unsigned int *)0x1F8003FC)
 
-#define SP_FROM_SCRATCH()                        \
-    __asm__ volatile(                            \
-        "addiu $sp,$sp,4\n\t"                    \
-        "lw $sp,0($sp)")
+#define SP_TO_SCRATCH(slot) \
+    __asm__ volatile("addu $8,%0,$0" : : "r"(slot) : "$8"); \
+    __asm__ volatile("sw $sp,0($8)"); \
+    __asm__ volatile("addiu $8,$8,-4"); \
+    __asm__ volatile("addu $sp,$8,$0")
+
+#define SP_FROM_SCRATCH() \
+    __asm__ volatile("addiu $sp,$sp,4"); \
+    __asm__ volatile("lw $sp,0($sp)")
 ```
 
 used as
 
 ```c
-    slot = (unsigned int *)0x1F8003FC;
+    slot = (u_long *)SCRATCHPAD_SP_SLOT;
     SP_TO_SCRATCH(slot);
     func_8001D6B8();
     SP_FROM_SCRATCH();
 ```
 
-The address is a variable rather than a literal in the template because the
-compiler materialises it — `lui`/`ori` in the caller, in a register of its
-choosing — and hoists it out of `func_8001BFEC`'s loop into `$s1`. A literal
-inside the template could not be hoisted, and the loop would re-materialise it
-every iteration. It does not.
+Two details are load-bearing rather than stylistic, and both match what
+`CAPTURE_RA` already documents for its own case.
+
+**One instruction per asm statement.** GCC represents each statement as a
+single RTL instruction even when its template holds several machine
+instructions, so combining the four into one template moves local-allocation
+lifetime boundaries. `func_8001C0D4` is byte-exact with them split and the
+retail code shows them split; measured on `func_8001BFEC`, the combined and
+split forms happen to compile identically, so the split form is the one that is
+known to be right at both sites.
+
+**The slot is a parameter, not a literal in the template.** The compiler
+materialises it at the call site — `lui`/`ori` in a register of its choosing —
+and hoists it out of a loop when it can. That is exactly what the retail code
+shows: `func_8001BFEC` carries it in `$s1` across its element loop while
+`func_8001C0D4` forms it in `$v0` once. A literal inside the template could not
+be hoisted and the loop would re-form it every iteration; it does not.
 
 ## What this means for the clean-source policy
 
@@ -157,7 +170,9 @@ destination are all refused.
 
 ## Status
 
-- `func_8001C0D4` — byte-exact, 59/59, unparked under this classification.
+- `func_8001C0D4` — byte-exact, 59/59, unparked under this classification, and
+  written against the header macro; the macro form is byte-identical to the
+  inline statements it replaced.
 - `func_8001BFEC` — 53/58 with the switch recognised; the remaining five words
   are a `$v0`/`$v1` ranking difference in local-alloc, not a policy question.
 - `func_8001231C` — *not* this case. It byte-matches only by pinning seventeen

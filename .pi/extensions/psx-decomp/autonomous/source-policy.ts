@@ -263,22 +263,50 @@ export function isPendingStub(source: string): boolean {
   return code.length === 1 && /^INCLUDE_ASM\s*\(.*\)\s*;?$/.test(code[0]);
 }
 
+/**
+ * Physical lines joined into the logical lines C actually sees.
+ *
+ * A backslash continuation is not a line break, and every classification this
+ * module makes needs the whole statement: whether an asm statement is an empty
+ * memory barrier, a stack-pointer switch, or a symbol-renaming asm label is
+ * decided by its template and its operand lists, and those are exactly what a
+ * macro definition spreads across lines. Read physically, the opening
+ * `__asm__ volatile(  \\` of any multi-line macro carries no template at all,
+ * so every classifier says no and the construct is reported as ordinary
+ * embedded assembly — a false positive that tells the author to allowlist
+ * something the policy already permits.
+ *
+ * The reported line number stays the first physical line, which is where a
+ * reader looks.
+ */
+function logicalLines(lines: string[]): Array<{ line: number; text: string }> {
+  const out: Array<{ line: number; text: string }> = [];
+  for (let index = 0; index < lines.length; index++) {
+    const first = index;
+    let text = lines[index]!;
+    while (/\\\s*$/.test(text) && index + 1 < lines.length) {
+      text = `${text.replace(/\\\s*$/, " ")}${lines[++index]!}`;
+    }
+    out.push({ line: first + 1, text });
+  }
+  return out;
+}
+
 function scanSourceFile(options: PolicyOptions, file: string, findings: PolicyFinding[]): void {
   const path = resolve(options.projectRoot, file);
   if (!existsSync(path)) return;
-  const lines = readFileSync(path, "utf8").split("\n");
   let inBlock = false;
-  for (let index = 0; index < lines.length; index++) {
-    const stripped = stripComments(lines[index], inBlock);
+  for (const { line, text } of logicalLines(readFileSync(path, "utf8").split("\n"))) {
+    const stripped = stripComments(text, inBlock);
     inBlock = stripped.inBlock;
     const violation = forbiddenLine(stripped.code, options.config, options.functionName, options.functionVram, options.functionContainer);
     if (violation) {
       findings.push({
         kind: violation.kind,
         file: normalizedPath(relative(options.projectRoot, path)),
-        line: index + 1,
+        line,
         message: violation.message,
-        text: lines[index].trim(),
+        text: text.trim(),
       });
     }
   }

@@ -23,22 +23,10 @@ INCLUDE_ASM("build/asm/nonmatchings/func_8001BFEC", func_8001BFEC);
 #if 0
 /* Best non-matching attempt, preserved for the next session. */
 #include "common.h"
+#include "scratchpad.h"
 
 s32 D_8005E2D4;
 void *D_8005E4D8;
-
-#define PUSH_SCRATCH(slot)                                               \
-    __asm__ volatile(                                                    \
-        "addu $8,%0,$0" "\n\t"                                           \
-        "sw $sp,0($8)" "\n\t"                                            \
-        "addiu $8,$8,-4" "\n\t"                                          \
-        "addu $sp,$8,$0"                                                 \
-        : : "r"(slot) : "$8", "$sp")
-
-#define POP_SCRATCH()                                                    \
-    __asm__ volatile(                                                    \
-        "addiu $sp,$sp,4" "\n\t"                                         \
-        "lw $sp,0($sp)" : : : "$sp")
 
 void func_8001BFEC(void **arg0) {
     s32 i;
@@ -48,18 +36,18 @@ void func_8001BFEC(void **arg0) {
     D_8005E4D8 = *arg0;
     PushMatrix();
     if (D_8005E2D4 != 0) {
-        PUSH_SCRATCH((unsigned int *)0x1F8003FC);
+        SP_TO_SCRATCH(SCRATCHPAD_SP_SLOT);
         func_8001D6B8();
-        POP_SCRATCH();
+        SP_FROM_SCRATCH();
     }
     if (*(s32 *)((char *)D_8005E4D8 + 8) > 0) {
         i = 0;
-        slot = (unsigned int *)0x1F8003FC;
+        slot = SCRATCHPAD_SP_SLOT;
         r_off = 0xC;
         do {
-            PUSH_SCRATCH(slot);
+            SP_TO_SCRATCH(slot);
             func_8001C37C((char *)D_8005E4D8 + 0xC, (char *)D_8005E4D8 + r_off);
-            POP_SCRATCH();
+            SP_FROM_SCRATCH();
             r_off += 0x1C;
         } while (++i < *(s32 *)((char *)D_8005E4D8 + 8));
     }
