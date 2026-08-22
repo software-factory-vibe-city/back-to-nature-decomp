@@ -1,3 +1,9 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_08/asm/nonmatchings/ovl_08_func_800B8014", ovl_08_func_800B8014);
+extern s32 D_800B8500;
+
+void ovl_08_func_800B8014(void) {
+    s32 *base = &D_800B7E24;
+
+    ((void (*)(s32 *))base[D_800B8500])(base);
+}

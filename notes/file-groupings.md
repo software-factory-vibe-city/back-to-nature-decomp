@@ -1742,3 +1742,32 @@ Members (address order):
   func_8001782C with D_8005EA28 global; sibling, not a twin
 - func_80017300 (m) — worker: RLE loader for 0xD-tagged compressed sprite/palette
   streams (writes via DrawSync/rect machinery)
+
+## `ovl_08` menu/kanji state dispatcher — 0x800B8014–0x800B8400 (confidence: medium)
+
+A small overlay that runs a state-machine menu/system initializer. The four
+handlers share one dispatch table and one counter in the same overlay:
+`D_800B7E24` (rodata, 3 function pointers) and `D_800B8500` (data segment
+head, reads/written by all handlers). The matched dispatcher calls
+`D_800B7E24[D_800B8500](&D_800B7E24)`.
+
+Fingerprints:
+- shared cluster globals: `D_800B8500` counter (incremented by func_800B8054
+  and func_800B80FC, selected by the dispatcher), `D_800B8504`/`D_800B8508`
+  (state arrays, used by func_800B8134) — all first words of the ovl_08 data
+  segment.
+- dispatch-table role: `D_800B7E24` (ovl_08 rodata, 3 handler pointers
+  func_800B8054/800B80FC/800B8134) is consumed only by the dispatcher
+  ovl_08_func_800B8014.
+- kanji/menu init idiom: func_800B8054 opens the Kanji font
+  (KanjiFntClose/KanjiFntOpen) and func_800B8134 renders via KanjiFntPrint,
+  consistent with one menu subsystem file.
+
+Members:
+- ovl_08_func_800B8014 (m) — dispatcher: calls the table handler for state
+  D_800B8500, passing the table address (matched 2026-08-22)
+- ovl_08_func_800B8054 (s) — kanji-font init; increments D_800B8500
+- ovl_08_func_800B80FC (s) — conditional state advance; increments D_800B8500
+- ovl_08_func_800B8134 (s) — menu renderer; walks D_800B8508 state table
+- ovl_08_func_800B8400 (s) — unclassified
+
