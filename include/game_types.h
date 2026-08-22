@@ -180,6 +180,17 @@ typedef struct {
     s32 field_14;
 } EAE4Query;
 
+/* 8-byte entry in the D_80049170 table (indexed by arg1 in func_8001B2CC).
+ * field_0 is read as a byte; field_4 as a u32 (a pointer into the same
+ * 0x80049xxx region). */
+typedef struct {
+    /* 0x00 */ u8  field_0;
+    /* 0x01 */ u8  field_1;
+    /* 0x02 */ u8  field_2;
+    /* 0x03 */ u8  field_3;
+    /* 0x04 */ s32 field_4;
+} Struct80049170;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14

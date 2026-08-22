@@ -277,14 +277,27 @@ Fingerprints:
   (s16/u16 count table at 0x8005E4C0, s32 pointer table at 0x8005E4C8) —
   reached gp-relatively by func_8001B2CC, func_8001B3EC, func_8001B4D0,
   func_8001B4E4
+- func_8001B2CC (m, 2026-08-22) also reaches D_8005E4D0 and the absolute
+  D_80049170 entry table (8-byte stride, u8 at +0, u32 at +4) via
+  func_8001B4D0's call: D_8005E4C8[arg0] is compared against
+  D_80049170[arg1].field_4 and D_8005E4D0[arg0] against field_0, tying the
+  per-id stashes to that table
 - internal call graph: func_8001B3EC → func_8001B4E4 (deactivate when
-  entry byte is 0xFF), func_8001B3CC → func_8001B4E4 (per-id deactivate)
+  entry byte is 0xFF), func_8001B3CC → func_8001B4E4 (per-id deactivate),
+  func_8001B2CC → func_8001B4D0 (mark slot with entry word)
 - both B3EC and B4E4 write struct_8005E870 field_36/field_37 (offsets
   0x36/0x37)
 - address adjacency: B2CC–B4E4 is consecutive with no unrelated code between
 
 Members (address order):
-- func_8001B2CC (s) — touches T_8005E4C8; likely same entry family
+- func_8001B2CC (m) — per-id entry show: unless gated off (D_8006C844 &
+  0x10000, GetVal8005E3EC()==0), the slot is already marked
+  (D_8005E4C4[arg0]) or the entry byte/word match the stash
+  (D_8005E4D0[arg0], D_8005E4C8[arg0]), calls func_8001B4D0 then marks the
+  slot (D_8005E4C4[arg0]=1, D_8005E4D0[arg0]=field_0). Defines the gp-rel
+  cluster (C4/C8/D0) and declares func_8001B4D0's prototype locally like
+  func_8001B3CC/B3EC; reads the absolute D_80049170 entry table (8-byte
+  rows: u8 field_0, u32 field_4) the family's per-id processing walks
 - func_8001B3CC (m) — per-id deactivation pass-through: calls func_8001B4E4
   with its own argument untouched (leaves $a0 alone); smallest function in
   the entry family
