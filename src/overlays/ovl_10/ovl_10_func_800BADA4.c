@@ -1,19 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800BADA4", ovl_10_func_800BADA4);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-08-22T12:29:58.051Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_10_func_800BADA4.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
 int FntPrint();
 int McxReadDev(int, int, unsigned char *, unsigned char *);
 s32 ovl_10_func_800BB728(s32);
@@ -99,23 +85,17 @@ int ovl_10_func_800BADA4(int arg0, int arg1) {
         FntPrint(&D_800B8840,
                  D_800BB8A4 == -1 ? &D_800B8358 : &D_800B8360, D_800BBA4C[0]);
         {
-            u8 *base;
-            base = &D_800BBA4C[1];
             for (s3 = 0; s3 < 2; s3++) {
                 FntPrint(s3 != 0 ? &D_800B885C : &D_800B8868);
                 {
-                    u8 *p;
                     s1 = 0;
                     s2 = s3 << 4;
-                    p = base + s2;
                     while (s1 < 0x10) {
-                        sprintf(buf, &D_800B86C4, *p);
+                        sprintf(buf, &D_800B86C4, D_800BBA4C[s1 + s2 + 1]);
                         if (s1 + s2 == D_800BB8A4) {
                             FntPrint(&D_800B8330, buf);
-                            p++;
                         } else {
                             FntPrint(buf);
-                            p++;
                         }
                         s1++;
                     }
@@ -156,4 +136,3 @@ int ovl_10_func_800BADA4(int arg0, int arg1) {
         return 0;
     }
 }
-#endif

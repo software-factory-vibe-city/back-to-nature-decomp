@@ -223,7 +223,7 @@ Members (address order):
   `McxExecFlag(0, D_800BB834, D_800BB838)`, copying the packed 30-byte
   save struct `D_800B8438`→`D_800BBAFC` on the `MemCardSync(0)` accept
   path; link-ordered inside the cluster's 0x800B92AC–0x800BA2A0 region
-- ovl_10_func_800BB264 (d, ~300/303, see parked sibling 800BADA4) — mcard
+- ovl_10_func_800BB264 (m, matched 2026-08-22, baseline flags) — mcard
   block/cursor display editor, the cluster's 0/1/2/3 twin skeleton with the
   `ovl_10_func_800B92AC(); return 0` tail; arg0==0 drives the cursor
   `D_800BB8B8` (0x2000/0x8000 inc/dec within 0x00..0x9F, 0x1000 -= 0x10
@@ -233,17 +233,27 @@ Members (address order):
   `ovl_10_func_800BB728` and nibble-mutates the buffer `D_800BBA4C`
   (0x10/0xF0/±1/±0xF); arg0==1 draws the full 16-byte-row grid of
   `D_800BBA4C[1..0x20]` then `D_800BBA4C[0x21..0xA0]` (the only complex
-  grid display in the cluster, twin of the parked 800BADA4), with the
-  cluster's ternary string selects and `sprintf`+"%02x" into a 16-byte
-  stack buffer; arg0==2 → `McxWriteDev(0, D_800BBA4C[0], &D_800BBA4C[1],
+  grid display in the cluster, twin of 800BADA4), with the cluster's
+  ternary string selects and `sprintf`+"%02x" into a 16-byte stack
+  buffer; arg0==2 → `McxWriteDev(0, D_800BBA4C[0], &D_800BBA4C[1],
   &D_800BBA4C[0x21])`; arg0==3 → `ovl_10_func_800B92AC(); return 0`;
   own globals `D_800BB8B8`–`D_800BB8C8`, `D_800BBA44` added to
-  globals_override.h (editor region); residual [pop 0, sched 2, alloc 1]
-  in the display prologue: the `&D_800BBA4C` lbu-base is completed before
-  the header `FntPrint` into caller-saved `$v0` instead of after it in
-  callee-saved `$s0` — the sched1 single-set birthing boost on the
-  address-completion pins it early, and every clean-C suppression
-  (base-variable family, statement order, dual-set webs) regresses it.
+  globals_override.h (editor region)
+- ovl_10_func_800BADA4 (m, matched 2026-08-22, baseline flags) — mcard
+  slot/S/R/L button editor and the grid twin of 800BB264: same 0/1/2/3
+  skeleton, same cursor/repeat-counter/nibble-mutate arg0==0 body over
+  cursor `D_800BB8A4` (range 0x00..0x1F) with 0xF000 latched into
+  `D_800BBA40`, same `D_800BBA4C` buffer; arg0==1 draws
+  `D_800BBA4C[1..0x20]`, arg0==2 → `McxReadDev(0, D_800BBA4C[0],
+  &D_800BBA4C[1], &D_800BBA4C[0x21])` after zeroing the 0x80-byte read
+  region, arg0==3 draws `D_800BBA4C[0x21..0xA0]`; own globals
+  `D_800BB8A4`–`D_800BB8B4`, `D_800BBA40` (editor region, contiguous with
+  800BB264's)
+- shared cluster idiom (both of the above, and 800B9D24): a display loop
+  over a global byte array indexes the global directly —
+  `D_800BB99C[s0 + 1]`, `D_800BBA4C[s1 + s2 + 1]` — rather than walking a
+  hoisted base pointer, and the row/column index is spelled
+  inner + outer. Both editors matched on that idiom alone.
 - ovl_10_func_800B9D24 (m, matched 2026-08-22, baseline flags) — mcard
   application-number wrapper: the cluster's 0/1/2/3 twin skeleton with the
   `ovl_10_func_800B92AC(); return 0` tail; arg0==0 drives the selected
