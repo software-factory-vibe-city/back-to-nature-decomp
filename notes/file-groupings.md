@@ -1271,9 +1271,10 @@ Members (address order):
 - func_8001A018 (m) — CD slot loader: loads the slot's 0x1800-byte region
   into D_8006C910 via func_80014CBC; owns the D_8005E440/E45C/E460/E46C
   state; retry loop gated by arg1; sets D_8005E460 on success
-- func_8001AD6C (s) — dispatcher: after a GetPairedTpage/func_80017C30
+- func_8001AD6C (m, 2026-08-21) — dispatcher: after a GetPairedTpage/func_80017C30
   guard, calls func_8001A018(slot, 1), then func_80019FC4(slot) if
-  D_8005E460 == slot
+  D_8005E460 == slot; matched clean C confirms the D_8005E460 gp-rel tentative
+  definition (returns 1 when it consumed the slot, 0 otherwise)
 - func_8001ADD8 (m) — plumb-through wrapper: 4 args straight into
   func_80019E80 with the a1 tpage reversed via GetPairedTpage(arg1);
   gap-free successor of func_8001AD6C (0x8001AD6C..0x8001AE34 is one
