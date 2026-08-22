@@ -1,3 +1,9 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_08/asm/nonmatchings/ovl_08_func_800B80FC", ovl_08_func_800B80FC);
+extern s32 D_800B8500;
+
+void ovl_08_func_800B80FC(void) {
+    if (func_8001FD74() != 0) {
+        D_800B8500 += 1;
+    }
+}
