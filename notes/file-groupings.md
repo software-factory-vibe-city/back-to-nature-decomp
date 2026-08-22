@@ -150,6 +150,17 @@ Fingerprints:
   (`800B95A4`, `800B956C`) and `ovl_10_func_800B956C` directly calls
   `800B92AC` — mcard status/app wrappers, a call-graph adjacency
   consistent with shared-TU membership;
+- shared wrapper skeleton: `ovl_10_func_800BA11C` is a byte-exact twin of
+  cluster members `ovl_10_func_800BA2A0` and `ovl_10_func_800BACBC` —
+  the same four-way 0/1/2/3 arg0 dispatch, the same `?:` ternary
+  status-string selection (`D_800BB9A8 ? &D_800B8590 : &D_800B8594`,
+  mirroring `D_800BB9B4 ? &D_800B81D8 : &D_800B81E4` and
+  `D_800BB8A0 ? &D_800B8430 : &D_800B8434`), and the same case-3
+  `ovl_10_func_800B92AC(); return 0` tail; its mcard status-word cluster
+  `D_800BB9A8/AC/B0` abuts `D_800BB9B4` (owned by 800BA2A0) in the same
+  data region, and its status strings `D_800B84DC`–`D_800B8594` abut
+  `D_800B8598` (owned by 800BA2A0) in the extended string pool past the
+  0x800B821C block;
 - extended string pool + shared global: the same rodata region holds the
   command-menu formats `D_800B7F24`–`D_800B8074` (with `D_800B80C8` "no
   parameter needed" between them and the documented block), consumed by
@@ -189,6 +200,16 @@ Members (address order):
 - ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
   wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
   return 0`
+- ovl_10_func_800BA11C (m, matched this session, baseline flags) — mcard
+  sound/infrared menu controller: arg0==0 reads the pad flags (0x10/0x80
+  move the cursor word `D_800BB9AC` within 0..3, 0x90 latched into
+  `D_800BB9B0`, 0x20→1/0x40→0 into `D_800BB9A8`); arg0==1 prints two
+  status lines then `FntPrint(&D_800B854C, D_800BB9A8 ? &D_800B8590 :
+  &D_800B8594, D_800BB858[D_800BB9AC])` — the cluster's ternary
+  status-select idiom over a per-slot label array; arg0==2 →
+  `McxCurrCtrl(0, D_800BB9A8, D_800BB9AC, 0)`; arg0==3 →
+  `ovl_10_func_800B92AC(); return 0` — byte-exact twin structure of
+  `800BA2A0`/`800BACBC`, baseline flags
 - ovl_10_func_800BA2A0 (m, matched 2026-08-22) — mcard PDA-flush/control
   wrapper: arg0==0 sets `D_800BB9B4` from arg1 flags (0x20→1, 0x40→0);
   arg0==1 prints the flush-status lines (`FntPrint(&D_800B8598)` and
