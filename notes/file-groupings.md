@@ -1298,6 +1298,21 @@ Members (address order):
   reach with it, but touches none of the cluster's GP state — same-TU
   membership unconfirmed
 
+## text-draw wrapper — func_8001AC10 0x8001AC10 (confidence: low)
+
+Thin text-label wrapper in the zero-gap run immediately before the
+CD-loader run (func_8001AC10 → func_8001ACA0 → func_8001ACBC → func_8001AD00
+→ func_8001AD6C → func_8001ADD8, no gaps), but NOT a CD-loader member: it
+reaches none of the D_8005E440/E45C/E460/E46C GP state and calls none of
+GetPairedTpage / func_8001A018 / func_80019FC4 / func_80019E80. It is a
+text-drawer built on the D_8005E450 save/restore idiom —
+`func_80017A64(); func_80017A48(3); func_80022580(buf,0,0x1A,0xA4,0x10B,0x3E);
+func_80017B3C(arg1,arg2,0x1E,0xA8); func_80017A48(saved);` — the identical
+shape as func_80022B98 (unknown group B) and func_80017F88; all three are
+callers (never definers) of the D_8005E450 getter/setter pair. Same-TU
+membership unproven; boundary recorded so a later session does not absorb
+it into either adjacent family on adjacency alone.
+
 ## u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001AAF4 (confidence: medium)
 
 Consumable/spellbook-style u16 table insertion and its dispatcher. Fingerprints:
