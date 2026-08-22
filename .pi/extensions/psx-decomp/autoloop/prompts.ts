@@ -2,6 +2,8 @@ import type { ResidualReading } from "../autonomous/gates.ts";
 import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import type { HandoffSummary } from "./types.ts";
 import { measurements, readLedger } from "../../../../tools/agent/experimentLedger.ts";
+import { renderClosed } from "../../../../tools/agent/closedDirections.ts";
+import { lookupSignature } from "../../../../tools/agent/residualSignatures.ts";
 
 export const DECOMPILE_SKILL = "psx-decompile-function";
 
@@ -98,7 +100,9 @@ function stallLine(functionName: string): string | undefined {
     "(psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), " +
     "or read the deciding pass directly (psx_compiler_source). A solver result is a " +
     "specification for a source shape, and an UNSAT is a real finding that closes a direction. " +
-    "Record what each one closed. When a search reports no exact candidate, that is not the end " +
+    "Record what each one closed with psx_record_closed, and read that record before you run one " +
+    "— a direction another session already closed costs minutes to close again. When a search " +
+    "reports no exact candidate, that is not the end " +
     "of its output: read the per-class residual axes and the runs each class moved, and take the " +
     "next experiment from the axis that moved rather than from the match count. Before trusting " +
     "any search verdict, check its caveats for constructs the grammar refused, its axis-effect " +
@@ -130,6 +134,17 @@ function stallLine(functionName: string): string | undefined {
 }
 
 export function matchReport(diff: DiffResult, residual?: ResidualReading | null): string {
+  /* A stub is not a position in the search. Reporting it as one — "0/479
+     words" under a verdict the reader skims — is how a turn spends itself
+     analysing a diff of the original against nothing. */
+  if (diff.verdict === "stub") {
+    return [
+      `Oracle: ${diff.functionName} verdict STUB — the source still hands the function to the assembler.`,
+      "No C has been written for it yet, so there is no candidate program, no word count and no residual.",
+      "Write the function body. Every number below the verdict starts existing once you do.",
+    ].join("\n");
+  }
+
   const lines = [
     `Oracle: ${diff.functionName} verdict ${diff.verdict.toUpperCase()} — ${diff.matchedInstructions}/${diff.totalInstructions} words (${diff.matchPercent}%).`,
   ];
@@ -140,11 +155,25 @@ export function matchReport(diff: DiffResult, residual?: ResidualReading | null)
   }
   if (residual && !residual.objective.exact) {
     const { controlFlow, population, schedule, allocation } = residual.objective;
+    const undetermined = residual.objective.undetermined ?? 0;
+    const blind = residual.objective.blindBlocks ?? [];
     lines.push(
       `Residual (steer by this, not the word count): control-flow ${controlFlow}, population ${population}, ` +
       `schedule ${schedule}, allocation ${allocation}.`,
     );
-    if (population > 0 || controlFlow > 0) {
+    if (undetermined > 0) {
+      lines.push(
+        `${undetermined} word(s) are UNDETERMINED — a relocation whose symbol has no known address. ` +
+        (blind.length > 0
+          ? `Block ${blind.join(", ")} contain${blind.length === 1 ? "s" : ""} them and ${blind.length === 1 ? "is" : "are"} excluded from the residual above: ` +
+            "their terms are an artifact of the unresolved relocation, and no source edit moves them. "
+          : "") +
+        "This is a configuration defect, not a source one. The usual cause is a jump table with no " +
+        "`.rodata` attribution in the container's splat config — `npx tsx tools/build/deriveRodataSplits.ts " +
+        "--container <id>` says so, and the build's link rule rederives it. Fix that before rewriting anything.",
+      );
+    }
+    if ((population > 0 || controlFlow > 0) && !(population === 0 && blind.length > 0)) {
       lines.push("The two programs do not contain the same instructions, so no allocation or scheduling reading applies yet — fix the semantics first.");
     }
     const next = residual.work[0];
@@ -158,6 +187,12 @@ export function matchReport(diff: DiffResult, residual?: ResidualReading | null)
       if (next.duplicates.length > 0) {
         lines.push(`Fixing it should also close block ${next.duplicates.join(", ")}.`);
       }
+      /* The same residual shape in another function is the strongest evidence
+         this project can offer, and it used to be computed and discarded. */
+      const precedent = next.block.signature
+        ? lookupSignature(next.block.signature, diff.functionName)
+        : "";
+      if (precedent) lines.push("", precedent);
     }
     lines.push("`psx_reverse_pipeline` gives the decisions, their source levers and the mechanism sheet to load; " +
       "`psx_residual_objective` with a source ranks candidate edits and records them.");
@@ -302,10 +337,22 @@ export function escalationMessage(
     "an experiment it already records is not.",
     "",
     lastReport,
+    ...(closedBlock(functionName) ? ["", closedBlock(functionName)] : []),
     ...(handoff ? ["", handoffBlock(handoff)] : []),
     "",
     KEEP_GOING,
   ].join("\n");
+}
+
+/**
+ * What earlier sessions already proved about this function's search space.
+ *
+ * Carried into every escalation because that is the message a fresh tier reads
+ * first, and a fresh tier is exactly who re-runs a solver that has already
+ * answered. An UNSAT rediscovered is minutes bought twice.
+ */
+function closedBlock(functionName: string): string {
+  return renderClosed(functionName);
 }
 
 export function nudgeMessage(lastReport: string): string {

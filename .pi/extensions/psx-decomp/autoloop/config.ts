@@ -23,6 +23,10 @@ export const DEFAULT_LADDER: LoopTier[] = [
 export const DEFAULT_LOOP_CONFIG: Omit<LoopConfig, "runtimeDir"> = {
   ladder: DEFAULT_LADDER,
   returnsPerTier: 2,
+  maxReturnsPerTier: 8,
+  tierMinutes: 25,
+  parkAfterStalledMeasurements: 6,
+  singleTier: false,
   maxFunctions: 25,
   clearContextBetween: true,
   compactAtTokens: 350_000,
@@ -93,6 +97,10 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
     [
       "ladder",
       "returnsPerTier",
+      "maxReturnsPerTier",
+      "tierMinutes",
+      "parkAfterStalledMeasurements",
+      "singleTier",
       "maxFunctions",
       "clearContextBetween",
       "compactAtTokens",
@@ -112,9 +120,38 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
     throw new Error("approvalsDir must be a safe project-relative path");
   }
 
+  const ladder = parseLadder(raw.ladder);
+  const singleTier = raw.singleTier === undefined ? DEFAULT_LOOP_CONFIG.singleTier : Boolean(raw.singleTier);
+  /* A one-rung ladder is a legitimate configuration — one API key, one model —
+     and it is also three silent losses: no escalation, no handoff (captureHandoff
+     needs a rung above), and no policy adjudication, so every forbidden
+     construct becomes an immediate human park. Refusing without the
+     acknowledgement is what turns that from an accident into a choice. */
+  if (ladder.length === 1 && !singleTier) {
+    throw new Error(
+      "autoloop config: the ladder has one rung. That disables escalation, the tier handoff, and " +
+        "policy adjudication — with no rung above it, any forbidden construct parks the function " +
+        'for a human immediately. Add more rungs, or set "singleTier": true to say you meant it.',
+    );
+  }
+  const returnsPerTier = positiveInteger(raw.returnsPerTier, DEFAULT_LOOP_CONFIG.returnsPerTier, "returnsPerTier");
+  const maxReturnsPerTier = positiveInteger(
+    raw.maxReturnsPerTier, Math.max(DEFAULT_LOOP_CONFIG.maxReturnsPerTier, returnsPerTier), "maxReturnsPerTier");
+  if (maxReturnsPerTier < returnsPerTier) {
+    throw new Error("autoloop config: maxReturnsPerTier must be at least returnsPerTier");
+  }
+
   return {
-    ladder: parseLadder(raw.ladder),
-    returnsPerTier: positiveInteger(raw.returnsPerTier, DEFAULT_LOOP_CONFIG.returnsPerTier, "returnsPerTier"),
+    ladder,
+    singleTier,
+    returnsPerTier,
+    maxReturnsPerTier,
+    tierMinutes: threshold(raw.tierMinutes, DEFAULT_LOOP_CONFIG.tierMinutes, "tierMinutes"),
+    parkAfterStalledMeasurements: positiveInteger(
+      raw.parkAfterStalledMeasurements,
+      DEFAULT_LOOP_CONFIG.parkAfterStalledMeasurements,
+      "parkAfterStalledMeasurements",
+    ),
     maxFunctions: positiveInteger(raw.maxFunctions, DEFAULT_LOOP_CONFIG.maxFunctions, "maxFunctions"),
     clearContextBetween:
       raw.clearContextBetween === undefined

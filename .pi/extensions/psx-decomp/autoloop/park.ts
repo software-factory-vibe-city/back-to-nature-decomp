@@ -201,11 +201,23 @@ export function buildApprovalNote(record: ParkRecord, attemptSource: string, pla
     `- **Reason:** ${record.reason}`,
     `- **Escalation reached:** ${record.reachedTier}`,
     `- **Source:** \`${record.sourcePath ?? `src/${record.functionName}.c`}\` (INCLUDE_ASM restored)`,
+    ...(record.attemptNote ? [`- **Preserved attempt:** ${record.attemptNote}`] : []),
     ...(planReasons.length ? [`- **Parking notes:** ${planReasons.join("; ")}`] : []),
     "",
     "## What the loop needs",
     "",
-    record.reason === "asm-needs-human-approval"
+    record.reason === "blocked"
+      ? [
+          "The build cannot express this function, so no source is reachable and no tier could have",
+          "matched it. This is a configuration defect, not a verdict on the function or the model.",
+          "The report below names the words the oracle could not resolve and the block they sit in.",
+          "The usual cause is a jump table with no `.rodata` attribution in the container's splat",
+          "config: run `npx tsx tools/build/deriveRodataSplits.ts --container <id>` to see the",
+          "derivation, and the container's link rule rederives and re-splits on its own once the",
+          "attribution is possible. Fix that, then re-open the function — it may well match on the",
+          "attempt already preserved below.",
+        ].join("\n")
+      : record.reason === "asm-needs-human-approval"
       ? [
           "The top escalation tier proposed a source construct the clean-source policy forbids,",
           "and there is no higher agent to adjudicate it. Decide whether the construct is the",
@@ -224,7 +236,7 @@ export function buildApprovalNote(record: ParkRecord, attemptSource: string, pla
     "",
     findings,
     "",
-    "## Last oracle report",
+    "## Oracle report for the preserved attempt",
     "",
     "```",
     record.lastReport.trim() || "(none)",

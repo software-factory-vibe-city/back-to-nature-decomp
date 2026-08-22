@@ -242,9 +242,26 @@ $(BUILD_DIR)/$(1)/asm/%.s.o: $(BUILD_DIR)/$(1)/asm/%.s
 	@mkdir -p $$(dir $$@)
 	$$(AS) $$(OVERLAY_ASFLAGS) $$< -o $$@
 
+# Rodata attribution is per container, exactly as it is for the PS-X EXE: a
+# jump table stays in generic asm rodata while its owner is a stub, and moves
+# to the owner's TU the moment the owner is compiled as C. Without this an
+# overlay switch function cannot be compiled at all — its table keeps
+# referencing the function's internal labels from an asm object that no longer
+# defines them. Objects exist here, so this is the earliest point the
+# derivation can run; on drift it rederives, re-splits and rebuilds once.
 $(BUILD_DIR)/$(1)/$(1).elf: $$($(1)_OBJS) $(BUILD_DIR)/$(1)/$(1).ld $(ENGINE_SYMS)
 	@npx tsx tools/build/exportEngineSymbols.ts --check
-	$$(LD) -EL -T $(BUILD_DIR)/$(1)/$(1).ld -Map $(BUILD_DIR)/$(1)/$(1).map -o $$@
+	@if npx tsx tools/build/deriveRodataSplits.ts --container $(1); then \
+		$$(LD) -EL -T $(BUILD_DIR)/$(1)/$(1).ld -Map $(BUILD_DIR)/$(1)/$(1).map -o $$@; \
+	elif [ -z "$$$$DERIVE_RODATA_RETRY_$(1)" ]; then \
+		echo "$(1): rodata attribution drift — rederiving and rebuilding"; \
+		npx tsx tools/build/deriveRodataSplits.ts --container $(1) --write; \
+		$$(MAKE) split-$(1); \
+		DERIVE_RODATA_RETRY_$(1)=1 $$(MAKE) $$@; \
+	else \
+		echo "deriveRodataSplits: $(1) still inconsistent after rederivation"; \
+		exit 1; \
+	fi
 
 $(BUILD_DIR)/$(1)/$(1).bin: $(BUILD_DIR)/$(1)/$(1).elf
 	$$(OBJCOPY) -O binary $$< $$@
@@ -252,6 +269,7 @@ $(BUILD_DIR)/$(1)/$(1).bin: $(BUILD_DIR)/$(1)/$(1).elf
 # An overlay's check compares against its extracted member bytes, which is why
 # the archive extraction has to be reproducible.
 check-$(1): $(BUILD_DIR)/$(1)/$(1).bin
+	@npx tsx tools/build/deriveRodataSplits.ts --container $(1)
 	@sha256sum < extracted/overlays/$(1).bin | awk '{print $$$$1}' > $(BUILD_DIR)/$(1)/original.sha256
 	@sha256sum < $(BUILD_DIR)/$(1)/$(1).bin  | awk '{print $$$$1}' > $(BUILD_DIR)/$(1)/built.sha256
 	@if diff -q $(BUILD_DIR)/$(1)/original.sha256 $(BUILD_DIR)/$(1)/built.sha256 > /dev/null 2>&1; then \

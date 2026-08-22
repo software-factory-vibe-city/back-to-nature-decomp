@@ -141,9 +141,29 @@ export async function environmentIsIntact(ctx: OracleContext): Promise<{ ok: boo
   return { ok: false, detail: `make check exited ${build.code}\n${tail}` };
 }
 
-export async function nextTarget(projectRoot: string, skip: Set<string>): Promise<string | undefined> {
+/**
+ * The next function to work, with the parked set's families pushed back.
+ *
+ * Call-graph order alone put four functions of one family — the same shape, the
+ * same author, the same root cause — back to back for three hours, and none of
+ * them matched. Whatever stopped the first was going to stop the next three,
+ * and the loop had no way to know it had just learned something about all of
+ * them.
+ *
+ * So a parked function's family is deferred, not skipped. `defer` names the
+ * functions a park has implicated: same suspected translation unit, or a
+ * residual signature the parked one carried. They stay in the queue and come
+ * back once everything unimplicated has been tried — by which time the cause
+ * may have been closed, and by which time §2.1's index has an answer to carry.
+ */
+export async function nextTarget(
+  projectRoot: string,
+  skip: Set<string>,
+  defer: Set<string> = new Set(),
+): Promise<string | undefined> {
   const graph = await rebuildCallGraph(projectRoot).catch(() => loadCallGraph(projectRoot));
-  return graph.functions.find(
+  const eligible = graph.functions.filter(
     (entry) => !entry.decompiled && entry.handwritten === false && !entry.dead && !skip.has(entry.name),
-  )?.name;
+  );
+  return (eligible.find((entry) => !defer.has(entry.name)) ?? eligible[0])?.name;
 }

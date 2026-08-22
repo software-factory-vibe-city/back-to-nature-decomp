@@ -1,31 +1,78 @@
 # ovl_10_func_800B95F0 — human decision needed
 
-- **Parked:** 2026-08-22T11:37:54.128Z
-- **Reason:** escalation-exhausted
-- **Escalation reached:** deepseek-v4-flash
+- **Parked:** 2026-08-22 (re-parked; first parked 2026-08-22T11:37:54.128Z)
+- **Reason:** one preheader placement
 - **Source:** `src/overlays/ovl_10/ovl_10_func_800B95F0.c` (INCLUDE_ASM restored)
+- **Preserved attempt:** the best measured program — **301/301 words**, residual
+  `[0, 0, 1, 0]` at block 49
 
-## What the loop needs
+## What changed since the first park
 
-Every tier on the escalation ladder returned without a byte-exact match. The function
-needs either a new structural hypothesis or a policy decision that the ladder cannot
-make on its own. The preserved attempt and the oracle report below are the starting
-point.
+The first park reported `[0, 2, 1, 2]` at 295/302 and a `STALLED` line that had
+fired from the fourth measurement, because the ledger's best row was a
+`[0,0,0,0]` measurement of the INCLUDE_ASM stub against itself. One edit closes
+the population and allocation terms:
+
+```c
+/* parked attempt */                     /* 301/301, [0,0,1,0] */
+if (D_800BB810[4] >= 0x81U) {            if (D_800BB810[4] >= 0x81U) {
+    if (D_800BB810[4] == 0x90) {             if (D_800BB810[4] == 0x90) {
+        D_800BB810[4] = 0;                       D_800BB810[4] = 0;
+    } else {                                 } else if (D_800BB810[4] == 0xF0) {
+        s32 t = D_800BB810[4] & 0x7F;            D_800BB810[4] = 0x80;
+        if (D_800BB810[4] == 0xF0) {         } else {
+            t = 0x80;                            D_800BB810[4] &= 0x7F;
+        }                                    }
+        D_800BB810[4] = t;               }
+    }
+}
+```
+
+A pre-computed temp with a conditional override is not the same program as a
+chain of `else if`s: the temp forces the masked value to be materialised on both
+arms. `ovl_10_func_800BA394` writes the same wrap as a chain, and it is the
+cluster's spelling.
+
+## What is left
+
+One transposition in the case-3 row loop's preheader:
+
+```
+target                                preserved attempt
+  move  s6,zero        ; row = 0        move  s6,zero
+  lui   s5,%hi(D_800BB810)             move  s2,zero        ; off = 0
+  lui   fp,%hi(D_800B7EE8)             lui   s5,%hi(D_800BB810)
+  addiu s3,s5,%lo(D_800BB810)          lui   s8,%hi(D_800B7EE8)
+  move  s2,zero        ; off = 0       addiu s3,s5,%lo(D_800BB810)
+  lui   v0,%hi(D_800BB90C)             lui   v0,%hi(D_800BB90C)
+  addiu s7,v0,%lo(D_800BB90C)          addiu s7,v0,%lo(D_800BB90C)
+```
+
+**This is the same residual as `ovl_10_func_800BA394` block 93**, in the same
+cluster, with the same shape: a row counter, a header address, the row offset,
+and a payload address, where the target puts the offset's initialisation between
+two hoisted addresses and every clean-C spelling tried puts it before both.
+Whatever closes one closes the other — see that function's note for the
+mechanism read out of `loop.c` and `toplev.c`, and for what has been ruled out.
+
+### Ruled out here
+
+| direction | verdict |
+|---|---|
+| deriving the offset from the row counter (`off = row * 0x10` at the top of the body) | **closed** — the schedule term goes to zero because the accumulator *disappears*: GCC keeps a `sll` in the loop instead of strength-reducing it, so `population` rises by 5 and `allocation` by 10. A zero term for a missing instruction is not progress |
+| a source-level base pointer for `D_800BB810` between the two counters | **closed** — leaves the transposition and adds 3 allocation differences |
+| a source-level base pointer for the payload `D_800BB90C` | **closed** — 6 population, 2 schedule |
 
 ## Policy findings
 
 - none recorded
 
-## Last oracle report
+## Oracle report for the preserved attempt
 
 ```
-Oracle: ovl_10_func_800B95F0 verdict MISMATCH — 295/302 words (97.7%).
-Residual (steer by this, not the word count): control-flow 0, population 2, schedule 1, allocation 2.
-The two programs do not contain the same instructions, so no allocation or scheduling reading applies yet — fix the semantics first.
-Next block: 27 (0x800B97A8) — population 1, schedule 0, allocation 0. the instruction populations differ here; nothing below can be read until they agree
-`psx_reverse_pipeline` gives the decisions, their source levers and the mechanism sheet to load; `psx_residual_objective` with a source ranks candidate edits and records them.
-
-STALLED: 3 distinct measurements since the residual last improved on [0, 2, 1, 2]. The axis is exhausted, not the function — stop re-spelling it and bring heavier evidence. Audit the premises first, because everything else is conditioned on them and cannot see them: psx_callee_truth confronts every callee declaration in scope with the vendored SDK headers and the callees' own code, psx_sdk_idioms does the same for operation boundaries. A wrong declaration adds call setup no rewrite of this body can remove, and every measurement taken under it scored a different program. Then: enumerate the source space (psx_search_residual_source_space, psx_search_source_shapes), solve for the compiler state instead of modelling it (psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), or read the deciding pass directly (psx_compiler_source). A solver result is a specification for a source shape, and an UNSAT is a real finding that closes a direction. Record what each one closed. When a search reports no exact candidate, that is not the end of its output: read the per-class residual axes and the runs each class moved, and take the next experiment from the axis that moved rather than from the match count. Before trusting any search verdict, check its caveats for constructs the grammar refused, its axis-effect block for axes that are counted but inert, and its coverage — a --derive-only run sampled, and a sample supports no statement about the domain.
+Match: 301/301 words
+Residual: control-flow 0, population 0, schedule 1, allocation 0.
+Next block: 49 (0x800B99C0) — population 0, schedule 1, allocation 0.
 ```
 
 ## Preserved attempt
@@ -78,12 +125,10 @@ int ovl_10_func_800B95F0(int arg0, int arg1)
         if (D_800BB810[4] >= 0x81U) {
             if (D_800BB810[4] == 0x90) {
                 D_800BB810[4] = 0;
+            } else if (D_800BB810[4] == 0xF0) {
+                D_800BB810[4] = 0x80;
             } else {
-                s32 t = D_800BB810[4] & 0x7F;
-                if (D_800BB810[4] == 0xF0) {
-                    t = 0x80;
-                }
-                D_800BB810[4] = t;
+                D_800BB810[4] &= 0x7F;
             }
         }
         if (arg1 & 0x20) {

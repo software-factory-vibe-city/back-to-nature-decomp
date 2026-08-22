@@ -737,5 +737,25 @@ extern s32 D_800BB82C;
 extern s32 D_800BB830;
 extern s32 D_800BB98C;
 extern s32 D_800BB990;
+/* The mcard write-device editor (ovl_10_func_800BA394).  D_800BB86C is a
+ * five-word header the cursor D_800BB868 addresses with negative values
+ * (-5..-1); D_800BB9BC is the 0xA0-byte payload it addresses with
+ * non-negative ones, and D_800BB86C[4] is the live length of both.
+ * D_800BB880..D_800BB88C are the four per-bit pad repeat counters, and
+ * D_800BBA3C holds the masked button word — the same shape as D_800BBA40 and
+ * D_800BBA44 above. */
+extern char D_800B861C[];
+extern char D_800B8644[];
+extern char D_800B866C[];
+extern char D_800B8694[];
+extern char D_800B86BC[];
+extern s32 D_800BB868;
+extern s32 D_800BB86C[5];
+extern s32 D_800BB880;
+extern s32 D_800BB884;
+extern s32 D_800BB888;
+extern s32 D_800BB88C;
+extern unsigned char D_800BB9BC[];
+extern s32 D_800BBA3C;
 
 #endif /* GLOBALS_OVERRIDE_H */

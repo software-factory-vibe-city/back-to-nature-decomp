@@ -7,6 +7,7 @@
       "label": "deepseek-v4-flash"
     }
   ],
+  "singleTier": true,
   "returnsPerTier": 3,
   "maxFunctions": 50,
   "clearContextBetween": true,

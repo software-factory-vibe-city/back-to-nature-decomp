@@ -338,6 +338,35 @@ export function disassembleBytes(bytes: Buffer, baseVram: number): string[] {
   }
 }
 
+/**
+ * The original function's own words, symbolised — with no candidate involved.
+ *
+ * The oracle's usual entry point compares a compiled object against the image;
+ * this is the image side on its own. Two callers need exactly that and nothing
+ * else: a corpus that indexes what the *original* code looks like across
+ * hundreds of already-matched functions, and any analysis of a function that
+ * has no C yet. Both would otherwise have to compile something in order to look
+ * at something that was never compiled here.
+ */
+export function targetWordsOf(functionName: string, options: { container?: Container | string; index?: SymbolIndex } = {}): RenderedWord[] {
+  const container =
+    typeof options.container === "string"
+      ? requireContainer(options.container)
+      : options.container ?? requireContainer(EXE_CONTAINER_ID);
+  const span = loadFunctionSpans(container).find((entry) => entry.name === functionName);
+  if (!span) throw new Error(`${functionName} has no subsegment in ${container.paths.splat}`);
+  const image = readFileSync(containerTargetPath(container));
+  const rom = vramToRom(container, span.vram);
+  const context: SymbolContext = {
+    index: options.index ?? loadSymbolIndex(container),
+    gp: container.gpValue,
+    functionName,
+    functionStart: span.vram,
+    functionExtent: span.size,
+  };
+  return renderWords(context, image.subarray(rom, rom + span.size), span.vram);
+}
+
 function renderWords(
   context: SymbolContext,
   bytes: Buffer,
@@ -394,7 +423,15 @@ export interface DiffRow {
   candidate?: RenderedWord;
 }
 
-export type Verdict = "match" | "mismatch" | "undetermined";
+/**
+ * Four outcomes. `stub` is the one that is not about the bytes at all: the
+ * translation unit handed this function to the assembler, so its object holds
+ * the original words and any comparison would be the extracted assembly
+ * against itself. A tool that reports a distance for that state is reporting
+ * the distance from the answer to itself, and every reader — the residual, the
+ * ledger, the stall counter — inherits the lie.
+ */
+export type Verdict = "match" | "mismatch" | "undetermined" | "stub";
 
 export interface OracleComparison {
   rows: DiffRow[];
@@ -543,6 +580,44 @@ export function locateFunctionSymbol(
   }) ?? null;
 }
 
+/**
+ * Raised where a distance was asked for and the source is a stub.
+ *
+ * A separate type rather than a plain Error so a caller can tell "you asked
+ * about assembly" from "the compile failed" — they need opposite responses,
+ * and a loop that treats the first as the second escalates a model instead of
+ * writing C.
+ */
+export class StubSourceError extends Error {
+  constructor(readonly functionName: string, readonly objectPath: string) {
+    super(
+      `${functionName}: this translation unit hands the function to the assembler ` +
+        `(${objectPath} defines ${functionName}.NON_MATCHING). There is no candidate ` +
+        "program, so there is no residual to report. Write C for it, or score a source that defines it.",
+    );
+    this.name = "StubSourceError";
+  }
+}
+
+/**
+ * Did this object get its words from the compiler, or from the assembler?
+ *
+ * splat's `nonmatching` macro defines `<name>.NON_MATCHING` in every extracted
+ * function, and only an `INCLUDE_ASM` stub assembles that file. So the object
+ * answers the question itself — no source to read, no C to parse, and no
+ * dependency on the tree-sitter grammar, which matters because the callers that
+ * need this answer include ones that must load without it.
+ */
+export function objectHandsSymbolToAssembler(objectPath: string, functionName: string): boolean {
+  if (!existsSync(objectPath)) return false;
+  try {
+    return parseSymbolTable(tool(OBJDUMP, ["-t", "--special-syms", objectPath]))
+      .some((symbol) => symbol.name === `${functionName}.NON_MATCHING`);
+  } catch {
+    return false;
+  }
+}
+
 export function compareFunction(functionName: string, options: OracleOptions = {}): OracleResult {
   const container =
     typeof options.container === "string"
@@ -561,6 +636,42 @@ export function compareFunction(functionName: string, options: OracleOptions = {
    * splat's local labels are exactly those — a relocation against one is
    * unresolvable without them. */
   const symbols = parseSymbolTable(tool(OBJDUMP, ["-t", "--special-syms", objectPath]));
+
+  /* Did this object get its words from the compiler or from the assembler?
+     splat's `nonmatching` macro defines `<name>.NON_MATCHING` in every
+     extracted function, and only an `INCLUDE_ASM` stub assembles that file. So
+     the object answers the question itself, with no source to read and no
+     guess to make. */
+  if (symbols.some((symbol) => symbol.name === `${functionName}.NON_MATCHING`)) {
+    const image = readFileSync(containerTargetPath(container));
+    const rom = vramToRom(container, span.vram);
+    const context: SymbolContext = {
+      index,
+      gp: container.gpValue,
+      functionName,
+      functionStart: span.vram,
+      functionExtent: span.size,
+    };
+    return {
+      rows: [],
+      same: 0,
+      differing: [],
+      undetermined: [],
+      verdict: "stub",
+      functionName,
+      vram: span.vram,
+      objectPath,
+      targetWords: renderWords(context, image.subarray(rom, rom + span.size), span.vram),
+      candidateWords: [],
+      notes: [
+        `${objectPath} assembles the extracted disassembly (it defines ${functionName}.NON_MATCHING),`,
+        "  so its code is the original words by construction. There is no candidate program to",
+        "  compare and no distance to report. Write C for the function, or point --src at a",
+        "  translation unit that defines it.",
+      ],
+    };
+  }
+
   const functionSymbol = locateFunctionSymbol(symbols, functionName, span.vram, symbolAddresses);
   if (!functionSymbol) {
     throw new Error(`${objectPath} defines no .text symbol for ${functionName} (0x${span.vram.toString(16)})`);
@@ -722,6 +833,12 @@ export function renderDiff(result: OracleResult, colour = true): string[] {
 }
 
 export function renderVerdict(result: OracleResult): string[] {
+  if (result.verdict === "stub") {
+    return [
+      "VERDICT: STUB — this source hands the function to the assembler; there is nothing to compare.",
+      ...result.notes.map((note) => `  ${note}`),
+    ];
+  }
   const total = Math.max(result.targetWords.length, result.candidateWords.length);
   const percent = total > 0 ? ((result.same / total) * 100).toFixed(1) : "0.0";
   const lines = [`Match: ${result.same}/${total} words (${percent}%)`];

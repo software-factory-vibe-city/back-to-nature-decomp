@@ -188,6 +188,14 @@ function doDiff(funcName: string, src: string, container: Container): void {
     return;
   }
 
+  /* A stub has no candidate program: rendering a diff of the original against
+     nothing, or a mnemonic delta that lists the whole function, would dress a
+     non-comparison up as a very bad one. */
+  if (result.verdict === "stub") {
+    for (const line of renderVerdict(result)) console.log(line);
+    return;
+  }
+
   if (columnsMode) renderColumns(result);
   else for (const line of renderDiff(result)) console.log(line);
 

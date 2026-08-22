@@ -31,10 +31,14 @@ import {
   type ResidualObjective,
 } from "./pipeline-reversal/objective.js";
 import { reversePipeline } from "./pipeline-reversal/reverse.js";
+import { StubSourceError, compareFunction } from "../lib/functionOracle.js";
+import { requireFunctionLocation } from "../lib/symbolIndex.js";
 
 interface Entry {
   label: string;
   source?: string;
+  /** Set when this row is an INCLUDE_ASM stub: there is nothing to score. */
+  stub?: boolean;
   objective: ResidualObjective;
   matchedWords: number;
   totalWords: number;
@@ -99,6 +103,40 @@ function parseCli(args: string[]): CliOptions {
   return options;
 }
 
+/**
+ * The baseline row for a function whose source is still a stub.
+ *
+ * A parked or untouched function has no candidate program, and the whole point
+ * of scoring `--source` candidates against it is that there is not one yet.
+ * Refusing the entire run because the *baseline* is a stub would make the tool
+ * unusable exactly where a search needs it most, so the row says STUB and the
+ * candidates are ranked against each other.
+ */
+function stubEntry(label: string, source?: string): Entry {
+  const objective = {
+    functionName: "",
+    exact: false,
+    key: [0, 0, 0, 0] as [number, number, number, number],
+    controlFlow: 0, population: 0, schedule: 0, allocation: 0,
+    blocks: [], undetermined: 0, degraded: false, blindBlocks: [],
+  } satisfies ResidualObjective;
+  const entry: Entry = {
+    label,
+    stub: true,
+    objective,
+    matchedWords: 0,
+    totalWords: 0,
+    objectHash: "stub",
+    provenance: {
+      value: { object: "", source: source ?? "" },
+      provenance: { fingerprint: "stub" },
+      regenerated: false,
+    } as unknown as EnsuredArtifact<{ object: string; source: string }>,
+  };
+  if (source) entry.source = source;
+  return entry;
+}
+
 function score(functionName: string, label: string, source?: string): Entry {
   const artifacts = reversePipeline({
     functionName,
@@ -143,9 +181,39 @@ function blockColumns(objective: ResidualObjective): Map<number, string> {
   const columns = new Map<number, string>();
   for (const block of objective.blocks) {
     if (block.total === 0) continue;
-    columns.set(block.block, `${block.population}/${block.schedule}/${block.allocation + block.coalescing}`);
+    const cell = `${block.population}/${block.schedule}/${block.allocation + block.coalescing}`;
+    columns.set(block.block, block.blind ? `${cell}?` : cell);
   }
   return columns;
+}
+
+/**
+ * The words that differ, for the state where the objective is zero.
+ *
+ * Only reached when every waypoint agreed, so this is not a second opinion on
+ * the residual — it is the only remaining signal, and printing nothing here is
+ * what left a search with no next move at its closest approach.
+ */
+function differingWords(functionName: string, entry: Entry): string[] {
+  try {
+    const container = requireFunctionLocation(functionName).container;
+    const oracle = compareFunction(functionName, {
+      objectPath: entry.provenance.value.object,
+      container,
+    });
+    if (oracle.differing.length === 0) return [];
+    const rows: string[] = [];
+    for (let index = 0; index < oracle.rows.length; index++) {
+      const row = oracle.rows[index]!;
+      if (row.kind !== "target-only") continue;
+      const next = oracle.rows[index + 1];
+      if (next?.kind !== "candidate-only") continue;
+      rows.push(`0x${row.target!.vram.toString(16).toUpperCase()}: target \`${row.target!.text}\`  candidate \`${next.candidate!.text}\``);
+    }
+    return rows.slice(0, 12);
+  } catch {
+    return [];
+  }
 }
 
 function render(functionName: string, entries: Entry[], block: number | undefined): string {
@@ -164,9 +232,14 @@ function render(functionName: string, entries: Entry[], block: number | undefine
   const rows = entries.map((entry) => {
     const columns = blockColumns(entry.objective);
     const order = entry === baseline ? 0 : compareObjectives(entry.objective, baseline.objective, block === undefined ? {} : { block });
-    const verdict = entry.objective.exact ? "EXACT"
+    /* A stub baseline has no program, so "better" and "worse" would be
+       comparisons against nothing — every candidate would read as worse than a
+       zero key that means "not measured". Candidates are simply scored. */
+    const verdict = entry.stub ? "STUB"
+      : entry.objective.exact ? "EXACT"
       : entry.objective.undetermined > 0 ? "undetermined"
       : entry === baseline ? "baseline"
+      : baseline.stub ? "scored"
       : entry.objectHash === baseline.objectHash ? "identical"
       : order < 0 ? "better"
       : order > 0 ? (tradedTerms(entry.objective, baseline.objective) ? "traded" : "worse")
@@ -174,7 +247,7 @@ function render(functionName: string, entries: Entry[], block: number | undefine
     return [
       entry.label,
       verdict,
-      `${entry.matchedWords}/${entry.totalWords}`,
+      entry.stub ? "—" : `${entry.matchedWords}/${entry.totalWords}`,
       ...(anyUndetermined ? [String(entry.objective.undetermined)] : []),
       String(entry.objective.controlFlow),
       String(entry.objective.population),
@@ -195,14 +268,17 @@ function render(functionName: string, entries: Entry[], block: number | undefine
     lines.push("  undet: words whose relocation could not be resolved — neither match nor difference.");
   }
 
-  const best = [...entries].sort((left, right) =>
+  const scored = entries.filter((entry) => !entry.stub);
+  const best = [...(scored.length > 0 ? scored : entries)].sort((left, right) =>
     compareObjectives(left.objective, right.objective, block === undefined ? {} : { block }))[0]!;
   lines.push("");
   if (best.objective.exact) {
     lines.push(`BEST: ${best.label} — byte exact.`);
     return lines.join("\n");
   }
-  if (best !== baseline) {
+  if (baseline.stub) {
+    lines.push(`BEST: ${best.label} — ${summarizeObjective(best.objective)} (the function's own source is still a stub)`);
+  } else if (best !== baseline) {
     lines.push(`BEST: ${best.label} — ${summarizeObjective(best.objective)} (baseline ${summarizeObjective(baseline.objective)})`);
   } else if (entries.length > 1) {
     lines.push("BEST: none of the variants improves on the baseline.");
@@ -210,7 +286,22 @@ function render(functionName: string, entries: Entry[], block: number | undefine
 
   const work = rankBlocks(best.objective);
   if (work.length === 0) {
-    lines.push("NEXT: no open block — the residual is outside the per-block reading; read the full reversal report.");
+    if (best.objective.blindBlocks.length > 0) {
+      lines.push("NEXT: nothing readable — every open block holds an undetermined word.");
+    } else if (!best.objective.exact) {
+      /* Zero residual, bytes still differ. This is the most informative state
+         the search can be in and it used to print nothing: the reversal agrees
+         at every waypoint, so the difference is something no waypoint can see —
+         a commutative operand order, a same-shape symbol, an immediate. Name
+         the words. */
+      lines.push("NEXT: the reversal finds no residual and the bytes still differ.");
+      lines.push("      Every waypoint agrees, so the difference is invisible to all of them:");
+      lines.push("      a commutative operand order, a transposed same-shape global, or an");
+      lines.push("      immediate. Read the words themselves — `psx_diff_func` names them.");
+      for (const line of differingWords(functionName, best)) lines.push(`      ${line}`);
+    } else {
+      lines.push("NEXT: no open block — the residual is outside the per-block reading; read the full reversal report.");
+    }
   } else {
     const next = work[0]!;
     lines.push(`NEXT: block ${next.block.block}${next.block.vram === undefined ? "" : ` (0x${next.block.vram.toString(16).toUpperCase()})`}` +
@@ -224,9 +315,18 @@ function render(functionName: string, entries: Entry[], block: number | undefine
         `block ${item.block.block} (${item.block.total}${item.duplicates.length > 0 ? ` +${item.duplicates.join(",")}` : ""})`).join(", ")}`);
     }
   }
+  if (best.objective.blindBlocks.length > 0) {
+    lines.push("");
+    lines.push(`BLIND: block ${best.objective.blindBlocks.join(", ")} contain${best.objective.blindBlocks.length === 1 ? "s" : ""} ` +
+      `${best.objective.undetermined} word(s) whose relocation could not be resolved.`);
+    lines.push("       Their terms are shown with a trailing ? and are excluded from the key —");
+    lines.push("       no source edit can move them. Fix the configuration instead: an unattributed");
+    lines.push("       jump table is the usual cause (`deriveRodataSplits.ts --container <id>`).");
+  }
   if (best.objective.degraded) lines.push(`DEGRADED: ${best.objective.reason}`);
   lines.push("");
-  lines.push(renderProvenance(entries.map((entry) => ({ label: entry.label, ensured: entry.provenance }))));
+  lines.push(renderProvenance(entries.filter((entry) => !entry.stub)
+    .map((entry) => ({ label: entry.label, ensured: entry.provenance }))));
   return lines.join("\n");
 }
 
@@ -243,6 +343,7 @@ function recordAndWarn(functionName: string, entries: Entry[]): string {
   const at = new Date().toISOString();
   const lines: string[] = [];
   for (const entry of entries) {
+    if (entry.stub) continue;
     const sourcePath = entry.source ?? resolveSource(functionName);
     const sourceText = readFileSync(sourcePath, "utf8");
     const prior = priorMeasurement(functionName, sourceText, entry.objectHash);
@@ -254,6 +355,7 @@ function recordAndWarn(functionName: string, entries: Entry[]): string {
       functionName,
       source: sourcePath,
       sourceText,
+      objectPath: entry.provenance.value.object,
       outputHash: entry.objectHash,
       objective: entry.objective,
       matchedWords: entry.matchedWords,
@@ -277,10 +379,23 @@ if (isCLI) {
      * actually derived from, which is how a stale object went unnoticed for a
      * day of iteration. */
     const baselineSource = projectPath(resolveSource(options.functionName));
-    const entries: Entry[] = [score(options.functionName, baselineSource)];
+    let entries: Entry[];
+    try {
+      entries = [score(options.functionName, baselineSource)];
+    } catch (error) {
+      /* A stub baseline is only fatal when it is the only thing being asked
+         about. With candidates to score it is a row, not a failure. */
+      if (!(error instanceof StubSourceError) || options.sources.length === 0) throw error;
+      entries = [stubEntry(baselineSource, baselineSource)];
+    }
     options.sources.forEach((source, index) => {
       entries.push(score(options.functionName, `v${index + 1}:${source.split("/").pop()}`, source));
     });
+    /* Recorded on both output paths. The loop takes its end-of-turn reading
+       with `--json`, and while that path skipped the ledger the stall counter
+       was counting over a history with the loop's own measurements missing
+       from it — the majority of them, on any function the loop worked. */
+    const recorded = recordAndWarn(options.functionName, entries);
     if (options.json) {
       console.log(JSON.stringify({
         function: options.functionName,
@@ -298,11 +413,12 @@ if (isCLI) {
           },
         })),
         work: rankBlocks(entries[0]!.objective),
+        ledger: recorded.split("\n").filter(Boolean),
       }, null, 2));
     } else {
       console.log(render(options.functionName, entries, options.block));
       console.log("");
-      console.log(recordAndWarn(options.functionName, entries));
+      console.log(recorded);
     }
   } catch (error) {
     console.error(`residualObjective: ${error instanceof Error ? error.message : error}`);

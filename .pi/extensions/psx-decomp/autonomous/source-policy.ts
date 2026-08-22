@@ -299,6 +299,27 @@ function sourceFileOf(options: PolicyOptions, name: string): string {
   return options.functionSources?.[name] ?? `src/${name}.c`;
 }
 
+/**
+ * One construct, one finding.
+ *
+ * The file scan and the patch scan both report a construct in a newly written
+ * file, because a new file is entirely new lines. Reporting it twice makes a
+ * park note read as two violations and a review message ask about a construct
+ * that appears once — and where a reviewer counts findings to judge severity,
+ * it doubles the count.
+ */
+function dedupeFindings(findings: PolicyFinding[]): PolicyFinding[] {
+  const seen = new Set<string>();
+  const out: PolicyFinding[] = [];
+  for (const finding of findings) {
+    const key = `${finding.kind}\u0000${finding.file}\u0000${finding.line ?? ""}\u0000${finding.message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(finding);
+  }
+  return out;
+}
+
 export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
   const changedFiles = [...new Set((options.changedFiles ?? []).map(normalizedPath))].sort();
   const outOfScopeFiles = changedFiles.filter((file) => !withinAllowedRoots(options.config, file));
@@ -349,7 +370,7 @@ export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
 
   return {
     pass: hardFailures.length === 0,
-    hardFailures,
+    hardFailures: dedupeFindings(hardFailures),
     warnings: [],
     changedFiles,
     outOfScopeFiles,

@@ -27,7 +27,7 @@
  * Usage: npx tsx tools/agent/cSourceGuard.ts <file.c> [more.c ...]
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { children, parseC, type Node } from "./residual-source-search/tree-sitter-c.ts";
 
 export interface IncludeAsmSite {
@@ -135,6 +135,25 @@ export function analyzeCSource(source: string): CSourceReport {
 
 export function analyzeCFile(path: string): CSourceReport {
   return analyzeCSource(readFileSync(path, "utf8"));
+}
+
+/**
+ * Does this translation unit hand `symbol` to the assembler?
+ *
+ * The one question every distance-reporting tool has to ask before it reports
+ * a distance. An `INCLUDE_ASM` stub `.include`s the extracted disassembly, so
+ * its object holds the original words and every oracle scores it a perfect
+ * match — of the assembly against itself. Read off the AST, so an
+ * `INCLUDE_ASM` inside a comment or a `#if 0` block that tree-sitter parsed as
+ * disabled text is not mistaken for a declaration.
+ */
+export function handsSymbolToAssembler(source: string, symbol: string): boolean {
+  return analyzeCSource(source).includeAsm.some((site) => site.symbol === symbol);
+}
+
+export function fileHandsSymbolToAssembler(path: string, symbol: string): boolean {
+  if (!existsSync(path)) return false;
+  return handsSymbolToAssembler(readFileSync(path, "utf8"), symbol);
 }
 
 function main(argv: string[]): void {

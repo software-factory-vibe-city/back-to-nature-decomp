@@ -1,30 +1,102 @@
 # ovl_10_func_800BA394 — human decision needed
 
-- **Parked:** 2026-08-22T13:45:52.085Z
-- **Reason:** escalation-exhausted
-- **Escalation reached:** deepseek-v4-flash
+- **Parked:** 2026-08-22 (re-parked; first parked 2026-08-22T13:45:52.085Z)
+- **Reason:** one preheader placement
 - **Source:** `src/overlays/ovl_10/ovl_10_func_800BA394.c` (INCLUDE_ASM restored)
+- **Preserved attempt:** the best measured program — 477/479 words, **no differing
+  word**, residual `[0, 0, 1, 1]` at block 93
 
-## What the loop needs
+## What changed since the first park
 
-Every tier on the escalation ladder returned without a byte-exact match. The function
-needs either a new structural hypothesis or a policy decision that the ladder cannot
-make on its own. The preserved attempt and the oracle report below are the starting
-point.
+The first park reported `escalation-exhausted` at 476/479 with the oracle unable
+to resolve three words. That was not a verdict on the function. This container
+had no rodata attribution, so `ovl_10_func_800BA394` — the only overlay function
+the loop has ever attempted that owns a jump table — **could not be compiled as C
+at all**: its table stayed in the container's generic asm rodata, which still
+referenced the function's own internal labels, and the link failed on
+`undefined reference to .L800BA530`. The oracle could not see that, because the
+same missing attribution left the table's relocation undetermined, and those
+undetermined words became phantom `population` terms that pointed the ranker at
+two blocks that were already byte-identical.
+
+`tools/build/deriveRodataSplits.ts` is per container now and every overlay's link
+rule rederives and re-splits on drift, so the function links, and the residual it
+reports is the real one. See `plans/loop-gradient-precision.md` §F1.
+
+## What is left
+
+The two programs contain the *same instructions with the same operands*. The
+whole difference is the order of two of them, in the row loop's preheader:
+
+```
+target                          preserved attempt
+  move  s7,zero                   move  s7,zero
+  lui   v0,%hi(D_800BB86C)        lui   v0,%hi(D_800BB86C)
+  addiu s4,v0,%lo(D_800BB86C)     addiu s4,v0,%lo(D_800BB86C)
+  move  s3,zero                   lui   v1,%hi(D_800BB9BC)
+  lui   v0,%hi(D_800BB9BC)        addiu s8,v1,%lo(D_800BB9BC)
+  addiu fp,v0,%lo(D_800BB9BC)     move  s3,zero
+```
+
+The `v0`/`v1` difference follows from the order: with the two address pairs
+adjacent their temporaries overlap and the allocator needs a second register; in
+the target the `move` between them ends the first temporary's range.
+
+### The mechanism, read from the compiler
+
+`loop_optimize` runs **twice** at `-O2` (`flag_rerun_loop_opt`,
+`tools/vendor/gcc/2.95.2/src/gcc/toplev.c:4865`) and scans loops inner-first
+(`loop.c:575`). Both `move_movables` and `strength_reduce` emit with
+`emit_insn_before(..., loop_start)`, movables first. So a preheader is laid out
+as:
+
+```
+[ source statements ][ pass-1 movables ][ pass-1 giv inits ][ pass-2 movables ][ pass-2 giv inits ]
+```
+
+Only one assignment produces the target's order:
+
+- `&D_800BB86C` is a **pass-1 movable** — used by the row test `D_800BB86C[4]`
+  in the outer body;
+- `off = 0` is a **pass-1 giv init** — so `off` is *not* a source variable; it is
+  derived from the row counter, which is why the preserved attempt writes every
+  use as `s7 * 0x10`;
+- `&D_800BB9BC` is a **pass-2 movable** — it is not an invariant insn in the
+  pass-1 outer body, and only becomes one after pass 1's own transformations.
+
+The first two are reproduced. The third is the open question: every spelling
+tried so far exposes `&D_800BB9BC` to pass 1, which hoists it into the movables
+batch, two slots too early.
+
+### What has been ruled out
+
+Read the full record with `psx_record_closed ovl_10_func_800BA394`; the
+summary:
+
+| direction | verdict |
+|---|---|
+| the cluster's direct-indexing idiom, `D_800BB9BC[s0]` | **closed** — `[0,0,1,1]` becomes `[0,11,1,8]`; the target genuinely walks a pointer here |
+| `off` as a source variable beside the row counter | **closed** — both moves then precede every hoist |
+| the sched1 state at block 93 | **closed** — SAT, and the baseline selection is already exact; the difference is upstream of the scheduler |
+| a source-level base pointer for `D_800BB86C` | **open** — reaches `[0,1,0,0]` (schedule *and* allocation clean) but costs one population word, because holding the address in a variable lets CSE reuse the earlier `%hi` across the `?:` diamond where the target re-materialises it |
+| loop-shape rewrites (while + inversion, guard placement, split pointer arithmetic) | **closed** — all much worse |
+
+The base-pointer row is the interesting one: it proves the *placement* is
+reachable from clean C. What it costs is one extra CSE, so the remaining question
+is a spelling that places the materialisation there without giving the address a
+name that outlives the diamond.
 
 ## Policy findings
 
 - none recorded
 
-## Last oracle report
+## Oracle report for the preserved attempt
 
 ```
-Oracle: ovl_10_func_800BA394 verdict MISMATCH — 476/479 words (99.4%).
-Residual (steer by this, not the word count): control-flow 0, population 0, schedule 1, allocation 1.
-Next block: 93 (0x800BA98C) — population 0, schedule 1, allocation 1. smallest open residual
-`psx_reverse_pipeline` gives the decisions, their source levers and the mechanism sheet to load; `psx_residual_objective` with a source ranks candidate edits and records them.
-
-STALLED: 8 distinct measurements since the residual last improved on [0, 0, 1, 1]. The axis is exhausted, not the function — stop re-spelling it and bring heavier evidence. Audit the premises first, because everything else is conditioned on them and cannot see them: psx_callee_truth confronts every callee declaration in scope with the vendored SDK headers and the callees' own code, psx_sdk_idioms does the same for operation boundaries. A wrong declaration adds call setup no rewrite of this body can remove, and every measurement taken under it scored a different program. Then: enumerate the source space (psx_search_residual_source_space, psx_search_source_shapes), solve for the compiler state instead of modelling it (psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), or read the deciding pass directly (psx_compiler_source). A solver result is a specification for a source shape, and an UNSAT is a real finding that closes a direction. Record what each one closed. When a search reports no exact candidate, that is not the end of its output: read the per-class residual axes and the runs each class moved, and take the next experiment from the axis that moved rather than from the match count. Before trusting any search verdict, check its caveats for constructs the grammar refused, its axis-effect block for axes that are counted but inert, and its coverage — a --derive-only run sampled, and a sample supports no statement about the domain. 8 distinct programs is past the point where more variation is informative. Exhausting a spelling family is a positive result: the answer is not a spelling. Switch to the author's frame, which the compiler-side tools cannot reach. The vendored SDK headers give the real signature and the real operation for anything the SDK provides — read the header rather than your reconstruction of what the disassembly implies it must say. The already-matched functions in this target's file group are the only record of how this author wrote code: which locals they kept live, how they walked an array, what they hoisted, whether they took a base pointer once or re-indexed each time. A byte-exact neighbour is a proven idiom. notes/file-groupings.md names the group; read three of its members before reading another pass. A residual that survives every rewrite of your own idiom is usually somebody else's idiom.
+Match: 477/479 words (99.6%)
+VERDICT: MISMATCH — 0 word(s) differ.
+Residual: control-flow 0, population 0, schedule 1, allocation 1.
+Next block: 93 (0x800BA98C) — population 0, schedule 1, allocation 1.
 ```
 
 ## Preserved attempt
@@ -38,36 +110,12 @@ int sprintf(char *, const char *, ...);
 void ovl_10_func_800B92AC(void);
 s32 ovl_10_func_800BB728(s32);
 
-extern char D_800B7E40[];
-extern char D_800B7EE8[];
-extern char D_800B830C[];
-extern char D_800B8328[];
-extern char D_800B8330[];
-extern char D_800B8340[];
-extern char D_800B8358[];
-extern char D_800B8360[];
-extern char D_800B8368[];
-extern char D_800B86BC[];
-extern char D_800B86C4[];
-extern char D_800B861C[];
-extern char D_800B8644[];
-extern char D_800B866C[];
-extern char D_800B8694[];
-extern unsigned char D_800BB9BC[];
-extern s32 D_800BB868;
-extern s32 D_800BB86C[];
-extern s32 D_800BB880;
-extern s32 D_800BB884;
-extern s32 D_800BB888;
-extern s32 D_800BB88C;
-extern s32 D_800BBA3C;
 
 s32 ovl_10_func_800BA394(s32 arg0, s32 arg1) {
     char buf[16];
     s32 s3;
     int s2;
     int s7;
-    int off;
     int s0;
     unsigned char *s1;
 
@@ -235,13 +283,12 @@ s32 ovl_10_func_800BA394(s32 arg0, s32 arg1) {
         FntPrint(D_800B86BC);
 
         s7 = 0;
-        off = 0;
         do {
             FntPrint(D_800B8368);
             s2 = 0;
-            if (off < (u32)D_800BB86C[4]) {
-                s1 = &D_800BB9BC[off];
-                s0 = off;
+            if (s7 * 0x10 < (u32)D_800BB86C[4]) {
+                s1 = &D_800BB9BC[s7 * 0x10];
+                s0 = s7 * 0x10;
                 do {
                     sprintf(buf, D_800B86C4, (s32)*s1);
                     if (s0 == D_800BB868) {
@@ -255,10 +302,9 @@ s32 ovl_10_func_800BA394(s32 arg0, s32 arg1) {
                 } while (s2 < 0x10 && s0 < (u32)D_800BB86C[4]);
             }
             FntPrint(D_800B7EE8);
-            if ((u32)D_800BB86C[4] < (u32)(off + s2)) {
+            if ((u32)D_800BB86C[4] < (u32)(s7 * 0x10 + s2)) {
                 break;
             }
-            off += 0x10;
             s7++;
         } while (s7 < 8);
         break;

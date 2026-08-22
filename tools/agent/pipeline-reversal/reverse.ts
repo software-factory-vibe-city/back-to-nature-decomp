@@ -8,7 +8,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { compareFunction } from "../../lib/functionOracle.js";
+import { StubSourceError, compareFunction } from "../../lib/functionOracle.js";
 import { loadSymbolIndex, requireFunctionLocation } from "../../lib/symbolIndex.js";
 import { ROOT, compileSource, normalizeFunctionName, resolveSource } from "../decompToolchain.js";
 import {
@@ -160,6 +160,10 @@ export function reversePipeline(options: ReverseOptions): ReversalArtifacts {
      the container for every overlay symbol, so nothing has to be passed in. */
   const container = requireFunctionLocation(functionName).container;
   const oracle = compareFunction(functionName, { objectPath, container });
+  /* Nothing downstream can read a stub. The lift would produce the original
+     words on both sides and every waypoint would agree, so the reversal would
+     report a perfect program that no compiler produced. Refuse at the seam. */
+  if (oracle.verdict === "stub") throw new StubSourceError(functionName, objectPath);
   const index = loadSymbolIndex(container);
 
   const targetMachine = liftWords({ functionName, words: oracle.targetWords, index });
@@ -268,9 +272,18 @@ export function reversePipeline(options: ReverseOptions): ReversalArtifacts {
   const ambiguities: FiberSite[] = [...targetDbr.sites, ...targetAssembler.sites];
   const sites = deriveBranchPoints(comparison, targetDbr.program, candidateDbr.program, targetAlloc.webs, []);
   const decisions = reduceToDecisions(sites, comparison, targetDbr.program, candidateDbr.program, targetAlloc.webs);
+  /* Which blocks hold a word the oracle could not decide. Taken from the
+     candidate side, because the undetermined word is the candidate's — the
+     target's own bytes are never in doubt. The pre-dbr program keeps each
+     instruction's vram, so the word maps to a block without a second lift. */
+  const blindBlocks = new Set<number>();
+  for (const word of oracle.undetermined) {
+    const insn = candidateDbr.program.insns.find((entry) => entry.vram === word.vram);
+    if (insn) blindBlocks.add(insn.block);
+  }
   const objective = residualObjective(
     functionName, comparison, targetDbr.program, candidateDbr.program,
-    oracle.verdict === "match", oracle.undetermined.length);
+    oracle.verdict === "match", oracle.undetermined.length, blindBlocks);
 
   const report: ReversalReport = {
     schemaVersion: PIPELINE_REVERSAL_SCHEMA_VERSION,

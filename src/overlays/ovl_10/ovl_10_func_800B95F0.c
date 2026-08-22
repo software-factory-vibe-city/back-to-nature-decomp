@@ -3,11 +3,12 @@
 INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800B95F0", ovl_10_func_800B95F0);
 
 
-/* PARKED by /auto_decompilation_loop on 2026-08-22T11:37:54.128Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_10_func_800B95F0.md
+/* PARKED 2026-08-22, reason: one preheader placement.
+ * Reached 301/301 words, residual [0, 0, 1, 0] at block 49 — one transposition,
+ * nothing else. The same transposition as ovl_10_func_800BA394's block 93, with
+ * the same mechanism: notes/human-needed-approvals/ovl_10_func_800B95F0.md.
+ *
+ * The best measured attempt is preserved verbatim below, disabled.
  */
 
 #if 0
@@ -59,12 +60,10 @@ int ovl_10_func_800B95F0(int arg0, int arg1)
         if (D_800BB810[4] >= 0x81U) {
             if (D_800BB810[4] == 0x90) {
                 D_800BB810[4] = 0;
+            } else if (D_800BB810[4] == 0xF0) {
+                D_800BB810[4] = 0x80;
             } else {
-                s32 t = D_800BB810[4] & 0x7F;
-                if (D_800BB810[4] == 0xF0) {
-                    t = 0x80;
-                }
-                D_800BB810[4] = t;
+                D_800BB810[4] &= 0x7F;
             }
         }
         if (arg1 & 0x20) {

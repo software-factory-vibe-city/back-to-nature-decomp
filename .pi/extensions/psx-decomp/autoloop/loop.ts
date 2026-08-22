@@ -1,7 +1,10 @@
 import { mkdirSync } from "node:fs";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { runResidualObjective } from "../autonomous/gates.ts";
+import { runFunctionDiff, runResidualObjective } from "../autonomous/gates.ts";
 import type { PolicyFinding } from "../autonomous/types.ts";
+import { chooseParkAttempt } from "./best-attempt.ts";
+import { implicatedByPark } from "./family.ts";
+import { shouldStop } from "./stop-rule.ts";
 import { commitMatchedFunction, commitParkedFunction } from "./commit.ts";
 import { needsCompaction, requestCompaction } from "./context.ts";
 import {
@@ -339,15 +342,47 @@ async function park(
   lastReport: string,
   findings: PolicyFinding[],
 ): Promise<{ state: LoopState; record: ParkRecord }> {
-  const attempt = readSource(deps.projectRoot, functionName);
+  const onDisk = readSource(deps.projectRoot, functionName);
   const sourcePath = sourceRelativePath(deps.projectRoot, functionName);
+  const parkedAt = new Date().toISOString();
+
+  /* Preserve the best program the function ever produced, not the last one a
+     tier happened to leave behind — and re-measure it here, so the report in
+     the note describes the source under it. Those two disagreeing is worse
+     than either being wrong on its own: the note hands the next session a
+     residual its own code cannot reproduce, and the session spends its opening
+     move discovering that. */
+  const choice = chooseParkAttempt(deps.projectRoot, functionName, onDisk);
+  let attempt = choice.text;
+  let parkReport = lastReport;
+  let attemptNote = choice.note;
+
+  if (choice.origin === "ledger") {
+    archiveSource(deps.config.runtimeDir, functionName, onDisk, "superseded", parkedAt);
+    writeSource(deps.projectRoot, functionName, choice.text);
+    const remeasured = await remeasure(deps, functionName);
+    if (remeasured) {
+      parkReport = remeasured;
+    } else {
+      /* Could not re-measure it, so the report and the source would disagree
+         again. Keep the program that was measured. */
+      writeSource(deps.projectRoot, functionName, onDisk);
+      attempt = onDisk;
+      attemptNote = `${choice.note} — but it could not be re-measured at park time, so the source on disk was kept`;
+    }
+  } else if (reason !== "asm-needs-human-approval") {
+    const remeasured = await remeasure(deps, functionName);
+    if (remeasured) parkReport = remeasured;
+  }
+
   const record: ParkRecord = {
     functionName,
     sourcePath,
     reason,
-    parkedAt: new Date().toISOString(),
+    parkedAt,
     reachedTier,
-    lastReport,
+    lastReport: parkReport,
+    attemptNote,
     findings,
   };
   const archived = archiveSource(deps.config.runtimeDir, functionName, attempt, "parked", record.parkedAt);
@@ -372,7 +407,24 @@ async function park(
   notify(deps, `Parked ${functionName} (${reason}); ${preserved}; wrote ${notePath}`, "warning");
   if (archived) notify(deps, `Pre-park source archived at ${archived}`, "info");
   if (!plan.preserved && plan.reasons.length) notify(deps, plan.reasons.join("; "), "info");
+  notify(deps, `${functionName}: ${attemptNote}`, "info");
   return { state: next, record };
+}
+
+/**
+ * Measure the source that is on disk right now.
+ *
+ * Used at park time so the preserved program and the report above it are the
+ * same program. Never fatal: a park that cannot measure is still a park.
+ */
+async function remeasure(deps: LoopDeps, functionName: string): Promise<string | undefined> {
+  try {
+    const diff = await runFunctionDiff(deps.projectRoot, functionName);
+    const residual = diff.verdict === "stub" ? null : await runResidualObjective(deps.projectRoot, functionName);
+    return matchReport(diff, residual);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -409,10 +461,11 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
     if (tierIndex > 0) await clearContext(deps);
     reachedTier = tier.label;
 
-    for (let attempt = 1; attempt <= deps.config.returnsPerTier; attempt++) {
+    const tierStarted = Date.now();
+    for (let attempt = 1; ; attempt++) {
       if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
 
-      setStatus(deps, `↻ ${functionName} · ${tier.label} · return ${attempt}/${deps.config.returnsPerTier}`);
+      setStatus(deps, `↻ ${functionName} · ${tier.label} · return ${attempt} (min ${deps.config.returnsPerTier})`);
       const snapshot = readSource(deps.projectRoot, functionName);
 
       const message =
@@ -485,6 +538,26 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
          * should steer by, so it is read only when there is a next turn. */
         const residual = await runResidualObjective(deps.projectRoot, functionName);
         lastReport = matchReport(match.diff, residual);
+
+        /* The counter is a floor now, not the decision. The decision is whether
+         * the evidence says this search is out of moves — and, before that,
+         * whether it was ever in a position to have any. */
+        const verdict = shouldStop({
+          config: deps.config,
+          functionName,
+          returns: attempt,
+          elapsedMs: Date.now() - tierStarted,
+          residual,
+        });
+        if (verdict.parkNow === "blocked") {
+          notify(deps, `${functionName} is blocked, not hard: ${verdict.detail}`, "warning");
+          const parked = await park(deps, current, functionName, "blocked", reachedTier, lastReport, lastFindings);
+          return { state: parked.state, outcome: { kind: "parked", functionName, record: parked.record } };
+        }
+        if (verdict.stop) {
+          notify(deps, `${functionName}: ${tier.label} is done — ${verdict.detail}`, "info");
+          break;
+        }
         continue;
       }
 
@@ -498,6 +571,7 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
         };
       }
       lastReport = gateReport(gate.gate);
+      if (attempt >= deps.config.maxReturnsPerTier) break;
     }
 
     /* The tier is out of returns. Take its findings now, while its context and
@@ -599,6 +673,10 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
 
   let state = readState(deps.config);
   const skip = new Set(Object.keys(state.parked));
+  /* Functions a park has implicated: same suspected translation unit, or a
+     residual signature the parked function carried. Deferred rather than
+     skipped — see nextTarget. */
+  const defer = new Set<string>();
 
   try {
     for (let index = 0; index < limit; index++) {
@@ -609,7 +687,9 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
       if (index > 0) await clearContext(deps);
 
       setStatus(deps, "↻ autoloop · selecting target");
-      const target = index === 0 && options.firstTarget ? options.firstTarget : await nextTarget(deps.projectRoot, skip);
+      const target = index === 0 && options.firstTarget
+        ? options.firstTarget
+        : await nextTarget(deps.projectRoot, skip, defer);
       if (!target) {
         notify(deps, "No remaining clean-C decompilation targets.", "info");
         break;
@@ -647,6 +727,9 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
           outcomes.push({ kind: "environment-broken", functionName: target, detail: environment.detail });
           notify(deps, `Loop stopped: the tree no longer builds after parking ${target}.\n${environment.detail}`, "error");
           break;
+        }
+        for (const relative of implicatedByPark(deps.projectRoot, target)) {
+          if (!skip.has(relative)) defer.add(relative);
         }
         await closeOut(deps, state, run.outcome);
       }

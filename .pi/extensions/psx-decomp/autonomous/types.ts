@@ -86,9 +86,11 @@ export interface DiffResult {
   /**
    * The oracle's own verdict. `undetermined` is a real third outcome — a word
    * whose relocation could not be resolved — and must never be folded into
-   * either of the others.
+   * either of the others. `stub` is a fourth: the translation unit handed the
+   * function to the assembler, so there was no candidate program to compare
+   * and no distance was reported.
    */
-  verdict: "match" | "mismatch" | "undetermined" | "unknown";
+  verdict: "match" | "mismatch" | "undetermined" | "stub" | "unknown";
   exact: boolean;
   instructionCountDelta: number;
   output: string;

@@ -38,6 +38,7 @@ import { deriveLayoutByStrategy, layoutFromConsensus } from "../lib/overlayStrat
 import { detectToolchain } from "../lib/toolchainProfile.js";
 import { collectSelfReferences } from "../lib/overlayBase.js";
 import { ENGINE_EXPORT_PATH } from "../lib/symbolIndex.js";
+import { existingRodataBlock } from "./deriveRodataSplits.ts";
 import { loadPsxExeInfo } from "../lib/psxExeInfo.js";
 import { parseCSV } from "./analyzeLayout.js";
 
@@ -156,6 +157,30 @@ function crossSlotSymbolFiles(container: Container, bytes: Buffer): string[] {
   return files;
 }
 
+/**
+ * The rodata subsegment lines for a freshly generated config.
+ *
+ * The derived block from the container's current config when it still starts
+ * at this layout's rodata boundary and stays inside the window; otherwise a
+ * single generic line, which is what a container gets before any jump-table
+ * function is compiled as C.
+ */
+function rodataBlock(container: Container, layout: OverlayLayout, indent: string): string[] {
+  const generic = [`${indent}- [${hex(layout.rodataStart)}, rodata]`];
+  const existing = existingRodataBlock(container);
+  if (!existing || existing.length === 0) return generic;
+
+  const addrs = existing.map((line) => {
+    const m = line.match(/- \[(0x[0-9A-Fa-f]+),/);
+    return m ? parseInt(m[1], 16) : NaN;
+  });
+  const inOrder = addrs.every((a, i) => Number.isFinite(a) && (i === 0 || a > addrs[i - 1]));
+  const bounded = addrs[0] === layout.rodataStart && addrs[addrs.length - 1] < layout.textStart;
+  if (!inOrder || !bounded) return generic;
+
+  return existing.map((line) => indent + line.trim());
+}
+
 function renderSplatConfig(
   container: Container,
   layout: OverlayLayout,
@@ -166,8 +191,16 @@ function renderSplatConfig(
   const subsegments: string[] = [];
 
   /* Section order is PSYLINK's, the same order the PS-X EXE was linked with:
-     read-only data, then code, then writable data. */
-  subsegments.push(`${indent}- [${hex(layout.rodataStart)}, rodata]`);
+     read-only data, then code, then writable data.
+
+     The rodata block belongs to deriveRodataSplits.ts, not to this generator:
+     it attributes a jump-table range to the translation unit that emits it,
+     and that attribution is what lets a switch function be compiled as C at
+     all. Regenerating it as one generic line would revert the attribution on
+     every re-split, and the link rule's self-healing rederive would then loop
+     forever. So carry the existing block whenever it still describes this
+     layout, and fall back to the generic line only when it does not. */
+  for (const line of rodataBlock(container, layout, indent)) subsegments.push(line);
   for (const fn of functions) {
     const rom = fn.address - container.loadAddr;
     subsegments.push(`${indent}- [${hex(rom)}, c, ${fn.name}]`);

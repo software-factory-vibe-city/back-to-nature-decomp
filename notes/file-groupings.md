@@ -46,7 +46,7 @@ so far:
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
 | `ovl_11` | `Obj\GF_FARM.bin` | none yet — called into by `ovl_30` |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
-| `ovl_10` | (overlay tail group) | tail /15 date-utility pair, low confidence |
+| `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
 Aliases come from `npx tsx tools/diagnostics/overlayIdentity.ts`, which agrees
 three independent sources before adopting one; the member index stays the
@@ -167,6 +167,17 @@ Fingerprints:
   `D_800B878C`/`D_800B87AC` in the same rodata pool, and drives status
   words `D_800BB890`–`D_800BB89C` that abut 800BACBC's `D_800BB8A0` in
   the same mcard-buffer data region;
+- grid-display sub-family: five members (`800B95F0`, `800B9D24`, `800BA394`,
+  `800BADA4`, `800BB264`) share one shape — a `switch (arg0)` editor whose
+  arg0==0 arm moves a cursor from pad bits, bumps four per-bit repeat counters
+  gated by `ovl_10_func_800BB728`, and nibble-mutates a global byte buffer with
+  the same 0x10/0xF0/±1/±0xF arms and the same 0x81/0x90/0xF0 wrap; whose
+  arg0==1 arm renders that buffer 16 bytes to a row with `sprintf`+"%02x" into
+  a 16-byte stack buffer and the cluster's ternary colour-select; and whose
+  arg0==2 arm is a single `Mcx*` call taking the buffer and a packed address.
+  They are the four functions the 2026-08-21/22 loop parked out of nine, and
+  they parked for one reason each rather than for being hard — see
+  `plans/loop-gradient-precision.md`;
 - extended string pool + shared global: the same rodata region holds the
   command-menu formats `D_800B7F24`–`D_800B8074` (with `D_800B80C8` "no
   parameter needed" between them and the documented block), consumed by
@@ -211,6 +222,17 @@ Members (address order):
 - ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
   wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
   return 0`
+- ovl_10_func_800B95F0 (s) — mcard read-device address/length editor and the
+  simplest member of the grid-display family: the cluster's 0/1/2/3 skeleton
+  with cursor `D_800BB98C` over the 5-byte address/length field
+  `D_800BB810[0..4]` (0x2000/0x8000 inc/dec within 0..4, 0xA000 latched into
+  `D_800BB990`), per-bit repeat counters `D_800BB824`/`828`/`82C`/`830` gated
+  by the /15 date-predicate `ovl_10_func_800BB728`, and the same
+  0x10/0xF0/±1/±0xF nibble mutation with the 0x81/0x90/0xF0 wrap arms;
+  arg0==1 prints the five `%02x` fields with the cluster's ternary
+  colour-select; arg0==2 → `McxGetMem(0, D_800BB90C, packed-address,
+  D_800BB810[4])`; arg0==3 draws the 16-byte-row grid of `D_800BB90C` —
+  the same grid display as 800BB264 and 800BADA4 over a different buffer
 - ovl_10_func_800B9AA8 (m, matched this session, baseline flags) — mcard
   data-transfer wrapper: the cluster's 0/1/2/3 twin skeleton with the
   `ovl_10_func_800B92AC(); return 0` tail; arg0==0 drives status words
@@ -289,6 +311,17 @@ Members (address order):
   `ovl_10_func_800B92AC(); return 0` — byte-exact twin structure of
   `ovl_10_func_800BACBC`, with adjacent status word `D_800BB9B4` played
   exactly as 800BACBC plays `D_800BB8A0`; baseline flags
+- ovl_10_func_800BA394 (s) — mcard write-device editor, the largest member of
+  the grid-display family and the only one whose `switch (arg0)` compiles to a
+  jump table: cursor `D_800BB868` ranges over both a five-field header
+  (`D_800BB86C[0..4]`, addressed as negative cursor values −5..−1) and the
+  0xA0-byte payload `D_800BB9BC`, which is why its 0x1000/0x4000 arms are a
+  nested switch rather than the family's two-line clamp; arg0==1 prints the
+  header fields then the payload grid, 16 bytes to a row, bounded by
+  `D_800BB86C[4]`; arg0==2 → `McxSetMem(0, D_800BB9BC, packed-address,
+  D_800BB86C[4])`; arg0==3 → `ovl_10_func_800B92AC(); return 0`. Its table is
+  `jtbl_800B86CC`; until 2026-08-22 the container had no rodata attribution
+  mechanism, so compiling it as C could not link at all — see the note below
 - ovl_10_func_800BAB10 (m, matched this session, baseline flags) — mcard
   status/transition controller, byte-exact from the first clean C draft;
   immediate link-order predecessor of 800BACBC. arg0==0 updates status words

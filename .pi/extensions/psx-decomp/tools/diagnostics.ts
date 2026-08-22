@@ -70,6 +70,14 @@ export const UNEXPOSED_CLIS: Record<string, string> = {
     "stateful in the way this repository is removing: it needs build/callGraph.json " +
     "and tells the caller to run callGraph.ts first. The CLI stays for manual and " +
     "historical reproduction; it is not something an agent should be able to reach for.",
+  migrateLedger:
+    "A one-off schema migration over build/experimentLedger/, not a diagnostic. It " +
+    "reclassifies pre-schema-2 rows on evidence and retires the ones that measured an " +
+    "INCLUDE_ASM stub against itself. It rewrites the ledgers in place, which is a " +
+    "maintenance action a human should run and read, not something an agent should be " +
+    "able to reach for mid-search — a rewritten ledger changes every later reading of " +
+    "what has already been tried. New rows are written correctly at the source, so the " +
+    "migration is needed once per tree.",
   diffFunc:
     "Two better tools split its job. `psx_residual_objective` gives the same MATCH " +
     "verdict from the same oracle at the same cost, plus a residual that is a distance " +
@@ -285,6 +293,61 @@ export const TOOL_SPECS: ToolSpec[] = [
   functionTool(
     "psx_experiment_ledger", "PSX Experiment Ledger", "experimentLedger.ts",
     "Every measurement already taken on this function: the source, the staged residual key, and the compiled-output hash. Read it BEFORE forming a hypothesis — it says which levers are closed and, more usefully, which distinct-looking sources compile to the same words and are therefore the same experiment. `psx_residual_objective` appends to it automatically, so it is the session-to-session memory the research notes could not be.",
+  ),
+  functionTool(
+    "psx_idiom_search", "PSX Idiom Search", "idiomSearch.ts",
+    "Target assembly in, matched C out. Query with the *original* assembly of the function you are working — the thing you have on day one — and get back the already-matched functions whose original code has the same instruction shapes, with the C that produced them. Every other retrieval in this project runs the other way round and needs the answer to ask the question. Use it before writing the first draft (whole-function query: what does this kind of code look like when this author writes it) and when a block's residual will not move (--block N: which function already got this block right). The output is an alignment — 'N of its M shapes align in order' — never a similarity score, so you can check it against the two listings. Shapes keep register class and bucket immediates, so one idiom over two different globals is one shape. Functions whose C hands work to the assembler are excluded from the corpus by construction; per-file flag overrides are kept, with a fingerprint, and a cross-flag hit says which residual axes it can still speak to.",
+    { functionDescription: "Function whose target assembly is the query",
+      extra: {
+        block: Type.Optional(Type.Number({ description: "Query one basic block instead of the whole function" })),
+        tier: Type.Optional(Type.Number({ description: "0 shape (default, most precise), 1 op class (survives an assembler-macro difference), 2 structure" })),
+        limit: Type.Optional(Type.Number({ description: "How many hits to return (default 5)" })),
+        source: Type.Optional(Type.Boolean({ description: "Print the whole C of the top hit" })),
+      },
+      argv: (p) => [p.functionName as string,
+        ...(p.block === undefined ? [] : ["--block", String(p.block)]),
+        ...(p.tier === undefined ? [] : ["--tier", String(p.tier)]),
+        ...(p.limit === undefined ? [] : ["--limit", String(p.limit)]),
+        ...(p.source ? ["--source"] : []),
+        ...(p.json ? ["--json"] : [])],
+      timeout: 300_000 },
+  ),
+  {
+    name: "psx_residual_signatures",
+    label: "PSX Residual Signatures",
+    script: "residualSignatures.ts",
+    description:
+      "The same residual shape, in another function. A block's residual signature is the shape of its difference independent of where it sits, so two blocks that carry the same one are the same problem written twice — and where one of them was closed, the index shows the diff of the C edit that closed it. That is a proven answer for the shape in this codebase, which is worth more than any model of the compiler. Read it when a block's residual is not obviously yours; `psx_residual_objective` records the signatures automatically.",
+    parameters: Type.Object({
+      signature: Type.Optional(Type.String({ description: "Show only this shape" })),
+      functionName: Type.Optional(FUNCTION("Show only shapes this function carried")),
+      json: JSON_FLAG,
+    }),
+    argv: (params) => [
+      ...(params.signature ? ["--signature", params.signature as string] : []),
+      ...(params.functionName ? ["--function", params.functionName as string] : []),
+      ...(params.json ? ["--json"] : []),
+    ],
+    timeout: 120_000,
+  },
+  functionTool(
+    "psx_record_closed", "PSX Record Closed Direction", "closedDirections.ts",
+    "Record what a heavy tool just answered, and read what earlier sessions recorded. An UNSAT from psx_solve_local_allocation, an empty domain from psx_search_source_shapes, a scheduler state that cannot exist — each closes a region of the search space, and each costs minutes to rediscover. Call it with no flags to read the record before forming a hypothesis; call it with --tool/--question/--verdict/--result after any heavy tool returns. `psx_experiment_ledger` prints the record above the measurements, so a direction closed once is closed for every later session, model and context.",
+    { functionDescription: "Function the question was asked about",
+      extra: {
+        tool: Type.Optional(Type.String({ description: "Tool that answered it, by its psx_ name" })),
+        question: Type.Optional(Type.String({ description: "The question asked, in one line" })),
+        verdict: Type.Optional(Type.String({ description: "closed | open | inconclusive" })),
+        result: Type.Optional(Type.String({ description: "The tool's own words for its result — UNSAT, 'no candidate', a count" })),
+        evidence: Type.Optional(Type.String({ description: "How a later reader checks this without re-running: bounds, counts, run time" })),
+      },
+      argv: (p) => [p.functionName as string,
+        ...(p.tool ? ["--tool", p.tool as string] : []),
+        ...(p.question ? ["--question", p.question as string] : []),
+        ...(p.verdict ? ["--verdict", p.verdict as string] : []),
+        ...(p.result ? ["--result", p.result as string] : []),
+        ...(p.evidence ? ["--evidence", p.evidence as string] : []),
+        ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(
     "psx_residual_objective", "PSX Residual Objective", "residualObjective.ts",

@@ -49,12 +49,18 @@ about pace.
 
 Run these three, in this order, before touching source.
 
-1. `psx_experiment_ledger` — what has already been measured. Levers recorded
-   here as closed are closed; sources listed as compiling to the same words are
-   the same experiment however differently they read. Start from this, not from
-   a research note.
+1. `psx_experiment_ledger` — what has already been measured, and what earlier
+   sessions proved about the search space. Directions recorded as closed are
+   closed; sources listed as compiling to the same words are the same
+   experiment however differently they read. Start from this, not from a
+   research note.
 2. `psx_triage` — a `blocker` means the current direction cannot ship whatever
-   the residual says. Resolve it before anything else. A `callee-truth` blocker
+   the residual says. Two of its findings are the author's own answers rather
+   than symptoms: `idiom-precedent` names the already-matched functions whose
+   *original* code has the same instruction shapes as this target's, and
+   `self-similarity` names a closed block in this very function that has the
+   same shapes as an open one. Both fire on a bare stub, because the query is
+   the target's assembly. Read them before writing anything. Resolve it before anything else. A `callee-truth` blocker
    is stronger than that: it says a declaration in scope is contradicted by
    evidence outside this source, so the compiler has been building a different
    program than the one you think you are measuring. Fix it and discard the
@@ -178,6 +184,16 @@ steps that can are first for that reason.
    neighbours are the idiom dictionary; `notes/file-groupings.md` names the
    group, and reading three of its members is cheaper than one pass reading.
 
+   `psx_idiom_search` answers this without you having to guess which neighbours
+   to read: query with the target's own assembly — a block, or the whole
+   function — and it returns the matched functions whose original code carries
+   the same shapes, with the C that produced them. It reports an alignment
+   ("14 of its 17 shapes align in order"), which you can check against the two
+   listings, and it says what the toolchain distance permits the hit to claim.
+   `psx_residual_signatures` is the same question keyed on the residual: if
+   another function carried this block's exact residual shape and closed it,
+   the tool prints the diff of the edit that did.
+
    A group lives inside one container, so read neighbours from the target's own
    container. Another binary's code is a different build with its own flags and
    possibly a different author, and its idioms are a claim about it, not about
@@ -244,10 +260,13 @@ steps that can are first for that reason.
    in `psx_reference flags`. A matrix showing baseline equal to the delta kills
    the hypothesis cheaply, which is itself worth knowing.
 
-Record what each of these closed. An axis proved empty is progress and belongs
-in the ledger note, so the next session starts from it instead of re-deriving
-it. Park a function only when a human decision is required — an allowlist
-entry, a policy exception — never merely because it is hard.
+Record what each of these closed with `psx_record_closed`, and read that record
+before running one — an `UNSAT` another session already bought costs minutes to
+buy again. An axis proved empty is progress: the record is printed above the
+measurements in `psx_experiment_ledger` and carried into every escalation, so
+the next session starts from it instead of re-deriving it. Park a function only
+when a human decision is required — an allowlist entry, a policy exception —
+never merely because it is hard.
 
 ## What wastes the session
 

@@ -13,7 +13,7 @@ import { checkSourcePolicy } from "./source-policy.ts";
 export function parseFunctionDiffSummary(output: string): Pick<DiffResult, "matchedInstructions" | "totalInstructions" | "matchPercent" | "verdict"> {
   const matches = [...output.matchAll(/^Match:\s*(\d+)\/(\d+)\s+words\s+\(([\d.]+)%/gim)];
   const match = matches.at(-1);
-  const verdicts = [...output.matchAll(/^VERDICT:\s*(MATCH|MISMATCH|UNDETERMINED)\b/gim)];
+  const verdicts = [...output.matchAll(/^VERDICT:\s*(MATCH|MISMATCH|UNDETERMINED|STUB)\b/gim)];
   const verdict = verdicts.at(-1)?.[1].toLowerCase() as DiffResult["verdict"] | undefined;
   return {
     matchedInstructions: match ? Number.parseInt(match[1], 10) : 0,
@@ -88,24 +88,58 @@ export async function runResidualObjective(
     });
     if (command.code !== 0) return null;
     const parsed = JSON.parse(command.stdout) as {
-      entries: Array<{ objective: { exact: boolean; controlFlow: number; population: number; schedule: number; allocation: number } }>;
-      work: Array<{ block: { block: number; vram?: number; population: number; schedule: number; allocation: number; coalescing: number }; duplicates: number[]; reason: string }>;
+      entries: Array<{ objective: ResidualObjectiveReading }>;
+      work: ResidualReading["work"];
+      ledger?: string[];
     };
     const objective = parsed.entries[0]?.objective;
     if (!objective) return null;
-    return { objective, work: parsed.work ?? [] };
+    return { objective, work: parsed.work ?? [], ledger: parsed.ledger ?? [] };
   } catch {
     return null;
   }
 }
 
+export interface ResidualObjectiveReading {
+  exact: boolean;
+  controlFlow: number;
+  population: number;
+  schedule: number;
+  allocation: number;
+  /**
+   * Words the oracle could not decide.
+   *
+   * Carried through to the turn's report because the alternative is that the
+   * agent is handed a residual whose terms include a difference no source edit
+   * can move, with nothing in the message saying so. The word count looks
+   * ordinary and the block the ranker names is often already byte-identical.
+   */
+  undetermined?: number;
+  /** Blocks excluded from the key because they contain an undetermined word. */
+  blindBlocks?: number[];
+  degraded?: boolean;
+  reason?: string;
+}
+
 export interface ResidualReading {
-  objective: { exact: boolean; controlFlow: number; population: number; schedule: number; allocation: number };
+  objective: ResidualObjectiveReading;
   work: Array<{
-    block: { block: number; vram?: number; population: number; schedule: number; allocation: number; coalescing: number };
+    block: {
+      block: number;
+      vram?: number;
+      population: number;
+      schedule: number;
+      allocation: number;
+      coalescing: number;
+      blind?: boolean;
+      /** Shape of this block's residual, independent of where it sits. */
+      signature?: string;
+    };
     duplicates: number[];
     reason: string;
   }>;
+  /** What the reading recorded in the experiment ledger, and what it repeated. */
+  ledger?: string[];
 }
 
 /**

@@ -23,13 +23,22 @@
  * measured history rather than re-deriving it.
  */
 
-import { existsSync, readFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ROOT, normalizeFunctionName } from "./decompToolchain.js";
+import { readClosed as readClosedRows, renderClosed } from "./closedDirections.js";
+import { objectHandsSymbolToAssembler } from "../lib/functionOracle.js";
 import { projectPath, sha256 } from "./provenance.js";
 import type { ResidualObjective } from "./pipeline-reversal/objective.js";
 
-export const LEDGER_SCHEMA_VERSION = 1;
+/**
+ * 2 adds `exact`. Rows written before it carry no verdict the reader can
+ * trust — `[0,0,0,0]` meant both "byte-identical" and "the reversal saw no
+ * residual but the bytes still differ", and on a stub it meant "this is the
+ * original assembly". `best()` treats a v1 zero row as unproven rather than as
+ * a match, so an old ledger degrades to weaker evidence instead of to a lie.
+ */
+export const LEDGER_SCHEMA_VERSION = 2;
 
 export interface LedgerEntry {
   schemaVersion: number;
@@ -40,19 +49,89 @@ export interface LedgerEntry {
   source: string;
   /** SHA-256 of the source text. */
   sourceHash: string;
+  /**
+   * Project-relative path of the preserved source text, content-addressed by
+   * `sourceHash`.
+   *
+   * A ledger that stores only a hash can name its best program and not produce
+   * it. That is not hypothetical: one function's best row named
+   * `build/scratch/f17f30/rt54/s2_y_xeq.c`, a directory the agent invented,
+   * untracked and one `make clean` from gone, and the park preserved a
+   * different program. Every measured source is written here, so "the best
+   * program" is always a file.
+   *
+   * Absent on rows written under schema 1.
+   */
+  sourcePath?: string;
   /** SHA-256 of the relocated words. Equal hashes are one experiment. */
   outputHash: string;
   /** The staged residual key: [control-flow, population, schedule, allocation]. */
   key: number[];
+  /**
+   * Did the candidate object reproduce the target bytes?
+   *
+   * Recorded separately from the key because the two really can disagree. A
+   * variant can reach `[0,0,0,0]` — the reversal finds no population,
+   * schedule or allocation residual — while one word still differs, because
+   * the objective is derived from waypoint comparisons and a commutative
+   * operand order is invisible at every waypoint. Without this field the
+   * ledger's best row is a program that does not match, and everything that
+   * ranks against it is ranking against a false ceiling.
+   *
+   * Absent on rows written under schema 1.
+   */
+  exact?: boolean;
   matchedWords: number;
   totalWords: number;
   verdict: string;
+  /**
+   * Residual signatures of this measurement's open blocks.
+   *
+   * A signature is the shape of a block's residual independent of where it
+   * sits, so two blocks with the same one are the same problem written twice.
+   * The objective already computes it and already groups by it — within one
+   * function. Persisting it is what lets the grouping cross function
+   * boundaries, which is where the payoff is: `ovl_10_func_800BADA4` and
+   * `ovl_10_func_800BB264` carried the byte-identical signature
+   * `addiu <reg>,<reg>,-17844@4|addiu <reg>,<reg>,1@4`, were worked thirty
+   * minutes apart by the same loop for eighty-six minutes between them, and
+   * were closed by the same one-line edit.
+   *
+   * Absent on rows written under schema 1.
+   */
+  signatures?: string[];
   /** One line from the author on what was being tested. Optional but wanted. */
   note?: string;
 }
 
 function ledgerPath(functionName: string): string {
   return join(ROOT, "build/experimentLedger", `${functionName}.jsonl`);
+}
+
+/** Where a measured source is preserved, keyed by its own hash. */
+export function variantPath(functionName: string, sourceHash: string): string {
+  return join(ROOT, "build/experimentLedger/sources", functionName, `${sourceHash.slice(0, 16)}.c`);
+}
+
+/**
+ * Preserve a measured source and return its project-relative path.
+ *
+ * Content-addressed, so re-measuring the same text is a no-op and two
+ * different labels for one program collapse to one file.
+ */
+export function preserveVariant(functionName: string, sourceHash: string, sourceText: string): string {
+  const path = variantPath(functionName, sourceHash);
+  if (!existsSync(path)) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, sourceText);
+  }
+  return projectPath(path);
+}
+
+/** The preserved text of a ledger row, when it has one. */
+export function variantText(entry: LedgerEntry): string | undefined {
+  const path = entry.sourcePath ? join(ROOT, entry.sourcePath) : variantPath(entry.function, entry.sourceHash);
+  return existsSync(path) ? readFileSync(path, "utf8") : undefined;
 }
 
 export function readLedger(functionName: string): LedgerEntry[] {
@@ -74,6 +153,16 @@ export interface RecordInput {
   functionName: string;
   source: string;
   sourceText: string;
+  /**
+   * The object that was scored, when the caller has it.
+   *
+   * Supplied so the ledger can refuse to record a measurement of an
+   * `INCLUDE_ASM` stub. The object answers that on its own — it defines
+   * `<name>.NON_MATCHING` — which is why the ledger asks it rather than parsing
+   * the source: this module is loaded by the autonomous loop's extension, which
+   * deliberately keeps the C grammar out of process.
+   */
+  objectPath?: string;
   outputHash: string;
   objective: ResidualObjective;
   matchedWords: number;
@@ -93,23 +182,53 @@ export interface RecordInput {
  * like a new idea from the source side.
  */
 export function recordExperiment(input: RecordInput): LedgerEntry | undefined {
+  /* A stub is the assembly measured against itself. Recording it writes a
+     perfect score no source can ever beat, and `best()` then reports the
+     original disassembly as the best program — after which every later
+     measurement is "no improvement" and the stall counter fires forever. This
+     is the last gate before that row reaches the file. */
+  if (input.objectPath && objectHandsSymbolToAssembler(input.objectPath, input.functionName)) {
+    throw new StubMeasurementError(input.functionName, input.source);
+  }
   const sourceHash = sha256(input.sourceText);
+  /* Preserved even when the row is a duplicate: the text is what makes the
+     ledger's verdict reproducible, and a re-measurement of a source whose file
+     was cleaned away is exactly when it is missing. */
+  const preserved = preserveVariant(input.functionName, sourceHash, input.sourceText);
   if (readLedger(input.functionName).some((entry) =>
     entry.sourceHash === sourceHash && entry.outputHash === input.outputHash)) {
     return undefined;
   }
-  return appendExperiment(input, sourceHash);
+  return appendExperiment(input, sourceHash, preserved);
 }
 
-function appendExperiment(input: RecordInput, sourceHash: string): LedgerEntry {
+export class StubMeasurementError extends Error {
+  constructor(readonly functionName: string, readonly source: string) {
+    super(
+      `${functionName}: refusing to record a measurement of ${projectPath(source)} — it hands ` +
+        "the function to the assembler, so the words scored are the original's own.",
+    );
+    this.name = "StubMeasurementError";
+  }
+}
+
+function appendExperiment(input: RecordInput, sourceHash: string, sourcePath: string): LedgerEntry {
   const entry: LedgerEntry = {
     schemaVersion: LEDGER_SCHEMA_VERSION,
     function: input.functionName,
     at: input.at,
     source: projectPath(input.source),
     sourceHash,
+    sourcePath,
     outputHash: input.outputHash,
     key: input.objective.key,
+    exact: input.objective.exact === true,
+    /* Only the blocks that are actually open, and only those the residual can
+       read: a blind block's shape is an artifact of an unresolved relocation,
+       so indexing it would advertise a shared problem that is not shared. */
+    signatures: [...new Set((input.objective.blocks ?? [])
+      .filter((block) => block.total > 0 && !block.blind && block.signature)
+      .map((block) => block.signature))],
     matchedWords: input.matchedWords,
     totalWords: input.totalWords,
     verdict: input.verdict,
@@ -180,8 +299,29 @@ export function priorMeasurement(
   return result;
 }
 
-function best(entries: LedgerEntry[]): LedgerEntry | undefined {
+/**
+ * The best row, with `exact` outranking every key.
+ *
+ * A row is "unproven zero" when its key is all zeros and it is not exact: the
+ * reversal found no residual and the bytes still differ. Ranked by key alone
+ * such a row is unbeatable, so every later measurement reads as no
+ * improvement, the stall counter runs away, and the search is told to stop
+ * re-spelling a function it has not solved. Rank those rows by their word
+ * count instead, which is the only signal left in them.
+ */
+export function isUnprovenZero(entry: LedgerEntry): boolean {
+  return entry.exact !== true && entry.key.every((term) => term === 0);
+}
+
+export function best(entries: LedgerEntry[]): LedgerEntry | undefined {
   return [...entries].sort((left, right) => {
+    if ((left.exact === true) !== (right.exact === true)) return left.exact === true ? -1 : 1;
+    const leftZero = isUnprovenZero(left);
+    const rightZero = isUnprovenZero(right);
+    if (leftZero !== rightZero) return leftZero ? 1 : -1;
+    if (leftZero && rightZero) {
+      return (right.matchedWords - right.totalWords) - (left.matchedWords - left.totalWords);
+    }
     for (let index = 0; index < Math.max(left.key.length, right.key.length); index++) {
       const difference = (left.key[index] ?? 0) - (right.key[index] ?? 0);
       if (difference !== 0) return difference;
@@ -191,8 +331,12 @@ function best(entries: LedgerEntry[]): LedgerEntry | undefined {
 }
 
 export function renderLedger(functionName: string, entries: LedgerEntry[]): string {
+  /* The closed directions come first because they are the expensive knowledge:
+     a measurement costs seconds to repeat, an UNSAT costs minutes. */
+  const closed = renderClosed(functionName);
+  const head = closed ? `${closed}\n\n` : "";
   if (entries.length === 0) {
-    return `experiment ledger: ${functionName}\n\n  no measurements recorded yet`;
+    return `${head}experiment ledger: ${functionName}\n\n  no measurements recorded yet`;
   }
 
   const distinct = new Map<string, LedgerEntry[]>();
@@ -203,6 +347,7 @@ export function renderLedger(functionName: string, entries: LedgerEntry[]): stri
   }
 
   const lines = [
+    ...(closed ? [closed, ""] : []),
     `experiment ledger: ${functionName}`,
     "",
     `  ${entries.length} measurement(s), ${distinct.size} distinct compiled output(s)`,
@@ -210,7 +355,8 @@ export function renderLedger(functionName: string, entries: LedgerEntry[]): stri
 
   const winner = best(entries);
   if (winner) {
-    lines.push(`  best key so far: [${winner.key.join(", ")}] from ${winner.source} (${winner.matchedWords}/${winner.totalWords})`);
+    const mark = winner.exact === true ? " EXACT" : isUnprovenZero(winner) ? "  (zero residual, bytes still differ)" : "";
+    lines.push(`  best key so far: [${winner.key.join(", ")}] from ${winner.source} (${winner.matchedWords}/${winner.totalWords})${mark}`);
   }
 
   const repeats = [...distinct.values()].filter((group) => group.length > 1);
@@ -245,7 +391,7 @@ if (isCLI) {
   const functionName = normalizeFunctionName(name);
   const entries = readLedger(functionName);
   if (args.includes("--json")) {
-    console.log(JSON.stringify({ function: functionName, entries }, null, 2));
+    console.log(JSON.stringify({ function: functionName, entries, closed: readClosedRows(functionName) }, null, 2));
   } else {
     console.log(renderLedger(functionName, entries));
   }

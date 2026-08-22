@@ -45,6 +45,22 @@ export interface BlockResidual {
   coalescing: number;
   /** Transpositions excluded as the chain's own ambiguity, for the audit trail. */
   suppressed: number;
+  /**
+   * Does this block contain a word the oracle could not decide?
+   *
+   * An unresolvable relocation lifts as a shape the target's own word does not
+   * have, so the block's population comparison fails on an instruction that
+   * may well be right. Everything downstream of that — the pairing, the
+   * transposition count, the webs — is then computed against a stream that is
+   * misaligned for a reason that has nothing to do with the source. Counting
+   * any of it produces a number that points a search at code that is already
+   * correct, which is exactly what happened to `ovl_10_func_800BA394`: two
+   * byte-identical blocks were reported as the population defect to fix while
+   * the one real residual, thirty blocks later, was declared unreadable.
+   *
+   * A blind block's terms are reported but excluded from the key.
+   */
+  blind: boolean;
   total: number;
   /**
    * Shape of this block's residual, independent of where it sits.
@@ -89,6 +105,8 @@ export interface ResidualObjective {
    * and callers are told so rather than left to discover it.
    */
   degraded: boolean;
+  /** Blocks excluded from the key because they contain an undetermined word. */
+  blindBlocks: number[];
   reason?: string;
 }
 
@@ -107,6 +125,7 @@ export function residualObjective(
   candidate: MirProgram,
   exact: boolean,
   undetermined = 0,
+  blind: ReadonlySet<number> = new Set(),
 ): ResidualObjective {
   const controlFlow = Math.abs(target.blocks.length - candidate.blocks.length);
   const targetByIndex = new Map(target.insns.map((insn) => [insn.index, insn]));
@@ -145,6 +164,7 @@ export function residualObjective(
       allocation,
       coalescing,
       suppressed,
+      blind: blind.has(block.block),
       total: Math.max(0, population) + schedule + allocation + coalescing,
       signature,
     };
@@ -162,10 +182,13 @@ export function residualObjective(
   const unpairedCandidate = candidate.blocks.slice(comparison.blocks.length)
     .reduce((total, block) => total + block.insns.length, 0);
 
-  const population = blocks.reduce((total, block) => total + block.population, 0) +
+  /* Blind blocks are reported, never summed. A term that no source edit can
+     move is not a gradient; it is a constant the search would climb forever. */
+  const judged = blocks.filter((block) => !block.blind);
+  const population = judged.reduce((total, block) => total + block.population, 0) +
     unpairedTarget + unpairedCandidate;
-  const schedule = blocks.reduce((total, block) => total + block.schedule, 0);
-  const allocation = blocks.reduce((total, block) => total + block.allocation + block.coalescing, 0);
+  const schedule = judged.reduce((total, block) => total + block.schedule, 0);
+  const allocation = judged.reduce((total, block) => total + block.allocation + block.coalescing, 0);
 
   const objective: ResidualObjective = {
     functionName,
@@ -178,6 +201,7 @@ export function residualObjective(
     blocks,
     undetermined,
     degraded: controlFlow > 0,
+    blindBlocks: blocks.filter((block) => block.blind).map((block) => block.block),
   };
   if (controlFlow > 0) {
     objective.reason = `target has ${target.blocks.length} basic blocks, candidate has ${candidate.blocks.length}; per-block numbers do not name the same code`;
@@ -258,7 +282,10 @@ export interface BlockWorkItem {
  * the expensive block needs.
  */
 export function rankBlocks(objective: ResidualObjective): BlockWorkItem[] {
-  const open = objective.blocks.filter((block) => block.total > 0);
+  /* A blind block is never work: its residual is an artifact of a relocation
+     the oracle could not resolve, so no source edit closes it. Naming one as
+     NEXT sends the search to rewrite code that already matches. */
+  const open = objective.blocks.filter((block) => block.total > 0 && !block.blind);
   const bySignature = new Map<string, number[]>();
   for (const block of open) {
     if (!block.signature) continue;
@@ -297,7 +324,10 @@ export function rankBlocks(objective: ResidualObjective): BlockWorkItem[] {
 
 /** One line, for a table. */
 export function summarizeObjective(objective: ResidualObjective): string {
-  const undetermined = objective.undetermined > 0 ? ` +${objective.undetermined} undetermined` : "";
+  const undetermined = objective.undetermined > 0
+    ? ` +${objective.undetermined} undetermined${objective.blindBlocks.length > 0
+        ? ` (block ${objective.blindBlocks.join(", ")} unreadable)` : ""}`
+    : "";
   if (objective.exact) return `exact${undetermined}`;
   const terms: string[] = [];
   if (objective.controlFlow > 0) terms.push(`cfg ${objective.controlFlow}`);

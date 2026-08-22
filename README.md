@@ -73,8 +73,12 @@ The allowlist is `.pi/autodecomp.json`, key `sourcePolicy.allowlist`. Each
 entry is the audit trail for one construct. The gate refuses a construct that
 has no entry.
 
-One function is parked: `func_8001A870`. Three functions wait for a human
-decision. The notes are in `notes/human-needed-approvals/`.
+Fourteen functions are parked, each with a note in
+`notes/human-needed-approvals/` saying what is known and what is left.
+`run_output/autoloop/state.json` is the machine-readable list. A park is a
+suspended attempt with its evidence attached, never a verdict that the function
+is impossible: the two `ovl_10` parks are one instruction placement away, and
+the note for each names the mechanism and what has been ruled out.
 
 Read `notes/retros/2026-08-09-asm-folding-root-cause-retro.md` first if you
 continue this work. It explains why the project stopped, what restarted it,

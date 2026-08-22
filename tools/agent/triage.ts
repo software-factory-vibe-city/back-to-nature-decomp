@@ -77,6 +77,13 @@ import { readReport, targetHashOf, toolchainHash, type FlagProbeReport } from ".
 import { sha256 } from "./variant-lab/artifacts.js";
 import { compareInventories, renderReport } from "./inventory.js";
 import { BRANCH_MNEMONICS, defUse } from "./webAnalysis.js";
+import { reversePipeline } from "./pipeline-reversal/reverse.js";
+import type { MirProgram } from "./pipeline-reversal/types.js";
+import { tokensAt } from "./idiom-corpus/normalize.js";
+import { align } from "./idiom-corpus/align.js";
+import { IdiomIndex, loadCorpus } from "./idiom-corpus/corpus.js";
+import { fingerprintOf } from "./idiom-corpus/fingerprint.js";
+import { targetProgram } from "./idiomSearch.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -562,6 +569,191 @@ export function premiseSurvivalFrom(entries: LedgerEntry[]): Finding[] {
  * This runs before the residual is classified because a measurement taken
  * under a contradicted declaration is a measurement of a different program.
  */
+
+/**
+ * The function's own answer to its own question.
+ *
+ * The strongest signal available in `ovl_10_func_800BB264` was that two
+ * structurally identical loops in one file had different residuals: case 1's
+ * second loop indexed the global array directly and matched, while the first
+ * walked a hoisted base pointer and did not. The counter-example was eleven
+ * lines away in the same file, and no instrument looked for it. The loop spent
+ * thirty-four minutes and was parked.
+ *
+ * So: partition the blocks by residual state, and for every open block look for
+ * a *closed* block whose target instruction shapes are the same sequence. Where
+ * one exists, the source that produced the closed block is a proven spelling
+ * for that shape in this exact translation unit — same compiler invocation,
+ * same author, same file. Nothing else this project can offer is that specific.
+ *
+ * Shapes, not text: two loops over different arrays have different operands and
+ * the same shape, which is the whole point. A minimum length keeps a two-word
+ * epilogue from matching every other two-word epilogue in the function.
+ */
+const SELF_SIMILARITY_MIN_SHAPES = 4;
+/**
+ * How much of the shape sequence has to align for two blocks to be the same
+ * code written twice.
+ *
+ * Not equality. The two render loops in `ovl_10_func_800BB264` differ by one
+ * instruction — the second carries a `+0x20` the first does not — and the two
+ * loop bodies differ by one more. Requiring an identical sequence rejects
+ * exactly the pairs this detector exists to find. Requiring most of it, in
+ * order, accepts them and still rejects two unrelated four-instruction blocks
+ * that happen to share a `lui`/`lw` opening.
+ */
+const SELF_SIMILARITY_MIN_RATIO = 0.7;
+
+/**
+ * A block's instruction shapes, at the tier that makes two instances of one
+ * idiom compare equal.
+ *
+ * `MirInsn.shape` is the wrong key here on both counts: it masks every register
+ * to `<reg>`, losing the callee-saved-versus-scratch distinction that is often
+ * the whole residual, and it keeps every immediate literally, so the same loop
+ * over two different globals — `addiu <reg>,<reg>,-17844` against
+ * `addiu <reg>,<reg>,-18324` — reads as two different shapes and never
+ * matches. The corpus normalizer keeps the register class and buckets the
+ * immediate, which is exactly the pair of decisions this comparison needs.
+ */
+function blockShapes(program: MirProgram, block: number): string[] {
+  return tokensAt(program.insns.filter((insn) => insn.block === block), 0);
+}
+
+function blockVram(program: MirProgram, block: number): number | undefined {
+  return program.insns.find((insn) => insn.block === block)?.vram;
+}
+
+export /**
+ * The already-matched function whose original code looks like this one's.
+ *
+ * The cold-start half of the idiom corpus, run without being asked. Two of the
+ * four functions the overnight loop parked were closed by an idiom that was
+ * already proven in the tree — `ovl_10_func_800B9D24`, matched three hours
+ * earlier in the same directory, walks its array as `D_800BB99C[s0 + 1]` —
+ * and nothing surfaced it. The doctrine already told the agent to read its
+ * matched neighbours; this is the instrument that names which ones.
+ *
+ * Emitted for a stub as readily as for a draft: the query is the *target's*
+ * assembly, so it needs no C at all, which is exactly when it is worth most.
+ * Nothing is compiled — the corpus is lifted from the original bytes and
+ * cached, so a warm run is a few tens of milliseconds.
+ */
+const IDIOM_MIN_ALIGNED = 8;
+const IDIOM_MIN_REGION_RATIO = 0.6;
+
+export function detectIdiomPrecedent(name: string): Finding[] {
+  const program = targetProgram(name);
+  if (!program || program.insns.length < IDIOM_MIN_ALIGNED) return [];
+  let hits;
+  try {
+    const corpus = loadCorpus(targetProgram, { tier: 0, exclude: [name] });
+    if (corpus.included.length === 0) return [];
+    hits = new IdiomIndex(corpus).search(tokensAt(program.insns, 0), {
+      excludeFunction: name,
+      limit: 6,
+      queryFingerprint: fingerprintOf(name),
+    });
+  } catch {
+    return [];
+  }
+
+  /* A hit is worth reporting when it explains a real run of this function's
+     shapes and most of its own — a long query will always share a prologue
+     with something. */
+  const worthwhile = hits.filter(
+    (hit) => hit.common >= IDIOM_MIN_ALIGNED && hit.ratio >= IDIOM_MIN_REGION_RATIO,
+  );
+  if (worthwhile.length === 0) return [];
+
+  const seen = new Set<string>();
+  const evidence: string[] = [];
+  for (const hit of worthwhile) {
+    if (seen.has(hit.region.functionName)) continue;
+    seen.add(hit.region.functionName);
+    const where = hit.region.vram === undefined ? "" : ` at 0x${hit.region.vram.toString(16).toUpperCase()}`;
+    evidence.push(
+      `${hit.region.functionName} ${hit.region.kind} ${hit.region.block}${where} — ` +
+      `${hit.common} of its ${hit.region.tokens.length} shapes align in order (${hit.distance} toolchain)`,
+    );
+    if (seen.size >= 3) break;
+  }
+  evidence.push(
+    "These are already byte-exact. Read how they spell this shape before writing your own —",
+    "a proven idiom from this author beats any model of the compiler.",
+    `psx_idiom_search ${name} --source prints the top hit's C; add --block N once you have a residual.`,
+  );
+
+  return [{
+    detector: "idiom-precedent",
+    severity: "signal",
+    summary:
+      `${seen.size} already-matched function(s) contain runs of the same instruction shapes as this target. ` +
+      "Their C is a proven spelling for this shape in this codebase.",
+    evidence,
+    see: ["psx_idiom_search", "notes/file-groupings.md"],
+  }];
+}
+
+function detectSelfSimilarity(name: string, sourcePath: string): Finding[] {
+  let artifacts: ReturnType<typeof reversePipeline>;
+  try {
+    artifacts = reversePipeline({ functionName: name, source: sourcePath, replay: false });
+  } catch {
+    /* A stub, a compile error, or a function the reversal cannot lift. Every
+       one of those is another detector's finding, not this one's. */
+    return [];
+  }
+  const objective = artifacts.report.objective;
+  if (objective.exact) return [];
+
+  const target = artifacts.target.preDbr;
+  const open = objective.blocks.filter((block) => block.total > 0 && !block.blind);
+  const closed = objective.blocks.filter((block) => block.total === 0);
+  if (open.length === 0 || closed.length === 0) return [];
+
+  const closedShapes = closed
+    .map((block) => ({ block: block.block, shapes: blockShapes(target, block.block) }))
+    .filter((item) => item.shapes.length >= SELF_SIMILARITY_MIN_SHAPES);
+  if (closedShapes.length === 0) return [];
+
+  const findings: Finding[] = [];
+  for (const block of open) {
+    const shapes = blockShapes(target, block.block);
+    if (shapes.length < SELF_SIMILARITY_MIN_SHAPES) continue;
+    const twin = closedShapes
+      .map((item) => ({ ...item, alignment: align(shapes, item.shapes) }))
+      /* Both conditions. The ratio alone lets a four-instruction block qualify
+         on three aligned words, which is every prologue in the binary; the
+         absolute count alone lets a long block qualify on a short shared run. */
+      .filter((item) => item.alignment.ratio >= SELF_SIMILARITY_MIN_RATIO &&
+        item.alignment.common >= SELF_SIMILARITY_MIN_SHAPES)
+      .sort((left, right) => right.alignment.ratio - left.alignment.ratio)[0];
+    if (!twin) continue;
+    const here = blockVram(target, block.block);
+    const there = blockVram(target, twin.block);
+    const identical = twin.alignment.ratio === 1;
+    findings.push({
+      detector: "self-similarity",
+      severity: "signal",
+      summary:
+        `Block ${block.block} is open (population ${block.population}, schedule ${block.schedule}, ` +
+        `allocation ${block.allocation + block.coalescing}); block ${twin.block} is closed and ` +
+        `${identical ? "has the same target instruction shapes" : `aligns with it on ${twin.alignment.common} of ${Math.max(shapes.length, twin.shapes.length)} shapes`}. ` +
+        "The same code shape is already being produced correctly elsewhere in this function.",
+      evidence: [
+        `open   block ${block.block}${here === undefined ? "" : ` at 0x${here.toString(16).toUpperCase()}`} — ${shapes.join(" | ")}`,
+        `closed block ${twin.block}${there === undefined ? "" : ` at 0x${there.toString(16).toUpperCase()}`} — ${twin.shapes.join(" | ")}`,
+        "Find the two source regions that produced these and make the open one read like the closed one.",
+        "They differ in spelling, not in what they compute — that is what the aligned shapes mean.",
+        "This is the strongest evidence available: same compiler invocation, same file, same author.",
+      ],
+      see: ["psx_residual_objective", "psx_reverse_pipeline"],
+    });
+  }
+  return findings.slice(0, 3);
+}
+
 function detectCalleeTruth(name: string, sourcePath: string, scratch: string): Finding[] {
   let report: TruthReport;
   try {
@@ -1508,6 +1700,7 @@ function main(): void {
       findings.push(...arity);
       findings.push(...detectInventory(target, compiled));
       findings.push(...detectDeadAsm(compiled, srcText));
+      findings.push(...detectSelfSimilarity(name, resolveSource(name, srcOverride)));
     }
   }
 
@@ -1523,6 +1716,11 @@ function main(): void {
   findings.push(...detectFlagFingerprint(name, sourceState === "c" ? srcText : undefined));
   findings.push(...detectSearchDomain(name, sourceState === "c" ? srcText : undefined));
   findings.push(...detectPremiseSurvival(name));
+  /* Last because it is the most expensive on a cold cache, and unconditional
+     because it is the one detector that needs no source: the query is the
+     target's own assembly, which is exactly what a stub has and nothing else
+     does. */
+  findings.push(...detectIdiomPrecedent(name));
   rmSync(scratch, { recursive: true, force: true });
 
   if (json) {
