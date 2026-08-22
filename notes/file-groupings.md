@@ -202,6 +202,13 @@ Adjacent confirmed sound-group callee: func_80020414 (m) — stop the
 sequence in track slot (arg0, arg1) via SsSeqStop and mark it empty; sits
 inside the sound-init/control span but reaches D_8006C088/D_8006BFC8
 absolutely, so same-TU membership there is likewise unproven.
+New (2026-08-21): func_800201C4 (m, 0x800201C4–0x8002029B) and func_8002029C
+(m, 0x8002029C) are consecutive in link order with no gap, share the
+D_8006C088/D_8006BFC8 score-table cluster, and use the identical
+SsSeqSetVol((s16)(&D_8006BFC8)[arg0], (s16)argX, (s16)argX) idiom (voice-ID
+load + explicit s16 casts), strengthening the score-table sequencer TU
+hypothesis; both still reach the tables absolutely, so TU membership remains
+unproven.
 
 ## sprite frame setup and OT — 0x8001AFE0–0x8001B118 (confidence: medium)
 
