@@ -179,9 +179,14 @@ Members (address order):
 - ovl_10_func_800B92AC (m, matched this session) — prints the "no data
   disp" status line via `FntPrint(&D_800B814C)`; byte-exact clean C,
   baseline flags
-- ovl_10_func_800B92D0 (s) — status printer: references `D_800B8194`,
-  `D_800B81B4`, `D_800B81D8`, `D_800B81E4`, `D_800B81F0` (current-app,
-  PDA-flush, SUPERIOR/INFERIOR, sound/infred control lines)
+- ovl_10_func_800B92D0 (m, matched this session) — status printer: references
+  `D_800B8194`, `D_800B81B4`, `D_800B81D8`, `D_800B81E4`, `D_800B81F0`
+  (current-app, PDA-flush, SUPERIOR/INFERIOR, sound/infred control lines),
+  `D_800B822C` (extended pool), indexed reads of `D_800BB7C8`/`D_800BB7D8`,
+  and mcard buffer `D_800BB8DC`; byte-exact twin structure of
+  `ovl_10_func_800B94A4`, slot-branch on `arg0 == 2` calling
+  `McxAllInfo(0, &D_800BB8DC)` (`D_800BB8DC` abuts `D_800BB8F0`/`D_800BB8FC`
+  in the same data region)
 - ovl_10_func_800B94A4 (m, matched this session) — slot-2 mcard-status
   wrapper dispatched by `ovl_10_func_800B9108`: if slot == 2,
   `McxGetTime(0, &D_800BB8F4)`, else prints three status lines from
