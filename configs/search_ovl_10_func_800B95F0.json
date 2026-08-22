@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_10_func_800B95F0",
+  "baseSourcePath": "src/overlays/ovl_10/ovl_10_func_800B95F0.c",
+  "analysisPath": "build/targetSchedule/ovl_10_func_800B95F0/analysis.json",
+  "maxVariants": 500,
+  "constraints": {
+    "forbidInstructionCountGrowth": false,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "scheduleComparison": {
+    "enabled": true,
+    "analyze": "traced-classes",
+    "maxInterventions": 8
+  },
+  "traceAllPreprocessed": true,
+  "dimensions": [
+    {
+      "id": "mask-form",
+      "mechanism": "single-vs-multi-set",
+      "expectedPass": "lreg",
+      "invariants": [
+        "D_800BB810[4] is compared with 0x90 and 0xF0 under the >= 0x81 guard",
+        "the mask value for the else path is (D_800BB810[4] & 0x7F), overridden to 0x80 when equal to 0xF0",
+        "D_800BB810[4] is stored once per execution of the block"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "canonical temp double-set", "invariants": [] },
+        {
+          "id": "two-store",
+          "expectedEffect": "mask stored then override stored (two stores)",
+          "edits": [
+            {
+              "find": "            } else {\n                s32 t = D_800BB810[4] & 0x7F;\n                if (D_800BB810[4] == 0xF0) {\n                    t = 0x80;\n                }\n                D_800BB810[4] = t;\n            }",
+              "occurrences": 1,
+              "replace": "            } else {\n                D_800BB810[4] = D_800BB810[4] & 0x7F;\n                if (D_800BB810[4] == 0xF0) {\n                    D_800BB810[4] = 0x80;\n                }\n            }"
+            }
+          ],
+          "invariants": []
+        },
+        {
+          "id": "ternary-store",
+          "expectedEffect": "ternary expression in a single store",
+          "edits": [
+            {
+              "find": "            } else {\n                s32 t = D_800BB810[4] & 0x7F;\n                if (D_800BB810[4] == 0xF0) {\n                    t = 0x80;\n                }\n                D_800BB810[4] = t;\n            }",
+              "occurrences": 1,
+              "replace": "            } else {\n                D_800BB810[4] = (D_800BB810[4] == 0xF0) ? 0x80 : (D_800BB810[4] & 0x7F);\n            }"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "size-value-web",
+      "mechanism": "fresh-vs-reused-web",
+      "expectedPass": "lreg",
+      "invariants": [
+        "exactly one load of D_800BB810[4] feeds the guard, both compares, and the mask"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "array value read at each site, CSE keeps one load", "invariants": [] },
+        {
+          "id": "local",
+          "expectedEffect": "named local carries the size value to all four uses",
+          "edits": [
+            {
+              "find": "        if (D_800BB810[4] >= 0x81U) {\n            if (D_800BB810[4] == 0x90) {\n                D_800BB810[4] = 0;\n            } else {\n                s32 t = D_800BB810[4] & 0x7F;\n                if (D_800BB810[4] == 0xF0) {\n                    t = 0x80;\n                }\n                D_800BB810[4] = t;\n            }\n        }",
+              "occurrences": 1,
+              "replace": "        {\n            u32 s = D_800BB810[4];\n            if (s >= 0x81U) {\n                if (s == 0x90) {\n                    D_800BB810[4] = 0;\n                } else {\n                    s32 t = s & 0x7F;\n                    if (s == 0xF0) {\n                        t = 0x80;\n                    }\n                    D_800BB810[4] = t;\n                }\n            }\n        }"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "a20-birth",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "lreg",
+      "invariants": [
+        "the arg1 & 0x20 button handler still runs on the arg1 & 0x20 set path after the size rollover",
+        "the arg1 & 0x20 value is computed at least once near the test"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "arg1 & 0x20 recomputed at its test", "invariants": [] },
+        {
+          "id": "precomputed",
+          "expectedEffect": "arg1 & 0x20 computed once at the top of case 0 and reused by the later test",
+          "edits": [
+            {
+              "find": "        D_800BB990 = arg1 & 0xA000;\n        if (arg1 & 0x10) {",
+              "occurrences": 1,
+              "replace": "        D_800BB990 = arg1 & 0xA000;\n        {\n            s32 b20 = arg1 & 0x20;\n            (void)b20;\n        }\n        if (arg1 & 0x10) {"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "guard-literal",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "lreg",
+      "invariants": [
+        "the rollover guard is true exactly when D_800BB810[4] >= 0x81"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": ">= 0x81U", "invariants": [] },
+        {
+          "id": "gt-0x80",
+          "expectedEffect": "> 0x80U guard",
+          "edits": [
+            {
+              "find": "        if (D_800BB810[4] >= 0x81U) {\n            if (D_800BB810[4] == 0x90) {",
+              "occurrences": 1,
+              "replace": "        if (D_800BB810[4] > 0x80U) {\n            if (D_800BB810[4] == 0x90) {"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "id": "off-birth",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "sched2",
+      "invariants": [
+        "row and off both start at 0 before the case-3 loop"
+      ],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "row = 0; off = 0;", "invariants": [] },
+        {
+          "id": "off-first",
+          "expectedEffect": "off = 0; row = 0;",
+          "edits": [
+            {
+              "find": "    case 3:\n        row = 0;\n        off = 0;",
+              "occurrences": 1,
+              "replace": "    case 3:\n        off = 0;\n        row = 0;"
+            }
+          ],
+          "invariants": []
+        }
+      ]
+    }
+  ]
+}

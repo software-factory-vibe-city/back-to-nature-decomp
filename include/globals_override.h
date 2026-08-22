@@ -680,4 +680,35 @@ typedef struct {
 } struct_800B8508;
 extern struct_800B8508 D_800B8508[];
 
+/* D_800B7EE8..D_800BB990 - ovl_10 memory-card editor globals
+ * (Obj\gf_mcard.bin), used by ovl_10_func_800B95F0 and its matched siblings
+ * (ovl_10_func_800B9AA8, ovl_10_func_800B9D24, ...). Absolute-addressed
+ * (ovl_10 data, -G0); not classified in globals.h. Types derived from the
+ * ovl_10_func_800B95F0 target: the format/heading strings are char[],
+ * D_800BB810[5] is the 5-word save-slot table (words at 0/4/8/C/0x10 read
+ * with lw and packed for McxGetMem), D_800BB90C is the card buffer, and the
+ * D_800BB82X/D_800BB98C/D_800BB990 are the editor counters/predicate state.
+ * The matched neighbor ovl_10_func_800B9D24 declares D_800B8328/D_800B8330/
+ * D_800B8358/D_800B8360 locally with the same char[] type. */
+extern char D_800B7EE8[];
+extern char D_800B8280[];
+extern char D_800B82AC[];
+extern char D_800B82DC[];
+extern char D_800B830C[];
+extern char D_800B8328[];
+extern char D_800B8330[];
+extern char D_800B8340[];
+extern char D_800B8358[];
+extern char D_800B8360[];
+extern char D_800B8368[];
+extern char D_800B8370[];
+extern unsigned int D_800BB810[5];
+extern unsigned char D_800BB90C[];
+extern s32 D_800BB824;
+extern s32 D_800BB828;
+extern s32 D_800BB82C;
+extern s32 D_800BB830;
+extern s32 D_800BB98C;
+extern s32 D_800BB990;
+
 #endif /* GLOBALS_OVERRIDE_H */

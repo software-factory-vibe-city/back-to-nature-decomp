@@ -1,17 +1,36 @@
-#include "common.h"
+# ovl_10_func_800B95F0 — human decision needed
 
-INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800B95F0", ovl_10_func_800B95F0);
+- **Parked:** 2026-08-22T11:37:54.128Z
+- **Reason:** escalation-exhausted
+- **Escalation reached:** deepseek-v4-flash
+- **Source:** `src/overlays/ovl_10/ovl_10_func_800B95F0.c` (INCLUDE_ASM restored)
 
+## What the loop needs
 
-/* PARKED by /auto_decompilation_loop on 2026-08-22T11:37:54.128Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_10_func_800B95F0.md
- */
+Every tier on the escalation ladder returned without a byte-exact match. The function
+needs either a new structural hypothesis or a policy decision that the ladder cannot
+make on its own. The preserved attempt and the oracle report below are the starting
+point.
 
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
+## Policy findings
+
+- none recorded
+
+## Last oracle report
+
+```
+Oracle: ovl_10_func_800B95F0 verdict MISMATCH — 295/302 words (97.7%).
+Residual (steer by this, not the word count): control-flow 0, population 2, schedule 1, allocation 2.
+The two programs do not contain the same instructions, so no allocation or scheduling reading applies yet — fix the semantics first.
+Next block: 27 (0x800B97A8) — population 1, schedule 0, allocation 0. the instruction populations differ here; nothing below can be read until they agree
+`psx_reverse_pipeline` gives the decisions, their source levers and the mechanism sheet to load; `psx_residual_objective` with a source ranks candidate edits and records them.
+
+STALLED: 3 distinct measurements since the residual last improved on [0, 2, 1, 2]. The axis is exhausted, not the function — stop re-spelling it and bring heavier evidence. Audit the premises first, because everything else is conditioned on them and cannot see them: psx_callee_truth confronts every callee declaration in scope with the vendored SDK headers and the callees' own code, psx_sdk_idioms does the same for operation boundaries. A wrong declaration adds call setup no rewrite of this body can remove, and every measurement taken under it scored a different program. Then: enumerate the source space (psx_search_residual_source_space, psx_search_source_shapes), solve for the compiler state instead of modelling it (psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), or read the deciding pass directly (psx_compiler_source). A solver result is a specification for a source shape, and an UNSAT is a real finding that closes a direction. Record what each one closed. When a search reports no exact candidate, that is not the end of its output: read the per-class residual axes and the runs each class moved, and take the next experiment from the axis that moved rather than from the match count. Before trusting any search verdict, check its caveats for constructs the grammar refused, its axis-effect block for axes that are counted but inert, and its coverage — a --derive-only run sampled, and a sample supports no statement about the domain.
+```
+
+## Preserved attempt
+
+```c
 #include "common.h"
 
 int FntPrint();
@@ -135,4 +154,4 @@ int ovl_10_func_800B95F0(int arg0, int arg1)
         return 0;
     }
 }
-#endif
+```
