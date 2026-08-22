@@ -971,9 +971,13 @@ POLY_F4 + DR_MODE packet pair against the sibling buffer pair
 D_8005E930/D_8005E960 (func_80012D30 uses D_8005E8E0/D_8005E910), indexed
 by the same D_8005E3A4 and linked through D_8005E3C0 read absolutely. Same
 SDK idiom cluster plus exact adjacency; no shared gp-rel cluster of its own. func_80011370 calls func_800132B8, so this is a different
-TU. Intermediate func_800132F0 and func_80013328 are stubs; GetFlag8005E274,
-SetVal8005E27C and func_80012A68 are matched leaf helpers in the same address
-span but with no cluster evidence, membership unverified.
+TU. func_80013328 (m, 2026-08) defines the same shared six-global GP-relative
+cluster (plus D_8005E28C, matching func_80012D30's set), uses the same
+constant-through-reused-`t` idiom as func_8001328C, and calls SetVal8005E278 /
+SetVal8005E27C directly, so it is a member of the game-state init cluster;
+func_800132F0 remains a stub. GetFlag8005E274 and func_80012A68 are matched
+leaf helpers in the same address span but with no cluster evidence, membership
+unverified.
 
 Members (address order):
 - func_80012D30 (m) — render-context transition helper: game-state mode/counter
@@ -984,7 +988,10 @@ Members (address order):
 - func_800132B8 (m) — game-state initializer (sets mode, counters, sizes)
 - func_8001328C (m) — game-state initializer, constant-argument twin of func_800132B8 (mode=1, counter limit 0x3C, resets counters)
 - func_800132F0 (s)(?) — stub; intermediate
-- func_80013328 (s)(?) — stub; intermediate
+- func_80013328 (m, 2026-08) — game-state initializer: mode 3, clamps target
+  D_8005E3CE to 0x1F (arg0+1 capped via local `t`), resets counters, sets
+  D_8005E28C/D_8005E298, resets display via SetVal8005E278/SetVal8005E27C,
+  D_8005E2A0=2, D_8005E3D0=0; matches func_8001328C's setter shape
 - func_80013394 (m) — mode-dispatch getter (reads D_8005E294, returns predicate on D_8005E3CC/D_8005E3CE)
 - func_80013400 (m, 2026-08-21) — mode-dispatch query: `switch (D_8005E294)` → 1 / 2 / 0; tail return-0 block was mis-split as "func_80013430", now merged
 - SetVal8005E29C (m) — setter for D_8005E29C (shared with func_80012D30)
