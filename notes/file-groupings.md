@@ -164,7 +164,8 @@ below.
 
 Fingerprints:
 - internal call graph: func_8001F774 → func_8001F278; func_8001F8A4 →
-  func_8001F774; func_8001FA0C → func_8001F774
+  func_8001F774; func_8001FA0C → func_8001F774; func_8001F664 →
+  func_8001FAB4 (new 2026-08-21)
 - address adjacency: callers/callee are contiguous; link order agrees
 - shared caller idiom (new 2026-08-21): func_8001FA0C and func_8001F8A4 both
   consume the same GradientCmd struct (include/game_types.h — field_0 source
@@ -183,6 +184,15 @@ Members (address order):
   field_C..field_12 into a RECT, allocates a packet via func_8001E0B8(0, 0x44),
   SetDrawLoad(packet, &rect), then func_8001F774(packet + 0x10, field_0,
   field_0 + 0x20, arg1, field_8); byte-exact clean C, baseline flags
+- func_8001F664 (m, 2026-08-21) — StoreImage RECT helper: writes a status
+  struct (arg0), then calls func_8001FAB4, DrawSync(0), and two StoreImage
+  calls of a 16×1 RECT at arg1 and arg1+0x20 with the UI y/lib offset added;
+  membership uncertain(?) — role mismatches the gradient idiom, but it ends
+  exactly where func_8001F774 begins (adjacent to two members) and its only
+  callee is func_8001FAB4
+- func_8001FAB4 (s) — stub returning 0; sole callee of func_8001F664;
+  directly follows matched member func_8001FA0C in the link order (low
+  confidence)
 
 ## sound-sequencer slot wrappers — 0x8001FAE8–0x8001FCDC (confidence: low)
 
