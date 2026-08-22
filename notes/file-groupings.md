@@ -795,14 +795,19 @@ Members (address order):
   func_800153BC (POLY_G4)
 - func_80015074 (m) — flat-colour quad (POLY_F4) drawer via
   func_800154CC (code 0x28/0x2A); same skeleton, matches the 1:1 pairing
+- func_800151B4 (m) — semitransparent flat-colour quad drawer via
+  func_80015644 (the POLY_F4 semitransparency wrapper), same skeleton
+  (func_80011F5C + one initializer, identical halfword-to-signed
+  extraction, same saved-register set), adds an 8th arg7 blend argument
 
 Matched func_80015074 carries the shared fingerprint (func_80011F5C + one
 initializer, identical halfword-to-signed extraction, same saved-register
-set) that the trio above had, so it joins the drawer group. func_80015114
-(same skeleton, TILE via func_80015594) and func_800151B4 sit in between
-and are still unexamined; the drawer entry and the GPU-primitive entry
-below remain separate lines but func_800154CC is now the demonstrated
-bridge.
+set) that the trio above had, so it joins the drawer group. func_800151B4
+now matches the same skeleton via func_80015644 (the demonstrated bridge to
+func_800154CC), so it joins the drawer group too; func_80015114 (same
+skeleton, TILE via func_80015594) is the remaining unexamined member. The
+drawer entry and the GPU-primitive entry below remain separate lines but
+func_800154CC and func_80015644 are the demonstrated bridges.
 
 ## GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)
 
