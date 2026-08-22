@@ -189,8 +189,15 @@ Members (address order):
 - ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
   wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
   return 0`
-- ovl_10_func_800BA2A0 (s) — references `D_800B81D8`/`D_800B81E4`
-  (SUPERIOR/INFERIOR)
+- ovl_10_func_800BA2A0 (m, matched 2026-08-22) — mcard PDA-flush/control
+  wrapper: arg0==0 sets `D_800BB9B4` from arg1 flags (0x20→1, 0x40→0);
+  arg0==1 prints the flush-status lines (`FntPrint(&D_800B8598)` and
+  `FntPrint(&D_800B85C4)` then `FntPrint(&D_800B85F0, D_800BB9B4 ?
+  &D_800B81D8 : &D_800B81E4)` — SUPERIOR/INFERIOR ternary); arg0==2 →
+  `McxFlashAcs(0, D_800BB9B4)` (returns its result); arg0==3 →
+  `ovl_10_func_800B92AC(); return 0` — byte-exact twin structure of
+  `ovl_10_func_800BACBC`, with adjacent status word `D_800BB9B4` played
+  exactly as 800BACBC plays `D_800BB8A0`; baseline flags
 - ovl_10_func_800BACBC (m, matched this session, baseline flags) — mcard
   status/LED control wrapper: arg0==1 prints a status line
   (`FntPrint(&D_800B878C)` then `FntPrint(&D_800B87AC,
