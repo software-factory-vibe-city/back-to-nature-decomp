@@ -1257,6 +1257,10 @@ Members (address order):
 - func_80014B44 (s) — boot CD loader: D_8005E2B0, D_8005E3F8, D_8005E3FC,
   D_8005E400, D_8005E40C; calls func_80014854; called by __start (its globals are
   a subset of func_80014854's TU-owned cluster ⇒ likely same TU)
+- func_80014BCC (m) — CD read retry driver: owns the cluster D_8005E3F0,
+  D_8005E428, D_8005E430; loop guard `if (arg3 != -1)` wrapping the
+  do-while CdControl(0xE,…) / VSync / CdRead / CdReadSync retry is the
+  func_80014988 idiom
 - func_80014CBC (m) — CD sector reader with retry: owns D_8005E3F0, D_8005E410,
   D_8005E428, D_8005E430, D_8005E2B4 (gp-rel, tentative defs merged via -fcommon
   with the func_80014854/80014988 cluster); reads D_80048B1C (stride 0x28, loc at
