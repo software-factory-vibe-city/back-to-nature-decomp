@@ -1197,6 +1197,9 @@ tentative defs merge via -fcommon regardless. Members:
   800E6AB0, 800FFF7C, 8011F608)
 - func_80021CD8 (m) — sets D_8005E324 = 1, seeks CD position via
   CdIntToPos/CdControl for a track from D_80049A80
+- func_80021B90 (m, this session) — CD-audio track play: mutes serial and
+  CdFlush, then seeks via CdControlB to the D_80049A80[arg0] entry, filling
+  the D_8005E324..D_8005E59C CD state via D_8006C7D8/CdPosToInt
 
 ## sound volume/pan fade state — D_80061F08 cluster, 0x8001FCE4–0x8001FE6C (confidence: medium)
 

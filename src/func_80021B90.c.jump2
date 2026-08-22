@@ -1,0 +1,251 @@
+
+;; Function func_80021B90
+
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 90 0 NOTE_INSN_BLOCK_BEG)
+
+;; Start of basic block 0, registers live: 29 [$sp]
+(note 90 6 102 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(insn/f 102 90 104 (set (reg:SI 29 sp)
+        (minus:SI (reg:SI 29 sp)
+            (const_int 24 [0x18]))) 27 {subsi3_internal} (nil)
+    (nil))
+
+(insn/f 104 102 106 (set (mem/u:SI (plus:SI (reg:SI 29 sp)
+                (const_int 20 [0x14])) 0)
+        (reg:SI 31 ra)) 236 {movsi_internal2} (insn_list/j/c 102 (nil))
+    (nil))
+
+(insn/f 106 104 107 (set (mem/u:SI (plus:SI (reg:SI 29 sp)
+                (const_int 16 [0x10])) 0)
+        (reg:SI 16 s0)) 236 {movsi_internal2} (insn_list/j/c 102 (nil))
+    (nil))
+
+(note 107 106 13 "" NOTE_INSN_PROLOGUE_END)
+
+(call_insn 13 107 16 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("CdFlush")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) 468 {call_value_internal1} (insn_list/j/c:REG_DEP_ANTI 102 (insn_list/j/c:REG_DEP_ANTI 104 (insn_list/j/c:REG_DEP_ANTI 106 (nil))))
+    (expr_list:REG_UNUSED (reg:SI 2 v0)
+        (expr_list:REG_UNUSED (reg:SI 31 ra)
+            (nil)))
+    (nil))
+
+(call_insn 16 13 19 (parallel[ 
+            (call (mem:SI (symbol_ref:SI ("func_80021B20")) 0)
+                (const_int 16 [0x10]))
+            (clobber (reg:SI 31 ra))
+        ] ) 459 {call_internal1} (insn_list/j/c:REG_DEP_ANTI 13 (nil))
+    (expr_list:REG_UNUSED (reg:SI 31 ra)
+        (nil))
+    (nil))
+
+(insn 19 16 21 (set (reg:SI 4 a0)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (insn_list/j/c:REG_DEP_ANTI 16 (nil))
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 21 19 23 (set (reg:SI 5 a1)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (insn_list/j/c:REG_DEP_ANTI 16 (nil))
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 23 21 25 (set (reg:SI 6 a2)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (insn_list/j/c:REG_DEP_ANTI 16 (nil))
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(call_insn 25 23 96 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("SsSetSerialVol")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) 468 {call_value_internal1} (insn_list/j/c 19 (insn_list/j/c 21 (insn_list/j/c 23 (insn_list/j/c:REG_DEP_ANTI 16 (insn_list/j/c 19 (insn_list/j/c 21 (insn_list/j/c 23 (nil))))))))
+    (expr_list:REG_DEAD (reg:SI 4 a0)
+        (expr_list:REG_DEAD (reg:SI 5 a1)
+            (expr_list:REG_DEAD (reg:SI 6 a2)
+                (expr_list:REG_UNUSED (reg:SI 2 v0)
+                    (expr_list:REG_UNUSED (reg:SI 31 ra)
+                        (nil))))))
+    (expr_list (use (reg:SI 6 a2))
+        (expr_list (use (reg:SI 5 a1))
+            (expr_list (use (reg:SI 4 a0))
+                (nil)))))
+
+(insn 96 25 29 (set (reg:SI 16 s0)
+        (const_int 1 [0x1])) 236 {movsi_internal2} (insn_list/j/c:REG_DEP_ANTI 25 (insn_list/j/c:REG_DEP_ANTI 106 (nil)))
+    (expr_list:REG_EQUIV (const_int 1 [0x1])
+        (nil)))
+
+(insn 29 96 36 (set (mem/f:SI (symbol_ref/v:SI ("D_8005E590")) 0)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (insn_list/j/c:REG_DEP_ANTI 25 (nil))
+    (nil))
+;; End of basic block 0
+
+(note 36 29 38 "" NOTE_INSN_LOOP_BEG)
+
+(note 38 36 39 "" NOTE_INSN_LOOP_CONT)
+
+;; Start of basic block 1, registers live: 16 [$16] 29 [$sp]
+(code_label 39 38 91 6 "" [num uses: 1])
+
+(note 91 39 49 [bb 1] NOTE_INSN_BASIC_BLOCK)
+
+(note 49 91 41 "" NOTE_INSN_DELETED)
+
+(insn 41 49 43 (set (reg:SI 4 a0)
+        (const_int 13 [0xd])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 13 [0xd])
+        (nil)))
+
+(insn 43 41 45 (set (reg:SI 5 a1)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 45 43 47 (set (reg:SI 6 a2)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(call_insn 47 45 52 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("CdControlB")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) 468 {call_value_internal1} (insn_list/j/c 41 (insn_list/j/c 43 (insn_list/j/c 45 (insn_list/j/c 41 (insn_list/j/c 43 (insn_list/j/c 45 (nil)))))))
+    (expr_list:REG_DEAD (reg:SI 4 a0)
+        (expr_list:REG_DEAD (reg:SI 5 a1)
+            (expr_list:REG_DEAD (reg:SI 6 a2)
+                (expr_list:REG_UNUSED (reg:SI 31 ra)
+                    (nil)))))
+    (expr_list (use (reg:SI 6 a2))
+        (expr_list (use (reg:SI 5 a1))
+            (expr_list (use (reg:SI 4 a0))
+                (nil)))))
+
+(jump_insn 52 47 56 (set (pc)
+        (if_then_else (ne:SI (reg:SI 2 v0)
+                (reg:SI 16 s0))
+            (label_ref 39)
+            (pc))) 344 {branch_equality} (insn_list/j/c 47 (insn_list/j/c 47 (nil)))
+    (expr_list:REG_DEAD (reg:SI 2 v0)
+        (nil)))
+;; End of basic block 1
+
+(note 56 52 97 "" NOTE_INSN_LOOP_END)
+
+;; Start of basic block 2, registers live: 29 [$sp]
+(note 97 56 94 [bb 2] NOTE_INSN_BASIC_BLOCK)
+
+(insn 94 97 63 (set (reg:SI 16 s0)
+        (const_int 1 [0x1])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUIV (const_int 1 [0x1])
+        (nil)))
+;; End of basic block 2
+
+(note 63 94 65 "" NOTE_INSN_LOOP_BEG)
+
+(note 65 63 66 "" NOTE_INSN_LOOP_CONT)
+
+;; Start of basic block 3, registers live: 16 [$16] 29 [$sp]
+(code_label 66 65 92 10 "" [num uses: 1])
+
+(note 92 66 76 [bb 3] NOTE_INSN_BASIC_BLOCK)
+
+(note 76 92 68 "" NOTE_INSN_DELETED)
+
+(insn 68 76 70 (set (reg:SI 4 a0)
+        (const_int 14 [0xe])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 14 [0xe])
+        (nil)))
+
+(insn 70 68 72 (set (reg:SI 5 a1)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 72 70 74 (set (reg:SI 6 a2)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(call_insn 74 72 79 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("CdControlB")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) 468 {call_value_internal1} (insn_list/j/c 68 (insn_list/j/c 70 (insn_list/j/c 72 (insn_list/j/c 68 (insn_list/j/c 70 (insn_list/j/c 72 (nil)))))))
+    (expr_list:REG_DEAD (reg:SI 4 a0)
+        (expr_list:REG_DEAD (reg:SI 5 a1)
+            (expr_list:REG_DEAD (reg:SI 6 a2)
+                (expr_list:REG_UNUSED (reg:SI 31 ra)
+                    (nil)))))
+    (expr_list (use (reg:SI 6 a2))
+        (expr_list (use (reg:SI 5 a1))
+            (expr_list (use (reg:SI 4 a0))
+                (nil)))))
+
+(jump_insn 79 74 118 (set (pc)
+        (if_then_else (ne:SI (reg:SI 2 v0)
+                (reg:SI 16 s0))
+            (label_ref 66)
+            (pc))) 344 {branch_equality} (insn_list/j/c 74 (insn_list/j/c 74 (nil)))
+    (expr_list:REG_DEAD (reg:SI 2 v0)
+        (nil)))
+;; End of basic block 3
+
+(note 118 79 117 "" NOTE_INSN_DELETED)
+
+(note 117 118 110 "" NOTE_INSN_EPILOGUE_BEG)
+
+;; Insn is not within a basic block
+(insn 110 117 112 (set (reg:SI 31 ra)
+        (mem/u:SI (plus:SI (reg:SI 29 sp)
+                (const_int 20 [0x14])) 0)) -1 (nil)
+    (nil))
+
+;; Insn is not within a basic block
+(insn 112 110 113 (set (reg:SI 16 s0)
+        (mem/u:SI (plus:SI (reg:SI 29 sp)
+                (const_int 16 [0x10])) 0)) -1 (nil)
+    (nil))
+
+;; Insn is not within a basic block
+(insn 113 112 115 (unspec_volatile[ 
+            (const_int 0 [0x0])
+        ]  0) -1 (nil)
+    (nil))
+
+;; Insn is not within a basic block
+(insn 115 113 116 (set (reg:SI 29 sp)
+        (plus:SI (reg:SI 29 sp)
+            (const_int 24 [0x18]))) -1 (nil)
+    (nil))
+
+;; Insn is not within a basic block
+(jump_insn 116 115 108 (parallel[ 
+            (use (reg:SI 31 ra))
+            (return)
+        ] ) -1 (nil)
+    (nil))
+
+(barrier 108 116 99)
+
+(note 99 108 83 "" NOTE_INSN_DELETED)
+
+(note 83 99 86 "" NOTE_INSN_LOOP_END)
+
+(note 86 83 100 0 NOTE_INSN_BLOCK_END)
+
+(note 100 86 0 "" NOTE_INSN_DELETED)
+

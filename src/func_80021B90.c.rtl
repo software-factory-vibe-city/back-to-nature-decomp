@@ -1,0 +1,183 @@
+
+;; Function func_80021B90
+
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 10 0 NOTE_INSN_BLOCK_BEG)
+
+(code_label 10 6 13 3 "" [num uses: 0])
+
+(call_insn 13 10 16 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("CdFlush")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) -1 (nil)
+    (nil)
+    (nil))
+
+(call_insn 16 13 19 (parallel[ 
+            (call (mem:SI (symbol_ref:SI ("func_80021B20")) 0)
+                (const_int 16 [0x10]))
+            (clobber (reg:SI 31 ra))
+        ] ) -1 (nil)
+    (nil)
+    (nil))
+
+(insn 19 16 21 (set (reg:SI 4 a0)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 21 19 23 (set (reg:SI 5 a1)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 23 21 25 (set (reg:SI 6 a2)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(call_insn 25 23 29 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("SsSetSerialVol")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) -1 (nil)
+    (nil)
+    (expr_list (use (reg:SI 6 a2))
+        (expr_list (use (reg:SI 5 a1))
+            (expr_list (use (reg:SI 4 a0))
+                (nil)))))
+
+(insn 29 25 36 (set (mem/f:SI (symbol_ref/v:SI ("D_8005E590")) 0)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(note 36 29 37 "" NOTE_INSN_LOOP_BEG)
+
+(code_label 37 36 55 4 "" [num uses: 0])
+
+(code_label 55 37 38 7 "" [num uses: 0])
+
+(note 38 55 39 "" NOTE_INSN_LOOP_CONT)
+
+(code_label 39 38 41 6 "" [num uses: 0])
+
+(insn 41 39 43 (set (reg:SI 4 a0)
+        (const_int 13 [0xd])) -1 (nil)
+    (nil))
+
+(insn 43 41 45 (set (reg:SI 5 a1)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 45 43 47 (set (reg:SI 6 a2)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(call_insn 47 45 49 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("CdControlB")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) -1 (nil)
+    (nil)
+    (expr_list (use (reg:SI 6 a2))
+        (expr_list (use (reg:SI 5 a1))
+            (expr_list (use (reg:SI 4 a0))
+                (nil)))))
+
+(insn 49 47 51 (set (reg:SI 82)
+        (reg:SI 2 v0)) -1 (nil)
+    (nil))
+
+(insn 51 49 52 (set (reg:SI 83)
+        (const_int 1 [0x1])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 1 [0x1])
+        (nil)))
+
+(jump_insn 52 51 56 (set (pc)
+        (if_then_else (ne:SI (reg:SI 82)
+                (reg:SI 83))
+            (label_ref 37)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 56 52 53 "" NOTE_INSN_LOOP_END)
+
+(jump_insn 53 56 54 (set (pc)
+        (label_ref 57)) -1 (nil)
+    (nil))
+
+(barrier 54 53 57)
+
+(code_label 57 54 63 5 "" [num uses: 0])
+
+(note 63 57 64 "" NOTE_INSN_LOOP_BEG)
+
+(code_label 64 63 82 8 "" [num uses: 0])
+
+(code_label 82 64 65 11 "" [num uses: 0])
+
+(note 65 82 66 "" NOTE_INSN_LOOP_CONT)
+
+(code_label 66 65 68 10 "" [num uses: 0])
+
+(insn 68 66 70 (set (reg:SI 4 a0)
+        (const_int 14 [0xe])) -1 (nil)
+    (nil))
+
+(insn 70 68 72 (set (reg:SI 5 a1)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 72 70 74 (set (reg:SI 6 a2)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(call_insn 74 72 76 (parallel[ 
+            (set (reg:SI 2 v0)
+                (call (mem:SI (symbol_ref:SI ("CdControlB")) 0)
+                    (const_int 16 [0x10])))
+            (clobber (reg:SI 31 ra))
+        ] ) -1 (nil)
+    (nil)
+    (expr_list (use (reg:SI 6 a2))
+        (expr_list (use (reg:SI 5 a1))
+            (expr_list (use (reg:SI 4 a0))
+                (nil)))))
+
+(insn 76 74 78 (set (reg:SI 84)
+        (reg:SI 2 v0)) -1 (nil)
+    (nil))
+
+(insn 78 76 79 (set (reg:SI 85)
+        (const_int 1 [0x1])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 1 [0x1])
+        (nil)))
+
+(jump_insn 79 78 83 (set (pc)
+        (if_then_else (ne:SI (reg:SI 84)
+                (reg:SI 85))
+            (label_ref 64)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 83 79 80 "" NOTE_INSN_LOOP_END)
+
+(jump_insn 80 83 81 (set (pc)
+        (label_ref 84)) -1 (nil)
+    (nil))
+
+(barrier 81 80 84)
+
+(code_label 84 81 86 9 "" [num uses: 0])
+
+(note 86 84 87 0 NOTE_INSN_BLOCK_END)
+
+(note 87 86 89 "" NOTE_INSN_FUNCTION_END)
+
+(code_label 89 87 0 2 "" [num uses: 0])
