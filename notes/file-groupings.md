@@ -191,6 +191,17 @@ Members (address order):
   return 0`
 - ovl_10_func_800BA2A0 (s) — references `D_800B81D8`/`D_800B81E4`
   (SUPERIOR/INFERIOR)
+- ovl_10_func_800BACBC (m, matched this session, baseline flags) — mcard
+  status/LED control wrapper: arg0==1 prints a status line
+  (`FntPrint(&D_800B878C)` then `FntPrint(&D_800B87AC,
+  D_800BB8A0 ? &D_800B8430 : &D_800B8434)`); arg0==0 sets the D_800BB8A0
+  status word from arg1 flags (0x20→1, 0x40→0); arg0==2 →
+  `McxSetLED(0, D_800BB8A0)`; arg0==3 → `ovl_10_func_800B92AC(); return 0`
+  — the same hide/status wrapper shape as `ovl_10_func_800B956C` (both
+  call 800B92AC and return 0), and a direct second caller of that
+  confirmed member; D_800BB8A0 sits in the same mcard-buffer data region
+  as the cluster's D_800BB8F0/F4/FC; byte-exact clean C,
+  baseline flags
 
 ---
 
