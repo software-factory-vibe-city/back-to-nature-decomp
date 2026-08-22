@@ -653,4 +653,14 @@ extern struct_80061E28 D_80061E28;
 extern u16 D_80049068[];
 extern u16 D_80049070[];
 
+/* D_800558A4 - card/colour table: 4 bytes per card value (two u16).
+ * func_8002206C reads byte offsets 4*v and (4*v)|2 (lui+addiu absolute,
+ * owned by the nonmatching data file, not classified in globals.h). */
+extern u16 D_800558A4[80];
+
+/* D_80055944 - per-stall position ranges: stall k uses the u16 entries
+ * [4k..4k+3] as (lo, hi, lo, hi). Absolute-addressed, owned by the
+ * nonmatching data file, not classified in globals.h. */
+extern u16 D_80055944[24];
+
 #endif /* GLOBALS_OVERRIDE_H */
