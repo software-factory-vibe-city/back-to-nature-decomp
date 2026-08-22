@@ -223,6 +223,22 @@ Members (address order):
   `McxExecFlag(0, D_800BB834, D_800BB838)`, copying the packed 30-byte
   save struct `D_800B8438`→`D_800BBAFC` on the `MemCardSync(0)` accept
   path; link-ordered inside the cluster's 0x800B92AC–0x800BA2A0 region
+- ovl_10_func_800B9D24 (m, matched 2026-08-22, baseline flags) — mcard
+  application-number wrapper: the cluster's 0/1/2/3 twin skeleton with the
+  `ovl_10_func_800B92AC(); return 0` tail; arg0==0 drives the selected
+  appli index `D_800BB844` from arg1 pad flags (0x2000/0x8000 inc/dec
+  within 1..3, 0x1000→0, 0x4000→1 when 0, 0xF000 latched into
+  `D_800BB994`), then bumps per-bit repeat counters `D_800BB848`/`84C`/
+  `850`/`854` gated by the /15 date-predicate `ovl_10_func_800BB728` and
+  nibble-mutates the appli data `D_800BB99C` (BCD-ish 0x10/0xF0/±1/±0xF
+  nibble ops, -1 arm, mask-off tail); arg0==1 prints the
+  "application number" panel using the cluster's ternary color-select
+  idiom (`D_800B8360`/`D_800B8358`) and an `%02x` `sprintf` into a local
+  buffer per slot; arg0==2 → `McxExecApl(0, D_800BB99C[0], packed)`;
+  own globals `D_800BB844`–`D_800BB854` words and `D_800BB994`/`D_800BB99C`
+  abutting the cluster data region; link-order immediate predecessor of
+  `800BA11C` (0x1F04 body ends at 0x22FC), same twin skeleton as
+  `800BA11C`/`800BA2A0`/`800BACBC`, baseline flags
 - ovl_10_func_800BA11C (m, matched this session, baseline flags) — mcard
   sound/infrared menu controller: arg0==0 reads the pad flags (0x10/0x80
   move the cursor word `D_800BB9AC` within 0..3, 0x90 latched into
