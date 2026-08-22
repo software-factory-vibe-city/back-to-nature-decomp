@@ -619,6 +619,31 @@ extern s32 D_80054BBC[4];
 extern s32 D_8005175C[4];
 extern s32 D_80051768;
 
+/* D_80061E28 - 0x20-byte u16 struct cleared with memset(&..,0,0x20) and
+ * given u16 0x1000 writes at offsets 0x00/0x08/0x10 by func_8001B530.
+ * Sibling objects at +0x20 (same 0x20 memset) are declared scalar s32 in
+ * globals.h. Plain extern: within $gp range but never defined in this TU,
+ * so cc1 emits the split absolute lui/%lo addressing the target shows. */
+typedef struct {
+    /* 0x00 */ u16 field_0;
+    /* 0x02 */ u16 field_2;
+    /* 0x04 */ u16 field_4;
+    /* 0x06 */ u16 field_6;
+    /* 0x08 */ u16 field_8;
+    /* 0x0A */ u16 field_A;
+    /* 0x0C */ u16 field_C;
+    /* 0x0E */ u16 field_E;
+    /* 0x10 */ u16 field_10;
+    /* 0x12 */ u16 field_12;
+    /* 0x14 */ u16 field_14;
+    /* 0x16 */ u16 field_16;
+    /* 0x18 */ u16 field_18;
+    /* 0x1A */ u16 field_1A;
+    /* 0x1C */ u16 field_1C;
+    /* 0x1E */ u16 field_1E;
+} struct_80061E28;
+extern struct_80061E28 D_80061E28;
+
 /* D_80049068 / D_80049070 - u16 message tables read by func_8001A19C under
  * split absolute addressing (`lui %hi` / `addiu r,%lo` with the base in a
  * scratch register, not the self-clobber `la` pair). Declared as incomplete

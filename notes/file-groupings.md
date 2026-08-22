@@ -285,6 +285,20 @@ Members (address order):
 - func_8001B4E4 (m) — deactivation: zeroes D_8005E4C8[arg0] pointer and the
   u16 entries (D_8005E4C0/C4/D0) and D_8005E870 field_36/field_37
 
+## 0x8001B530–0x8001BB88 object-setup cluster (confidence: low–medium)
+
+Direct-call + adjacent-data cluster: func_8001B530 (m) initializes the
+0x20-byte u16 objects D_80061E28/.E48/.E68 (memset + 0x1000 writes at 0/8/0x10)
+and calls the two already-matched sibling helpers func_8001B9F8 (m) and
+func_8001BA40 (m), which write fields of the adjacent D_80061DE8 object
+(struct_80061DE8). Padding/stub members between them (func_8001B5DC, B6A0,
+BA18, BA5C, BAC4, BB28, BB88) keep the same link-order run.
+Members:
+- func_8001B530 (m, 2026) — setup entry: GTE origin/screen, then the two
+  helpers, then memset+init of the .E28/.E48/.E68 sibling objects
+- func_8001B9F8 (m) — writes D_80061DE8 fields 0/4/8/0x18/0x1C
+- func_8001BA40 (m) — writes D_80061DE8 fields 0xC/0x10/0x14/0x1C
+
 ## projected primitive clipping — 0x8001C0D4–0x8001D348 (confidence: medium)
 
 GTE-projected triangle/quad rendering and screen-X rejection. Fingerprints:
