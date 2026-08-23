@@ -1,29 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800BA394", ovl_10_func_800BA394);
-
-
-/* PARKED 2026-08-22, reason: one preheader placement.
- * Reached 477/479 words with NO differing word: the two programs contain the
- * same instructions with the same operands, and the only difference is where
- * two of them sit. Residual [0, 0, 1, 1] at block 93.
- *
- * The container blocker that parked it on 2026-08-21 is gone: overlay rodata
- * attribution is derived per container now, so this function's jump table
- * (jtbl_800B86CC) is attributed to its own translation unit and it links as C.
- *
- * What is left, and what is known about it:
- * notes/human-needed-approvals/ovl_10_func_800BA394.md, and the answered
- * questions in build/experimentLedger/closed/ovl_10_func_800BA394.jsonl
- * (psx_record_closed reads them).
- *
- * The best measured attempt is preserved verbatim below, disabled.
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
 int FntPrint();
 int McxSetMem(int, unsigned char *, unsigned, unsigned);
 int sprintf(char *, const char *, ...);
@@ -36,8 +12,6 @@ s32 ovl_10_func_800BA394(s32 arg0, s32 arg1) {
     s32 s3;
     int s2;
     int s7;
-    int s0;
-    unsigned char *s1;
 
     switch (arg0) {
     case 0:
@@ -207,19 +181,18 @@ s32 ovl_10_func_800BA394(s32 arg0, s32 arg1) {
             FntPrint(D_800B8368);
             s2 = 0;
             if (s7 * 0x10 < (u32)D_800BB86C[4]) {
-                s1 = &D_800BB9BC[s7 * 0x10];
-                s0 = s7 * 0x10;
                 do {
-                    sprintf(buf, D_800B86C4, (s32)*s1);
-                    if (s0 == D_800BB868) {
+                    sprintf(buf, D_800B86C4, (s32)D_800BB9BC[s7 * 0x10 + s2]);
+                    if (s7 * 0x10 + s2 == D_800BB868) {
                         FntPrint(D_800B8330, buf);
                     } else {
                         FntPrint(buf);
                     }
-                    s1++;
-                    s0++;
                     s2++;
-                } while (s2 < 0x10 && s0 < (u32)D_800BB86C[4]);
+                    if (s2 >= 0x10) {
+                        break;
+                    }
+                } while ((u32)(s7 * 0x10 + s2) < (u32)D_800BB86C[4]);
             }
             FntPrint(D_800B7EE8);
             if ((u32)D_800BB86C[4] < (u32)(s7 * 0x10 + s2)) {
@@ -242,4 +215,3 @@ s32 ovl_10_func_800BA394(s32 arg0, s32 arg1) {
     FntPrint(D_800B7E40);
     return 0;
 }
-#endif

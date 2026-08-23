@@ -10,6 +10,11 @@ typedef signed short s16;
 typedef signed int s32;
 
 typedef struct {
+    u8 filler[0x18];
+    s32 flag;
+} Cell8001E340;
+
+typedef struct {
     s16 field_0;
     s16 field_2;
     s16 field_4;
@@ -30,6 +35,52 @@ typedef struct {
     s32 field_10;
     s32 field_14;
 } EAE4Query;
+
+typedef struct {
+    s32 unk0;
+    s16 unk4;
+    s16 unk6;
+    s16 unk8;
+    s16 unkA;
+    s16 unkC;
+    s16 unkE;
+    s16 unk10;
+    s16 unk12;
+} Func8001F664_Data;
+
+typedef struct {
+    /* 0x00 */ u8 data[0x1C];
+} PrimPrim;
+
+typedef struct {
+    /* 0x00 */ u8 pad[8];
+    /* 0x08 */ s32 count;
+    /* 0x0C */ PrimPrim prims[1];
+} PrimBatch;
+
+typedef struct {
+    /* 0x00 */ PrimBatch *batch; /* +0x0: primitive batch descriptor */
+    /* 0x04 */ s8 *vecs;         /* +0x4: vector array origin */
+} FuncC0D4Args;
+
+typedef struct {
+    /* 0x00 */ s32 field_0;     /* source u16 array */
+    /* 0x04 */ s16 field_4;
+    /* 0x06 */ u16 field_6;
+    /* 0x08 */ s16 field_8;     /* gradient step count */
+    /* 0x0A */ s16 field_A;
+    /* 0x0C */ u16 field_C;     /* RECT x */
+    /* 0x0E */ u16 field_E;     /* RECT y */
+    /* 0x10 */ u16 field_10;    /* RECT w */
+    /* 0x12 */ u16 field_12;    /* RECT h */
+} GradientCmd;
+
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 count;             /* 0x8 */
+    Cell8001E340 cells[1]; /* 0xC */
+} Grid8001E340;
 
 typedef struct {
     s16 field_00;
@@ -260,6 +311,11 @@ typedef struct {
 typedef struct {
     u8 b[4];
 } TextFlag;
+
+typedef struct {		/* long word type 3D vector */
+	long	vx, vy;
+	long	vz, pad;
+} VECTOR;
 
 typedef struct {
     s32 x;
