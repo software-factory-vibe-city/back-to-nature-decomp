@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -136,6 +136,44 @@ Members (address order):
   override)
 - ovl_11_func_80121500 (s) — immediate link-order follower, next candidate
   member
+
+---
+
+## `ovl_11` D_80123754 setter/getter run — 0x800D12A0–0x800D2160 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) in the middle of the
+overlay, sharing a single file-scope s16 global. Evidence is a shared global
+cluster plus strict link-order adjacency; same-TU membership is plausible but
+unproven — this overlay is built absolute-addressing (-G0, no gp-rel anywhere
+in the container), so a shared global here is a data tie, not the ASPSX
+definer/declarer rule.
+
+Fingerprints:
+- shared s16 global `D_80123754` (file-scope data at 0x80123754, splat data
+  `69960.data.s`, still `nonmatching`): written by `ovl_11_func_800D12B8`
+  (three `sh` sites, `lui v1, %hi`) and `ovl_11_func_800D1960` (single
+  `sh a0`), read by `ovl_11_func_800D1CFC` (`lh`);
+- zero-gap link-order contiguity (map): 0x800D12A0 (0x18) → 0x800D12B8
+  (0x6A8) → 0x800D1960 (0xC) → 0x800D196C (0x2AC) → 0x800D1C18 (0xB8) →
+  0x800D1CD0 (0x2C) → 0x800D1CFC (0x120) → 0x800D1E1C (0x9C) → 0x800D1EB8
+  (0x2A8) — each starts exactly where the previous ends, the whole span
+  0x800D12A0–0x800D2160 contiguous with no unrelated code between;
+- the two `D_80123754` writers and the reader sit at the run's nodes
+  (12B8 / 1960 at the front, 1CFC later), with the untouched members
+  sandwiched between them — a single global threading one contiguous file.
+
+Members (address order):
+- ovl_11_func_800D12A0 (s) — run head, does not touch D_80123754
+- ovl_11_func_800D12B8 (s) — writes D_80123754 at three sites
+- ovl_11_func_800D1960 (m, matched this session) — leaf setter:
+  `D_80123754 = arg0` (single `sh`, delay-slot scheduled); byte-exact clean C,
+  baseline flags; confirmed member of the shared-global cluster
+- ovl_11_func_800D196C (s) — sandwiched, does not touch the global
+- ovl_11_func_800D1C18 (s) — does not touch the global
+- ovl_11_func_800D1CD0 (s) — does not touch the global
+- ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter
+- ovl_11_func_800D1E1C (s) — does not touch the global
+- ovl_11_func_800D1EB8 (s) — run tail, does not touch the global
 
 ---
 
