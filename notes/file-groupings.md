@@ -206,14 +206,13 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_80128B5C input-state run — 0x800C06B0–0x800C0A4C (confidence: medium)
+## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C06B0–0x800C0D9C (confidence: medium)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
-file-scope s32 global. Same shared-global-cluster fingerprint as the
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing two adjacent
+file-scope s32 globals. Same shared-global-cluster fingerprint as the
 documented D_80128810 counter cluster / D_80123754 setter-getter run:
-absolute-addressed main-RAM global (`-G0`, no gp-rel in this container)
-threaded through a contiguous text span, all four members of the run mutating
-the global.
+absolute-addressed main-RAM globals (`-G0`, no gp-rel in this container)
+threaded through a contiguous text span by the run's mutators.
 
 Fingerprints:
 - shared s32 global `D_80128B5C` (main RAM 0x80128B5C, absolute `lui`+`%lo`
@@ -222,23 +221,37 @@ Fingerprints:
   `ovl_11_func_800C08E8`, written from `$a0` by `ovl_11_func_800C0A40`; the
   setter is called from `ovl_11_func_800DDDFC` (two `jal` sites) to feed the
   global the run's readers consume;
+- sibling s32 global `D_80128B50` (main RAM 0x80128B50, 0xC below `D_80128B5C`,
+  absolute `lui`+`%lo` in every site): read by `ovl_11_func_800C06B0` and
+  `ovl_11_func_800C0A4C` (two sites), read-and-returned by
+  `ovl_11_func_800C0824` (the run's getter), cleared to 0 by
+  `ovl_11_func_800C090C` and `ovl_11_func_800C09D0`, written by
+  `ovl_11_func_800C0D9C`; `ovl_11_func_800C06B0` touches both globals, tying
+  the two half-clusters together — they are adjacent file-scope vars of one TU;
 - zero-gap link-order contiguity (map): 0x800C06B0 (0x174) → 0x800C0824
   (0x10) → 0x800C0834 (0x48) → 0x800C087C (0x6C) → 0x800C08E8 (0x24) →
-  0x800C090C → 0x800C09D0 → 0x800C0A28 (0x18) → 0x800C0A40 (0xC) — each
-  starts exactly where the previous ends, the whole span 0x800C06B0–0x800C0A4C
-  contiguous with no unrelated code between;
-- the run's `D_80128B5C` mutators sit at 06B0 (read+clear), 087C and 08E8
-  (both clears) and 0A40 (setter at the run's tail), with the untouched
-  members sandwiched between them — a single global threading one contiguous
-  file.
+  0x800C090C → 0x800C09D0 → 0x800C0A28 (0x18) → 0x800C0A40 (0xC) →
+  0x800C0A4C (0x350) → 0x800C0D9C (0x18) — each starts exactly where the
+  previous ends, the whole span 0x800C06B0–0x800C0D9C contiguous with no
+  unrelated code between; the `D_80128B50` sites run out to the 0x800C0D9C
+  writer, extending the earlier-recorded span past 0x800C0A4C.
 
-Members (address order, `D_80128B5C`-touching):
-- ovl_11_func_800C06B0 (s) — reads D_80128B5C and clears it to 0
+Members (address order):
+- ovl_11_func_800C06B0 (s) — reads/clears D_80128B5C and reads/clears
+  D_80128B50; touches both globals
+- ovl_11_func_800C0824 (m, matched this session) — leaf getter: returns
+  `D_80128B50` (`lui`/`lw` + `jr $ra`); byte-exact clean C, baseline flags;
+  confirmed member of the shared-global cluster (D_80128B50 reader)
 - ovl_11_func_800C087C (s) — leaf clear: `D_80128B5C = 0`
 - ovl_11_func_800C08E8 (s) — leaf clear: `D_80128B5C = 0`
-- ovl_11_func_800C0A40 (m, matched this session) — leaf setter:
+- ovl_11_func_800C090C (s) — leaf clear: `D_80128B50 = 0`
+- ovl_11_func_800C09D0 (s) — leaf clear: `D_80128B50 = 0`
+- ovl_11_func_800C0A40 (m, matched earlier session) — leaf setter:
   `D_80128B5C = arg0` (single `sw $a0`, delay-slot scheduled); byte-exact
   clean C, baseline flags; confirmed member of the shared-global cluster
+- ovl_11_func_800C0A4C (s) — reads D_80128B50 at two sites
+- ovl_11_func_800C0D9C (s) — writes D_80128B50 from `$v1`, the run's far-end
+  writer
 
 ---
 
