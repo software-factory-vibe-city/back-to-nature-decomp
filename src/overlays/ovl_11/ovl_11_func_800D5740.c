@@ -1,3 +1,7 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800D5740", ovl_11_func_800D5740);
+void ovl_11_func_800D5740(s16 *arg0) {
+    arg0[0] = 0;
+    arg0[1] = 0;
+    arg0[2] = 0;
+}
