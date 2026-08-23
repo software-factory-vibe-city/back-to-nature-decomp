@@ -32,6 +32,12 @@
  *   flag-fingerprint  symbolic lui/lw self-clobber pairs (per-file flag class)
  *   asm-policy      embedded asm without a sourcePolicy allowlist entry
  *   asm-dead        an embedded asm block whose output is clobbered unused
+ *   loop-preheader-order  a position-only residual in a loop preheader, which
+ *                   loop.c's emission order owns and the scheduler does not
+ *   phony-loop      a loop loop.c discarded unscanned, which voids every
+ *                   movable/giv hypothesis inside it rather than refuting one
+ *   cluster-donor   a recorded cluster-mate whose own loop trace reaches a
+ *                   mechanism this program does not
  *   search-domain   a residual-source-search run that cannot support the
  *                   conclusion it looks like: an active rule whose axis is
  *                   empty or inert, or a class table that came from the cost
@@ -72,9 +78,10 @@ import {
 } from "./frameMap.js";
 import { recognizeIdioms, sdkReconstructionGap } from "./sdkIdioms.js";
 import { auditCallees, type TruthReport } from "./calleeTruth.js";
-import { measurements, readLedger, type LedgerEntry } from "./experimentLedger.js";
+import { best, measurements, readLedger, type LedgerEntry } from "./experimentLedger.js";
 import { readReport, targetHashOf, toolchainHash, type FlagProbeReport } from "./flagProbe.js";
 import { sha256 } from "./variant-lab/artifacts.js";
+import { projectPath } from "./provenance.js";
 import { compareInventories, renderReport } from "./inventory.js";
 import { BRANCH_MNEMONICS, defUse } from "./webAnalysis.js";
 import { reversePipeline } from "./pipeline-reversal/reverse.js";
@@ -84,6 +91,17 @@ import { align } from "./idiom-corpus/align.js";
 import { IdiomIndex, loadCorpus } from "./idiom-corpus/corpus.js";
 import { fingerprintOf } from "./idiom-corpus/fingerprint.js";
 import { targetProgram } from "./idiomSearch.js";
+import { lineMapFor, loopTrace } from "./loopTrace.js";
+import { preheaderLayouts } from "./loop-trace/preheader.js";
+import { PHONY_CONSEQUENCE, phonyAntidote } from "./loop-trace/phony.js";
+import { mechanismsOf, type Mechanism } from "./loop-trace/mechanisms.js";
+import { quoteLine } from "./loop-trace/lines.js";
+import type { LoopTrace } from "./loop-trace/types.js";
+import { groupHeadingOf, siblingsOf } from "./fileGroupings.js";
+import { targetLoopEmission } from "./analyzeTargetLoopEmission.js";
+import { innerLoopsOf, loopBody, loopHeaders, preheaderOf } from "./loop-emission/derive.js";
+import { goalsFor } from "./loop-emission/compare.js";
+import { precedentIndex, precedentsFor } from "./loop-emission/precedents.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -752,6 +770,653 @@ function detectSelfSimilarity(name: string, sourcePath: string): Finding[] {
     });
   }
   return findings.slice(0, 3);
+}
+
+/**
+ * The residual is *where* an instruction sits in a loop preheader.
+ *
+ * A preheader's contents are not laid out by the scheduler. `move_movables`
+ * and `strength_reduce` both emit with `emit_insn_before (..., loop_start)`,
+ * so each emission lands immediately before the loop and the preheader ends up
+ * as the source's own code, then the movables in the order the pass moved
+ * them, then the giv initialisations — per pass, and the pass runs twice at
+ * -O2. Two programs with the same preheader instructions in a different order
+ * therefore differ in a loop.c decision, not in a scheduling one, and the
+ * levers are the ones move_movables compares: `savings`, which starts at
+ * n_times_set[regno] and absorbs every movable that matches or forces it, and
+ * `lifetime`, the luid span of the register inside the loop.
+ *
+ * This detector exists because that was invisible. Two sessions on
+ * ovl_10_func_800BA394 read the preheader off the assembly, reasoned about
+ * loop.c from its source, and reached a wrong conclusion — one of them an
+ * impossibility proof — while `-dL` was available the whole time and prints
+ * every one of the decisions.
+ */
+function detectLoopPreheaderOrder(name: string, sourcePath: string): Finding[] {
+  let artifacts: ReturnType<typeof reversePipeline>;
+  try {
+    artifacts = reversePipeline({ functionName: name, source: sourcePath, replay: false });
+  } catch {
+    return [];
+  }
+  const objective = artifacts.report.objective;
+  if (objective.exact) return [];
+
+  const target = artifacts.target.preDbr;
+  /* A block reached by a later block is a loop header; the earlier block that
+     reaches it is its preheader. */
+  const headers = new Set<number>();
+  for (const block of target.blocks) {
+    if (block.predecessors.some((predecessor) => predecessor >= block.index)) headers.add(block.index);
+  }
+  const preheaders = new Map<number, number[]>();
+  for (const header of headers) {
+    for (const predecessor of target.blocks[header]?.predecessors ?? []) {
+      if (predecessor < header) preheaders.set(predecessor, [...(preheaders.get(predecessor) ?? []), header]);
+    }
+  }
+
+  /* Position, not population: both programs contain the instruction. An
+     allocation term alongside it is expected rather than a second problem —
+     moving a materialisation past another one rotates which register each
+     lands in. */
+  const suspects = objective.blocks.filter((block) =>
+    !block.blind && block.schedule > 0 && block.population === 0 && preheaders.has(block.block));
+  if (suspects.length === 0) return [];
+
+  /* The requirement comes off the target's bytes, so it stands even when the
+     candidate cannot be traced. */
+  let goals: ReturnType<typeof goalsFor> = [];
+  let precedentLines: string[] = [];
+  try {
+    const requirement = targetLoopEmission(name);
+    goals = requirement.preheaders.flatMap((preheader) => goalsFor(preheader));
+    if (goals.length > 0) {
+      /* Built here rather than left for the reader to think of asking. Five
+         sessions ran on this residual class without anyone querying the corpus
+         on the one key that finds a worked example. */
+      const index = precedentIndex();
+      const hits = requirement.preheaders
+        .flatMap((preheader) => precedentsFor(preheader, index.value))
+        .filter((hit) => hit.precedent.functionName !== name)
+        .sort((left, right) => right.score - left.score);
+      precedentLines = hits.length === 0
+        ? [`PRECEDENT: none — of ${index.value.scanned} matched functions, none forces an emission past ` +
+           "pass 1. There is no worked example to copy; you are deriving a spelling, not recalling one."]
+        : ["PRECEDENT — matched functions that already emit past pass 1. READ THEIR C; they match no",
+           "cluster, file or name here, and nothing but this key finds them:",
+           ...hits.slice(0, 3).map((hit) => `  ${hit.precedent.functionName} — ${hit.precedent.source} (${hit.why})`)];
+    }
+  } catch {
+    /* No liftable target is another detector's finding, not this one's. */
+  }
+
+  let layouts: ReturnType<typeof preheaderLayouts> = [];
+  let traceNote = "";
+  try {
+    layouts = preheaderLayouts(loopTrace(name, sourcePath).result.trace);
+  } catch (error) {
+    traceNote = `psx_loop_trace could not compile this source with -dL: ${(error as Error).message}`;
+  }
+
+  return suspects.map((block) => {
+    const vram = blockVram(target, block.block);
+    const evidence: string[] = [
+      `block ${block.block}${vram === undefined ? "" : ` at 0x${vram.toString(16).toUpperCase()}`} is the preheader of loop header ` +
+      `${preheaders.get(block.block)!.join(", ")}: schedule ${block.schedule}, population ${block.population}` +
+      `${block.allocation + block.coalescing > 0 ? `, allocation ${block.allocation + block.coalescing} (downstream of the position, not a second defect)` : ""}`,
+    ];
+    if (traceNote) evidence.push(traceNote);
+    for (const layout of layouts) {
+      evidence.push(`loop ${layout.from}..${layout.to}, pass ${layout.pass} emitted into its preheader, in order:`);
+      for (const slot of layout.slots) {
+        evidence.push(`  ${slot.uid === undefined ? "  ?" : String(slot.uid).padStart(5)}  ${slot.detail}`);
+      }
+    }
+    for (const goal of goals) {
+      evidence.push(
+        `REQUIRED of the original: ${goal.symbol} cannot have been emitted in pass 1` +
+        `${goal.unconditional ? "" : " (in any reading where anything earlier was hoisted)"}.`);
+    }
+    evidence.push(...precedentLines);
+    evidence.push("The emission order is the decision. psx_target_loop_emission states it as a goal");
+    evidence.push("and scores a candidate on it; psx_loop_trace shows each movable's savings x lifetime");
+    evidence.push("against the threshold it was compared to. Iterate on that distance, NOT the byte");
+    evidence.push("score — it is flat across this whole family and ranks the mechanism-correct");
+    evidence.push("variant worst. A pass-2 hoist lands AFTER pass 1's giv initialisations, which is a");
+    evidence.push("preheader order no pass-1 movable can produce.");
+    return {
+      detector: "loop-preheader-order",
+      severity: "signal" as const,
+      summary:
+        `Block ${block.block} carries the same instructions as the target in a different order, and it is a ` +
+        "loop preheader. Preheader position is decided by loop.c's emission order — movables in move " +
+        "order, then giv inits, per pass — not by the scheduler, so scheduler and allocator forensics " +
+        "will not reach it. Read the loop pass's own log.",
+      evidence,
+      see: ["psx_target_loop_emission", "psx_loop_trace", "prompts/reference/loop.md"],
+    };
+  }).slice(0, 3);
+}
+
+/**
+ * A loop the pass never scanned, and what that voids.
+ *
+ * `loop.c` prints one line for this — `Loop from A to B is phony.` — and
+ * returns before recording a single movable, biv or giv. Everything the trace
+ * then does *not* say about that loop is an absence, and a reader who takes it
+ * for a decision has inverted the evidence: "no movable was recorded" reads as
+ * "nothing was worth hoisting" when it means "nothing was ever asked".
+ *
+ * The expensive case is a phony INNER loop, because it is silent and it is
+ * self-confirming. Every per-iteration placement the source intended for that
+ * loop happens at the enclosing loop instead — which is often a regime an
+ * earlier session already refuted — so the experiment comes back agreeing with
+ * the refutation. Two variants of one function failed exactly this way while
+ * the line sat unread in the trace.
+ */
+function detectPhonyLoop(name: string, sourcePath: string): Finding[] {
+  let traced: ReturnType<typeof loopTrace>;
+  try {
+    traced = loopTrace(name, sourcePath);
+  } catch {
+    /* No traceable source is another detector's finding, not this one's. */
+    return [];
+  }
+  return phonyFindingsFrom(traced.result.trace, projectPath(sourcePath), residualNest(name, sourcePath));
+}
+
+/**
+ * Where the residual is, in the loop structure.
+ *
+ * The phony finding is about per-iteration placement, so it is worth a blocker
+ * exactly when the residual is somewhere placement decides. A block inside a
+ * loop nest, or the preheader of one, is that place; a residual in straight-line
+ * code three hundred instructions away is not, however phony the loop is.
+ */
+interface ResidualNest {
+  /** Open blocks that sit in, or feed, a loop that nests another. */
+  blocks: number[];
+  /** How the blocks relate to the nest, for the evidence. */
+  detail: string[];
+}
+
+function residualNest(name: string, sourcePath: string): ResidualNest | undefined {
+  let artifacts: ReturnType<typeof reversePipeline>;
+  try {
+    artifacts = reversePipeline({ functionName: name, source: sourcePath, replay: false });
+  } catch {
+    return undefined;
+  }
+  const objective = artifacts.report.objective;
+  if (objective.exact) return { blocks: [], detail: [] };
+
+  const target = artifacts.target.preDbr;
+  const nests = new Map<number, number[]>();
+  for (const header of loopHeaders(target)) {
+    const inner = innerLoopsOf(target, header);
+    if (inner.length > 0) nests.set(header, inner);
+  }
+  if (nests.size === 0) return { blocks: [], detail: [] };
+
+  const open = objective.blocks.filter((block) => !block.blind && block.total > 0
+    && block.population + block.schedule + block.allocation + block.coalescing > 0);
+
+  const blocks: number[] = [];
+  const detail: string[] = [];
+  for (const block of open) {
+    for (const [header, inner] of nests) {
+      const body = loopBody(target, header);
+      const last = body[body.length - 1]?.index ?? header;
+      const inside = block.block >= header && block.block <= last;
+      const feeds = preheaderOf(target, header) === block.block;
+      if (!inside && !feeds) continue;
+      blocks.push(block.block);
+      detail.push(
+        `block ${block.block} (population ${block.population}, schedule ${block.schedule}, ` +
+        `allocation ${block.allocation + block.coalescing}) ${inside ? "is inside" : "is the preheader of"} ` +
+        `loop header ${header}, which nests loop header ${inner.join(", ")}`);
+      break;
+    }
+  }
+  return { blocks, detail };
+}
+
+/**
+ * The trace reading, separated from the compile, so it can be tested.
+ *
+ * `nest` is the residual's own position. Passing `undefined` means it could not
+ * be read — the reversal did not run — and the finding is then made on the
+ * trace alone rather than withheld, because a phony loop with an unknown
+ * residual is still a fact about a program nobody should reason about.
+ */
+export function phonyFindingsFrom(trace: LoopTrace, source: string, nest?: ResidualNest): Finding[] {
+  const phony = trace.passes
+    .flatMap((pass) => pass.loops.map((loop) => ({ pass: pass.index, loop })))
+    .filter((entry) => entry.loop.phony);
+  if (phony.length === 0) return [];
+  /* An exact program, or a residual that is nowhere placement decides, is not
+     this finding's business: the discarded loop is real either way, but nothing
+     the reader is about to reason about turns on it. */
+  if (nest !== undefined && nest.blocks.length === 0) return [];
+
+  /* Report each discarded range once: a loop phony in pass 1 is phony in pass 2
+     for the same reason, and printing both reads as two defects. */
+  const seen = new Set<string>();
+  const distinct = phony.filter((entry) => {
+    const key = `${entry.loop.from}..${entry.loop.to}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const scanned = trace.passes
+    .flatMap((pass) => pass.loops)
+    .filter((loop) => !loop.phony);
+
+  const evidence: string[] = [];
+  if (nest !== undefined) {
+    evidence.push("the residual is where placement decides it, which is why this is a blocker and not a note:");
+    for (const line of nest.detail.slice(0, 4)) evidence.push(`  ${line}`);
+    if (nest.detail.length > 4) {
+      evidence.push(`  ...and ${nest.detail.length - 4} more open block(s) in the same nest`);
+    }
+  } else {
+    evidence.push(
+      "the residual's own position could not be read (the pipeline reversal did not run), so this is " +
+      "reported on the trace alone: the program contains a loop the pass never scanned.");
+  }
+  for (const entry of distinct) {
+    const { loop } = entry;
+    const enclosing = scanned.filter((other) =>
+      other.from <= loop.from && loop.to <= other.to && !(other.from === loop.from && other.to === loop.to));
+    evidence.push(`loop ${loop.from}..${loop.to} — discarded unscanned, first seen in pass ${entry.pass}`);
+    if (loop.phonyCause) {
+      evidence.push(`  cause: ${loop.phonyCause.detail}`);
+      if (loop.phonyCause.symbols?.length) {
+        evidence.push(`  those insns materialise ${loop.phonyCause.symbols.join(", ")}`);
+      }
+    }
+    if (enclosing.length > 0) {
+      const ranges = [...new Set(enclosing.map((other) => `${other.from}..${other.to}`))];
+      evidence.push(
+        `  it is NESTED inside scanned loop ${ranges.join(", ")}. Every placement this loop was meant ` +
+        "to carry per-iteration happens at that enclosing loop instead — a different regime, and one " +
+        "you may already have refuted.");
+    }
+    for (const line of phonyAntidote(loop.phonyCause)) evidence.push(`  ${line}`);
+  }
+  evidence.push(...PHONY_CONSEQUENCE);
+  evidence.push(
+    `traced from ${source}; psx_loop_trace prints the same record with every ` +
+    "decision the scanned loops did make.");
+
+  return [{
+    detector: "phony-loop",
+    severity: "blocker",
+    summary:
+      `loop.c discarded ${distinct.length} loop${distinct.length === 1 ? "" : "s"} in this program without ` +
+      "scanning it. No movable, biv or giv was recorded there, so every hypothesis about what is hoisted " +
+      "or reduced inside it is void — not refuted, unasked. Fix the loop's entry shape before measuring " +
+      "anything that depends on per-iteration placement.",
+    evidence,
+    see: ["psx_loop_trace", "prompts/reference/loop.md"],
+  }];
+}
+
+/* --- cluster donors --- */
+
+/**
+ * Siblings traced per run.
+ *
+ * The natural bound is the group: a recorded cluster is the population whose
+ * evidence transfers, and stopping short of it would drop members for no
+ * reason a reader could act on. The ceiling exists only so a mis-edited note
+ * cannot turn one triage run into hundreds of compiles — and a `-dL` compile of
+ * one of these functions measures in tens of milliseconds, so covering a whole
+ * cluster costs about a second on a cold cache and nothing after.
+ */
+const MAX_DONORS = 24;
+
+/**
+ * Programs of the target itself traced for the "and this one has not" half.
+ *
+ * One per distinct residual key, best first: two programs on one key are one
+ * point in the search and tracing both buys nothing. The bound is what keeps a
+ * function with a two-hundred-row ledger from turning triage into a build, and
+ * what it drops is reported rather than implied.
+ */
+const MAX_OWN_VARIANTS = 8;
+
+/** The C a function's loop pass can actually be run on, and what it is. */
+function traceableSource(name: string): { path: string; how: string } | undefined {
+  const own = sourcePathFor(name);
+  if (existsSync(own) && !/INCLUDE_ASM/.test(readFileSync(own, "utf-8"))) {
+    return { path: own, how: "its matched source" };
+  }
+  const winner = best(readLedger(name));
+  if (!winner?.sourcePath) return undefined;
+  const preserved = join(ROOT, winner.sourcePath);
+  if (!existsSync(preserved)) return undefined;
+  return { path: preserved, how: `its preserved best attempt, key [${winner.key.join(",")}]` };
+}
+
+function mechanismsFor(
+  name: string,
+): { mechanisms: Mechanism[]; how: string; path: string } | { error: string } {
+  const source = traceableSource(name);
+  if (!source) return { error: "no matched source and no preserved attempt — nothing to run its loop pass on" };
+  try {
+    return {
+      mechanisms: mechanismsOf(loopTrace(name, source.path).result.trace),
+      how: source.how,
+      path: projectPath(source.path),
+    };
+  } catch (error) {
+    /* `feedback_tools_correct_over_convenient`: a sibling whose attempt no
+       longer compiles is undetermined, and saying so is the finding. Silently
+       dropping it would report the cluster as surveyed. */
+    return { error: `${source.how} no longer traces: ${(error as Error).message}` };
+  }
+}
+
+/**
+ * Every mechanism any of this function's own measured programs has reached.
+ *
+ * The finding's claim is "and no program of yours has ever reached it", which
+ * one trace cannot support: the current source is one point, and a session that
+ * has run sixty of them has sixty. The ledger preserves each measured source
+ * content-addressed, so the rest cost one compile each — best row per distinct
+ * key, because two spellings on one key are the same program twice.
+ */
+function ownMechanisms(name: string): {
+  ids: Set<string>;
+  mechanisms: Mechanism[];
+  traced: string[];
+  dropped: number;
+  /** Distinct keys whose program predates the ledger preserving its sources. */
+  unpreserved: number;
+  errors: string[];
+} {
+  const ids = new Set<string>();
+  const mechanisms: Mechanism[] = [];
+  const traced: string[] = [];
+  const errors: string[] = [];
+
+  const absorb = (found: Mechanism[]): void => {
+    for (const mechanism of found) {
+      if (ids.has(mechanism.id)) continue;
+      ids.add(mechanism.id);
+      mechanisms.push(mechanism);
+    }
+  };
+
+  const current = mechanismsFor(name);
+  if ("error" in current) errors.push(current.error);
+  else { absorb(current.mechanisms); traced.push(current.how); }
+
+  /* The ledger's distinct keys, best first. `best` is reused per group so an
+     unproven zero never outranks a real key inside one. */
+  const byKey = new Map<string, LedgerEntry[]>();
+  for (const entry of measurements(readLedger(name))) {
+    const key = entry.key.join(",");
+    byKey.set(key, [...(byKey.get(key) ?? []), entry]);
+  }
+  const bests = [...byKey.values()].map((group) => best(group));
+  /* Rows written before the ledger preserved its sources carry no path, so
+     their programs cannot be re-traced at all. That is a real hole in the
+     "no program of yours ever reached it" claim and is reported as one. */
+  const unpreserved = bests.filter((entry) => entry !== undefined && entry.sourcePath === undefined).length;
+  const winners = bests
+    .filter((entry): entry is LedgerEntry => entry !== undefined && entry.sourcePath !== undefined)
+    .sort((left, right) => {
+      for (let index = 0; index < Math.max(left.key.length, right.key.length); index++) {
+        const difference = (left.key[index] ?? 0) - (right.key[index] ?? 0);
+        if (difference !== 0) return difference;
+      }
+      return 0;
+    });
+
+  const considered = winners.slice(0, MAX_OWN_VARIANTS);
+  for (const entry of considered) {
+    const path = join(ROOT, entry.sourcePath!);
+    if (!existsSync(path)) { errors.push(`${entry.sourcePath} is no longer on disk`); continue; }
+    try {
+      /* Its own artifact slot: tracing these under the function's own key would
+         overwrite the trace every other reader of this function expects. */
+      absorb(mechanismsOf(loopTrace(name, path, entry.sourceHash.slice(0, 16)).result.trace));
+      traced.push(`[${entry.key.join(",")}] ${projectPath(path)}`);
+    } catch (error) {
+      errors.push(`[${entry.key.join(",")}] no longer traces: ${(error as Error).message}`);
+    }
+  }
+
+  return { ids, mechanisms, traced, dropped: winners.length - considered.length, unpreserved, errors };
+}
+
+/**
+ * What the target's own bytes require of the loop pass, scoped to where the
+ * residual actually is.
+ *
+ * Two readings, and the narrower one is used when it can be. The requirement
+ * derived from the bytes covers every preheader in the function; the residual
+ * says which of them is still open, and a goal in a preheader that already
+ * matches is not a reason to go looking for a donor. When there is no candidate
+ * to take a residual from — a parked function's file is a stub, which is
+ * exactly the state this detector is most worth something in — the whole
+ * function's goals stand, and the scope line says so.
+ */
+function loopRequirementOf(
+  name: string,
+  sourcePath?: string,
+): { goals: ReturnType<typeof goalsFor>; scope: string } {
+  let requirement: ReturnType<typeof targetLoopEmission>;
+  try {
+    requirement = targetLoopEmission(name);
+  } catch {
+    /* No liftable target is another detector's finding. */
+    return { goals: [], scope: "the target could not be lifted, so no loop-emission requirement was read" };
+  }
+
+  if (sourcePath !== undefined) {
+    try {
+      const objective = reversePipeline({ functionName: name, source: sourcePath, replay: false }).report.objective;
+      if (objective.exact) {
+        return { goals: [], scope: "this program is byte-exact; there is no residual to find a donor for" };
+      }
+      const open = new Set(objective.blocks
+        .filter((block) => !block.blind
+          && block.population + block.schedule + block.allocation + block.coalescing > 0)
+        .map((block) => block.block));
+      const here = requirement.preheaders.filter((preheader) =>
+        open.has(preheader.block) || open.has(preheader.header));
+      if (here.length > 0) {
+        return {
+          goals: here.flatMap((preheader) => goalsFor(preheader)),
+          scope: `scoped to the ${here.length} preheader(s) the residual is still open at: block ` +
+            `${here.map((preheader) => preheader.block).join(", ")}`,
+        };
+      }
+      return {
+        goals: [],
+        scope: "no preheader of this function carries an open residual, so the loop pass is not what is " +
+          "left to fix here",
+      };
+    } catch {
+      /* Fall through to the whole-function requirement. */
+    }
+  }
+
+  return {
+    goals: requirement.preheaders.flatMap((preheader) => goalsFor(preheader)),
+    scope: "read over the whole function: there is no candidate to take a residual from, so no preheader " +
+      "could be ruled out",
+  };
+}
+
+/**
+ * The measured mechanisms of this function's cluster-mates.
+ *
+ * The relation this reads — `notes/file-groupings.md` — is already used to
+ * suggest neighbours to *read*. This asks a different question of it, and one
+ * nothing else in the stack asks: not "how did the author spell things" but
+ * "which compiler mechanisms are provably reachable in this cluster, and by
+ * which of us". A sibling's preserved attempt is author-side evidence even when
+ * the attempt failed: its trace is a measurement, and one compile buys it.
+ *
+ * The case this exists for is not hypothetical. Two functions of one cluster
+ * sat parked for weeks as complementary halves — each one's trace demonstrated,
+ * measured, the mechanism the other was missing — and both sessions read the
+ * sibling only as something a future fix would also close, never as a source of
+ * evidence. Nothing in triage looked sideways.
+ *
+ * The sharpest form is a contradiction rather than an absence: a giv shape the
+ * sibling REDUCED and this program's own trace was REFUSED. Both programs put
+ * the same question to the same pass and got different answers, so the
+ * difference is in the source, and the log prints both sides of the inequality.
+ */
+function detectClusterDonor(name: string, sourcePath?: string): Finding[] {
+  const siblings = siblingsOf(name);
+  if (siblings.length === 0) return [];
+
+  const mine = ownMechanisms(name);
+  const own = mine.mechanisms;
+  const ownIds = mine.ids;
+
+  const { goals, scope } = loopRequirementOf(name, sourcePath);
+
+  const considered = siblings.slice(0, MAX_DONORS);
+  const dropped = siblings.slice(MAX_DONORS);
+  const undetermined: string[] = [];
+  const donors: string[] = [];
+  const evidence: string[] = [];
+
+  for (const sibling of considered) {
+    const theirs = mechanismsFor(sibling);
+    if ("error" in theirs) { undetermined.push(`${sibling}: ${theirs.error}`); continue; }
+
+    /* The strongest form: the same question, put to the same pass, answered
+       differently. Both programs offered a giv of this shape; one was reduced
+       and one refused, so the difference is in the source and the log prints
+       both sides of the inequality that decided it. */
+    const contradictions = theirs.mechanisms.filter((mechanism) =>
+      mechanism.id.startsWith("giv-reduced:")
+      && ownIds.has(`giv-declined:${mechanism.id.slice("giv-reduced:".length)}`));
+
+    /* The weaker form, and gated on the requirement so it stays evidence rather
+       than trivia: a mechanism that produces a pass-2 emission, reached there
+       and not here, when this target's own bytes force a pass-2 emission. */
+    const absences = goals.length === 0
+      ? []
+      : theirs.mechanisms.filter((mechanism) =>
+        (mechanism.id === "cascade" || mechanism.id === "pass2-movable") && !ownIds.has(mechanism.id));
+
+    if (contradictions.length === 0 && absences.length === 0) continue;
+    donors.push(sibling);
+
+    /* The lines of C the mechanism is about. `loop.c` logs UIDs and a UID sends
+       a reader to the whole function; the statement that produced it sends them
+       to the edit. Costs two compiles of the sibling and is skipped silently
+       when the two disagree about anything, because a wrong line is worse than
+       no line. */
+    const lines = lineMapFor(sibling, theirs.path);
+    const quote = (mechanism: Mechanism, indent: string): void => {
+      if (!lines) return;
+      const seen = new Set<string>();
+      for (const uid of mechanism.insns) {
+        /* `lines.file` is the path the compiler itself recorded in the note,
+           which is right whether the source is in the tree or preserved outside
+           it; re-deriving it from a project-relative path would not be. */
+        const text = quoteLine(lines, lines.file, uid);
+        if (text === undefined || seen.has(text)) continue;
+        seen.add(text);
+        evidence.push(`${indent}${theirs.path} ${text}`);
+      }
+    };
+
+    evidence.push(`${sibling} — ${theirs.how}; its loop pass was run and this is what it reached.`);
+    for (const mechanism of contradictions) {
+      const shape = mechanism.id.slice("giv-reduced:".length);
+      const refused = own.find((entry) => entry.id === `giv-declined:${shape}`)!;
+      evidence.push(`  SAME QUESTION, DIFFERENT ANSWER — giv shape ${shape}`);
+      evidence.push(`    there: ${mechanism.witness}`);
+      evidence.push(`    here:  ${refused.witness}`);
+      evidence.push(`    ${mechanism.label}`);
+      evidence.push("    THE SOURCE THAT PRODUCES IT:");
+      quote(mechanism, "      ");
+      /* Scoped to this shape, not to the program. Whether the donor combines
+         givs *somewhere* is nearly always yes and says nothing; whether the giv
+         of the shape yours was refused reached the gate by summing two
+         occurrences is the edit. */
+      if (mechanism.combined) {
+        evidence.push(
+          "    and it got there by COMBINING: identical givs have their benefits summed, so an " +
+          "expression that declines as one occurrence can clear the gate as two. Spelling the same " +
+          "expression at a second consumer is the lever, not a redundancy.");
+        const combine = theirs.mechanisms.find((entry) => entry.id === "giv-combined");
+        if (combine) evidence.push(`    ${combine.witness}`);
+      }
+    }
+    for (const mechanism of absences) {
+      evidence.push(`  REACHED THERE, NOT HERE — ${mechanism.id}`);
+      evidence.push(`    ${mechanism.label}`);
+      evidence.push(`    ${mechanism.witness}`);
+      evidence.push("    THE SOURCE THAT PRODUCES IT:");
+      quote(mechanism, "      ");
+    }
+    if (!lines) {
+      evidence.push(
+        `  no source-line attribution for ${theirs.path} — its -g and plain compiles do not agree ` +
+        "instruction for instruction, so no line is quoted rather than a wrong one. Read the file.");
+    } else {
+      evidence.push(`  read ${theirs.path} around those lines for the spelling that produces it.`);
+    }
+  }
+
+  if (donors.length === 0) return [];
+
+  if (goals.length > 0) {
+    evidence.push(
+      "",
+      `this target's own requirement forces ${goals.map((goal) => goal.symbol).join(", ")} past pass 1, so a ` +
+      "mechanism that produces a pass-2 emission is on the path here too; psx_target_loop_emission names " +
+      "the routes and psx_loop_trace measures which one your program takes.");
+  }
+
+  /* What the survey did not cover, stated rather than implied. A cap that is
+     silent reads afterwards as "the cluster was searched". */
+  evidence.push(
+    "",
+    `cluster: ${groupHeadingOf(name) ?? "(unnamed group)"} — ${siblings.length} sibling(s) recorded, ` +
+    `${considered.length} traced.`,
+    `requirement: ${scope}.`,
+    mine.traced.length === 0
+      ? "this program's own side is UNDETERMINED — nothing of it could be traced. Everything above is " +
+        "what the siblings reach, with nothing to compare it against."
+      : `this program's own side is the union over ${mine.traced.length} of its own measured program(s): ` +
+        `${mine.traced.join("; ")}.`);
+  if (mine.dropped > 0) {
+    evidence.push(`its own programs not traced (cap ${MAX_OWN_VARIANTS} distinct keys): ${mine.dropped}.`);
+  }
+  if (mine.unpreserved > 0) {
+    evidence.push(
+      `${mine.unpreserved} of its distinct keys predate the ledger preserving its sources, so those ` +
+      "programs cannot be re-traced and are NOT part of the comparison above.");
+  }
+  for (const error of mine.errors) evidence.push(`its own side, undetermined: ${error}.`);
+  if (dropped.length > 0) evidence.push(`not traced (cap ${MAX_DONORS}): ${dropped.join(", ")}.`);
+  if (undetermined.length > 0) evidence.push(`undetermined: ${undetermined.join("; ")}.`);
+
+  return [{
+    detector: "cluster-donor",
+    severity: "signal",
+    summary:
+      `${donors.join(", ")} — recorded cluster-mate${donors.length === 1 ? "" : "s"} whose own loop pass ` +
+      "reaches a mechanism this program does not. That is a measurement, not a hypothesis, and one compile " +
+      "bought it. Read what their source does differently before deriving a spelling of your own.",
+    evidence,
+    see: ["psx_loop_trace", "notes/file-groupings.md", "prompts/reference/loop.md"],
+  }];
 }
 
 function detectCalleeTruth(name: string, sourcePath: string, scratch: string): Finding[] {
@@ -1701,6 +2366,11 @@ function main(): void {
       findings.push(...detectInventory(target, compiled));
       findings.push(...detectDeadAsm(compiled, srcText));
       findings.push(...detectSelfSimilarity(name, resolveSource(name, srcOverride)));
+      /* Before the preheader-order reading, because a phony loop invalidates
+       * that reading's whole subject: the emission classes it reasons about
+       * were never assigned inside a loop nothing scanned. */
+      findings.push(...detectPhonyLoop(name, resolveSource(name, srcOverride)));
+      findings.push(...detectLoopPreheaderOrder(name, resolveSource(name, srcOverride)));
     }
   }
 
@@ -1716,6 +2386,10 @@ function main(): void {
   findings.push(...detectFlagFingerprint(name, sourceState === "c" ? srcText : undefined));
   findings.push(...detectSearchDomain(name, sourceState === "c" ? srcText : undefined));
   findings.push(...detectPremiseSurvival(name));
+  /* Unconditional, like the idiom precedent below and for the same reason: it
+   * needs no source of its own. A parked function whose file is still a stub is
+   * exactly who a cluster-mate's measured trace is worth most to. */
+  findings.push(...detectClusterDonor(name, sourceState === "c" ? resolveSource(name, srcOverride) : undefined));
   /* Last because it is the most expensive on a cold cache, and unconditional
      because it is the one detector that needs no source: the query is the
      target's own assembly, which is exactly what a stub has and nothing else

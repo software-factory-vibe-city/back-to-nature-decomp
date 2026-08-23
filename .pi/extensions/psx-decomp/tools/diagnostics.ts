@@ -291,6 +291,48 @@ export const TOOL_SPECS: ToolSpec[] = [
   ),
 
   functionTool(
+    "psx_target_loop_emission", "PSX Target Loop Emission", "analyzeTargetLoopEmission.ts",
+    "What the ORIGINAL's loop optimizer must have done, derived from the target's bytes alone — so it works on a bare INCLUDE_ASM stub, before the first line of source. This is the requirement half that `psx_loop_trace` observes against; every other pass has both (psx_analyze_target_schedule, psx_allocator_counterfactual) and loop.c had only the observer, which is why a preheader residual had nothing to steer by. loop.c emits into a preheader through emit_insn_before(loop_start), so the preheader reads front to back as a NON-DECREASING sequence of emission classes: source < pass-1 movable < pass-1 giv init < pass-2 movable < pass-2 giv init. Each group admits the classes its own evidence allows — an address the loop only reads can be a movable, a register the loop steps by a constant can be an induction init, a call argument neither — and the ordering constraint cuts that down to the requirement. Pass `source` to score a candidate: it reports, per constrained address, MET / NOT MET / UNDETERMINED and a distance to minimise. Minimise THAT, not the byte score — on a preheader residual the byte score is flat across the whole family of source spellings and ranks the mechanism-correct variant worst, which is how a correct variant gets recorded as closed.",
+    { extra: { source: Type.Optional(Type.String({ description: "Candidate C to score against the requirement; omit for the requirement alone" })) },
+      argv: (p) => [p.functionName as string,
+        ...(p.source ? ["--source", p.source as string] : []),
+        ...(p.json ? ["--json"] : [])],
+      timeout: 300_000 },
+  ),
+  {
+    name: "psx_loop_trace",
+    label: "PSX Loop Trace",
+    script: "loopTrace.ts",
+    description:
+      "What GCC's loop optimizer decided, read off its own `-dL` log rather than reconstructed from " +
+      "the pass source. Every movable with its `savings`, `lifetime`, flags and decision; every biv " +
+      "and giv with the combine chain and the pseudo it became; and the preheader reassembled in " +
+      "emission order — movables first, then giv initialisations, per pass — which is the layout a " +
+      "preheader-order residual is actually about and which the assembly does not show. It also " +
+      "solves for `threshold`, which loop.c never prints and which decays by 3 after every movable " +
+      "it moves: two movables with identical savings and lifetime in one loop can decide differently " +
+      "for that reason alone, so reading them as a contradiction throws away the tightest evidence in " +
+      "the log. Once the threshold is pinned, every decision is reported as arithmetic — the product " +
+      "it needed against the product it had. CANDIDATE-SIDE: there is no loop dump for a binary " +
+      "nobody compiled, so this says what your program's loop pass did and the residual says how the " +
+      "original's differed. Read it whenever the residual is instruction position in a loop preheader, " +
+      "or whenever a hoist appears or fails to appear. Pass `source` for a parked function, whose own " +
+      "file is a stub. `threshold` alone prints the running record across every function traced so far.",
+    parameters: Type.Object({
+      functionName: Type.Optional(FUNCTION("Exact function symbol to trace")),
+      source: Type.Optional(Type.String({ description: "Alternate source to compile instead of the function's own file" })),
+      threshold: Type.Optional(Type.Boolean({ description: "Print only the running threshold record; omit functionName" })),
+      json: JSON_FLAG,
+    }),
+    argv: (p) => [
+      ...(p.threshold && !p.functionName ? ["--threshold"] : []),
+      ...(p.functionName ? [p.functionName as string] : []),
+      ...(p.source ? ["--source", p.source as string] : []),
+      ...(p.json ? ["--json"] : []),
+    ],
+    timeout: 300_000,
+  },
+  functionTool(
     "psx_experiment_ledger", "PSX Experiment Ledger", "experimentLedger.ts",
     "Every measurement already taken on this function: the source, the staged residual key, and the compiled-output hash. Read it BEFORE forming a hypothesis — it says which levers are closed and, more usefully, which distinct-looking sources compile to the same words and are therefore the same experiment. `psx_residual_objective` appends to it automatically, so it is the session-to-session memory the research notes could not be.",
   ),
@@ -332,7 +374,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   },
   functionTool(
     "psx_record_closed", "PSX Record Closed Direction", "closedDirections.ts",
-    "Record what a heavy tool just answered, and read what earlier sessions recorded. An UNSAT from psx_solve_local_allocation, an empty domain from psx_search_source_shapes, a scheduler state that cannot exist — each closes a region of the search space, and each costs minutes to rediscover. Call it with no flags to read the record before forming a hypothesis; call it with --tool/--question/--verdict/--result after any heavy tool returns. `psx_experiment_ledger` prints the record above the measurements, so a direction closed once is closed for every later session, model and context.",
+    "Record what a heavy tool just answered, and read what earlier sessions recorded. An UNSAT from psx_solve_local_allocation, an empty domain from psx_search_source_shapes, a scheduler state that cannot exist — each closes a region of the search space, and each costs minutes to rediscover. Call it with no flags to read the record before forming a hypothesis; call it with --tool/--question/--verdict/--result after any heavy tool returns. Record `conditionalOn` with every impossibility: an impossibility is conditioned on its inputs — the compiler state you measured it under, the origin you assumed — and a row that does not say so is read by the next session as unconditional and never re-opened. Two rows on one function closed it for six sessions that way; both proofs were sound and both premises were wrong. `psx_experiment_ledger` prints the record above the measurements, so a direction closed once is closed for every later session, model and context.",
     { functionDescription: "Function the question was asked about",
       extra: {
         tool: Type.Optional(Type.String({ description: "Tool that answered it, by its psx_ name" })),
@@ -340,6 +382,7 @@ export const TOOL_SPECS: ToolSpec[] = [
         verdict: Type.Optional(Type.String({ description: "closed | open | inconclusive" })),
         result: Type.Optional(Type.String({ description: "The tool's own words for its result — UNSAT, 'no candidate', a count" })),
         evidence: Type.Optional(Type.String({ description: "How a later reader checks this without re-running: bounds, counts, run time" })),
+        conditionalOn: Type.Optional(Type.String({ description: "The premise the verdict rests on, so a later session attacks the premise rather than re-running the proof" })),
       },
       argv: (p) => [p.functionName as string,
         ...(p.tool ? ["--tool", p.tool as string] : []),
@@ -347,6 +390,7 @@ export const TOOL_SPECS: ToolSpec[] = [
         ...(p.verdict ? ["--verdict", p.verdict as string] : []),
         ...(p.result ? ["--result", p.result as string] : []),
         ...(p.evidence ? ["--evidence", p.evidence as string] : []),
+        ...(p.conditionalOn ? ["--conditional-on", p.conditionalOn as string] : []),
         ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(

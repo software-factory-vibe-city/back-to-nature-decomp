@@ -581,6 +581,92 @@ switch that differ only in a constant produce the same difference twice.
 The variant laboratory and the shape searcher rank on the same key, and the
 autonomous loop reports it to each turn in place of the word count.
 
+### Step 4d: watch the loop pass make its decisions
+
+The reversal names the pass. For every pass but one, the next step is a model:
+the scheduler solver, the allocator counterfactual, a source-space search.
+`loop.c` is the exception — it logs its own decisions, `-dL` is in the vendored
+`cc1`, and `loopTrace.ts` reads the log.
+
+```bash
+npx tsx tools/agent/loopTrace.ts <function>
+npx tsx tools/agent/loopTrace.ts <function> --source <path>
+npx tsx tools/agent/loopTrace.ts --threshold
+```
+
+It reports every loop-invariant candidate with its `savings`, `lifetime`, flags
+and outcome; every induction variable with its combine chain and the pseudo it
+became; and the preheader reassembled in emission order — movables in the order
+the pass moved them, then the giv initialisations, per pass — which is the
+layout a position-only preheader residual is about and which the assembly does
+not show.
+
+It also solves for `threshold`, which `loop.c` never prints. Both of the pass's
+thresholds derive from one compilation-wide constant, so every decision in every
+function constrains the same unknown; the running record lives in
+`build/loopTrace/threshold.json`, and on this target it resolves to
+`n_non_fixed_regs = 28`. Once it is a number, each decision is arithmetic: the
+tool prints the `savings x lifetime` a movable needed against the one it had.
+
+This is candidate-side. There is no loop dump for a binary nobody compiled, so
+it cannot compare the two sides by itself. `analyzeTargetLoopEmission.ts` is the
+other half — the requirement, derived from the target's bytes alone, so it works
+on a bare `INCLUDE_ASM` stub:
+
+```bash
+npx tsx tools/agent/analyzeTargetLoopEmission.ts <function>
+npx tsx tools/agent/analyzeTargetLoopEmission.ts <function> --source <candidate.c>
+```
+
+A preheader is a non-decreasing sequence of emission classes, so each group's
+own evidence is cut down by the ordering until only some classes remain — and a
+group that lands after an induction initialisation cannot be a pass-1 movable.
+That becomes a goal per address, scored MET / NOT MET / UNDETERMINED, and a
+distance.
+
+**Iterate on that distance, not the byte score.** On a preheader residual the
+byte score is flat across the whole family of source spellings and inverted at
+the top of it: the variant that puts the address on the required side of the
+pass boundary can score dozens of words worse than variants that get the
+mechanism wrong. `psx_reference loop` is the sheet for reading both tools.
+
+Each goal also lists the **routes** by which the original can have reached a
+pass-2 emission, with the target-side evidence that opens or closes each here.
+Three exist and only two are about decisions the pass made: a value can decline
+at pass 1 and be taken by pass 2, it can become a reduced giv — or it can be
+hoisted out of a *nested* loop by pass 1 and re-hoisted by pass 2 of the
+enclosing one. `scan_loop` cannot record a movable for an insn a loop pass
+created, so that third route never faces pass 1's test at all, and a
+desirability floor that closes the first says nothing about it. The trace
+reports observed cascades outright, joining the pass-1 landing UID to the pass-2
+movable that re-hoisted it.
+
+Score a candidate and the two sides together can pin the answer: when exactly
+one reading of the target's preheader holds every class the candidate produced,
+the requirement has stopped being a range, and the report says `PINNED` and
+names the routes that reading needs.
+
+Two further readings come out of the same log. A loop the pass discarded prints
+`Loop from A to B is phony.` and nothing else: it was never scanned, so its
+silence about movables and givs is an absence rather than a decision.
+`psx_triage`'s `phony-loop` detector raises it as a blocker — with the cause
+read back from the dump's own RTL — when the residual is somewhere placement
+decides, which is a block inside the nest or the preheader of one.
+
+And a cluster-mate's trace is evidence about *this* function. `psx_triage`'s
+`cluster-donor` detector runs the loop pass over every member of the group
+`notes/file-groupings.md` records — a matched source or a preserved parked
+attempt, tens of milliseconds each — against the union over this function's own
+measured programs, one per distinct residual key from the ledger. It reports
+where a sibling reduced a giv shape this program was refused, or reached a
+pass-2 emission it has not, **and quotes the lines of C that produce it**.
+
+Those line numbers come from a detail of `emit_note`: without `-g` it suppresses
+the line note but still consumes the insn UID, so a `-g` compile numbers every
+insn identically and its line notes can be read onto the ordinary compile's
+UIDs. The tool compiles both and compares the instruction streams before
+believing it; any difference and no line is quoted at all.
+
 ### Step 5: compare a small set of hypotheses
 
 `fuzzVariants.ts` is a variant laboratory. It is not a source permuter. A JSON
@@ -770,9 +856,12 @@ The main tools under `tools/agent/` are:
 | `synthesizeSourceShapes.ts` | Derives a grammar from the requirements |
 | `searchResidualSourceSpace.ts` | Searches the residual source space automatically |
 | `reversePipeline.ts` | Runs the compiler backward and names the pass that owns the residual |
+| `loopTrace.ts` | Reads the loop optimizer's own `-dL` log and solves for its unprinted threshold |
+| `analyzeTargetLoopEmission.ts` | Derives what the original's loop pass must have done, and scores a candidate on it |
 | `residualObjective.ts` | Scores and ranks candidate sources on the staged residual — the iteration metric |
 | `fuzzVariants.ts` | Compares mechanism hypotheses |
 | `contextExport.ts` | Exports the matched signatures |
+| `fileGroupings.ts` | Reads suspected same-translation-unit membership out of the grouping ledger |
 | `sourcePolicy.ts` | Audits the sources for forbidden constructs |
 
 For the full list, read `notes/tools-directory-structure.md`.

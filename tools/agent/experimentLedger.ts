@@ -330,6 +330,155 @@ export function best(entries: LedgerEntry[]): LedgerEntry | undefined {
   })[0];
 }
 
+/* ---- the valley ---------------------------------------------------------
+ *
+ * A stall counter says the search has stopped moving. It does not say what
+ * *shape* it has stopped in, and the shape decides what to do next.
+ *
+ * The expensive shape is a narrow valley: the best program sits one or two
+ * terms from exact, and every other program the search has measured is far
+ * worse. That is not a search that needs more attempts — it is a search whose
+ * remaining distance is several coordinates wide. Every single-coordinate
+ * respelling around the best moves at least one of the others the wrong way, so
+ * each one scores worse and reads as a refutation of the direction it tried.
+ * The function this was calibrated against needed index arity, no source
+ * walker, no source index, a doubled giv spelling and a different loop tail
+ * *simultaneously*; no sweep over one axis at a time could have crossed it, and
+ * six sessions of sweeping did not.
+ *
+ * The escape is not another attempt from the candidate side. It is to derive
+ * what the original must have done and write that — which is what the
+ * requirement-side tools are for.
+ */
+
+/** How close to exact the best must be for the valley reading to apply. */
+const VALLEY_MAX_TOTAL = 4;
+/** How much worse every other measured program must be, as a multiple. */
+const VALLEY_ISOLATION = 3;
+/** Distinct programs needed before isolation means anything. */
+const VALLEY_MIN_DISTINCT = 4;
+/** Distinct programs with no improvement that make a *dense* floor a valley too. */
+const VALLEY_UNIMPROVED = 8;
+
+/**
+ * Which evidence says the best is in a valley.
+ *
+ * Two, because the shape shows up two ways and only one of them was obvious.
+ * `isolated` is the clean case: the best stands alone and every other program
+ * measured is far worse. `unimproved` is the case that actually cost this
+ * project six sessions and that isolation misses — a *crowded* floor, dozens of
+ * programs clustered a term or two from exact, none of them better than the
+ * best. The crowd is the tell rather than the counter-evidence: every one of
+ * those neighbours is a single-coordinate move that traded one term for
+ * another, which is what a multi-coordinate distance looks like from inside.
+ */
+export type ValleyEvidence = "isolated" | "unimproved";
+
+export interface Valley {
+  evidence: ValleyEvidence[];
+  bestKey: number[];
+  bestTotal: number;
+  /** The nearest other distinct key's total; `undefined` when there is none. */
+  nearestOther?: number;
+  /** Distinct programs measured since the best key was last improved on. */
+  unimproved: number;
+  distinctPrograms: number;
+  distinctKeys: number;
+}
+
+const keyTotal = (key: number[]): number => key.reduce((total, term) => total + term, 0);
+
+/**
+ * The valley reading, or nothing. Derived; no new state.
+ *
+ * Isolation is measured over distinct *keys*, not over measurements: twenty
+ * spellings that all land on one key are one point in the space, and counting
+ * them as twenty would make any well-explored ledger look isolated.
+ */
+export function valley(entries: LedgerEntry[]): Valley | undefined {
+  const winner = best(entries);
+  if (!winner || winner.exact === true) return undefined;
+  const bestTotal = keyTotal(winner.key);
+  if (bestTotal === 0 || bestTotal > VALLEY_MAX_TOTAL) return undefined;
+
+  const distinct = measurements(entries);
+  if (distinct.length < VALLEY_MIN_DISTINCT) return undefined;
+
+  const bestKey = JSON.stringify(winner.key);
+  const others = [...new Set(distinct.map((entry) => JSON.stringify(entry.key)))]
+    .filter((key) => key !== bestKey)
+    .map((key) => keyTotal(JSON.parse(key) as number[]));
+  if (others.length === 0) return undefined;
+  const nearestOther = Math.min(...others);
+
+  /* How long the floor has held. Respellings are already excluded by
+     `measurements`, so each of these was a genuinely different program.
+     Unproven zeros are excluded too, and for the same reason `best` excludes
+     them: a row whose key is all zeros while the bytes still differ has not
+     improved on anything — the reversal simply could not see the difference.
+     Counted as an improvement it resets this to zero on the measurement that
+     is least informative, which is how a six-session floor read as a search
+     that had just moved. */
+  let running: number[] | undefined;
+  let lastImprovement = 0;
+  distinct.forEach((entry, index) => {
+    if (isUnprovenZero(entry)) return;
+    if (running === undefined || keyIsBetter(entry.key, running)) {
+      running = entry.key;
+      lastImprovement = index;
+    }
+  });
+  const unimproved = distinct.length - 1 - lastImprovement;
+
+  const evidence: ValleyEvidence[] = [];
+  if (nearestOther >= bestTotal * VALLEY_ISOLATION) evidence.push("isolated");
+  if (unimproved >= VALLEY_UNIMPROVED) evidence.push("unimproved");
+  if (evidence.length === 0) return undefined;
+
+  return {
+    evidence,
+    bestKey: winner.key,
+    bestTotal,
+    nearestOther,
+    unimproved,
+    distinctPrograms: distinct.length,
+    distinctKeys: others.length + 1,
+  };
+}
+
+/** Lexicographic order over the staged residual: the worst term decides. */
+function keyIsBetter(candidate: number[], incumbent: number[]): boolean {
+  for (let index = 0; index < Math.max(candidate.length, incumbent.length); index++) {
+    const difference = (candidate[index] ?? 0) - (incumbent[index] ?? 0);
+    if (difference !== 0) return difference < 0;
+  }
+  return false;
+}
+
+/** The one advisory a valley earns, as lines. */
+export function renderValley(reading: Valley): string[] {
+  const head = reading.evidence.includes("isolated")
+    ? `the best key [${reading.bestKey.join(", ")}] is ${reading.bestTotal} term(s) from exact, and the ` +
+      `nearest of the other ${reading.distinctKeys - 1} distinct key(s) measured is ${reading.nearestOther} — ` +
+      `${reading.distinctPrograms} distinct programs, and nothing landed in between.`
+    : `the best key [${reading.bestKey.join(", ")}] is ${reading.bestTotal} term(s) from exact and ` +
+      `${reading.unimproved} distinct programs since have not beaten it, across ` +
+      `${reading.distinctKeys} distinct keys clustered around it.`;
+  return [
+    `VALLEY: ${head}`,
+    "That is a floor, not a gradient. A best this close that a whole sweep cannot improve on means the",
+    "remaining distance is several coordinates wide: every single-coordinate respelling moves one of the",
+    "other coordinates the wrong way, scores worse, and reads as a refutation of the direction it tried.",
+    "Sweeping one axis at a time cannot cross it however long it runs.",
+    "Take the next experiment from the REQUIREMENT side instead of from another spelling:",
+    "  psx_target_loop_emission  — what the original's loop pass must have emitted, and by which route",
+    "  psx_triage                — its cluster-donor finding names a sibling that already reaches a",
+    "                              mechanism this program does not, with the trace that measured it",
+    "  psx_analyze_target_schedule / psx_allocator_counterfactual — the same for the later passes",
+    "Write the program the requirement describes, in one edit, and measure that.",
+  ];
+}
+
 export function renderLedger(functionName: string, entries: LedgerEntry[]): string {
   /* The closed directions come first because they are the expensive knowledge:
      a measurement costs seconds to repeat, an UNSAT costs minutes. */
@@ -358,6 +507,9 @@ export function renderLedger(functionName: string, entries: LedgerEntry[]): stri
     const mark = winner.exact === true ? " EXACT" : isUnprovenZero(winner) ? "  (zero residual, bytes still differ)" : "";
     lines.push(`  best key so far: [${winner.key.join(", ")}] from ${winner.source} (${winner.matchedWords}/${winner.totalWords})${mark}`);
   }
+
+  const reading = valley(entries);
+  if (reading) lines.push("", ...renderValley(reading).map((line) => `  ${line}`));
 
   const repeats = [...distinct.values()].filter((group) => group.length > 1);
   if (repeats.length > 0) {

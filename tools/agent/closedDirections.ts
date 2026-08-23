@@ -29,7 +29,20 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ROOT, normalizeFunctionName } from "./decompToolchain.js";
 
-export const CLOSED_SCHEMA_VERSION = 1;
+/**
+ * 2 adds `conditionalOn`.
+ *
+ * Every impossibility result in this record is conditioned on something, and
+ * the ones that cost most are the ones whose condition was never written down.
+ * Two rows on one function read as unconditional CLOSED facts — "no spelling can
+ * make this decline at pass 1", "the search space is exhausted" — and later
+ * sessions correctly refused to re-run them. Both were true *under a premise*:
+ * the first under an unmeasured threshold, the second under the assumption that
+ * the value had to originate at the outer loop. The proofs were sound and the
+ * premises were wrong, and nothing in the row said there was a premise to
+ * attack. Rows written under schema 1 stay valid and simply carry no premise.
+ */
+export const CLOSED_SCHEMA_VERSION = 2;
 
 /**
  * What a heavy tool's answer did to the search space.
@@ -54,10 +67,47 @@ export interface ClosedDirection {
   result: string;
   /** How a reader checks this without re-running: bounds, counts, run time. */
   evidence?: string;
+  /**
+   * The premise the verdict is conditional on.
+   *
+   * Not a hedge. A later session's job is to attack the *premise*, not to
+   * re-run the proof, and it can only do that if the premise is on the row.
+   * Absent on schema-1 rows, and on rows whose author did not record one —
+   * which is itself worth seeing.
+   */
+  conditionalOn?: string;
 }
 
 function closedPath(functionName: string): string {
   return join(ROOT, "build/experimentLedger/closed", `${functionName}.jsonl`);
+}
+
+/** Identity of a claim: same tool, same question, same verdict.
+ *  JSON rather than a joined string, so no separator can appear in a question
+ *  and make two different claims collide. */
+const claimKey = (row: ClosedDirection): string => JSON.stringify([row.tool, row.question, row.verdict]);
+
+/**
+ * Fold repeats of one claim into the most informative row.
+ *
+ * The file is append-only, and the one reason to append a claim already in it
+ * is to *add* to it — a premise the first author did not record. Folding here
+ * rather than rewriting the file keeps the record immutable and keeps the
+ * reader from seeing one fact twice; the later row wins field by field, so an
+ * amendment adds without erasing what the first row said.
+ */
+function fold(rows: ClosedDirection[]): ClosedDirection[] {
+  const byClaim = new Map<string, ClosedDirection>();
+  for (const row of rows) {
+    const existing = byClaim.get(claimKey(row));
+    byClaim.set(claimKey(row), existing === undefined ? row : {
+      ...existing,
+      ...(row.result ? { result: row.result } : {}),
+      ...(row.evidence ? { evidence: row.evidence } : {}),
+      ...(row.conditionalOn ? { conditionalOn: row.conditionalOn } : {}),
+    });
+  }
+  return [...byClaim.values()];
 }
 
 export function readClosed(functionName: string): ClosedDirection[] {
@@ -72,7 +122,7 @@ export function readClosed(functionName: string): ClosedDirection[] {
       /* A torn append is one lost row, not a broken record. */
     }
   }
-  return rows;
+  return fold(rows);
 }
 
 export interface RecordClosedInput {
@@ -82,8 +132,34 @@ export interface RecordClosedInput {
   verdict: ClosedVerdict;
   result: string;
   evidence?: string;
+  conditionalOn?: string;
   at?: string;
 }
+
+/**
+ * Does this question claim a region of the search space is empty?
+ *
+ * Those are the rows whose premise matters, because they are the ones later
+ * sessions treat as final. A row that records what a tool measured — a count, a
+ * layout, an assignment — is a fact; a row that records that something *cannot*
+ * happen is a proof, and a proof runs on premises.
+ *
+ * Deliberately a keyword test rather than anything cleverer: it drives a
+ * reminder, never a refusal, so a false positive costs one line of output and a
+ * false negative costs nothing that was not already the status quo.
+ */
+export function claimsEmptiness(question: string): boolean {
+  return /\b(can|cannot|can't|could|impossible|unreachable|reachable|exhaust\w*|no (?:source|spelling|candidate|way|variant)|any \w+|every \w+|never)\b/i
+    .test(question);
+}
+
+/** The reminder a `closed` row with no premise earns. */
+export const PREMISE_REMINDER = [
+  "note: this verdict is CLOSED and its question claims a region of the search space is empty, but no",
+  "  premise was recorded. An impossibility is conditioned on its inputs — the state you measured it",
+  "  under, the origin you assumed, the threshold you had at the time — and the next session will read",
+  "  the row as unconditional and refuse to re-open it. Re-record it with --conditional-on <premise>.",
+].join("\n");
 
 /**
  * Append one answered question, unless the same tool has already answered the
@@ -103,11 +179,17 @@ export function recordClosed(input: RecordClosedInput): ClosedDirection | undefi
     verdict: input.verdict,
     result: input.result,
     ...(input.evidence ? { evidence: input.evidence } : {}),
+    ...(input.conditionalOn ? { conditionalOn: input.conditionalOn } : {}),
   };
-  const already = readClosed(input.functionName).some(
-    (entry) => entry.tool === row.tool && entry.question === row.question && entry.verdict === row.verdict,
-  );
-  if (already) return undefined;
+  /* Repetition is not corroboration, so an identical claim is dropped — but a
+     claim that adds the premise the record was missing is not identical. That
+     amendment is the whole point of the field, and refusing it would leave the
+     one row a later session most needs permanently unconditional. */
+  const existing = readClosed(input.functionName).find((entry) => claimKey(entry) === claimKey(row));
+  const amends = existing !== undefined
+    && row.conditionalOn !== undefined
+    && existing.conditionalOn !== row.conditionalOn;
+  if (existing && !amends) return undefined;
   const path = closedPath(input.functionName);
   mkdirSync(dirname(path), { recursive: true });
   appendFileSync(path, `${JSON.stringify(row)}\n`);
@@ -125,6 +207,14 @@ export function renderClosed(functionName: string, rows = readClosed(functionNam
       `  ${row.verdict.toUpperCase().padEnd(12)} ${row.tool} — ${row.question}`,
       `               → ${row.result}${row.evidence ? `  (${row.evidence})` : ""}  [${row.at.slice(0, 10)}]`,
     );
+    /* Under the verdict, not beside it: what the row is conditional on is the
+       one part a later session is supposed to act on. Attack the premise, not
+       the proof. */
+    if (row.conditionalOn) lines.push(`               conditional on: ${row.conditionalOn}`);
+    else if (row.verdict === "closed" && claimsEmptiness(row.question)) {
+      lines.push("               conditional on: NOT RECORDED — an impossibility is conditioned on its");
+      lines.push("               inputs, and this row does not say which. Do not read it as unconditional.");
+    }
   }
   return lines.join("\n");
 }
@@ -134,7 +224,7 @@ function usage(message?: string): never {
   console.error(
     "Usage: npx tsx tools/agent/closedDirections.ts <function> [--json]\n" +
       "       npx tsx tools/agent/closedDirections.ts <function> --tool <name> --question <text> " +
-      "--verdict closed|open|inconclusive --result <text> [--evidence <text>]",
+      "--verdict closed|open|inconclusive --result <text> [--evidence <text>] [--conditional-on <premise>]",
   );
   process.exit(1);
 }
@@ -162,6 +252,7 @@ if (isCLI) {
     }
     if (!result) usage("--tool needs --result");
     const evidence = flag("evidence");
+    const conditionalOn = flag("conditional-on");
     const row = recordClosed({
       functionName,
       tool,
@@ -169,8 +260,12 @@ if (isCLI) {
       verdict,
       result,
       ...(evidence ? { evidence } : {}),
+      ...(conditionalOn ? { conditionalOn } : {}),
     });
     console.log(row ? "recorded" : "already recorded — this exact claim is in the record");
+    /* A nudge, never a gate: refusing the row would cost the record the fact,
+       which is worse than recording it with its premise missing and saying so. */
+    if (!conditionalOn && verdict === "closed" && claimsEmptiness(question)) console.log(PREMISE_REMINDER);
     console.log("");
   }
 

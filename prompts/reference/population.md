@@ -1,6 +1,9 @@
 # Population residual — the two programs do not contain the same instructions
 
-The owning passes are expand, cse, gcse, loop and combine. While the
+The owning passes are expand, cse, gcse, loop and combine — though a residual
+the reversal attributes to `loop` has its own sheet, `psx_reference loop`,
+because that pass logs its own decisions and can be measured rather than
+modelled. While the
 populations disagree, no scheduling or allocation reading applies: a pass
 downstream of the difference cannot add or remove an instruction, so
 everything it appears to say is an artefact of the mismatch.
@@ -310,6 +313,25 @@ a fresh address-result web, which can be essential for matching.
 | base load plus field offset | struct field |
 | scaled index before base | array/index expression |
 | base before scaled index | separately materialized base or pointer expression |
+
+### Index arity decides the address-materialisation form
+
+On MIPS the `%lo` of a global's address folds into the memory operand only when
+the address reaches the load as one register plus a constant. So the *arity of
+the index* decides which of two shapes the target must contain:
+
+| Index | Address form | What is left to place |
+|---|---|---|
+| one register — `g[i]` | the `%lo` folds into the load: `lui` alone | one `high` movable |
+| a sum — `g[i * k + j]` | no fold: a standalone `%hi`/`%lo` pair | an inseparable two-insn unit |
+
+Read this in both directions. A standalone pair in the target is evidence that
+the index was a two-register sum, and a lone `lui` is evidence that it was not —
+before any argument about where the address is placed. And spelling the index
+one way rather than the other is a *placement* lever as much as a population
+one: only the pair form is a unit `move_movables` can hoist, so an index written
+with a single register removes the very thing the target's preheader holds. See
+`psx_reference loop` §1 and §3.1.
 
 ### Large address constants
 

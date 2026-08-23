@@ -1,0 +1,56 @@
+
+;; Function first_function
+
+
+Loop from 10 to 90: 40 real insns.
+Continue at insn 85.
+Insn 20: regno 100 (life 4), consec 2, cond global move-insn savings 3 halved since already moved  moved to 500
+Insn 30: regno 101 (life 1), cond not safe
+Insn 40: regno 102 (life 2), move-insn matches 20 savings 2  moved to 502
+Insn 50: regno 103 (life 1), force move-insn savings 1 not desirable
+Insn 60: possible biv, reg 104, const =2
+Reg 104: biv verified
+Reg 105: biv discarded, not analyzable
+Biv 104 initialized at insn 505: initial value 0
+Insn 65: giv reg 106 src reg 104 benefit 5 lifetime 8 replaceable mult 4 add (plus:SI (reg:SI 200)
+        (const_int 8 [0x8]))
+Insn 70: giv reg 107 src reg 104 benefit 2 lifetime 1 ncav mult 4 add 0
+Insn 70: giv reg 107 final_value replaceable
+Cannot eliminate biv 104.
+Sorted combine statistics:
+ {65, 12} {70, 0}
+giv at 70 combined with giv at 65
+giv at 65 derived from 66 as (plus:SI (reg:SI 300)
+        (const_int 4 [0x4]))
+giv at 70 recombined with giv at 65 as (reg:SI 601)
+giv at 65 reduced to (reg:SI 600)
+giv of insn 70 not worth while, -62 vs 40.
+giv of insn 71: would need a multiply.
+Can reverse loop
+Reversed loop and added reg_nonneg
+Hoisted regno 108 r/w from (mem/f:SI (reg:SI 209) 0)
+
+Loop from 100 to 120 is phony.
+
+
+Loop at 130 ignored due to setjmp.
+
+Loop from 10 to 90: 31 real insns.
+Continue at insn 85.
+Insn 20: regno 100 (life 4), done move-insn matches 40 
+biv 104 can be eliminated.
+Something the grammar has never seen.
+
+(note 1 0 2 "" NOTE_INSN_DELETED)
+
+(insn 4 1 6 (set (reg/v:SI 81)
+        (reg:SI 4 a0)) 236 {movsi_internal2} (nil)
+    (nil))
+
+;; Function second_function
+
+
+Loop from 700 to 760: 12 real insns.
+Insn 710: regno 900 (life 1), move-insn savings 1  moved to 800
+
+(note 1 0 2 "" NOTE_INSN_DELETED)

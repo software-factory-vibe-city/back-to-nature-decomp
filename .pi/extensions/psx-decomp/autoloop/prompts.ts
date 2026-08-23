@@ -1,7 +1,7 @@
 import type { ResidualReading } from "../autonomous/gates.ts";
 import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import type { HandoffSummary } from "./types.ts";
-import { measurements, readLedger } from "../../../../tools/agent/experimentLedger.ts";
+import { measurements, readLedger, renderValley, valley } from "../../../../tools/agent/experimentLedger.ts";
 import { renderClosed } from "../../../../tools/agent/closedDirections.ts";
 import { lookupSignature } from "../../../../tools/agent/residualSignatures.ts";
 
@@ -64,7 +64,8 @@ function stallLine(functionName: string): string | undefined {
    * program is not a measurement that failed to move, it is the same program
    * arrived at again. Counting them as failures makes a loop that is opening
    * its own search space look like a loop that has run out of ideas. */
-  const entries = measurements(readLedger(functionName));
+  const rows = readLedger(functionName);
+  const entries = measurements(rows);
   if (entries.length < 4) return undefined;
 
   const better = (left: number[], right: number[]): boolean => {
@@ -86,7 +87,13 @@ function stallLine(functionName: string): string | undefined {
   const since = entries.length - 1 - lastImprovement;
   if (since < AXIS_EXHAUSTED) return undefined;
 
+  /* Before the escalation list, because it changes what the list is for. The
+   * heavier tools below all answer "is this source's output reachable"; in a
+   * valley the useful question is what the original's output requires, and
+   * running the first set at the second question wastes the escalation. */
+  const shape = valley(rows);
   const lines = [
+    ...(shape ? [renderValley(shape).join(" ")] : []),
     `STALLED: ${since} distinct measurements since the residual last improved on ` +
     `[${best.join(", ")}]. The axis is exhausted, not the function — stop re-spelling it and ` +
     "bring heavier evidence.",

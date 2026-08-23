@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, premiseSurvivalFrom, type TargetFacts } from "./triage.js";
+import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, phonyFindingsFrom, premiseSurvivalFrom, type TargetFacts } from "./triage.js";
+import { readFileSync } from "node:fs";
+import { parseLoopDump } from "./loop-trace/parse.js";
 import { sha256 } from "./variant-lab/artifacts.js";
 import { analyzeFrame } from "./frameMap.js";
 import { analyzeReturnValue } from "./frameMap.js";
@@ -589,4 +591,67 @@ test("premise-survival: the live axis is named from the residual, not assumed", 
     [ledgerEntry(0, [0, 0, 4, 9]), ...Array.from({ length: 8 }, (_, i) => ledgerEntry(i + 1, [0, 0, 5, 9]))],
   );
   assert.match(allocation[0]!.evidence[0]!, /different order or different registers/);
+});
+
+/* --- phony-loop ---------------------------------------------------------- */
+
+const LOOP_FIXTURES = join(import.meta.dirname, "loop-trace/test-fixtures");
+const loopTraceOf = (name: string) =>
+  parseLoopDump(readFileSync(join(LOOP_FIXTURES, `${name}.loop`), "utf8"), "ovl_10_func_800BA394");
+
+test("phony-loop: the detector fires on the tail spelling that loses the inner loop, and only that one", () => {
+  /* The measured pair. Same function, same three loops; the `&&`-form tail lays
+     the inner loop out with an entry jump, gcse's insertions land in the gap,
+     and loop.c discards the loop unscanned. */
+  const fires = phonyFindingsFrom(loopTraceOf("and-tail"), "src/f.c");
+  assert.equal(fires.length, 1);
+  assert.equal(fires[0]!.detector, "phony-loop");
+  assert.equal(fires[0]!.severity, "blocker", "a hypothesis inside an unscanned loop is void, not weak");
+
+  assert.deepEqual(phonyFindingsFrom(loopTraceOf("break-tail"), "src/f.c"), []);
+});
+
+test("phony-loop: the finding carries the cause, the nesting, and the antidote", () => {
+  const evidence = phonyFindingsFrom(loopTraceOf("and-tail"), "src/f.c")[0]!.evidence.join("\n");
+  assert.match(evidence, /scan_start is insn 1640 rather than a label/);
+  assert.match(evidence, /materialise D_800BB9BC/);
+  assert.match(evidence, /NESTED inside scanned loop 1194\.\.1357/,
+    "the expensive case: its placements happen at the enclosing loop instead");
+  assert.match(evidence, /fallthrough entry/);
+});
+
+test("phony-loop: one discarded range is one finding, however many passes discarded it", () => {
+  /* A loop phony in pass 1 is phony in pass 2 for the same reason. Printing
+     both reads as two defects. */
+  const trace = loopTraceOf("and-tail");
+  const discarded = trace.passes.flatMap((pass) => pass.loops.filter((loop) => loop.phony));
+  assert.equal(discarded.length, 2, "the dump does record it twice");
+  const evidence = phonyFindingsFrom(trace, "src/f.c")[0]!.evidence;
+  assert.equal(evidence.filter((line) => /^loop \d+\.\.\d+ —/.test(line)).length, 1);
+});
+
+test("phony-loop: a residual nowhere near the nest is not this detector's finding", () => {
+  /* The discarded loop is real either way, but the finding is about
+     per-iteration placement. A residual in straight-line code three hundred
+     instructions away turns on none of it, and a blocker there is noise that
+     trains the reader to skip the next one. */
+  const trace = loopTraceOf("and-tail");
+  assert.deepEqual(phonyFindingsFrom(trace, "src/f.c", { blocks: [], detail: [] }), []);
+
+  const inside = phonyFindingsFrom(trace, "src/f.c", {
+    blocks: [94],
+    detail: ["block 94 (population 6, schedule 0, allocation 1) is inside loop header 94, which nests loop header 96"],
+  });
+  assert.equal(inside.length, 1);
+  assert.match(inside[0]!.evidence.join("\n"), /which nests loop header 96/);
+  assert.match(inside[0]!.evidence[0]!, /the residual is where placement decides it/);
+});
+
+test("phony-loop: an unreadable residual position is reported, not treated as absent", () => {
+  /* `feedback_tools_correct_over_convenient`. Withholding the finding because
+     the reversal did not run would hide a fact about the program behind a
+     failure to measure something else. */
+  const findings = phonyFindingsFrom(loopTraceOf("and-tail"), "src/f.c", undefined);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.evidence[0]!, /could not be read/);
 });

@@ -1,0 +1,132 @@
+
+;; Function ovl_10_func_800B95F0
+
+
+Loop from 748 to 808: 25 real insns.
+Continue at insn 799.
+Insn 770: regno 364 (life 1), move-insn savings 1  moved to 1018
+Insn 772: regno 366 (life 3), move-insn savings 2  moved to 1020
+Insn 773: regno 365 (life 2), move-insn forces 772 savings 1  moved to 1022
+Insn 789: regno 371 (life 1), move-insn savings 1 not desirable
+Insn 756: regno 359 (life 1), move-insn savings 1 not desirable
+Insn 802: possible biv, reg 83, const =1
+Reg 83: biv verified
+Biv 83 initialized at insn 747: initial value 0
+Insn 775: giv reg 367 src reg 83 benefit 4 lifetime 1 replaceable ncav mult 1 add (reg/v:SI 85)
+Insn 777: giv reg 368 src reg 83 benefit 8 lifetime 1 replaceable ncav mult 1 add (plus:SI (reg/v:SI 85)
+    (reg:SI 365))
+Insn 779: dest address src reg 83 benefit 8 lifetime 1 replaceable ncav mult 1 add (plus:SI (reg/v:SI 85)
+    (reg:SI 365))
+Insn 754: giv reg 358 src reg 83 benefit 4 lifetime 4 replaceable ncav mult 1 add (reg/v:SI 85)
+Loop unrolling: Giv iterator, initial value bias 0.
+Loop iterations: Initial value not constant (reg/v:SI 85).
+Cannot eliminate biv 83.
+First use: insn 555, last use: insn 821.
+Sorted combine statistics:
+ {779, 9} {754, 0} {777, 0} {775, 0}
+giv of insn 754 not worth while, 0 vs 25.
+giv of insn 775 not worth while, 0 vs 25.
+giv at 779 reduced to (reg:SI 402)
+giv at 777 reduced to (reg:SI 403)
+
+
+Loop from 730 to 859: 51 real insns.
+Continue at insn 853.
+Insn 914: regno 390 (life 4), move-insn savings 3  moved to 1036
+Insn 756: regno 359 (life 1), done move-insn matches 914 
+Insn 819: regno 374 (life 2), done move-insn matches 914 
+Insn 835: possible biv, reg 84, const =1
+Insn 838: possible biv, reg 85, const =16
+Reg 85: biv verified
+Reg 84: biv verified
+Biv 85 initialized at insn 728: initial value 0
+Biv 84 initialized at insn 725: initial value 0
+Loop iterations: No final conditional branch found.
+Cannot eliminate biv 85: biv used in insn 916.
+Sorted combine statistics:
+
+Cannot eliminate biv 84: biv used in insn 841.
+Sorted combine statistics:
+
+
+
+Loop from 556 to 624: 25 real insns.
+Continue at insn 615.
+Insn 569: regno 308 (life 2), move-insn savings 1  moved to 1038
+Insn 593: regno 317 (life 1), move-insn savings 1  moved to 1040
+Insn 618: possible biv, reg 83, const =1
+Reg 83: biv verified
+Biv 83 initialized at insn 555: initial value 0
+Insn 573: giv reg 311 src reg 83 benefit 3 lifetime 1 replaceable ncav mult 4 add 0
+Insn 575: giv reg 312 src reg 83 benefit 7 lifetime 3 replaceable ncav mult 4 add (reg:SI 308)
+Insn 581: dest address src reg 83 benefit 7 lifetime 1 replaceable ncav mult 4 add (reg:SI 308)
+Final biv value for 83, calculated.
+Cannot eliminate biv 83: biv used in insn 590.
+Sorted combine statistics:
+ {581, 8} {575, 0} {573, 0}
+giv of insn 573 not worth while, -31 vs 25.
+giv at 581 reduced to (reg:SI 409)
+giv at 575 reduced to (reg:SI 410)
+
+
+Loop from 748 to 808: 17 real insns.
+Continue at insn 799.
+Insn 789: regno 371 (life 2), move-insn savings 1  moved to 1057
+Insn 1025: possible biv, reg 402, const =1
+Insn 802: possible biv, reg 83, const =1
+Reg 83: biv verified
+Reg 402: biv verified
+Biv 83 initialized at insn 747: initial value 0
+Biv 402 initialized at insn 1028: initial value is complex
+Insn 779: dest address src reg 402 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Insn 754: giv reg 358 src reg 83 benefit 4 lifetime 3 replaceable ncav mult 1 add (reg/v:SI 85)
+Loop unrolling: Giv iterator, initial value bias 0.
+Loop iterations: Initial value not constant (reg/v:SI 85).
+Cannot eliminate biv 83.
+First use: insn 555, last use: insn 821.
+Sorted combine statistics:
+ {754, 0}
+giv of insn 754 not worth while, 0 vs 17.
+biv 402 can be eliminated.
+Sorted combine statistics:
+ {779, 1}
+giv of insn 779 not worth while, -124 vs 17.
+
+
+Loop from 730 to 859: 37 real insns.
+Continue at insn 853.
+Insn 1021: regno 400 (life 2), savings 2  moved to 1058
+Insn 1022: regno 365 (life 1), move-insn forces 1021 savings 1  moved to 1060
+Insn 835: possible biv, reg 84, const =1
+Insn 838: possible biv, reg 85, const =16
+Reg 85: biv verified
+Reg 84: biv verified
+Biv 85 initialized at insn 728: initial value 0
+Biv 84 initialized at insn 725: initial value 0
+Loop iterations: No final conditional branch found.
+Cannot eliminate biv 85: biv used in insn 916.
+Sorted combine statistics:
+
+Cannot eliminate biv 84: biv used in insn 841.
+Sorted combine statistics:
+
+
+
+Loop from 556 to 624: 17 real insns.
+Continue at insn 615.
+Insn 1046: possible biv, reg 409, const =4
+Insn 618: possible biv, reg 83, const =1
+Reg 83: biv verified
+Reg 409: biv verified
+Biv 83 initialized at insn 555: initial value 0
+Biv 409 initialized at insn 1049: initial value (reg:SI 308)
+Insn 581: dest address src reg 409 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Final biv value for 83, calculated.
+Cannot eliminate biv 83: biv used in insn 590.
+Sorted combine statistics:
+
+biv 409 can be eliminated.
+Sorted combine statistics:
+ {581, 1}
+giv of insn 581 not worth while, -124 vs 17.
+

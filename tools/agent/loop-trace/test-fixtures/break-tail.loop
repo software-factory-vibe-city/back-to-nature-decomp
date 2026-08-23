@@ -1,0 +1,141 @@
+
+;; Function ovl_10_func_800BA394
+
+
+Loop from 1221 to 1314: 34 real insns.
+Continue at insn 1296.
+Insn 1225: regno 519 (life 1), move-insn savings 1 not desirable
+Insn 1227: regno 521 (life 4), move-insn savings 2  moved to 1641
+Insn 1228: regno 520 (life 3), move-insn forces 1227 savings 1  moved to 1643
+Insn 1262: regno 534 (life 1), move-insn savings 1 not desirable
+Insn 1305: regno 539 (life 1), move-insn savings 1 not desirable
+Insn 1284: possible biv, reg 84, const =1
+Reg 84: biv verified
+Biv 84 initialized at insn 1206: initial value 0
+Insn 1234: giv reg 524 src reg 84 benefit 4 lifetime 9 replaceable ncav mult 1 add (reg:SI 596)
+Insn 1236: giv reg 525 src reg 84 benefit 8 lifetime 1 replaceable ncav mult 1 add (plus:SI (reg:SI 596)
+    (reg:SI 520))
+Insn 1238: dest address src reg 84 benefit 8 lifetime 1 replaceable ncav mult 1 add (plus:SI (reg:SI 596)
+    (reg:SI 520))
+Insn 1303: giv reg 538 src reg 84 benefit 4 lifetime 4 replaceable ncav mult 1 add (reg:SI 596)
+Loop unrolling: Giv iterator, initial value bias 0.
+Loop iterations: Initial value not constant (reg:SI 596).
+Cannot eliminate biv 84.
+First use: insn 1081, last use: insn 1333.
+Sorted combine statistics:
+ {1234, 12} {1238, 9} {1303, 0} {1236, 0}
+giv at 1303 combined with giv at 1234
+Sorted combine statistics:
+ {1238, 9} {1236, 0}
+giv at 1303 reduced to (reg:SI 603)
+giv at 1238 reduced to (reg:SI 601)
+giv at 1236 reduced to (reg:SI 602)
+giv at 1234 reduced to (reg:SI 603)
+
+
+Loop from 1194 to 1357: 61 real insns.
+Continue at insn 1349.
+Insn 1213: regno 514 (life 5), move-insn savings 3  moved to 1663
+Insn 1305: regno 539 (life 1), done move-insn matches 1213 
+Insn 1327: regno 545 (life 3), done move-insn matches 1213 
+Insn 1347: possible biv, reg 85, const =1
+Reg 85: biv verified
+Biv 85 initialized at insn 1192: initial value 0
+Insn 1211: giv reg 513 src reg 85 benefit 3 lifetime 4 replaceable ncav mult 16 add 0
+Insn 1636: giv reg 596 src reg 85 benefit 3 lifetime 61 replaceable ncav mult 16 add 0
+Insn 1331: giv reg 548 src reg 85 benefit 4 lifetime 1 replaceable ncav mult 16 add 0
+Cannot eliminate biv 85: biv used in insn 1352.
+Sorted combine statistics:
+ {1636, 17} {1331, 0} {1211, 0}
+giv at 1331 combined with giv at 1636
+giv at 1211 combined with giv at 1636
+Sorted combine statistics:
+
+giv at 1331 reduced to (reg:SI 606)
+giv at 1636 reduced to (reg:SI 606)
+giv at 1211 reduced to (reg:SI 606)
+
+
+Loop from 1082 to 1146: 23 real insns.
+Continue at insn 1137.
+Insn 1095: regno 491 (life 2), move-insn savings 1  moved to 1671
+Insn 1115: regno 497 (life 1), move-insn savings 1  moved to 1673
+Insn 1140: possible biv, reg 84, const =1
+Reg 84: biv verified
+Biv 84 initialized at insn 1081: initial value 0
+Insn 1099: giv reg 494 src reg 84 benefit 3 lifetime 1 replaceable ncav mult 4 add 0
+Insn 1101: giv reg 495 src reg 84 benefit 7 lifetime 3 replaceable ncav mult 4 add (reg:SI 491)
+Insn 1107: dest address src reg 84 benefit 7 lifetime 1 replaceable ncav mult 4 add (reg:SI 491)
+Final biv value for 84, calculated.
+Cannot eliminate biv 84: biv used in insn 1112.
+Sorted combine statistics:
+ {1107, 8} {1101, 0} {1099, 0}
+giv of insn 1099 not worth while, -31 vs 23.
+giv at 1107 reduced to (reg:SI 610)
+giv at 1101 reduced to (reg:SI 611)
+
+
+Loop from 1221 to 1314: 24 real insns.
+Continue at insn 1296.
+Insn 1225: regno 519 (life 5), move-insn savings 1  moved to 1690
+Insn 1262: regno 534 (life 2), move-insn savings 1  moved to 1692
+Insn 1646: possible biv, reg 601, const =1
+Insn 1658: possible biv, reg 603, const =1
+Insn 1284: possible biv, reg 84, const =1
+Reg 84: biv verified
+Reg 603: biv verified
+Reg 601: biv verified
+Biv 84 initialized at insn 1206: initial value 0
+Biv 603 initialized at insn 1661: initial value (reg:SI 606)
+Biv 601 initialized at insn 1649: initial value is complex
+Insn 1238: dest address src reg 601 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Loop iterations: Initial value not constant (reg:SI 606).
+Cannot eliminate biv 84.
+First use: insn 1081, last use: insn 1333.
+Sorted combine statistics:
+
+Cannot eliminate biv 603: biv used in insn 1259.
+Sorted combine statistics:
+
+biv 601 can be eliminated.
+Sorted combine statistics:
+ {1238, 1}
+giv of insn 1238 not worth while, -124 vs 24.
+
+
+Loop from 1194 to 1357: 44 real insns.
+Continue at insn 1349.
+Insn 1642: regno 599 (life 2), savings 2  moved to 1693
+Insn 1643: regno 520 (life 1), move-insn forces 1642 savings 1  moved to 1695
+Insn 1666: possible biv, reg 606, const =16
+Insn 1347: possible biv, reg 85, const =1
+Reg 85: biv verified
+Reg 606: biv verified
+Biv 85 initialized at insn 1192: initial value 0
+Biv 606 initialized at insn 1669: initial value 0
+Cannot eliminate biv 85: biv used in insn 1352.
+Sorted combine statistics:
+
+Cannot eliminate biv 606: biv used in insn 1217.
+Sorted combine statistics:
+
+
+
+Loop from 1082 to 1146: 16 real insns.
+Continue at insn 1137.
+Insn 1679: possible biv, reg 610, const =4
+Insn 1140: possible biv, reg 84, const =1
+Reg 84: biv verified
+Reg 610: biv verified
+Biv 84 initialized at insn 1081: initial value 0
+Biv 610 initialized at insn 1682: initial value (reg:SI 491)
+Insn 1107: dest address src reg 610 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Final biv value for 84, calculated.
+Cannot eliminate biv 84: biv used in insn 1112.
+Sorted combine statistics:
+
+biv 610 can be eliminated.
+Sorted combine statistics:
+ {1107, 1}
+giv of insn 1107 not worth while, -124 vs 16.
+

@@ -199,6 +199,16 @@ steps that can are first for that reason.
    possibly a different author, and its idioms are a claim about it, not about
    this target.
 
+   A neighbour's **attempt** is evidence too, and of a different kind. Its
+   preserved source may be wrong about the function and still be right about the
+   compiler: run `psx_loop_trace` on it and its trace says which mechanisms are
+   reachable in this cluster — which givs reduce, which hoists happen in which
+   pass — measured, for one compile. Two functions of one cluster once sat
+   parked as complementary halves, each one's trace demonstrating the mechanism
+   the other lacked, because both sessions read the sibling only as something a
+   future fix would also close. `psx_triage`'s `cluster-donor` finding does this
+   comparison for you and names the sibling.
+
    A residual that survives every rewrite of your own idiom is usually somebody
    else's idiom.
 
@@ -260,9 +270,17 @@ steps that can are first for that reason.
    in `psx_reference flags`. A matrix showing baseline equal to the delta kills
    the hypothesis cheaply, which is itself worth knowing.
 
-Record what each of these closed with `psx_record_closed`, and read that record
-before running one — an `UNSAT` another session already bought costs minutes to
-buy again. An axis proved empty is progress: the record is printed above the
+Record what each of these closed with `psx_record_closed`, **and record the
+premise with the closure**. Every impossibility is conditional on its inputs —
+the compiler state you measured it under, the origin you assumed, the threshold
+you had at the time — and a row that does not say so is read by the next session
+as unconditional and never re-opened. Two such rows closed one function for six
+sessions; both proofs were sound and both premises were false. `--conditional-on`
+is where the premise goes, and a later session's job is to attack the premise
+rather than to re-run the proof.
+
+Read that record before running one — an `UNSAT` another session already bought
+costs minutes to buy again. An axis proved empty is progress: the record is printed above the
 measurements in `psx_experiment_ledger` and carried into every escalation, so
 the next session starts from it instead of re-deriving it. Park a function only
 when a human decision is required — an allowlist entry, a policy exception —

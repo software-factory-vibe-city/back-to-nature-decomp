@@ -105,6 +105,16 @@ include CSE, combine, arithmetic expansion, address legalization, local/global
 allocation, and scheduling. This is observability only; never patch the
 compiler to make reconstructed source match.
 
+**The loop pass is the exception: do not read it, run it.** `loop.c` logs every
+decision it makes and `-dL` is in the vendored cc1, so `psx_loop_trace` prints
+each movable's `savings`, `lifetime`, flags and outcome, each giv's combine
+chain, and the preheader reassembled in emission order. Reconstructing those
+numbers by reading the pass source has cost this project two sessions and
+produced an impossibility proof that one twelve-second compile refuted — it
+missed that `threshold` decays by 3 after every movable moved, which is exactly
+why two movables with identical inputs in one loop decided differently. Load
+`psx_reference loop` for what the numbers mean.
+
 Load historical research by signature, not as a wildcard. Inspect titles and
 opening summaries first, then select only the case study matching the current
 problem family: allocation/scheduling dependencies, persistent operand webs,

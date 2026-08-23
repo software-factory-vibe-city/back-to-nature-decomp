@@ -7,6 +7,7 @@ import {
   recordExperiment,
   readLedger,
   renderLedger,
+  valley,
   type LedgerEntry,
 } from "./experimentLedger.js";
 import type { ResidualObjective } from "./pipeline-reversal/objective.js";
@@ -139,4 +140,98 @@ test("the first entry to reach an output is the measurement, whatever its source
   ];
   assert.deepEqual(measurements(entries).map((item) => item.at), [at(1)]);
   assert.deepEqual(annotateRespellings(entries).map((item) => item.respellingOf), [undefined, at(1), at(1)]);
+});
+
+/* --- the valley ---------------------------------------------------------- */
+
+/** n distinct programs on one key, so a floor can be built without repetition. */
+function floor(key: number[], count: number, from = 10): LedgerEntry[] {
+  return Array.from({ length: count }, (_, index) => row({
+    at: `2026-08-20T00:${String(from + index).padStart(2, "0")}:00.000Z`,
+    sourceHash: `f${key.join("")}${from + index}`,
+    outputHash: `o${key.join("")}${from + index}`,
+    key,
+    exact: false,
+  }));
+}
+
+test("an isolated best one term from exact is a valley, and says which evidence made it one", () => {
+  const entries = [
+    ...floor([0, 0, 1, 0], 1),
+    ...floor([0, 4, 1, 3], 1, 20),
+    ...floor([0, 6, 2, 1], 1, 30),
+    ...floor([0, 5, 1, 5], 1, 40),
+  ];
+  const reading = valley(entries)!;
+  assert.ok(reading, "the best stands alone and everything measured is far worse");
+  assert.deepEqual(reading.bestKey, [0, 0, 1, 0]);
+  assert.equal(reading.bestTotal, 1);
+  assert.equal(reading.nearestOther, 8);
+  assert.ok(reading.evidence.includes("isolated"));
+});
+
+test("a crowded floor no sweep improves on is a valley too — the case isolation misses", () => {
+  /* The shape that actually cost six sessions: dozens of programs a term or two
+     from exact, none better than the best. The crowd is the tell, not the
+     counter-evidence — every neighbour is a single-coordinate move that traded
+     one term for another, which is what a multi-coordinate distance looks like
+     from the inside. */
+  const entries = [
+    ...floor([0, 0, 1, 1], 1),
+    ...floor([0, 0, 2, 0], 3, 20),
+    ...floor([0, 1, 0, 0], 3, 30),
+    ...floor([0, 0, 2, 1], 3, 40),
+  ];
+  const reading = valley(entries)!;
+  assert.deepEqual(reading.evidence, ["unimproved"], "not isolated — the neighbours are right there");
+  assert.equal(reading.unimproved, 9);
+});
+
+test("a search that is still moving is not a valley", () => {
+  const entries = [
+    ...floor([0, 6, 2, 1], 1),
+    ...floor([0, 4, 1, 3], 1, 20),
+    ...floor([0, 0, 1, 0], 1, 30),
+  ];
+  assert.equal(valley(entries), undefined, "the last measurement improved the best");
+});
+
+test("a solved function is never in a valley", () => {
+  const entries = [
+    ...floor([0, 4, 1, 3], 1),
+    ...floor([0, 6, 2, 1], 1, 20),
+    ...floor([0, 5, 1, 5], 1, 30),
+    row({ at: "2026-08-20T01:00:00.000Z", sourceHash: "win", outputHash: "owin", key: [0, 0, 0, 0], exact: true }),
+  ];
+  assert.equal(valley(entries), undefined);
+});
+
+test("a best still far from exact is a search with a gradient, not a floor", () => {
+  /* The advisory says single-coordinate moves cannot cross the remaining gap.
+     With nine terms outstanding that is simply false, and saying it would send
+     a search away from the sweep that is about to work. */
+  const entries = [
+    ...floor([0, 5, 2, 2], 1),
+    ...floor([0, 20, 8, 9], 10, 20),
+  ];
+  assert.equal(valley(entries), undefined);
+});
+
+test("the advisory names the requirement side, not another spelling", () => {
+  const reading = valley([
+    ...floor([0, 0, 1, 0], 1),
+    ...floor([0, 4, 1, 3], 1, 20),
+    ...floor([0, 6, 2, 1], 1, 30),
+    ...floor([0, 5, 1, 5], 1, 40),
+  ])!;
+  const text = renderLedger("func_valley", [
+    ...floor([0, 0, 1, 0], 1),
+    ...floor([0, 4, 1, 3], 1, 20),
+    ...floor([0, 6, 2, 1], 1, 30),
+    ...floor([0, 5, 1, 5], 1, 40),
+  ]);
+  assert.ok(reading);
+  assert.match(text, /VALLEY:/);
+  assert.match(text, /psx_target_loop_emission/);
+  assert.match(text, /cluster-donor/);
 });

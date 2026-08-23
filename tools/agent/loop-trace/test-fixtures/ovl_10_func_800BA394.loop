@@ -1,0 +1,202 @@
+
+;; Function ovl_10_func_800BA394
+
+
+Loop from 1237 to 1312: 29 real insns.
+Continue at insn 1292.
+Insn 1262: regno 533 (life 1), move-insn savings 1  moved to 1643
+Insn 1298: regno 535 (life 1), move-insn savings 1 not desirable
+Insn 1284: possible biv, reg 87, const =1
+Insn 1287: possible biv, reg 86, const =1
+Insn 1290: possible biv, reg 84, const =1
+Reg 84: biv verified
+Reg 86: biv verified
+Reg 87: biv verified
+Biv 84 initialized at insn 1206: initial value 0
+Biv 86 initialized at insn 1235: initial value (reg:SI 515)
+Biv 87 initialized at insn 1228: initial value is complex
+Insn 1244: dest address src reg 87 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Loop iterations: Initial value not constant (reg:SI 515).
+Cannot eliminate biv 84.
+First use: insn 1081, last use: insn 1331.
+Sorted combine statistics:
+
+Cannot eliminate biv 86: biv used in insn 1259.
+Sorted combine statistics:
+
+biv 87 can be eliminated.
+Sorted combine statistics:
+ {1244, 1}
+giv of insn 1244 not worth while, -124 vs 29.
+
+
+Loop from 1194 to 1355: 55 real insns.
+Continue at insn 1347.
+Insn 1213: regno 516 (life 5), move-insn savings 3  moved to 1645
+Insn 1225: regno 523 (life 2), move-insn savings 2  moved to 1647
+Insn 1226: regno 522 (life 1), move-insn forces 1225 savings 1  moved to 1649
+Insn 1298: regno 535 (life 1), done move-insn matches 1213 
+Insn 1325: regno 541 (life 3), done move-insn matches 1213 
+Insn 1345: possible biv, reg 85, const =1
+Reg 85: biv verified
+Biv 85 initialized at insn 1192: initial value 0
+Insn 1211: giv reg 515 src reg 85 benefit 3 lifetime 12 replaceable ncav mult 16 add 0
+Insn 1635: giv reg 592 src reg 85 benefit 3 lifetime 61 replaceable ncav mult 16 add 0
+Insn 1329: giv reg 544 src reg 85 benefit 4 lifetime 1 replaceable ncav mult 16 add 0
+Cannot eliminate biv 85: biv used in insn 1350.
+Sorted combine statistics:
+ {1211, 17} {1329, 0} {1635, 0}
+giv at 1329 combined with giv at 1211
+giv at 1635 combined with giv at 1211
+Sorted combine statistics:
+
+giv at 1329 reduced to (reg:SI 600)
+giv at 1635 reduced to (reg:SI 600)
+giv at 1211 reduced to (reg:SI 600)
+
+
+Loop from 1082 to 1146: 23 real insns.
+Continue at insn 1137.
+Insn 1095: regno 493 (life 2), move-insn savings 1  moved to 1657
+Insn 1115: regno 499 (life 1), move-insn savings 1  moved to 1659
+Insn 1140: possible biv, reg 84, const =1
+Reg 84: biv verified
+Biv 84 initialized at insn 1081: initial value 0
+Insn 1099: giv reg 496 src reg 84 benefit 3 lifetime 1 replaceable ncav mult 4 add 0
+Insn 1101: giv reg 497 src reg 84 benefit 7 lifetime 3 replaceable ncav mult 4 add (reg:SI 493)
+Insn 1107: dest address src reg 84 benefit 7 lifetime 1 replaceable ncav mult 4 add (reg:SI 493)
+Final biv value for 84, calculated.
+Cannot eliminate biv 84: biv used in insn 1112.
+Sorted combine statistics:
+ {1107, 8} {1101, 0} {1099, 0}
+giv of insn 1099 not worth while, -31 vs 23.
+giv at 1107 reduced to (reg:SI 604)
+giv at 1101 reduced to (reg:SI 605)
+
+
+Loop from 1237 to 1312: 22 real insns.
+Continue at insn 1292.
+Insn 1284: possible biv, reg 87, const =1
+Insn 1287: possible biv, reg 86, const =1
+Insn 1290: possible biv, reg 84, const =1
+Reg 84: biv verified
+Reg 86: biv verified
+Reg 87: biv verified
+Biv 84 initialized at insn 1206: initial value 0
+Biv 86 initialized at insn 1235: initial value (reg:SI 600)
+Biv 87 initialized at insn 1228: initial value is complex
+Insn 1244: dest address src reg 87 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Loop iterations: Initial value not constant (reg:SI 600).
+Cannot eliminate biv 84.
+First use: insn 1081, last use: insn 1331.
+Sorted combine statistics:
+
+Cannot eliminate biv 86: biv used in insn 1259.
+Sorted combine statistics:
+
+biv 87 can be eliminated.
+Sorted combine statistics:
+ {1244, 1}
+giv of insn 1244 not worth while, -124 vs 22.
+
+
+Loop from 1194 to 1355: 42 real insns.
+Continue at insn 1347.
+Insn 1652: possible biv, reg 600, const =16
+Insn 1345: possible biv, reg 85, const =1
+Reg 85: biv verified
+Reg 600: biv verified
+Biv 85 initialized at insn 1192: initial value 0
+Biv 600 initialized at insn 1655: initial value 0
+Cannot eliminate biv 85: biv used in insn 1350.
+Sorted combine statistics:
+
+Cannot eliminate biv 600: biv used in insn 1217.
+Sorted combine statistics:
+
+
+
+Loop from 1082 to 1146: 16 real insns.
+Continue at insn 1137.
+Insn 1665: possible biv, reg 604, const =4
+Insn 1140: possible biv, reg 84, const =1
+Reg 84: biv verified
+Reg 604: biv verified
+Biv 84 initialized at insn 1081: initial value 0
+Biv 604 initialized at insn 1668: initial value (reg:SI 493)
+Insn 1107: dest address src reg 604 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Final biv value for 84, calculated.
+Cannot eliminate biv 84: biv used in insn 1112.
+Sorted combine statistics:
+
+biv 604 can be eliminated.
+Sorted combine statistics:
+ {1107, 1}
+giv of insn 1107 not worth while, -124 vs 16.
+
+(note 2 0 1468 "" NOTE_INSN_DELETED)
+
+(note 1468 2 4 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(insn 4 1468 6 (set (reg/v:SI 81)
+        (reg:SI 4 a0)) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUIV (mem/f:SI (reg:SI 0 $0) 0)
+        (nil)))
+
+(insn 6 4 7 (set (reg/v:SI 82)
+        (reg:SI 5 a1)) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUIV (mem/f:SI (plus:SI (reg:SI 0 $0)
+                (const_int 4 [0x4])) 0)
+        (nil)))
+
+(note 7 6 8 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 8 7 10 "" NOTE_INSN_DELETED)
+
+(note 10 8 1421 0 NOTE_INSN_BLOCK_BEG)
+
+(insn 1421 10 1422 (set (reg:SI 572)
+        (const_int 1 [0x1])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 1 [0x1])
+        (nil)))
+
+(jump_insn 1422 1421 1469 (set (pc)
+        (if_then_else (eq:SI (reg/v:SI 81)
+                (reg:SI 572))
+            (label_ref 1023)
+            (pc))) 344 {branch_equality} (nil)
+    (nil))
+
+(note 1469 1422 1424 [bb 1] NOTE_INSN_BASIC_BLOCK)
+
+(insn 1424 1469 1425 (set (reg:SI 573)
+        (lt:SI (reg/v:SI 81)
+            (const_int 2 [0x2]))) 383 {slt_si} (nil)
+    (nil))
+
+(jump_insn 1425 1424 1470 (set (pc)
+        (if_then_else (ne:SI (reg:SI 573)
+                (const_int 0 [0x0]))
+            (pc)
+            (label_ref 1430))) 340 {branch_zero} (nil)
+    (nil))
+
+(note 1470 1425 1427 [bb 2] NOTE_INSN_BASIC_BLOCK)
+
+(jump_insn 1427 1470 1471 (set (pc)
+        (if_then_else (eq:SI (reg/v:SI 81)
+                (const_int 0 [0x0]))
+            (label_ref 14)
+            (pc))) 340 {branch_zero} (nil)
+    (nil))
+
+(note 1471 1427 1569 [bb 3] NOTE_INSN_BASIC_BLOCK)
+
+(insn 1569 1471 1428 (set (reg:SI 594)
+        (high:SI (symbol_ref:SI ("D_800B7E40")))) -1 (nil)
+    (nil))
+
+(jump_insn 1428 1569 1429 (set (pc)
+        (label_ref 1439)) -1 (nil)
+    (nil))
+;; --- fixture truncated here; the post-pass RTL dump continues for another 3058 lines ---
