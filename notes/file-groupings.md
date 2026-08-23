@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -421,6 +421,43 @@ Members (address order):
   `return D_801295C6;` (`lui`/`lh`, delay-slot `nop`); byte-exact clean C,
   baseline flags; confirmed member of the shared-global cluster
 - ovl_11_func_800EEBC8 (s) — sandwiched, does not touch the global
+
+---
+
+## `ovl_11` D_8012D52C reset-stub family — 0x80114184 / 0x8011A9CC–0x8011B6C0 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing one
+file-scope s32 flag plus a byte-identical reset-and-return-1 stub shape. Same
+shared-global + shared-idiom fingerprint class as the documented D_80128810
+counter cluster / D_801295C6 run: absolute-addressed main-RAM global (no gp-rel
+in this container) threaded through a wide text span.
+
+Fingerprints:
+- shared s32 global `D_8012D52C` (main RAM 0x8012D52C, absolute `lui`+`%lo` in
+  every site): written to 0 from ~35 sites across 0x80113CD0–0x8011C104 — a
+  container-wide busy/finished state flag, not itself a TU fingerprint;
+- identical-body reset stubs: `ovl_11_func_80114184`, `ovl_11_func_8011A9CC`,
+  `ovl_11_func_8011AA44`, `ovl_11_func_8011AA54` and `ovl_11_func_8011B6B4`
+  are all numerically byte-identical — `lui %hi(D_8012D52C); sw $zero,
+  %lo(D_8012D52C); jr $ra; addiu $v0, $zero, 1` (the classic case-handler
+  "reset flag and report handled" stub), arranged as a contiguous zero-gap run
+  0x8011A9CC (0x10) → 0x8011A9DC (0x40) → 0x8011AA44 (0x10) → 0x8011AA54
+  (0x10) → 0x8011AA64 (0x1CC) → 0x8011AC30 (0x1C4) → 0x8011ADF4 (0x1C0) →
+  0x8011AFB4 (0x25C) → 0x8011B210 (0xA0) → 0x8011B2B0 (0x404) → 0x8011B6B4
+  (0x10), each function starting exactly where the previous one ends;
+- our member 0x80114184 sits earlier (0x80114184) amid other D_8012D52C
+  writers — `ovl_11_func_80113FF0` clears the flag via `$a0` at 0x80114178 and
+  `ovl_11_func_80114194` clears it at 0x8011438C — same family, earlier text
+  span; same-TU tie to the contiguous run is plausible but not proven.
+
+Members (address order):
+- ovl_11_func_80114184 (m, matched this session) — leaf reset stub:
+  `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`); byte-exact clean C,
+  baseline flags; the 0x80114184 member of the reset-stub family
+- ovl_11_func_8011A9CC (s) — identical leaf reset stub, run head at 0x8011A9CC
+- ovl_11_func_8011AA44 (s) — identical leaf reset stub
+- ovl_11_func_8011AA54 (s) — identical leaf reset stub
+- ovl_11_func_8011B6B4 (s) — identical leaf reset stub, run tail at 0x8011B6B4
 
 ---
 
