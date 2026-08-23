@@ -335,6 +335,41 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_801295C6 setter/getter run — 0x800E60A0–0x800EEBC8 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
+file-scope s16 global. Same shared-global-cluster fingerprint as the documented
+D_80123754 run: absolute-addressed main-RAM global (no gp-rel in this container)
+with writers up front and a reader later, threaded through a contiguous text
+span.
+
+Fingerprints:
+- shared s16 global `D_801295C6` (main RAM 0x801295C6): written by
+  `ovl_11_func_800E60A0` (`sh v0`), `ovl_11_func_800E880C` (`lh`/
+  `sh s0`), and `ovl_11_func_800EE604` (`sh v0`), read by
+  `ovl_11_func_800EEBB8` (`lh`, pure getter);
+- link-order contiguity in the TL run: 0x800EE604 (0x1B8) ends exactly where
+  `ovl_11_func_800EE7BC` begins, and the zero-gap chain 0x800EE7BC (0x188) →
+  0x800EE944 (0x174) → 0x800EEAB8 (0x100) → 0x800EEBB8 (0x10) → 0x800EEBC8
+  (0x2C) → 0x800EEBF4 (0x20) → 0x800EEC14 (0x8) → 0x800EEC1C (0x2B0) runs
+  without a gap — the setter at the run head, the getter two nodes later;
+- the two other `D_801295C6` sites (0x800E60A0, 0x800E880C) are far earlier
+  in the overlay, same-family plausible but not link-adjacent.
+
+Members (address order):
+- ovl_11_func_800E60A0 (s) — writes D_801295C6 (`sh v0`), earlier site
+- ovl_11_func_800E880C (s) — reads and writes D_801295C6, earlier site
+- ovl_11_func_800EE604 (s) — run-head writer of D_801295C6 (`sh v0`)
+- ovl_11_func_800EE7BC (s) — sandwiched, does not touch the global
+- ovl_11_func_800EE944 (s) — sandwiched, does not touch the global
+- ovl_11_func_800EEAB8 (s) — sandwiched, does not touch the global
+- ovl_11_func_800EEBB8 (m, matched this session) — leaf getter:
+  `return D_801295C6;` (`lui`/`lh`, delay-slot `nop`); byte-exact clean C,
+  baseline flags; confirmed member of the shared-global cluster
+- ovl_11_func_800EEBC8 (s) — sandwiched, does not touch the global
+
+---
+
 ## `ovl_10` overlay tail — /15 date-utility pair around 0x800BB728 (confidence: low)
 
 Candidate tail-cluster of `ovl_10` (`Obj\gf_mcard.bin`, the memory-card manager
