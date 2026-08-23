@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -136,6 +136,43 @@ Members (address order):
   override)
 - ovl_11_func_80121500 (s) — immediate link-order follower, next candidate
   member
+
+---
+
+## `ovl_11` text/sprite table-builder run — 0x80116F4C–0x80117178 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) around the table
+setup at the overlay's 0x5F12C text region. Evidence is an internal call
+graph plus strict link-order adjacency, the same fingerprint class as the
+0x80121318 farm-object run; no shared gp-rel cluster observed (this
+container absolute-addresses everything).
+
+Fingerprints:
+- address adjacency: `ovl_11_func_80116F4C` (0x80116F4C, 0x18C bytes) ends
+  at 0x801170D8 and is followed contiguously by `ovl_11_func_801170D8`
+  (0xC bytes) then `ovl_11_func_801170E4` (0x94 bytes) — one unbroken run
+  0x80116F4C–0x80117178 with no unrelated code between;
+- internal call graph: the head `ovl_11_func_80116F4C` calls both of its
+  immediate link-order followers — `ovl_11_func_801170D8` (on the object
+  struct's 2-byte field at +0x1A, result fed to `func_8001A970` as the
+  text/string source) and `ovl_11_func_801170E4` (a per-cell draw loop
+  stepping a coordinate by -0x800, calling `func_800245F4` per step);
+- shared idiom: both leaves read/handle 2-byte object fields; the parent
+  builds a 24-entry D_8012D608 halfword array with two `func_8001A970`
+  field-read sites and a `func_80017B3C` / `func_80024A10` string call each.
+
+Members (address order):
+- ovl_11_func_80116F4C (s) — table builder: fills D_8012D608 (0xFFD into 24
+  halfwords), then draws two 2-byte object field reads via
+  ovl_11_func_801170D8 / func_8001A970, a percentage count derived from
+  field +0x16 into ovl_11_func_801170E4, and two func_80017B3C /
+  func_80024A10 output rows
+- ovl_11_func_801170D8 (m, matched 2026-11 — this session) — leaf s16
+  reader: returns `*ptr` (`lh` at +0); byte-exact clean C, baseline flags
+  (no override); parent passes object + 0x1A to read that 2-byte field
+- ovl_11_func_801170E4 (s) — rows/cells draw loop: for count from arg0,
+  calls func_800245F4 per cell while stepping a coordinate by -0x800;
+  called by the head right after the func_801170D8 field read
 
 ---
 
