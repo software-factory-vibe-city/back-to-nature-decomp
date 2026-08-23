@@ -187,6 +187,14 @@ Fingerprints:
   tying this cluster to the memory-card command-dispatcher code.
 
 Members (address order):
+- ovl_10_func_800B9108 (m, matched this session, baseline flags) — the
+  switch dispatcher: routes D_800BB7BC command id to the cluster wrappers on
+  jtbl_800B80E4 (ids 1–14) and jtbl_800B811C (ids 0/4/5/6/11, reached only
+  for arg0 1..3); owns the rodata block D_800B80C8 "no parameter needed" +
+  the two switch tables, whose jtbl_800B811C (0x2FC) end abuts
+  D_800B814C (0x32C, ovl_10_func_800B92AC's string) with zero padding — a
+  same-.rdata-emission adjacency tying the dispatcher to the cluster's first
+  string
 - ovl_10_func_800B9060 (m, matched this session, baseline flags) — mcard
   debug command-menu printer: six `FntPrint`s from formats
   `D_800B7F24`/`D_800B7F78`/`D_800B7FCC`/`D_800B8020`/`D_800B8074`/
