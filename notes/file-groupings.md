@@ -366,6 +366,11 @@ Fingerprints:
 - shared u16 global `D_80070D0E` (main RAM 0x80070D0E, not in the EXE's
   generated `globals.h`): cleared by `ovl_11_func_800F4CA0` (single `sh $zero`),
   read by `ovl_11_func_800F62D8` (`lhu`);
+- adjacent sibling s16 `D_80070D10` (main RAM 0x80070D10, 2 bytes above
+  `D_80070D0E`, not in `globals.h`): set to 3 by `ovl_11_func_80111EE0`
+  (single `lui`/`sh`, leaf, matched this session) — the adjacent-file-scope
+  vars fingerprint, same-family plausible though far from the run
+  (0x80111EE0 vs 0x800F4CA0);
 - link-order adjacency: `ovl_11_func_800F4BB4` (0x800F4BB4–0x800F4CA0, 0xec)
   ends exactly where the clear starts, zero-gap contiguity into 0x800F4CAC, and
   `ovl_11_func_800F4BB4` also calls the clear — caller + link-order agree;
@@ -378,6 +383,9 @@ Members (address order):
   (single `sh $zero`, delay-slot scheduled); byte-exact clean C, baseline flags;
   the run's only confirmed global writer
 - ovl_11_func_800F62D8 (s) — reads D_80070D0E (`lhu`), the run's getter
+- ovl_11_func_80111EE0 (m, matched this session) — leaf setter:
+  `D_80070D10 = 3` (single `lui`/`sh`, delay-slot scheduled); byte-exact clean
+  C, baseline flags; adjacent-sibling writer of the cluster's other global
 
 ---
 
