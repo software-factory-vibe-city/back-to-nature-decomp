@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800C3828", ovl_11_func_800C3828);
+s32 ovl_11_func_800C3828(void) {
+    return D_8007AFF0 + 0x1000;
+}
