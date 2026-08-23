@@ -107,10 +107,14 @@ Fingerprints:
 - link-order adjacency: `ovl_10_func_800BB728` is the **last** function in the
   overlay (0x800BB728, size 0x94, ends 0x800BB7BC) and its end abuts
   `D_800BB7BC` in the original bytes — a file-scope word (initialised 0)
-  that `ovl_10_func_800B8A5C` reads and writes at four sites
-  (`lw`/`sw`/`lw` %hi/%lo(D_800BB7BC)) followed by that TU's data pool
+  that `ovl_10_func_800B8A5C` reads and writes at four+ sites
+  (`lw`/`sw`/`lw` %hi/%lo(D_800BB7BC)), followed by that TU's data pool
   (0xFFFFFFFF, 0, then address tables); a classic code-then-data same-TU tail
-  layout;
+  layout. Ownership correction: the matched `800B8A5C` target uses **absolute**
+  %hi/%lo addressing for `D_800BB7BC` *and* `D_800BB7C0/C4/CC/D0` — under -G8 a
+  TU that tentatively defines a ≤8-byte global gets a single GP-relative access,
+  so `800B8A5C`'s own TU only *declares* these words extern; the word cluster's
+  defining TU is the one that owns `800BB728`, not the /15 remainder routine;
 - shared idiom: both `ovl_10_func_800BB728` and `ovl_10_func_800B8A5C` are
   date/remainder utilities using the `/15` `0x88888889` magic-reciprocal
   sequence (the documented mod-N idiom of the exe frame counters);
@@ -120,8 +124,12 @@ Fingerprints:
   testing `beqz` — a shared calendar/day-slot utility.
 
 Members (address order):
-- ovl_10_func_800B8A5C (s) — /15 remainder routine; owner (read/writer) of
-  `D_800BB7BC`, the word that immediately follows `800BB728`
+- ovl_10_func_800B8A5C (m, matched) — /15 remainder routine (day-of-month
+  wrap); reader/writer (not definer) of the `D_800BB7BC/C0/C4/CC/D0` cluster via
+  absolute addressing; the matched source uses two separate `% 15` expressions
+  whose magic-reciprocal mult tails are cross-jumped into one shared block, plus
+  a packed 28-byte `D_800BBAFC = D_800B7E24` struct copy and a final byte store
+  to `D_800BBAFC`; byte-exact clean C, baseline flags
 - ovl_10_func_800BB728 (m, matched 2026-08-22) — leaf date predicate: day slot
   0–0x50 via `/40`, days at/after 0x50 via `(arg0-0x50)/15`, returning 1 iff
   the day stays before the next slot boundary; byte-exact clean C, baseline flags
