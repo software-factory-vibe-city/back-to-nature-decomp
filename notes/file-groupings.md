@@ -1865,6 +1865,11 @@ Members (address order):
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count
   parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
   caller and address predecessor; shared gp-rel globals unverified.
+- ovl_11 D_8012D520 getter pair — ovl_11_func_80118C6C (m, matched this
+  session) and the still-stub ovl_11_func_801165C8 are the only two ovl_11
+  readers of s32 D_8012D520 (both `lui %hi` + `lw %lo`); D_8012D520 sits in
+  the contiguous data block D_8012D51A/51C/520/524 that no other code
+  references. Shared-global fingerprint only; data TU ownership unconfirmed.
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 
