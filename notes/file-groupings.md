@@ -454,7 +454,7 @@ Members (address order):
 - ovl_11_func_80114184 (m, matched this session) — leaf reset stub:
   `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`); byte-exact clean C,
   baseline flags; the 0x80114184 member of the reset-stub family
-- ovl_11_func_8011A9CC (s) — identical leaf reset stub, run head at 0x8011A9CC
+- ovl_11_func_8011A9CC (m, matched this session) — identical leaf reset stub, run head at 0x8011A9CC; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint against the matched `ovl_11_func_80114184`
 - ovl_11_func_8011AA44 (s) — identical leaf reset stub
 - ovl_11_func_8011AA54 (s) — identical leaf reset stub
 - ovl_11_func_8011B6B4 (s) — identical leaf reset stub, run tail at 0x8011B6B4
