@@ -1,3 +1,8 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_8011B6B4", ovl_11_func_8011B6B4);
+extern s32 D_8012D52C;
+
+s32 ovl_11_func_8011B6B4(void) {
+    D_8012D52C = 0;
+    return 1;
+}
