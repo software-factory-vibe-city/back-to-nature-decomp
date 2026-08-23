@@ -1,3 +1,7 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800BD358", ovl_11_func_800BD358);
+extern s32 D_801287FC;
+
+void ovl_11_func_800BD358(void) {
+    D_801287FC = -1;
+}
