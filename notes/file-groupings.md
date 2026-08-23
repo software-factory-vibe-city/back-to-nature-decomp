@@ -139,6 +139,36 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80128810 counter cluster — 0x800BE208–0x800BE2C4 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
+file-scope s32 global counter. Same shared-global-cluster fingerprint as the
+documented D_80123754 / D_80070D0E runs: absolute-addressed main-RAM global
+(no gp-rel in this container) threaded through a contiguous text span — here
+with all three members of the run mutating the global.
+
+Fingerprints:
+- shared s32 global `D_80128810` (main RAM 0x80128810, absolute `lui`+`%lo`
+  in every site): read+increment+store by `ovl_11_func_800BE208` and
+  `ovl_11_func_800BE26C`, cleared to 0 by `ovl_11_func_800BE2B8`;
+- zero-gap link-order contiguity (map): 0x800BE208 (0x64) → 0x800BE26C (0x4C)
+  → 0x800BE2B8 (0xC), each starting exactly where the previous ends, the span
+  0x800BE208–0x800BE2C4 contiguous with no unrelated code between;
+- call-graph tie: both counter-increment members call the same
+  `ovl_11_func_800BEB28` on their increment path — a shared sub-handler the
+  three-line clear does not need.
+
+Members (address order):
+- ovl_11_func_800BE208 (s) — increments D_80128810 only while it stays < 0x32,
+  then calls ovl_11_func_800BEB28; the run's guarded counter
+- ovl_11_func_800BE26C (s) — unconditionally increments and stores, then calls
+  ovl_11_func_800BEB28 — same counter, no guard
+- ovl_11_func_800BE2B8 (m, matched this session) — leaf clear:
+  `D_80128810 = 0` (single `sw $zero`, delay-slot scheduled); byte-exact clean
+  C, baseline flags; the run's reset
+
+---
+
 ## `ovl_11` D_80123754 setter/getter run — 0x800D12A0–0x800D2160 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) in the middle of the
