@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -252,6 +252,52 @@ Members (address order):
 - ovl_11_func_800C0A4C (s) — reads D_80128B50 at two sites
 - ovl_11_func_800C0D9C (s) — writes D_80128B50 from `$v1`, the run's far-end
   writer
+
+---
+
+## `ovl_11` D_80127428 shared-state cluster — 0x801037DC–0x801040A8 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) threaded through a
+file-scope s32 state global. Same shared-global-cluster fingerprint as the
+documented D_80128810 / D_80128B50 runs: absolute-addressed main-RAM global
+(`lui`+`%lo` in every site, no gp-rel in this container) touched by an unbroken
+link-order span.
+
+Fingerprints:
+- shared s32 global `D_80127428` (main RAM 0x80127428, `.word`, absolute
+  `lui`+`%lo` in every site): read-and-returned by `ovl_11_func_801037DC`
+  (`== 0`), read by `ovl_11_func_801038E4`, `ovl_11_func_80103B24` and
+  `ovl_11_func_801040A8`; cleared to 0 by `ovl_11_func_801037EC`
+  (`sw $zero`, alongside sibling `D_8012742C`); set to 1 by
+  `ovl_11_func_80103830`; read-and-written at 8 sites by
+  `ovl_11_func_80103964` (the run's heavy mutator);
+- adjacent sibling global `D_8012742C` (main RAM 0x8012742C, next `.word`
+  after `D_80127428`) also cleared by `ovl_11_func_801037EC` — the two are
+  adjacent file-scope vars of one TU, same pattern as D_80128B50/5C;
+- zero-gap link-order contiguity: the span 0x801037DC–0x801040A8 is one
+  unbroken run (each function starts exactly where the previous ends); the
+  D_80127428 members are concentrated at the head — 0x801037DC (0x10) →
+  0x801037EC (0x44) → 0x80103830 (0xB4) → 0x801038E4 (0x80) → 0x80103964
+  (0x1C0) → 0x80103B24 (0xDC), a zero-gap sub-run of six members — with an
+  isolated trailer reader at 0x801040A8;
+- call-graph tie: `ovl_11_func_80103830` calls the immediate neighbour
+  `ovl_11_func_801037EC` on its set path before writing `D_80127428 = 1` —
+  a shared reset the setter reuses, the same tie pattern as the D_80128810
+  counter cluster.
+
+Members (address order):
+- ovl_11_func_801037DC (m, matched this session) — leaf head: returns
+  `D_80127428 == 0` (`lui`/`lw` + `sltiu`, delay-slot scheduled); byte-exact
+  clean C, baseline flags
+- ovl_11_func_801037EC (s) — clears D_80127428 and D_8012742C to 0, then its
+  resident small-array clear loop; the run's reset
+- ovl_11_func_80103830 (s) — calls ovl_11_func_801037EC, then sets
+  `D_80127428 = 1` and calls func_8001FABC(3); the run's setter
+- ovl_11_func_801038E4 (s) — leaf reader of D_80127428
+- ovl_11_func_80103964 (s) — reads/writes D_80127428 at 8 sites; the run's
+  mutator
+- ovl_11_func_80103B24 (s) — leaf reader of D_80127428
+- ovl_11_func_801040A8 (s) — trailer reader of D_80127428
 
 ---
 
