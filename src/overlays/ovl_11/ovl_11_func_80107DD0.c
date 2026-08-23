@@ -1,3 +1,6 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_80107DD0", ovl_11_func_80107DD0);
+void ovl_11_func_80107DD0(s16 *arg0) {
+    arg0[0] = -1;
+    arg0[1] = 0;
+}
