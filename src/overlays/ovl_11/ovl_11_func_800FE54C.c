@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800FE54C", ovl_11_func_800FE54C);
+s32 ovl_11_func_800FE54C(s16 *arg0) {
+    return *arg0;
+}
