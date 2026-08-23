@@ -1,20 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_10/asm/nonmatchings/ovl_10_func_800B95F0", ovl_10_func_800B95F0);
-
-
-/* PARKED 2026-08-22, reason: one preheader placement.
- * Reached 301/301 words, residual [0, 0, 1, 0] at block 49 — one transposition,
- * nothing else. The same transposition as ovl_10_func_800BA394's block 93, with
- * the same mechanism: notes/human-needed-approvals/ovl_10_func_800B95F0.md.
- *
- * The best measured attempt is preserved verbatim below, disabled.
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
 int FntPrint();
 int McxGetMem(int, unsigned char *, unsigned, unsigned);
 int sprintf(char *, const char *, ...);
@@ -24,9 +9,6 @@ int ovl_10_func_800B95F0(int arg0, int arg1)
 {
     int i;
     int row;
-    int off;
-    s32 *p32;
-    u8 *p8;
     char buf[16];
 
     switch (arg0) {
@@ -111,27 +93,27 @@ int ovl_10_func_800B95F0(int arg0, int arg1)
                          D_800BB810[4]);
     case 3:
         row = 0;
-        off = 0;
-        while (1) {
+        do {
             FntPrint(&D_800B8368);
-            for (i = 0; i < 0x10 && (unsigned)(off + i) < D_800BB810[4]; i++) {
-                sprintf(buf, &D_800B8328, D_800BB90C[off + i]);
-                FntPrint(&D_800B8370, buf);
+            i = 0;
+            if ((unsigned)(row * 0x10) < D_800BB810[4]) {
+                do {
+                    sprintf(buf, &D_800B8328, D_800BB90C[row * 0x10 + i]);
+                    FntPrint(&D_800B8370, buf);
+                    i++;
+                    if (i >= 0x10) {
+                        break;
+                    }
+                } while ((unsigned)(row * 0x10 + i) < D_800BB810[4]);
             }
             FntPrint(&D_800B7EE8);
-            if (D_800BB810[4] < (unsigned)(off + i)) {
+            if (D_800BB810[4] < (unsigned)(row * 0x10 + i)) {
                 break;
             }
             row++;
-            off += 0x10;
-            if (row < 8) {
-                continue;
-            }
-            break;
-        }
+        } while (row < 8);
         return 0;
     default:
         return 0;
     }
 }
-#endif

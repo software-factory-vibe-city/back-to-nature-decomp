@@ -222,9 +222,18 @@ Members (address order):
 - ovl_10_func_800B956C (m, matched this session) — mcard hide-transition
   wrapper: if slot == 2, `McxHideTrans(0)`, else `ovl_10_func_800B92AC();
   return 0`
-- ovl_10_func_800B95F0 (s) — mcard read-device address/length editor and the
-  simplest member of the grid-display family: the cluster's 0/1/2/3 skeleton
-  with cursor `D_800BB98C` over the 5-byte address/length field
+- shared loop-pass idiom (2026-08-23, 800B95F0 matched with 800BA394 as
+  donor): the grid loop derives the row offset as an inlined `row * 0x10` at
+  every consumer and lays the inner loop out as
+  `if (row*0x10 < count) do { body; i++; if (i>=0x10) break; } while
+  (row*0x10+i < count)`, which loop.c combines into a stepping offset
+  accumulator whose init is emitted after pass-1 movables (block 49 / block
+  93 preheader law). A derived-offset `for` form never reduces (the giv's
+  benefit 3 minus add_cost 4 is negative); the break-form do-while does.
+- ovl_10_func_800B95F0 (m, matched 2026-08-23, baseline flags) — mcard
+  read-device address/length editor and the simplest member of the
+  grid-display family: the cluster's 0/1/2/3 skeleton with cursor
+  `D_800BB98C` over the 5-byte address/length field
   `D_800BB810[0..4]` (0x2000/0x8000 inc/dec within 0..4, 0xA000 latched into
   `D_800BB990`), per-bit repeat counters `D_800BB824`/`828`/`82C`/`830` gated
   by the /15 date-predicate `ovl_10_func_800BB728`, and the same
