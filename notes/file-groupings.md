@@ -195,6 +195,13 @@ Fingerprints:
   tying this cluster to the memory-card command-dispatcher code.
 
 Members (address order):
+- ovl_10_func_800B8C14 (m, matched 2026-08-23, baseline flags) — mcard
+  read-result renderer: fills the shared label array `D_800BBB3C`
+  (15 entries, one re-targeted to `D_800B7E48` via `D_800BB7BC`), calls
+  `ovl_10_func_800B9060`, then `McxSync`-selects one of six packed
+  card-recovery records copied into the shared `D_800BBAFC` buffer (same
+  packed-record idiom as `800B8A5C`/`800B9AA8`), and re-dispatches
+  through `ovl_10_func_800B9108`. See notes/research/ovl_10_func_800B8C14.md
 - ovl_10_func_800B9108 (m, matched this session, baseline flags) — the
   switch dispatcher: routes D_800BB7BC command id to the cluster wrappers on
   jtbl_800B80E4 (ids 1–14) and jtbl_800B811C (ids 0/4/5/6/11, reached only
