@@ -255,6 +255,21 @@ Members (address order):
 
 ---
 
+## `ovl_11` s16-pair setter pair — 0x800D0DB0 / 0x800D0DBC (confidence: low)
+
+Two leaf setters on the same 4-byte s16×2 struct, exact link-order
+contiguity (0x800D0DB0, 0xC bytes, ends 0x800D0DBC; the second begins at
+0x800D0DBC with zero gap). 0x800D0DB0 stores both fields from args,
+0x800D0DBC stores -1 into both. Same zero-gap-adjacency + shared-layout
+fingerprint as the documented "s16-pair state family"; both local struct
+typedefs (UnkStruct800D0DB0 / UnkStruct800D0DBC) are the same layout.
+Members:
+- ovl_11_func_800D0DB0 (m) — sets s16 pair from args (delay-slot stored)
+- ovl_11_func_800D0DBC (m, matched this session) — sets both fields to -1
+  ("addiu v0, -1; sh; jr ra / sh v0,2(a0)" delay-slot pair)
+
+---
+
 ## `ovl_11` D_80123754 setter/getter run — 0x800D12A0–0x800D2160 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) in the middle of the
