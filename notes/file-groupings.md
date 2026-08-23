@@ -177,6 +177,33 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80070D0E clear/read cluster — 0x800F4CA0–0x800F62D8 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
+file-scope u16 global. Same shared-global-cluster fingerprint as the documented
+D_80123754 run: absolute-addressed main-RAM global (no gp-rel in this container)
+with one writer up front and a reader later, threaded through a contiguous text
+span.
+
+Fingerprints:
+- shared u16 global `D_80070D0E` (main RAM 0x80070D0E, not in the EXE's
+  generated `globals.h`): cleared by `ovl_11_func_800F4CA0` (single `sh $zero`),
+  read by `ovl_11_func_800F62D8` (`lhu`);
+- link-order adjacency: `ovl_11_func_800F4BB4` (0x800F4BB4–0x800F4CA0, 0xec)
+  ends exactly where the clear starts, zero-gap contiguity into 0x800F4CAC, and
+  `ovl_11_func_800F4BB4` also calls the clear — caller + link-order agree;
+- second caller `ovl_11_func_800DE2EC` (0x800DE2EC) invokes the same clear,
+  same-family plausible but far from the run.
+
+Members (address order):
+- ovl_11_func_800F4BB4 (s) — link-order predecessor and caller of the clear
+- ovl_11_func_800F4CA0 (m, matched this session) — leaf clear: `D_80070D0E = 0`
+  (single `sh $zero`, delay-slot scheduled); byte-exact clean C, baseline flags;
+  the run's only confirmed global writer
+- ovl_11_func_800F62D8 (s) — reads D_80070D0E (`lhu`), the run's getter
+
+---
+
 ## `ovl_10` overlay tail — /15 date-utility pair around 0x800BB728 (confidence: low)
 
 Candidate tail-cluster of `ovl_10` (`Obj\gf_mcard.bin`, the memory-card manager
