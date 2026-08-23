@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | none yet — called into by `ovl_30` |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -93,6 +93,49 @@ Members (address order):
 agent workflow. Its residual was one shape question — a nested `if` chain rather
 than a `&&`, which GCC folds into a single unsigned compare — and it is a fair
 prior for the rest of this group.
+
+---
+
+## `ovl_11` farm-object clear/update run — 0x80121318–0x80121500 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) around the
+farm-object update/clear code at the overlay's tail. Evidence is an internal
+call graph plus strict link-order adjacency plus a shared field-14 clear idiom;
+same-TU membership is plausible but unproven (no shared gp-rel cluster or
+register quirk observed yet).
+
+Fingerprints:
+- address adjacency: `ovl_11_func_80121318` (0x44 bytes, ends 0x8012135C)
+  sits immediately before `ovl_11_func_8012135C` and `ovl_11_func_801213D8`
+  (0x120 bytes, exactly 0x801213D8–0x801214F8), which is followed directly
+  by `ovl_11_func_801214F8` (0x801214F8–0x80121500) — the whole run
+  0x80121318–0x80121500 is contiguous with no unrelated code between;
+- internal call graph: the leaf `ovl_11_func_801214F8` is called by both of
+  its neighbours — `ovl_11_func_80121318` (a `for` loop stepping a
+  `D_8012DB90` 0x18-byte-stride struct array 0x18 times, calling it per
+  entry) and `ovl_11_func_801213D8` (the farm-object update routine, which
+  calls it on the `.L801214DC` no-spawn reset path to drop the entry's
+  live pointer);
+- shared struct + clear idiom: all three operate on the same 0x18-byte
+  farm-object struct with a pointer field at +0x14; `ovl_11_func_801214F8` is
+  the field-14 clear (single `sw $zero, 0x14(a0)`, leaf), the reset every
+  caller uses to blank an entry.
+
+Members (address order):
+- ovl_11_func_80121318 (s) — clears the whole `D_8012DB90` 0x18-entry farm
+  array by looping 0x18 times calling ovl_11_func_801214F8 on each +0x18
+  entry
+- ovl_11_func_8012135C (s) — role unknown; sits in the run between 80121318
+  and 801213D8
+- ovl_11_func_801213D8 (s) — farm-object update: guards field_14, positions
+  from field_0/2/8/C via a /6 magic-reciprocal step counter, gate bit of
+  `D_8006C844`, and on its no-spawn path calls
+  ovl_11_func_801214F8 (field-14 clear)
+- ovl_11_func_801214F8 (m, matched 2026-11 — this session) — leaf field-14
+  clear: `sw $zero, 0x14(a0)`; byte-exact clean C, baseline flags (no
+  override)
+- ovl_11_func_80121500 (s) — immediate link-order follower, next candidate
+  member
 
 ---
 

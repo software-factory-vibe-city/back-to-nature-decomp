@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_801214F8", ovl_11_func_801214F8);
+void ovl_11_func_801214F8(s32 *arg0) {
+    arg0[5] = 0;
+}
