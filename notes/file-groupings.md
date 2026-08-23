@@ -154,6 +154,15 @@ Fingerprints:
 - address adjacency: the four member functions sit together in link order
   (0x800B92AC, 0x800B92D0, 0x800B9458, 0x800BA2A0), immediately after the
   jtbl_800B811C switch table in the same rodata region;
+- main-loop driver (2026-08, 800B889C matched): the overlay's first
+  function (splat offset 0xA7C, immediately before 800B8A5C) is a frame
+  loop that polls `D_800BB7C4` — the loop-flag word `ovl_10_func_800B8A5C`
+  sets on pad bit 0x100 — inits the shared `D_800BBA4C` byte buffer the
+  grid-display editors mutate, and every frame calls `func_80013B04` (pad),
+  `ovl_10_func_800B8A5C`, and confirmed cluster member
+  `ovl_10_func_800B8C14` between two alternating DRAWENV/DISPENV swaps — a
+  call-graph + shared-global tie running through the whole 800B889C–
+  800B8C14 front of the overlay;
 - call graph: `ovl_10_func_800B9108` dispatches to cluster neighbours
   (`800B95A4`, `800B956C`) and `ovl_10_func_800B956C` directly calls
   `800B92AC` — mcard status/app wrappers, a call-graph adjacency
@@ -195,6 +204,13 @@ Fingerprints:
   tying this cluster to the memory-card command-dispatcher code.
 
 Members (address order):
+- ovl_10_func_800B889C (m, matched this session, baseline flags) — overlay
+  main-loop driver: font/display-env setup (FntLoad/FntOpen, four
+  SetDef{Draw,Disp}Env), D_800BBA4C[0..5] = {1,4,1,0,0xD,0x80} init, then
+  a frame loop polling D_800BB7C4 that calls func_80013B04 (pad),
+  ovl_10_func_800B8A5C, ovl_10_func_800B8C14 and flips two packed
+  DRAWENV/DISPENV pairs (PutDispEnv(cur+0x5C) / PutDrawEnv(cur)); the
+  leading function in link order
 - ovl_10_func_800B8C14 (m, matched 2026-08-23, baseline flags) — mcard
   read-result renderer: fills the shared label array `D_800BBB3C`
   (15 entries, one re-targeted to `D_800B7E48` via `D_800BB7BC`), calls
