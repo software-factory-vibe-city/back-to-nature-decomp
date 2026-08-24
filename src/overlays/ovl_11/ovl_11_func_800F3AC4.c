@@ -1,3 +1,12 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800F3AC4", ovl_11_func_800F3AC4);
+s32 ovl_11_func_800F3AC4(u16 arg0) {
+    u16 current;
+
+    current = D_80070D3E;
+    if (current < arg0)
+        return 0;
+
+    D_80070D3E = current - arg0;
+    return 1;
+}
