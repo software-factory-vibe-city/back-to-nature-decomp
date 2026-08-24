@@ -1,3 +1,16 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800DF3BC", ovl_11_func_800DF3BC);
+typedef struct {
+    u16 field_0;
+    u16 field_2;
+} Ovl11Pair2;
+
+extern Ovl11Pair2 D_80123E70[][4];
+
+s32 ovl_11_func_800DF3BC(u16 arg0, u16 arg1, u16 *arg2, u16 *arg3) {
+    *arg2 = D_80123E70[arg0][arg1].field_0;
+    if (arg3 != 0) {
+        *arg3 = D_80123E70[arg0][arg1].field_2;
+    }
+    return 0;
+}
