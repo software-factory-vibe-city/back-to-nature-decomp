@@ -3457,14 +3457,18 @@ the overlay, never GP-relative), and the large-offset writers use the same
   0x800BFEA4 is link-adjacent); first matched reference to `D_80128A80`
   (0x80128xxx data region, beside the `D_801285xx`/`D_80128BB0`/`D_80128DE8`
   reset clusters)
-## `ovl_11` D_8006C838 +0x7A78 halfword-search pair — 0x800DBB94 / 0x800DBF60 (confidence: low)
+## `ovl_11` D_8006C838 +0x7A78 halfword-record table — 0x800DBB94 / 0x800DBF60 / 0x800DBE9C (confidence: low)
 
-Two byte-exact leaf scans over the same main-binary s16 table — absolute
+Scans and a shift over the same main-binary 5-entry record table — absolute
 `lui %hi(D_8006C838)` + `%lo` base, element offset 0x3D3C (byte 0x7A78), stride
-6 s16 (0xC bytes), same strength-reduced pointer walk. Shared idiom +
-shared-global fingerprint only; address-apart (~0x3E0), and D_8006C838 is
-base-binary data so neither gets a GP-relative ownership signal — TU membership
-unproven. Same-idiom + shared-global evidence only. Members:
+6 s16 (0xC bytes), first s16 is a -1 empty sentinel; same strength-reduced
+pointer walk. Shared idiom + shared-global fingerprint; the shift member
+ovl_11_func_800DBE9C is address-adjacent (0x3E8 below 0x800DBB94 in the
+0x800DBAB0–0x800DC0A0 record-family band) and callee-linked (its callers
+ovl_11_func_800DBE30/ovl_11_func_800DBEF8 are both called by func_800DBAB0,
+which also reads lh 0x7A78; func_800DBD78 calls ovl_11_func_800DBB94) —
+shared-global + adjacency + call edges, TU membership still unproven.
+Members:
 - ovl_11_func_800DBB94 (m, matched this session, 0x4C, byte-exact first try,
   baseline flags) — search over the table: `p[0x3D3C + i * 6] != -1 &&
   p[0x3D3C + i * 6] == arg0` for i = 0..4 → return 1, else 0; arg0 is the value
@@ -3472,6 +3476,13 @@ unproven. Same-idiom + shared-global evidence only. Members:
 - ovl_11_func_800DBF60 (m, already matched) — the simpler sibling: `p[0x3D3C + i * 6]
   != -1` for i = 1..4 → return 1, else 0 — 800DBB94 is the same scan made
   parameterized; identical toolchain, 8/9 shapes align in order
+- ovl_11_func_800DBE9C (m, matched this session, 0x5C, byte-exact) — the
+  shift/clear writer: copies record[i+1] → record[i] for i = 0..3 (12-byte
+  unaligned struct copies) and stores the -1 sentinel into record[4]'s first
+  halfword — the same -1 the searchers test; uses the shared-`%hi` +
+  per-use `addiu %lo` tail-rematerialization idiom noted in the recorded
+  `D_8006C858` run members, here with the terminator store spelled as a view-struct
+  member
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
