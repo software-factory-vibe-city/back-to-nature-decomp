@@ -340,7 +340,10 @@ Fingerprints:
   sandwiched between them — a single global threading one contiguous file.
 
 Members (address order):
-- ovl_11_func_800D12A0 (s) — run head, does not touch D_80123754
+- ovl_11_func_800D12A0 (m, matched this session) — run head; s16 setter into
+  D_8006C838+0x99E6 (flags/state array) via a large-offset split (base+0x8000,
+  disp 0x19E6), local-pointer materialization; baseline flags; does not touch
+  D_80123754 — role confirmed, shares the run's other data-tie class
 - ovl_11_func_800D12B8 (s) — writes D_80123754 at three sites
 - ovl_11_func_800D1960 (m, matched this session) — leaf setter:
   `D_80123754 = arg0` (single `sh`, delay-slot scheduled); byte-exact clean C,
