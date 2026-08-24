@@ -515,6 +515,14 @@ ASPSX definer/declarer rule. One member calls ovl_11_func_800D12B8, which sits
 in the D_80123754 setter run. Members:
 - ovl_11_func_800D31EC (m, matched this session) — writes both s16 fields from
   args (lui pair + delay-slot sh pair), the pair's main setter
+- ovl_11_func_800D3D2C (m, matched this session) — state-code helper: returns
+  0x13 when engine s16 `D_80070CF8` < 7 or struct field +0xAC <= 0, else 0x14
+  (reads `lh` at +0xAC — same object struct field as cluster mate 800D3FEC);
+  called by the dispatch function `ovl_11_func_800D3468`, which dispatches on
+  the struct's id field (+0) and also calls ovl_11_func_800D3C04/3CA4/3C54/3CE8
+  then ovl_11_func_800D3104 — a shared dispatch-caller ties this run together;
+  also reads `D_80070CF8`, the same absolute-addressed engine s16 as
+  ovl_11_func_80107B54 (weak, engine-owned global)
 - ovl_11_func_800D3FEC (s) — reads D_80128D78 (`lhu`), subtracts it from a
   struct field +0xAC and clamps non-negative
 - ovl_11_func_800D55F8 (s) — reads D_80128D7A (`lhu`) into struct field +0x22;
