@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -351,6 +351,47 @@ Members (address order):
 - ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter
 - ovl_11_func_800D1E1C (s) — does not touch the global
 - ovl_11_func_800D1EB8 (s) — run tail, does not touch the global
+
+---
+
+## `ovl_11` 0x800E48CC–0x800E5078 pointer-getter run (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) in the lower-middle of
+the overlay. Evidence is strict link-order adjacency plus an internal call graph
+centred on a single shared leaf getter; no shared global — the grouping is the
+code, not data.
+
+Fingerprints:
+- zero-gap link-order contiguity (map): 0x800E48CC (0xD0) → 0x800E499C
+  (0x150) → 0x800E4AEC (0x6C) → 0x800E4B58 (0x14) → 0x800E4B6C (0x38) →
+  0x800E4BA4 (0x8C) → 0x800E4C30 (0x54) → 0x800E4C84 (0x84) → 0x800E4D08
+  (0xA4) → 0x800E4DAC (0x2CC) — each starts exactly where the previous ends,
+  the whole span 0x800E48CC–0x800E5078 contiguous with no unrelated code
+  between;
+- internal call graph: the leaf `ovl_11_func_800E4B58` is called by three of
+  its neighbours — `ovl_11_func_800E4B6C`, `ovl_11_func_800E4C30` (twice,
+  subtracting two consecutive getter results), `ovl_11_func_800E4D08` — and
+  `ovl_11_func_800E4C30` also calls its own neighbour `ovl_11_func_800E4C84`;
+  a packed cluster whose members call each other, not the engine.
+
+Members (address order, matched in bold):
+- ovl_11_func_800E48CC (s) — run head
+- ovl_11_func_800E499C (s)
+- ovl_11_func_800E4AEC (s) — sibling leaf, falls through to its own `jr $ra`
+- **ovl_11_func_800E4B58 (m, matched this session)** — shared getter leaf,
+  byte-exact clean C: `return *(s32 *)(arg0 + arg1*4 + 0x34);` — a
+  base-pointer plus 4-byte-stride index plus fixed 0x34 offset; baseline
+  flags. Called by 800E4B6C / 800E4C30 / 800E4D08 (whose `sw $v0` sites and
+  `subu`-of-two-calls pattern consume it)
+- ovl_11_func_800E4B6C (s) — feeds the getter `base + (s16)a0[2]*4 + 0x38`
+  in `$a0`, passes its own incoming index through untouched in `$a1`
+- ovl_11_func_800E4BA4 (s)
+- ovl_11_func_800E4C30 (s) — `getter(base, i+1) - getter(base, i)`;
+  also calls 800E4C84
+- ovl_11_func_800E4C84 (s)
+- ovl_11_func_800E4D08 (s) — loop calling 800E4B58, storing results into
+  `D_801291C0[i]`, guarded by a 0x3C00 bit in an s16 word
+- ovl_11_func_800E4DAC (s) — run tail (0x2CC)
 
 ---
 
