@@ -3194,8 +3194,7 @@ Members (address order):
   +0x1C (fn ptr +0, bytes +4/+5, s16 +6), else returns -1
 - ovl_11_func_800D6014 (m, matched this session) — u16 index, returns s16 at
   +0x10; leaf, byte-exact clean C, baseline flags; the run's +0x10 getter
-- ovl_11_func_800D6090 (s) — u16 index; `(flags & 0x8100) == 0x8000` and
-  `(type ^ 1) != 0` → 1, else 0
+- ovl_11_func_800D6090 (m, matched this session) — u16 index; masked `andi` index then the same *40 multiply chain; `(flags & 0x8100) == 0x8000` and `(s8 type ^ 1) != 0` → 1, else 0; leaf, byte-exact clean C, baseline flags
 
 Scattered siblings sharing D_8006C858 (broader cluster, not confirmed same
 TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
