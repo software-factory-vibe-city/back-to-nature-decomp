@@ -2686,6 +2686,21 @@ Members (address order):
   Call-graph agreement via the shared by-value parameter ABI + zero-gap
   link order; callers (0x80114604 etc.) are stubs, so data TU ownership
   unconfirmed. StructD548 is shared-typed in include/game_types.h.
+- ovl_11 v0-channel/static-chain fossil run — 0x8011D400 / 0x8011D438 /
+  0x8011D474, zero-gap link run (0x8011D400 0x38 → 0x8011D438 0x3C →
+  0x8011D474 0x2C0, each ending exactly where the next starts; the caller
+  starts exactly at the callee's end). ovl_11_func_8011D438 (m, matched
+  this session) is a 10-scan byte-probe leaf that opens with the family's
+  dead `sw $v0, 0($sp)` hard-$v0 capture (CAPTURE_PREV_RET + tmp[2], the
+  exact fossil signature of func_8001E878/E9F8/EAE4 and the ovl_11
+  800D1CD0/800D0600 leaves); its link-contiguous sole caller
+  ovl_11_func_8011D474 (s) materializes `$v0 = $sp + 0x18` before the
+  `jal` — the family's nested-function static-chain seeding — then
+  dispatch-loops off the result. A third, higher-address member cluster of
+  ovl_11's documented v0-channel fossil (previous: 0x800D12A0–0x800D2160);
+  head 0x8011D400 (s) is link-order predecessor only. Call-graph agreement
+  (caller contiguous after callee) + register-capture quirk; TU ownership
+  unconfirmed (parent stubs).
 - ovl_11 6-byte struct-copy helper run — 0x800F7E38 / 0x800F8404 /
   0x800F8480 / 0x800F84D4 (confidence: low): the orchestrator
   ovl_11_func_800F7E38 (stub) calls three link-adjacent leaf helpers that
