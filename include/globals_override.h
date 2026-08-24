@@ -800,4 +800,19 @@ extern ItemData *D_8006C858;
 extern s32 _D_801247E8[51] __asm__("D_801247E8");
 #define D_801247E8 (*((s32 *)_D_801247E8))
 
+/* D_80124A18 - table of 0x14-byte range-clamp entries (ovl_11).
+ * Element stride 0x14; fields used: s16 low at +0x08 (lh read by
+ * ovl_11_func_800EFD54), s32 high at +0x0C (lw read), s32 field at +0x10
+ * (read by ovl_11_func_800EFABC). Absolute-addressed from the overlays
+ * (only ever declared extern, never GP). */
+typedef struct {
+    /* 0x00 */ u8 pad_00[0x8];
+    /* 0x08 */ s16 field_8;
+    /* 0x0A */ u8 pad_0A[0x2];
+    /* 0x0C */ s32 field_C;
+    /* 0x10 */ s32 field_10;   /* 0x14 stride */
+} Ovl11RangeEntry;
+extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
+#define D_80124A18 ((Ovl11RangeEntry *)_D_80124A18)
+
 #endif /* GLOBALS_OVERRIDE_H */
