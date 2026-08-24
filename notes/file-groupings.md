@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium); 7-halfword farm reset helper 0x800BFF50 (leaf; zeroes six halfwords, sets 0xC to 0x8000; sole caller link-adjacent 0x800BFEA4 iterates `D_80128820`[] stepping +0xE) (low) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium); 7-halfword farm reset helper 0x800BFF50 (leaf; zeroes six halfwords, sets 0xC to 0x8000; sole caller link-adjacent 0x800BFEA4 iterates `D_80128820`[] stepping +0xE) (low); `D_8006C858` item-table accessor run 0x800D5750–0x800D6090 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -2824,3 +2824,44 @@ Members:
 - ovl_08_func_800B8134 (m) — menu/kanji page renderer; walks the D_800B8508 {glyph, kanji-code} table (6-entry page at D_800B8504/6*6) via strength-reduced pointer, prints via KanjiFntPrint, handles pad rows 13–16 by OR-ing D_8006C838.unk10 and calling func_80011EF0 (matched 2026-08-22)
 - ovl_08_func_800B8400 (m) — button/input-driven “PANDO=%d” menu counter: ticks D_800B8608 (8=+1 wrap 0 at 0xB, 2=-1 wrap 0xA), dispatches func_8001B2CC/8001B3CC on field_8 flags 0x40/0x80, prints via FntPrint
 
+## `ovl_11` D_8006C858 item-table accessor run — 0x800D5750–0x800D6090 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the
+main-binary item-table pointer `D_8006C858` (absolute `lui`+`%lo` in every
+site — the overlay only declares it extern, so it is never GP-relative).
+Same shared-global-cluster fingerprint as the documented D_80128810 run, here
+round a table of 0x28-byte `ItemData` records indexed by the identical
+`*40 = (idx*4 + idx) << 3` multiply chain (`sll 2; addu; sll 3`) in every
+site. Our ovl_11_func_800D6014 is the run's s16-at-+0x10 getter.
+
+Fingerprints:
+- shared global pointer `D_8006C858` → ItemData[] (40-byte stride); every
+  access is `lw %lo(D_8006C858)` then the same three-instruction index
+  multiply, so the whole cluster shares one field-layout type;
+- address adjacency: nine of the 21 total ovl_11 D_8006C858 accessors sit in
+  this 0x800D5750–0x800D6090 window as two zero-gap runs
+  (0x800D5750–0x800D5960, seven members; 0x800D6014 + 0x800D6090 — the
+  intervening 0x800D603C does not touch the table);
+- each run member references D_8006C858 exactly twice (the lui/%lo pair).
+
+Members (address order):
+- ovl_11_func_800D5750 (s) — s16 index flag test: bit 0x4000 → 2, else
+  (flags & 0x8100) != 0 → 1, else 0
+- ovl_11_func_800D57A4 (s) — s16 index status dispatch at +0x18: bits
+  0x10000000 / 0x20000000 / 0x40000000 → 0/1/2/3
+- ovl_11_func_800D5810 (s) — s16 index, returns `(s32 at +0x18) < 0`
+- ovl_11_func_800D583C (s) — s16 index, returns type byte at +0x2
+- ovl_11_func_800D5868 (s) — s16 index, returns `(flags & 0x40) != 0`
+- ovl_11_func_800D589C (s) — s16 index, returns `(flags & 0x8100) != 0`
+- ovl_11_func_800D58D0 (s) — s16 index; flags & 0x800 → action sub-struct at
+  +0x1C (fn ptr +0, bytes +4/+5, s16 +6), else returns -1
+- ovl_11_func_800D6014 (m, matched this session) — u16 index, returns s16 at
+  +0x10; leaf, byte-exact clean C, baseline flags; the run's +0x10 getter
+- ovl_11_func_800D6090 (s) — u16 index; `(flags & 0x8100) == 0x8000` and
+  `(type ^ 1) != 0` → 1, else 0
+
+Scattered siblings sharing D_8006C858 (broader cluster, not confirmed same
+TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
+800CCF58, 800D12B8, 800D196C, 800D736C, 800E93CC.
+
+---

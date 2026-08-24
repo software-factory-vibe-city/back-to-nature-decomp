@@ -758,4 +758,23 @@ extern s32 D_800BB88C;
 extern unsigned char D_800BB9BC[];
 extern s32 D_800BBA3C;
 
+/* Shared item table entry (array behind the D_8006C858 pointer, stride 0x28).
+ * Referenced by the ovl_11 item-cluster functions: flags read as u16/lhu at
+ * 0x00 (bit tests 0x40, 0x800, 0x1200, 0x8100), type byte at 0x02, s16 at
+ * 0x10, status word at 0x18 (signed test + bitfield reads), and an action
+ * sub-structure at 0x1C (s32 fn ptr at +0, bytes at +4/+5, s16 at +6). */
+typedef struct {
+    /* 0x00 */ u16 flags;
+    /* 0x02 */ u8 type;
+    /* 0x03 */ char pad_03[0x10 - 0x03];
+    /* 0x10 */ s16 field_10;
+    /* 0x12 */ char pad_12[0x18 - 0x12];
+    /* 0x18 */ s32 field_18;
+    /* 0x1C */ char pad_1C[0x28 - 0x1C];
+} ItemData; /* 0x28 */
+
+/* D_8006C858 - shared item table pointer (main-binary data, absolute addressed
+ * from overlays that only declare it extern; stride 0x28 per ItemData). */
+extern ItemData *D_8006C858;
+
 #endif /* GLOBALS_OVERRIDE_H */
