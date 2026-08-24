@@ -501,6 +501,11 @@ Members (address order):
 - ovl_11_func_8010C3F8 (s) — sibling clear/set writing u16@+2 per cell
   (same 0x62 count), calls `ovl_11_func_8010C5A0`, also touches
   `D_8006C838`; link-immediate successor of 0x8010C3C4
+- ovl_11_func_8010C5A0 (m, matched this session) — leaf grader rewriting a
+  cell's u16@0 (0xA3 / 0xA2 / 0xA1) from its u16@2 (< 10 / < 20 / else,
+  unsigned); shares the `Cell4` type, sole caller 0x8010C3F8 (which
+  increments the cell's u16@2 then calls it), sibling 0x8010C5DC called
+  right after
 - ovl_11_func_8010C668 (m, matched this session) — read-and-count iterator:
   lhu u16@0 of each cell, same hand-written 0x62→0 countdown (99 cells),
   counts nonzero cells, returns the count; shares the private `Cell4`
