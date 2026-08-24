@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800CE514", ovl_11_func_800CE514);
+s32 ovl_11_func_800CE514(s16 arg0) {
+    return (u32) (arg0 - 0xED) < 6U;
+}
