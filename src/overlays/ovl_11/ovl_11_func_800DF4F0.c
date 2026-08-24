@@ -1,3 +1,12 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800DF4F0", ovl_11_func_800DF4F0);
+typedef struct {
+    /* 0x00 */ u16 unk0;
+} UnkStruct800DF4F0;
+
+s32 ovl_11_func_800DF4F0(UnkStruct800DF4F0 *arg0) {
+    if (arg0->unk0 == 0) {
+        return 0;
+    }
+    return (*(s32 *)((char *)arg0 + 0x34) & 0x10000) < 1;
+}
