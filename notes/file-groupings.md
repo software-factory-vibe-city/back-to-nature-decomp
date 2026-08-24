@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -518,6 +518,37 @@ Members (address order):
 - ovl_11_func_8011AA44 (m, matched this session) — identical leaf reset stub; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint
 - ovl_11_func_8011AA54 (m, matched this session) — identical leaf reset stub; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint
 - ovl_11_func_8011B6B4 (m, matched this session) — identical leaf reset stub, run tail at 0x8011B6B4; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint for the run-tail member
+
+---
+
+## `ovl_11` D_8012DB10 / D_8012DB14 s32-pair run — 0x8011F0C4–0x8011F1D0 (confidence: medium)
+
+Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) whose head resets a
+file-scope s32 pair. Same shared-global + link-adjacency fingerprint class as
+the documented `D_80123754` / `D_800BB7BC` runs: absolute-addressed main-RAM
+globals (no gp-rel in this container), so the referencing TU only *declares* the
+pair extern and the defining TU sits elsewhere in the overlay.
+
+Fingerprints:
+- shared s32 pair `D_8012DB10` / `D_8012DB14` (main RAM 0x8012DB10/0x8012DB14,
+  absolute `lui`+`%lo` at every site): referenced by the three functions of the
+  run head — `ovl_11_func_8011F0C4` zeroes both, `ovl_11_func_8011F0D8` reads
+  `D_8012DB10` as a one-shot guard (`bnez`, sets it to 1 on first entry) then
+  clamps/writes `D_8012DB14`, `func_8011F114` reads and rewrites both heavily;
+- zero-gap link order: `ovl_11_func_8011F0C4` (0x14) → `ovl_11_func_8011F0D8`
+  (0x3C) → `func_8011F114` (0xBC) → `func_8011F1D0` (0x324), each starting
+exactly where the previous one ends; the first three share the pair, the last
+(0x8011F1D0) continues the run but reads other globals (`D_8012852C`,
+`D_8007AFEE`, `jtbl_800BB5E8`) — same-TU tie via run continuity, not the pair.
+
+Members (address order):
+- ovl_11_func_8011F0C4 (m, matched this session) — run head at 0x8011F0C4; resets
+  both members of the pair to 0 by absolute addressing: `lui %hi(D_8012DB10); lui
+  %hi(D_8012DB14); sw $zero, %lo(D_8012DB10); jr $ra; sw $zero, %lo(D_8012DB14)`
+  (second store in the delay slot); byte-exact clean C, baseline flags
+- ovl_11_func_8011F0D8 (s) — reads `D_8012DB10` as a first-entry guard, stores 1
+  to it, and writes a clamped (0..9) value to `D_8012DB14`
+- func_8011F114 (s) — heavier reader/writer of both words (0xBC bytes)
 
 ---
 
