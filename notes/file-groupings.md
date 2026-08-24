@@ -410,6 +410,26 @@ Members:
 
 ---
 
+## `ovl_11` D_8006C838 flag-byte writer/reader pair — 0x800D0EA4 / 0x800D0ED0 (confidence: medium)
+
+Zero-gap link-order adjacency (0x800D0EA4, 0x2C bytes, ends exactly at
+0x800D0ED0) and a shared rare codegen idiom argue one TU. Both take the same
+`arg1 == 1` predicate over the same two byte flags at `D_8006C838 + 0x4AC0` /
+`+ 0x4AD6`, index them by the same runtime `arg0`, and compile to the same
+per-arm two-step address formation: `lui %hi(D_8006C838)` hoisted into the
+branch delay slot, per-arm `addiu %lo(D_8006C838)` + `addu v0,v0,a0`
+(base-first), constant as the `sb`/`lbu` displacement. The base-first
+`addu v0,v0,a0` with a runtime index is unusual for this toolchain (CSE
+reverses it unless the base is materialized in two steps); the pair shares it.
+The writer was matched this session (clean C, baseline flags).
+Members:
+- ovl_11_func_800D0EA4 (m, matched this session) — writer: stores 1 at the
+  selected flag byte
+- ovl_11_func_800D0ED0 (s) — reader: returns `flag != 0` for the selected
+  byte
+
+---
+
 ## `ovl_11` D_80123754 setter/getter run — 0x800D12A0–0x800D2160 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) in the middle of the
