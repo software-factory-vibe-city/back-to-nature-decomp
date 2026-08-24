@@ -1025,6 +1025,11 @@ Fingerprints:
 Members (address order):
 - ovl_11_func_800CBDFC (m, matched earlier) — leaf: `(D_80071A6C & 0x20000000)`
   mask-and-test on the pool's upper sibling
+- ovl_11_func_800CCC5C (m, matched this session) — leaf copy/mirror: copies the
+  unaligned word at the `D_8007AFF0`+0x25388 far-buffer pointer slot into
+  `D_80071A00`+0xFC, and when the pool's s16 at +0x8A is 0x106/0x107 mirrors it
+  to +0x4012 (same single-`lui`+`addu` far-base idiom as the +0x25388 slot
+  reader pair 0x800C0F84 / 0x800DD1D0 — a third matched deref of that slot)
 - ovl_11_func_800F19C8 (m, matched this session) — leaf byte-compare helper:
   `return D_80071A22 == (arg0 & 0xFF);` (6 words, `andi` + `lh` + `sltu` mount,
   no branches); byte-exact clean C, baseline flags; run's only confirmed
