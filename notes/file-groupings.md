@@ -580,6 +580,12 @@ Members (address order):
 - ovl_11_func_8010C3F8 (s) — sibling clear/set writing u16@+2 per cell
   (same 0x62 count), calls `ovl_11_func_8010C5A0`, also touches
   `D_8006C838`; link-immediate successor of 0x8010C3C4
+- ovl_11_func_8010C550 (m, matched this session) — leaf switch writing a
+  cell's u16@2 from the id (0xA1→0x14, 0xA2→0xA, 0xA3→0), the exact
+  inverse of grader 0x8010C5A0's (u16@2→u16@0: <10→0xA3, <20→0xA2,
+  else→0xA1); shares the private `Cell4` type, direct callee of
+  0x8010C330 (which stores the id at u16@0 then calls it), and is the
+  gapless link predecessor of 0x8010C5A0 (0x8010C550+0x50 = 0x8010C5A0)
 - ovl_11_func_8010C5A0 (m, matched this session) — leaf grader rewriting a
   cell's u16@0 (0xA3 / 0xA2 / 0xA1) from its u16@2 (< 10 / < 20 / else,
   unsigned); shares the `Cell4` type, sole caller 0x8010C3F8 (which
