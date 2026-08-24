@@ -1,3 +1,11 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800CD534", ovl_11_func_800CD534);
+s32 ovl_11_func_800CD534(s32 arg0) {
+    s32 var_v0;
+
+    var_v0 = -((arg0 / 60) * 2) - 5;
+    if (var_v0 < -0x80) {
+        var_v0 = -0x80;
+    }
+    return var_v0;
+}
