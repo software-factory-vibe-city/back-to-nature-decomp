@@ -1,3 +1,7 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800E8BF0", ovl_11_func_800E8BF0);
+s32 ovl_11_func_800E8BF0(void) {
+    char *far_base = (char *)&D_8007AFF0;
+
+    return *(s32 *)(far_base + 0x254A0) == 3;
+}
