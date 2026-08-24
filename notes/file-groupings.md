@@ -2195,10 +2195,12 @@ Members (address order):
   parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
   caller and address predecessor; shared gp-rel globals unverified.
 - ovl_11 D_8012D520 getter pair — ovl_11_func_80118C6C (m, matched this
-  session) and the still-stub ovl_11_func_801165C8 are the only two ovl_11
-  readers of s32 D_8012D520 (both `lui %hi` + `lw %lo`); D_8012D520 sits in
-  the contiguous data block D_8012D51A/51C/520/524 that no other code
-  references. Shared-global fingerprint only; data TU ownership unconfirmed.
+  session) and ovl_11_func_801165C8 (m, now matched) are the only two ovl_11
+  readers of s32 D_8012D520 (both `lui %hi` + `lw %lo`); ovl_11_func_801165C8
+  is the boolean test `D_8012D520 != 0x1A` (xori 0x1A + sltu-vs-zero).
+  D_8012D520 sits in the contiguous data block D_8012D51A/51C/520/524 that
+  no other code references. Shared-global fingerprint only; data TU ownership
+  unconfirmed.
 - ovl_11 D_8012D520/D_8012D52C block bridge — 0x8011D084/0x8011D0B4 setter/
   copy pair over the orphan block's top two rows. ovl_11_func_8011D084 (m,
   matched this session) is the setter `D_8012D524 = arg0; D_8012D528 =
