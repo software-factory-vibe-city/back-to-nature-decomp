@@ -421,8 +421,10 @@ Members:
   D_80129198, writes/clears D_80129198
 - ovl_11_func_800DD9F0 (m, matched) — cell A tail probe: leaf
   `return D_80129198 == 2;`
-- ovl_11_func_800DDA08 (s) — cell B head (0x58): mirror of 800DD8AC; clears
-  D_801291A0, writes D_8012919C
+- ovl_11_func_800DDA08 (m, matched this session) — cell B head (0x58):
+  mirror of 800DD8AC; clears D_801291A0, writes D_8012919C; byte-exact
+  clean C, baseline flags, same 0x30-stride D_80128E08 scan as cell A head
+  differing only in bit mask (0x20 vs 0x40) — confirms the mirror-cell hypothesis
 - ovl_11_func_800DDA60 (s) — cell B middle (0xEC): mirror of 800DD904; reads
   D_8012919C and D_801291A0, writes/clears D_801291A0
 - ovl_11_func_800DDB4C (m, matched this session) — cell B tail probe: leaf
