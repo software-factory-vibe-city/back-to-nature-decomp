@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag pair 0x800FB5FC/0x800FB608 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -608,6 +608,28 @@ Members (address order):
   cluster's only pure getter
 - ovl_11_func_80112160 (s) — state probe over the same global, returns
   `D_800719FE != 0` on arg0==0 and the raw s16 on arg0==1
+
+---
+
+## `ovl_11` D_80127208 set-once flag pair — 0x800FB5FC / 0x800FB608 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): two address-adjacent
+leaf functions sharing one file-scope s32 flag `D_80127208`.
+
+Fingerprints:
+- **address adjacency.** `ovl_11_func_800FB5FC` (0xC bytes, ends 0x800FB608)
+  sits immediately before `ovl_11_func_800FB608` (0x20 bytes) with no gap — a
+  contiguous link-order pair.
+- **same shared global.** Both functions reference only `D_80127208`; one
+  clears it, the other sets it once. A shared main-RAM s32 flag absent from
+  `globals.h` is the same file-scope-state fingerprint documented for the
+  D_80071A00 / D_800719FE clusters.
+
+Members (address order):
+- ovl_11_func_800FB5FC (s) — leaf clear: `D_80127208 = 0` (3 words)
+- ovl_11_func_800FB608 (m, matched this session) — leaf set-once guard: if
+  `D_80127208 == 0` then `D_80127208 = 1` (8 words, `lw`/branch/`sw`, no
+  calls, no frame); byte-exact clean C, baseline flags
 
 ---
 
