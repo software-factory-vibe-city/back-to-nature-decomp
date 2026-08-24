@@ -1,3 +1,7 @@
 #include "common.h"
+#include "game_types.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_8011D9B4", ovl_11_func_8011D9B4);
+s16 ovl_11_func_8011D9B4(StructD548 x) {
+    s16 *p = &x.data[15];
+    return p[x.index];
+}
