@@ -388,6 +388,37 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80122F0C 3×s16 lookup-table run — 0x800C1224–0x800C141C (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): one unbroken
+link run whose members reference the single shared 6-byte {s16,s16,s16}
+table `D_80122F0C` (stride 6, offsets 0/2/4) built with the same absolute
+`lui`+`addiu %lo` base.
+
+Fingerprints:
+- **gapless contiguous run**: 0x800C1224 (0x5C, ends exactly at 0x800C1280)
+  → 0x800C1280 (0x5C, ends exactly at 0x800C12DC) → 0x800C12DC (0x140, ends
+exactly at 0x800C141C) → 0x800C141C.
+- **byte-exact twin leaves**: `ovl_11_func_800C1224` (matched this session)
+  and stub `ovl_11_func_800C1280` are the same counter/pointer lookup leaf
+  (s16-sign-extend args, `lh`@0/`lh`@2 inner compare, `return i+1`/0) over
+  the same table — identical instruction stream except the loop bound
+  (`slti 0xE` 14 vs `sltiu 0x12` 18) and compare form — so the 800C1224
+  clean C (`arg0 == D_80122F0C[i].unk0 && arg1 == D_80122F0C[i].unk2`,
+  `UnkStruct800C1224` {s16,s16,s16}) is the natural template for 800C1280.
+- **third reader**: 800C141C (stub) loads `&D_80122F0C`
+  (`lui %hi`+`addiu %lo`) and passes it as a call argument.
+
+Members (address order):
+- ovl_11_func_800C1224 (m, matched this session) — leaf lookup: returns
+  index+1 of the `D_80122F0C[i]` entry whose s16@0 == arg0 and s16@2 ==
+  arg1, else 0
+- ovl_11_func_800C1280 (s) — twin leaf lookup over 18 entries (`sltiu 0x12`)
+- ovl_11_func_800C12DC (s) — no D_80122F0C reference; sits in the run
+- ovl_11_func_800C141C (s) — passes `&D_80122F0C` to a callee
+
+---
+
 ## `ovl_11` D_80129194–D_801291A0 mirror-pair run — 0x800DD8AC–0x800DDB64 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): six functions in
