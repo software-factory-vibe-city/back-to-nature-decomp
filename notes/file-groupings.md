@@ -3328,6 +3328,21 @@ the overlay, never GP-relative), and the large-offset writers use the same
   ovl_11_func_800F5698 is its zero-gap link-order predecessor, and the +0x5DB4
   slot it searches is the sibling of the documented +0x5DCC/+0x5DD4 slots in
   the 800F4360–800F43CC spawn-record run — same entity-base family (low)
+## `ovl_11` D_8006C838 +0x7A78 halfword-search pair — 0x800DBB94 / 0x800DBF60 (confidence: low)
+
+Two byte-exact leaf scans over the same main-binary s16 table — absolute
+`lui %hi(D_8006C838)` + `%lo` base, element offset 0x3D3C (byte 0x7A78), stride
+6 s16 (0xC bytes), same strength-reduced pointer walk. Shared idiom +
+shared-global fingerprint only; address-apart (~0x3E0), and D_8006C838 is
+base-binary data so neither gets a GP-relative ownership signal — TU membership
+unproven. Same-idiom + shared-global evidence only. Members:
+- ovl_11_func_800DBB94 (m, matched this session, 0x4C, byte-exact first try,
+  baseline flags) — search over the table: `p[0x3D3C + i * 6] != -1 &&
+  p[0x3D3C + i * 6] == arg0` for i = 0..4 → return 1, else 0; arg0 is the value
+  being looked up
+- ovl_11_func_800DBF60 (m, already matched) — the simpler sibling: `p[0x3D3C + i * 6]
+  != -1` for i = 1..4 → return 1, else 0 — 800DBB94 is the same scan made
+  parameterized; identical toolchain, 8/9 shapes align in order
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
