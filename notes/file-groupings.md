@@ -3048,3 +3048,9 @@ the overlay, never GP-relative), and the large-offset writers use the same
   leaf, byte-exact clean C, baseline flags; offsets sit ~0x36 past sibling
   0x800BCF28's +0x51FE u16 in the same state buffer; called by link-adjacent
   0x800BCD28 / 0x800CCCC0
+- ovl_11_func_800F2508 (m, matched this session) — stride-4 clear leaf: stores
+  -1 into 20 byte fields at +0x49E6 / +0x4A36 (byte read/write class shared with
+  the documented 0x800D0EA4 / 0x800D0ED0 flag-byte pair near +0x4AC0) and zeroes
+  the s32 at +0x44FC; 0x30 leaf, byte-exact clean C, baseline flags; link-adjacent
+  (ends exactly at) 0x800F2538, which iterates the same 20-entry stride-4 table of
+  byte@2 == -1 sentinel entries
