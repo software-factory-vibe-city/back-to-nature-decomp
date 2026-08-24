@@ -3345,6 +3345,7 @@ Members (address order):
 - ovl_11_func_800D6014 (m, matched this session) — u16 index, returns s16 at
   +0x10; leaf, byte-exact clean C, baseline flags; the run's +0x10 getter
 - ovl_11_func_800D6090 (m, matched this session) — u16 index; masked `andi` index then the same *40 multiply chain; `(flags & 0x8100) == 0x8000` and `(s8 type ^ 1) != 0` → 1, else 0; leaf, byte-exact clean C, baseline flags
+- ovl_11_func_800D61D8 (m, matched this session, 0x54, first try EXACT) — s16 index through the `D_8006C838`+0x20 pointer slot, same 0x28-stride *40 multiply chain and signed byte@+0x3 type map through the `D_8006C838`+0x2C 0x10-stride table, returning the u16 at +0x0 (a new offset in the sub-struct; the recorded 800D5C3C/800D5C90 pair reads +0x2/+0x4), returns -1 on the -1 type byte like 800D5C3C/800D5C90 (not the 0-returning 800D5CE4 variant); sits 0x148 above the run tail 0x800D6090, sharing the `D8006C838Lookup` view and instruction window, so it joins the same-source-file hypothesis (low/medium)
 
 Scattered siblings sharing D_8006C858 (broader cluster, not confirmed same
 TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
