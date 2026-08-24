@@ -1,3 +1,16 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800E20B8", ovl_11_func_800E20B8);
+s32 ovl_11_func_800E20B8(void) {
+    s32 count = 0;
+    s8 *p = (s8 *)&D_800742EC;
+    s32 n = 9;
+
+    do {
+        if (*(u16 *)p != 0u) {
+            count++;
+        }
+        p += 0xB4;
+        n--;
+    } while (n >= 0);
+    return count;
+}

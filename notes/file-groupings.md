@@ -436,7 +436,7 @@ Members:
 
 ---
 
-## `ovl_11` D_800742EC 0xB4-struct-array scan/init pair — 0x800E2934 / 0x800E2968 (confidence: low)
+## `ovl_11` D_800742EC 0xB4-struct-array scan/count/init run — 0x800E20B8, 0x800E2934 / 0x800E2968 (confidence: low)
 
 Zero-gap link-order adjacency (0x800E2934, 0x30 bytes, ends exactly at
 0x800E2968) over the same 0xB4-byte struct array whose base global is
@@ -447,13 +447,19 @@ delay slot); 0x800E2968 immediately follows and initializes one such 0xB4-byte
 struct (`memset 0xB4`, field writes at 0x0/0x1A/0xB0). A shared caller
 `ovl_11_func_800E1F9C` invokes both back-to-back on the same struct pointer
 (`jal 800E2934` then `jal 800E2968` with `a0 = s0`), consistent with one
-owner allocating an array entry by index then initializing it.
+owner allocating an array entry by index then initializing it. The same
+0xB4-stride family is link-adjacent to that owner: `ovl_11_func_800E1F9C`
+(0x11c) ends exactly at `ovl_11_func_800E20B8` (0x38), which ends exactly at
+`ovl_11_func_800E20F0`.
 Members:
 - ovl_11_func_800E2934 (m, matched this session) — array index lookup: returns
   the 0-based index of `arg0` within the `D_800742EC` 0xB4-stride array, or
   -1 after 10 entries
 - ovl_11_func_800E2968 (s) — initializes one 0xB4-byte entry (memset 0xB4,
   `sh` at 0x0/0x16/0xB0, bits at 0x1A–0x21, calls 0x800E2A30 / 0x80107DD0)
+- ovl_11_func_800E20B8 (m, matched this session) — counts how many of the 10
+  `D_800742EC` 0xB4-stride entries have a non-zero u16 at 0x0 (the same field
+  the initializer `sh`s), returns the count; leaf, no callers in the overlay
 
 ---
 
