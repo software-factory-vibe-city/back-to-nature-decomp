@@ -3328,6 +3328,16 @@ the overlay, never GP-relative), and the large-offset writers use the same
   ovl_11_func_800F5698 is its zero-gap link-order predecessor, and the +0x5DB4
   slot it searches is the sibling of the documented +0x5DCC/+0x5DD4 slots in
   the 800F4360–800F43CC spawn-record run — same entity-base family (low)
+- ovl_11_func_800BFF00 (m, matched this session, 0x50, byte-exact) — leaf that
+  copies three s32 words (offsets 0/4/8) from the struct pointed at by global
+  `D_80128A80` into the same buffer at +0x6748/+0x674C/+0x6750 and zeroes the
+  six s32s +0x6754..+0x6768, via the same +0x8000 two-stage split (base+0x8000,
+  disp +0x6748..); baseline flags; fits the cluster's existing +0x8000 split
+  family, sits ~0x1FC from member 0x800BFD04 in the same link region and just
+  before the recorded 7-halfword reset helper 0x800BFF50 (whose caller
+  0x800BFEA4 is link-adjacent); first matched reference to `D_80128A80`
+  (0x80128xxx data region, beside the `D_801285xx`/`D_80128BB0`/`D_80128DE8`
+  reset clusters)
 ## `ovl_11` D_8006C838 +0x7A78 halfword-search pair — 0x800DBB94 / 0x800DBF60 (confidence: low)
 
 Two byte-exact leaf scans over the same main-binary s16 table — absolute
