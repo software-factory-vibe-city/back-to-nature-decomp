@@ -850,4 +850,17 @@ extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
 extern s32 _D_80129560[] __asm__("D_80129560");
 #define D_80129560 ((s32 *)_D_80129560)
 
+/* D_80074124 - 7x7 table of 8-byte entries (ovl_11), written by
+ * ovl_11_func_800D7B00. Each entry holds two s16 set to 0x167, two spare
+ * u8, and an s16 set to 0. Reads in func_800BF630 etc. use the s16 @0
+ * (0894 lhu) and u8 @4. Absolute-addressed from the overlays. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ s16 unk6;
+} Ovl11D124Entry;
+extern Ovl11D124Entry D_80074124[7][7];
+
 #endif /* GLOBALS_OVERRIDE_H */
