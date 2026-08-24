@@ -326,6 +326,10 @@ Members (address order, matched so far):
   `base+E = 1`; shares the D_8012D050 base with ovl_11_func_801081A0
   (+0/+2/+4/+6/+8/+A) and ovl_11_func_801084E0 (+8/+A); byte-exact clean C,
   baseline flags
+- ovl_11_func_8010876C (m, matched this session) — signal-field dispatch leaf
+  over the same D_8012D050 buffer (reads u16 @+0xA as the case index and s16
+  @+8 in one arm; same +8/+A field pair as ovl_11_func_801084E0), 16-entry
+  jtbl returning status codes; byte-exact clean C, baseline flags
 
 ---
 
