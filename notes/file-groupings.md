@@ -228,6 +228,10 @@ Fingerprints:
   `ovl_11_func_800C090C` and `ovl_11_func_800C09D0`, written by
   `ovl_11_func_800C0D9C`; `ovl_11_func_800C06B0` touches both globals, tying
   the two half-clusters together — they are adjacent file-scope vars of one TU;
+- middle s32 global `D_80128B58` (main RAM 0x80128B58, between `D_80128B50`
+  and `D_80128B5C`): seen so far only written by `ovl_11_func_800C0D9C`
+  (from `$a0`, a 1-arg init pair with B50 in one 0x18 leaf) — the
+  B50/B58/B5C trio sits in 12 consecutive bytes of one data run;
 - zero-gap link-order contiguity (map): 0x800C06B0 (0x174) → 0x800C0824
   (0x10) → 0x800C0834 (0x48) → 0x800C087C (0x6C) → 0x800C08E8 (0x24) →
   0x800C090C → 0x800C09D0 → 0x800C0A28 (0x18) → 0x800C0A40 (0xC) →
@@ -250,8 +254,10 @@ Members (address order):
   `D_80128B5C = arg0` (single `sw $a0`, delay-slot scheduled); byte-exact
   clean C, baseline flags; confirmed member of the shared-global cluster
 - ovl_11_func_800C0A4C (s) — reads D_80128B50 at two sites
-- ovl_11_func_800C0D9C (s) — writes D_80128B50 from `$v1`, the run's far-end
-  writer
+- ovl_11_func_800C0D9C (m, matched this session) — leaf initializer:
+  `D_80128B50 = 1; D_80128B58 = arg0;` (both stores in the delay slot,
+  `lui`-addressed); byte-exact clean C, baseline flags; confirmed the
+  cluster's far-end writer and the only known D_80128B58 site
 
 ---
 
