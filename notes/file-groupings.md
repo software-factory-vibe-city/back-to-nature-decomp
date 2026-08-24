@@ -907,6 +907,36 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80070D04 button-byte bit-test run — 0x80100A8C–0x80100FFC (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): the link-contiguous
+run whose members read the base-engine byte `D_80070D04`. Function addresses
+form an unbroken gapless run — 0x80100A8C (0xC4) ends exactly at 0x80100B50
+(0x318) which ends exactly at 0x80100E68 (0x50) which ends exactly at
+0x80100EB8 (0xE4) which ends exactly at 0x80100F9C (0x60) which ends exactly
+at 0x80100FFC (0x4A8) — and both direct callers of `ovl_11_func_80100E68`
+(0x80100A8C, 0x80100B50) are the run's immediate link predecessors, so call
+graph and link order agree. `ovl_11_func_80100E68` and its immediate link
+successor `ovl_11_func_80100FFC` both `lbu D_80070D04` through the same
+absolute `lui`+`lbu %lo` base and test bits of that byte (`and`/`andi` +
+`beqz`/`bnez`), the same button-state probe idiom, widening the recorded
+`D_80070D0E`/`D_80070D38/3A/40` cluster's data region reader family to
+`D_80070D04`.
+
+Members (address order):
+- ovl_11_func_80100A8C (s) — direct caller of 0x80100E68
+- ovl_11_func_80100B50 (s) — direct caller of 0x80100E68
+- ovl_11_func_80100E68 (m, matched this session, 0x50, byte-exact) — button-bit
+  probe leaf: `if (arg0 < 0x80) return (D_80070D04 & arg0) != 0; return
+  (D_80070D04 & 0x80) != 0;` spelled as explicit 1/0 branches; no frame, no
+  calls; baseline flags
+- ovl_11_func_80100EB8 (s) — link follower
+- ovl_11_func_80100F9C (s) — link follower
+- ovl_11_func_80100FFC (s, 0x4A8) — link successor that reads `lbu D_80070D04`
+  with the same absolute `lui`+`lbu %lo` idiom and probes a bit of it
+
+---
+
 ## `ovl_11` D_80071A00 byte-compare helper pool — 0x800F19C8 (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the
