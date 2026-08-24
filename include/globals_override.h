@@ -794,4 +794,10 @@ typedef struct {
  * from overlays that only declare it extern; stride 0x28 per ItemData). */
 extern ItemData *D_8006C858;
 
+/* D_801247E8 - 51-entry s32 delta table (0xCC bytes, 0x801247E8-0x801248B4).
+ * Read as adjacent words by ovl_11_func_800E3978 (a delta lookup) and by
+ * ovl_11_func_800E351C/800E36CC (sprite-map offsets). Absolute-addressed. */
+extern s32 _D_801247E8[51] __asm__("D_801247E8");
+#define D_801247E8 (*((s32 *)_D_801247E8))
+
 #endif /* GLOBALS_OVERRIDE_H */
