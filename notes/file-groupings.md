@@ -1224,6 +1224,14 @@ Members (address order):
 - ovl_11_func_800FAAAC (m, matched this session) — leaf reset stub: writes
   `D_80126FE0 = 0; D_80126FE4 = 0; D_80126FE8 = 0; D_80126FEC = 0xFF;`
   byte-identical (10/10 words), baseline flags; the reset head of the cluster
+- ovl_11_func_800FB4B0 (m, matched this session) — the state machine
+  `ovl_11_func_800FAC0C`'s direct callee (jal at 0x800FADE8 and 0x800FAE60,
+  feeding it `D_80126FE4` as the index); table-address leaf returning a
+  pointer into the 6-byte-entry `D_80071A84`/`D_80071A8A` table region
+  (`&table[x]` for x≥9, `&D_80071A8A + 6x` for 1≤x<9, plus the x==0/x==9
+  endpoints), called so the state machine can read the entry s16@0 — same
+  direct-callee family as state-machine callees 0x800FB0C4/0x800FB120/0x800FB510,
+  call-edge evidence for same-TU, address-apart so unproven (low)
 
 ---
 
