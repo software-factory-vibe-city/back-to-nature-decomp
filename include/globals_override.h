@@ -800,6 +800,25 @@ extern ItemData *D_8006C858;
 extern s32 _D_801247E8[51] __asm__("D_801247E8");
 #define D_801247E8 (*((s32 *)_D_801247E8))
 
+/* D_800759E4 - shared field/stage-config struct (absolute-addressed from the
+ * ovl_11 overlays, owned by the main EXE's data). Accessed at 0x00 (u16,
+ * lhu by ovl_11_func_80108CD0), 0x34 (s32 flags word, func_800CF044 /
+ * func_800EC064), and 0x30/0x38/0x3C/0x40 written by ovl_11_func_8010941C
+ * per sub-state argument (0: 0x30=1,0x38=-0x708,0x40=0xC1C; 1:
+ * 0x30=9,0x38=0xE6,0x40=-0x514). */
+typedef struct {
+    /* 0x00 */ u16 f00;
+    /* 0x02 */ char pad_02[0x30 - 0x02];
+    /* 0x30 */ u16 f30;
+    /* 0x32 */ char pad_32[0x34 - 0x32];
+    /* 0x34 */ s32 f34;
+    /* 0x38 */ s32 f38;
+    /* 0x3C */ s32 f3C;
+    /* 0x40 */ s32 f40;
+} struct_800759E4;
+extern struct_800759E4 _D_800759E4[1] __asm__("D_800759E4");
+#define D_800759E4 (*((struct_800759E4 *)_D_800759E4))
+
 /* D_80124A18 - table of 0x14-byte range-clamp entries (ovl_11).
  * Element stride 0x14; fields used: s16 low at +0x08 (lh read by
  * ovl_11_func_800EFD54), s32 high at +0x0C (lw read), s32 field at +0x10
