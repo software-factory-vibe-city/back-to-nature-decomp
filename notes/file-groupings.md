@@ -3324,6 +3324,13 @@ Members (address order):
   table at `D_8006C838`+0x2C (lhu at +0x2), returns -1 on the -1 type byte;
   base is a `D_8006C838` field access, not the `D_8006C858` symbol (the +0x20
   slot aliases `D_8006C858`), so same window + idiom, different base form
+- ovl_11_func_800D5C90 (m, matched this session) — byte-exact-in-shape, link-contiguous
+  twin of 800D5C3C (0x800D5C90 = 0x800D5C3C+0x54); same s16 index through the
+  `D_8006C838`+0x20 pointer slot, same 0x28-stride *40 multiply chain and signed
+  byte@+0x3 type map through the `D_8006C838`+0x2C 0x10-stride table, differing only
+  in the return load: signed `lh` at +0x4 (vs lhu at +0x2), returns -1 on the -1 type
+  byte; so the 0x800D5C3C/0x800D5C90 pair reads two halfword fields of the same
+  0x10-stride sub-struct (+0x2 u16 / +0x4 s16) off one shared base
 - ovl_11_func_800D6014 (m, matched this session) — u16 index, returns s16 at
   +0x10; leaf, byte-exact clean C, baseline flags; the run's +0x10 getter
 - ovl_11_func_800D6090 (m, matched this session) — u16 index; masked `andi` index then the same *40 multiply chain; `(flags & 0x8100) == 0x8000` and `(s8 type ^ 1) != 0` → 1, else 0; leaf, byte-exact clean C, baseline flags
