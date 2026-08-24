@@ -834,4 +834,12 @@ typedef struct {
 extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
 #define D_80124A18 ((Ovl11RangeEntry *)_D_80124A18)
 
+/* D_80129560 - s32 table indexed by an s16 value (0x50 bytes, ovl_11).
+ * Store via sw at (s16)index * 4 is done by ovl_11_func_800E8BA0;
+ * load-side users ovl_11_func_800E6834/800E686C read lw at the same
+ * s16-scale. Absolute-addressed from the overlays (only ever declared
+ * extern, never GP). */
+extern s32 _D_80129560[] __asm__("D_80129560");
+#define D_80129560 ((s32 *)_D_80129560)
+
 #endif /* GLOBALS_OVERRIDE_H */
