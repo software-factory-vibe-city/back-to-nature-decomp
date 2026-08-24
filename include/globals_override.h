@@ -43,9 +43,11 @@ struct GfxObj;
 /* D_80076220 - absolute-addressed array of 0x1D4-byte entries.
  * ovl_11_func_800C1BE0 zeroes the u16 at offset 0xA of all 37 entries. */
 typedef struct {
-    u8 unk0[0xA];            /* 0x00 */
-    u16 unkA;                /* 0x0A */
-    u8 unkC[0x1D4 - 0xC];    /* 0x0C */
+    u8 unk0[0xA];             /* 0x00 */
+    u16 unkA;                 /* 0x0A */
+    u8 unkC[0x1E - 0xC];      /* 0x0C */
+    u16 unk1E;                /* 0x1E */
+    u8 unk20[0x1D4 - 0x20];   /* 0x20 */
 } struct_80076220;
 extern struct_80076220 _D_80076220[1] __asm__("D_80076220");
 #define D_80076220 (*((struct_80076220*)_D_80076220))
