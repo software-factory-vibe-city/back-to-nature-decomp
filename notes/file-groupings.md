@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium); 7-halfword farm reset helper 0x800BFF50 (leaf; zeroes six halfwords, sets 0xC to 0x8000; sole caller link-adjacent 0x800BFEA4 iterates `D_80128820`[] stepping +0xE) (low); `D_8006C858` item-table accessor run 0x800D5750–0x800D6090 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); by-value struct-slice run 0x8011D98C / 0x8011D9B4 (StructD548 selector @0x5C, data @0x28/0x46) (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium); 7-halfword farm reset helper 0x800BFF50 (leaf; zeroes six halfwords, sets 0xC to 0x8000; sole caller link-adjacent 0x800BFEA4 iterates `D_80128820`[] stepping +0xE) (low); `D_8006C858` item-table accessor run 0x800D5750–0x800D6090 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -2377,6 +2377,26 @@ Members (address order):
   D_8012D52C reset-stub family, with the setter feeding what the adjacent
   copy consumes. Shared-global fingerprint only; data TU ownership
   unconfirmed.
+- ovl_11 by-value struct-slice run — 0x8011D934 / 0x8011D98C /
+  0x8011D9B4 / 0x8011D9DC, zero-gap link run (0x8011D934 0x58 → 0x8011D98C
+  0x28 → 0x8011D9B4 0x28 → 0x8011D9DC 0xF8). The first three all take the
+  same 0x60-byte struct by value (StructD548; s16 selector at 0x5C, first
+  16 bytes ride $a0-$a3 and are spilled to sp+0..0xC, the rest placed in
+  the outgoing stack area), the by-value record behind the zero-init
+  D_8012D548 global which abuts the documented D_8012D524/D_8012D52C
+  cluster one row up:
+  - ovl_11_func_8011D98C (m, matched this session) — leaf, returns
+    `x.data[x.index]` with the s16 table base at 0x28.
+  - ovl_11_func_8011D9B4 (m) — leaf, byte-identical to ovl_11_func_8011D98C
+    except the s16 table base at 0x46; sibling, same struct/Accessor idiom.
+  - ovl_11_func_8011D934 (s) — leaf, reads the same selector at 0x5C plus
+    the spilled word at sp+0 (the caller-passed first struct word) and folds
+    arg1/arg2; same by-value record.
+  - ovl_11_func_8011D9DC (s) — run tail, different shape (reads statics via
+    $s0 + 0x51E6/0x524C); link-order follower only.
+  Call-graph agreement via the shared by-value parameter ABI + zero-gap
+  link order; callers (0x80114604 etc.) are stubs, so data TU ownership
+  unconfirmed. StructD548 is shared-typed in include/game_types.h.
 - ovl_11 6-byte struct-copy helper run — 0x800F7E38 / 0x800F8404 /
   0x800F8480 / 0x800F84D4 (confidence: low): the orchestrator
   ovl_11_func_800F7E38 (stub) calls three link-adjacent leaf helpers that

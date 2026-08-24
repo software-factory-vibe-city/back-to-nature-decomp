@@ -191,6 +191,17 @@ typedef struct {
     /* 0x04 */ s32 field_4;
 } Struct80049170;
 
+/* 0x60-byte record copied out of the zero-init global D_8012D548 and passed
+ * by value to ovl_11_func_8011D98C. That callee returns data[index]: the
+ * s16 table sits at 0x28 and the s16 selector at 0x5C. The first 16 bytes
+ * ride in $a0-$a3 and the rest are placed in the outgoing stack area. */
+typedef struct {
+    /* 0x00 */ char pad_00[0x28];
+    /* 0x28 */ s16 data[26];
+    /* 0x5C */ s16 index;
+    /* 0x5E */ char pad_5E[0x60 - 0x5E];
+} StructD548;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14
