@@ -452,6 +452,14 @@ Fingerprints:
 - the two `D_80123754` writers and the reader sit at the run's nodes
   (12B8 / 1960 at the front, 1CFC later), with the untouched members
   sandwiched between them — a single global threading one contiguous file.
+- register-capture quirk crossing the run boundary: ovl_11_func_800D1CD0
+  (matched, this session) is byte-identical to ovl_11_func_800D0600 (~0xC80
+  earlier; parked), both leaves fold a two-index compare to {0,1,2} and both
+  open with the dead `sw $v0, 0($sp)` hard-`$v0` capture, and both callers
+  (800D1CFC here, 800D062C there) seed `$v0 = $sp + 0x10` before every call
+  — the v0-channel/static-chain fossil shared cluster, same family signature
+  as func_8001E878/E9F8/EAE4 (see notes/research/
+  func_8001EAE4-v0-channel-delay-slot-fossil.md).
 
 Members (address order):
 - ovl_11_func_800D12A0 (m, matched this session) — run head; s16 setter into
@@ -464,8 +472,11 @@ Members (address order):
   baseline flags; confirmed member of the shared-global cluster
 - ovl_11_func_800D196C (s) — sandwiched, does not touch the global
 - ovl_11_func_800D1C18 (s) — does not touch the global
-- ovl_11_func_800D1CD0 (s) — does not touch the global
-- ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter
+- ovl_11_func_800D1CD0 (m, matched this session) — v0-channel rank-compare
+  leaf; byte-identical to the parked ovl_11_func_800D0600; does not touch the
+  global (CAPTURE_PREV_RET clean C)
+- ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter;
+  caller of 800D1CD0, seeds $v0 with $sp+0x10 before each call
 - ovl_11_func_800D1E1C (s) — does not touch the global
 - ovl_11_func_800D1EB8 (s) — run tail, does not touch the global
 
