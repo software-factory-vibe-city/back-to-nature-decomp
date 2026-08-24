@@ -52,6 +52,14 @@ typedef struct {
 extern struct_80076220 _D_80076220[1] __asm__("D_80076220");
 #define D_80076220 (*((struct_80076220*)_D_80076220))
 
+/* D_8012D050 - 3-entry {s16,s16} farm-state array (ovl_11, -G0 absolute).
+ * ovl_11_func_80108B8C reads field_0 @0x8 / field_2 @0xA of entry [2]. */
+typedef struct {
+    /* 0x00 */ s16 field_0;
+    /* 0x02 */ s16 field_2;
+} Ovl11D050Entry;
+extern Ovl11D050Entry D_8012D050[3];
+
 /* D_8006C7B8 - absolute-addressed struct. func_800215EC writes a Vec3 at offsets 0/4/8.
  * func_80021604 reads offset 0 as an index and writes offsets 0xC–0x1C. */
 typedef struct {
