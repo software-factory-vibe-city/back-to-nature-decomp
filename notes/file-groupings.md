@@ -451,7 +451,7 @@ Members:
 
 ---
 
-## `ovl_11` D_80075854 4-byte-cell-array run — 0x8010C330–0x8010C3F8 (confidence: medium)
+## `ovl_11` D_80075854 4-byte-cell-array run — 0x8010C330–0x8010C668 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the private
 `D_80075854` cell array (4-byte cells, low s16 live, undefined symbol at
@@ -469,6 +469,10 @@ Members (address order):
 - ovl_11_func_8010C3F8 (s) — sibling clear/set writing u16@+2 per cell
   (same 0x62 count), calls `ovl_11_func_8010C5A0`, also touches
   `D_8006C838`; link-immediate successor of 0x8010C3C4
+- ovl_11_func_8010C668 (m, matched this session) — read-and-count iterator:
+  lhu u16@0 of each cell, same hand-written 0x62→0 countdown (99 cells),
+  counts nonzero cells, returns the count; shares the private `Cell4`
+  struct/countdown idiom with 0x8010C3C4, called by 0x8010C330 / 0x8010C3F8
 
 ---
 
