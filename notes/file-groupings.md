@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); by-value struct-slice run 0x8011D98C / 0x8011D9B4 (StructD548 selector @0x5C, data @0x28/0x46) (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium); 7-halfword farm reset helper 0x800BFF50 (leaf; zeroes six halfwords, sets 0xC to 0x8000; sole caller link-adjacent 0x800BFEA4 iterates `D_80128820`[] stepping +0xE) (low); `D_8006C858` item-table accessor run 0x800D5750–0x800D6090 (medium); `D_80076220` 0x1D4-stride struct-array reset cluster — leaf 0x800C1BE0 zeroes u16@+0xA over 37 entries (matched 2026-11), link-adjacent 0x800C1C08 clears 36 entries via callee 0x800C1C5C call +0xE0 call to 0x80107DD0, 0x800C1D68 shares the base (medium); `D_80129648` 0x22-stride cell-flag clear — leaf 0x800F69FC zeroes byte@+0x1E of each of 0x47+1 cells (sole matched reader of `D_80129648`), called by 0x800F67E0/0x800FFF7C (low); struct-reset leaf run 0x80106DC0–0x80106EAF — leaf 0x80106DC0 zeroes an 0x18-byte struct and sets f2 to 4, called by link-adjacent 0x80106DE8/0x80106E38 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); by-value struct-slice run 0x8011D98C / 0x8011D9B4 (StructD548 selector @0x5C, data @0x28/0x46) (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium); 7-halfword farm reset helper 0x800BFF50 (leaf; zeroes six halfwords, sets 0xC to 0x8000; sole caller link-adjacent 0x800BFEA4 iterates `D_80128820`[] stepping +0xE) (low); `D_8006C858` item-table accessor run 0x800D5750–0x800D6090 (medium); `D_80076220` 0x1D4-stride struct-array reset cluster — leaf 0x800C1BE0 zeroes u16@+0xA over 37 entries (matched 2026-11), link-adjacent 0x800C1C08 clears 36 entries via callee 0x800C1C5C call +0xE0 call to 0x80107DD0, 0x800C1D68 shares the base (medium); `D_80129648` 0x22-stride cell-flag clear — leaf 0x800F69FC zeroes byte@+0x1E of each of 0x47+1 cells (sole matched reader of `D_80129648`), called by 0x800F67E0/0x800FFF7C (low); struct-reset leaf run 0x80106DC0–0x80106EAF — leaf 0x80106DC0 zeroes an 0x18-byte struct and sets f2 to 4, called by link-adjacent 0x80106DE8/0x80106E38 (medium); `D_80126FE0/E4/E8/EC` menu-state reset cluster 0x800FAAAC–0x800FAC0C — leaf 0x800FAAAC (matched) resets the four-word cluster to 0,0,0,0xFF (init data 0,0,0,0xFF), direct caller 0x800FAAD4 guards on `D_80126FE0`, state machine 0x800FAC0C reads all four (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -785,6 +785,33 @@ Members (address order):
 - ovl_11_func_8011AA44 (m, matched this session) — identical leaf reset stub; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint
 - ovl_11_func_8011AA54 (m, matched this session) — identical leaf reset stub; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint
 - ovl_11_func_8011B6B4 (m, matched this session) — identical leaf reset stub, run tail at 0x8011B6B4; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint for the run-tail member
+
+---
+
+## `ovl_11` D_80126FE0/E4/E8/EC menu-state reset cluster — 0x800FAAAC–0x800FAC0C (confidence: medium)
+
+Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) sharing a four-word
+file-scope state cluster at 0x80126FE0–0x80126FEC, all absolute-addressed
+(`lui`+`%lo`, no gp-rel in this container). Same shared-global + direct-caller +
+link-adjacency fingerprint class as the documented `D_8012D52C` / `D_80123754`
+runs.
+
+Fingerprints:
+- shared cluster `D_80126FE0` / `D_80126FE4` / `D_80126FE8` / `D_80126FEC`
+  (main RAM 0x80126FE0/0xE4/0xE8/0xEC, initialised data words 0,0,0,0xFF):
+  read/written across a tightly contiguous text span — `ovl_11_func_800FAAAC`
+  resets all four to 0,0,0,0xFF; direct caller `ovl_11_func_800FAAD4` guards
+  on `D_80126FE0` and sets it to 1; `ovl_11_func_800FAB18` reads it; the big
+  state machine `ovl_11_func_800FAC0C` (adjacent, 0x4B8 long) reads all four;
+  wider readers in 0x800F7230–0x800F9FF4 (`D_80126FE0/E4/E8/EC` span). A
+  container-wide farm-menu state/selection flag pair — itself not a TU
+  fingerprint on its own, but the tight 0x800FAAAC–0x800FAC0C adjacency plus
+  the direct call edge narrows it to one region.
+
+Members (address order):
+- ovl_11_func_800FAAAC (m, matched this session) — leaf reset stub: writes
+  `D_80126FE0 = 0; D_80126FE4 = 0; D_80126FE8 = 0; D_80126FEC = 0xFF;`
+  byte-identical (10/10 words), baseline flags; the reset head of the cluster
 
 ---
 
