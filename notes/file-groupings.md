@@ -2855,7 +2855,16 @@ Members (address order):
   layout on the same live objects: 0x800F7E38 reads offset 0x0 as s16 and
   offsets 0x4 of the very pointers it passes as arg0/arg1 as s16 right after
   the call. Call-graph + zero-gap link-order agreement only; no shared
-  gp-rel globals verified; TU membership unconfirmed.
+  gp-rel globals verified; TU membership unconfirmed. Now widening: freshly-matched
+  `ovl_11_func_800FB45C` (this session, byte-exact, 21/21 shapes) is a second
+  member of the same 6-byte {s16;s16;s16} swap-helper family — its whole
+  instruction stream is byte-identical to the run's swap helper 0x800F8480 —
+  but it lives address-apart at 0x800FB45C, in the `0x800FBxxx` region beside
+  the recorded D_80127208 trio (0x800FB5FC/0x800FB608/0x800FB628) and the
+  predicate helper 0x800FB3E4, and is called (per the recorded summary) by the
+  same link-adjacent 0x800FB218/0x800FB290 that call 0x800FB3E4; same-TU
+  membership with the 0x800F84xx run unproven, but the swap-shape family now
+  spans two matched sites across two link regions (low).
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 
