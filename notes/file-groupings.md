@@ -756,9 +756,11 @@ Members (address order):
   `Vec3` copied into s32@8/C/10; sole caller the run tail 0x800F43CC; the
   by-value-`Vec3` + flag-OR struct write matches the matched 0x800D05D0
   idiom family
-- ovl_11_func_800F4390 (s) — spawn-record clear leaf: loops the 0x18-byte
+- ovl_11_func_800F4390 (m, matched this session) — spawn-record clear leaf: loops the 0x18-byte
   record zeroing 0/2/8/C/10 and AND-clearing bit 0 of @4; called by
-  0x800F42A8/0x800E5230
+  0x800F42A8/0x800E5230; count-up loop reversed by check_dbra_loop (latch
+  at body head, stride addiu in the tail delay slot); record stride 0x18
+  confirms the 0x18-byte family size
 - ovl_11_func_800F43CC (s) — spawn-record dispatch switch on ids 0x64/0x65/
   0xE8/0x121–0x124: computes the target from the `D_8006C838`+0x8000 entity
   base and calls the run-head leaf 0x800F4360; itself called by
