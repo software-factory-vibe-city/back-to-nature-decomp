@@ -2011,15 +2011,19 @@ Members (address order):
   readers of s32 D_8012D520 (both `lui %hi` + `lw %lo`); D_8012D520 sits in
   the contiguous data block D_8012D51A/51C/520/524 that no other code
   references. Shared-global fingerprint only; data TU ownership unconfirmed.
-- ovl_11 D_8012D520/D_8012D52C block bridge — ovl_11_func_8011D0B4 (m,
-  matched this session) is `D_8012D524 = D_8012D528` (leaf copy, absolute
-  `lui`+`lw/%lo` from D_8012D528 into `sw %lo` D_8012D524). This is the
-  first matched reference to D_8012D524/D_8012D528, extending the
-  previously-orphan D_8012D51A–524 block one row to 0x8012D528 and abutting
-  the D_8012D52C busy-flag family's heavily-touched global one word above —
-  a shared-global-cluster bridge between the D_8012D520 getter pair and the
-  D_8012D52C reset-stub family. Shared-global fingerprint only; data TU
-  ownership unconfirmed.
+- ovl_11 D_8012D520/D_8012D52C block bridge — 0x8011D084/0x8011D0B4 setter/
+  copy pair over the orphan block's top two rows. ovl_11_func_8011D084 (m,
+  matched this session) is the setter `D_8012D524 = arg0; D_8012D528 =
+  arg1;` (leaf, two absolute `lui`+`sw %lo`), writing both rows from args;
+  ovl_11_func_8011D0B4 (m, matched this session) is the copy `D_8012D524 =
+  D_8012D528` (absolute `lui`+`lw/%lo` from D_8012D528 into `sw %lo`
+  D_8012D524). Together the first matched references to D_8012D524/
+  D_8012D528, extending the previously-orphan D_8012D51A–524 block one row
+  to 0x8012D528 and abutting the D_8012D52C busy-flag family's
+  heavily-touched global one word above — a shared-global-cluster bridge
+  between the D_8012D520 getter pair and the D_8012D52C reset-stub family,
+  with the setter feeding what the adjacent copy consumes. Shared-global
+  fingerprint only; data TU ownership unconfirmed.
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 
