@@ -417,8 +417,10 @@ Members (address order):
 - ovl_11_func_801037DC (m, matched this session) — leaf head: returns
   `D_80127428 == 0` (`lui`/`lw` + `sltiu`, delay-slot scheduled); byte-exact
   clean C, baseline flags
-- ovl_11_func_801037EC (s) — clears D_80127428 and D_8012742C to 0, then its
-  resident small-array clear loop; the run's reset
+- ovl_11_func_801037EC (m, matched this session) — clears D_80127428 and
+  D_8012742C to 0 plus the `D_8012CF10`/`D_8012CF1C`/`D_8012CF24` data group
+  (s16[0..5] clear loop + two singleton zeroes; first matched reference to the
+  `0x8012CFxx` region below the `D_8012CF48` table); the run's reset
 - ovl_11_func_80103830 (s) — calls ovl_11_func_801037EC, then sets
   `D_80127428 = 1` and calls func_8001FABC(3); the run's setter
 - ovl_11_func_801038E4 (s) — leaf reader of D_80127428
