@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -203,6 +203,35 @@ Members (address order):
 - ovl_11_func_800BE2B8 (m, matched this session) — leaf clear:
   `D_80128810 = 0` (single `sw $zero`, delay-slot scheduled); byte-exact clean
   C, baseline flags; the run's reset
+
+---
+
+## `ovl_11` D_8012D0xx tiny-global cluster / state-probe run — 0x80108104–0x8010AE64 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a compact
+file-scope D_8012D0xx main-RAM global cluster (not in generated `globals.h`)
+threaded through a contiguous-ish span of small leaf/setter/probe functions.
+Same shared-global-cluster fingerprint as the documented D_80070D0E and
+D_80128810 runs: absolute `lui`+`%lo` addressing (no gp-rel in this container),
+one or two touched globals per tiny function.
+
+Fingerprints:
+- cluster members and users: `D_8012D040`/`D_8012D044` (s32, cleared by
+  ovl_11_func_80108104); `D_8012D050` (buffer/array base, address-taken by
+  ovl_11_func_801081A0 and ovl_11_func_801084E0); `D_8012D052` (u16 field at
+  +2 of that base, read by ovl_11_func_80108214); `D_8012D060`/`D_8012D068`/
+  `D_8012D06C` (ovl_11_func_80108930), `D_8012D070` (ovl_11_func_8010A47C),
+  `D_8012D084` (ovl_11_func_8010AE64);
+- link-order contiguity of the head run (map): 0x80108104 (0x14) → 0x80108118
+  → 0x801081A0 → 0x80108214 (0x18) → 0x8010822C, each starting where the
+  previous ends; the cluster users span 0x80108104–0x8010AE64.
+
+Members (address order, matched so far):
+- ovl_11_func_80108104 (m) — clears D_8012D040 and D_8012D044 to 0; cluster's
+  confirmed writer at the run head
+- ovl_11_func_80108214 (m, matched this session) — leaf probe reading u16
+  D_8012D052, returns (D_8012D052 - 0x10) < 2; byte-exact clean C, baseline
+  flags; the run's only confirmed reader of the +2 field
 
 ---
 
