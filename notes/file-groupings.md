@@ -2261,6 +2261,20 @@ Members (address order):
   D_8012D52C reset-stub family, with the setter feeding what the adjacent
   copy consumes. Shared-global fingerprint only; data TU ownership
   unconfirmed.
+- ovl_11 6-byte struct-copy helper run — 0x800F7E38 / 0x800F8404 /
+  0x800F8480 / 0x800F84D4 (confidence: low): the orchestrator
+  ovl_11_func_800F7E38 (stub) calls three link-adjacent leaf helpers that
+  form a zero-gap run 0x800F8404 (0x24) → 0x800F8428 → 0x800F8480 (0x54) →
+  0x800F84D4 (0x1c) → 0x800F84F0: ovl_11_func_800F8404 (leaf utility,
+  region-shared, called seven times), ovl_11_func_800F8480 (leaf helper,
+  called by 0x800F7E38/0x800F7FAC), and ovl_11_func_800F84D4 (m, matched
+  this session) — the run's short struct copier, copying a 6-byte
+  {s16; s16; s16} object from $a0 to $a1 as one unaligned 4-byte chunk plus
+  a halfword (block move, align 2). Caller/callee share the same struct
+  layout on the same live objects: 0x800F7E38 reads offset 0x0 as s16 and
+  offsets 0x4 of the very pointers it passes as arg0/arg1 as s16 right after
+  the call. Call-graph + zero-gap link-order agreement only; no shared
+  gp-rel globals verified; TU membership unconfirmed.
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 
