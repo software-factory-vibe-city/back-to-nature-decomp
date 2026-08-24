@@ -1,0 +1,43 @@
+
+;; Function ovl_11_func_800FE614
+
+81 registers.
+
+1 basic blocks.
+
+Basic block 0: first insn 15, last 14.
+Predecessors:  ENTRY (fallthru)
+Successors:  EXIT (fallthru)
+Registers live at start: 29
+Registers live at end: 29
+
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 10 0 NOTE_INSN_BLOCK_BEG)
+
+(note 10 6 15 0 NOTE_INSN_BLOCK_END)
+
+;; Start of basic block 0, registers live: 29 [$sp]
+(note 15 10 19 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(note 19 15 23 "" NOTE_INSN_PROLOGUE_END)
+
+(note 23 19 14 "" NOTE_INSN_EPILOGUE_BEG)
+
+(insn 14 23 22 (use (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(jump_insn 22 14 20 (return) -1 (nil)
+    (nil))
+;; End of basic block 0
+
+(barrier 20 22 17)
+
+(note 17 20 18 "" NOTE_INSN_DELETED)
+
+(note 18 17 0 "" NOTE_INSN_DELETED)
+

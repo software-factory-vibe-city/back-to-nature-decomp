@@ -1,0 +1,32 @@
+
+;; Function ovl_11_func_800FE614
+
+;;	 -- basic block number 0 from 15 to 14 --
+;; ready list initially:
+;; 14 
+
+;; insn[  14]: priority = 2147483565, ref_count =    0
+;; ready list at T-1: 14 (7fffffad), now 14
+;; total time = 1
+;; new basic block head = 15
+;; new basic block end = 14
+
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 10 0 NOTE_INSN_BLOCK_BEG)
+
+(note 10 6 15 0 NOTE_INSN_BLOCK_END)
+
+;; Start of basic block 0, registers live: 1 [$1] 29 [$sp] 30 [$fp]
+(note 15 10 14 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(insn 14 15 17 (use (const_int 0 [0x0])) -1 (nil)
+    (nil))
+;; End of basic block 0
+
+(note 17 14 0 "" NOTE_INSN_DELETED)
+

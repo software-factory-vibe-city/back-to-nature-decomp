@@ -1,0 +1,18 @@
+
+;; Function ovl_11_func_800FE614
+
+;; Processing block from 2 to 0, 1 sets.
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 10 0 NOTE_INSN_BLOCK_BEG)
+
+(note 10 6 15 0 NOTE_INSN_BLOCK_END)
+
+(note 15 10 14 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(insn 14 15 0 (use (const_int 0 [0x0])) -1 (nil)
+    (nil))

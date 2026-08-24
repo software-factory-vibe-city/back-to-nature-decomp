@@ -1,0 +1,48 @@
+
+;; Function ovl_11_func_800FE614
+
+;; Reorg pass #1:
+;; Reorg function #0
+;; 1 insns needing delay slots
+;; 1 got 0 delays
+;; Reorg function #1
+;; 0 insns needing delay slots
+;; 
+;; Reorg pass #2:
+;; Reorg function #0
+;; 1 insns needing delay slots
+;; 1 got 0 delays
+;; Reorg function #1
+;; 0 insns needing delay slots
+;; 
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 10 0 NOTE_INSN_BLOCK_BEG)
+
+(note 10 6 15 0 NOTE_INSN_BLOCK_END)
+
+;; Start of basic block 0, registers live: 29 [$sp]
+(note 15 10 19 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(note 19 15 14 "" NOTE_INSN_PROLOGUE_END)
+
+(insn 14 19 23 (use (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(note 23 14 22 "" NOTE_INSN_EPILOGUE_BEG)
+
+(jump_insn 22 23 20 (return) 453 {return} (insn_list:REG_DEP_ANTI 14 (nil))
+    (expr_list:REG_BR_PRED (const_int 12 [0xc])
+        (nil)))
+;; End of basic block 0
+
+(barrier 20 22 17)
+
+(note 17 20 18 "" NOTE_INSN_DELETED)
+
+(note 18 17 0 "" NOTE_INSN_DELETED)
+

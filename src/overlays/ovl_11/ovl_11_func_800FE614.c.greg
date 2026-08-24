@@ -1,0 +1,29 @@
+
+;; Function ovl_11_func_800FE614
+
+;; Register dispositions:
+
+
+;; Hard regs used:  0 1 75
+
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 10 0 NOTE_INSN_BLOCK_BEG)
+
+(note 10 6 15 0 NOTE_INSN_BLOCK_END)
+
+;; Start of basic block 0, registers live: 29 [$sp]
+(note 15 10 14 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(insn 14 15 17 (use (const_int 0 [0x0])) -1 (nil)
+    (nil))
+;; End of basic block 0
+
+(note 17 14 18 "" NOTE_INSN_DELETED)
+
+(note 18 17 0 "" NOTE_INSN_DELETED)
+
