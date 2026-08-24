@@ -3004,3 +3004,8 @@ the overlay, never GP-relative), and the large-offset writers use the same
 - ovl_11_func_800D12A0 (m) — s16 setter at +0x99E6 via the +0x8000 split
   (already documented as the D_80123754 run head)
 - ovl_11_func_8010C4B0 (m) — sets bit 0 of the u16 at +0x91A8
+- ovl_11_func_800C9D38 (m, matched 2026 — this session) — clears bit 30 of the
+  s32 word at +0x5234 and zeroes the three s32 counters at +0x52D8/+0x52DC/+0x52E0;
+  leaf, byte-exact clean C, baseline flags; offsets sit ~0x36 past sibling
+  0x800BCF28's +0x51FE u16 in the same state buffer; called by link-adjacent
+  0x800BCD28 / 0x800CCCC0
