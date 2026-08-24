@@ -486,6 +486,23 @@ Members:
 
 ---
 
+## `ovl_11` tier-lookup leaf + `/60` clamp run — 0x800CD4E4–0x800CD670 (confidence: low)
+
+Unbroken link-contiguous run 0x800CD45C→0x800CD4E4→0x800CD534→0x800CD578→
+0x800CD5BC→0x800CD624→0x800CD670 (each ends exactly where the next begins).
+Head 0x800CD4E4 is a global-free tier-return leaf whose sole caller,
+0x800CD624, sits in the same run 0xF0 later (a same-run call edge) — but
+0x800CD624 is a different caller than the recorded `/60` clamp-scaled pair
+0x800CD534/0x800CD578 (whose caller is 0x800CCCC0), so same-TU membership
+with the pair is unproven.
+Members:
+- ovl_11_func_800CD4E4 (m, matched this session, 0x50, byte-exact) — reads
+  s16 at arg0+0x16 and maps thresholds 0x32/0x46/0x50/0x64 to 0/0x78/0xF0/0x168
+- ovl_11_func_800CD534 / 0x800CD578 (m) — recorded `/60` clamp-scaled leaves
+- ovl_11_func_800CD624 (s) — same-run direct caller of 0x800CD4E4
+
+---
+
 ## `ovl_11` D_800742EC 0xB4-struct-array scan/count/init run — 0x800E20B8, 0x800E2934 / 0x800E2968 (confidence: low)
 
 Zero-gap link-order adjacency (0x800E2934, 0x30 bytes, ends exactly at
