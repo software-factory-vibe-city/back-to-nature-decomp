@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -287,6 +287,45 @@ Members (address order):
   `D_80128B50 = 1; D_80128B58 = arg0;` (both stores in the delay slot,
   `lui`-addressed); byte-exact clean C, baseline flags; confirmed the
   cluster's far-end writer and the only known D_80128B58 site
+
+---
+
+## `ovl_11` D_80129194–D_801291A0 mirror-pair run — 0x800DD8AC–0x800DDB64 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): six functions in
+one unbroken address run, forming two structurally identical cells that each
+operate on one adjacent s32-global pair and end in a `== 2` state probe.
+
+Fingerprints:
+- **unbroken contiguous run**: 0x800DD8AC (0x58) → 0x800DD904 (0xEC) →
+  0x800DD9F0 (0x18) → 0x800DDA08 (0x58) → 0x800DDA60 (0xEC) → 0x800DDB4C
+  (0x18), each size exactly fills to the next start (ends 0x800DDB64).
+- **mirror-cell identity**: cell A {800DD8AC, 800DD904, 800DD9F0} has the
+  same {0x58, 0xEC, 0x18} shape as cell B {800DDA08, 800DDA60, 800DDB4C},
+  and the two cells touch adjacent s32-globals the same way: heads write the
+  cross-pair (D_80129194/98 vs D_8012919C/A0), middles read+write the high
+  member (D_80129198 vs D_801291A0) plus the head's low member, and the
+  0x18 tails probe the high member with the identical `== 2` idiom.
+- **twin `== 2` probe, proven clean C**: `ovl_11_func_800DD9F0`
+  (`return D_80129198 == 2;`) and `ovl_11_func_800DDB4C`
+  (`return D_801291A0 == 2;`) are both byte-exact (lui+%lo read, xori 0x2,
+  sltiu 1); the shape recurs word-for-word, so the two cells are the same
+  handler instantiated for two slots. Globals are extern in every site
+  (absolute `lui`+`%lo`, no gp-rel) — the defining TU is elsewhere.
+
+Members:
+- ovl_11_func_800DD8AC (s) — cell A head (0x58): clears D_80129198, writes
+  D_80129194
+- ovl_11_func_800DD904 (s) — cell A middle (0xEC): reads D_80129194 and
+  D_80129198, writes/clears D_80129198
+- ovl_11_func_800DD9F0 (m, matched) — cell A tail probe: leaf
+  `return D_80129198 == 2;`
+- ovl_11_func_800DDA08 (s) — cell B head (0x58): mirror of 800DD8AC; clears
+  D_801291A0, writes D_8012919C
+- ovl_11_func_800DDA60 (s) — cell B middle (0xEC): mirror of 800DD904; reads
+  D_8012919C and D_801291A0, writes/clears D_801291A0
+- ovl_11_func_800DDB4C (m, matched this session) — cell B tail probe: leaf
+  `return D_801291A0 == 2;`
 
 ---
 
