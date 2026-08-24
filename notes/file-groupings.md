@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (low) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -370,6 +370,34 @@ in the D_80123754 setter run. Members:
   struct field +0xAC and clamps non-negative
 - ovl_11_func_800D55F8 (s) — reads D_80128D7A (`lhu`) into struct field +0x22;
   calls ovl_11_func_800D12B8
+
+---
+
+## `ovl_11` short-fold helper trio — 0x800CE514–0x800CE53C (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) — three tiny range/
+fold helpers at the overlay's 0x166F4 text region. Same shared-idiom
+fingerprint class as the reset-stub family: near-identical instruction
+shapes differing only in a fold constant, over strict zero-gap link order.
+
+Fingerprints:
+- shared idiom: `ovl_11_func_800CE53C` is **byte-identical** to
+  `ovl_11_func_800CE514` except the fold constant (`addiu -0x7D` vs `-0xED`) —
+  the identical-body fingerprint proven by the D_8012D52C reset-stub family;
+  `ovl_11_func_800CE528` is the same sll/sra sign-extend skeleton with an
+  `addu`/`sra` fold instead of `addiu`/`sltiu`;
+- zero-gap link-order contiguity (map): 0x800CE514 (0x14) → 0x800CE528
+  (0x14) → 0x800CE53C (0x14), each starting exactly where the previous ends,
+  the span 0x800CE514–0x800CE550 contiguous with no unrelated code between.
+
+Members (address order, all matched, baseline flags):
+- ovl_11_func_800CE514 (m) — s16 range check: `(u32)(arg0 - 0xED) < 6U`
+  (`sll`/`sra`/`addiu`/`jr`/`sltiu` delay slot)
+- ovl_11_func_800CE528 (m) — s16 fold: `arg0 + 0xFF90` returning s16
+  (`sll`/`lui`/`addu`/`jr`/`sra` delay slot)
+- ovl_11_func_800CE53C (m, matched this session) — s16 range check: byte
+  twin of 0x800CE514 with constant 0x7D, `(u32)(arg0 - 0x7D) < 6U`
+  (`sll`/`sra`/`addiu`/`jr`/`sltiu` delay slot)
 
 ---
 
