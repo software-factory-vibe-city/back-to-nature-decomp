@@ -399,13 +399,14 @@ Fingerprints:
 - **gapless contiguous run**: 0x800C1224 (0x5C, ends exactly at 0x800C1280)
   → 0x800C1280 (0x5C, ends exactly at 0x800C12DC) → 0x800C12DC (0x140, ends
 exactly at 0x800C141C) → 0x800C141C.
-- **byte-exact twin leaves**: `ovl_11_func_800C1224` (matched this session)
-  and stub `ovl_11_func_800C1280` are the same counter/pointer lookup leaf
-  (s16-sign-extend args, `lh`@0/`lh`@2 inner compare, `return i+1`/0) over
+- **byte-exact twin leaves**: `ovl_11_func_800C1224` and `ovl_11_func_800C1280`
+  (both matched — 800C1280 this session) are the same counter/pointer lookup
+  leaf (s16-sign-extend args, `lh`@0/`lh`@2 inner compare, `return i+1`/0) over
   the same table — identical instruction stream except the loop bound
-  (`slti 0xE` 14 vs `sltiu 0x12` 18) and compare form — so the 800C1224
-  clean C (`arg0 == D_80122F0C[i].unk0 && arg1 == D_80122F0C[i].unk2`,
-  `UnkStruct800C1224` {s16,s16,s16}) is the natural template for 800C1280.
+  (`slti 0xE` signed 14 vs `sltiu 0x12` unsigned 18) and compare form — and
+  800C1280's byte-exact C is the 800C1224 template with the counter `u32` and
+  the bound 18 (`arg0 == D_80122F0C[i].unk0 && arg1 == D_80122F0C[i].unk2`,
+  `UnkStruct800C1280` {s16,s16,s16}), confirming the run's shared-TU family.
 - **third reader**: 800C141C (stub) loads `&D_80122F0C`
   (`lui %hi`+`addiu %lo`) and passes it as a call argument.
 
@@ -413,7 +414,8 @@ Members (address order):
 - ovl_11_func_800C1224 (m, matched this session) — leaf lookup: returns
   index+1 of the `D_80122F0C[i]` entry whose s16@0 == arg0 and s16@2 ==
   arg1, else 0
-- ovl_11_func_800C1280 (s) — twin leaf lookup over 18 entries (`sltiu 0x12`)
+- ovl_11_func_800C1280 (m, matched this session) — twin leaf lookup over 18
+  entries (`sltiu 0x12`), byte-exact
 - ovl_11_func_800C12DC (s) — no D_80122F0C reference; sits in the run
 - ovl_11_func_800C141C (s) — passes `&D_80122F0C` to a callee
 
