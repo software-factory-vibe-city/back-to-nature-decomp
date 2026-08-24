@@ -1077,8 +1077,10 @@ Members (address order):
   both members of the pair to 0 by absolute addressing: `lui %hi(D_8012DB10); lui
   %hi(D_8012DB14); sw $zero, %lo(D_8012DB10); jr $ra; sw $zero, %lo(D_8012DB14)`
   (second store in the delay slot); byte-exact clean C, baseline flags
-- ovl_11_func_8011F0D8 (s) — reads `D_8012DB10` as a first-entry guard, stores 1
-  to it, and writes a clamped (0..9) value to `D_8012DB14`
+- ovl_11_func_8011F0D8 (m, matched this session) — guard-then-clamp confirm of the
+  documented role: reads `D_8012DB10` as a first-entry guard, stores 1 to it, and
+  writes a clamped (0..9) value to `D_8012DB14`; byte-exact clean C (s32 `a0`
+  clamped with the `bgez`/`slti 0xA` pair), baseline flags
 - func_8011F114 (s) — heavier reader/writer of both words (0xBC bytes)
 
 ---
