@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -483,6 +483,37 @@ Members (address order):
 - ovl_11_func_80111EE0 (m, matched this session) — leaf setter:
   `D_80070D10 = 3` (single `lui`/`sh`, delay-slot scheduled); byte-exact clean
   C, baseline flags; adjacent-sibling writer of the cluster's other global
+
+---
+
+## `ovl_11` D_80071A00 byte-compare helper pool — 0x800F19C8 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the
+adjacent file-scope globals just above the D_80070D0E data region. Same
+shared-global fingerprint as the documented D_80070D0E cluster: main-RAM
+file-scope globals absent from the generated `globals.h`, each read by a
+short leaf homogeneity/compare helper. No link-order contiguity between the
+members yet (spread 0x800CBDFC / 0x800F19C8 / 0x8011D06C), so same-family is
+plausible rather than established.
+
+Fingerprints:
+- s16 `D_80071A22` (main RAM, not in `globals.h`): read by
+  `ovl_11_func_800F19C8` (`lh`), the run's lone writer/getter so far;
+- adjacent sibling globals in the same 0x80071A00 pool, each read by one other
+  matched ovl_11 leaf — s32 `D_80071A5C` (`ovl_11_func_8011D06C`, `>=`-guard)
+  and s32 `D_80071A6C` (`ovl_11_func_800CBDFC`, mask-and-test);
+- call/link adjacency: `ovl_11_func_800F19E0` (0x800F19E0, immediately after
+  in link order) calls `ovl_11_func_800F19C8` and reads its result.
+
+Members (address order):
+- ovl_11_func_800CBDFC (m, matched earlier) — leaf: `(D_80071A6C & 0x20000000)`
+  mask-and-test on the pool's upper sibling
+- ovl_11_func_800F19C8 (m, matched this session) — leaf byte-compare helper:
+  `return D_80071A22 == (arg0 & 0xFF);` (6 words, `andi` + `lh` + `sltu` mount,
+  no branches); byte-exact clean C, baseline flags; run's only confirmed
+  D_80071A22 reference; caller is link-adjacent ovl_11_func_800F19E0
+- ovl_11_func_8011D06C (m, matched earlier) — leaf: `return D_80071A5C >= arg0;`
+  `>=`-guard on the pool's middle sibling
 
 ---
 
