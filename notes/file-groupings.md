@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -351,6 +351,25 @@ Members (address order):
 - ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter
 - ovl_11_func_800D1E1C (s) — does not touch the global
 - ovl_11_func_800D1EB8 (s) — run tail, does not touch the global
+
+---
+
+## `ovl_11` D_80128D78 / D_80128D7A s16-pair global cluster — 0x800D31EC–0x800D55F8 (confidence: low)
+
+Shared 4-byte s16×2 global pair (adjacent fields at main RAM 0x80128D78 and
+0x80128D7A), readable/writable from three non-adjacent ovl_11 functions
+(0x800D31EC, 0x800D3FEC, 0x800D55F8 — gaps of ~0xE00 and ~0x1600, so this is a
+data tie, not link-order adjacency). Same shared-scalar fingerprint as the
+documented D_80123754 / D_80128810 clusters; as with those in this
+absolute-addressed (-G0) overlay, a shared global is a data tie rather than the
+ASPSX definer/declarer rule. One member calls ovl_11_func_800D12B8, which sits
+in the D_80123754 setter run. Members:
+- ovl_11_func_800D31EC (m, matched this session) — writes both s16 fields from
+  args (lui pair + delay-slot sh pair), the pair's main setter
+- ovl_11_func_800D3FEC (s) — reads D_80128D78 (`lhu`), subtracts it from a
+  struct field +0xAC and clamps non-negative
+- ovl_11_func_800D55F8 (s) — reads D_80128D7A (`lhu`) into struct field +0x22;
+  calls ovl_11_func_800D12B8
 
 ---
 
