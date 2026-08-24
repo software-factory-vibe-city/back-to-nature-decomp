@@ -3237,6 +3237,19 @@ the overlay, never GP-relative), and the large-offset writers use the same
   post-loop s16 through a struct-view cast on `&D_8006C838`, so cc1 keeps one `lui
   %hi(D_8006C838)` fragment live across the loop and re-splices `%lo` after — the
   same shared-base idiom as 0x800F2508
+- ovl_11_func_800F45A4 (s) — loads the +0x8000+0x5DB4 entity slot and
+  calls ovl_11_func_800F5700 to find a matching entry, then OR/AND flips bit 0
+  of the result's u16 at +0x4; one of the two readers of the same slot
+- ovl_11_func_800F5698 (s) — the other +0x5DB4 reader: gate on an arg3
+  mask, linear scan through the same call, then the same u16@+4 bit-0 flip;
+  zero-gap link-order predecessor of ovl_11_func_800F5700
+- ovl_11_func_800F5700 (m, matched this session) — the shared search helper
+  both callers use: linear scan of the 0x18-stride struct array for u16@+2 ==
+  s16 arg0, returns the matching entry pointer else 0 (leaf, 0x40, byte-exact
+  clean C `arg1[i].unk2 == arg0; return &arg1[i];`, baseline flags); its caller
+  ovl_11_func_800F5698 is its zero-gap link-order predecessor, and the +0x5DB4
+  slot it searches is the sibling of the documented +0x5DCC/+0x5DD4 slots in
+  the 800F4360–800F43CC spawn-record run — same entity-base family (low)
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
