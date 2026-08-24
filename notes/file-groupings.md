@@ -641,39 +641,42 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_80070D40 decrement-counter twin pair — 0x800F3A18 / 0x800F3BA0 (confidence: low)
+## `ovl_11` D_80070D38/3A/40 decrement-counter helper trio — 0x800F3950 / 0x800F3A18 / 0x800F3BA0 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): two matched leaf
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): three matched leaf
 helpers with **numerically byte-identical bodies** differing only in which
 adjacent file-scope global they decrement — the identical-body fingerprint
 class proven by the short-fold helper trio / reset-stub family. They touch the
-two globals immediately above the documented D_80070D0E cluster in the same
-main-RAM data run (0x80070D0E, 0x80070D10, 0x80070D3A, 0x80070D40). Both are
-extern-referenced with absolute `lui`+`%lo` (defining TU elsewhere); function
-addresses 0x800F3A18 and 0x800F3BA0 are ~0x188 apart, not link-order adjacent,
-so same-TU is plausible rather than established.
+three globals immediately above the documented D_80070D0E cluster in the same
+main-RAM data run (0x80070D0E, 0x80070D10, 0x80070D38, 0x80070D3A, 0x80070D40).
+All are extern-referenced with absolute `lui`+`%lo` (defining TU elsewhere);
+function addresses 0x800F3950, 0x800F3A18 and 0x800F3BA0 are ~0x188 apart in
+total, not link-order adjacent, so same-TU is plausible rather than established.
 
 Fingerprints:
-- **identical-body twins over adjacent globals**: `ovl_11_func_800F3A18`
-  (matched earlier) and `ovl_11_func_800F3BA0` (matched this session) compile
-to the same 0x2C-byte body — `lui`+`lhu` the global, `sltu` against masked
-arg0, branch into the decrement-and-`sh` path (`return 1`), fall to `return 0`
-— differing only in the `%lo` global displacement;
-- **adjacent file-scope globals** `D_80070D3A` (0x80070D3A) and `D_80070D40`
-  (0x80070D40), 6 bytes apart, sitting immediately above `D_80070D10` in the
-  already-documented D_80070D0E data region — the adjacent-file-scope vars
-  fingerprint extending that cluster's run;
+- **identical-body triplets over adjacent globals**: `ovl_11_func_800F3950`
+  (matched this session), `ovl_11_func_800F3A18` (matched earlier) and
+  `ovl_11_func_800F3BA0` (matched earlier) compile to the same 0x2C-byte body
+  — `lui`+`lhu` the global, `sltu` against masked arg0, branch into the
+  decrement-and-`sh` path (`return 1`), fall to `return 0` — differing only
+  in the `%lo` global displacement;
+- **adjacent file-scope globals** `D_80070D38` (0x80070D38), `D_80070D3A`
+  (0x80070D3A) and `D_80070D40` (0x80070D40), sitting immediately above
+  `D_80070D10` in the already-documented D_80070D0E data region — the
+  adjacent-file-scope vars fingerprint extending that cluster's run;
 - shared semantics: each is a guarded decrement helper `if (current >= arg0)
   { current -= arg0; return 1; } return 0;` over a scalar u16 counter.
 
 Members (address order):
+- ovl_11_func_800F3950 (m, matched this session) — decrement-counter helper
+  over D_80070D38: `current = D_80070D38; if (current < arg0) return 0;
+  D_80070D38 = current - arg0; return 1;` (8 words, `lui`/`lhu`/`andi`/
+  `sltu`/`bnez`/`subu`/`sh`/`li`, no calls, no frame); byte-exact clean C,
+  baseline flags; the run's first counter, at 0x800F3950
 - ovl_11_func_800F3A18 (m, matched earlier) — decrement-counter helper over
-  D_80070D3A; byte-identical body to the twin
-- ovl_11_func_800F3BA0 (m, matched this session) — decrement-counter helper
-  over D_80070D40: `current = D_80070D40; if (current < arg0) return 0;
-  D_80070D40 = current - arg0; return 1;` (8 words, `lhu`/`sltu`/branch/
-  `subu`/`sh`, no calls, no frame); byte-exact clean C, baseline flags;
-  the run's other counter
+  D_80070D3A; byte-identical body to the triplet
+- ovl_11_func_800F3BA0 (m, matched earlier) — decrement-counter helper over
+  D_80070D40; byte-identical body to the triplet, the run's other counter
 
 ---
 
