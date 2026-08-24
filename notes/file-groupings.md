@@ -1038,6 +1038,25 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_8006C838 +0x7AE8 0xB4-stride flag-pair — 0x80115F38 / 0x80115F80 (confidence: medium)
+
+Zero-gap link-order adjacency (ovl_11_func_80115F38 is 0x48 bytes, ends exactly
+at 0x80115F80 where ovl_11_func_80115F80 begins) plus a shared global cluster
+argue one TU. Both index the same 10-entry 0xB4-stride u32-flag array at
+`D_8006C838 + 0x7AE8` with the same two-stage `lui %hi`+`addiu %lo` base, and
+0x80115F80 calls 0x80115F38 directly (jal at 0x80115F88) then re-derives the
+same array element, so the pair partitions one flag word's bits: 0x80115F38
+selects an entry by bit 0x20000, 0x80115F80 probes bit 0x40 of the same entry.
+Members:
+- ovl_11_func_80115F38 (m, matched this session) — scans the 10 entries at
+  `D_8006C838 + 0x7AE8` stepping +0xB4, returns the last index whose u32 flag
+  word has bit 0x20000 set, else -1 (s16 result; the 0x20000 mask materializes
+  as a preheader `lui` before the address build)
+- ovl_11_func_80115F80 (s) — calls it and re-reads the selected entry's
+  +0x7AE8 word, returns `(word & 0x40) != 0`
+
+---
+
 ## `ovl_11` D_80126FE0/E4/E8/EC menu-state reset cluster — 0x800FAAAC–0x800FAC0C (confidence: medium)
 
 Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) sharing a four-word
