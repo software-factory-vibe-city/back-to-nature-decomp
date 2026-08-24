@@ -611,6 +611,27 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80127F60 s16-table lookup helper — 0x80111D28 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): one short leaf
+helper reading a file-scope s16 table absent from the generated `globals.h`, via
+extern + absolute addressing. Same short-leaf-over-file-scope-s16 fingerprint
+as the documented D_800719FE cluster (whose matched member
+`ovl_11_func_800FDFD8` is an `lh` + `sll/sra` sign-extend leaf).
+
+Members (address order):
+- ovl_11_func_80111D28 (m, matched this session) — 8-byte pure getter:
+  `return D_80127F60[arg0];` over a 4-entry s16 `.data` table at 0x80127F60
+  ({0x12, 0x13, 0x12, 0x11}); `s16` param sign-extended via `sll16/sra15`;
+  byte-exact clean C, baseline flags. Called by link-adjacent stubs
+  `ovl_11_func_80111A60` (0x80111A60) and `ovl_11_func_80111B74`
+  (0x80111B74), which `lh` their arg0 — so the helper re-sign-extends a
+  value the callers already sign-extended. Adjacent ovl_11 `.data` s16
+  tables (D_80127F50, D_80127F68) suggest a compact data+helper cluster;
+  no matched sibling yet to bind the TU more tightly.
+
+---
+
 ## `ovl_11` D_80127208 set-once flag trio — 0x800FB5FC / 0x800FB608 / 0x800FB628 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): three address-adjacent
