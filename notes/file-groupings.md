@@ -2604,6 +2604,16 @@ Members (address order):
   D_8012D52C reset-stub family, with the setter feeding what the adjacent
   copy consumes. Shared-global fingerprint only; data TU ownership
   unconfirmed.
+- ovl_11 0x80118C28 run — zero-gap link order 0x80118C28 (0x44) →
+  0x80118C6C (0x10) → 0x80118C7C (0x34) → 0x80118CB0 (0x34) → 0x80118CE4,
+  each starting exactly where the previous ends.  Reader/writer pair on the
+  orphan-block global inside one run: ovl_11_func_80118C6C (m) is the getter
+  `return D_8012D520` and ovl_11_func_80118CB0 (m, this session) is the
+  reset `D_8012D520 = 0; D_8012D524 = 0; D_8012D52C = 0; D_8012D540 = 1;
+  D_80128210 = 1; return 1;`, its D_8012D520/D_8012D524/D_8012D52C/D_8012D540
+  writes all in the documented D_8012D51A–548 data-cluster web. The remaining
+  members 0x80118C28 / 0x80118C7C / 0x80118CE4 are stubs. Zero-gap link order
+  + shared-global fingerprint; data TU ownership unconfirmed.
 - ovl_11 by-value struct-slice run — 0x8011D934 / 0x8011D98C /
   0x8011D9B4 / 0x8011D9DC, zero-gap link run (0x8011D934 0x58 → 0x8011D98C
   0x28 → 0x8011D9B4 0x28 → 0x8011D9DC 0xF8). The first three all take the
