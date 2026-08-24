@@ -545,8 +545,9 @@ The writer was matched this session (clean C, baseline flags).
 Members:
 - ovl_11_func_800D0EA4 (m, matched this session) — writer: stores 1 at the
   selected flag byte
-- ovl_11_func_800D0ED0 (s) — reader: returns `flag != 0` for the selected
-  byte
+- ovl_11_func_800D0ED0 (m, matched this session, 0x50 byte-exact) — reader:
+  returns `flag != 0` for the selected byte, with the same base-first
+  `addu v0,v0,a0` two-step address formation and shared-`return 0` tail
 - ovl_11_func_800F3D40 (m, matched this session, 0x48 byte-exact) — clears
   both byte arrays in one leaf: countdown do-while zeroes the 22 bytes
   [0x4AC0,0x4AD6) from array A and the 10 bytes [0x4AD6,0x4AE0) from array B,
