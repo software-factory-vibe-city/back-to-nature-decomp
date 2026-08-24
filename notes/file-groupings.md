@@ -2845,8 +2845,10 @@ Members (address order):
   ovl_11_func_800F7E38 (stub) calls three link-adjacent leaf helpers that
   form a zero-gap run 0x800F8404 (0x24) → 0x800F8428 → 0x800F8480 (0x54) →
   0x800F84D4 (0x1c) → 0x800F84F0: ovl_11_func_800F8404 (m, matched this
-  session — leaf 0/1/2 clamp-ish utility, region-shared, called seven times), ovl_11_func_800F8480 (leaf helper,
-  called by 0x800F7E38/0x800F7FAC), and ovl_11_func_800F84D4 (m, matched
+  session — leaf 0/1/2 clamp-ish utility, region-shared, called seven times), ovl_11_func_800F8480 (m, matched
+  this session — the run's swap helper, swapping two 6-byte {s16; s16; s16} objects through one 8-byte stack temp
+  with the same unaligned-4 + halfword block-move idiom as its gapless successor 0x800F84D4; declared the same
+  local `CopyStruct` typedef; called by 0x800F7E38/0x800F7FAC), and ovl_11_func_800F84D4 (m, matched
   this session) — the run's short struct copier, copying a 6-byte
   {s16; s16; s16} object from $a0 to $a1 as one unaligned 4-byte chunk plus
   a halfword (block move, align 2). Caller/callee share the same struct
