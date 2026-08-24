@@ -771,12 +771,17 @@ extern unsigned char D_800BB9BC[];
 extern s32 D_800BBA3C;
 
 /* Shared item table entry (array behind the D_8006C858 pointer, stride 0x28).
- * Referenced by the ovl_11 item-cluster functions: flags read as u16/lhu at
- * 0x00 (bit tests 0x40, 0x800, 0x1200, 0x8100), type byte at 0x02, s16 at
+ * Referenced by the ovl_11 item-cluster functions: the offset-0x00 word is
+ * read both signed (lh: ovl_11_func_800D5868/800D589C/800D5750 bit tests
+ * 0x40/0x8100/0x4000) and unsigned (lhu: e.g. 800C8764, 800CCF58, 800D6090),
+ * so it is modelled as a union of both views; type byte at 0x02, s16 at
  * 0x10, status word at 0x18 (signed test + bitfield reads), and an action
  * sub-structure at 0x1C (s32 fn ptr at +0, bytes at +4/+5, s16 at +6). */
 typedef struct {
-    /* 0x00 */ u16 flags;
+    union {
+        /* 0x00 */ u16 flags;
+        /* 0x00 */ s16 field_00;
+    } u0;
     /* 0x02 */ u8 type;
     /* 0x03 */ char pad_03[0x10 - 0x03];
     /* 0x10 */ s16 field_10;

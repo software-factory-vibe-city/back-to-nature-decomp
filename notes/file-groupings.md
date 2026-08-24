@@ -3048,7 +3048,7 @@ Members (address order):
   0x10000000 / 0x20000000 / 0x40000000 → 0/1/2/3
 - ovl_11_func_800D5810 (s) — s16 index, returns `(s32 at +0x18) < 0`
 - ovl_11_func_800D583C (s) — s16 index, returns type byte at +0x2
-- ovl_11_func_800D5868 (s) — s16 index, returns `(flags & 0x40) != 0`
+- ovl_11_func_800D5868 (m, matched this session) — s16 index, returns `(flags & 0x40) != 0`; reads the offset-0x00 word *signed* (lh), the same access 800D5750/800D589C/800D58D0 use and the opposite view from the lhu readers named in the ItemData struct comment
 - ovl_11_func_800D589C (s) — s16 index, returns `(flags & 0x8100) != 0`
 - ovl_11_func_800D58D0 (s) — s16 index; flags & 0x800 → action sub-struct at
   +0x1C (fn ptr +0, bytes +4/+5, s16 +6), else returns -1
