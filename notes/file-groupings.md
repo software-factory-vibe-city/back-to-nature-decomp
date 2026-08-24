@@ -3299,3 +3299,15 @@ referencers in the binary.
   0x8010C4B0); sole caller is link-separate 0x800FB908
 - ovl_11_func_80113A20 (s) — reads slice D_80127FE8 as a 0x10-stride table base
   (`lh D_8012D110`, `sll ,4`, `addu`) and also touches D_80128128 / D_80128088
+
+## `ovl_11` table-search helper + gapless caller — 0x800C2884 / 0x800C28CC (confidence: low)
+
+- ovl_11_func_800C2884 (m, matched this session, 0x48, byte-exact) — count/items
+  table-search leaf `s32 func(s16 key, u32 *table)`: table[0] is the word count,
+  items follow as words; returns the first index whose word == key, else -1
+  (unsigned `sltu` loop count, key sign-extended from s16, reuses the `$a0`/`$a1`
+  params so no saved registers).
+- ovl_11_func_800C28CC (stub) — its sole caller, and 0x800C2884+0x48 = 0x800C28CC,
+  so caller starts exactly where the helper ends (gapless link pair); invokes the
+  helper with two shared tables `D_8009CBF8` and `D_8008F7F8` (both absolute
+  `lui`+`addiu` %lo), feeding `(s16)`-sign-extended keys from an `lh`.
