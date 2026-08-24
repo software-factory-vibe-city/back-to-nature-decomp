@@ -3169,7 +3169,7 @@ TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
 800CCF58, 800D12B8, 800D196C, 800D736C, 800E93CC.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x8010C1C0 (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -3189,6 +3189,12 @@ the overlay, never GP-relative), and the large-offset writers use the same
 - ovl_11_func_800CBE14 (m) — swaps u16 pair at +0x5800/+0x5802
 - ovl_11_func_800D12A0 (m) — s16 setter at +0x99E6 via the +0x8000 split
   (already documented as the D_80123754 run head)
+- ovl_11_func_8010C1C0 (m, this session) — copies four s32 fields from arg0
+  (+0x100/+0x104/+0x108/+0x10C) into the contiguous span +0x92D4..+0x92E0 of
+  the same buffer via the same +0x8000 two-stage split (base+0x8000, disp
+  +0x12D4..+0x12E0); leaf, byte-exact clean C, baseline flags; link-immediate
+  predecessor of stub 0x8010C1FC, two stubs before the D_80075854 run head
+  0x8010C330
 - ovl_11_func_8010C4B0 (m) — sets bit 0 of the u16 at +0x91A8
 - ovl_11_func_800C9D38 (m, matched 2026 — this session) — clears bit 30 of the
   s32 word at +0x5234 and zeroes the three s32 counters at +0x52D8/+0x52DC/+0x52E0;
