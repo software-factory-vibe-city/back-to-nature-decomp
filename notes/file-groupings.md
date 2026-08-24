@@ -221,29 +221,37 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_80075854 4-byte-cell scan helper twin — 0x8010C668 / 0x8011F4F4 (confidence: low)
+## `ovl_11` D_80075854 4-byte-cell scan helper twin — 0x8010C668 / 0x8011F4F4 + 0x800FEAD4 (confidence: low)
 
-Candidate same-family of `ovl_11` (`Obj\GF_FARM.bin`): two byte-identical
-leaf helpers scanning the same main-RAM u16-table global `D_80075854`. The
-two functions are instruction-for-instruction twins — same bound `0x62` (99
-iterations), same `+=4`-byte cell step, same `lhu` zero probe of each cell's
-low u16, same countdown latch (`v1--` then `bgez`, count of nonzero cells into
-`$a1`), same `jr $ra` with `addu $v0,$a1,$zero`.
+Candidate same-family of `ovl_11` (`Obj\GF_FARM.bin`): a byte-identical
+leaf helper scanning the same main-RAM u16-table global `D_80075854`, seen
+in three copies. The functions are instruction-for-instruction twins — same
+bound `0x62` (99 iterations), same `+=4`-byte cell step, same `lhu` zero
+probe of each cell's low u16, same countdown latch (`v1--` then `bgez`, count
+of nonzero cells into `$a1`), same `jr $ra` with `addu $v0,$a1,$zero`.
 
 Evidence:
 - `ovl_11_func_8010C668` (already matched) and `ovl_11_func_8011F4F4`
   (matched this session) — same instruction stream; only the link address
 differs. GCC does not emit one function twice, so this is a helper copied
 into two TUs, not one shared function called twice.
+- `ovl_11_func_800FEAD4` (matched this session) is the third copy: same leaf
+  countdown, but it reaches the `D_80075854` array through the alias
+  `D_8006C838 + 0x901C` (two-stage base split `lui %hi`+`addiu %lo`, `ori
+  0x901C`, `addu`) instead of declaring `D_80075854` directly — extending the
+  `D_8006C838` flags/state-buffer cluster's recorded +0x8000 split-base idiom
+  family (see the D_8006C838 entry) to a +0x901C member.
 - The wider `D_80075854` reader set (14 functions in `ovl_11`) clusters at
-  0x8010C330–0x8010C668 with one straggler 0x800CE96C; 0x8011F4F4 sits apart
-  in the 0x8011F4xx span, so the two twins are not link-adjacent — the
-distance argues for two TUs that each carry a copy of the same helper rather
-than one TU containing both.
+  0x8010C330–0x8010C668 with stragglers 0x800CE96C and now 0x800FEAD4;
+  0x8011F4F4 sits apart
+  in the 0x8011F4xx span, so the copies are not link-adjacent — the
+distance argues for several TUs that each carry a copy of the same helper
+rather than one TU containing them.
 
 Role (low confidence, listed only to mark the family): scan-table leaf that
 counts how many of the first 99 `D_80075854` cells have a nonzero low u16;
-no callers matched yet in this container (reads only `D_80075854`).
+no callers matched yet in this container (reads only `D_80075854`, with the
+0x800FEAD4 copy reaching it via the `D_8006C838` two-stage base).
 
 ---
 
