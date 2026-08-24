@@ -221,6 +221,40 @@ Members (address order):
 
 ---
 
+## `ovl_11` {u16,u16} local-pair counter run — 0x800BF8B8–0x800BFC20+ (confidence: low)
+
+Candidate same-TU run of three gapless link-order functions sharing one
+4-byte {u16,u16} struct passed by address, seeded from the same `D_8006C838`
++0x44BA/+0x44BC halfword pair. The leaf `ovl_11_func_800BFADC` (matched
+this session, 0x4C, byte-exact first try) advances the pair: increments the
+s16@+2 field while the signed guard `< 0x1E` holds, else zeroes it and
+increments s16@+0 while `< 4`, else zeroes both — a two-field loop counter;
+callers read the pair back (`lh`/`lhu`) after the call, so the updater
+drives state through an address, not a return value.
+
+Fingerprints:
+- zero-gap link-order contiguity (map): 0x800BF8B8 (0x224) → 0x800BFADC
+  (0x4C) → 0x800BFB28 (0xF8) → 0x800BFC20, each starting exactly where the
+  previous ends, one unbroken span with no unrelated code between;
+- shared struct + idiom: both callers build the same 4-byte stack pair
+  {u16@0,u16@2} from `lhu D_8006C838+0x44BA` / `+0x44BC`, pass its address
+  to the leaf updater, and also share leaf `ovl_11_func_800BFC20`;
+- same-updater role: `ovl_11_func_800BF8B8` and `ovl_11_func_800BFB28`
+  each call `ovl_11_func_800BFADC` on their local pair.
+
+Members (address order):
+- ovl_11_func_800BF8B8 (s) — head: seeds the pair from D_8006C838+0x44BA/BC,
+  calls the updater, then dispatches on the pair fields (s16 compares vs
+  D_8006C838+0x548A/0x548C)
+- ovl_11_func_800BFADC (m, matched this session) — leaf two-field loop
+  counter updater on the {u16@2-first, u16@0} pair; byte-exact clean C,
+  baseline flags (no override)
+- ovl_11_func_800BFB28 (s) — follower: same seeding + updater call, rewrites
+  D_8006C838+0x64C8 via +0x8000 split base, shares the 0x800BFC20 leaf
+- ovl_11_func_800BFC20 (s) — shared leaf called by both head and follower
+
+---
+
 ## `ovl_11` D_80075854 4-byte-cell scan helper twin — 0x8010C668 / 0x8011F4F4 + 0x800FEAD4 (confidence: low)
 
 Candidate same-family of `ovl_11` (`Obj\GF_FARM.bin`): a byte-identical
