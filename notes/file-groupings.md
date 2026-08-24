@@ -2927,3 +2927,24 @@ TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
 800CCF58, 800D12B8, 800D196C, 800D736C, 800E93CC.
 
 ---
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800D12A0 / 0x8010C4B0 (confidence: low)
+
+Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
+a data tie, not link-order adjacency) touching the main-binary flags/state
+array D_8006C838 (base-binary owners func_80013CD0 / func_80022DF8 / the
+D_8006C838 reset run in the main segment). Same shared-global-cluster
+fingerprint as the documented D_80128D78/D_80128D7A and D_8006C858 entries;
+the base is `lui %hi(D_8006C838)`+`%lo` absolute in every site (extern in
+the overlay, never GP-relative), and the large-offset writers use the same
++0x8000 two-stage base split. Access width and offset per member:
+
+- ovl_11_func_800BCF28 (m, matched this session) — clears bits 26/27 of the
+  s32 word at +0xC (the field func_80022DF8 sets/clears in the main binary)
+  and sets bit 6 of the u16 at +0x51FE; leaf, byte-exact clean C, baseline
+  flags
+- ovl_11_func_800BFD04 (m) — s16 setter at +0xE4C8 via the +0x8000 split
+  (base+0x8000, disp +0x64C8)
+- ovl_11_func_800CBE14 (m) — swaps u16 pair at +0x5800/+0x5802
+- ovl_11_func_800D12A0 (m) — s16 setter at +0x99E6 via the +0x8000 split
+  (already documented as the D_80123754 run head)
+- ovl_11_func_8010C4B0 (m) — sets bit 0 of the u16 at +0x91A8
