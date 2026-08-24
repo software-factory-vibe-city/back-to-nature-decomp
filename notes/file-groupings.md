@@ -3135,7 +3135,7 @@ TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
 800CCF58, 800D12B8, 800D196C, 800D736C, 800E93CC.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800D12A0 / 0x8010C4B0 (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -3167,6 +3167,14 @@ the overlay, never GP-relative), and the large-offset writers use the same
   the s32 at +0x44FC; 0x30 leaf, byte-exact clean C, baseline flags; link-adjacent
   (ends exactly at) 0x800F2538, which iterates the same 20-entry stride-4 table of
   byte@2 == -1 sentinel entries
+- ovl_11_func_800F00AC (m, matched this session) — sums 25 u16 at +0x498C (count
+  0x18 loop reversed to a countdown latch, `lhu`/`addiu +2`) and adds the s16 at
+  +0x44DC; 0x38 leaf, byte-exact clean C, baseline flags; read offsets sit in the
+  same buffer region as sibling 0x800F2508's +0x44FC / +0x49E6 / +0x4A36 fields;
+  fixes `&D_8006C838` in a local `char *base` for the loop and reaches the
+  post-loop s16 through a struct-view cast on `&D_8006C838`, so cc1 keeps one `lui
+  %hi(D_8006C838)` fragment live across the loop and re-splices `%lo` after — the
+  same shared-base idiom as 0x800F2508
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
