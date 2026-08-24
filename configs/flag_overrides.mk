@@ -256,3 +256,17 @@ CC1FLAGS_func_8002470C := -fno-schedule-insns -fno-schedule-insns2
 # provably unreachable from clean C (3 closure proofs of 1 candidate,
 # allocator counterfactual).
 CC1FLAGS_ovl_11_func_8011FF74 := -fno-schedule-insns
+
+# ovl_11_func_800F3D40: -fno-gcse. The target materializes D_8006C838+0x4AD5
+# and +0x4ADF as two independent lui %hi(D_8006C838) / addiu %lo / addiu-offset
+# preheaders. Under baseline gcse+rerun-cse-after-loop the two offsets collapse
+# (loop2 re-derived as (D+0x4AD5)+10 through the loop-1 biv final-value
+# REG_EQUAL) or the two identical %hi(D_8006C838) halves merge into one register
+# live across loop1 — both provably unreachable from any natural C spelling
+# (residual-source-space search exhausted all 6 candidates; ~15 hand variants
+# across pointer/index/count-up/countdown forms failed). Flag-probe matrix on the
+# matching source: baseline 3/18, every other flag <= 11/18, -fno-gcse 18/18
+# (18 instructions = target 18); diffFunc VERDICT MATCH. Precedent: func_80018B98
+# already carries -fno-gcse in this project's exe; per-TU flags exist in ovl_11
+# (ovl_11_func_8011FF74: -fno-schedule-insns).
+CC1FLAGS_ovl_11_func_800F3D40 := -fno-gcse

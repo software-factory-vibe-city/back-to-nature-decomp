@@ -490,6 +490,13 @@ Members:
   selected flag byte
 - ovl_11_func_800D0ED0 (s) — reader: returns `flag != 0` for the selected
   byte
+- ovl_11_func_800F3D40 (m, matched this session, 0x48 byte-exact) — clears
+  both byte arrays in one leaf: countdown do-while zeroes the 22 bytes
+  [0x4AC0,0x4AD6) from array A and the 10 bytes [0x4AD6,0x4AE0) from array B,
+  each as an independent `lui %hi(D_8006C838)`/`addiu %lo`/`addiu offset`
+  preheader; carries per-TU `-fno-gcse` (probe matrix 18/18 vs baseline 3/18 —
+  without it gcse/cse2 collapse the two offsets or merge the shared high
+  halves, provably unreachable from any clean C spelling)
 
 ---
 
