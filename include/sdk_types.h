@@ -240,6 +240,13 @@ typedef struct {
 } Struct80013F90;
 
 typedef struct {
+    /* 0x00 */ char pad_00[0x28];
+    /* 0x28 */ s16 data[26];
+    /* 0x5C */ s16 index;
+    /* 0x5E */ char pad_5E[0x60 - 0x5E];
+} StructD548;
+
+typedef struct {
     /* 0x00 */ s8 field_0;
     /* 0x01 */ s8 field_1;
     /* 0x02 */ s8 field_2;
@@ -322,3 +329,41 @@ typedef struct {
     s32 y;
     s32 z;
 } Vec3;
+
+/* Unresolved: referenced by a signature, defined nowhere.
+ * Layout is a guess — these are placeholders, not definitions. */
+typedef struct { unsigned long pad[1]; } Cell4;
+typedef struct { unsigned long pad[1]; } Cell5A0;
+typedef struct { unsigned long pad[1]; } CopyStruct_8480;
+typedef struct { unsigned long pad[1]; } CopyStruct_84D4;
+typedef struct { unsigned long pad[1]; } Entry_800F53BC;
+typedef struct { unsigned long pad[1]; } Ov11FlagSet;
+typedef struct { unsigned long pad[1]; } Ov11FlagSet80108D38;
+typedef struct { unsigned long pad[1]; } Ov11FlagSet8010B218;
+typedef struct { unsigned long pad[1]; } Ov11SetFields;
+typedef struct { unsigned long pad[1]; } Ov11SetVec;
+typedef struct { unsigned long pad[1]; } Ov11Timer;
+typedef struct { unsigned long pad[1]; } Ov11_4360struct;
+typedef struct { unsigned long pad[1]; } Ov11_4390struct;
+typedef struct { unsigned long pad[1]; } Ovl11DE8;
+typedef struct { unsigned long pad[1]; } Ovl11Func5700Entry;
+typedef struct { unsigned long pad[1]; } Ovl11FuncC9D4Entry;
+typedef struct { unsigned long pad[1]; } Ovl11FuncCFAD0Flag;
+typedef struct { unsigned long pad[1]; } StructC1C0;
+typedef struct { unsigned long pad[1]; } Struct_800D03B4;
+typedef struct { unsigned long pad[1]; } SwapStruct_B45C;
+typedef struct { unsigned long pad[1]; } Unk800D3D2C;
+typedef struct { unsigned long pad[1]; } Unk800D3FEC;
+typedef struct { unsigned long pad[1]; } UnkStruct800BFADC;
+typedef struct { unsigned long pad[1]; } UnkStruct800BFF50;
+typedef struct { unsigned long pad[1]; } UnkStruct800CBF40;
+typedef struct { unsigned long pad[1]; } UnkStruct800CD4E4;
+typedef struct { unsigned long pad[1]; } UnkStruct800D0DB0;
+typedef struct { unsigned long pad[1]; } UnkStruct800D0DBC;
+typedef struct { unsigned long pad[1]; } UnkStruct800D72E8;
+typedef struct { unsigned long pad[1]; } UnkStruct800DA390;
+typedef struct { unsigned long pad[1]; } UnkStruct800DF4F0;
+typedef struct { unsigned long pad[1]; } UnkStruct800E109C;
+typedef struct { unsigned long pad[1]; } UnkStruct80106DC0;
+typedef struct { unsigned long pad[1]; } UnkStruct80107DE0;
+typedef struct { unsigned long pad[1]; } ovl_11_DD48_arg0;

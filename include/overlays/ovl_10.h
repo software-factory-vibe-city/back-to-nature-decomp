@@ -2,13 +2,18 @@
 /* m2c context only. Types live in include/sdk_types.h, which must be
  * passed to m2c before this file. */
 
+s32 ovl_10_func_800B889C(void);
+void ovl_10_func_800B8A5C(void);
+void ovl_10_func_800B8C14(void);
 void ovl_10_func_800B9060(void);
+int ovl_10_func_800B9108(s32 arg0, s32 arg1);
 void ovl_10_func_800B92AC(void);
 int ovl_10_func_800B92D0(int arg0);
 int ovl_10_func_800B9458(int arg0);
 int ovl_10_func_800B94A4(int arg0);
 int ovl_10_func_800B956C(int arg0);
 int ovl_10_func_800B95A4(int arg0);
+int ovl_10_func_800B95F0(int arg0, int arg1);
 int ovl_10_func_800B9AA8(s32 arg0, s32 arg1);
 int ovl_10_func_800B9D24(int arg0, int arg1);
 s32 ovl_10_func_800BA11C(s32 arg0, s32 arg1);
