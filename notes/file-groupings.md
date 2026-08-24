@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -582,6 +582,32 @@ Members (address order):
   D_80071A22 reference; caller is link-adjacent ovl_11_func_800F19E0
 - ovl_11_func_8011D06C (m, matched earlier) — leaf: `return D_80071A5C >= arg0;`
   `>=`-guard on the pool's middle sibling
+
+
+## `ovl_11` D_800719FE s16-global cluster — 0x800FDEDC–0x800FDFD8 / 0x80112160 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
+file-scope s16 global. Same shared-global fingerprint as the documented
+D_80071A00 pool: main-RAM file-scope global absent from the generated
+`globals.h`, read by short leaf helpers. The two address-adjacent members are
+tightly bound: `ovl_11_func_800FDEDC` (0x800FDEDC) loads the global, branches
+on `(D_800719FE - arg0) < 5`, and takes the address of
+`ovl_11_func_800FDFD8` directly. Third member `ovl_11_func_80112160`
+(0x80112160) is a state probe switching on arg0 to return `D_800719FE != 0`
+(arg0==0) or the s16 value itself (arg0==1) — same global, same file-scope
+state. Spread between the near pair and the far probe is large, so
+same-family for 80112160 is plausible rather than established.
+
+Members (address order):
+- ovl_11_func_800FDEDC (s) — 0xCC-byte consumer run: `lh D_800719FE`,
+  branches on `D_800719FE - arg0 < 5` into the 800FDFD8 / 800FDFA8 helper pair
+  whose addresses it forms directly (link adjacency to both)
+- ovl_11_func_800FDFD8 (m, matched this session) — leaf equality helper:
+  `return D_800719FE == arg0;` (7 words, `lh` + `sll/sra` sign-extend +
+  `xor` + `sltiu`, no branches); byte-exact clean C, baseline flags; the
+  cluster's only pure getter
+- ovl_11_func_80112160 (s) — state probe over the same global, returns
+  `D_800719FE != 0` on arg0==0 and the raw s16 on arg0==1
 
 ---
 
