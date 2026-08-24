@@ -451,6 +451,27 @@ Members:
 
 ---
 
+## `ovl_11` D_80075854 4-byte-cell-array run — 0x8010C330–0x8010C3F8 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the private
+`D_80075854` cell array (4-byte cells, low s16 live, undefined symbol at
+0x80075854, no other TU references it). Evidence is a shared global cluster
+plus zero-gap link-order contiguity (0x8010C330 → 0x8010C3C4 → 0x8010C3F8),
+and the caller `ovl_11_func_800CE96C` also indexes the array. The far
+offset `D_8006C838 + 0x99E4` store uses the same `base+0x8000` ori/addu
+split as matched sibling `ovl_11_func_800D12A0` (0x99E6, previous section).
+
+Members (address order):
+- ovl_11_func_8010C330 (s) — read-iterator over the array: lhu + addiu +4
+  stride, count 0x63, guards on `D_80070D3C`
+- ovl_11_func_8010C3C4 (m) — leaf countdown clear of every cell's u16@0
+  (0x62→0 inclusive, 99 cells), then zeroes s16 at `D_8006C838`+0x99E4
+- ovl_11_func_8010C3F8 (s) — sibling clear/set writing u16@+2 per cell
+  (same 0x62 count), calls `ovl_11_func_8010C5A0`, also touches
+  `D_8006C838`; link-immediate successor of 0x8010C3C4
+
+---
+
 ## `ovl_11` D_80123754 setter/getter run — 0x800D12A0–0x800D2160 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) in the middle of the
