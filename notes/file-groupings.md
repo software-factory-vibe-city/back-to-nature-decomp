@@ -412,8 +412,11 @@ Fingerprints:
   (absolute `lui`+`%lo`, no gp-rel) — the defining TU is elsewhere.
 
 Members:
-- ovl_11_func_800DD8AC (s) — cell A head (0x58): clears D_80129198, writes
-  D_80129194
+- ovl_11_func_800DD8AC (m, matched this session) — cell A head (0x58): clears
+  D_80129198, writes D_80129194; walks the shared 0x30-stride D_80128E08 array
+  (same base as ovl_11_func_800DC9D4/800DCBDC/800DCC1C), clearing the matched
+  entry's unk10/12/14 fields and recording its pointer; byte-exact clean C,
+  baseline flags
 - ovl_11_func_800DD904 (s) — cell A middle (0xEC): reads D_80129194 and
   D_80129198, writes/clears D_80129198
 - ovl_11_func_800DD9F0 (m, matched) — cell A tail probe: leaf
