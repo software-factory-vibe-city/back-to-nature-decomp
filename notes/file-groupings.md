@@ -44,7 +44,7 @@ so far:
 |---|---|---|
 | `exe` | the PS-X EXE | every group below except where a heading says otherwise |
 | `ovl_31` | `Obj\gf_mcard.bin` | memory-card service group |
-| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium) |
+| `ovl_11` | `Obj\GF_FARM.bin` | farm-object clear/update run 0x80121318–0x80121500 (medium); `D_80123754` setter/getter run 0x800D12A0–0x800D2160 (medium); text/sprite table-builder run 0x80116F4C–0x80117178 (medium); `D_80127428` shared-state cluster 0x801037DC–0x801040A8 (medium); `D_8012D52C` reset-stub family 0x80114184 / 0x8011A9CC–0x8011B6C0 (medium); pointer-getter run 0x800E48CC–0x800E5078 (medium); `D_80128D78`/`D_80128D7A` s16-pair global cluster 0x800D31EC–0x800D55F8 (low); `D_8012DB10`/`D_8012DB14` s32-pair run 0x8011F0C4–0x8011F1D0 (medium); short-fold helper trio 0x800CE514–0x800CE53C (medium); 3-halfword vector setter/clear/copy family 0x800D72E8–0x800D740C (medium); `(1<<arg0)&0xFFFF` mask helper 0x80101B84, called by link-adjacent 0x80100FFC/0x80101B28 (low); `D_80071A00` byte-compare helper pool 0x800F19C8, poolmates 0x800CBDFC/0x8011D06C (low); `D_800719FE` s16-global cluster 0x800FDEDC/0x800FDFD8/0x80112160 (low); `D_8012D0xx` tiny-global cluster/state-probe run 0x80108104–0x8010AE64 (low); `D_80129194`–`D_801291A0` mirror-pair run 0x800DD8AC–0x800DDB64 (medium); `D_80129620` range-check predicate 0x800F5868, called by link-adjacent 0x800F5888 which reads `D_80129620`/`D_80129628` (medium); predicate helper 0x800FB3E4 (returns 0/1 for arg0 0 or 9), called by link-adjacent 0x800FB218/0x800FB290 which also call 0x800FB45C (medium); `D_80127208` set-once flag trio 0x800FB5FC/0x800FB608/0x800FB628 (medium) |
 | `ovl_30` | `Obj\GF_swind.bin` | none yet — calls ten `ovl_11` entry points |
 | `ovl_10` | `obj\PdaSamp.bin` | debug/status string-table cluster (incl. the grid-display sub-family); tail /15 date-utility pair, low confidence |
 
@@ -480,6 +480,42 @@ Members (address order, all matched, baseline flags):
 - ovl_11_func_800CE53C (m, matched this session) — s16 range check: byte
   twin of 0x800CE514 with constant 0x7D, `(u32)(arg0 - 0x7D) < 6U`
   (`sll`/`sra`/`addiu`/`jr`/`sltiu` delay slot)
+
+---
+
+## `ovl_11` 3-halfword vector setter/clear/copy family — 0x800D72E8–0x800D740C (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): four tiny functions
+over one 6-byte struct of three u16 fields at +0/+2/+4, in a strict zero-gap
+link-order run. Same shared-idiom + zero-gap fingerprint class as the
+documented short-fold helper trio / s16-pair setter pair.
+
+Fingerprints:
+- shared 6-byte struct idiom: `ovl_11_func_800D7328` clears fields +0/+2/+4
+  to 0 (`sh $zero` ×3); `ovl_11_func_800D7338` stores three incoming u16
+  args to +0/+2/+4 (`sh $a1/$a2/$a3`); `ovl_11_func_800D7348` copies three
+  u16 from src to dst (`lhu`+`sh` ×3) — one 3-halfword vector handled three
+  ways, clear / set-from-args / copy;
+- zero-gap link-order contiguity (map): 0x800D72E8 (0x40) → 0x800D7328
+  (0x10) → 0x800D7338 (0x10) → 0x800D7348 (0x24) → 0x800D736C (0xA0), each
+  starting exactly where the previous ends, the span 0x800D72E8–0x800D740C
+  contiguous with no unrelated code between;
+- call-graph tie: `ovl_11_func_800CBB9C` and `ovl_11_func_800CB6C8` call
+  `ovl_11_func_800D7328` then `ovl_11_func_800D7348` back-to-back on the
+  same pointer (`addu $a0, $s1`) — a reset-then-copy-in pattern on one
+  vector, consistent with all three helpers living in one file.
+
+Members (address order):
+- ovl_11_func_800D72E8 (s) — s16 accumulator clamp: adds s16 arg1 to field
+  +4 and clamps the result to ±1 (`sh` then `beqz`/`bgez` clamp pair)
+- ovl_11_func_800D7328 (s) — leaf clear: all three u16 fields to 0
+  (`sh $zero` ×3, delay-slot third store)
+- ovl_11_func_800D7338 (s) — leaf setter: three u16 fields from three args
+  (`sh $a1/$a2/$a3`, delay-slot third store)
+- ovl_11_func_800D7348 (m, matched this session) — leaf copy: three u16
+  from src to dst (`dst[i]=src[i]` for i 0..2, `lhu`+`sh` ×3, final store in
+  the jr delay slot); byte-exact clean C `void f(u16 *dst, u16 *src)`,
+  baseline flags; the run's copy member
 
 ---
 
