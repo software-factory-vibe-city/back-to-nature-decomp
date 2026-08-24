@@ -3094,3 +3094,21 @@ the overlay, never GP-relative), and the large-offset writers use the same
   the s32 at +0x44FC; 0x30 leaf, byte-exact clean C, baseline flags; link-adjacent
   (ends exactly at) 0x800F2538, which iterates the same 20-entry stride-4 table of
   byte@2 == -1 sentinel entries
+## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
+
+One contiguous rodata region in ovl_11 (short tables plus one pointer table),
+each slice read by a distinct function inside the unbroken link run
+0x80112284–0x80113A20 — a shared-data-cluster tie, not a call edge. All four
+slices are currently NON_MATCHING data; the readers below are their only
+referencers in the binary.
+- ovl_11_func_80112318 (s) — reads slice D_80127F88 as an s16 table base in a
+  4-entry loop, AND-masks s32 global D_800719F8 by ~0x9
+- ovl_11_func_801123AC (s) — byte-twin of 0x80112318 (same 0x94 shape; link-
+  contiguous, 0x80112318 ends exactly at it), reads slice D_80127F90, masks
+  D_800719F8 by ~0x11
+- ovl_11_func_80112A84 (m, matched this session) — reads the 5-entry pointer
+  table D_80127FD4 (middle slice) indexed by the s16 at D_8006C838+0xE776 via
+  the +0x8000 two-stage split (the D_8006C838 reader idiom of cluster member
+  0x8010C4B0); sole caller is link-separate 0x800FB908
+- ovl_11_func_80113A20 (s) — reads slice D_80127FE8 as a 0x10-stride table base
+  (`lh D_8012D110`, `sll ,4`, `addu`) and also touches D_80128128 / D_80128088
