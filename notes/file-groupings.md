@@ -643,8 +643,11 @@ Fingerprints:
   vector, consistent with all three helpers living in one file.
 
 Members (address order):
-- ovl_11_func_800D72E8 (s) — s16 accumulator clamp: adds s16 arg1 to field
-  +4 and clamps the result to ±1 (`sh` then `beqz`/`bgez` clamp pair)
+- ovl_11_func_800D72E8 (m, matched this session) — s16 accumulator clamp:
+  `s32 f(arg0, s16 arg1)` reads field +4 as u16 (`lhu`), adds the sign-extended
+  arg1, writes the sum back, and returns 1 when the `(s16)` sum equals 0 else
+  0, storing -1 back to field +4 when the sum is negative; clean C baseline
+  flags, byte-exact; the run's clamp member
 - ovl_11_func_800D7328 (s) — leaf clear: all three u16 fields to 0
   (`sh $zero` ×3, delay-slot third store)
 - ovl_11_func_800D7338 (s) — leaf setter: three u16 fields from three args
