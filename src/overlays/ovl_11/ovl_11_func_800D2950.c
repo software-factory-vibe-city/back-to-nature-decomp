@@ -1,3 +1,52 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800D2950", ovl_11_func_800D2950);
+s32 ovl_11_func_800D2950(s32 arg0) {
+    s32 temp_v1;
+
+    temp_v1 = (s32) ((arg0 << 0x10) + 0xFF5F0000) >> 0x10;
+    switch (temp_v1) {
+    case 0x0:
+    case 0x1:
+    case 0x2:
+    case 0x65:
+    case 0x66:
+    case 0x67:
+    case 0x68:
+    case 0x6A:
+    case 0x6B:
+    case 0x6C:
+    case 0x6D:
+    case 0x6E:
+    case 0x6F:
+    case 0x71:
+    case 0x72:
+    case 0x73:
+    case 0x74:
+    case 0x75:
+    case 0x76:
+    case 0x77:
+    case 0x78:
+    case 0x79:
+    case 0xB2:
+    case 0xB3:
+    case 0xB4:
+    case 0xB5:
+    case 0xB6:
+    case 0xB8:
+    case 0xBA:
+    case 0xBF:
+    case 0xC3:
+        return -0x14;
+    case 0xC0:
+    case 0xC4:
+        return -0x1E;
+    case 0xBD:
+    case 0xBE:
+    case 0xC1:
+        return -0x28;
+    case 0x69:
+        return -0xA;
+    default:
+        return 0;
+    }
+}
