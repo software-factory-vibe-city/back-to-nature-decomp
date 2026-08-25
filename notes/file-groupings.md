@@ -541,6 +541,13 @@ Members:
 - ovl_11_func_800CD4E4 (m, matched this session, 0x50, byte-exact) — reads
   s16 at arg0+0x16 and maps thresholds 0x32/0x46/0x50/0x64 to 0/0x78/0xF0/0x168
 - ovl_11_func_800CD534 / 0x800CD578 (m) — recorded `/60` clamp-scaled leaves
+- ovl_11_func_800CD5BC (m, matched this session, 0x68, byte-exact) — the run's
+  gapless tail: a global-free leaf guarding u16@+0x36 bit 8, then a magic-constant
+  `/5` divide index into the `D_80071A00`-object u16 array @+0x40 and a saturating
+  `+=arg1` write (clamped at 0xFFFF) through the same subscript — shares the
+  magic-constant-division leaf idiom with the pair but its callers are the
+  dispatch-caller run 0x800C4A2C–0x800C55FC / 0x800C580C, not 0x800CCCC0, so
+  same-TU membership stays unproven (low)
 - ovl_11_func_800CD624 (s) — same-run direct caller of 0x800CD4E4
 
 ---
