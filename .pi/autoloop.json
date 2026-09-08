@@ -8,8 +8,8 @@
     }
   ],
   "singleTier": true,
-  "returnsPerTier": 3,
-  "maxFunctions": 50,
+  "returnsPerTier": 1,
+  "maxFunctions": 1000,
   "clearContextBetween": true,
   "compactAtTokens": 350000,
   "handoffSummary": true,
