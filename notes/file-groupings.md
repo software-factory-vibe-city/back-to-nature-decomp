@@ -3527,6 +3527,21 @@ referencers in the binary.
 - ovl_11_func_80113A20 (s) — reads slice D_80127FE8 as a 0x10-stride table base
   (`lh D_8012D110`, `sll ,4`, `addu`) and also touches D_80128128 / D_80128088
 
+## `ovl_11` D_800719F8 bit-flag family — 0x80112318 / 0x801123AC / 0x8011256C (confidence: medium)
+
+Members share the absolute `lui %hi(D_800719F8)` + retained `addiu %lo` base
+register and the same bit-clear (mask and) / bit-set (ori via `0x0($base)`) idiom
+on the single s32 flag, and all sit inside the unbroken link run
+0x80112284–0x80113A20 already recorded for the D_80127F88 table cluster.
+- ovl_11_func_80112318 (s) — 4-entry loop over D_80127F88, clears ~0x9
+- ovl_11_func_801123AC (s) — byte-twin over D_80127F90, clears ~0x11
+- ovl_11_func_8011256C (m, matched this session, 0x70, byte-exact) — clears
+  bit 0x100 of D_800719F8, then unless flag at D_80070D30 (reached as
+  `&D_800719F8 - 0xCC8`, one shared base register — a declaration-order tie
+  which makes the -0xCC8 sibling part of the same data region) has bit
+  0x200000 scans the 37-entry D_80076220 array (step +0x1D4) and sets bit
+  0x100 when an entry's u16@0x4 exceeds 0xC350
+
 ## `ovl_11` table-search helper + gapless caller — 0x800C2884 / 0x800C28CC (confidence: low)
 
 - ovl_11_func_800C2884 (m, matched this session, 0x48, byte-exact) — count/items
