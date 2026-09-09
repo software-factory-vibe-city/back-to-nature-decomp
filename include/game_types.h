@@ -112,6 +112,13 @@ typedef struct {
     /* 0x1C */ D8006C838Inner *field_1C;
 } D8006C838View;
 
+/* Five 12-byte records within D_8006C838, also addressed as D_800742B0.
+ * This is a partial view, not the full containing object's layout. */
+typedef struct {
+    /* 0x0000 */ char pad[0x7A78];
+    /* 0x7A78 */ s16 records[5][6];
+} D8006C838RecordTableView;
+
 /* Sprite data header: tag + offsets into the sprite's sub-tables.
  * Tag 0xE is the expected magic value (func_80015704 validates this).
  * Offsets at 0x10–0x20 are added to the header base to produce the

@@ -1,8 +1,8 @@
 {
   "ladder": [
     {
-      "provider": "runinfra",
-      "model": "deepseek-v4-flash",
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4-flash",
       "thinking": "xhigh",
       "label": "deepseek-v4-flash"
     }

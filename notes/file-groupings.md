@@ -3508,6 +3508,10 @@ Members:
   per-use `addiu %lo` tail-rematerialization idiom noted in the recorded
   `D_8006C858` run members, here with the terminator store spelled as a view-struct
   member
+- ovl_11_func_800F13D8 (m) — returns 1 when a record's first halfword is zero
+  and its second equals the u16 argument. Its apparent `D_800742B0` base is
+  this same embedded table; shared data-family evidence, not proof of one TU
+  across the separated link regions.
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
