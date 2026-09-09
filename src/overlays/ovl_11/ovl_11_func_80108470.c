@@ -1,3 +1,35 @@
 #include "common.h"
 
 INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_80108470", ovl_11_func_80108470);
+
+
+/* PARKED by /auto_decompilation_loop on 2026-09-09T04:22:20.497Z.
+ * Reason: escalation-exhausted.
+ * Escalation reached: deepseek-v4-flash.
+ * The best non-matching attempt is preserved verbatim below, disabled.
+ * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_80108470.md
+ */
+
+#if 0
+/* Best non-matching attempt, preserved for the next session. */
+#include "common.h"
+
+s32 ovl_11_func_80108470(s16 arg0, s16 arg1) {
+    s16 t;
+
+    t = 0;
+    if (arg0 == 3) {
+        if (arg1 >= 0x1C) {
+            t = (s16) (arg1 + 0x24B);
+        }
+    } else if ((arg0 == 0) && (arg1 < 5)) {
+        t = (s16) (arg1 + 0x262);
+    }
+    if (t != 0) {
+        D_8012D050[2].field_0 = t;
+        D_8012D050[2].field_2 = 0xA;
+        return 1;
+    }
+    return 0;
+}
+#endif
