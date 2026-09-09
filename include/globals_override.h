@@ -863,4 +863,26 @@ typedef struct {
 } Ovl11D124Entry;
 extern Ovl11D124Entry D_80074124[7][7];
 
+/* D_800491C8 - six words written in two-argument triples by func_8001D648. */
+struct struct_800491C8 {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ s32 unk14;
+};
+extern struct struct_800491C8 D_800491C8;
+
+/* D_8005E340 - gp-relative pointer to a record whose u16 at +2 is cached
+ * into D_8005E33A by func_80023774. */
+struct struct_8005E340_target {
+    /* 0x00 */ char pad_0[0x2];
+    /* 0x02 */ u16 unk2;
+};
+extern struct struct_8005E340_target *D_8005E340;
+
+/* D_800B9626 - ovl_28 state halfword tested by ovl_28_func_800B935C. */
+extern s16 D_800B9626;
+
 #endif /* GLOBALS_OVERRIDE_H */

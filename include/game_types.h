@@ -209,6 +209,35 @@ typedef struct {
     /* 0x5E */ char pad_5E[0x60 - 0x5E];
 } StructD548;
 
+/* Argument-record views recovered by automatic matching reconstruction
+ * (tools/agent/reconstructFunction.ts). Field offsets and widths are
+ * witnessed by the functions' own accesses; names are placeholders pending
+ * semantics. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+} Ovl15Func80134444Arg;
+
+typedef struct {
+    /* 0x00 */ char pad_0[0x2];
+    /* 0x02 */ u16 unk2;
+} Ovl19Func800BA73CArg;
+
+/* Shared by ovl_19_func_800BAC40 and ovl_19_func_800BAC50. */
+typedef struct {
+    /* 0x00 */ char pad_0[0x2];
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+} Ovl19Func800BAC40Arg;
+
+/* Shared by ovl_23_func_800BB0C8 and ovl_23_func_800BB0D8. */
+typedef struct {
+    /* 0x00 */ char pad_0[0x4];
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+} Ovl23Func800BB0C8Arg;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14

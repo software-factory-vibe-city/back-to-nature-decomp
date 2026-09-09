@@ -341,6 +341,32 @@ export function detectImplicitDeclarations(preprocessed: string, stem: string): 
 }
 
 /**
+ * Every file the preprocessor would read for this source: the source itself
+ * plus its transitive includes, resolved by the preprocessor's own `-MM` pass
+ * under the configured include paths — a scan of headers on disk answers a
+ * different question. `-MG` keeps a not-yet-generated header in the list as a
+ * name, so its later appearance still counts as an input change.
+ *
+ * This exists for cache keys: an artifact derived from a compile is stale when
+ * any header it read changed, and a dependency list that omits headers is a
+ * staleness hole (the Phase A1 failure in plans/automatic-matching-reconstruction.md).
+ */
+export function sourceDependencyFiles(source: string): string[] {
+  const absoluteSource = isAbsolute(source) ? source : join(ROOT, source);
+  const output = runTool(CPP, [...CPP_FLAGS, "-MM", "-MG", absoluteSource]);
+  const files: string[] = [];
+  const text = output.replace(/\\\n/g, " ");
+  const colon = text.indexOf(":");
+  if (colon < 0) return [absoluteSource];
+  for (const token of text.slice(colon + 1).trim().split(/\s+/)) {
+    if (!token) continue;
+    files.push(isAbsolute(token) ? token : join(ROOT, token));
+  }
+  if (!files.includes(absoluteSource)) files.unshift(absoluteSource);
+  return files;
+}
+
+/**
  * Run only the preprocessor, and return the path to the `.i`.
  *
  * The preprocessed text is the exact set of declarations the compiler saw, so

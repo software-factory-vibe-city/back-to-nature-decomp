@@ -1,4 +1,8 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001FA98", func_8001FA98);
+/* GP-relative global owned by this TU. */
+s32 D_8005E318;
+
+s32 func_8001FA98(void) {
+    return D_8005E318++;
+}

@@ -271,6 +271,21 @@ export const TOOL_SPECS: ToolSpec[] = [
       timeout: 3_600_000 },
   ),
 
+  /* ---- automatic matching reconstruction ---- */
+  functionTool(
+    "psx_reconstruct_function", "PSX Matching Reconstruction", "reconstructFunction.ts",
+    "Automatic reconstruction from original bytes alone — no m2c seed, no existing source. Recovers the machine relation by bounded symbolic execution, derives origin/layout alternatives from independently witnessed accesses across the whole container, constructs typed clean-C candidates, and verifies them through the production compiler and the relocated-byte oracle. Terminal states are explicit: exact-candidate (a byte-identical bundle under build/matchingReconstruction/, NOT integrated), unsupported-target (with the blocking instructions), context-unresolved, domain-exhausted, budget-exhausted. Supported classes: fixed-bound record scans, straight-line store/return effects, and bounded guarded decision trees, over absolute, argument-pointer, and loaded-pointer storage; anything else reports its blockers honestly and cheaply, so it is safe to try first on any unstarted function. It never touches live sources — integrating a winner stays a separately authorized edit.",
+    { extra: {
+        exhaustive: Type.Optional(Type.Boolean({ description: "Evaluate every candidate even after an exact match" })),
+        maxCandidates: Type.Optional(Type.Number({ description: "Compile budget; the default evaluates the whole bounded domain" })),
+      },
+      argv: (p) => [p.functionName as string,
+        ...(p.exhaustive ? ["--exhaustive"] : []),
+        ...(p.maxCandidates !== undefined ? ["--max-candidates", String(p.maxCandidates)] : []),
+        ...(p.json ? ["--json"] : [])],
+      timeout: 600_000 },
+  ),
+
   /* ---- deterministic pipeline reversal ---- */
   functionTool(
     "psx_reverse_pipeline", "PSX Pipeline Reversal", "reversePipeline.ts",

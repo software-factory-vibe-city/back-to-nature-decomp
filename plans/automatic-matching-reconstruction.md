@@ -1,8 +1,71 @@
 # Automatic matching reconstruction
 
-**Status: proposed; implementation has not started.** The manually completed
-`ovl_11_func_800F13D8` investigation supplies a development regression, not
-proof that the proposed automation works.
+## Implementation record (2026-09-09)
+
+The engine is in the tree and in production use. What exists, mapped to the
+phases below:
+
+- **Engine** — `tools/agent/reconstructFunction.ts` (CLI, registered as the
+  `psx_reconstruct_function` Pi tool) over
+  `tools/agent/matching-reconstruction/`: `decode.ts` (R3000 integer-subset
+  decoder over raw words), `exec.ts` (bounded symbolic executor: live-register
+  state merging, delay-slot semantics, store effects with forwarding and
+  conservative cross-base invalidation, hash-consed decision DAG),
+  `scan-relation.ts` (scan fit verified by template-DAG identity),
+  `access-index.ts` (container-wide witnessed base+offset mining, provenance
+  cached), `construct.ts` / `effect-construct.ts` (typed C89 AST, storage
+  mapping, parameter plans, candidate enumeration), `engine.ts` (routing,
+  oracle loop, terminal states, result bundles under
+  `build/matchingReconstruction/<fn>/`).
+- **Supported relation classes** — (1) fixed-bound read-only record scans,
+  with standalone-label, witnessed embedded-parent, and offset-start-window
+  origins; (2) straight-line store/return effects, including increment idioms,
+  `sltiu 1` ⇒ `== 0`, empty functions, and gp-relative tentative definitions
+  derived from the access's own base register; (3) bounded guarded decision
+  trees with common-effect-prefix factoring. Storage: absolute cells,
+  argument-pointer cells (pointer-typed parameters), and loaded-pointer cells
+  (pointer-to-view typed globals, recursive).
+- **Phase A** — A1 done: `candidateObjectInputs` in
+  `tools/agent/pipeline-reversal/reverse.ts` fingerprints transitive headers
+  (`sourceDependencyFiles` via cpp `-MM`), `configs/flag_overrides.mk`, the
+  Makefile, and effective flag sets, and verifies cached object bytes
+  (`candidate-provenance.test.ts`). A2 partial: the engine records both
+  symbolic origins and compares through the relocated-byte oracle; the
+  inventory-report distinction is not built. A3 done as a structural guard
+  (`authority.test.ts`: no diagnostic module can veto a candidate).
+- **Phase B** — frozen manifest at
+  `configs/reconstruction/benchmark-manifest.json` (11 development regressions
+  with per-mechanism expectations, 20 challenge/parked, 94 stratified
+  held-out, container image hashes with input-drift refusal);
+  `tools/diagnostics/benchmarkReconstruction.ts` runs sets, the §8 census
+  (`--census`), and the raw-m2c baseline (`--m2c-baseline`; 0/11 byte-exact on
+  the development set). Not built: the restricted/bootstrap-context evaluation.
+- **Phase C** — done; the §2 exit gate passes from source-hidden inputs
+  (29/29 words, ~17 compiles, ~2.5 s) and is a gated regression test.
+- **Phase D** — deliberately not built: every current domain is ≤ ~100
+  candidates evaluated in seconds, so unguided enumeration wins on cost by
+  this plan's own §7 exit criterion.
+- **Phase E** — two census-led expansions delivered (effects, guarded trees;
+  plus pointer bases and offset-start windows as origin growth). The census
+  over all 1,971 unmatched functions names the remainder; see the successor
+  plan below.
+- **Phase F** — the standalone entry point, terminal states, budgets, and
+  result bundles exist; integration remains manual-with-gates (14 engine
+  winners were integrated by hand on 2026-09-09: per-function `diffFunc`
+  MATCH, `make check-all` byte-identity on all 14 containers, header roles
+  respected, generated headers regenerated). Automated transactional
+  integration to a `verified` state is not built. The autonomous loop is
+  deprecated; the engine-first flow lives in
+  `.pi/skills/psx-decompile-function/SKILL.md`.
+- **Results at freeze** — 14 previously-unmatched functions byte-exact and
+  integrated; 66 near-misses (relation recovered, grammar lacks a witness);
+  census: calls 1,697 fn / 525 KB, undecoded ops 42 fn, read-only non-scan
+  33 fn, symbolic-bound 16 fn.
+
+**The remaining machine-model coverage — mult/div, computed indexing, jump
+tables, stack frames, calls, symbolic-bound loops — is specified as an
+implementable sequence in `plans/matching-reconstruction-model-completion.md`.**
+The sections below are the original design and remain the rationale of record.
 
 ## 1. Deliverable and boundaries
 

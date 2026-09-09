@@ -10,11 +10,25 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { StubSourceError, compareFunction } from "../../lib/functionOracle.js";
 import { loadSymbolIndex, requireFunctionLocation } from "../../lib/symbolIndex.js";
-import { ROOT, compileSource, normalizeFunctionName, resolveSource } from "../decompToolchain.js";
+import {
+  CPP_FLAGS,
+  ROOT,
+  compileSource,
+  configuredAsFlagsForContainer,
+  configuredCc1FlagsForContainer,
+  configuredMaspsxFlags,
+  containerKindForSymbol,
+  loadFlagOverrides,
+  normalizeFunctionName,
+  resolveSource,
+  sourceDependencyFiles,
+} from "../decompToolchain.js";
 import {
   type EnsuredArtifact,
+  type ProvenanceInputs,
   ensureArtifact,
   projectPath,
+  sha256File,
   stamped,
   writeStableJson,
 } from "../provenance.js";
@@ -80,12 +94,47 @@ function sameOrder(left: MirProgram, right: MirProgram): boolean {
 }
 
 /**
+ * The complete provenance of a compiled candidate: the source and every header
+ * its preprocessor pass reads, the per-file flag overrides and the Makefile
+ * they modify, and the *effective* flag sets after resolution. Symbol tables
+ * are deliberately absent — the object does not depend on them, and the
+ * comparison that does runs fresh on every call.
+ *
+ * The measured failure this repairs: `configs/flag_overrides.mk` was not an
+ * input, so removing a per-function override reused an object whose assembly
+ * still carried the removed flag (recorded in
+ * notes/research/ovl_11_func_800F13D8-embedded-table-origin.md).
+ */
+export function candidateObjectInputs(functionName: string, source: string): ProvenanceInputs {
+  const kind = containerKindForSymbol(functionName);
+  return {
+    files: [
+      ...sourceDependencyFiles(source),
+      join(ROOT, "configs/flag_overrides.mk"),
+      join(ROOT, "Makefile"),
+    ],
+    values: {
+      mode: "compiled",
+      containerKind: kind,
+      cppFlags: CPP_FLAGS,
+      cc1Flags: [...configuredCc1FlagsForContainer(kind), ...(loadFlagOverrides().get(functionName) ?? [])],
+      asFlags: configuredAsFlagsForContainer(kind),
+      maspsxFlags: configuredMaspsxFlags(),
+    },
+    implementation: [join(ROOT, "tools/agent/decompToolchain.ts")],
+  };
+}
+
+/**
  * The candidate object, compiled from the current source unless the caller
  * named an object explicitly.
  *
- * Cached on the fingerprint of the source, the toolchain and the compile
- * options, so a repeat call is free and a changed source is never reused. The
- * cache can only make the call faster; it cannot change the answer.
+ * Cached on the fingerprint of the source, its transitive headers, the flag
+ * configuration, the toolchain and the compile options, so a repeat call is
+ * free and a changed input is never reused. The stored object's own bytes are
+ * verified on reuse — a stamp whose artifact was altered or truncated is a
+ * miss, not a hit. The cache can only make the call faster; it cannot change
+ * the answer.
  */
 function ensureCandidateObject(
   functionName: string,
@@ -116,26 +165,33 @@ function ensureCandidateObject(
     artifactPath: join(outputDirectory, "candidate-object.json"),
     label: `candidate object from ${projectPath(source)}`,
     functionName,
-    inputs: {
-      files: [source],
-      values: { mode: "compiled" },
-      implementation: [join(ROOT, "tools/agent/decompToolchain.ts")],
-    },
+    inputs: candidateObjectInputs(functionName, source),
     produce: (provenance) => {
       const artifacts = compileSource(source, candidateDirectory, functionName, { assemble: true });
       writeStableJson(
         join(outputDirectory, "candidate-object.json"),
-        stamped({ object: projectPath(artifacts.object), source: projectPath(source) }, provenance),
+        stamped(
+          {
+            object: projectPath(artifacts.object!),
+            source: projectPath(source),
+            objectSha256: sha256File(artifacts.object!),
+          },
+          provenance,
+        ),
       );
-      return { object: artifacts.object, source: projectPath(source) };
+      return { object: artifacts.object!, source: projectPath(source) };
     },
     read: (stored) => {
-      const value = stored as { object?: string; source?: string };
-      /* A stamp whose object has since been removed is not a hit; throwing here
-       * makes `ensureArtifact` fall through and recompile. */
+      const value = stored as { object?: string; source?: string; objectSha256?: string };
+      /* A stamp whose object has since been removed or altered is not a hit;
+       * throwing here makes `ensureArtifact` fall through and recompile. */
       if (!value.object) throw new Error("stored candidate object has no path");
       const absolute = isAbsolute(value.object) ? value.object : join(ROOT, value.object);
       if (!existsSync(absolute)) throw new Error("stored candidate object is missing");
+      if (!value.objectSha256) throw new Error("stored candidate object predates content verification");
+      if (sha256File(absolute) !== value.objectSha256) {
+        throw new Error("stored candidate object's bytes do not match its record");
+      }
       return { object: absolute, source: value.source ?? projectPath(source) };
     },
   });

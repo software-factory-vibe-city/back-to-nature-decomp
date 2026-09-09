@@ -3557,3 +3557,29 @@ on the single s32 flag, and all sit inside the unbroken link run
   so caller starts exactly where the helper ends (gapless link pair); invokes the
   helper with two shared tables `D_8009CBF8` and `D_8008F7F8` (both absolute
   `lui`+`addiu` %lo), feeding `(s16)`-sign-extended keys from an `lh`.
+
+## `exe` byte-triple setter twins — 0x8001BF74 / 0x8001BF88 (confidence: medium)
+
+- func_8001BF74 (m, matched via automatic reconstruction, byte-exact) — stores
+  three s32 args into consecutive gp-relative bytes D_8005E2DC/DD/DE.
+- func_8001BF88 (m, matched via automatic reconstruction, byte-exact) — the
+  identical shape over the next byte triple D_8005E2E0/E1/E2.
+- Evidence: adjacent addresses (0x14 apart, gapless), identical structure over
+  adjacent data, shared small-data cluster — classic same-TU setter pair.
+
+## `ovl_19` shared arg-record setters — 0x800BAC40 / 0x800BAC50 (confidence: medium)
+
+- ovl_19_func_800BAC40 (m, matched via automatic reconstruction, byte-exact) —
+  stores three s32 args into s16 fields +2/+4/+6 of its pointer argument.
+- ovl_19_func_800BAC50 (m, matched via automatic reconstruction, byte-exact) —
+  same record shape, fields +2/+4 only; gapless with the previous function.
+- Evidence: identical argument-record layout (shared Ovl19Func800BAC40Arg view
+  in include/game_types.h), adjacent gapless addresses.
+
+## `ovl_23` shared arg-record setters — 0x800BB0C8 / 0x800BB0D8 (confidence: medium)
+
+- ovl_23_func_800BB0C8 (m, matched via automatic reconstruction, byte-exact) —
+  stores three s32 args into s16 fields +4/+6/+8 of its pointer argument.
+- ovl_23_func_800BB0D8 (m, matched via automatic reconstruction, byte-exact) —
+  byte-for-byte the same body over the same record shape (shared
+  Ovl23Func800BB0C8Arg view), gapless with the previous function.

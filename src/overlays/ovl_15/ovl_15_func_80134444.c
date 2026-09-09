@@ -1,3 +1,6 @@
 #include "common.h"
+#include "game_types.h"
 
-INCLUDE_ASM("build/ovl_15/asm/nonmatchings/ovl_15_func_80134444", ovl_15_func_80134444);
+s32 ovl_15_func_80134444(Ovl15Func80134444Arg *arg0) {
+    return arg0->unk0;
+}

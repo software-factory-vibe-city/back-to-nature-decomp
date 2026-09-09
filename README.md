@@ -832,7 +832,7 @@ libraries, the references between files, and the BSS layout. Therefore
 | `.pi/` | The Pi commands, the PlayStation skills, the tool wrappers, and the autonomous supervisor |
 | `tools/agent/` | The decompilation tools. See the list below |
 | `tools/build/` | The `make split` pipeline |
-| `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts` |
+| `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts`, `benchmarkReconstruction.ts` |
 | `tools/lib/` | `psxExeInfo.ts` (shared binary constants), `symbolIndex.ts` (address and symbol lookup), `functionOracle.ts` (the byte comparison that `diffFunc.ts` reports) |
 | `tools/vendor/` | The vendored repositories |
 
@@ -855,6 +855,7 @@ The main tools under `tools/agent/` are:
 | `searchSourceShapes.ts` | Searches an explicit finite grammar |
 | `synthesizeSourceShapes.ts` | Derives a grammar from the requirements |
 | `searchResidualSourceSpace.ts` | Searches the residual source space automatically |
+| `reconstructFunction.ts` | Reconstructs clean C from the original bytes alone — no source seed; explicit unresolved states outside its supported class |
 | `reversePipeline.ts` | Runs the compiler backward and names the pass that owns the residual |
 | `loopTrace.ts` | Reads the loop optimizer's own `-dL` log and solves for its unprinted threshold |
 | `analyzeTargetLoopEmission.ts` | Derives what the original's loop pass must have done, and scores a candidate on it |

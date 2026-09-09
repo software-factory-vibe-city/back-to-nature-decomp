@@ -68,8 +68,29 @@ Run these three, in this order, before touching source.
 3. `psx_reverse_pipeline` — the pass that owns the residual, the per-block
    breakdown, and the independent decisions behind it.
 
-If the target is a bare `INCLUDE_ASM` stub, generate a first source with
-`psx_m2c` and clean it before step 3 has anything to read.
+If the target is a bare `INCLUDE_ASM` stub, run `psx_reconstruct_function`
+before writing anything. It reads only the original bytes, costs a fraction of
+a second when it refuses, and either finishes the function or hands the
+session its first classified fact:
+
+- `exact-candidate` — the bundle under `build/matchingReconstruction/<fn>/`
+  is byte-verified C. Integrate it instead of decompiling: put its view
+  typedefs and declarations where the bundle's integration plan says (the
+  shared type header, the override header, tentative definitions in the TU
+  for gp-relative globals — never a redeclaration in the `.c`), write the
+  body into the function's source file with the umbrella include, regenerate
+  the generated headers, and go straight to Finish.
+- `domain-exhausted` — the machine relation was recovered and every candidate
+  in the bundle compiles. Start from the bundle's closest candidate rather
+  than an m2c draft: it is semantically grounded, and its residual is already
+  a classified starting point for the experiment loop.
+- `unsupported-target` / `context-unresolved` — the detail names the blocker
+  (calls, computed addressing, symbolic bounds, missing origin evidence)
+  before any source exists. Keep it as the session's first fact; it scopes
+  which mechanisms the source must express.
+
+Only when the engine produced no usable candidate, generate a first source
+with `psx_m2c` and clean it before step 3 has anything to read.
 
 **This is the only classification pass you get.** The residual is now
 classified. From here, every diagnostic you run must be followed by an edit and

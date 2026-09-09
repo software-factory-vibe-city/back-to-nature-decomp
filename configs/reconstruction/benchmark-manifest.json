@@ -1,0 +1,514 @@
+{
+  "challenge": [
+    "func_8001231C",
+    "func_80017F30",
+    "func_800183E0",
+    "func_80019610",
+    "func_80019AD0",
+    "func_8001E4C0",
+    "func_8002206C",
+    "ovl_11_func_800D0600",
+    "ovl_11_func_800D0BC8",
+    "ovl_11_func_800D5D38",
+    "ovl_11_func_800DDDBC",
+    "ovl_11_func_800E3A3C",
+    "ovl_11_func_800E74AC",
+    "ovl_11_func_800EF870",
+    "ovl_11_func_800F14D8",
+    "ovl_11_func_80103770",
+    "ovl_11_func_80108470",
+    "ovl_11_func_80108B8C",
+    "ovl_11_func_8011FEA0",
+    "ovl_11_func_8011FF74"
+  ],
+  "development": [
+    {
+      "expect": "exact-candidate",
+      "name": "ovl_11_func_800F13D8",
+      "note": "embedded-table scan via witnessed parent origin (plan §2)"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "ovl_11_func_800DBB94",
+      "note": "scan with != guard and raw argument compare"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "ovl_11_func_800DBF60",
+      "note": "scan starting at record 1 of a labelled table"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "func_8001BF74",
+      "note": "straight-line stores, gp-relative small data"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "func_8001FA98",
+      "note": "return of a post-incremented global"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "ovl_19_func_800BAC50",
+      "note": "stores through an argument pointer"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "ovl_28_func_800B935C",
+      "note": "sltiu-1 spelled as == 0"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "ovl_23_func_800BA278",
+      "note": "guarded decision tree with early returns"
+    },
+    {
+      "expect": "unresolved",
+      "name": "func_80017300",
+      "note": "count-up loop the compiler reversed — future loop constructor (plan §5 B1)"
+    },
+    {
+      "expect": "unresolved",
+      "name": "ovl_11_func_800F14D8",
+      "note": "symbolic-bound wrap-around value search"
+    },
+    {
+      "expect": "unresolved",
+      "name": "func_80017F30",
+      "note": "sentinel-terminated parallel pointer scan"
+    }
+  ],
+  "frozenAt": "2026-09-09T18:26:34.059Z",
+  "heldOut": [
+    {
+      "name": "func_80011370",
+      "stratum": "exe/calls/writes/loops/large"
+    },
+    {
+      "name": "func_80011C24",
+      "stratum": "exe/calls/writes/loops/large"
+    },
+    {
+      "name": "func_80012598",
+      "stratum": "exe/calls/writes/loops/large"
+    },
+    {
+      "name": "func_80011F5C",
+      "stratum": "exe/calls/writes/loops/medium"
+    },
+    {
+      "name": "func_80011FD8",
+      "stratum": "exe/calls/writes/loops/medium"
+    },
+    {
+      "name": "func_80012298",
+      "stratum": "exe/calls/writes/loops/medium"
+    },
+    {
+      "name": "func_80012098",
+      "stratum": "exe/calls/writes/loops/small"
+    },
+    {
+      "name": "func_80022580",
+      "stratum": "exe/calls/writes/loops/small"
+    },
+    {
+      "name": "func_80022FE0",
+      "stratum": "exe/calls/writes/loops/small"
+    },
+    {
+      "name": "func_800120C8",
+      "stratum": "exe/calls/writes/straight/large"
+    },
+    {
+      "name": "func_800128DC",
+      "stratum": "exe/calls/writes/straight/large"
+    },
+    {
+      "grouping": "Full-screen primitive setup — 0x800134C4–0x800139F8 (confidence: medium)",
+      "name": "func_800136D4",
+      "stratum": "exe/calls/writes/straight/large"
+    },
+    {
+      "name": "func_800121D4",
+      "stratum": "exe/calls/writes/straight/medium"
+    },
+    {
+      "name": "func_80012A68",
+      "stratum": "exe/calls/writes/straight/medium"
+    },
+    {
+      "name": "func_80012CB4",
+      "stratum": "exe/calls/writes/straight/medium"
+    },
+    {
+      "name": "func_800129F4",
+      "stratum": "exe/calls/writes/straight/small"
+    },
+    {
+      "name": "func_80012A14",
+      "stratum": "exe/calls/writes/straight/small"
+    },
+    {
+      "name": "func_800139FC",
+      "stratum": "exe/calls/writes/straight/small"
+    },
+    {
+      "grouping": "u16 string library — 0x80017D9C–0x80017F30 (confidence: medium)",
+      "name": "func_80017EE4",
+      "stratum": "exe/leaf/readonly/loops/medium"
+    },
+    {
+      "name": "func_8001D2D8",
+      "stratum": "exe/leaf/readonly/loops/medium"
+    },
+    {
+      "grouping": "`exe` \"collision.c\" — 0x8001E334–0x8001EFA4 (confidence: high)",
+      "name": "func_8001E78C",
+      "stratum": "exe/leaf/readonly/loops/medium"
+    },
+    {
+      "name": "pow_int",
+      "stratum": "exe/leaf/readonly/loops/small"
+    },
+    {
+      "name": "HasTriangleVertexXInBounds",
+      "stratum": "exe/leaf/readonly/straight/medium"
+    },
+    {
+      "grouping": "game-state init and query — around 0x80012D30–0x80013438 (confidence: medium)",
+      "name": "func_80013394",
+      "stratum": "exe/leaf/readonly/straight/medium"
+    },
+    {
+      "grouping": "sprite data, animation, and renderers — 0x80015704–0x80016C08",
+      "name": "func_80015AAC",
+      "stratum": "exe/leaf/readonly/straight/medium"
+    },
+    {
+      "name": "GetFlag8005E274",
+      "stratum": "exe/leaf/readonly/straight/small"
+    },
+    {
+      "name": "GetPairedTpage",
+      "stratum": "exe/leaf/readonly/straight/small"
+    },
+    {
+      "name": "GetVal8005E29C",
+      "stratum": "exe/leaf/readonly/straight/small"
+    },
+    {
+      "grouping": "sprite data, animation, and renderers — 0x80015704–0x80016C08",
+      "name": "func_80016280",
+      "stratum": "exe/leaf/writes/loops/large"
+    },
+    {
+      "grouping": "sprite data, animation, and renderers — 0x80015704–0x80016C08",
+      "name": "func_800165D8",
+      "stratum": "exe/leaf/writes/loops/large"
+    },
+    {
+      "name": "func_8001A970",
+      "stratum": "exe/leaf/writes/loops/large"
+    },
+    {
+      "grouping": "u16 string library — 0x80017D9C–0x80017F30 (confidence: medium)",
+      "name": "func_80017E34",
+      "stratum": "exe/leaf/writes/loops/medium"
+    },
+    {
+      "grouping": "`exe` \"collision.c\" — 0x8001E334–0x8001EFA4 (confidence: high)",
+      "name": "func_8001E340",
+      "stratum": "exe/leaf/writes/loops/medium"
+    },
+    {
+      "grouping": "gradient-interpolation cluster — 0x8001F278–0x8001FABC (confidence: low)",
+      "name": "func_8001F278",
+      "stratum": "exe/leaf/writes/loops/medium"
+    },
+    {
+      "grouping": "u16 table-insertion / D_800749F4 dispatch family — 0x8001A574–0x8001AAF4 (confidence: medium)",
+      "name": "func_8001AA7C",
+      "stratum": "exe/leaf/writes/loops/small"
+    },
+    {
+      "name": "func_8001AAB8",
+      "stratum": "exe/leaf/writes/loops/small"
+    },
+    {
+      "name": "func_8001ABF0",
+      "stratum": "exe/leaf/writes/loops/small"
+    },
+    {
+      "grouping": "game-state init and query — around 0x80012D30–0x80013438 (confidence: medium)",
+      "name": "func_8001316C",
+      "stratum": "exe/leaf/writes/straight/large"
+    },
+    {
+      "grouping": "GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)",
+      "name": "func_800153BC",
+      "stratum": "exe/leaf/writes/straight/large"
+    },
+    {
+      "grouping": "sprite data, animation, and renderers — 0x80015704–0x80016C08",
+      "name": "func_800158E4",
+      "stratum": "exe/leaf/writes/straight/large"
+    },
+    {
+      "grouping": "GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)",
+      "name": "func_8001526C",
+      "stratum": "exe/leaf/writes/straight/medium"
+    },
+    {
+      "grouping": "GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)",
+      "name": "func_8001530C",
+      "stratum": "exe/leaf/writes/straight/medium"
+    },
+    {
+      "grouping": "GPU primitive packet initializers — 0x8001526C–0x80015683 (confidence: high)",
+      "name": "func_800154CC",
+      "stratum": "exe/leaf/writes/straight/medium"
+    },
+    {
+      "name": "ClearPairS32",
+      "stratum": "exe/leaf/writes/straight/small"
+    },
+    {
+      "name": "ClearVal8005E2CC",
+      "stratum": "exe/leaf/writes/straight/small"
+    },
+    {
+      "name": "ClearVal8005E2D4",
+      "stratum": "exe/leaf/writes/straight/small"
+    },
+    {
+      "grouping": "`ovl_08` menu/kanji state dispatcher — 0x800B8014–0x800B8400 (confidence: medium)",
+      "name": "ovl_08_func_800B8134",
+      "stratum": "overlay/calls/writes/loops/large"
+    },
+    {
+      "grouping": "`ovl_08` menu/kanji state dispatcher — 0x800B8014–0x800B8400 (confidence: medium)",
+      "name": "ovl_08_func_800B8054",
+      "stratum": "overlay/calls/writes/loops/medium"
+    },
+    {
+      "grouping": "`ovl_08` menu/kanji state dispatcher — 0x800B8014–0x800B8400 (confidence: medium)",
+      "name": "ovl_08_func_800B8400",
+      "stratum": "overlay/calls/writes/loops/medium"
+    },
+    {
+      "grouping": "`ovl_08` menu/kanji state dispatcher — 0x800B8014–0x800B8400 (confidence: medium)",
+      "name": "ovl_08_func_800B80FC",
+      "stratum": "overlay/calls/writes/loops/small"
+    },
+    {
+      "grouping": "`ovl_08` menu/kanji state dispatcher — 0x800B8014–0x800B8400 (confidence: medium)",
+      "name": "ovl_08_func_800B8014",
+      "stratum": "overlay/calls/writes/straight/small"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B889C",
+      "stratum": "overlay/calls/writes/loops/large"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B8C14",
+      "stratum": "overlay/calls/writes/loops/large"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B9108",
+      "stratum": "overlay/calls/writes/loops/large"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B9060",
+      "stratum": "overlay/calls/writes/loops/medium"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B9458",
+      "stratum": "overlay/calls/writes/loops/medium"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B94A4",
+      "stratum": "overlay/calls/writes/loops/medium"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B92AC",
+      "stratum": "overlay/calls/writes/loops/small"
+    },
+    {
+      "grouping": "`ovl_10` debug/status string-table cluster — 0x800B814C–0x800B821C (confidence: low)",
+      "name": "ovl_10_func_800B956C",
+      "stratum": "overlay/calls/writes/loops/small"
+    },
+    {
+      "grouping": "`ovl_10` overlay tail — /15 date-utility pair around 0x800BB728 (confidence: low)",
+      "name": "ovl_10_func_800B8A5C",
+      "stratum": "overlay/calls/writes/straight/large"
+    },
+    {
+      "grouping": "`ovl_10` overlay tail — /15 date-utility pair around 0x800BB728 (confidence: low)",
+      "name": "ovl_10_func_800BB728",
+      "stratum": "overlay/leaf/readonly/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800BBC34",
+      "stratum": "overlay/calls/writes/straight/small"
+    },
+    {
+      "grouping": "`ovl_11` D_80122F0C 3×s16 lookup-table run — 0x800C1224–0x800C141C (confidence: medium)",
+      "name": "ovl_11_func_800C1224",
+      "stratum": "overlay/leaf/readonly/loops/medium"
+    },
+    {
+      "grouping": "`ovl_11` D_80122F0C 3×s16 lookup-table run — 0x800C1224–0x800C141C (confidence: medium)",
+      "name": "ovl_11_func_800C1280",
+      "stratum": "overlay/leaf/readonly/loops/medium"
+    },
+    {
+      "name": "ovl_11_func_800C2884",
+      "stratum": "overlay/leaf/readonly/loops/medium"
+    },
+    {
+      "name": "ovl_11_func_800D0D7C",
+      "stratum": "overlay/leaf/readonly/loops/small"
+    },
+    {
+      "name": "ovl_11_func_800DC9D4",
+      "stratum": "overlay/leaf/readonly/loops/small"
+    },
+    {
+      "grouping": "`ovl_11` D_800742EC 0xB4-struct-array scan/count/init run — 0x800E20B8, 0x800E2934 / 0x800E2968 (confidence: low)",
+      "name": "ovl_11_func_800E20B8",
+      "stratum": "overlay/leaf/readonly/loops/small"
+    },
+    {
+      "name": "ovl_11_func_800C0834",
+      "stratum": "overlay/leaf/readonly/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800C3548",
+      "stratum": "overlay/leaf/readonly/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800CB0B0",
+      "stratum": "overlay/leaf/readonly/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800BCF20",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_11_func_800BD160",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_11_func_800BD368",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_11_func_800C0EA4",
+      "stratum": "overlay/leaf/writes/loops/medium"
+    },
+    {
+      "name": "ovl_11_func_800CA6C4",
+      "stratum": "overlay/leaf/writes/loops/medium"
+    },
+    {
+      "name": "ovl_11_func_800CDF4C",
+      "stratum": "overlay/leaf/writes/loops/medium"
+    },
+    {
+      "name": "ovl_11_func_800C1BE0",
+      "stratum": "overlay/leaf/writes/loops/small"
+    },
+    {
+      "name": "ovl_11_func_800C1C90",
+      "stratum": "overlay/leaf/writes/loops/small"
+    },
+    {
+      "name": "ovl_11_func_800DD21C",
+      "stratum": "overlay/leaf/writes/loops/small"
+    },
+    {
+      "grouping": "`ovl_11` {u16,u16} local-pair counter run — 0x800BF8B8–0x800BFC20+ (confidence: low)",
+      "name": "ovl_11_func_800BFADC",
+      "stratum": "overlay/leaf/writes/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800BFF00",
+      "stratum": "overlay/leaf/writes/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800C2A98",
+      "stratum": "overlay/leaf/writes/straight/medium"
+    },
+    {
+      "name": "ovl_11_func_800BC3AC",
+      "stratum": "overlay/leaf/writes/straight/small"
+    },
+    {
+      "name": "ovl_11_func_800BCF28",
+      "stratum": "overlay/leaf/writes/straight/small"
+    },
+    {
+      "name": "ovl_11_func_800BD358",
+      "stratum": "overlay/leaf/writes/straight/small"
+    },
+    {
+      "name": "ovl_15_func_801372F0",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_15_func_801372F8",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_15_func_80137398",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_19_func_800B9DC8",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_27_func_800BA80C",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_30_func_8012F028",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_30_func_8012F44C",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "grouping": "`ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)",
+      "name": "ovl_31_func_800B82E8",
+      "stratum": "overlay/calls/writes/loops/medium"
+    }
+  ],
+  "imageHashes": {
+    "exe": "34e3b35dcd3fb1cd9a7d4813b8a9ef987915826e3d436f1908ecbe2d4fdf1444",
+    "ovl_08": "918ace094e631452b03fcec1af22227a2c1ae801c92d07e88439e895ceeca363",
+    "ovl_10": "fd6846d5255da2bd210d2687c82358356d95742c8060e78cea3a382ee912e4df",
+    "ovl_11": "165c3cca1f3bd7ec8a37ef6ac0fa75eff2e79479816738379380f776da703742",
+    "ovl_15": "c0bcec6ec5f70d1758f5a049c69b26f6703041808073646821b471420bcf5368",
+    "ovl_17": "c5cad849690b1b74edbb6a28530a1eef84092f7234987f97a75f6c7a7233bcb0",
+    "ovl_19": "bd4145a8a17418287ac9377dda625cf73291d8f7966767c2e11ad466872845d5",
+    "ovl_21": "29c2975ae9250c47f68f017e186852eed7faf2786b50a4147bbeba229841e82c",
+    "ovl_23": "39098e4f952c4443794fa1bcea4b33fdb240947c2ad033bfd208798c401b9883",
+    "ovl_25": "eba69247e5402f00cc0531f022338e6857fe94c25b3d8e08921e3bd3a3ec93cc",
+    "ovl_27": "ea6a7aef3d522bc1c905417cbf641d0a3bfd79b5aa68a95edd06f4d880f84b9e",
+    "ovl_28": "f2d391a23eea6bcb679661c8bf1490cc5c6676e464264f524ea82f7b617eda48",
+    "ovl_30": "d03a4f7d6a2bb2f1556f0be8fc675c63ffe61f3c254c789041ec0eba9057abe8",
+    "ovl_31": "f9cb5488db0ab1d2a4cb86b2a1d480356aa9249b46ce5d7d13b4f762e13ba88a"
+  },
+  "schemaVersion": 1
+}

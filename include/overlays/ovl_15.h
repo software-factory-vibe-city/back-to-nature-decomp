@@ -2,6 +2,7 @@
 /* m2c context only. Types live in include/sdk_types.h, which must be
  * passed to m2c before this file. */
 
+s32 ovl_15_func_80134444(Ovl15Func80134444Arg *arg0);
 void ovl_15_func_801372F0(void);
 void ovl_15_func_801372F8(void);
 void ovl_15_func_80137398(void);

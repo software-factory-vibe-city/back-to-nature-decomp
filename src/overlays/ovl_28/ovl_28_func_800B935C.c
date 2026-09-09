@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_28/asm/nonmatchings/ovl_28_func_800B935C", ovl_28_func_800B935C);
+s32 ovl_28_func_800B935C(void) {
+    return D_800B9626 == 0;
+}

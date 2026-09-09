@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_30/asm/nonmatchings/ovl_30_func_8012F020", ovl_30_func_8012F020);
+s32 ovl_30_func_8012F020(void) {
+    return 0;
+}

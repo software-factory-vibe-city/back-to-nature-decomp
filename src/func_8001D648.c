@@ -1,4 +1,15 @@
 #include "common.h"
-#include "include_asm.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001D648", func_8001D648);
+/* GP-relative global owned by this TU. */
+s32 D_8005E2D4;
+
+s32 func_8001D648(s32 arg0, s32 arg1) {
+    D_800491C8.unk10 = arg0;
+    D_800491C8.unk8 = arg0;
+    D_800491C8.unk0 = arg0;
+    D_800491C8.unk14 = arg1;
+    D_800491C8.unkC = arg1;
+    D_800491C8.unk4 = arg1;
+    D_8005E2D4 = 1;
+    return 1;
+}
