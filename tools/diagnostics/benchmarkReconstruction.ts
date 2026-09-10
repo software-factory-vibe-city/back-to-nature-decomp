@@ -98,6 +98,9 @@ export function censusCategory(result: ResultBundle): string {
     || detail.includes("affine")) {
     return "read-only, call-free, but not a fixed-stride scan";
   }
+  if (detail.includes("general control flow")) {
+    return "general control flow: " + detail.slice(0, 60);
+  }
   return `other: ${detail.slice(0, 60)}`;
 }
 

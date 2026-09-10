@@ -275,7 +275,7 @@ export function calleeDeclarations(
 
 /* ---- cell collection ------------------------------------------------------ */
 
-interface Atom {
+export interface Atom {
   base?: SymExpr | undefined;
   offset: number;
   width: 1 | 2 | 4;
@@ -295,7 +295,7 @@ const atomGroup = (atom: Atom): string => {
 const cellKey = (group: string, offset: number, width: number): string => `${group}|${offset}|${width}`;
 
 /** Every load atom in an expression, including the atoms inside pointer bases and indexes. */
-function collectAtoms(expr: SymExpr, into: Map<string, Atom>): void {
+export function collectAtoms(expr: SymExpr, into: Map<string, Atom>): void {
   switch (expr.kind) {
     case "load": {
       const atom: Atom = { base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed, index: expr.index };
@@ -313,7 +313,7 @@ function collectAtoms(expr: SymExpr, into: Map<string, Atom>): void {
   }
 }
 
-interface CellUse extends Atom {
+export interface CellUse extends Atom {
   viaGp: boolean;
   loaded: boolean;
   stored: boolean;
@@ -323,7 +323,7 @@ interface CellUse extends Atom {
 
 /* ---- storage mapping ------------------------------------------------------ */
 
-interface StorageMap {
+export interface StorageMap {
   typedefs: string[];
   externDecls: string[];
   /** Tentative definitions — required in every context: they are how
@@ -361,7 +361,7 @@ function baseDepth(expr: SymExpr): number {
  * deterministic mapping — the byte oracle judges it; alternatives can widen
  * this later if the census shows misses.
  */
-function buildStorageMap(
+export function buildStorageMap(
   cells: Map<string, CellUse>,
   index: SymbolIndex,
   ivDeltas: Map<string, number> = new Map(),
@@ -721,7 +721,7 @@ function buildStorageMap(
 
 /* ---- parameters ----------------------------------------------------------- */
 
-interface ParamPlan {
+export interface ParamPlan {
   params: Array<{ name: string; type: string; register: string }>;
   absorbed: Map<string, UnaryOp>;
   label: string;
@@ -813,7 +813,7 @@ export function deriveParamPlans(
 
 /* ---- expression translation ----------------------------------------------- */
 
-function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<string, string>): CExpr {
+export function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<string, string>): CExpr {
   /* A hoisted subexpression (D5 declared-temp axis) is one name. */
   const temp = temps.get(canon(expr));
   if (temp) return id(temp);

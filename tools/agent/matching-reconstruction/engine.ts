@@ -28,6 +28,7 @@ import { fitScanRelation, describeRelation } from "./scan-relation.js";
 import { ensureAccessIndex, deriveOrigins } from "./access-index.js";
 import { constructCandidate, enumerateChoices } from "./construct.js";
 import { constructEffectCandidates, constructGuardedCandidates, fitStraightLineEffects } from "./effect-construct.js";
+import { constructControlFlowCandidates } from "./control-structure.js";
 import {
   MATCHING_RECONSTRUCTION_SCHEMA_VERSION,
   type CandidateOutcome,
@@ -280,10 +281,32 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
         return finish(bundle);
       }
       if ("invalid" in guarded) {
+        /* 2d. Not a guarded structure — try the general control-flow constructor
+         * for read-only, call-free decision trees with joins, mixed return/void,
+         * or structures larger than the guarded bounds. */
+        const controlFlow = constructControlFlowCandidates(functionName, executed.arena, executed.root, executed.loads, container);
+        if ("unresolved" in controlFlow) {
+          bundle.state = "context-unresolved";
+          bundle.unresolved = { state: "context-unresolved", detail: controlFlow.unresolved };
+          return finish(bundle);
+        }
+        if (!("invalid" in controlFlow)) {
+          notify(`  general control-flow structure; ${controlFlow.length} candidate(s)`);
+          evaluate(
+            controlFlow.map((candidate, index) => ({
+              id: `ctrl-${String(index).padStart(3, "0")}-${candidate.label}`,
+              source: candidate.source,
+              integrationPlan: candidate.integrationPlan,
+            })),
+            controlFlow.length,
+          );
+          return finish(bundle);
+        }
+        /* Both constructors failed — report the best detail. */
         bundle.state = "unsupported-target";
         bundle.unresolved = {
           state: "unsupported-target",
-          detail: `not a fixed-stride scan (${fit.reason}); guarded construction: ${guarded.invalid}`,
+          detail: `not a fixed-stride scan (${fit.reason}); guarded construction: ${guarded.invalid}; general control flow: ${controlFlow.invalid}`,
         };
         return finish(bundle);
       }
