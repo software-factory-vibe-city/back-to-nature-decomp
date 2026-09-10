@@ -116,7 +116,7 @@ export function splitAddress(expr: SymExpr): { base: SymExpr; offset: number } |
   let offset = 0;
   let current = expr;
   for (let depth = 0; depth < 8; depth++) {
-    if (current.kind === "entry" || current.kind === "load" || current.kind === "iv") return { base: current, offset };
+    if (current.kind === "entry" || current.kind === "load" || current.kind === "call-result" || current.kind === "iv") return { base: current, offset };
     if (current.kind === "binary" && current.op === "add") {
       const left = current.left;
       const right = current.right;
@@ -174,7 +174,7 @@ export function splitIndexedAddress(
       if (indexTerm) return null; /* at most one index */
       const scale = (term.right.kind === "const") ? (1 << (term.right.value & 31)) : 1;
       indexTerm = { expr: term.left, scale };
-    } else if (term.kind === "entry" || term.kind === "load" || term.kind === "iv") {
+    } else if (term.kind === "entry" || term.kind === "load" || term.kind === "call-result" || term.kind === "iv") {
       baseCandidates.push(term);
     } else {
       /* Any other term (e.g. another add, a pointer of non-standard shape) — refuse. */

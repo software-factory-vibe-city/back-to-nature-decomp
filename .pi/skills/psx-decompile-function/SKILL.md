@@ -81,16 +81,21 @@ session its first classified fact:
   body into the function's source file with the umbrella include, regenerate
   the generated headers, and go straight to Finish.
 - `domain-exhausted` — the machine relation was recovered and every candidate
-  in the bundle compiles. Start from the bundle's closest candidate rather
-  than an m2c draft: it is semantically grounded, and its residual is already
-  a classified starting point for the experiment loop.
+  in the bundle compiles. Start from the bundle's closest candidate
+  (`tools/agent/bestCandidate.ts <fn>` serves the best-effort C with its diff
+  summary) rather than an m2c draft: it is semantically grounded, and its
+  residual is already a classified starting point for the experiment loop.
 - `unsupported-target` / `context-unresolved` — the detail names the blocker
   (calls, computed addressing, symbolic bounds, missing origin evidence)
   before any source exists. Keep it as the session's first fact; it scopes
   which mechanisms the source must express.
 
-Only when the engine produced no usable candidate, generate a first source
-with `psx_m2c` and clean it before step 3 has anything to read.
+Only when the engine produced no usable candidate (unsupported-target or
+context-unresolved, with no `best-effort.c` under
+`build/matchingReconstruction/<fn>/`), generate a first source with `psx_m2c`
+and clean it before step 3 has anything to read. When a best-effort candidate
+does exist, prefer it over m2c — its semantics are grounded in the target's
+actual data flow, and the `psx_residual_objective` loop can start immediately.
 
 **This is the only classification pass you get.** The residual is now
 classified. From here, every diagnostic you run must be followed by an edit and

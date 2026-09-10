@@ -336,6 +336,10 @@ export interface StorageMap {
    *  the delta. A register absent here cannot be advanced in C. */
   pointerSteps: Map<string, string>;
   access: (atom: Atom) => CExpr;
+  /** Cast-form accessor for fallback plans: `*(s16 *)((u8 *)arg0 + 0x1C)`.
+   *  Present when the map contains pointer-based cells and can produce raw
+   *  access expressions without typed views. */
+  rawAccess?: (atom: Atom) => CExpr | undefined;
   integration: string[];
 }
 
@@ -716,6 +720,45 @@ export function buildStorageMap(
       if (!found) throw new Error(`no accessor for ${atomGroup(atom) || "absolute"}+0x${atom.offset.toString(16)}`);
       return found;
     },
+    /* Cast-form fallback accessor: produces `*(type *)((u8 *)base + offset)`.
+     * Returns undefined for absolute cells (which have ordinary accessors via
+     * extern symbols) — those do not need fallback. */
+    rawAccess: (atom) => {
+      if (!atom.base) return undefined;
+      const group = canon(atom.base);
+      if (!group || group === "@sp") return undefined;
+      /* Build base expression from the base's canonical name. */
+      let baseExpr: CExpr;
+      if (atom.base.kind === "entry") {
+        const reg = atom.base.register;
+        const idx = ["a0", "a1", "a2", "a3"].indexOf(reg);
+        if (idx < 0) return undefined;
+        baseExpr = id(`arg${idx}`);
+      } else if (atom.base.kind === "call-result") {
+        baseExpr = id(`callRet${atom.base.seq}`);
+      } else if (atom.base.kind === "iv") {
+        const reg = atom.base.register;
+        const idx = ["a0", "a1", "a2", "a3"].indexOf(reg);
+        if (idx < 0) return undefined;
+        baseExpr = id(`arg${idx}`);
+      } else if (atom.base.kind === "load") {
+        const baseKey = cellKey(atom.base.base ? canon(atom.base.base) : "", atom.base.address, atom.base.width);
+        const baseAccessor = accessors.get(baseKey);
+        if (!baseAccessor) return undefined;
+        baseExpr = baseAccessor;
+      } else {
+        return undefined;
+      }
+      const ptrType = atom.signed ? `s${atom.width * 8}` : `u${atom.width * 8}`;
+      const castBase: CExpr = atom.offset === 0
+        ? { kind: "cast", type: `${ptrType} *`, expr: baseExpr }
+        : { kind: "cast", type: `${ptrType} *`, expr: {
+            kind: "binary", op: "+",
+            left: { kind: "cast", type: "u8 *", expr: baseExpr },
+            right: int(atom.offset, true),
+          } };
+      return { kind: "unaryop", op: "*", expr: castBase };
+    },
   };
 }
 
@@ -812,6 +855,29 @@ export function deriveParamPlans(
 }
 
 /* ---- expression translation ----------------------------------------------- */
+
+/** Collect argument register names referenced in a SymExpr. */
+function collectArgRegs(expr: SymExpr, into: Set<string>): void {
+  switch (expr.kind) {
+    case "entry":
+      if (["a0", "a1", "a2", "a3"].includes(expr.register)) into.add(expr.register);
+      return;
+    case "iv":
+      if (["a0", "a1", "a2", "a3"].includes(expr.register)) into.add(expr.register);
+      return;
+    case "load":
+      if (expr.base) collectArgRegs(expr.base, into);
+      if (expr.index) collectArgRegs(expr.index.expr, into);
+      return;
+    case "unary": return collectArgRegs(expr.operand, into);
+    case "binary":
+      collectArgRegs(expr.left, into);
+      collectArgRegs(expr.right, into);
+      return;
+    case "call-result": return;
+    default: return;
+  }
+}
 
 export function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<string, string>): CExpr {
   /* A hoisted subexpression (D5 declared-temp axis) is one name. */
@@ -931,6 +997,12 @@ export function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps
           };
       }
     }
+    case "call-result": {
+      const key = `CR(${expr.seq},${expr.register})`;
+      const temp = temps.get(key);
+      if (!temp) throw new Error(`call-result CR(${expr.seq},${expr.register}) is not in the temps map — the call producing it was not captured`);
+      return id(temp);
+    }
   }
   throw new Error(`untranslatable expression ${canon(expr)}`);
 }
@@ -1033,6 +1105,7 @@ export function constructEffectCandidates(
 
   const candidates: EffectCandidate[] = [];
   const refedSyms = new Set<string>();
+  const errors: string[] = [];
 
   for (const combo of sigCombos) {
     /* Build merged caps: resolved sigs + this combo's inferred sigs. */
@@ -1280,6 +1353,7 @@ export function constructEffectCandidates(
             }
             if (!isVoidLocal) body.push({ kind: "return", expr: translate(relation.returnValue, map, plan, temps) });
           } catch {
+            errors.push("body construction failed");
             continue;
           }
 
@@ -1316,7 +1390,17 @@ export function constructEffectCandidates(
     }
   }
 
-  if (candidates.length === 0) return { invalid: "no parameter plan could express the relation's values" };
+  if (candidates.length === 0) {
+    /* Report dominant error instead of generic refusal. */
+    const counts = new Map<string, number>();
+    for (const err of errors) {
+      const base = err.slice(0, 80);
+      counts.set(base, (counts.get(base) ?? 0) + 1);
+    }
+    const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    const detail = dominant ? `dominant error (${dominant[1]}/${errors.length}): ${dominant[0]}` : "all axis combinations failed";
+    return { invalid: `no parameter plan could express the relation's values: ${detail}` };
+  }
   return candidates;
 }
 
@@ -1638,6 +1722,7 @@ export function constructGuardedCandidates(
   const advanceStyles: Array<"step" | "trailing"> = loopRefs.size > 0 ? ["step", "trailing"] : ["step"];
 
   const candidates: EffectCandidate[] = [];
+  const errors: string[] = [];
   for (const plan of plans) {
     for (const context of ["standalone", "umbrella"] as const) {
     for (const exitStyle of exitStyles) {
@@ -1970,7 +2055,8 @@ export function constructGuardedCandidates(
           resultAssign = { kind: "assign", target: id("result"), value: translate(sharedReturnValue, map, plan, temps) };
         }
         body = emitNode(root, 0, new Set());
-      } catch {
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
         continue;
       }
       if (hoistReturn && resultAssign) {
@@ -2014,6 +2100,16 @@ export function constructGuardedCandidates(
     }
     }
   }
-  if (candidates.length === 0) return { invalid: "no parameter plan could express the guarded structure" };
+  if (candidates.length === 0) {
+    /* Report dominant error instead of generic refusal. */
+    const counts = new Map<string, number>();
+    for (const err of errors) {
+      const base = err.slice(0, 80);
+      counts.set(base, (counts.get(base) ?? 0) + 1);
+    }
+    const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    const detail = dominant ? `dominant error (${dominant[1]}/${errors.length}): ${dominant[0]}` : "all axis combinations failed";
+    return { invalid: `no parameter plan could express the guarded structure: ${detail}` };
+  }
   return candidates;
 }

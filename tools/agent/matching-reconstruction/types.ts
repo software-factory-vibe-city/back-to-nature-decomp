@@ -342,6 +342,12 @@ export interface ResultBundle {
     /** Context changes an authorized integration would make; never applied here. */
     integrationPlan: string[];
   };
+  /** Best-effort candidate for domain-exhausted functions: the closest we got. */
+  bestEffort?: CandidateOutcome & {
+    source: string;
+    integrationPlan: string[];
+    diffSummary: string;
+  };
   unresolved?: UnresolvedReason;
   /** Input categories the engine read, for the source-hidden evaluation contract. */
   inputsRead: string[];

@@ -47,6 +47,8 @@ import {
   collectAtoms,
   deriveParamPlans,
   translate,
+  resolveCallSignatures,
+  calleeDeclarations,
   type Atom,
   type CellUse,
   type EffectCandidate,
@@ -196,15 +198,19 @@ function flatGuardEstimate(arena: DagArenaLike, root: DagRef): number | undefine
     if (node.kind !== "test") break;
     ref = node.onFalse;
   }
-  /* Count remaining nodes below the last guard's continuation. */
-  const remaining = (function countNodes(r: DagRef): number {
+  /* Count remaining distinct nodes below the last guard's continuation.
+   * Memoized: a shared join point is counted once, not once per path that
+   * reaches it — without this, a heavily-joined DAG re-counts exponentially. */
+  const counted = new Set<DagRef>();
+  const countNodes = (r: DagRef): number => {
+    if (counted.has(r)) return 0;
+    counted.add(r);
     const n = arena.node(r);
-    if (n.kind === "leaf") return 1;
     if (n.kind === "test") return 1 + countNodes(n.onTrue) + countNodes(n.onFalse);
     if (n.kind === "dispatch") return 1 + n.targets.reduce((s, t) => s + countNodes(t), 0);
     return 1;
-  })(ref);
-  return guardDepth + remaining;
+  };
+  return guardDepth + countNodes(ref);
 }
 
 /* ---- Cost-bounded construction ------------------------------------------- */
@@ -609,8 +615,84 @@ export function constructControlFlowCandidates(
   const allVoid = hasVoidLeaves && allReturns.size === 0;
   const returnType = isMixedReturn || allVoid ? "void" : "s32";
 
+  /* 5.5. Collect call effects, resolve signatures, build call-result temps. */
+  const callEffects: Array<{ seq: number; callee: string; calleeName?: string | null; calleeAddress?: number; args: SymExpr[]; indirect?: boolean }> = [];
+  const callResultRefs = new Set<number>();
+  const visitedCalls = new Set<DagRef>();
+  const collectCallsAndResults = (ref: DagRef): void => {
+    if (visitedCalls.has(ref)) return;
+    visitedCalls.add(ref);
+    const node = arena.node(ref);
+    if (node.kind === "leaf") {
+      for (const effect of node.effects) {
+        if (effect.kind === "call") {
+          callEffects.push({
+            seq: effect.seq,
+            callee: effect.callee,
+            args: effect.args,
+            indirect: effect.indirect || false,
+            ...(effect.calleeName !== undefined ? { calleeName: effect.calleeName } : {}),
+            ...(effect.calleeAddress !== undefined ? { calleeAddress: effect.calleeAddress } : {}),
+          });
+          for (const arg of effect.args) walkSymExprForCR(arg, callResultRefs);
+        } else {
+          walkSymExprForCR(effect.value, callResultRefs);
+        }
+      }
+      if (canon(node.value) !== "@v0" && canon(node.value) !== "@__continue") {
+        walkSymExprForCR(node.value, callResultRefs);
+      }
+      return;
+    }
+    if (node.kind === "test") {
+      walkSymExprForCR(node.pred.left, callResultRefs);
+      if (node.pred.right) walkSymExprForCR(node.pred.right, callResultRefs);
+      collectCallsAndResults(node.onTrue);
+      collectCallsAndResults(node.onFalse);
+    } else if (node.kind === "dispatch") {
+      walkSymExprForCR(node.index, callResultRefs);
+      for (const t of node.targets) collectCallsAndResults(t);
+    } else if (node.kind === "loop") {
+      collectCallsAndResults(node.body);
+    }
+  };
+  collectCallsAndResults(root);
+
+  /* Effect-constructor-style resolution. */
+  const { resolved: baseCallCaps } = resolveCallSignatures(
+    callEffects.map((e) => ({ kind: "call", seq: e.seq, callee: e.callee, args: e.args, calleeName: e.calleeName, calleeAddress: e.calleeAddress, indirect: e.indirect || false, resultUsed: false, vram: 0 })),
+    container,
+  );
+  const callCaps = new Map(baseCallCaps);
+  const callResultTemps = new Map<string, string>();
+  for (const seq of callResultRefs) {
+    const cap = callCaps.get(seq);
+    if (!cap || !cap.returnsValue) continue;
+    const tempName = `callRet${seq}`;
+    callResultTemps.set(`CR(${seq},v0)`, tempName);
+  }
+
+  /* Helper: walk a SymExpr looking for call-result references. */
+  function walkSymExprForCR(expr: SymExpr, into: Set<number>): void {
+    if (expr.kind === "call-result") { into.add(expr.seq); return; }
+    if (expr.kind === "unary") { walkSymExprForCR(expr.operand, into); return; }
+    if (expr.kind === "binary") {
+      walkSymExprForCR(expr.left, into);
+      walkSymExprForCR(expr.right, into);
+      return;
+    }
+    if (expr.kind === "load") {
+      if (expr.base) walkSymExprForCR(expr.base, into);
+      if (expr.index) walkSymExprForCR(expr.index.expr, into);
+      return;
+    }
+  }
+
+  const calleeDecls = calleeDeclarations(callCaps);
+
   /* 6. Try emitting candidates through the translation-aware DAG walker. */
   const candidates: ControlFlowCandidate[] = [];
+  const errors: string[] = [];
 
   for (const plan of plans) {
     /* Source-form axes (T4). */
@@ -624,10 +706,11 @@ export function constructControlFlowCandidates(
     for (const joinStyle of joinStyles) {
       try {
         const temps = new Map<string, string>();
+        /* Register call result temps so translate resolves them. */
+        for (const [key, name] of callResultTemps) temps.set(key, name);
         const body = emitDagBody(arena, root, map, plan, temps, {
           exitStyle, polarity, joinStyle, isVoid: allVoid, voidLeaves: allVoidLeaves,
-        });
-        if (!body) continue;
+        }, callCaps, callResultTemps);
 
         const paramsList = plan.params.length === 0
           ? "void"
@@ -645,6 +728,7 @@ export function constructControlFlowCandidates(
           ...map.typedefs.flatMap((t) => [t, ""]),
           ...(context === "standalone" ? map.externDecls.flatMap((d) => [d, ""]) : []),
           ...map.tentativeDefs.flatMap((d) => [d, ""]),
+          ...calleeDecls.flatMap((d) => [d, ""]),
           `${signature} {`,
           ...renderStmts(body, "    "),
           "}",
@@ -657,12 +741,22 @@ export function constructControlFlowCandidates(
           source,
           integrationPlan,
         });
-      } catch { continue; }
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
     }}}}
   }
 
   if (candidates.length === 0) {
-    return { invalid: "no parameter plan could express the control-flow structure" };
+    /* Report dominant error instead of generic refusal. */
+    const counts = new Map<string, number>();
+    for (const err of errors) {
+      const base = err.slice(0, 80);
+      counts.set(base, (counts.get(base) ?? 0) + 1);
+    }
+    const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    const detail = dominant ? `dominant error (${dominant[1]}/${errors.length}): ${dominant[0]}` : "all axis combinations failed";
+    return { invalid: `no parameter plan could express the control-flow structure: ${detail}` };
   }
 
   return candidates;
@@ -894,7 +988,9 @@ export function emitDagBody(
   plan: ParamPlan,
   temps: Map<string, string>,
   options: EmitOptions,
-): CStmt[] | null {
+  callCaps?: Map<number, { calleeName: string; arity: number; returnsValue: boolean; returnType: string }>,
+  callResultTemps?: Map<string, string>,
+): CStmt[] {
   /* The "else" exit style renders leaf returns as a shared temp assignment
    * with a single trailing return — a genuinely different C shape from the
    * early-return form. Only valid when every leaf carries a value; void or
@@ -966,21 +1062,32 @@ export function emitDagBody(
     const stmts: CStmt[] = [];
     for (const effect of effects) {
       if (effect.kind === "call") {
-        stmts.push({
-          kind: "exprstmt",
-          expr: { kind: "call", callee: effect.callee, args: effect.args.map((a) => translate(a, map, plan, temps)) },
-        });
+        const cap = callCaps?.get(effect.seq);
+        const calleeName = effect.calleeName ?? effect.callee;
+        const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
+        const args = capturedArgs.map((a) => translate(a, map, plan, temps));
+        const tempName = callResultTemps?.get(`CR(${effect.seq},v0)`);
+        if (tempName) {
+          stmts.push({ kind: "assign", target: id(tempName), value: { kind: "call", callee: calleeName, args } });
+        } else {
+          stmts.push({ kind: "exprstmt", expr: { kind: "call", callee: calleeName, args } });
+        }
       } else {
-        try {
-          const target = map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true });
-          stmts.push({ kind: "assign", target, value: translate(effect.value, map, plan, temps) });
-        } catch { return []; }
+        const target = map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true });
+        stmts.push({ kind: "assign", target, value: translate(effect.value, map, plan, temps) });
       }
     }
     return stmts;
   };
 
+  /* Tail-duplication re-expands shared join points, so a heavily-joined DAG
+   * can expand combinatorially. Bound the actual expansion work: a pathological
+   * DAG throws here (failing this axis combo fast) instead of grinding for
+   * tens of seconds. The bound is far above any real function's statement
+   * count, so functions that legitimately match are unaffected. */
+  let emitBudget = DEFAULT_COST_BOUND * 100;
   const emit = (ref: DagRef, emitted: number, stopAt?: DagRef): CStmt[] => {
+    if (--emitBudget <= 0) throw new Error("tail-duplication expansion exceeded budget");
     if (stopAt !== undefined && ref === stopAt) return [];
     if (isContinueMarker(arena, ref)) return [{ kind: "continue" }];
     const node = arena.node(ref);
@@ -1118,19 +1225,26 @@ export function emitDagBody(
     return statements;
   };
 
-  try {
-    const body = emit(root, 0);
-    if (elseMode) {
-      /* Wrap the body in: s32 __ret; <body_for_each_leaf_sets __ret>; return __ret; */
-      return [
-        { kind: "declare", type: "s32", name: "__ret" },
-        ...body,
-        { kind: "return", expr: id("__ret") },
-      ];
+  /* Build prologue: call result temp declarations. */
+  const prologue: CStmt[] = [];
+  if (callResultTemps) {
+    for (const [key, name] of callResultTemps) {
+      const seq = Number(key.slice(3, key.indexOf(",")));
+      const cap = callCaps?.get(seq);
+      prologue.push({ kind: "declare", type: cap ? (cap.returnType === "void" ? "s32" : cap.returnType) : "s32", name });
     }
-    return body;
-  } catch {
-    return null;
   }
+
+  const body = emit(root, 0);
+  if (elseMode) {
+    /* Wrap the body in: s32 __ret; <body_for_each_leaf_sets __ret>; return __ret; */
+    return [
+      ...prologue,
+      { kind: "declare", type: "s32", name: "__ret" },
+      ...body,
+      { kind: "return", expr: id("__ret") },
+    ];
+  }
+  return [...prologue, ...body];
 }
 

@@ -122,6 +122,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
 
     let winner: ResultBundle["winner"];
     let undeterminedSeen = 0;
+    let bestEffortCandidate: { outcome: CandidateOutcome; source: string; integrationPlan: string[] } | undefined;
 
     for (const candidate of sources) {
       if (bundle.candidates.length >= maxCandidates) break;
@@ -158,13 +159,19 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
         const oracle = compareFunction(functionName, { objectPath: artifacts.object!, container });
         outcome.verdict = oracle.verdict === "stub" ? "error" : oracle.verdict;
         outcome.matchedWords = oracle.same;
-        outcome.totalWords = Math.max(oracle.targetWords.length, oracle.candidateWords.length);
+        const totalOracleWords = Math.max(oracle.targetWords.length, oracle.candidateWords.length);
+        outcome.totalWords = totalOracleWords;
         outcome.differingVram = oracle.differing.slice(0, 16);
         if (oracle.verdict === "undetermined") undeterminedSeen++;
         if (oracle.verdict === "match") {
           winner = { ...outcome, source: candidate.source, integrationPlan: candidate.integrationPlan };
           notify(`  ${candidate.id}: MATCH (${oracle.same}/${outcome.totalWords})`);
         } else {
+          /* Track best-effort by matched-word ratio. */
+          const diffCount = oracle.differing.length;
+          if (!bestEffortCandidate || diffCount < (bestEffortCandidate.outcome.differingVram?.length ?? 9999)) {
+            bestEffortCandidate = { outcome, source: candidate.source, integrationPlan: candidate.integrationPlan };
+          }
           notify(`  ${candidate.id}: ${outcome.verdict} (${oracle.same}/${outcome.totalWords})`);
         }
       } catch (error) {
@@ -196,6 +203,18 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
         state: "domain-exhausted",
         detail: `all ${bundle.candidates.length} constructible candidates in the bounded domain were evaluated without an exact result`,
       };
+      /* Record best-effort candidate for domain-exhausted. */
+      if (bestEffortCandidate) {
+        const diffSummary = `${bestEffortCandidate.outcome.matchedWords}/${bestEffortCandidate.outcome.totalWords} words match, ${bestEffortCandidate.outcome.differingVram?.length ?? 0} differing locations`;
+        bundle.bestEffort = {
+          ...bestEffortCandidate.outcome,
+          source: bestEffortCandidate.source,
+          integrationPlan: bestEffortCandidate.integrationPlan,
+          diffSummary,
+        };
+        /* Persist best-effort C file. */
+        writeFileSync(join(outputDirectory, "best-effort.c"), bestEffortCandidate.source);
+      }
     }
   };
 
