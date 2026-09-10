@@ -28,7 +28,6 @@ import { sha256File, writeStableJson } from "../agent/provenance.js";
 import { groupHeadingOf } from "../agent/fileGroupings.js";
 import { runM2c } from "../agent/m2cFunc.js";
 import { decodeBytes } from "../agent/matching-reconstruction/exec.js";
-import { STANDALONE_TYPEDEF_BLOCK } from "../agent/matching-reconstruction/construct.js";
 import { reconstructFunction } from "../agent/matching-reconstruction/engine.js";
 import type { ResultBundle } from "../agent/matching-reconstruction/types.js";
 
@@ -74,6 +73,9 @@ export function censusCategory(result: ResultBundle): string {
   if (result.state === "context-unresolved") return "context-unresolved (relation fits; origin evidence missing)";
   if (result.state === "budget-exhausted") return "budget-exhausted";
   if (result.state === "tool-failure") return "tool-failure";
+  /* CR(n,reg) — call result as predicate/value/return. */
+  if (detail.includes("call-result")) return "call-result referenced without a temp binding";
+  if (detail.includes("CR(")) return "call-result (CR) in predicate or value expression";
   /* S3 categories: calls whose callee signature could not be recovered are
    * now honest refusals (state unsupported-target) with a specific reason,
    * no longer "no parameter plan". */
@@ -82,6 +84,10 @@ export function censusCategory(result: ResultBundle): string {
   }
   if (detail.includes("returns void — the CR atom")) {
     return "void callee whose result the caller reads";
+  }
+  /* Not plain C: coprocessor, handwritten, undecoded ops. */
+  if (detail.includes("undecoded operation") || detail.includes("coprocessor") || detail.includes("handwritten")) {
+    return "not plain C (coprocessor/handwritten/undecoded)";
   }
   const stores = detail.includes("stores memory");
   const calls = detail.includes("calls another function");
@@ -215,7 +221,11 @@ function m2cBaseline(name: string): { verdict: string; detail: string } {
     const directory = join(ROOT, "build/matchingReconstruction/m2c-baseline", name);
     mkdirSync(directory, { recursive: true });
     const sourcePath = join(directory, `${name}.c`);
-    writeFileSync(sourcePath, `${STANDALONE_TYPEDEF_BLOCK}\n\n${draft}`);
+    /* runM2c already prepends #include "common.h", which defines s16/u16/etc.
+     * Prepending STANDALONE_TYPEDEF_BLOCK on top re-typedefs them, and GCC
+     * 2.95 rejects duplicate typedefs — failing every m2c draft on a harness
+     * artifact rather than a real defect. Compile the draft as-is. */
+    writeFileSync(sourcePath, draft);
     const location = requireFunctionLocation(name);
     const artifacts = compileSource(sourcePath, directory, name, {
       assemble: true, useOverrides: false, containerKind: location.container.kind,

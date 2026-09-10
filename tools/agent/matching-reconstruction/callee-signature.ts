@@ -160,6 +160,19 @@ function exeHeaderPath(): string | null {
  * For a callee defined in the exe but called from an overlay, also searches
  * `include/functions.h` as a fallback (cross-container reference).
  */
+/* A generated header is parsed once per run and reused: resolveSignature is
+ * called once per call site, and a function with hundreds of call sites would
+ * otherwise re-read and tree-sitter-parse the whole header hundreds of times
+ * (seconds per function). The headers do not change during a run. */
+const parsedHeaderCache = new Map<string, ReturnType<typeof parseC>>();
+function parsedHeader(path: string): ReturnType<typeof parseC> {
+  const cached = parsedHeaderCache.get(path);
+  if (cached) return cached;
+  const tree = parseC(readFileSync(path, "utf-8"));
+  parsedHeaderCache.set(path, tree);
+  return tree;
+}
+
 function matchedDefinition(callee: string, container: Container): SignatureResult | null {
   const matched = definitionPrototype(callee);
   if (!matched) return null;
@@ -169,7 +182,7 @@ function matchedDefinition(callee: string, container: Container): SignatureResul
   const ownHeader = generatedHeaderPath(container);
   if (ownHeader) {
     try {
-      const tree = parseC(readFileSync(ownHeader, "utf-8"));
+      const tree = parsedHeader(ownHeader);
       const parsed = parseHeaderSignature(callee, tree);
       if (parsed) {
         return {
@@ -191,7 +204,7 @@ function matchedDefinition(callee: string, container: Container): SignatureResul
     const exeHeader = exeHeaderPath();
     if (exeHeader) {
       try {
-        const tree = parseC(readFileSync(exeHeader, "utf-8"));
+        const tree = parsedHeader(exeHeader);
         const parsed = parseHeaderSignature(callee, tree);
         if (parsed) {
           return {
@@ -379,6 +392,14 @@ export function inferSignatureRange(
  * @param container The container in which the call site lives — used to pick
  *                the generated header (functions.h vs overlays/<id>.h).
  */
+/* resolveSignature is pure in (name, address, container) for a process run,
+ * but its tiers are expensive — tier 3 (abiEvidence/targetWitness) assembles
+ * and disassembles the callee's target code. A caller with hundreds of call
+ * sites resolves the same handful of callees repeatedly; without this the
+ * signature pass alone costs tens of seconds per such function. Memoized for
+ * the process lifetime. */
+const signatureCache = new Map<string, SignatureResult>();
+
 export function resolveSignature(
   name: string | null | undefined,
   address: number | undefined,
@@ -387,6 +408,19 @@ export function resolveSignature(
   if (!name) {
     return { unknown: address === undefined ? "indirect call target is not resolvable to a symbol" : `no symbol resolves the call target 0x${(address >>> 0).toString(16)}` };
   }
+  const cacheKey = `${container.id}|${name}|${address ?? ""}`;
+  const cached = signatureCache.get(cacheKey);
+  if (cached) return cached;
+  const result = computeSignature(name, address, container);
+  signatureCache.set(cacheKey, result);
+  return result;
+}
+
+function computeSignature(
+  name: string,
+  address: number | undefined,
+  container: Container,
+): SignatureResult {
   const matched = matchedDefinition(name, container);
   if (matched) return matched;
   const sdk = sdkPrototype(name);

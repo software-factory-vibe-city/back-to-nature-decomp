@@ -326,7 +326,21 @@ function definesFunction(text: string, callee: string): boolean {
  * A definition is a stronger witness than any declaration of the same
  * function, because it is the thing the declaration is supposed to describe.
  */
+/* One process resolves the same callee once per call site — a function with
+ * hundreds of call sites would otherwise sweep and read its whole source
+ * directory hundreds of times (seconds per caller). Memoized for the process
+ * lifetime; the reconstruction census never mutates source mid-run. `has()`
+ * distinguishes a cached "no definition" (undefined) from an uncached miss. */
+const definitionPrototypeCache = new Map<string, Prototype | undefined>();
+
 export function definitionPrototype(callee: string): Prototype | undefined {
+  if (definitionPrototypeCache.has(callee)) return definitionPrototypeCache.get(callee);
+  const result = computeDefinitionPrototype(callee);
+  definitionPrototypeCache.set(callee, result);
+  return result;
+}
+
+function computeDefinitionPrototype(callee: string): Prototype | undefined {
   /* Scoped to the callee's own container: an overlay's translation units live
      under its own source directory, and the executable's under the project's.
      Sweeping the wrong directory answers "no definition" for every overlay
