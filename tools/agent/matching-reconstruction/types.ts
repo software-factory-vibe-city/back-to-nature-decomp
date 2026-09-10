@@ -50,17 +50,34 @@ export type SymExpr =
       signed: boolean;
       /** Symbolic base (an argument pointer, or a loaded pointer value). */
       base?: SymExpr | undefined;
+      /** Scaled index for array-style addressing (D3). */
+      index?: { expr: SymExpr; scale: number } | undefined;
       /** Distinguishes re-reads after a potentially-aliasing store. */
       epoch?: number | undefined;
     }
   | { kind: "unary"; op: UnaryOp; operand: SymExpr }
-  | { kind: "binary"; op: BinaryOp; left: SymExpr; right: SymExpr };
+  | { kind: "binary"; op: BinaryOp; left: SymExpr; right: SymExpr }
+  | {
+      /** The value a call leaves in a register (D6): opaque until bound. */
+      kind: "call-result";
+      seq: number;
+      register: string;
+    }
+  | {
+      /** A loop induction variable's value at the current iteration (D7). */
+      kind: "iv";
+      /** The register that advances (a0, a1, ...). */
+      register: string;
+      /** Constant advance per iteration. */
+      delta: number;
+    };
 
 export type UnaryOp = "zext8" | "zext16" | "sext8" | "sext16";
 export type BinaryOp =
   | "add" | "sub" | "and" | "or" | "xor" | "nor"
   | "sll" | "srl" | "sra"
-  | "sltS" | "sltU";
+  | "sltS" | "sltU"
+  | "mulLo" | "mulHiS" | "mulHiU" | "divS" | "divU" | "remS" | "remU";
 
 /** A branch condition, normalized so loads sit on the left when present. */
 export interface Predicate {
@@ -78,6 +95,7 @@ export interface Predicate {
  * as the assignment-order hint for construction.
  */
 export interface StoreEffect {
+  kind: "store";
   /** Absolute address — or, when `base` is present, the offset from it. */
   address: number;
   width: 1 | 2 | 4;
@@ -86,9 +104,27 @@ export interface StoreEffect {
   vram: number;
   /** Symbolic base for pointer-relative stores. */
   base?: SymExpr | undefined;
+  /** Scaled index for array-style addressing. */
+  index?: { expr: SymExpr; scale: number } | undefined;
   /** The access went through `$gp` — small-data addressing, a TU-ownership fact. */
   viaGp?: boolean | undefined;
 }
+
+export interface CallEffect {
+  kind: "call";
+  /** Resolved callee name — or the unresolved target address. */
+  callee: string;
+  /** Sequence number within the effect log. */
+  seq: number;
+  /** VRAM of the jal/jalr instruction. */
+  vram: number;
+  /** Argument register snapshot (a0..a3) at the call site. */
+  args: SymExpr[];
+  /** Whether `call-result` values from this call are used by later expressions. */
+  resultUsed: boolean;
+}
+
+export type Effect = StoreEffect | CallEffect;
 
 /**
  * The recovered machine relation: a decision DAG over load atoms and argument
@@ -99,8 +135,24 @@ export interface StoreEffect {
 export type DagRef = number;
 
 export type DagNode =
-  | { kind: "leaf"; value: SymExpr; effects: StoreEffect[] }
-  | { kind: "test"; pred: Predicate; onTrue: DagRef; onFalse: DagRef };
+  | { kind: "leaf"; value: SymExpr; effects: Effect[] }
+  | { kind: "test"; pred: Predicate; onTrue: DagRef; onFalse: DagRef }
+  | { kind: "dispatch"; index: SymExpr; targets: DagRef[] }
+  | {
+      kind: "loop";
+      /** Induction registers and their per-iteration advances. */
+      induction: Array<{ register: string; delta: number }>;
+      /** One full iteration from the loop head: exit paths end in ordinary
+       *  return leaves, and every path that reaches the head again ends in
+       *  the continue-marker leaf (canon `@__continue`). Induction advances
+       *  are NOT in the DAG — they are the `induction` list, realized by the
+       *  constructor as the loop's step clause so every continue path
+       *  applies them exactly once. */
+      body: DagRef;
+    };
+
+/** Sentinel ref inside a loop body mapping back to the loop's own head. */
+export const LOOP_BACK: DagRef = -2;
 
 /* ---- the recovered scan relation ---------------------------------------- */
 
@@ -157,7 +209,7 @@ export interface ScanRelation {
  */
 export interface EffectRelation {
   kind: "straight-line-effects";
-  effects: StoreEffect[];
+  effects: Effect[];
   /** The returned value; `entry v0` means the caller receives nothing. */
   returnValue: SymExpr;
   evidence: string[];

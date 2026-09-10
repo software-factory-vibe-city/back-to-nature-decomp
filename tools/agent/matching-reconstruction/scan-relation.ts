@@ -88,6 +88,8 @@ function parseRecordChains(arena: DagArena, entry: DagRef, maxTests = 8): Parsed
       }
       return;
     }
+    /* Dispatch and loop nodes belong to other relation classes. */
+    if (node.kind !== "test") return;
     const pred = node.pred;
     if (pred.op !== "eq" || pred.right === undefined) return;
     const sides = [

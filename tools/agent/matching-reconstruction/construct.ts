@@ -25,7 +25,7 @@ import type {
 
 export type CBinaryOp =
   | "==" | "!=" | "&&" | "<" | "<=" | ">" | ">="
-  | "+" | "-" | "*"
+  | "+" | "-" | "*" | "/" | "%"
   | "<<" | ">>"
   | "&" | "|" | "^";
 
@@ -35,26 +35,30 @@ export type CExpr =
   | { kind: "index"; base: CExpr; index: CExpr }
   | { kind: "member"; base: CExpr; field: string; arrow: boolean }
   | { kind: "cast"; type: string; expr: CExpr }
-  | { kind: "unaryop"; op: "~" | "-"; expr: CExpr }
+  | { kind: "unaryop"; op: "~" | "-" | "!"; expr: CExpr }
   | { kind: "postfix"; op: "++" | "--"; expr: CExpr }
   | { kind: "prefix"; op: "++" | "--"; expr: CExpr }
-  | { kind: "binary"; op: CBinaryOp; left: CExpr; right: CExpr };
+  | { kind: "binary"; op: CBinaryOp; left: CExpr; right: CExpr }
+  | { kind: "call"; callee: string; args: CExpr[] };
 
 export type CStmt =
   | { kind: "assign"; target: CExpr; value: CExpr }
   | { kind: "exprstmt"; expr: CExpr }
   | { kind: "declare"; type: string; name: string; init?: CExpr }
   | { kind: "if"; cond: CExpr; body: CStmt[]; elseBody?: CStmt[] }
-  | { kind: "for"; init: string; cond: CExpr; step: string; body: CStmt[] }
+  | { kind: "for"; init: string; cond?: CExpr | undefined; step: string; body: CStmt[] }
   | { kind: "return"; expr?: CExpr }
-  | { kind: "break" };
+  | { kind: "break" }
+  | { kind: "continue" }
+  | { kind: "while"; cond: CExpr; body: CStmt[] }
+  | { kind: "switch"; expr: CExpr; cases: Array<{ values: CExpr[]; body: CStmt[] }>; defaultBody?: CStmt[] };
 
 export const id = (name: string): CExpr => ({ kind: "id", name });
 export const int = (value: number, hex = false): CExpr => ({ kind: "int", value, hex });
 
 /* C's own precedence order, compressed; only relative order matters here. */
 const PRECEDENCE: Record<string, number> = {
-  "*": 13, "+": 12, "-": 12, "<<": 11, ">>": 11,
+  "*": 13, "/": 13, "%": 13, "+": 12, "-": 12, "<<": 11, ">>": 11,
   "<": 10, "<=": 10, ">": 10, ">=": 10,
   "==": 9, "!=": 9, "&": 8, "^": 7, "|": 6, "&&": 5,
 };
@@ -73,11 +77,13 @@ export function renderExpr(expr: CExpr, parentPrecedence = 0): string {
     case "member": return `${renderExpr(expr.base, 15)}${expr.arrow ? "->" : "."}${expr.field}`;
     case "cast": return `((${expr.type})${renderExpr(expr.expr, 15)})`;
     case "unaryop": {
-      const text = `${expr.op}${renderExpr(expr.expr, 14)}`;
+      const innerPrecedence = expr.op === "!" ? 0 : 14;
+      const text = `${expr.op}${renderExpr(expr.expr, innerPrecedence)}`;
       return parentPrecedence > 14 ? `(${text})` : text;
     }
     case "postfix": return `${renderExpr(expr.expr, 15)}${expr.op}`;
     case "prefix": return `${expr.op}${renderExpr(expr.expr, 14)}`;
+    case "call": return `${expr.callee}(${expr.args.map((arg) => renderExpr(arg)).join(", ")})`;
     case "binary": {
       const precedence = PRECEDENCE[expr.op]!;
       const text = `${renderExpr(expr.left, precedence)} ${expr.op} ${renderExpr(expr.right, precedence + 1)}`;
@@ -108,17 +114,46 @@ export function renderStmts(stmts: CStmt[], indent: string): string[] {
         }
         lines.push(`${indent}}`);
         break;
-      case "for":
-        lines.push(`${indent}for (${stmt.init}; ${renderExpr(stmt.cond)}; ${stmt.step}) {`);
+      case "for": {
+        /* An empty head renders as the idiomatic infinite loop `for (;; step)`. */
+        const head = stmt.init === "" && !stmt.cond
+          ? (stmt.step === "" ? ";;" : `;; ${stmt.step}`)
+          : `${stmt.init}; ${stmt.cond ? renderExpr(stmt.cond) : ""}; ${stmt.step}`;
+        lines.push(`${indent}for (${head}) {`);
         lines.push(...renderStmts(stmt.body, `${indent}    `));
         lines.push(`${indent}}`);
         break;
+      }
       case "return":
         lines.push(stmt.expr ? `${indent}return ${renderExpr(stmt.expr)};` : `${indent}return;`);
         break;
       case "break":
         lines.push(`${indent}break;`);
         break;
+      case "continue":
+        lines.push(`${indent}continue;`);
+        break;
+      case "while":
+        lines.push(`${indent}while (${renderExpr(stmt.cond)}) {`);
+        lines.push(...renderStmts(stmt.body, `${indent}    `));
+        lines.push(`${indent}}`);
+        break;
+      case "switch": {
+        lines.push(`${indent}switch (${renderExpr(stmt.expr)}) {`);
+        for (const entry of stmt.cases) {
+          for (const value of entry.values) {
+            lines.push(`${indent}    case ${renderExpr(value)}:`);
+          }
+          lines.push(...renderStmts(entry.body, `${indent}        `));
+          lines.push(`${indent}        break;`);
+        }
+        if (stmt.defaultBody) {
+          lines.push(`${indent}    default:`);
+          lines.push(...renderStmts(stmt.defaultBody, `${indent}        `));
+        }
+        lines.push(`${indent}}`);
+        break;
+      }
     }
   }
   return lines;

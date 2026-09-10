@@ -21,6 +21,7 @@
 import { loadSymbolIndex, resolveAddress, type SymbolIndex } from "../../lib/symbolIndex.js";
 import type { Container } from "../../lib/container.js";
 import { canon, type LoadMeta } from "./exec.js";
+import { recognizeDivision } from "./idioms.js";
 import {
   type CExpr,
   type CStmt,
@@ -30,22 +31,48 @@ import {
   int,
   renderStmts,
 } from "./construct.js";
-import type { EffectRelation, StoreEffect, SymExpr, UnaryOp } from "./types.js";
+import type { CallEffect, Effect, EffectRelation, StoreEffect, SymExpr, UnaryOp } from "./types.js";
+
+/* ---- division idiom resolution (D2) --------------------------------------- */
+
+/**
+ * Before translating an expression through `translate`, try to recover a
+ * constant-divisor `/` or `%` that the compiler replaced with a multiply-high
+ * or shift sequence. When the recognizer succeeds, replace the expression
+ * with one that `translate` can render directly.
+ */
+function resolveDivision(expr: SymExpr): SymExpr {
+  const recognized = recognizeDivision(expr);
+  if (!recognized) return expr;
+  const divisorExpr: SymExpr = { kind: "const", value: recognized.divisor >>> 0 };
+  if (recognized.op === "/") {
+    return { kind: "binary", op: "divS", left: recognized.operand, right: divisorExpr };
+  } else {
+    return { kind: "binary", op: "remS", left: recognized.operand, right: divisorExpr };
+  }
+}
 
 /* ---- fit ------------------------------------------------------------------ */
 
 const ENTRY_V0: SymExpr = { kind: "entry", register: "v0" };
 
+/** Stack-frame stores (spills and locals) are calling convention, not source. */
+const isSpStore = (effect: { base?: SymExpr | undefined; kind?: string }): boolean =>
+  effect.kind === undefined || effect.kind === "store"
+    ? effect.base !== undefined && canon(effect.base) === "@sp"
+    : false;
+
 export function fitStraightLineEffects(
   leafValue: SymExpr,
-  effects: StoreEffect[],
+  effects: Effect[],
 ): EffectRelation | { unfit: string } {
   /* No stores and no returned value is still a relation: the empty function. */
+  const sourceEffects = effects.filter((effect) => effect.kind !== "call" && !isSpStore(effect)) as StoreEffect[];
   return {
     kind: "straight-line-effects",
-    effects,
+    effects: sourceEffects,
     returnValue: leafValue,
-    evidence: [`${effects.length} store(s) in machine order; return ${canon(leafValue)}`],
+    evidence: [`${sourceEffects.length} store(s) in machine order; return ${canon(leafValue)}`],
   };
 }
 
@@ -56,18 +83,28 @@ interface Atom {
   offset: number;
   width: 1 | 2 | 4;
   signed: boolean;
+  /** Scaled index for array-style addressing (D3). */
+  index?: { expr: SymExpr; scale: number } | undefined;
 }
 
-const atomGroup = (atom: Atom): string => (atom.base ? canon(atom.base) : "");
+const atomGroup = (atom: Atom): string => {
+  if (atom.base) {
+    const base = canon(atom.base);
+    if (atom.index) return `${base}[${canon(atom.index.expr)}*${atom.index.scale}]`;
+    return base;
+  }
+  return "";
+};
 const cellKey = (group: string, offset: number, width: number): string => `${group}|${offset}|${width}`;
 
-/** Every load atom in an expression, including the atoms inside pointer bases. */
+/** Every load atom in an expression, including the atoms inside pointer bases and indexes. */
 function collectAtoms(expr: SymExpr, into: Map<string, Atom>): void {
   switch (expr.kind) {
     case "load": {
-      const atom: Atom = { base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed };
-      into.set(`${canon({ ...expr, epoch: undefined })}`, atom);
+      const atom: Atom = { base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed, index: expr.index };
+      into.set(`${atomGroup(atom)}|${atom.offset}|${atom.width}|${atom.index ? canon(atom.index.expr) : ""}`, atom);
       if (expr.base) collectAtoms(expr.base, into);
+      if (expr.index) collectAtoms(expr.index.expr, into);
       return;
     }
     case "unary": return collectAtoms(expr.operand, into);
@@ -97,12 +134,18 @@ interface StorageMap {
   tentativeDefs: string[];
   /** Pointer-typed parameters, by register. */
   pointerParams: Map<string, string>;
+  /** Loop step text per induction register (`arg0++`, `arg0 += 2`), for
+   *  registers whose IV group maps to a pointer whose pointee size divides
+   *  the delta. A register absent here cannot be advanced in C. */
+  pointerSteps: Map<string, string>;
   access: (atom: Atom) => CExpr;
   integration: string[];
 }
 
 interface SymbolicGroup {
   group: string;
+  /** Every raw group key merged into this one (`@a0`, `IV(a0,2)`, …). */
+  groups: string[];
   base: SymExpr;
   viewName: string;
   cells: CellUse[];
@@ -112,6 +155,7 @@ interface SymbolicGroup {
 
 function baseDepth(expr: SymExpr): number {
   if (expr.kind === "load" && expr.base) return 1 + baseDepth(expr.base);
+  if (expr.kind === "iv" || expr.kind === "entry") return 0;
   return 1;
 }
 
@@ -123,40 +167,80 @@ function baseDepth(expr: SymExpr): number {
 function buildStorageMap(
   cells: Map<string, CellUse>,
   index: SymbolIndex,
+  ivDeltas: Map<string, number> = new Map(),
 ): StorageMap | { invalid: string } | { unresolved: string } {
   const typedefs: string[] = [];
   const externDecls: string[] = [];
   const tentativeDefs: string[] = [];
   const integration: string[] = [];
   const pointerParams = new Map<string, string>();
+  const pointerSteps = new Map<string, string>();
   const accessors = new Map<string, CExpr>();
+  /* Base accessors for indexed groups, keyed by the canonical base expression. */
+  const indexedBaseAccessors = new Map<string, CExpr>();
 
-  /* Symbolic groups, deepest chains first so child views precede the views
-   * and declarations that name them. */
-  const symbolicGroups: SymbolicGroup[] = [];
+  /* Separate cells by group. */
   const byGroup = new Map<string, CellUse[]>();
   for (const cell of cells.values()) {
     const group = atomGroup(cell);
     byGroup.set(group, [...(byGroup.get(group) ?? []), cell]);
   }
-  let viewIndex = 0;
+
+  /* ---- split into absolute, plain symbolic, and indexed symbolic groups --- */
+  const plainGroups: Array<{ group: string; cells: CellUse[] }> = [];
+  const indexedGroups: Array<{ group: string; cells: CellUse[] }> = [];
+  let hasSpAccess = false;
   for (const [group, groupCells] of byGroup) {
+    if (group === "") { plainGroups.push({ group, cells: groupCells }); continue; }
+    /* Stack spills and locals are calling convention, not source: drop them
+     * from the storage map entirely, rejecting any access that survives
+     * (unforwarded load from sp → escape). */
+    if (group === "@sp" || group.startsWith("@sp[")) {
+      hasSpAccess = true;
+      continue;
+    }
+    if (groupCells.some((cell) => cell.index)) {
+      indexedGroups.push({ group, cells: groupCells });
+    } else {
+      plainGroups.push({ group, cells: groupCells });
+    }
+  }
+
+  /* ---- plain symbolic groups ---------------------------------------------- */
+  /* An IV base and its underlying argument register are ONE storage object:
+   * IV(a0,2) is just a0 as seen mid-loop. Merge groups by effective base so
+   * pre-loop and in-loop accesses share one view (and one typedef name). */
+  const symbolicGroups: SymbolicGroup[] = [];
+  const byEffectiveBase = new Map<string, SymbolicGroup>();
+  let viewIndex = 0;
+  for (const { group, cells: groupCells } of plainGroups) {
     if (group === "") continue;
     const base = groupCells[0]!.base!;
-    if (base.kind === "entry") {
-      if (!["a0", "a1", "a2", "a3"].includes(base.register)) {
+    const effectiveBase = base.kind === "iv" ? { kind: "entry" as const, register: base.register } : base;
+    if (effectiveBase.kind === "entry") {
+      if (!["a0", "a1", "a2", "a3"].includes(effectiveBase.register)) {
         return { invalid: `pointer base ${canon(base)} is not an argument register` };
       }
-    } else if (base.kind !== "load") {
+    } else if (effectiveBase.kind !== "load") {
       return { invalid: `pointer base ${canon(base)} is neither an argument nor a loaded pointer` };
     }
-    symbolicGroups.push({
+    const mergeKey = canon(effectiveBase);
+    const existing = byEffectiveBase.get(mergeKey);
+    if (existing) {
+      existing.cells.push(...groupCells);
+      existing.groups.push(group);
+      continue;
+    }
+    const created: SymbolicGroup = {
       group,
-      base,
-      viewName: base.kind === "entry" ? `Recon${base.register.toUpperCase()}View` : `ReconPointee${viewIndex++}View`,
+      groups: [group],
+      base: effectiveBase,
+      viewName: effectiveBase.kind === "entry" ? `Recon${effectiveBase.register.toUpperCase()}View` : `ReconPointee${viewIndex++}View`,
       cells: groupCells,
-      depth: baseDepth(base),
-    });
+      depth: baseDepth(effectiveBase),
+    };
+    byEffectiveBase.set(mergeKey, created);
+    symbolicGroups.push(created);
   }
   symbolicGroups.sort((a, b) => b.depth - a.depth || a.group.localeCompare(b.group));
 
@@ -173,8 +257,14 @@ function buildStorageMap(
 
   const fieldName = (offset: number): string => `unk${offset.toString(16).toUpperCase()}`;
 
-  /** Emit one view struct over a group's cells; returns the typedef text. */
-  const viewTypedef = (viewName: string, groupCells: CellUse[]): string | { invalid: string } => {
+  /** Emit one view struct over a group's cells; returns the typedef text and
+   *  the struct's byte size. `strideTo` pads the tail so the pointee size
+   *  equals a loop induction's advance and `pointer++` walks one record. */
+  const viewTypedef = (
+    viewName: string,
+    groupCells: CellUse[],
+    strideTo?: number,
+  ): { text: string; size: number } | { invalid: string } => {
     const byOffset = new Map<number, CellUse>();
     for (const cell of groupCells) {
       const existing = byOffset.get(cell.offset);
@@ -195,8 +285,15 @@ function buildStorageMap(
       lines.push(`    ${type}${type.endsWith("*") ? "" : " "}${fieldName(offset)};`);
       cursor = offset + cell.width;
     }
+    if (strideTo !== undefined) {
+      if (cursor > strideTo) return { invalid: `fields of ${viewName} extend past its induction stride ${strideTo}` };
+      if (cursor < strideTo) {
+        lines.push(`    char pad_${cursor.toString(16).toUpperCase()}[0x${(strideTo - cursor).toString(16).toUpperCase()}];`);
+        cursor = strideTo;
+      }
+    }
     lines.push("}");
-    return `${lines.join("\n")} ${viewName};`;
+    return { text: `${lines.join("\n")} ${viewName};`, size: cursor };
   };
 
   /* Symbolic groups: parameter pointers and loaded pointers. Their accessors
@@ -236,10 +333,13 @@ function buildStorageMap(
 
   /* Deepest symbolic views first, then absolute declarations, then shallower
    * accessor wiring — typedefs are emitted in that order too. */
+  const viewSizes = new Map<string, number>();
   for (const symbolicGroup of symbolicGroups) {
-    const typedef = viewTypedef(symbolicGroup.viewName, symbolicGroup.cells);
-    if (typeof typedef !== "string") return typedef;
-    typedefs.push(typedef);
+    const stride = symbolicGroup.base.kind === "entry" ? ivDeltas.get(symbolicGroup.base.register) : undefined;
+    const typedef = viewTypedef(symbolicGroup.viewName, symbolicGroup.cells, stride !== undefined ? Math.abs(stride) : undefined);
+    if ("invalid" in typedef) return typedef;
+    typedefs.push(typedef.text);
+    viewSizes.set(symbolicGroup.viewName, typedef.size);
   }
 
   for (const group of [...absoluteBySymbol.values()].sort((a, b) => a.base - b.base)) {
@@ -259,8 +359,8 @@ function buildStorageMap(
     const viewName = `Recon${group.symbol.replace(/\W/g, "")}View`;
     const shifted = group.cells.map((cell) => ({ ...cell, offset: cell.offset - group.base }));
     const typedef = viewTypedef(viewName, shifted);
-    if (typeof typedef !== "string") return typedef;
-    typedefs.push(typedef);
+    if ("invalid" in typedef) return typedef;
+    typedefs.push(typedef.text);
     if (group.viaGp) {
       tentativeDefs.push(`${viewName} ${group.symbol};`);
       integration.push(`${group.symbol} is $gp-relative small data; the view type and tentative definition must live with its owning translation unit`);
@@ -283,11 +383,13 @@ function buildStorageMap(
     }
   }
 
-  /* Now wire symbolic accessors, shallowest first, so bases resolve. */
+  /* Now wire symbolic accessors, shallowest first. A merged group registers
+   * each cell under its own raw group key (`@a0` and `IV(a0,2)` alike), which
+   * is the key the access lookup computes from the atom. */
   for (const symbolicGroup of [...symbolicGroups].sort((a, b) => a.depth - b.depth)) {
     const lvalue = baseLvalue(symbolicGroup.base);
     if (!("kind" in lvalue)) return lvalue;
-    symbolicAccessorBase.set(symbolicGroup.group, lvalue);
+    for (const raw of symbolicGroup.groups) symbolicAccessorBase.set(raw, lvalue);
     if (symbolicGroup.base.kind === "entry") {
       pointerParams.set(symbolicGroup.base.register, `${symbolicGroup.viewName} *`);
       integration.push(`the ${symbolicGroup.base.register} parameter is a ${symbolicGroup.viewName} pointer; move the typedef to the shared type header`);
@@ -295,12 +397,107 @@ function buildStorageMap(
       integration.push(`the ${symbolicGroup.viewName} typedef belongs in the shared type header`);
     }
     for (const cell of symbolicGroup.cells) {
-      accessors.set(cellKey(symbolicGroup.group, cell.offset, cell.width), {
+      accessors.set(cellKey(atomGroup(cell), cell.offset, cell.width), {
         kind: "member",
         base: lvalue,
         field: fieldName(cell.offset),
         arrow: true,
       });
+    }
+    /* The loop step this pointer realizes, when its stride divides the delta. */
+    if (symbolicGroup.base.kind === "entry") {
+      const delta = ivDeltas.get(symbolicGroup.base.register);
+      const size = viewSizes.get(symbolicGroup.viewName);
+      if (delta !== undefined && size !== undefined && size > 0 && Math.abs(delta) % size === 0) {
+        const name = `arg${["a0", "a1", "a2", "a3"].indexOf(symbolicGroup.base.register)}`;
+        const count = Math.abs(delta) / size;
+        const text = delta > 0
+          ? (count === 1 ? `${name}++` : `${name} += ${count}`)
+          : (count === 1 ? `${name}--` : `${name} -= ${count}`);
+        pointerSteps.set(symbolicGroup.base.register, text);
+      }
+    }
+  }
+
+  /* ---- indexed groups: array access --------------------------------------- */
+  for (const { group, cells: groupCells } of indexedGroups) {
+    const base = groupCells[0]!.base!;
+    if (!groupCells[0]!.index) {
+      return { invalid: `indexed group ${group} has no index on its first cell` };
+    }
+    const scale = groupCells[0]!.index!.scale;
+
+    /* Validate: all offsets must be < scale (within element) or multiples of scale (next element). */
+    for (const cell of groupCells) {
+      if (cell.offset < 0 || cell.offset >= scale) {
+        return { invalid: `indexed group ${group} has offset 0x${cell.offset.toString(16)} >= scale ${scale}` };
+      }
+    }
+
+    /* Determine if plain array or struct array. */
+    const offsets = [...new Set(groupCells.map((c) => c.offset))].sort((a, b) => a - b);
+    const isSimple = offsets.length === 1 && offsets[0] === 0;
+
+    /* Resolve the base expression. */
+    let baseExpr: CExpr | { invalid: string } | undefined;
+    if (base.kind === "entry") {
+      const idx = ["a0", "a1", "a2", "a3"].indexOf(base.register);
+      if (idx < 0) return { invalid: `indexed base ${canon(base)} is not an argument register` };
+      if (isSimple) {
+        const elemType = elementType(groupCells[0]!.width, groupCells[0]!.signed);
+        pointerParams.set(base.register, `${elemType} *`);
+        integration.push(`the ${base.register} parameter is a ${elemType} array pointer`);
+      } else {
+        /* Struct array: emit a view typedef with stride = scale. */
+        const viewName = `Recon${base.register.toUpperCase()}ArrView`;
+        const typedefResult = viewTypedef(viewName, groupCells);
+        if ("invalid" in typedefResult) return typedefResult;
+        typedefs.push(typedefResult.text);
+        pointerParams.set(base.register, `${viewName} *`);
+        integration.push(`the ${base.register} parameter is a ${viewName} array pointer; move to shared type header`);
+      }
+      baseExpr = id(`arg${idx}`);
+    } else if (base.kind === "const") {
+      /* Absolute base: resolve the address as a symbol. */
+      const resolved = resolveAddress(index, base.value >>> 0);
+      if (!resolved) return { unresolved: `no label covers the array base at 0x${(base.value >>> 0).toString(16)}` };
+      const viaGp = false; /* Absolute bases are not gp-relative. */
+      if (isSimple) {
+        const elemType = elementType(groupCells[0]!.width, groupCells[0]!.signed);
+        externDecls.push(`extern ${elemType} ${resolved.symbol}[];`);
+        integration.push(`${resolved.symbol} is an array of ${elemType}`);
+      } else {
+        const viewName = `Recon${resolved.symbol.replace(/\W/g, "")}ArrView`;
+        const typedefResult = viewTypedef(viewName, groupCells);
+        if ("invalid" in typedefResult) return typedefResult;
+        typedefs.push(typedefResult.text);
+        externDecls.push(`extern ${viewName} ${resolved.symbol}[];`);
+        integration.push(`${resolved.symbol} is a ${viewName} array`);
+      }
+      baseExpr = id(resolved.symbol);
+    } else if (base.kind === "load") {
+      /* Loaded pointer: need the accessor from the loaded cell. */
+      const accessorKey = cellKey(base.base ? canon(base.base) : "", base.address, base.width);
+      const loadedAccessor = accessors.get(accessorKey);
+      if (!loadedAccessor) {
+        return { invalid: `no accessor for the loaded pointer base ${canon(base)}` };
+      }
+      if (isSimple) {
+        integration.push(`indexed access through loaded pointer ${canon(base)}, typed ${elementType(groupCells[0]!.width, groupCells[0]!.signed)} array`);
+      } else {
+        integration.push(`indexed struct access through loaded pointer ${canon(base)}`);
+      }
+      baseExpr = loadedAccessor;
+    } else {
+      return { invalid: `indexed base ${canon(base)} is not an entry, const, or load` };
+    }
+    if (!baseExpr || "invalid" in baseExpr) return baseExpr as unknown as { invalid: string };
+
+    indexedBaseAccessors.set(canon(base), baseExpr);
+
+    /* Store accessors for every cell in this indexed group. */
+    for (const cell of groupCells) {
+      accessors.set(cellKey(group, cell.offset, cell.width), baseExpr);
     }
   }
 
@@ -309,8 +506,15 @@ function buildStorageMap(
     externDecls,
     tentativeDefs,
     pointerParams,
+    pointerSteps,
     integration,
     access: (atom) => {
+      if (atom.index) {
+        /* Indexed access: return the base expression; translate adds the subscript. */
+        const baseExpr = indexedBaseAccessors.get(canon(atom.base!));
+        if (!baseExpr) throw new Error(`no indexed base for ${canon(atom.base!)}`);
+        return baseExpr;
+      }
       const found = accessors.get(cellKey(atomGroup(atom), atom.offset, atom.width));
       if (!found) throw new Error(`no accessor for ${atomGroup(atom) || "absolute"}+0x${atom.offset.toString(16)}`);
       return found;
@@ -339,6 +543,10 @@ function argumentUses(exprs: SymExpr[]): Map<string, Set<UnaryOp | "raw">> {
   const walk = (expr: SymExpr): void => {
     switch (expr.kind) {
       case "entry": return note(expr.register, "raw");
+      /* IV expressions (D7) represent the loop's induction pointer — they are
+       * pointer-base uses, not value uses, and should NOT be counted as a
+       * "value use" that conflicts with pointer-type params. */
+      case "iv": return;
       case "unary":
         if (expr.operand.kind === "entry") return note(expr.operand.register, expr.op);
         return walk(expr.operand);
@@ -409,6 +617,9 @@ export function deriveParamPlans(
 /* ---- expression translation ----------------------------------------------- */
 
 function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<string, string>): CExpr {
+  /* A hoisted subexpression (D5 declared-temp axis) is one name. */
+  const temp = temps.get(canon(expr));
+  if (temp) return id(temp);
   switch (expr.kind) {
     case "const": {
       const value = expr.value | 0;
@@ -419,10 +630,50 @@ function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<s
       if (!param) throw new Error(`entry value of ${expr.register} reaches the result but is not a parameter`);
       return id(param.name);
     }
+    case "iv": {
+      /* IV expressions (D7) represent the induction variable's value at the
+       * start of each iteration. We translate them as the underlying entry
+       * register — the loop body's pointer increments represent the advance. */
+      const param = plan.params.find((entry) => entry.register === expr.register);
+      if (!param) throw new Error(`entry value of ${expr.register} (iv) reaches the result but is not a parameter`);
+      return id(param.name);
+    }
     case "load": {
       const temp = temps.get(canon({ ...expr, epoch: undefined }));
       if (temp) return id(temp);
-      return map.access({ base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed });
+      const baseAccess = map.access({ base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed });
+      if (expr.index) {
+        const idxExpr = translate(expr.index.expr, map, plan, temps);
+        /* When the offset is non-zero within the stride, it is a struct field access. */
+        if (expr.address !== 0 && expr.index.scale > 1) {
+          const elemOffset = expr.address % expr.index.scale;
+          const elemIndex = Math.floor(expr.address / expr.index.scale);
+          if (elemOffset !== 0) {
+            /* Struct array: base[idx + N].field */
+            const adjustedIdx: CExpr = elemIndex === 0
+              ? idxExpr
+              : { kind: "binary", op: "+", left: idxExpr, right: int(elemIndex) };
+            return {
+              kind: "member",
+              base: { kind: "index", base: baseAccess, index: adjustedIdx },
+              field: `unk${elemOffset.toString(16).toUpperCase()}`,
+              arrow: false,
+            };
+          }
+        }
+        /* Plain array: base[idx + offset/scale] */
+        if (expr.address !== 0) {
+          const offsetElements = expr.address / expr.index.scale;
+          if (offsetElements !== 0) {
+            return {
+              kind: "index", base: baseAccess,
+              index: { kind: "binary", op: "+", left: idxExpr, right: int(offsetElements) },
+            };
+          }
+        }
+        return { kind: "index", base: baseAccess, index: idxExpr };
+      }
+      return baseAccess;
     }
     case "unary": {
       if (expr.operand.kind === "entry" && plan.absorbed.get(expr.operand.register) === expr.op) {
@@ -447,6 +698,26 @@ function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<s
         case "or": return { kind: "binary", op: "|", left, right };
         case "xor": return { kind: "binary", op: "^", left, right };
         case "nor": return { kind: "unaryop", op: "~", expr: { kind: "binary", op: "|", left, right } };
+        /* mul/div: D1 supports mulLo, divS, remS; mulHiS/mulHiU are untranslatable */
+        case "mulLo": return { kind: "binary", op: "*", left, right };
+        case "divS": return { kind: "binary", op: "/", left, right };
+        case "remS": return { kind: "binary", op: "%", left, right };
+        case "divU": return {
+          kind: "binary", op: "/",
+          left: { kind: "cast", type: "u32", expr: left },
+          right: { kind: "cast", type: "u32", expr: right },
+        };
+        case "remU": return {
+          kind: "binary", op: "%",
+          left: { kind: "cast", type: "u32", expr: left },
+          right: { kind: "cast", type: "u32", expr: right },
+        };
+        case "mulHiS": case "mulHiU": {
+          /* D2: try constant-divisor recognition on the full expression. */
+          const resolved = resolveDivision(expr);
+          if (resolved !== expr) return translate(resolved, map, plan, temps);
+          throw new Error(`mulHi is untranslatable in D1; value expression ${canon(expr)} needs constant-divisor recognition`);
+        }
         case "sll": return { kind: "binary", op: "<<", left, right };
         case "sra": return { kind: "binary", op: ">>", left, right };
         case "srl": return { kind: "binary", op: ">>", left: { kind: "cast", type: "u32", expr: left }, right };
@@ -486,6 +757,7 @@ export function constructEffectCandidates(
   /* Every accessed cell: stores, loads inside values, and pointer bases. */
   const atoms = new Map<string, Atom>();
   for (const effect of relation.effects) {
+    if (effect.kind === "call") continue;
     collectAtoms(effect.value, atoms);
     if (effect.base) collectAtoms(effect.base, atoms);
   }
@@ -503,7 +775,9 @@ export function constructEffectCandidates(
     else cells.set(key, { ...atom, viaGp: gpByCell.get(key) ?? false, loaded: true, stored: false });
   }
   for (const effect of relation.effects) {
-    const group = effect.base ? canon(effect.base) : "";
+    if (effect.kind === "call") continue;
+    const storeAtom: Atom = { base: effect.base, offset: effect.address, width: effect.width, signed: true, index: effect.index };
+    const group = atomGroup(storeAtom);
     const key = cellKey(group, effect.address, effect.width);
     const existing = cells.get(key);
     if (existing) {
@@ -511,11 +785,12 @@ export function constructEffectCandidates(
       if (effect.viaGp) existing.viaGp = true;
     } else {
       cells.set(key, {
-        base: effect.base, offset: effect.address, width: effect.width, signed: true,
+        base: effect.base, offset: effect.address, width: effect.width, signed: true, index: effect.index,
         viaGp: effect.viaGp ?? false, loaded: false, stored: true,
       });
     }
     if (effect.base) collectAtoms(effect.base, atoms);
+    if (effect.index) collectAtoms(effect.index.expr, atoms);
   }
 
   const index = loadSymbolIndex(container);
@@ -523,7 +798,10 @@ export function constructEffectCandidates(
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
-  const exprs = [...relation.effects.map((effect) => effect.value), ...(isVoid ? [] : [relation.returnValue])];
+  const exprs = [...relation.effects.flatMap((effect) => {
+    if (effect.kind === "call") return effect.args;
+    return [effect.value];
+  }), ...(isVoid ? [] : [relation.returnValue])];
   const plans = deriveParamPlans(exprs, map.pointerParams);
   if ("invalid" in plans) return plans;
 
@@ -543,6 +821,12 @@ export function constructEffectCandidates(
     }
   };
   for (const effect of relation.effects) {
+    if (effect.kind === "call") {
+      /* A call reads nothing from the overwritten set, but it invalidates
+       * every non-@sp cell — later reads are fresh epoch atoms. */
+      storedBefore.clear();
+      continue;
+    }
     noteOverwritten(effect.value);
     storedBefore.add(cellKey(effect.base ? canon(effect.base) : "", effect.address, effect.width));
   }
@@ -555,7 +839,7 @@ export function constructEffectCandidates(
   const incrementBodies: Array<{ label: string; body: (map: StorageMap) => CStmt[] }> = [];
   /* Only for absolute cells: a pointer-based increment would need the pointer
    * parameter in the signature, which the generic plans already produce. */
-  if (relation.effects.length === 1 && !relation.effects[0]!.base) {
+  if (relation.effects.length === 1 && relation.effects[0]!.kind === "store" && !relation.effects[0]!.base) {
     const effect = relation.effects[0]!;
     const value = effect.value;
     const cellAtom: Atom = { base: effect.base, offset: effect.address, width: effect.width, signed: true };
@@ -609,34 +893,106 @@ export function constructEffectCandidates(
     }
   }
   for (const plan of plans) {
-    for (const context of ["standalone", "umbrella"] as const) {
-      let body: CStmt[];
-      try {
-        body = [];
-        const temps = new Map<string, string>();
-        let tempIndex = 0;
-        for (const [key, read] of overwrittenReads) {
-          const name = `saved${tempIndex++}`;
-          body.push({
-            kind: "declare",
-            type: elementType(read.width, read.signed),
-            name,
-            init: map.access({ base: read.base, offset: read.address, width: read.width, signed: read.signed }),
-          });
-          temps.set(key, name);
+    /* Declared-temp axis (D5): a subexpression the compiler had to materialize
+     * more than once (spills made it recompute, or a register wasn't enough)
+     * reads as repeated canon in the relation. Both spellings — inline and
+     * hoisted to a local temp — are candidates; the byte oracle chooses. */
+    const allValueExprs = [
+      ...relation.effects.filter((effect) => effect.kind === "store" && !isSpStore(effect)).map((effect) => (effect as StoreEffect).value),
+      ...(isVoid ? [] : [relation.returnValue]),
+    ];
+    const repeated: Array<{ key: string; expr: SymExpr }> = [];
+    {
+      const counts = new Map<string, { count: number; expr: SymExpr }>();
+      const walk = (e: SymExpr): void => {
+        if (e.kind === "entry" || e.kind === "const") return;
+        const key = canon(e);
+        const before = counts.get(key);
+        if (before) {
+          before.count++;
+        } else {
+          /* Do not hoist an expression its own value is a plain address; the
+           * compiler recomputes addresses freely. Keep loads and computes. */
+          if (e.kind === "load" || e.kind === "binary" || e.kind === "unary") counts.set(key, { count: 1, expr: e });
         }
-        for (const effect of relation.effects) {
-          body.push({
-            kind: "assign",
-            target: map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true }),
-            value: translate(effect.value, map, plan, temps),
-          });
+        switch (e.kind) {
+          case "load":
+            if (e.base) walk(e.base);
+            if (e.index) walk(e.index.expr);
+            return;
+          case "unary": walk(e.operand); return;
+          case "binary":
+            walk(e.left);
+            walk(e.right);
+            return;
+          default: return;
         }
-        if (!isVoid) body.push({ kind: "return", expr: translate(relation.returnValue, map, plan, temps) });
-      } catch {
-        /* An untranslatable expression fails this plan, not the whole class. */
-        continue;
-      }
+      };
+      for (const value of allValueExprs) walk(value);
+      repeated.push(...[...counts.entries()]
+        .filter(([, entry]) => entry.count >= 2)
+        .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
+        .slice(0, 4)
+        .map(([key, entry]) => ({ key, expr: entry.expr })));
+    }
+
+    /* 2^n hoist sets, capped at 16. */
+    const hoistSets: Array<Set<string>> = [new Set()];
+    for (const sub of repeated) {
+      const more = hoistSets.map((set) => new Set([...set, sub.key]));
+      hoistSets.push(...more);
+      if (hoistSets.length >= 16) break;
+    }
+
+    for (const hoisted of hoistSets) {
+      for (const context of ["standalone", "umbrella"] as const) {
+        let body: CStmt[];
+        try {
+          body = [];
+          const temps = new Map<string, string>();
+          let tempIndex = 0;
+          for (const [key, read] of overwrittenReads) {
+            const name = `saved${tempIndex++}`;
+            body.push({
+              kind: "declare",
+              type: elementType(read.width, read.signed),
+              name,
+              init: map.access({ base: read.base, offset: read.address, width: read.width, signed: read.signed }),
+            });
+            temps.set(key, name);
+          }
+          /* Hoisted subexpressions: declare before first use, keep the name
+           * for every later occurrence. */
+          let hoistIndex = 0;
+          for (const sub of repeated) {
+            if (!hoisted.has(sub.key)) continue;
+            const name = `temp${hoistIndex++}`;
+            body.push({
+              kind: "declare",
+              type: sub.expr.kind === "load" ? elementType(sub.expr.width, sub.expr.signed) : "s32",
+              name,
+              init: translate(sub.expr, map, plan, temps),
+            });
+            temps.set(sub.key, name);
+          }
+          for (const effect of relation.effects) {
+            if (effect.kind === "call") {
+              const args = effect.args.map((arg) => translate(arg, map, plan, temps));
+              body.push({ kind: "exprstmt", expr: { kind: "call", callee: effect.callee, args } });
+            } else {
+              if (isSpStore(effect)) continue;
+              body.push({
+                kind: "assign",
+                target: map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true }),
+                value: translate(effect.value, map, plan, temps),
+              });
+            }
+          }
+          if (!isVoid) body.push({ kind: "return", expr: translate(relation.returnValue, map, plan, temps) });
+        } catch {
+          /* An untranslatable expression fails this plan, not the whole class. */
+          continue;
+        }
 
       const signature = `${isVoid ? "void" : "s32"} ${functionName}(${
         plan.params.length === 0 ? "void" : plan.params.map((param) => `${param.type}${param.type.endsWith("*") ? "" : " "}${param.name}`).join(", ")
@@ -664,6 +1020,7 @@ export function constructEffectCandidates(
       });
     }
   }
+  }
   if (candidates.length === 0) return { invalid: "no parameter plan could express the relation's values" };
   return candidates;
 }
@@ -687,24 +1044,67 @@ export function constructGuardedCandidates(
   root: DagRef,
   loadsMeta: LoadMeta[],
   container: Container,
+  maskWitnesses: Set<string> = new Set(),
 ): EffectCandidate[] | { unresolved: string } | { invalid: string } {
-  /* Bound the structure. */
+  /* Bound the structure: tests + dispatches ≤ 32, leaves ≤ 16, total targets ≤ 64. */
   const testRefs = new Set<DagRef>();
+  const dispatchRefs = new Set<DagRef>();
   const leafRefs = new Set<DagRef>();
+  const loopRefs = new Set<DagRef>();
+  let totalTargets = 0;
+
+  /* D7: loop nodes — the body DAG may contain continue marker leaves whose
+   * canon is "@__continue". They are not real leaves and must be excluded
+   * from the leaf count and effect collection. */
+  const isContinue = (ref: DagRef): boolean => {
+    if (ref < 0 || ref >= arena.nodes.length) return false;
+    const node = arena.node(ref);
+    return node.kind === "leaf" && canon(node.value) === "@__continue";
+  };
+
   const walk = (ref: DagRef): void => {
     const node = arena.node(ref);
     if (node.kind === "leaf") {
-      leafRefs.add(ref);
+      if (!isContinue(ref)) leafRefs.add(ref);
       return;
     }
-    if (testRefs.has(ref)) return;
+    if (node.kind === "loop") {
+      if (loopRefs.has(ref)) return;
+      loopRefs.add(ref);
+      /* The body is an ordinary sub-DAG: its tests and leaves take part in
+       * atom, parameter, and effect collection like any others — only the
+       * continue markers are structural. */
+      walk(node.body);
+      return;
+    }
+    if (testRefs.has(ref) || dispatchRefs.has(ref)) return;
+    if (node.kind === "dispatch") {
+      dispatchRefs.add(ref);
+      totalTargets += node.targets.length;
+      for (const target of node.targets) walk(target);
+      return;
+    }
     testRefs.add(ref);
     walk(node.onTrue);
     walk(node.onFalse);
   };
   walk(root);
-  if (testRefs.size > 32 || leafRefs.size > 16) {
-    return { invalid: `the decision structure is too large for the guarded class (${testRefs.size} tests, ${leafRefs.size} leaves)` };
+  if (testRefs.size + dispatchRefs.size > 32 || leafRefs.size > 16 || totalTargets > 64 || loopRefs.size > 4) {
+    return { invalid: `structure too large for the guarded class (${testRefs.size} tests, ${dispatchRefs.size} dispatches, ${leafRefs.size} leaves, ${totalTargets} targets, ${loopRefs.size} loops)` };
+  }
+
+  /* Induction advances, by register — the loop step clause the constructor
+   * must realize. Conflicting deltas for one register are out of class. */
+  const ivDeltas = new Map<string, number>();
+  for (const ref of loopRefs) {
+    const node = arena.node(ref) as DagNode & { kind: "loop" };
+    for (const { register, delta } of node.induction) {
+      const existing = ivDeltas.get(register);
+      if (existing !== undefined && existing !== delta) {
+        return { invalid: `induction register ${register} advances by both ${existing} and ${delta}` };
+      }
+      ivDeltas.set(register, delta);
+    }
   }
 
   const leaves = [...leafRefs].map((ref) => arena.node(ref) as DagNode & { kind: "leaf" });
@@ -714,6 +1114,14 @@ export function constructGuardedCandidates(
   }
   const isVoid = voidLeaves === leaves.length;
 
+  /* Stack spills and locals are calling convention, not source: keep a
+   * filtered effect list per leaf for every construction step below. */
+  const sourceEffects = new Map<DagRef, Effect[]>();
+  for (const ref of leafRefs) {
+    const node = arena.node(ref) as DagNode & { kind: "leaf" };
+    sourceEffects.set(ref, node.effects.filter((effect) => !(effect.kind === "store" && isSpStore(effect))));
+  }
+
   /* Cells and argument uses across every predicate, value, and store. */
   const atoms = new Map<string, Atom>();
   const exprs: SymExpr[] = [];
@@ -722,10 +1130,19 @@ export function constructGuardedCandidates(
       exprs.push(leaf.value);
       collectAtoms(leaf.value, atoms);
     }
-    for (const effect of leaf.effects) {
-      exprs.push(effect.value);
-      collectAtoms(effect.value, atoms);
-      if (effect.base) collectAtoms(effect.base, atoms);
+  }
+  for (const ref of leafRefs) {
+    for (const effect of sourceEffects.get(ref) ?? []) {
+      if (effect.kind === "call") {
+        for (const arg of effect.args) {
+          exprs.push(arg);
+          collectAtoms(arg, atoms);
+        }
+      } else {
+        exprs.push(effect.value);
+        collectAtoms(effect.value, atoms);
+        if (effect.base) collectAtoms(effect.base, atoms);
+      }
     }
   }
   for (const ref of testRefs) {
@@ -736,6 +1153,11 @@ export function constructGuardedCandidates(
       collectAtoms(node.pred.right, atoms);
       exprs.push(node.pred.right);
     }
+  }
+  for (const ref of dispatchRefs) {
+    const node = arena.node(ref) as DagNode & { kind: "dispatch" };
+    collectAtoms(node.index, atoms);
+    exprs.push(node.index);
   }
 
   const gpByCell = new Map(
@@ -748,8 +1170,9 @@ export function constructGuardedCandidates(
     if (existing) existing.loaded = true;
     else cells.set(key, { ...atom, viaGp: gpByCell.get(key) ?? false, loaded: true, stored: false });
   }
-  for (const leaf of leaves) {
-    for (const effect of leaf.effects) {
+  for (const ref of leafRefs) {
+    for (const effect of sourceEffects.get(ref) ?? []) {
+      if (effect.kind === "call") continue;
       const key = cellKey(effect.base ? canon(effect.base) : "", effect.address, effect.width);
       const existing = cells.get(key);
       if (existing) {
@@ -761,56 +1184,190 @@ export function constructGuardedCandidates(
           viaGp: effect.viaGp ?? false, loaded: false, stored: true,
         });
       }
+      if (effect.base) collectAtoms(effect.base, atoms);
+      if (effect.index) collectAtoms(effect.index.expr, atoms);
     }
   }
 
   const index = loadSymbolIndex(container);
-  const map = buildStorageMap(cells, index);
+  const map = buildStorageMap(cells, index, ivDeltas);
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
   const plans = deriveParamPlans(exprs, map.pointerParams);
   if ("invalid" in plans) return plans;
 
-  const effectKey = (effect: StoreEffect): string =>
-    `${effect.base ? canon(effect.base) : ""}|${effect.address}|${effect.width}=${canon(effect.value)}`;
+  const effectKey = (effect: Effect): string =>
+    effect.kind === "call"
+      ? `call(${effect.seq},${effect.callee})`
+      : `${effect.base ? canon(effect.base) : ""}|${effect.address}|${effect.width}=${canon(effect.value)}`;
 
-  const leavesBelowMemo = new Map<DagRef, Array<DagNode & { kind: "leaf" }>>();
-  const leavesBelow = (ref: DagRef): Array<DagNode & { kind: "leaf" }> => {
+  const leavesBelowMemo = new Map<DagRef, DagRef[]>();
+  const leavesBelow = (ref: DagRef): DagRef[] => {
     const known = leavesBelowMemo.get(ref);
     if (known) return known;
     const node = arena.node(ref);
     const result = node.kind === "leaf"
-      ? [node]
-      : [...leavesBelow(node.onTrue), ...leavesBelow(node.onFalse)];
+      ? (isContinue(ref) ? [] : [ref])
+      : node.kind === "dispatch"
+        ? node.targets.flatMap((target) => leavesBelow(target))
+        : node.kind === "loop"
+          ? leavesBelow(node.body)
+          : [...leavesBelow(node.onTrue), ...leavesBelow(node.onFalse)];
     leavesBelowMemo.set(ref, result);
     return result;
   };
 
+  /** Filtered effects for below a ref, using the sp-filtered sourceEffects. */
+  const effectsBelow = (ref: DagRef): Effect[] => {
+    const below = leavesBelow(ref);
+    /* Return effects of the first leaf (others should match for common prefix). */
+    const firstLeafRef = below[0];
+    if (firstLeafRef === undefined) return [];
+    return sourceEffects.get(firstLeafRef) ?? [];
+  };
+
   class InvalidGuard extends Error {}
 
-  const predToC = (pred: Predicate, plan: ParamPlan, temps: Map<string, string>): CExpr => {
-    const left = translate(pred.left, map, plan, temps);
+  const predToC = (
+    pred: Predicate,
+    plan: ParamPlan,
+    temps: Map<string, string>,
+    pairRaw?: Map<string, string>,
+    negate = false,
+  ): CExpr => {
+    /* A pair atom compared against a constant is the sentinel test — the
+     * machine tested the wide copy there, not the re-masked one. */
+    let left: CExpr;
+    if (
+      pairRaw && pred.left.kind === "load" && pred.right?.kind === "const" &&
+      pairRaw.has(canon({ ...pred.left, epoch: undefined }))
+    ) {
+      left = id(pairRaw.get(canon({ ...pred.left, epoch: undefined }))!);
+    } else {
+      left = translate(pred.left, map, plan, temps);
+    }
     const right = pred.right ? translate(pred.right, map, plan, temps) : undefined;
     switch (pred.op) {
-      case "eq": return { kind: "binary", op: "==", left, right: right! };
-      case "ltS": return { kind: "binary", op: "<", left, right: right! };
+      case "eq": return { kind: "binary", op: negate ? "!=" : "==", left, right: right! };
+      case "ltS": return { kind: "binary", op: negate ? ">=" : "<", left, right: right! };
       case "ltU": return {
-        kind: "binary", op: "<",
+        kind: "binary", op: negate ? ">=" : "<",
         left: { kind: "cast", type: "u32", expr: left },
         right: { kind: "cast", type: "u32", expr: right! },
       };
-      case "lez": return { kind: "binary", op: "<=", left, right: int(0) };
-      case "gtz": return { kind: "binary", op: ">", left, right: int(0) };
-      case "ltz": return { kind: "binary", op: "<", left, right: int(0) };
-      case "gez": return { kind: "binary", op: ">=", left, right: int(0) };
+      case "lez": return { kind: "binary", op: negate ? ">" : "<=", left, right: int(0) };
+      case "gtz": return { kind: "binary", op: negate ? "<=" : ">", left, right: int(0) };
+      case "ltz": return { kind: "binary", op: negate ? ">=" : "<", left, right: int(0) };
+      case "gez": return { kind: "binary", op: negate ? "<" : ">=", left, right: int(0) };
     }
   };
+
+  /* Everything a DAG node can reach, itself included — for join detection. */
+  const reachMemo = new Map<DagRef, Set<DagRef>>();
+  const reach = (ref: DagRef): Set<DagRef> => {
+    const known = reachMemo.get(ref);
+    if (known) return known;
+    const set = new Set<DagRef>([ref]);
+    reachMemo.set(ref, set);
+    const node = arena.node(ref);
+    if (node.kind === "test") {
+      for (const child of [node.onTrue, node.onFalse]) for (const r of reach(child)) set.add(r);
+    } else if (node.kind === "dispatch") {
+      for (const child of node.targets) for (const r of reach(child)) set.add(r);
+    } else if (node.kind === "loop") {
+      for (const r of reach(node.body)) set.add(r);
+    }
+    return set;
+  };
+
+  /**
+   * The join of two arms: the shared node every shared path funnels through.
+   * The machine reached it once (a shared block or a cross-jumped tail);
+   * duplicating it per arm compiles to duplicated code the original does not
+   * have, so emission falls through to it and emits it exactly once.
+   */
+  const joinOf = (onTrue: DagRef, onFalse: DagRef): DagRef | undefined => {
+    const reachTrue = reach(onTrue);
+    const reachFalse = reach(onFalse);
+    if (reachFalse.has(onTrue)) return onTrue;
+    if (reachTrue.has(onFalse)) return onFalse;
+    const shared = [...reachTrue].filter((r) => reachFalse.has(r) && !isContinue(r));
+    for (const candidate of shared) {
+      const covered = reach(candidate);
+      if (shared.every((r) => covered.has(r))) return candidate;
+    }
+    return undefined;
+  };
+
+  /* Loop-bearing structures admit two extra source-form axes the machine
+   * evidence names: a result-variable-and-break exit (every outcome flows
+   * through one register the exits share), and a wide/narrow variable pair
+   * for a load the machine re-masked (the sentinel tests the wide copy). */
+  const atomCanonKey = (atom: Atom): string => canon({
+    kind: "load", address: atom.offset, width: atom.width, signed: atom.signed,
+    base: atom.base, index: atom.index,
+  });
+  const witnessedPairs = [...atoms.values()]
+    .filter((atom) => maskWitnesses.has(atomCanonKey(atom)) && !atom.signed && atom.width <= 2)
+    .slice(0, 2)
+    .map((atom) => [atomCanonKey(atom), atom] as const);
+  const exitStyles: Array<"direct" | "break-result"> =
+    loopRefs.size > 0 && !isVoid ? ["direct", "break-result"] : ["direct"];
+  /* A shared return value read from a cell the branches overwrite must be
+   * computed once, before the stores. When every real leaf returns the same
+   * value and that value reads a stored cell, offer a "hoisted" form:
+   * `result = <value>;` at the top, stores in the branches, `return result;`
+   * once at the bottom — the compiler's own single-computation shape. */
+  const realLeaves = leaves.filter((leaf) => canon(leaf.value) !== "@__continue");
+  const sharedReturnValue = !isVoid && realLeaves.length > 1 &&
+    realLeaves.every((leaf) => canon(leaf.value) === canon(realLeaves[0]!.value))
+    ? realLeaves[0]!.value : undefined;
+  const returnReadsStoredCell = (() => {
+    if (!sharedReturnValue) return false;
+    const reads = new Map<string, Atom>();
+    collectAtoms(sharedReturnValue, reads);
+    for (const read of reads.values()) {
+      const cell = cells.get(cellKey(atomGroup(read), read.offset, read.width));
+      if (cell?.stored) return true;
+    }
+    return false;
+  })();
+  const returnStyles: Array<"inline" | "hoisted"> =
+    loopRefs.size === 0 && sharedReturnValue && returnReadsStoredCell ? ["inline", "hoisted"] : ["inline"];
+  const pairStyles: Array<"plain" | "raw-pair"> =
+    loopRefs.size > 0 && witnessedPairs.length > 0 ? ["plain", "raw-pair"] : ["plain"];
+  /* Where the advances go decides which way cc1 rotates the loop: a step
+   * clause tends to keep the exit test at the bottom, trailing statements
+   * after an in-body exit test reproduce the check-then-advance top block. */
+  const advanceStyles: Array<"step" | "trailing"> = loopRefs.size > 0 ? ["step", "trailing"] : ["step"];
 
   const candidates: EffectCandidate[] = [];
   for (const plan of plans) {
     for (const context of ["standalone", "umbrella"] as const) {
+    for (const exitStyle of exitStyles) {
+    for (const pairStyle of pairStyles) {
+    for (const advanceStyle of advanceStyles) {
+    for (const returnStyle of returnStyles) {
       const temps = new Map<string, string>();
+      const hoistReturn = returnStyle === "hoisted";
+      /* Canonical atom key → the wide variable's name, for sentinel tests. */
+      const pairRaw = new Map<string, string>();
+      const prologue: CStmt[] = [];
+      const pairAssigns: CStmt[] = [];
+      let usesResult = false;
+      if (pairStyle === "raw-pair") {
+        witnessedPairs.forEach(([key, atom], indexOfPair) => {
+          const rawName = `raw${indexOfPair}`;
+          const narrowName = `masked${indexOfPair}`;
+          prologue.push({ kind: "declare", type: "s32", name: rawName });
+          prologue.push({ kind: "declare", type: atom.width === 1 ? "u8" : "u16", name: narrowName });
+          pairRaw.set(key, rawName);
+          temps.set(key, narrowName);
+          pairAssigns.push({ kind: "assign", target: id(rawName), value: map.access(atom) });
+          pairAssigns.push({ kind: "assign", target: id(narrowName), value: id(rawName) });
+        });
+      }
 
       const guardReads = (expr: SymExpr, stored: Set<string>): void => {
         const reads = new Map<string, Atom>();
@@ -823,43 +1380,286 @@ export function constructGuardedCandidates(
         }
       };
 
-      const emitNode = (ref: DagRef, emitted: number, stored: Set<string>): CStmt[] => {
+      const emitNode = (ref: DagRef, emitted: number, stored: Set<string>, inLoop = false, stopAt?: DagRef): CStmt[] => {
+        /* The join a factored if/else falls through to: emit nothing here —
+         * the caller emits it once after the branch. */
+        if (stopAt !== undefined && ref === stopAt) return [];
+        /* A continue marker ends a loop-body path; the for step applies the
+         * induction advances on the way back. */
+        if (isContinue(ref)) return [{ kind: "continue" }];
         const node = arena.node(ref);
-        const assignments = (effects: StoreEffect[]): CStmt[] =>
+        const assignments = (effects: Effect[]): CStmt[] =>
           effects.map((effect) => {
-            guardReads(effect.value, stored);
+            if (effect.kind === "call") {
+              const args = effect.args.map((a) => translate(a, map, plan, temps));
+              return { kind: "exprstmt", expr: { kind: "call", callee: effect.callee, args } } as CStmt;
+            }
+            /* A store whose value is the hoisted shared return reuses the
+             * `result` temp, matching the compiler's single computation. */
+            const value = hoistReturn && sharedReturnValue && canon(effect.value) === canon(sharedReturnValue)
+              ? id("result")
+              : (guardReads(effect.value, stored), translate(effect.value, map, plan, temps));
             stored.add(cellKey(effect.base ? canon(effect.base) : "", effect.address, effect.width));
             return {
               kind: "assign",
               target: map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true }),
-              value: translate(effect.value, map, plan, temps),
+              value,
             } as CStmt;
           });
 
+        if (node.kind === "loop") {
+          /* One statement: `for (;; steps) { body }`. Exit paths return from
+           * inside; every continue path applies the advances exactly once via
+           * the step clause — the position the machine's rotated tail gave
+           * them. A missing step mapping (a pure counter induction) is a
+           * missing constructor, not something to guess. */
+          const steps: string[] = [];
+          for (const { register, delta } of node.induction) {
+            const step = map.pointerSteps.get(register);
+            if (!step) {
+              throw new InvalidGuard(
+                `loop induction ${register} (delta ${delta}) has no pointer step — the counted-loop template is not built`,
+              );
+            }
+            steps.push(step);
+          }
+          const inner = emitNode(node.body, emitted, new Set(stored), true);
+          if (advanceStyle === "trailing") {
+            /* Trailing advances run only on the fall-through path; a body
+             * that still contains an explicit `continue` would skip them. */
+            const hasContinue = (stmts: CStmt[]): boolean => stmts.some((stmt) =>
+              stmt.kind === "continue" ||
+              (stmt.kind === "if" && (hasContinue(stmt.body) || hasContinue(stmt.elseBody ?? []))) ||
+              ((stmt.kind === "for" || stmt.kind === "while") && hasContinue(stmt.body)) ||
+              (stmt.kind === "switch" && (stmt.cases.some((entry) => hasContinue(entry.body)) || hasContinue(stmt.defaultBody ?? []))));
+            if (hasContinue(inner)) {
+              throw new InvalidGuard("trailing advances need a fall-through body, but the body continues explicitly");
+            }
+            const advances: CStmt[] = steps.map((step) => {
+              const match = step.match(/^(\w+)(\+\+|--)$/);
+              if (match) return { kind: "exprstmt", expr: { kind: "postfix", op: match[2] as "++" | "--", expr: id(match[1]!) } };
+              const compound = step.match(/^(\w+) ([+-])= (\d+)$/);
+              if (!compound) throw new InvalidGuard(`unrenderable trailing advance ${step}`);
+              return {
+                kind: "assign",
+                target: id(compound[1]!),
+                value: { kind: "binary", op: compound[2] as "+" | "-", left: id(compound[1]!), right: int(Number(compound[3])) },
+              };
+            });
+            return [{ kind: "for", init: "", step: "", body: [...pairAssigns, ...inner, ...advances] }];
+          }
+          return [{ kind: "for", init: "", step: steps.join(", "), body: [...pairAssigns, ...inner] }];
+        }
+
         if (node.kind === "leaf") {
-          const statements = assignments(node.effects.slice(emitted));
+          const effs = sourceEffects.get(ref) ?? [];
+          const statements = assignments(effs.slice(emitted));
           if (!isVoid) {
-            guardReads(node.value, stored);
-            statements.push({ kind: "return", expr: translate(node.value, map, plan, temps) });
+            if (hoistReturn) {
+              /* The return was computed into `result` before the stores; the
+               * leaf contributes its stores only, and one `return result`
+               * is appended after the whole structure. */
+            } else {
+              guardReads(node.value, stored);
+              const value = translate(node.value, map, plan, temps);
+              if (inLoop && exitStyle === "break-result") {
+                usesResult = true;
+                statements.push({ kind: "assign", target: id("result"), value });
+                statements.push({ kind: "break" });
+              } else {
+                statements.push({ kind: "return", expr: value });
+              }
+            }
           }
           return statements;
         }
 
+        if (node.kind === "dispatch") {
+          /* Translate the dispatch index. */
+          let switchExpr = translate(node.index, map, plan, temps);
+          let baseCase = 0;
+          /* Handle `add(x, #-k)` adjustment — source cases started at k. */
+          if (node.index.kind === "binary" && node.index.op === "add") {
+            if (node.index.right.kind === "const" && (node.index.right.value | 0) < 0) {
+              switchExpr = translate(node.index.left, map, plan, temps);
+              baseCase = -(node.index.right.value | 0);
+            } else if (node.index.left.kind === "const" && (node.index.left.value | 0) < 0) {
+              switchExpr = translate(node.index.right, map, plan, temps);
+              baseCase = -(node.index.left.value | 0);
+            }
+          }
+
+          const cases: Array<{ values: CExpr[]; body: CStmt[] }> = [];
+          for (let i = 0; i < node.targets.length; i++) {
+            const targetBody = emitNode(node.targets[i]!, 0, new Set(stored), inLoop, stopAt);
+            cases.push({ values: [int(baseCase + i)], body: targetBody });
+          }
+          return [{ kind: "switch", expr: switchExpr, cases }];
+        }
+
+
+        /* node.kind === "test" */
+        /* Detect a switch-merge shape: a bounds check whose guarded arm is the
+         * dispatch and whose other arm is the default. Two machine spellings:
+         *   Form 1: ltU(idx,#N) with dispatch on the true arm
+         *   Form 2: eq(sltU(idx,#N),#0) OR eq(#0,sltU(idx,#N)) with dispatch
+         *           on the false arm (the compiler's sltiu+beqz pattern)
+         * After the merge, the C is one `switch` with a `default`, matching
+         * what the original switch statement compiled to. */
+        const dispatchMerge = (() => {
+          const pred = node.pred;
+          if ((pred.op === "ltU" || pred.op === "ltS") && pred.right && pred.right.kind === "const") {
+            const N = pred.right.value;
+            const trueNode = arena.node(node.onTrue);
+            if (trueNode.kind === "dispatch" && trueNode.targets.length === N && canon(pred.left) === canon(trueNode.index)) {
+              return { index: trueNode.index, cases: trueNode.targets, defaultRef: node.onFalse };
+            }
+          }
+          /* Form 2: eq(sltU(idx,#N), #0) — but canon may swap to eq(#0, sltU(idx,#N)).
+           * Handle both orderings. */
+          const findSlt = (e: SymExpr): { idx: SymExpr; N: number } | undefined => {
+            if (e.kind === "binary" && (e.op === "sltU" || e.op === "sltS") && e.right.kind === "const") {
+              return { idx: e.left, N: e.right.value };
+            }
+            return undefined;
+          };
+          let inner: ReturnType<typeof findSlt> | undefined;
+          if (pred.op === "eq" && pred.right && pred.right.kind === "const" && pred.right.value === 0) {
+            inner = findSlt(pred.left);
+          } else if (pred.op === "eq" && pred.left.kind === "const" && pred.left.value === 0 && pred.right) {
+            inner = findSlt(pred.right);
+          }
+          if (inner) {
+            const falseNode = arena.node(node.onFalse);
+            if (falseNode.kind === "dispatch" && falseNode.targets.length === inner.N && canon(inner.idx) === canon(falseNode.index)) {
+              return { index: falseNode.index, cases: falseNode.targets, defaultRef: node.onTrue };
+            }
+          }
+          return undefined;
+        })();
+        if (dispatchMerge) {
+          let switchExpr = translate(dispatchMerge.index, map, plan, temps);
+          let baseCase = 0;
+          if (dispatchMerge.index.kind === "binary" && dispatchMerge.index.op === "add") {
+            const term = dispatchMerge.index.right.kind === "const" && (dispatchMerge.index.right.value | 0) < 0
+              ? dispatchMerge.index.right.value
+              : dispatchMerge.index.left.kind === "const" && (dispatchMerge.index.left.value | 0) < 0
+                ? dispatchMerge.index.left.value
+                : undefined;
+            if (term !== undefined) {
+              switchExpr = translate(
+                dispatchMerge.index.right.kind === "const" ? dispatchMerge.index.left : dispatchMerge.index.right,
+                map, plan, temps,
+              );
+              baseCase = -term;
+            }
+          }
+          const cases: Array<{ values: CExpr[]; body: CStmt[] }> = [];
+          for (let i = 0; i < dispatchMerge.cases.length; i++) {
+            const targetBody = emitNode(dispatchMerge.cases[i]!, 0, new Set(stored), inLoop, stopAt);
+            cases.push({ values: [int(baseCase + i)], body: targetBody });
+          }
+          const defaultBody = emitNode(dispatchMerge.defaultRef, 0, new Set(stored), inLoop, stopAt);
+          return [{ kind: "switch", expr: switchExpr, cases, ...(defaultBody.length > 0 ? { defaultBody } : {}) }];
+        }
+
         const below = leavesBelow(ref);
-        const reference = below[0]!.effects;
+        const referenceRef = below[0];
+        if (referenceRef === undefined) return [];
+        const reference = sourceEffects.get(referenceRef) ?? [];
         let common = emitted;
         while (common < reference.length &&
-          below.every((leaf) => common < leaf.effects.length && effectKey(leaf.effects[common]!) === effectKey(reference[common]!))) {
+          below.every((leafRef) => {
+            const effs = sourceEffects.get(leafRef);
+            return effs && common < effs.length && effectKey(effs[common]!) === effectKey(reference[common]!);
+          })) {
           common++;
         }
         const statements = assignments(reference.slice(emitted, common));
         guardReads(node.pred.left, stored);
         if (node.pred.right) guardReads(node.pred.right, stored);
-        const thenStmts = emitNode(node.onTrue, common, new Set(stored));
-        const elseStmts = emitNode(node.onFalse, common, new Set(stored));
+
+        /* Break-result idioms the machine spells exactly (assignments landing
+         * in shared delay slots, two constants falling into one exit):
+         *   - exit-or-continue: `result = K; if (P) break;` — the assignment
+         *     is dead on the continue path, which is where the machine put it;
+         *   - constant pair: `if (P) result = A; else result = B; break;`. */
+        if (inLoop && exitStyle === "break-result" && !isVoid) {
+          const constLeaf = (ref: DagRef): number | undefined => {
+            const child = arena.node(ref);
+            if (child.kind !== "leaf" || isContinue(ref)) return undefined;
+            if (child.value.kind !== "const") return undefined;
+            const effs = sourceEffects.get(ref) ?? [];
+            if (effs.length !== emitted) return undefined;
+            return child.value.value | 0;
+          };
+          const trueConst = constLeaf(node.onTrue);
+          const falseConst = constLeaf(node.onFalse);
+          if (trueConst !== undefined && isContinue(node.onFalse)) {
+            usesResult = true;
+            statements.push({ kind: "assign", target: id("result"), value: int(trueConst) });
+            statements.push({ kind: "if", cond: predToC(node.pred, plan, temps, pairRaw), body: [{ kind: "break" }] });
+            return statements;
+          }
+          if (falseConst !== undefined && isContinue(node.onTrue)) {
+            usesResult = true;
+            statements.push({ kind: "assign", target: id("result"), value: int(falseConst) });
+            statements.push({ kind: "if", cond: predToC(node.pred, plan, temps, pairRaw, true), body: [{ kind: "break" }] });
+            return statements;
+          }
+          if (trueConst !== undefined && falseConst !== undefined) {
+            usesResult = true;
+            statements.push({
+              kind: "if",
+              cond: predToC(node.pred, plan, temps, pairRaw),
+              body: [{ kind: "assign", target: id("result"), value: int(trueConst) }],
+              elseBody: [{ kind: "assign", target: id("result"), value: int(falseConst) }],
+            });
+            statements.push({ kind: "break" });
+            return statements;
+          }
+        }
+
+        /* Shared continuation: emit the arms only up to their join, then the
+         * join once. An arm that IS the join contributes no block at all —
+         * the branch is emitted negated with a single body. */
+        const join = joinOf(node.onTrue, node.onFalse);
+        if (join !== undefined && join !== stopAt) {
+          if (join === node.onTrue) {
+            const elseArm = emitNode(node.onFalse, common, new Set(stored), inLoop, join);
+            if (elseArm.length > 0) {
+              statements.push({ kind: "if", cond: predToC(node.pred, plan, temps, pairRaw, true), body: elseArm });
+            }
+          } else if (join === node.onFalse) {
+            const thenArm = emitNode(node.onTrue, common, new Set(stored), inLoop, join);
+            if (thenArm.length > 0) {
+              statements.push({ kind: "if", cond: predToC(node.pred, plan, temps, pairRaw), body: thenArm });
+            }
+          } else {
+            const thenArm = emitNode(node.onTrue, common, new Set(stored), inLoop, join);
+            const elseArm = emitNode(node.onFalse, common, new Set(stored), inLoop, join);
+            statements.push({
+              kind: "if",
+              cond: predToC(node.pred, plan, temps, pairRaw),
+              body: thenArm,
+              ...(elseArm.length > 0 ? { elseBody: elseArm } : {}),
+            });
+          }
+          statements.push(...emitNode(join, common, new Set(stored), inLoop, stopAt));
+          return statements;
+        }
+
+        const thenStmts = emitNode(node.onTrue, common, new Set(stored), inLoop, stopAt);
+        const elseStmts = emitNode(node.onFalse, common, new Set(stored), inLoop, stopAt);
+        if (thenStmts.length === 0 && elseStmts.length > 0) {
+          /* An empty then-arm is a negated single-arm test — the polarity the
+           * machine branches with. */
+          statements.push({ kind: "if", cond: predToC(node.pred, plan, temps, pairRaw, true), body: elseStmts });
+          return statements;
+        }
         statements.push({
           kind: "if",
-          cond: predToC(node.pred, plan, temps),
+          cond: predToC(node.pred, plan, temps, pairRaw),
           body: thenStmts,
           ...(elseStmts.length > 0 ? { elseBody: elseStmts } : {}),
         });
@@ -867,11 +1667,27 @@ export function constructGuardedCandidates(
       };
 
       let body: CStmt[];
+      let resultAssign: CStmt | undefined;
       try {
+        /* The hoisted return is computed from the pre-store field values, so
+         * it must be built before emitNode marks any cell stored. */
+        if (hoistReturn && sharedReturnValue) {
+          resultAssign = { kind: "assign", target: id("result"), value: translate(sharedReturnValue, map, plan, temps) };
+        }
         body = emitNode(root, 0, new Set());
       } catch {
         continue;
       }
+      if (hoistReturn && resultAssign) {
+        body = [{ kind: "declare", type: "s32", name: "result" }, ...prologue, resultAssign, ...body, { kind: "return", expr: id("result") }];
+      } else if (usesResult) {
+        body = [{ kind: "declare", type: "s32", name: "result" }, ...prologue, ...body, { kind: "return", expr: id("result") }];
+      } else if (prologue.length > 0) {
+        body = [...prologue, ...body];
+      }
+      /* An axis that changed nothing about this structure adds no candidate. */
+      if (exitStyle === "break-result" && !usesResult) continue;
+      if (pairStyle === "raw-pair" && pairAssigns.length === 0) continue;
 
       const signature = `${isVoid ? "void" : "s32"} ${functionName}(${
         plan.params.length === 0 ? "void" : plan.params.map((param) => `${param.type}${param.type.endsWith("*") ? "" : " "}${param.name}`).join(", ")
@@ -890,13 +1706,17 @@ export function constructGuardedCandidates(
       ].join("\n");
 
       candidates.push({
-        label: `guarded-${plan.label || "noargs"}-${context}`,
+        label: `guarded-${plan.label || "noargs"}${exitStyle === "break-result" ? "-breakres" : ""}${pairStyle === "raw-pair" ? "-rawpair" : ""}${advanceStyle === "trailing" ? "-trailadv" : ""}${hoistReturn ? "-hoistret" : ""}-${context}`,
         source,
         integrationPlan: [
           ...map.integration,
           "write the function body into its container's source directory with the project umbrella includes",
         ],
       });
+    }
+    }
+    }
+    }
     }
   }
   if (candidates.length === 0) return { invalid: "no parameter plan could express the guarded structure" };

@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { decodeFunction } from "./decode.js";
-import { UnsupportedTarget, canon, executeFunction } from "./exec.js";
+import { UnsupportedTarget, canon, computeLiveIn, executeFunction } from "./exec.js";
 import { assemble, type AsmLine } from "./fixture-asm.js";
 
 const run = (lines: AsmLine[], base = 0x80100000) =>
@@ -61,19 +61,21 @@ test("identical continuations merge instead of forking", () => {
   assert.equal(result.arena.node(result.root).kind, "leaf");
 });
 
-test("a computed load address is an explicit unsupported case", () => {
-  /* A scaled index is outside the pointer-base model; a plain argument
-   * pointer, by contrast, is supported. */
-  assert.throws(
-    () => run([
-      ["sll", "v1", "a1", 2],
-      ["addu", "v1", "a0", "v1"],
-      ["lw", "v0", 0, "v1"],
-      ["jr", "ra"],
-      ["nop"],
-    ]),
-    (error: unknown) => error instanceof UnsupportedTarget && /computed address/.test(error.reason),
-  );
+test("a computed load address with a single index term is now supported (D3: scaled indexing)", () => {
+  /* sll(a1, 2) + a0 — a single scaled index with an argument pointer base.
+   * D3 supports this as an indexed address: base a0, index a1, scale 4. */
+  const result = run([
+    ["sll", "v1", "a1", 2],
+    ["addu", "v1", "a0", "v1"],
+    ["lw", "v0", 0, "v1"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.ok(canon(node.value).includes("[@a1*4]"), `expected [@a1*4] in ${canon(node.value)}`);
+  }
 });
 
 test("a load through an argument pointer is a based atom", () => {
@@ -86,17 +88,25 @@ test("a load through an argument pointer is a based atom", () => {
   assert.equal(node.kind === "leaf" && canon(node.value), "M4s[@a0+4]");
 });
 
-test("calls are rejected up front with their locations", () => {
-  assert.throws(
-    () => run([
-      ["jal", 0x80020000],
-      ["nop"],
-      ["jr", "ra"],
-      ["nop"],
-    ]),
-    (error: unknown) =>
-      error instanceof UnsupportedTarget && /call-free/.test(error.reason) && error.vram.length === 1,
-  );
+test("calls are recorded as opaque call effects with clobbers (D6)", () => {
+  const result = run([
+    ["jal", 0x80020000],
+    ["nop"],
+    ["addiu", "v0", "zero", 7],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.equal(node.effects.length, 1);
+    assert.equal(node.effects[0]!.kind, "call");
+    const call = node.effects[0] as { kind: "call"; callee: string; seq: number; args: unknown[] };
+    assert.equal(call.callee, "0x80020000");
+    /* After the call the function runs again and returns 7: the call was
+     * opaque (inline) — execution continued past it. */
+    assert.equal(canon(node.value), "#7");
+  }
 });
 
 test("a store through an argument pointer lands on the leaf with its base", () => {
@@ -109,8 +119,12 @@ test("a store through an argument pointer lands on the leaf with its base", () =
   assert.equal(node.kind, "leaf");
   if (node.kind === "leaf") {
     assert.equal(node.effects.length, 1);
-    assert.equal(node.effects[0]!.address, 2);
-    assert.equal(node.effects[0]!.base && canon(node.effects[0]!.base), "@a0");
+    const effect = node.effects[0]!;
+    assert.equal(effect.kind, "store");
+    if (effect.kind === "store") {
+      assert.equal(effect.address, 2);
+      assert.equal(effect.base && canon(effect.base), "@a0");
+    }
   }
 });
 
@@ -143,11 +157,12 @@ test("stores land on the leaf in machine order, with forwarding to later loads",
   assert.equal(node.kind, "leaf");
   if (node.kind === "leaf") {
     assert.equal(node.effects.length, 2);
-    assert.deepEqual(node.effects.map((effect) => [effect.address, effect.width]), [
+    const stores = node.effects.filter((effect) => effect.kind === "store");
+    assert.deepEqual(stores.map((effect) => [effect.address, effect.width]), [
       [0x80071000, 2],
       [0x80071004, 4],
     ]);
-    assert.equal(canon(node.effects[1]!.value), "@a0");
+    assert.equal(canon(stores[1]!.value), "@a0");
     /* The load after the store sees the stored 7, sign-narrowed. */
     assert.equal(canon(node.value), "#7");
   }
@@ -225,4 +240,278 @@ test("dead stale registers do not block state merging", () => {
   const result = run(lines);
   assert.ok(result.states < 200, `expected linear state growth, saw ${result.states}`);
   assert.equal(result.loads.length, 24);
+});
+
+/* ---- D1: multiply, divide, hi/lo ----------------------------------------- */
+
+test("mult + mflo produces mulLo leaf", () => {
+  const result = run([
+    ["mult", "a0", "a1"],
+    ["mflo", "v0"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.equal(canon(node.value), "mulLo(@a0,@a1)");
+  }
+});
+
+test("div + mfhi produces remS leaf (remainder)", () => {
+  const result = run([
+    ["div", "a0", "a1"],
+    ["mfhi", "v0"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.equal(canon(node.value), "remS(@a0,@a1)");
+  }
+});
+
+test("constant folding: 7 * 6 = 42", () => {
+  const result = run([
+    ["addiu", "a0", "zero", 7],
+    ["addiu", "a1", "zero", 6],
+    ["mult", "a0", "a1"],
+    ["mflo", "v0"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind === "leaf" && canon(node.value), "#42");
+});
+
+test("constant folding: -7 / 2 = -3 (truncation toward zero)", () => {
+  const result = run([
+    ["addiu", "a0", "zero", -7],
+    ["addiu", "a1", "zero", 2],
+    ["div", "a0", "a1"],
+    ["mflo", "v0"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  /* constExpr stores unsigned: -3 as u32 is 0xFFFFFFFD */
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind === "leaf" && node.value.kind === "const" && (node.value.value | 0), -3);
+});
+
+test("constant folding: -7 % 2 = -1", () => {
+  const result = run([
+    ["addiu", "a0", "zero", -7],
+    ["addiu", "a1", "zero", 2],
+    ["div", "a0", "a1"],
+    ["mfhi", "v0"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  /* constExpr stores unsigned: -1 as u32 is 0xFFFFFFFF */
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind === "leaf" && node.value.kind === "const" && (node.value.value | 0), -1);
+});
+
+test("div by constant zero throws UnsupportedTarget", () => {
+  assert.throws(
+    () => run([
+      ["addiu", "a0", "zero", 5],
+      ["addiu", "a1", "zero", 0],
+      ["div", "a0", "a1"],
+      ["mflo", "v0"],
+      ["jr", "ra"],
+      ["nop"],
+    ]),
+    (error: unknown) => error instanceof UnsupportedTarget && /division by constant zero/.test(error.reason),
+  );
+});
+
+test("straight-line effect: store arg0 * arg1 via mulLo + mflo", () => {
+  const result = run([
+    ["mult", "a0", "a1"],
+    ["mflo", "t0"],
+    ["lui", "t1", 0x8007],
+    ["sw", "t0", 0x1000, "t1"],
+    ["lw", "v0", 0x1000, "t1"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.equal(node.effects.length, 1);
+    const effect = node.effects[0]!;
+    assert.equal(effect.kind, "store");
+    assert.equal(effect.kind === "store" && canon(effect.value), "mulLo(@a0,@a1)");
+    /* The re-load after the store forwards the stored value. */
+    assert.equal(canon(node.value), "mulLo(@a0,@a1)");
+  }
+});
+
+test("liveness includes hi/lo after mult", () => {
+  /* After `mult a0, a1` (index 0), hi and lo are defined. The mflo at index 1
+   * reads lo, and jr reads v0 + ra. So the live-in at mflo should include lo
+   * in the hi/lo word (bit 1), and the live-in at mult should NOT have hi/lo
+   * since mult is what defines them (they are not live-before mult). */
+  const lines: AsmLine[] = [
+    ["mult", "a0", "a1"],
+    ["mflo", "v0"],
+    ["jr", "ra"],
+    ["nop"],
+  ];
+  const words = assemble(lines, 0x80100000);
+  const decoded = decodeFunction(words);
+  const liveIn = computeLiveIn(decoded);
+  /* After mult defines hi/lo, mflo at index 1 reads lo. Check live-in at mflo. */
+  const mfloLiveWord1 = liveIn[1 * 2 + 1]!;
+  /* LO_BIT = 1 << (33 - 32) = 2 = 0b10 */
+  assert.ok((mfloLiveWord1 & 2) !== 0, "lo is live at mflo (bit 1 of second word)");
+  /* HI_BIT = 1 << (32 - 32) = 1. hi is NOT live at mflo because mflo only reads lo. */
+  assert.equal((mfloLiveWord1 & 1), 0, "hi is not live at mflo");
+  /* At the mult (index 0), hi/lo are NOT live before mult (they are def'd by it). */
+  const multLiveWord1 = liveIn[0 * 2 + 1]!;
+  assert.equal((multLiveWord1 & 1), 0, "hi is not live before mult");
+  assert.equal((multLiveWord1 & 2), 0, "lo is not live before mult");
+});
+
+test("a computed load address with a single index term is now supported (D3: scaled indexing)", () => {
+  /* sll(a1, 2) + a0 — a single scaled index with an argument pointer base.
+   * D3 supports this as an indexed address: base a0, index a1, scale 4. */
+  const result = run([
+    ["sll", "v1", "a1", 2],
+    ["addu", "v1", "a0", "v1"],
+    ["lw", "v0", 0, "v1"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.ok(canon(node.value).includes("[@a1*4]"), `expected [@a1*4] in ${canon(node.value)}`);
+  }
+});
+
+test("indexed store through argument pointer lands on the leaf (D3)", () => {
+  /* sw a2, 0(v1) where v1 = a0 + sll(a1, 2). This is an indexed store. */
+  const result = run([
+    ["sll", "v1", "a1", 2],
+    ["addu", "v1", "a0", "v1"],
+    ["sw", "a2", 0, "v1"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    /* The store effect on the leaf should carry the indexed address. */
+    const effects = node.effects;
+    assert.ok(effects.length >= 1, "expected at least one effect");
+    const effect = effects[0]!;
+    assert.equal(effect.kind, "store");
+    if (effect.kind === "store") {
+      assert.ok(effect.index !== undefined, "expected effect.index to be set");
+      assert.equal(effect.index!.scale, 4, "expected scale 4");
+    }
+  }
+});
+
+test("jump-table dispatch via loaded word forms a dispatch DAG node (D4)", () => {
+  const tableAddr = 0x800100DC;
+  const functionStart = 0x80100000;
+  /* The function loads a table entry at tableAddr + a0*4, then dispatches
+   * through v0. Two case bodies follow after the jr+nop sequence. */
+  const insns = decodeFunction(assemble([
+    ["lui", "v0", tableAddr >>> 16],
+    ["addiu", "v0", "v0", tableAddr & 0xFFFF],
+    ["sll", "v1", "a0", 2],
+    ["addu", "v1", "v1", "v0"],
+    ["lw", "v0", 0, "v1"],
+    ["jr", "v0"],
+    ["nop"],
+    /* case 0 at index 7 (0x8010001C) */
+    ["addiu", "v0", "zero", 100],
+    ["jr", "ra"],
+    ["nop"],
+    /* case 1 at index 10 (0x80100028) */
+    ["addiu", "v0", "zero", 200],
+    ["jr", "ra"],
+    ["nop"],
+  ], functionStart));
+
+  const result = executeFunction(insns, {
+    readWord: (vram: number): number | undefined => {
+      if (vram === tableAddr) return functionStart + 7 * 4;     /* case 0 */
+      if (vram === tableAddr + 4) return functionStart + 10 * 4; /* case 1 */
+      return undefined;
+    },
+  });
+
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "dispatch");
+  if (node.kind === "dispatch") {
+    assert.equal(node.targets.length, 2, "expected 2 dispatch targets");
+    const target0 = result.arena.node(node.targets[0]!);
+    const target1 = result.arena.node(node.targets[1]!);
+    assert.equal(target0.kind, "leaf");
+    assert.equal(target1.kind, "leaf");
+    if (target0.kind === "leaf" && target1.kind === "leaf") {
+      assert.equal(canon(target0.value), "#100");
+      assert.equal(canon(target1.value), "#200");
+    }
+  }
+});
+
+test("dispatch with bounds check merges into switch-default (D4)", () => {
+  /* A sltiu test precedes the dispatch; the guard's true arm is the dispatch
+   * and the false arm is a leaf returning -1. The constructor (guarded class)
+   * should merge these into a switch with a default case. */
+  const tableAddr = 0x800100DC;
+  const functionStart = 0x80100000;
+  /* slti a0, 2 (a0 < 2) -> v1, beq -> default on a0 >= 2, fall through to dispatch */
+  const insns = decodeFunction(assemble([
+    ["slti", "v1", "a0", 2],
+    ["beq", "v1", "zero", "default"],
+    ["nop"],
+    ["lui", "v0", tableAddr >>> 16],
+    ["addiu", "v0", "v0", tableAddr & 0xFFFF],
+    ["sll", "v1", "a0", 2],
+    ["addu", "v1", "v1", "v0"],
+    ["lw", "v0", 0, "v1"],
+    ["jr", "v0"],
+    ["nop"],
+    ["addiu", "v0", "zero", 10],
+    ["jr", "ra"],
+    ["nop"],
+    ["addiu", "v0", "zero", 20],
+    ["jr", "ra"],
+    ["nop"],
+    ["label", "default"],
+    ["addiu", "v0", "zero", -1],
+    ["jr", "ra"],
+    ["nop"],
+  ], functionStart));
+
+  const result = executeFunction(insns, {
+    readWord: (vram: number): number | undefined => {
+      if (vram === tableAddr) return functionStart + 10 * 4; /* case 0 at index 10 */
+      if (vram === tableAddr + 4) return functionStart + 13 * 4; /* case 1 at index 13 */
+      return undefined;
+    },
+  });
+
+  /* The executor keeps the bounds check as a test above the dispatch; the
+   * guarded constructor merges them into a switch-with-default at emission. */
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "test");
+  if (node.kind === "test") {
+    assert.equal(node.pred.op, "ltS");
+    assert.equal(canon(node.pred.left), "@a0");
+    const onTrue = result.arena.node(node.onTrue);
+    assert.equal(onTrue.kind, "dispatch");
+    if (onTrue.kind === "dispatch") {
+      assert.equal(onTrue.targets.length, 2);
+      assert.equal(canon(onTrue.index), "@a0");
+    }
+  }
 });

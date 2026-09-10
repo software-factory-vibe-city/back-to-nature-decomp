@@ -46,6 +46,12 @@ export function assemble(lines: AsmLine[], baseVram: number): Array<{ raw: numbe
       case "subu": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x23; break;
       case "slt": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x2a; break;
       case "sltu": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x2b; break;
+      case "mult": word = (reg(operands[0]!) << 21) | (reg(operands[1]!) << 16) | 0x18; break;
+      case "multu": word = (reg(operands[0]!) << 21) | (reg(operands[1]!) << 16) | 0x19; break;
+      case "div": word = (reg(operands[0]!) << 21) | (reg(operands[1]!) << 16) | 0x1a; break;
+      case "divu": word = (reg(operands[0]!) << 21) | (reg(operands[1]!) << 16) | 0x1b; break;
+      case "mfhi": word = (reg(operands[0]!) << 11) | 0x10; break;
+      case "mflo": word = (reg(operands[0]!) << 11) | 0x12; break;
       case "jr": word = (reg(operands[0]!) << 21) | 0x08; break;
       case "sll": word = (reg(operands[1]!) << 16) | (reg(operands[0]!) << 11) | ((Number(operands[2]) & 31) << 6); break;
       case "sra": word = (reg(operands[1]!) << 16) | (reg(operands[0]!) << 11) | ((Number(operands[2]) & 31) << 6) | 0x03; break;

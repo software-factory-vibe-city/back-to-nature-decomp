@@ -194,7 +194,16 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
 
     let executed;
     try {
-      executed = executeFunction(insns, { gpValue: container.gpValue || undefined });
+      executed = executeFunction(insns, {
+        gpValue: container.gpValue || undefined,
+        readWord: (vram) => {
+          /* Jump tables live in the container image; relocate through the
+           * same load-address mapping as the code itself. */
+          const rom = vramToRom(container, vram);
+          if (rom < 0 || rom + 4 > image.length) return undefined;
+          return image.readUInt32LE(rom);
+        },
+      });
     } catch (error) {
       if (error instanceof UnsupportedTarget) {
         bundle.state = "unsupported-target";
@@ -244,7 +253,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
     const fit = fitScanRelation(executed.arena, executed.root);
     if (!fit.fitted) {
       /* 2c. Not a scan — try the bounded guarded-effects class. */
-      const guarded = constructGuardedCandidates(functionName, executed.arena, executed.root, executed.loads, container);
+      const guarded = constructGuardedCandidates(functionName, executed.arena, executed.root, executed.loads, container, executed.maskWitnesses);
       if ("unresolved" in guarded) {
         bundle.state = "context-unresolved";
         bundle.unresolved = { state: "context-unresolved", detail: guarded.unresolved };

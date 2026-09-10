@@ -26,7 +26,11 @@ import {
   loadSigned,
   loadWidth,
 } from "./decode.js";
-import type { BinaryOp, DagNode, DagRef, Predicate, StoreEffect, SymExpr } from "./types.js";
+import type { BinaryOp, CallEffect, DagNode, DagRef, Effect, Predicate, StoreEffect, SymExpr } from "./types.js";
+import { LOOP_BACK } from "./types.js";
+
+/* Re-import for the executor's register file. */
+import * as decodeModule from "./decode.js";
 
 /* ---- failure carrying its location -------------------------------------- */
 
@@ -37,21 +41,68 @@ export class UnsupportedTarget extends Error {
   }
 }
 
+/* ---- hi/lo register indices ---------------------------------------------- */
+
+export const HI_REG = 32;
+export const LO_REG = 33;
+export const REGISTER_COUNT = 34;
+
+/* Extended register name table for the executor's internal register file.
+ * REGISTER_NAMES in decode.ts stays at 32 entries for consumers that assume
+ * that size (instruction decode, etc.). */
+const EXEC_REGISTER_NAMES = [...decodeModule.REGISTER_NAMES, "hi", "lo"];
+
 /* ---- expressions --------------------------------------------------------- */
 
 export const constExpr = (value: number): SymExpr => ({ kind: "const", value: value >>> 0 });
 
-export function canon(expr: SymExpr): string {
+/** True when an expression reaches the stack pointer (a passed local address). */
+export function containsSp(expr: SymExpr): boolean {
   switch (expr.kind) {
-    case "const": return `#${expr.value >>> 0}`;
-    case "entry": return `@${expr.register}`;
-    case "load": {
-      const place = expr.base ? `${canon(expr.base)}+${expr.address}` : `${expr.address >>> 0}`;
-      const epoch = expr.epoch ? `@${expr.epoch}` : "";
-      return `M${expr.width}${expr.signed ? "s" : "u"}[${place}]${epoch}`;
+    case "entry": return expr.register === "sp";
+    case "load":
+      return (expr.base !== undefined && containsSp(expr.base)) ||
+        (expr.index !== undefined && containsSp(expr.index.expr));
+    case "unary": return containsSp(expr.operand);
+    case "binary": return containsSp(expr.left) || containsSp(expr.right);
+    case "call-result": return false;
+    default: return false;
+  }
+}
+
+export function canon(expr: SymExpr): string {
+  /* Normalize: add(add(X, #-N), #N) → X — common idiom for stack frame
+   * restore. Also add(X, #0) → X, sub(X, #0) → X. */
+  let normalized = expr;
+  if (normalized.kind === "binary" && normalized.op === "add" && normalized.left.kind === "binary" && normalized.left.op === "add") {
+    const inner = normalized.left;
+    if (inner.right.kind === "const" && normalized.right.kind === "const") {
+      const innerVal = inner.right.value | 0;
+      const outerVal = normalized.right.value | 0;
+      if (innerVal + outerVal === 0) {
+        normalized = inner.left;
+      }
     }
-    case "unary": return `${expr.op}(${canon(expr.operand)})`;
-    case "binary": return `${expr.op}(${canon(expr.left)},${canon(expr.right)})`;
+  }
+  if (normalized.kind === "binary" && normalized.op === "add" && normalized.right.kind === "const" && normalized.right.value === 0) {
+    normalized = normalized.left;
+  }
+  if (normalized.kind === "binary" && normalized.op === "sub" && normalized.right.kind === "const" && normalized.right.value === 0) {
+    normalized = normalized.left;
+  }
+  switch (normalized.kind) {
+    case "const": return `#${normalized.value >>> 0}`;
+    case "entry": return `@${normalized.register}`;
+    case "load": {
+      const place = normalized.base ? `${canon(normalized.base)}+${normalized.address}` : `${normalized.address >>> 0}`;
+      const idx = normalized.index ? `[${canon(normalized.index.expr)}*${normalized.index.scale}]` : "";
+      const epoch = normalized.epoch ? `@${normalized.epoch}` : "";
+      return `M${normalized.width}${normalized.signed ? "s" : "u"}[${place}]${idx}${epoch}`;
+    }
+    case "unary": return `${normalized.op}(${canon(normalized.operand)})`;
+    case "binary": return `${normalized.op}(${canon(normalized.left)},${canon(normalized.right)})`;
+    case "call-result": return `CR(${normalized.seq},${normalized.register})`;
+    case "iv": return `IV(${normalized.register},${normalized.delta})`;
   }
 }
 
@@ -65,7 +116,7 @@ export function splitAddress(expr: SymExpr): { base: SymExpr; offset: number } |
   let offset = 0;
   let current = expr;
   for (let depth = 0; depth < 8; depth++) {
-    if (current.kind === "entry" || current.kind === "load") return { base: current, offset };
+    if (current.kind === "entry" || current.kind === "load" || current.kind === "iv") return { base: current, offset };
     if (current.kind === "binary" && current.op === "add") {
       const left = current.left;
       const right = current.right;
@@ -85,6 +136,72 @@ export function splitAddress(expr: SymExpr): { base: SymExpr; offset: number } |
   return null;
 }
 
+/**
+ * Extended address splitter that also recognizes a single scaled-index term.
+ * Returns the base, a constant offset, and optionally an index expression with
+ * its scale. The index term must be a `sll(e, k)` node whose left operand is
+ * not a constant; at most one such term is permitted.
+ *
+ * Legal combinations: base + index [+ offset], base + offset [+ index],
+ * and bare absolute address without base/index. Anything else (two indexes,
+ * two bases, index with no base) returns null.
+ */
+export function splitIndexedAddress(
+  expr: SymExpr,
+): { base: SymExpr; offset: number; index?: { expr: SymExpr; scale: number } } | null {
+  /* Flatten the add tree into terms, depth ≤ 8. */
+  const terms: SymExpr[] = [];
+  const flatten = (e: SymExpr, depth: number): void => {
+    if (depth > 8) { terms.push(e); return; }
+    if (e.kind === "binary" && e.op === "add") {
+      flatten(e.left, depth + 1);
+      flatten(e.right, depth + 1);
+    } else {
+      terms.push(e);
+    }
+  };
+  flatten(expr, 0);
+
+  /* Find the constant term, the index term (sll), and potential base(s). */
+  let constant = 0;
+  let indexTerm: { expr: SymExpr; scale: number } | undefined;
+  const baseCandidates: SymExpr[] = [];
+
+  for (const term of terms) {
+    if (term.kind === "const") {
+      constant += term.value | 0;
+    } else if (term.kind === "binary" && term.op === "sll" && term.left.kind !== "const") {
+      if (indexTerm) return null; /* at most one index */
+      const scale = (term.right.kind === "const") ? (1 << (term.right.value & 31)) : 1;
+      indexTerm = { expr: term.left, scale };
+    } else if (term.kind === "entry" || term.kind === "load" || term.kind === "iv") {
+      baseCandidates.push(term);
+    } else {
+      /* Any other term (e.g. another add, a pointer of non-standard shape) — refuse. */
+      return null;
+    }
+  }
+
+  if (baseCandidates.length > 1) return null; /* ambiguous */
+  const base = baseCandidates[0];
+  if (!base && indexTerm && constant === 0) {
+    /* Pure index with no base and zero offset — an absolute index? Refuse —
+     * we need a base for array semantics. */
+    return null;
+  }
+  if (!base && indexTerm) {
+    /* Absolute base + index: the constant is the base address.
+     * Return it as a constant base, offset 0, with the index term. */
+    return { base: { kind: "const", value: constant >>> 0 }, offset: 0, index: indexTerm };
+  }
+  if (!base && !indexTerm) {
+    /* Only a constant — that is an ordinary absolute address. */
+    return null;
+  }
+
+  return base ? { base, offset: constant, ...(indexTerm ? { index: indexTerm } : {}) } : null;
+}
+
 const asConst = (expr: SymExpr): number | undefined =>
   expr.kind === "const" ? expr.value >>> 0 : undefined;
 
@@ -92,6 +209,10 @@ const toSigned = (value: number): number => value | 0;
 
 /** Build a binary expression, folding what can be folded. */
 export function binary(op: BinaryOp, left: SymExpr, right: SymExpr): SymExpr {
+  /* Simplify add/sub by zero to avoid phantom differences. */
+  if (op === "add" && right.kind === "const" && right.value === 0) return left;
+  if (op === "add" && left.kind === "const" && left.value === 0) return right;
+  if (op === "sub" && right.kind === "const" && right.value === 0) return left;
   const a = asConst(left);
   const b = asConst(right);
   if (a !== undefined && b !== undefined) {
@@ -107,6 +228,34 @@ export function binary(op: BinaryOp, left: SymExpr, right: SymExpr): SymExpr {
       case "sra": return constExpr(toSigned(a) >> (b & 31));
       case "sltS": return constExpr(toSigned(a) < toSigned(b) ? 1 : 0);
       case "sltU": return constExpr(a >>> 0 < b >>> 0 ? 1 : 0);
+      case "mulLo": {
+        const product = BigInt(toSigned(a)) * BigInt(toSigned(b));
+        return constExpr(Number(product & 0xffffffffn));
+      }
+      case "mulHiS": {
+        const product = BigInt(toSigned(a)) * BigInt(toSigned(b));
+        return constExpr(Number((product >> 32n) & 0xffffffffn));
+      }
+      case "mulHiU": {
+        const product = BigInt(a >>> 0) * BigInt(b >>> 0);
+        return constExpr(Number((product >> 32n) & 0xffffffffn));
+      }
+      case "divS": {
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        return constExpr(toSigned(Math.trunc(toSigned(a) / toSigned(b))));
+      }
+      case "divU": {
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        return constExpr((a >>> 0) / (b >>> 0) >>> 0);
+      }
+      case "remS": {
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        return constExpr(toSigned(a) % toSigned(b));
+      }
+      case "remU": {
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        return constExpr((a >>> 0) % (b >>> 0));
+      }
     }
   }
   /* x + 0, x | 0, x ^ 0, x << 0 … keep expressions in their simplest spelling. */
@@ -174,8 +323,10 @@ export class DagArena {
     return ref;
   }
 
-  leaf(value: SymExpr, effects: StoreEffect[] = []): DagRef {
-    const effectKey = effects.map((effect) => `${effect.address}:${effect.width}:${canon(effect.value)}`).join(",");
+  leaf(value: SymExpr, effects: Effect[] = []): DagRef {
+    const effectKey = effects.map((effect) => effect.kind === "call"
+      ? `call(${effect.seq},${effect.callee},${effect.args.map(canon).join(",")})`
+      : `${effect.address}:${effect.width}:${canon(effect.value)}`).join(",");
     return this.intern(`L${canon(value)}|E${effectKey}`, { kind: "leaf", value, effects });
   }
 
@@ -183,6 +334,25 @@ export class DagArena {
     /* Both outcomes reaching the same continuation makes the test dead. */
     if (onTrue === onFalse) return onTrue;
     return this.intern(`T${canonPredicate(pred)}|${onTrue}|${onFalse}`, { kind: "test", pred, onTrue, onFalse });
+  }
+
+  dispatch(index: SymExpr, targets: DagRef[]): DagRef {
+    const targetKey = targets.join(",");
+    return this.intern(`D${canon(index)}|${targetKey}`, { kind: "dispatch", index, targets });
+  }
+
+  /** Sentinel "continue" leaf used inside loop body DAGs. */
+  continueRef(): DagRef {
+    return this.intern("@__continue", {
+      kind: "leaf",
+      value: { kind: "entry", register: "__continue" },
+      effects: [],
+    });
+  }
+
+  loop(induction: Array<{ register: string; delta: number }>, body: DagRef): DagRef {
+    const key = `Lp${induction.map((iv) => `${iv.register}+${iv.delta}`).join(",")}|B${body}`;
+    return this.intern(key, { kind: "loop", induction, body });
   }
 
   node(ref: DagRef): DagNode {
@@ -206,55 +376,85 @@ export function classifySupport(insns: DecodedInsn[]): { reason: string; vram: n
   const end = start + insns.length * 4;
 
   for (const insn of insns) {
-    if (insn.op === "jal" || insn.op === "jalr") note("calls another function (the supported class is call-free)", insn.vram);
-    else if (insn.op === "unknown") note(`word 0x${(insn.word >>> 0).toString(16)} is outside the decoded integer subset`, insn.vram);
+    if (insn.op === "unknown") note(`word 0x${(insn.word >>> 0).toString(16)} is outside the decoded integer subset`, insn.vram);
     else if ((isBranch(insn.op) || insn.op === "j") && insn.target !== undefined && (insn.target < start || insn.target >= end)) {
       note("control transfers outside the function", insn.vram);
     }
+    /* `jr rs` with rs !== ra is a dispatch — handled in the executor. */
+    /* `jal`/`jalr` are opaque calls handled in the executor (D6). */
   }
   return [...found.entries()].map(([reason, vram]) => ({ reason, vram }));
 }
 
 /* ---- liveness ------------------------------------------------------------ */
 
-function defsUses(insn: DecodedInsn): { defs: number; uses: number } {
+const HI_BIT = 1 << (HI_REG - 32);  /* bit 0 of second word */
+const LO_BIT = 1 << (LO_REG - 32);  /* bit 1 of second word */
+
+function defsUses(insn: DecodedInsn): { defs: number; uses: number; defsHiLo: number; usesHiLo: number } {
   const bit = (register: number) => (register === 0 ? 0 : 1 << register);
+  const hiLoBit = (register: number) => register >= 32 ? 1 << (register - 32) : 0;
+  const defsHiLo = 0;
+  const usesHiLo = 0;
   switch (insn.op) {
+    case "mult": case "multu": case "div": case "divu":
+      return { defs: 0, uses: bit(insn.rs) | bit(insn.rt), defsHiLo: HI_BIT | LO_BIT, usesHiLo: 0 };
+    case "mfhi":
+      return { defs: bit(insn.rd), uses: 0, defsHiLo: 0, usesHiLo: HI_BIT };
+    case "mflo":
+      return { defs: bit(insn.rd), uses: 0, defsHiLo: 0, usesHiLo: LO_BIT };
     case "addu": case "subu": case "and": case "or": case "xor": case "nor":
     case "slt": case "sltu":
-      return { defs: bit(insn.rd), uses: bit(insn.rs) | bit(insn.rt) };
+      return { defs: bit(insn.rd), uses: bit(insn.rs) | bit(insn.rt), defsHiLo: 0, usesHiLo: 0 };
     case "sll": case "srl": case "sra":
-      return { defs: bit(insn.rd), uses: bit(insn.rt) };
+      return { defs: bit(insn.rd), uses: bit(insn.rt), defsHiLo: 0, usesHiLo: 0 };
     case "sllv": case "srlv": case "srav":
-      return { defs: bit(insn.rd), uses: bit(insn.rt) | bit(insn.rs) };
+      return { defs: bit(insn.rd), uses: bit(insn.rt) | bit(insn.rs), defsHiLo: 0, usesHiLo: 0 };
     case "addiu": case "addi": case "slti": case "sltiu":
     case "andi": case "ori": case "xori":
-      return { defs: bit(insn.rt), uses: bit(insn.rs) };
+      return { defs: bit(insn.rt), uses: bit(insn.rs), defsHiLo: 0, usesHiLo: 0 };
     case "lui":
-      return { defs: bit(insn.rt), uses: 0 };
+      return { defs: bit(insn.rt), uses: 0, defsHiLo: 0, usesHiLo: 0 };
     case "lb": case "lbu": case "lh": case "lhu": case "lw":
-      return { defs: bit(insn.rt), uses: bit(insn.rs) };
+      return { defs: bit(insn.rt), uses: bit(insn.rs), defsHiLo: 0, usesHiLo: 0 };
     case "sb": case "sh": case "sw":
-      return { defs: 0, uses: bit(insn.rt) | bit(insn.rs) };
+      return { defs: 0, uses: bit(insn.rt) | bit(insn.rs), defsHiLo: 0, usesHiLo: 0 };
     case "beq": case "bne":
-      return { defs: 0, uses: bit(insn.rs) | bit(insn.rt) };
+      return { defs: 0, uses: bit(insn.rs) | bit(insn.rt), defsHiLo: 0, usesHiLo: 0 };
     case "blez": case "bgtz": case "bltz": case "bgez":
-      return { defs: 0, uses: bit(insn.rs) };
+      return { defs: 0, uses: bit(insn.rs), defsHiLo: 0, usesHiLo: 0 };
     case "jr":
       /* Returning hands `$v0` to the caller, which is the only way the return
        * value becomes live. */
-      return { defs: 0, uses: bit(insn.rs) | bit(2) };
+      return { defs: 0, uses: bit(insn.rs) | bit(2), defsHiLo: 0, usesHiLo: 0 };
+    case "jal": case "jalr":
+      /* Opaque call: clobbers v0, v1, a0-a3, t0-t9, at, ra, hi, lo.
+       * Defines those registers; uses register arguments (a0-a3) implicitly
+       * through the calling convention and rs explicitly for jalr. */
+      return {
+        defs: bit(2) | bit(3) | /* v0, v1 */
+          bit(1) | /* at */
+          bit(4) | bit(5) | bit(6) | bit(7) | /* a0-a3 */
+          bit(8) | bit(9) | bit(10) | bit(11) | /* t0-t3 */
+          bit(12) | bit(13) | bit(14) | bit(15) | /* t4-t7 */
+          bit(24) | bit(25) | /* t8-t9 */
+          bit(31) | /* ra */
+          (insn.op === "jalr" ? bit(insn.rs) : 0), /* jalr also reads rs */
+        uses: (insn.op === "jalr" ? bit(insn.rs) : 0),
+        defsHiLo: HI_BIT | LO_BIT,
+        usesHiLo: 0,
+      };
     default:
-      return { defs: 0, uses: 0 };
+      return { defs: 0, uses: 0, defsHiLo: 0, usesHiLo: 0 };
   }
 }
 
 /**
- * Live-in registers per instruction, as a bitmask, over an instruction-level
- * CFG whose edges follow execution order: a branch reads its condition, then
- * its delay slot executes, then control transfers.
+ * Instruction-level CFG successors in execution order: a branch reads its
+ * condition, then its delay slot runs, then control transfers. Shared by the
+ * liveness fixpoint and the loop-head normalization.
  */
-export function computeLiveIn(insns: DecodedInsn[]): Int32Array {
+export function buildSuccessors(insns: DecodedInsn[]): number[][] {
   const count = insns.length;
   const start = insns[0]?.vram ?? 0;
   const indexOf = (vram: number) => (vram - start) / 4;
@@ -285,21 +485,39 @@ export function computeLiveIn(insns: DecodedInsn[]): Int32Array {
       successors[index]!.push(index + 1);
     }
   }
+  return successors;
+}
 
-  const liveIn = new Int32Array(count);
-  const liveOut = new Int32Array(count);
+/**
+ * Live-in registers per instruction, as a bitmask over a 34-register file
+ * packed into two words (word 0: r0-r31, word 1: hi/lo and future extensions).
+ */
+export function computeLiveIn(insns: DecodedInsn[]): Int32Array {
+  const count = insns.length;
+  const successors = buildSuccessors(insns);
+
+  /* Two words per instruction: word0 = r0-r31, word1 = hi/lo */
+  const liveIn = new Int32Array(count * 2);
+  const liveOut = new Int32Array(count * 2);
   const meta = insns.map(defsUses);
 
   let changed = true;
   while (changed) {
     changed = false;
     for (let index = count - 1; index >= 0; index--) {
-      let out = 0;
-      for (const successor of successors[index]!) out |= liveIn[successor]!;
-      const before = liveIn[index]!;
-      liveOut[index] = out;
-      liveIn[index] = meta[index]!.uses | (out & ~meta[index]!.defs);
-      if (liveIn[index] !== before) changed = true;
+      let out0 = 0;
+      let out1 = 0;
+      for (const successor of successors[index]!) {
+        out0 |= liveIn[successor * 2]!;
+        out1 |= liveIn[successor * 2 + 1]!;
+      }
+      const before0 = liveIn[index * 2]!;
+      const before1 = liveIn[index * 2 + 1]!;
+      liveOut[index * 2] = out0;
+      liveOut[index * 2 + 1] = out1;
+      liveIn[index * 2] = meta[index]!.uses | (out0 & ~meta[index]!.defs);
+      liveIn[index * 2 + 1] = meta[index]!.usesHiLo | (out1 & ~meta[index]!.defsHiLo);
+      if (liveIn[index * 2] !== before0 || liveIn[index * 2 + 1] !== before1) changed = true;
     }
   }
   return liveIn;
@@ -312,6 +530,11 @@ export interface ExecOptions {
   gpValue?: number | undefined;
   maxStates?: number | undefined;
   maxSteps?: number | undefined;
+  /**
+   * Read one little-endian 32-bit word from the container's bytes at the
+   * given VRAM address. Required for jump-table dispatch (D4).
+   */
+  readWord?: ((vram: number) => number | undefined) | undefined;
 }
 
 export interface LoadMeta {
@@ -329,6 +552,9 @@ export interface ExecResult {
   root: DagRef;
   /** Distinct load atoms the relation reads. */
   loads: LoadMeta[];
+  /** Canonical keys of unsigned load atoms the machine re-masked — evidence
+   *  of a wide-variable + narrowed-variable pair in the source. */
+  maskWitnesses: Set<string>;
   states: number;
   steps: number;
 }
@@ -350,7 +576,7 @@ interface MemCell {
 interface ExecState {
   regs: Registers;
   memory: Map<string, MemCell>;
-  effects: StoreEffect[];
+  effects: Effect[];
 }
 
 const cloneState = (state: ExecState): ExecState => ({
@@ -361,6 +587,20 @@ const cloneState = (state: ExecState): ExecState => ({
 
 const V0 = 2;
 
+/**
+ * Raised when an affine loop is first detected. Detection happens at the
+ * SECOND arrival at the head, by which point the first iteration has already
+ * been unrolled into the DAG — and a peeled first iteration is a structure no
+ * plain-loop source reproduces. So detection restarts the whole execution
+ * with the head recorded, and the retry summarizes the loop at its first
+ * arrival instead of unrolling it at all.
+ */
+class RestartWithLoop extends Error {
+  constructor(readonly pc: number, readonly deltas: Array<{ register: string; delta: number }>) {
+    super("restart with loop summary");
+  }
+}
+
 export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {}): ExecResult {
   const blockers = classifySupport(insns);
   if (blockers.length > 0) {
@@ -370,21 +610,43 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     );
   }
 
+  const knownHeads = new Map<number, Array<{ register: string; delta: number }>>();
+  for (let attempt = 0; attempt <= 8; attempt++) {
+    try {
+      return runAttempt();
+    } catch (error) {
+      if (error instanceof RestartWithLoop) {
+        if (process.env.RECON_DEBUG) {
+          console.error(`RESTART: head pc=${error.pc} vram=0x${((insns[0]?.vram ?? 0) + error.pc * 4).toString(16)} deltas=${JSON.stringify(error.deltas)}`);
+        }
+        knownHeads.set(error.pc, error.deltas);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new UnsupportedTarget("too many interacting symbolic-bound loops", []);
+
+  function runAttempt(): ExecResult {
   const start = insns[0]?.vram ?? 0;
   const count = insns.length;
   const liveIn = computeLiveIn(insns);
   const arena = new DagArena();
   const loads = new Map<string, LoadMeta>();
+  const maskWitnesses = new Set<string>();
   const maxStates = options.maxStates ?? 4096;
   const maxSteps = options.maxSteps ?? 200_000;
   let states = 0;
   let steps = 0;
 
-  const initial: Registers = REGISTER_NAMES.map((name, index) => {
+  const initial: Registers = (REGISTER_NAMES as readonly string[]).map((name, index) => {
     if (index === 0) return constExpr(0);
     if (name === "gp" && options.gpValue) return constExpr(options.gpValue);
     return { kind: "entry", register: name };
   });
+  /* hi/lo: extend the register file to 34 entries with entry atoms. */
+  (initial as SymExpr[])[HI_REG] = { kind: "entry", register: "hi" };
+  (initial as SymExpr[])[LO_REG] = { kind: "entry", register: "lo" };
 
   const indexOf = (vram: number): number => {
     const index = (vram - start) / 4;
@@ -397,15 +659,21 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
   const memo = new Map<string, DagRef | "in-progress">();
 
   const stateKey = (index: number, state: ExecState): string => {
-    const live = liveIn[index]!;
+    const live0 = liveIn[index * 2]!;
+    const live1 = liveIn[index * 2 + 1]!;
     const parts: string[] = [];
     for (let register = 1; register < 32; register++) {
-      if (live & (1 << register)) parts.push(`${register}=${canon(state.regs[register]!)}`);
+      if (live0 & (1 << register)) parts.push(`${register}=${canon(state.regs[register]!)}`);
     }
+    /* hi/lo: include in state key when live. */
+    if (live1 & HI_BIT) parts.push(`hi=${canon(state.regs[HI_REG]!)}`);
+    if (live1 & LO_BIT) parts.push(`lo=${canon(state.regs[LO_REG]!)}`);
     /* Memory and the store log are live state everywhere — a merged
      * continuation must agree on what has been written and in what order. */
     const memoryKey = state.effects
-      .map((effect) => `${effect.address}:${effect.width}:${canon(effect.value)}`)
+      .map((effect) => effect.kind === "call"
+        ? `call(${effect.seq},${effect.callee},${effect.args.map(canon).join(",")})`
+        : `${effect.address}:${effect.width}:${canon(effect.value)}`)
       .join(",");
     return `${index}|${parts.join(",")}|M${memoryKey}`;
   };
@@ -417,6 +685,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     signed: boolean,
     viaGp: boolean,
     epoch: number,
+    index?: { expr: SymExpr; scale: number } | undefined,
   ): SymExpr => {
     const atom: SymExpr = {
       kind: "load",
@@ -424,6 +693,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       width,
       signed,
       ...(base ? { base } : {}),
+      ...(index ? { index } : {}),
       ...(epoch > 0 ? { epoch } : {}),
     };
     const key = canon(atom).replace(/@\d+$/, "");
@@ -453,6 +723,10 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     const set = (register: number, value: SymExpr) => {
       if (register !== 0) regs[register] = value;
     };
+    const setHiLo = (hi: SymExpr, lo: SymExpr): void => {
+      regs[HI_REG] = hi;
+      regs[LO_REG] = lo;
+    };
     const rs = regs[insn.rs]!;
     const rt = regs[insn.rt]!;
     switch (insn.op) {
@@ -474,10 +748,45 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       case "addiu": case "addi": return set(insn.rt, binary("add", rs, constExpr(insn.simm)));
       case "slti": return set(insn.rt, binary("sltS", rs, constExpr(insn.simm)));
       case "sltiu": return set(insn.rt, binary("sltU", rs, constExpr(insn.simm)));
-      case "andi": return set(insn.rt, binary("and", rs, constExpr(insn.uimm)));
+      case "andi": {
+        /* A mask that re-narrows an already-narrow unsigned load folds away
+         * semantically, but the instruction is evidence: the source held the
+         * load in a wide variable and narrowed a second one from it. Witness
+         * the atom so construction can offer that two-variable spelling. */
+        if (
+          rs.kind === "load" && !rs.signed &&
+          ((insn.uimm === 0xffff && rs.width <= 2) || (insn.uimm === 0xff && rs.width === 1))
+        ) {
+          maskWitnesses.add(canon({ ...rs, epoch: undefined }));
+        }
+        return set(insn.rt, binary("and", rs, constExpr(insn.uimm)));
+      }
       case "ori": return set(insn.rt, binary("or", rs, constExpr(insn.uimm)));
       case "xori": return set(insn.rt, binary("xor", rs, constExpr(insn.uimm)));
       case "lui": return set(insn.rt, constExpr(insn.uimm << 16));
+      /* multiply / divide: set hi/lo */
+      case "mult": {
+        const product = binary("mulLo", rs, rt);
+        const hi = binary("mulHiS", rs, rt);
+        return setHiLo(hi, product);
+      }
+      case "multu": {
+        const product = binary("mulLo", rs, rt);
+        const hi = binary("mulHiU", rs, rt);
+        return setHiLo(hi, product);
+      }
+      case "div": {
+        const quotient = binary("divS", rs, rt);
+        const remainder = binary("remS", rs, rt);
+        return setHiLo(remainder, quotient);
+      }
+      case "divu": {
+        const quotient = binary("divU", rs, rt);
+        const remainder = binary("remU", rs, rt);
+        return setHiLo(remainder, quotient);
+      }
+      case "mfhi": return set(insn.rd, regs[HI_REG]!);
+      case "mflo": return set(insn.rd, regs[LO_REG]!);
       case "lb": case "lbu": case "lh": case "lhu": case "lw": {
         const place = resolvePlace(rs, insn, "load");
         const width = loadWidth(insn.op);
@@ -488,7 +797,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         const known = state.memory.get(cellKey);
         if (known) return set(insn.rt, loadedBack(known, loadSigned(insn.op)));
         checkOverlap(state, place.group, place.offset, width, insn.vram, "load");
-        const atom = loadAtom(place.base, place.offset, width, loadSigned(insn.op), insn.rs === 28, state.effects.length);
+        const atom = loadAtom(place.base, place.offset, width, loadSigned(insn.op), insn.rs === 28, state.effects.length, place.index);
         /* Remember the atom so a repeat read is the same value, not a twin. */
         state.memory.set(cellKey, { offset: place.offset, width, value: atom });
         return set(insn.rt, atom);
@@ -515,14 +824,42 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         }
         state.memory.set(`${place.group}|${place.offset}|${width}`, { offset: place.offset, width, value: rt });
         state.effects.push({
+          kind: "store",
           address: place.offset,
           width,
           value: rt,
           seq: state.effects.length,
           vram: insn.vram,
           ...(place.base ? { base: place.base } : {}),
+          ...(place.index ? { index: place.index } : {}),
           viaGp: insn.rs === 28,
         });
+        return;
+      }
+      case "jal": case "jalr": {
+        /* Opaque call (D6): record the effect, clobber, invalidate memory.
+         * The callee is not explored; the function continues inline. */
+        const callee = insn.op === "jal" && insn.target !== undefined
+          ? `0x${(insn.target >>> 0).toString(16)}`
+          : `0x${(insn.target ?? 0 >>> 0).toString(16)}`;
+        const seq = state.effects.length;
+        const args = [regs[4]!, regs[5]!, regs[6]!, regs[7]!];
+        state.effects.push({ kind: "call", callee, seq, vram: insn.vram, args, resultUsed: false });
+        /* Clobber: v0, v1 := call-result; at, a0-a3, t0-t9, ra, hi, lo likewise. */
+        const clobbered = [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 31];
+        for (const register of clobbered) {
+          state.regs[register] = { kind: "call-result", seq, register: REGISTER_NAMES[register] ?? String(register) };
+        }
+        state.regs[HI_REG] = { kind: "call-result", seq, register: "hi" };
+        state.regs[LO_REG] = { kind: "call-result", seq, register: "lo" };
+        /* Invalidate every non-@sp memory group; keep @sp cells unless an
+         * argument expression reaches through the stack. */
+        const stackArg = args.some((arg) => containsSp(arg));
+        for (const key of [...state.memory.keys()]) {
+          const group = key.slice(0, key.lastIndexOf("|", key.lastIndexOf("|") - 1));
+          if (group.startsWith("@sp") && !stackArg) continue;
+          state.memory.delete(key);
+        }
         return;
       }
       default:
@@ -530,23 +867,32 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     }
   };
 
-  /** Where a memory access lands: an absolute cell, or (base, offset). */
+  /** Where a memory access lands: an absolute cell, or (base, offset), with optional index. */
   function resolvePlace(
     rs: SymExpr,
     insn: DecodedInsn,
     what: string,
-  ): { group: string; offset: number; base?: SymExpr | undefined } {
+  ): { group: string; offset: number; base?: SymExpr | undefined; index?: { expr: SymExpr; scale: number } | undefined } {
     const addressExpr = binary("add", rs, constExpr(insn.simm));
     const absolute = asConst(addressExpr);
     if (absolute !== undefined) return { group: "", offset: absolute };
+    /* Try the basic split first */
     const split = splitAddress(addressExpr);
-    if (!split) {
-      throw new UnsupportedTarget(
-        `${what} at 0x${insn.vram.toString(16)} has a computed address (${canon(addressExpr)})`,
-        [insn.vram],
-      );
+    if (split) return { group: canon(split.base), offset: split.offset, base: split.base };
+    /* Try the indexed split (D3) */
+    const indexed = splitIndexedAddress(addressExpr);
+    if (indexed) {
+      return {
+        group: canon(indexed.base) + (indexed.index ? "[" + canon(indexed.index.expr) + "*" + indexed.index.scale + "]" : ""),
+        offset: indexed.offset,
+        base: indexed.base,
+        index: indexed.index,
+      };
     }
-    return { group: canon(split.base), offset: split.offset, base: split.base };
+    throw new UnsupportedTarget(
+      `${what} at 0x${insn.vram.toString(16)} has a computed address (${canon(addressExpr)})`,
+      [insn.vram],
+    );
   }
 
   /**
@@ -630,7 +976,183 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
    */
   let forkDepth = 0;
 
-  const explore = (entryIndex: number, entryState: ExecState): DagRef => {
+  /* Affine loop detection (D7): track the state at first arrival per pc so we
+   * can recognise a repeat at the same pc with constant register deltas. */
+  const firstStateAtPc = new Map<number, ExecState>();
+
+  /**
+   * Detection fires wherever the exploration happens to checkpoint twice —
+   * usually a branch target inside the loop's rotated tail, mid-advance.
+   * The natural body start for reconstruction is the cycle's entry from
+   * outside: the unique instruction of the loop's strongly-connected
+   * component with a predecessor outside it. Multiple entries (irreducible
+   * flow) keep the detected pc, and the entry-value check downstream refuses
+   * honestly.
+   */
+  const successors = buildSuccessors(insns);
+  const predecessors: number[][] = insns.map(() => []);
+  for (let from = 0; from < count; from++) {
+    for (const to of successors[from]!) predecessors[to]!.push(from);
+  }
+  const normalizeHead = (detectedPc: number): number => {
+    const reach = (from: number, edges: number[][]): Set<number> => {
+      const seen = new Set<number>([from]);
+      const queue = [from];
+      while (queue.length > 0) {
+        for (const next of edges[queue.pop()!]!) {
+          if (!seen.has(next)) {
+            seen.add(next);
+            queue.push(next);
+          }
+        }
+      }
+      return seen;
+    };
+    const forward = reach(detectedPc, successors);
+    const backward = reach(detectedPc, predecessors);
+    const cycle = new Set<number>([...forward].filter((pc) => backward.has(pc)));
+    const entries = [...cycle].filter((pc) =>
+      pc === 0 || predecessors[pc]!.some((pred) => !cycle.has(pred)));
+    return entries.length === 1 ? entries[0]! : detectedPc;
+  };
+
+  /** Detect whether `current` at the same pc is an affine body iteration
+   *  relative to `prev`. Returns induction deltas when affine, else null. */
+  const detectAffine = (pc: number, prev: ExecState, current: ExecState, liveWords: Int32Array): Array<{ register: string; delta: number }> | null => {
+    if (prev.effects.length !== current.effects.length) return null;
+    for (let i = 0; i < prev.effects.length; i++) {
+      const p = prev.effects[i]!;
+      const c = current.effects[i]!;
+      if (p.kind !== c.kind) return null;
+      if (p.kind === "store" && c.kind === "store") {
+        if (canon(p.base ?? constExpr(0)) !== canon(c.base ?? constExpr(0))) return null;
+        if (p.address !== c.address || p.width !== c.width) return null;
+      } else if (p.kind === "call" && c.kind === "call") {
+        if (p.callee !== c.callee || p.args.length !== c.args.length) return null;
+      }
+    }
+    const live0 = liveWords[pc * 2]!;
+    const live1 = liveWords[pc * 2 + 1]!;
+    const inductions: Array<{ register: string; delta: number }> = [];
+    for (let r = 1; r < 34; r++) {
+      const word = r < 32 ? live0 : live1;
+      const bit = r < 32 ? (1 << r) : (1 << (r - 32));
+      if (!(word & bit)) continue;
+      const pv = prev.regs[r]!;
+      const cv = current.regs[r]!;
+      const pCanon = canon(pv);
+      const cCanon = canon(cv);
+      if (pCanon === cCanon) continue;
+      if (cv.kind === "binary" && (cv.op === "add" || cv.op === "sub") && cv.right.kind === "const") {
+        if (canon(cv.left) === pCanon) {
+          const k = cv.right.value | 0;
+          const delta = cv.op === "add" ? k : -k;
+          const name = r < 32 ? EXEC_REGISTER_NAMES[r] ?? String(r) : r === HI_REG ? "hi" : "lo";
+          inductions.push({ register: name, delta });
+          continue;
+        }
+      }
+      /* Every other mismatch is a loop-varying, non-induction register — a
+       * per-iteration result value, a reloaded pointer, a reset flag. Those
+       * do not block summarization: the body either recomputes them before
+       * use (correct), or their stale entry value surfaces in a leaf and
+       * construction rejects it (honest). Only the total absence of a true
+       * induction says this is not an affine loop. */
+    }
+    if (inductions.length === 0) return null;
+    return inductions;
+  };
+
+  /**
+   * Walk a DAG and replace every occurrence of `sentinelRef` with
+   * `replacementRef`. Returns a new DAG where all nodes are fresh-created
+   * in the arena; the original DAG is unchanged.
+   */
+  const replaceSentinel = (ref: DagRef, sentinelRef: DagRef, replacementRef: DagRef): DagRef => {
+    if (ref === sentinelRef) return replacementRef;
+    const node = arena.node(ref);
+    if (node.kind === "leaf" || node.kind === "loop") return ref;
+    if (node.kind === "test") {
+      const onTrue = replaceSentinel(node.onTrue, sentinelRef, replacementRef);
+      const onFalse = replaceSentinel(node.onFalse, sentinelRef, replacementRef);
+      if (onTrue === node.onTrue && onFalse === node.onFalse) return ref;
+      return arena.test(node.pred, onTrue, onFalse);
+    }
+    if (node.kind === "dispatch") {
+      const targets = node.targets.map((t) => replaceSentinel(t, sentinelRef, replacementRef));
+      if (targets.every((t, i) => t === node.targets[i])) return ref;
+      return arena.dispatch(node.index, targets);
+    }
+    return ref;
+  };
+
+  /**
+   * Summarize an affine loop at its head (D7). One iteration is explored
+   * from the head with the induction registers replaced by IV atoms; paths
+   * that return to the head end in LOOP_BACK (swapped for the continue
+   * marker), every other path ends in an ordinary return leaf. The advances
+   * themselves live in the induction list, not the DAG — the constructor
+   * realizes them as the loop's step clause.
+   *
+   * v1 boundaries, refused rather than approximated: inductions must start
+   * at parameter values (the C loop starts where the parameter points), and
+   * the body must be effect-free — a store or call inside a symbolic-bound
+   * loop needs per-iteration effect summaries this model does not carry.
+   */
+  const buildLoopNode = (pc: number, state: ExecState, deltas: Array<{ register: string; delta: number }>): DagRef => {
+    const ivState = cloneState(state);
+    for (const { register, delta } of deltas) {
+      const idx = EXEC_REGISTER_NAMES.indexOf(register);
+      const current = idx >= 0 ? state.regs[idx] : undefined;
+      if (idx < 0 || !current || current.kind !== "entry") {
+        throw new UnsupportedTarget(
+          `loop induction ${register} does not start at a parameter value (${current ? canon(current) : "?"})`,
+          [start + pc * 4],
+        );
+      }
+      ivState.regs[idx] = { kind: "iv", register, delta };
+    }
+
+    const rawBody = explore(pc, ivState, { head: pc, entered: false });
+
+    /* Effect purity: every real leaf below the body must carry exactly the
+     * pre-loop effect log — nothing stored, nothing called, per iteration. */
+    const entryEffects = state.effects.length;
+    const seen = new Set<DagRef>();
+    const checkPure = (ref: DagRef): void => {
+      if (ref === (LOOP_BACK as DagRef) || seen.has(ref)) return;
+      seen.add(ref);
+      const node = arena.node(ref);
+      if (node.kind === "leaf") {
+        if (node.effects.length !== entryEffects) {
+          throw new UnsupportedTarget(
+            `the loop at 0x${(start + pc * 4).toString(16)} stores or calls inside its body — outside the summarized class`,
+            [start + pc * 4],
+          );
+        }
+        return;
+      }
+      if (node.kind === "test") {
+        checkPure(node.onTrue);
+        checkPure(node.onFalse);
+        return;
+      }
+      if (node.kind === "dispatch") {
+        for (const target of node.targets) checkPure(target);
+        return;
+      }
+      throw new UnsupportedTarget(
+        `nested loop inside the loop at 0x${(start + pc * 4).toString(16)} — outside the summarized class`,
+        [start + pc * 4],
+      );
+    };
+    checkPure(rawBody);
+
+    const body = replaceSentinel(rawBody, LOOP_BACK as DagRef, arena.continueRef());
+    return arena.loop(deltas, body);
+  };
+
+  const explore = (entryIndex: number, entryState: ExecState, loop?: { head: number; entered: boolean }): DagRef => {
     const pendingKeys: string[] = [];
     const finish = (ref: DagRef): DagRef => {
       for (const key of pendingKeys) memo.set(key, ref);
@@ -641,8 +1163,10 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     const state = entryState;
 
     for (;;) {
-      /* Checkpoint: arrival at the entry or at any control-transfer target. */
-      const key = stateKey(pc, state);
+      /* Checkpoint: arrival at the entry or at any control-transfer target.
+       * Loop-body keys carry the head so two loops with the same induction
+       * shapes cannot share memo entries. */
+      const key = (loop ? `H${loop.head}|` : "") + stateKey(pc, state);
       const known = memo.get(key);
       if (known === "in-progress") {
         throw new UnsupportedTarget(
@@ -651,12 +1175,48 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         );
       }
       if (known !== undefined) return finish(known);
+      if (!loop) {
+        /* A head a previous attempt discovered: summarize the loop here, at
+         * its FIRST arrival, so no iteration is peeled into the DAG. */
+        const summarize = knownHeads.get(pc);
+        if (summarize) return finish(buildLoopNode(pc, state, summarize));
+        /* Affine loop detection (D7): a repeat visit whose only differences
+         * are constant register deltas is an affine loop. Restart so the
+         * retry can summarize it from the top. */
+        const prevState = firstStateAtPc.get(pc);
+        if (prevState) {
+          /* Only detect at non-control PCs — a branch or jump pc is a
+           * back-edge or exit point, not the head where the body starts. */
+          const pcInsn = insns[pc];
+          const isControlPc = pcInsn && (
+            pcInsn.op === "j" || pcInsn.op === "jr" || pcInsn.op === "jal" || pcInsn.op === "jalr" || isBranch(pcInsn.op)
+          );
+          if (!isControlPc) {
+            const deltas = detectAffine(pc, prevState, state, liveIn);
+            if (deltas !== null) throw new RestartWithLoop(normalizeHead(pc), deltas);
+          }
+        }
+        firstStateAtPc.set(pc, cloneState(state));
+      } else if (pc === loop.head) {
+        /* Returning to the head ends the iteration — this, and only this, is
+         * the loop back-edge. A backward jump elsewhere (the rotated tail
+         * with its exit check and advances) is part of the iteration and is
+         * followed, which is what keeps the exit test inside the body. */
+        if (loop.entered) return finish(LOOP_BACK as DagRef);
+        loop.entered = true;
+      } else if (knownHeads.has(pc)) {
+        throw new UnsupportedTarget(
+          `nested symbolic-bound loops at 0x${(start + pc * 4).toString(16)} are outside the summarized class`,
+          [start + pc * 4],
+        );
+      }
       if (memo.size >= maxStates) {
         throw new UnsupportedTarget(`state budget (${maxStates}) exhausted — the control structure is outside the bounded class`, []);
       }
       memo.set(key, "in-progress");
       states++;
       pendingKeys.push(key);
+      const arrivedAt = pc;
 
       /* Straight-line run until the next control transfer. */
       transfer: for (;;) {
@@ -666,12 +1226,79 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         if (++steps > maxSteps) {
           throw new UnsupportedTarget(`step budget (${maxSteps}) exhausted`, []);
         }
+        /* A known loop head is a checkpoint even when reached by plain
+         * fall-through — summarization (outer) and the back-edge test (loop
+         * context) both live at the checkpoint, and a head reached only by
+         * fall-through would otherwise never get either. */
+        if (pc !== arrivedAt && (knownHeads.has(pc) || (loop && pc === loop.head))) break transfer;
         const insn = insns[pc]!;
 
         if (insn.op === "jr") {
-          if (insn.rs !== 31) throw new UnsupportedTarget(`indirect jump at 0x${insn.vram.toString(16)}`, [insn.vram]);
+          if (insn.rs !== 31) {
+            const target = state.regs[insn.rs]!;
+            /* Dispatch via a jump table: register holds M4[T + idx*4]. */
+            if (
+              target.kind === "load" &&
+              target.width === 4 &&
+              target.index &&
+              target.index.scale === 4 &&
+              target.base &&
+              target.base.kind === "const"
+            ) {
+              const tableBase = target.base.value >>> 0;
+              if (!options.readWord) {
+                throw new UnsupportedTarget(
+                  "indirect jump needs a container word reader (readWord) to resolve the jump table",
+                  [insn.vram],
+                );
+              }
+              /* Read consecutive table words; each must decode to an address
+               * inside the function's span. Bounds check appears as a test
+               * above the dispatch, so we read until a non-function word. */
+              const entries: number[] = [];
+              let strideOffset = 0;
+              const functionStart = insns[0]?.vram ?? 0;
+              const functionEnd = functionStart + insns.length * 4;
+              for (let index = 0; index < 64; index++) {
+                const word = options.readWord(tableBase + index * 4);
+                if (word === undefined) break;
+                const vram = word >>> 0;
+                if (vram < functionStart || vram >= functionEnd) break;
+                entries.push(vram);
+                strideOffset = index + 1;
+              }
+              if (entries.length < 2) {
+                throw new UnsupportedTarget(
+                  `jump table at 0x${tableBase.toString(16)} has fewer than 2 in-function entries`,
+                  [insn.vram],
+                );
+              }
+              const delay = insns[pc + 1];
+              if (delay) applyDelay(delay, state);
+              /* Explore every target entry with a cloned state. */
+              const targets: DagRef[] = [];
+              for (const entry of entries) {
+                const entryIndex = indexOf(entry);
+                targets.push(explore(entryIndex, cloneState(state), loop));
+              }
+              return finish(arena.dispatch(target.index.expr, targets));
+            }
+            throw new UnsupportedTarget(
+              `indirect jump at 0x${insn.vram.toString(16)} does not carry a recognized jump-table load`,
+              [insn.vram],
+            );
+          }
           const delay = insns[pc + 1];
           if (delay) applyDelay(delay, state);
+          /* Frame balance: the returning function must have restored the stack
+           * pointer to its entry value; a residual `add(@sp, k)` means the
+           * frame never came back (k ≠ 0) and is a real bug in the model. */
+          if (canon(state.regs[29]!) !== "@sp") {
+            throw new UnsupportedTarget(
+              `unbalanced stack frame at 0x${insn.vram.toString(16)}: sp is ${canon(state.regs[29]!)} at return`,
+              [insn.vram],
+            );
+          }
           return finish(arena.leaf(state.regs[V0]!, state.effects));
         }
 
@@ -701,12 +1328,22 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
             throw new UnsupportedTarget("decision depth (256) exceeded — a symbolic-bound loop is outside the bounded class", [insn.vram]);
           }
           try {
-            const onTaken = explore(takenIndex, cloneState(state));
-            const onFall = explore(fallIndex, cloneState(state));
+            const onTaken = explore(takenIndex, cloneState(state), loop);
+            const onFall = explore(fallIndex, cloneState(state), loop);
             return finish(inverted ? arena.test(pred, onFall, onTaken) : arena.test(pred, onTaken, onFall));
           } finally {
             forkDepth--;
           }
+        }
+
+        if (insn.op === "jal" || insn.op === "jalr") {
+          /* Opaque call: the delay slot runs first, then the call's
+           * register effects and memory invalidation are applied. */
+          const delay = insns[pc + 1];
+          if (delay) applyDelay(delay, state);
+          apply(insn, state);
+          pc += 2;
+          break transfer;
         }
 
         apply(insn, state);
@@ -723,7 +1360,8 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
   };
 
   const root = explore(0, { regs: initial, memory: new Map(), effects: [] });
-  return { arena, root, loads: [...loads.values()], states, steps };
+  return { arena, root, loads: [...loads.values()], maskWitnesses, states, steps };
+  }
 }
 
 /** Decode raw little-endian bytes into instructions at a base address. */

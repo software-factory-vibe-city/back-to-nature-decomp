@@ -79,7 +79,7 @@ export function censusCategory(result: ResultBundle): string {
   if (stores && calls) return "writes + calls";
   if (stores) return "writes, no calls";
   if (calls) return "calls, no writes";
-  if (detail.includes("outside the decoded integer subset")) return "undecoded operations (mult/div/coprocessor/handwritten)";
+  if (detail.includes("outside the decoded integer subset")) return "undecoded operations (coprocessor/handwritten)";
   if (detail.includes("symbolic address")) return "symbolic address base (pointer/computed indexing)";
   if (detail.includes("state budget") || detail.includes("cycle with unchanged live state") || detail.includes("step budget")) {
     return "unbounded or symbolic-bound control";

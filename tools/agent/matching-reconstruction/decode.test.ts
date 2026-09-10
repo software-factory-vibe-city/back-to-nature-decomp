@@ -43,8 +43,16 @@ test("negative displacements sign-extend", () => {
 });
 
 test("words outside the subset decode to unknown, never to a guess", () => {
-  assert.equal(decodeWord(0x00000018, 0x80010000).op, "unknown"); /* mult */
   assert.equal(decodeWord(0x40046000, 0x80010000).op, "unknown"); /* mfc0 */
+});
+
+test("special multiply/divide instructions decode correctly", () => {
+  assert.equal(decodeWord(0x00000018, 0x80010000).op, "mult");
+  assert.equal(decodeWord(0x00000019, 0x80010000).op, "multu");
+  assert.equal(decodeWord(0x0000001a, 0x80010000).op, "div");
+  assert.equal(decodeWord(0x0000001b, 0x80010000).op, "divu");
+  assert.equal(decodeWord(0x00000010, 0x80010000).op, "mfhi");
+  assert.equal(decodeWord(0x00000012, 0x80010000).op, "mflo");
 });
 
 test("the fixture assembler round-trips through the decoder", () => {

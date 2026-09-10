@@ -20,6 +20,8 @@ export type DecodedOp =
   | "addu" | "subu" | "and" | "or" | "xor" | "nor" | "slt" | "sltu"
   | "sll" | "srl" | "sra" | "sllv" | "srlv" | "srav"
   | "addiu" | "addi" | "slti" | "sltiu" | "andi" | "ori" | "xori" | "lui"
+  /* multiply / divide */
+  | "mult" | "multu" | "div" | "divu" | "mfhi" | "mflo"
   /* memory */
   | "lb" | "lbu" | "lh" | "lhu" | "lw"
   | "sb" | "sh" | "sw"
@@ -66,6 +68,8 @@ const SPECIAL_FUNCTS: Record<number, DecodedOp> = {
   0x00: "sll", 0x02: "srl", 0x03: "sra",
   0x04: "sllv", 0x06: "srlv", 0x07: "srav",
   0x08: "jr", 0x09: "jalr",
+  0x10: "mfhi", 0x12: "mflo",
+  0x18: "mult", 0x19: "multu", 0x1a: "div", 0x1b: "divu",
   0x21: "addu", 0x23: "subu",
   0x24: "and", 0x25: "or", 0x26: "xor", 0x27: "nor",
   0x2a: "slt", 0x2b: "sltu",

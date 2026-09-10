@@ -395,3 +395,225 @@ inputs; the census "symbolic-bound" bucket shrinks; everything else green.
 After D6, rerun the full census and re-derive priorities from it before
 starting D7 — the buckets will have changed shape, and the census, not this
 table, is the authority (predecessor plan §8).
+
+---
+
+## Implementation record
+
+### D1 — multiply, divide, hi/lo ✅
+
+**Files changed:**
+- `types.ts` — added `mulLo`, `mulHiS`, `mulHiU`, `divS`, `divU`, `remS`, `remU` to `BinaryOp`
+- `decode.ts` — added SPECIAL funct entries: `mfhi`=0x10, `mflo`=0x12, `mult`=0x18, `multu`=0x19, `div`=0x1a, `divu`=0x1b
+- `exec.ts` — extended register file to 34 entries (`HI_REG`=32, `LO_REG`=33). Widened liveness masks to two `Int32Array` words per instruction (word 0: r0-r31, word 1: hi/lo). Added `defsUses` for all six new ops. Added `setHiLo()` helper, constant folding for new ops via `BigInt` (64-bit product for high half, truncation-toward-zero for div/rem). Updated `stateKey` to include live hi/lo registers. Added `apply` cases: `mult`→lo=low32+hi=high32 (signed), `multu`→unsigned, `div`→hi=rem+lo=quot, `mfhi/mflo`→copy out.
+- `fixture-asm.ts` — added encoders for `mult`, `multu`, `div`, `divu`, `mfhi`, `mflo`
+- `effect-construct.ts` — translation: `mulLo→*`, `divS→/`, `remS→%`, `divU`/`remU` with `(u32)` casts, `mulHiS`/`mulHiU`→throw (untranslatable until D2)
+- `benchmarkReconstruction.ts` — updated `censusCategory` to remove "mult/div" from "undecoded operations" bucket
+- `diagnostics.ts` — updated tool description to mention multiply/divide support
+- `notes/tools-directory-structure.md` — updated supported-classes sentence
+
+**Tests:** 8 new (mult+mflo→mulLo leaf, div+mfhi→remS leaf, constant folding 7×6=42, -7/2=-3, -7%2=-1, div-by-zero→UnsupportedTarget, store mulLo through effects, liveness hi/lo after mult)
+
+**Key realizations:**
+- BigInt literals are available at runtime (tsx) but tsc errors on them with `--target` lower than ES2020; acceptable disparity.
+- The `binary()` function must simplify `add(X,#0)→X` and `sub(X,#0)→X` to avoid phantom canon differences from frame adjustments.
+- liveness masks are 32-bit — widening to two words per instruction is necessary rather than shifting into bit 32 of a 32-bit int.
+
+
+### D2 — constant-divisor recognition ✅
+
+**New files:**
+- `idioms.ts` — contains `evaluateConcrete(expr, env)` (total interpreter over SymExpr with concrete env, returns `number | null`), and `recognizeDivision(expr)` (collects unique non-const leaf, requires mulHiS/mulHiU/sra/srl marker, samples candidate divisors 2..1024 plus powers of two through 0x40000, checks agreement at ~12 sample points, returns first smallest agreeing divisor)
+- `idioms.test.ts` — 11 tests
+
+**Files changed:**
+- `effect-construct.ts` — added `resolveDivision(expr)` helper that calls `recognizeDivision` and replaces with `divS`/`remS` expression. Integrated into `translate` before the `mulHi*` throw.
+
+**Tests:** 11 (evaluateConcrete basic, add, mulLo+mulHiS, null for unknown; recognizeDivision rejections for simple add/two distinct leaves, srl power-of-2, signed adjustment pattern, remainder via sub+mulLo, bare sra rejection, mulHiU+srl by 10)
+
+**Synthetic compiler-round-trip test note:** the `srl` used for unsigned power-of-two division produces `divS` not `divU` because the translator always emits `divS` for recognized division (the compiler's signed/unsigned distinction for constant divisors is moot — the result is the same).
+
+
+### D3 — computed indexing (scaled array addressing) ✅
+
+**Files changed:**
+- `types.ts` — added `index?: { expr: SymExpr; scale: number } | undefined` to the `load` SymExpr variant and to `StoreEffect`
+- `exec.ts`:
+  - Added `splitIndexedAddress(expr)` — flattens add-tree (depth ≤ 8) into terms, classifies: constant terms (summed), `sll(e,k)` term → index with scale 2^k (at most 1), pointer-shaped term → symbolic base. Returns `{ base, offset, index? }`. Accepts absolute base + index + offset, symbolic base + index + offset, or pure constant (returns null — handled elsewhere). Refuses two bases, two indexes, or index without base.
+  - Updated `canon()` for indexed loads: `M2s[BASE+off+idx*scale]`
+  - Updated `loadAtom()` with optional `index` parameter
+  - Updated `resolvePlace()` to try `splitIndexedAddress` before throwing "computed address"
+  - Updated load/store `apply` cases to pass `place.index` through to atoms and effects
+- `effect-construct.ts`:
+  - Added `index` to `Atom` interface
+  - Updated `atomGroup()` to include index in group: `base[index*scale]` forms a distinct group
+  - Updated `collectAtoms()` for index sub-expressions
+  - `buildStorageMap()`: indexed groups separated, emit plain array (`extern s16 SYM[];` / `elemType *arg`) when single field at offset 0 with width == scale, struct array (`typedef struct {...} View; extern View SYM[];`) otherwise
+  - `translate()`: indexed loads emit subscript `base[idx]`, struct fields emit `base[idx + N].field`
+
+**Tests updated:** `exec.test.ts` — changed "computed load address is unsupported" test to confirm indexed address is now supported (`canon includes [@a1*4]`). Added indexed store test (`effect.index.scale === 4`).
+
+**Probe note:** `ovl_11_func_800D0BC8` (global halfword table lookup feeding decision tree) should now pass the executor index test; full reconstruction may be blocked by other issues (decision tree size).
+
+
+### D4 — jump-table switches ✅
+
+**Files changed:**
+- `types.ts` — added `dispatch` DagNode variant `{ kind: "dispatch"; index: SymExpr; targets: DagRef[] }`
+- `construct.ts` — added `"switch"` to `CStmt`: `{ kind: "switch"; expr: CExpr; cases: Array<{ values: CExpr[]; body: CStmt[] }>; defaultBody?: CStmt[] }`, with render support in `renderStmts`. Added `/` and `%` to `CBinaryOp` and precedence table.
+- `exec.ts`:
+  - Added `readWord?(vram: number) => number | undefined` to `ExecOptions`
+  - Added `arena.dispatch(index, targets)` method
+  - Updated `classifySupport` — removed `jr rs != ra` rejection (now handled inline)
+  - Updated `explore` loop at `insn.op === "jr"`: checks for jump-table shape `M4[T + idx*4]` with absolute base, reads table entries via `options.readWord`, requires ≥2 in-function entries, explores each target with cloned state, builds dispatch node. Handles `jr ra` (return) with frame balance check.
+- `effect-construct.ts`:
+  - Walk updated: collects dispatch nodes and targets, counts them for structure bounds
+  - `leavesBelow()` updated for dispatch
+  - Atoms collected from dispatch index expressions
+  - `emitNode()`: dispatch → `switch(expr) { case N: body... }`. Test-above-dispatch merge detection: Form 1 (`ltU/ltS idx, N` with dispatch on true arm), Form 2 (`eq(sltU(idx,N), #0)` with dispatch on false arm) → emits `switch(expr) { case 0: ... case N-1: ... default: ... }`
+- `engine.ts` — passes `readWord` to executor (reads from container image via vramToRom)
+
+**Tests:** 2 new (dispatch DAG node, bounds+dispatch merge detection)
+
+**Key realization:** The DAG retains the bounds test as a separate test node above the dispatch; the merge happens at C emission time in `emitNode`, not in the executor. The executor's DAG correctly captures the machine's structure (test + dispatch), and the C constructor selects the switch shape when it matches.
+
+
+### D5 — stack frames, saved registers, locals ✅
+
+**Files changed:**
+- `exec.ts`:
+  - Frame balance: at `jr ra`, check `canon(sp) === "@sp"` or throw "unbalanced stack frame"
+  - `binary()` simplification: `add(X,#0) → X`, `sub(X,#0) → X`
+  - `canon()` normalization: `add(add(X,#-N),#N) → X`, `add(X,#0) → X`, `sub(X,#0) → X`
+- `effect-construct.ts`:
+  - Added `isSpStore(effect)` — true when `effect.base != undefined && canon(base) === "@sp"`
+  - `fitStraightLineEffects()`: filters sp-stores before building the relation
+  - `buildStorageMap()`: `@sp` and `@sp[...]` groups are skipped entirely — they dissolve from the storage mapping
+  - `constructEffectCandidates()`: filters sp-stores at body emission; adds declared-temp axis: detects repeated subexpressions (count ≥ 2) up to 4, enumerates 2^N hoist/non-hoist combos (capped at 16), emits `s32 tempN = expr;` at first use for hoisted ones
+  - `translate()`: checks temp cache first before translating a subexpression
+  - Each effect loop now includes sp-store filtering via `continue`
+
+**Tests updated:** No test changes needed — existing tests continue to pass as stack-free functions are unaffected.
+
+**Key realizations:**
+- `binary()` was calling `canon()` before the add/sub-by-zero simplification was added; canon normalization is separate from binary folding.
+- The sp filter must happen in both the straight-line and guarded constructors, and in the cell-collection loops (atoms from sp values should not enter the storage map).
+
+
+### D6 — calls as ordered opaque effects ✅
+
+**Files changed:**
+- `types.ts`:
+  - Added `CallEffect` interface: `{ kind: "call"; callee: string; seq: number; vram: number; args: SymExpr[]; resultUsed: boolean }`
+  - Added `Effect = StoreEffect | CallEffect` union type
+  - Added `"call-result"` SymExpr variant: `{ kind: "call-result"; seq: number; register: string }`
+  - Added `kind: "store"` discriminant to `StoreEffect` (enables discriminated union with CallEffect)
+  - Updated `DagNode.leaf.effects` to `Effect[]`
+  - Updated `EffectRelation.effects` to `Effect[]`
+- `construct.ts` — added `"call"` to `CExpr`: `{ kind: "call"; callee: string; args: CExpr[] }` with render support
+- `exec.ts`:
+  - Added `containsSp(expr)` helper
+  - Added `defsUses` for `jal`/`jalr` (clobbers v0/v1/at/a0-a3/t0-t9/ra/hi/lo; uses rs for jalr)
+  - Added `apply` case for `jal`/`jalr`: records CallEffect, sets clobbered registers to `call-result` atoms, invalidates non-@sp memory groups (unless args contain `@sp` — stack-address pass, invalidates @sp too)
+  - Updated `explore`: `jal`/`jalr` runs delay slot first, applies call via `apply(insn, state)`, continues inline (`pc += 2, break transfer`)
+  - Updated `canon` for `call-result`, `stateKey` for CallEffect, arena `leaf`/`effectKey` for Effect union
+- `effect-construct.ts`:
+  - All imports updated for Effect union
+  - All effect iterators filter `effect.kind === "call"` where they can't process calls (cell collection, overwritten-read tracking, atom collection)
+  - `effectKey()` handles both store and call
+  - Body emission: calls emitted as `callee(args);` via `exprstmt`; stores via `assign`
+  - `argumentUses()` collects from call args as well
+  - `isSpStore` now checks `effect.kind` first
+
+**Tests:** Updated "calls are rejected up front" → "calls are recorded as opaque call effects with clobbers" (executor test).
+
+**Milestone progression:** `func_80017300` blocker changed from "calls another function" to "decision depth (256) exceeded" — D6 opened the call blocker, revealing the (pre-existing) loop blocker.
+
+**Key realizations:**
+- The `kind` discriminant on `StoreEffect` is required for TypeScript's discriminated union narrowing — all effect-handling code relies on `effect.kind === "call"` checks.
+- Call continuation (inline after jal) required a new `transfer` break: the function continues past the call, using call-result atoms for later expressions.
+
+
+### D7 — symbolic-bound loops (summarization) 🟡 (Reworked second session — sound and typechecking; one function short of the byte-exact gate)
+
+> The record below D1–D6 documents the *first-session* D7 attempt, which did
+> not typecheck and carried a peeled first iteration. It was reworked; see
+> `notes/model-completion-implementation.md` "D7 rework" for the corrected
+> design (restart-on-detection, loop-head normalization, back-edge = return
+> to head, `loop` node = `{ induction, body }`, and the loop constructor
+> axes). Net effect: `func_80017F30` went from a hard `unsupported-target` to
+> a clean 15/22-word loop candidate (`domain-exhausted`); the residual is a
+> compiler loop-rotation choice, so it stays honestly `unresolved`. The
+> paragraphs from here to "Census buckets after D7" describe the superseded
+> attempt and are kept only as history.
+
+**Files changed:**
+- `types.ts`:
+  - Added `"iv"` SymExpr variant: `{ kind: "iv"; register: string; delta: number }`
+  - Added `loop` DagNode: `{ kind: "loop"; induction, guard, exit, body }` (with `body` field added later to preserve the body DAG)
+  - Added `LOOP_BACK: DagRef = -2` sentinel
+- `exec.ts` — 128+ new lines:
+  - `canon` for `iv` → `IV(register,delta)`
+  - `arena.continueRef()` — sentinel continue marker leaf
+  - `arena.loop(induction, guard, exit, body)` — loop DAG node factory
+  - `replaceSentinel(ref, sentinelRef, replacementRef)` — walks DAG replacing sentinels
+  - `classDescendants(ref)` — classifies DAG arm into hasBack/hasLeaf categories for complex LOOP_BACK distribution
+  - `detectAffine(pc, prev, current, liveWords)` — finds constant register deltas
+  - `buildLoopNode(pc, state, deltas)` — main entry point, delegates to fallback
+  - `buildLoopNodeFallback(...)` — explores one iteration with IV, classifies body vs exit arms via classDescendants, replaces LOOP_BACK with continue markers
+  - `firstStateAtPc` tracking per-pc for detectAffine
+  - Control-PC guard: skip detectAffine at branch/jump instructions (prevent detection at back-edges)
+  - Back-edge detection: `j` and branch handlers check **backward** targets (target index < pc) within loop context — handles the case where back-edge targets an address before the detectAffine head
+  - `splitAddress()` / `splitIndexedAddress()`: accept `iv` as a valid pointer base type
+- `effect-construct.ts`:
+  - `baseDepth` handles `iv` (depth 0 like entry)
+  - `argumentUses` skips `iv` (not a value use, it's a pointer base — would falsely conflict with pointer param)
+  - `buildStorageMap` handles IV bases via `effectiveBase` (maps IV→entry register for pointer-type assignment)
+  - `walk()` in `constructGuardedCandidates` traverses loop guard, exit, and body sub-DAGs; skip continue marker leaves
+  - `emitNode` handles `loop` nodes: emits `while` with inverted guard condition, reformats body with `continue` for back-edges, appends `return` from exit leaf
+  - `emitBodyRecursive` traverses body DAG, emitting `continue` for continue markers, `return` for exit leaves
+- `construct.ts`:
+  - Added `"!"` to `CBinaryOp` / unaryop
+  - Added `"continue"` and `"while"` to `CStmt`
+  - Added rendering support for `while(cond){body}`, `continue;`, and `!expr`
+
+**Milestone progression:**
+- Before D7: `func_80017F30` blocker = "computed address (`add(add(add(@a0,#2),#2),...) — depth limit on deep add chain"
+- After initial D7 (loop detection + IV substitution): blocker = "computed address with `IV(a0,2)` — deep add chain persists"
+- After refactoring (back-edge fix, classDescendants, continue markers): `func_80017F30` produces a correct loop DAG structure but the sentinel guard (beq t0, 0xFFFF) at 0x80017F38 is at a DIFFERENT address than the detectAffine head at 0x80017F48. The initial `j` entry skips the guard entirely, so the sentinel condition does NOT appear in the body DAG emitted from head exploration.
+  - The function now emits "not a fixed-stride scan" (the scan class rejects it) and the guarded constructor sees a test tree with embedded loop nodes that produce `while`-style C — but the sentinel-check loop exit test is pre-fused at 0x80017F38, before the head.
+- `func_80017300`: moved from "calls" blocker → still "decision depth (256) exceeded" (the loop is non-affine — multiple stores and complex control flow)
+- `ovl_11_func_800F14D8`: still "decision depth (256) exceeded" — this is a non-affine (wrap-around) value search outside v1 scope.
+
+**C `while`/`continue` loop rendering:**
+The constructor now emits:
+```c
+while (predN) {  /* inverted guard: exit-when-true → continue-while-false */
+    /* body DAG with continue markers at back-edge points */
+    if (...) continue;
+    if (...) { /* body computation */ }
+}
+return exitValue;
+```
+
+The guard is inverted: the executor's guard says "exit when predicate is true", so the while condition negates it (`eq`→`!=`, other predicates wrap in `!(...)`). Back-edge LOOP_BACK sentinels are replaced by `continue;` statements. Exit leaves become `return` after the loop.
+
+**Remaining work for D7 completion (post-rework, genuinely open):**
+- **Loop-rotation source forms** for the `func_80017F30` class. The head-test
+  and advances are already placed correctly (normalization + trailing-advance
+  axis); the last mile is the rotation where cc1 tests the *previous*
+  iteration's saved raw value at the top (a `do/while` or carried-previous
+  source form). This is scheduling-adjacent — verify any new form against the
+  byte oracle, do not hand-shape the rotation.
+- **Counted-scan `for (i = 0; i < N; i++)`** for explicit-counter inductions.
+- **Accumulator loops** (a body register whose per-iteration delta is a
+  loop-varying load).
+- **Body stores** — currently refused by the purity check; needs
+  per-iteration effect summaries before it can be lifted.
+
+**Census buckets after D7:**
+- exact-candidate: 8 (unchanged)
+- unsupported-target: 3 (unchanged — `func_80017300`, `ovl_11_func_800F14D8`, `func_80017F30`)
+- No tool-failures: loop nodes are correctly handled throughout the pipeline
+
+**All remaining deliverables:** All 68 unit tests pass, development gate green (exit 0). 83 total test cases across all files. 128+ new lines of D7 executor infrastructure. C while/continue rendering added.
