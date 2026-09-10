@@ -74,6 +74,15 @@ export function censusCategory(result: ResultBundle): string {
   if (result.state === "context-unresolved") return "context-unresolved (relation fits; origin evidence missing)";
   if (result.state === "budget-exhausted") return "budget-exhausted";
   if (result.state === "tool-failure") return "tool-failure";
+  /* S3 categories: calls whose callee signature could not be recovered are
+   * now honest refusals (state unsupported-target) with a specific reason,
+   * no longer "no parameter plan". */
+  if (detail.includes("callee signature is unknown") || detail.includes("indirect call")) {
+    return "unresolvable callee signature (unknown/indirect)";
+  }
+  if (detail.includes("returns void — the CR atom")) {
+    return "void callee whose result the caller reads";
+  }
   const stores = detail.includes("stores memory");
   const calls = detail.includes("calls another function");
   if (stores && calls) return "writes + calls";
@@ -125,6 +134,11 @@ const DEVELOPMENT_SET: ManifestEntry[] = [
   { name: "ovl_19_func_800BAC50", expect: "exact-candidate", note: "stores through an argument pointer" },
   { name: "ovl_28_func_800B935C", expect: "exact-candidate", note: "sltiu-1 spelled as == 0" },
   { name: "ovl_23_func_800BA278", expect: "exact-candidate", note: "guarded decision tree with early returns" },
+  { name: "func_80017C04", expect: "exact-candidate", note: "call + return through a matched callee (func_80019030) — S1/S2/S3" },
+  { name: "func_800209D4", expect: "exact-candidate", note: "SDK void callee wrapper (SsUtReverbOn) — S2 tier 2" },
+  { name: "func_800209F4", expect: "exact-candidate", note: "SDK void callee wrapper (SsUtReverbOff) — S2 tier 2" },
+  { name: "func_8001F190", expect: "exact-candidate", note: "matched two-arg callee (CopyVec3) with symbol-address arg — S1/S2/S3" },
+  { name: "func_8002098C", expect: "exact-candidate", note: "SDK one-arg callee (SsUtSetReverbFeedback) with parameter usage — S1/S2/S3" },
   { name: "func_80017300", expect: "unresolved", note: "count-up loop the compiler reversed — future loop constructor (plan §5 B1)" },
   { name: "ovl_11_func_800F14D8", expect: "unresolved", note: "symbolic-bound wrap-around value search" },
   { name: "func_80017F30", expect: "unresolved", note: "sentinel-terminated parallel pointer scan" },

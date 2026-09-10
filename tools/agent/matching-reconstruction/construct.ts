@@ -35,7 +35,7 @@ export type CExpr =
   | { kind: "index"; base: CExpr; index: CExpr }
   | { kind: "member"; base: CExpr; field: string; arrow: boolean }
   | { kind: "cast"; type: string; expr: CExpr }
-  | { kind: "unaryop"; op: "~" | "-" | "!"; expr: CExpr }
+  | { kind: "unaryop"; op: "~" | "-" | "!" | "&"; expr: CExpr }
   | { kind: "postfix"; op: "++" | "--"; expr: CExpr }
   | { kind: "prefix"; op: "++" | "--"; expr: CExpr }
   | { kind: "binary"; op: CBinaryOp; left: CExpr; right: CExpr }

@@ -112,7 +112,9 @@ export interface StoreEffect {
 
 export interface CallEffect {
   kind: "call";
-  /** Resolved callee name — or the unresolved target address. */
+  /** Effect key: the resolved callee name when known, else the hex target
+   *  address; always unique per distinct target so two calls to different
+   *  callees never merge. */
   callee: string;
   /** Sequence number within the effect log. */
   seq: number;
@@ -122,6 +124,16 @@ export interface CallEffect {
   args: SymExpr[];
   /** Whether `call-result` values from this call are used by later expressions. */
   resultUsed: boolean;
+  /** Callee address — the jal target or the value in the jalr register. */
+  calleeAddress?: number | undefined;
+  /** Resolved callee symbol name, when the address maps to a known symbol. */
+  calleeName?: string | null | undefined;
+  /** True when the call is indirect (jalr on a non-constant register). */
+  indirect?: boolean | undefined;
+  /** The resolved callee's arity, when signature evidence was available. */
+  arity?: number | undefined;
+  /** Whether the callee returns a value, when known. */
+  returnsValue?: boolean | undefined;
 }
 
 export type Effect = StoreEffect | CallEffect;

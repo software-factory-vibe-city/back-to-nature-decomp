@@ -63,6 +63,31 @@
       "note": "guarded decision tree with early returns"
     },
     {
+      "expect": "exact-candidate",
+      "name": "func_80017C04",
+      "note": "call + return through a matched callee (func_80019030) — S1/S2/S3"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "func_800209D4",
+      "note": "SDK void callee wrapper (SsUtReverbOn) — S2 tier 2"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "func_800209F4",
+      "note": "SDK void callee wrapper (SsUtReverbOff) — S2 tier 2"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "func_8001F190",
+      "note": "matched two-arg callee (CopyVec3) with symbol-address arg — S1/S2/S3"
+    },
+    {
+      "expect": "exact-candidate",
+      "name": "func_8002098C",
+      "note": "SDK one-arg callee (SsUtSetReverbFeedback) with parameter usage — S1/S2/S3"
+    },
+    {
       "expect": "unresolved",
       "name": "func_80017300",
       "note": "count-up loop the compiler reversed — future loop constructor (plan §5 B1)"
@@ -78,7 +103,7 @@
       "note": "sentinel-terminated parallel pointer scan"
     }
   ],
-  "frozenAt": "2026-09-09T18:26:34.059Z",
+  "frozenAt": "2026-09-10T02:06:07.527Z",
   "heldOut": [
     {
       "name": "func_80011370",
@@ -461,6 +486,10 @@
       "stratum": "overlay/leaf/writes/straight/small"
     },
     {
+      "name": "ovl_15_func_80134444",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
       "name": "ovl_15_func_801372F0",
       "stratum": "overlay/leaf/readonly/straight/small"
     },
@@ -469,15 +498,31 @@
       "stratum": "overlay/leaf/readonly/straight/small"
     },
     {
-      "name": "ovl_15_func_80137398",
-      "stratum": "overlay/leaf/readonly/straight/small"
-    },
-    {
       "name": "ovl_19_func_800B9DC8",
       "stratum": "overlay/leaf/readonly/straight/small"
     },
     {
+      "name": "ovl_19_func_800BA73C",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_19_func_800BAC40",
+      "stratum": "overlay/leaf/writes/straight/small"
+    },
+    {
+      "name": "ovl_23_func_800BB0C8",
+      "stratum": "overlay/leaf/writes/straight/small"
+    },
+    {
+      "name": "ovl_23_func_800BB0D8",
+      "stratum": "overlay/leaf/writes/straight/small"
+    },
+    {
       "name": "ovl_27_func_800BA80C",
+      "stratum": "overlay/leaf/readonly/straight/small"
+    },
+    {
+      "name": "ovl_30_func_8012F020",
       "stratum": "overlay/leaf/readonly/straight/small"
     },
     {

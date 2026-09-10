@@ -535,6 +535,12 @@ export interface ExecOptions {
    * given VRAM address. Required for jump-table dispatch (D4).
    */
   readWord?: ((vram: number) => number | undefined) | undefined;
+  /**
+   * Resolve a code address to its symbol name (S1). When absent — test
+   * fixtures, or a container with no symbol tables — call targets stay
+   * hex addresses.
+   */
+  resolveCallTarget?: ((address: number) => string | null) | undefined;
 }
 
 export interface LoadMeta {
@@ -838,13 +844,50 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       }
       case "jal": case "jalr": {
         /* Opaque call (D6): record the effect, clobber, invalidate memory.
-         * The callee is not explored; the function continues inline. */
-        const callee = insn.op === "jal" && insn.target !== undefined
-          ? `0x${(insn.target >>> 0).toString(16)}`
-          : `0x${(insn.target ?? 0 >>> 0).toString(16)}`;
+         * The callee is not explored; the function continues inline.
+         *
+         * S1: resolve the target to a symbol name when possible.
+         *
+         * Argument registers are read from `state` below, which already
+         * reflects the delay slot: on real MIPS the delay slot runs before
+         * the target, and the explore loop honors that order — it calls
+         * `applyDelay(next, state)` before `apply(jal, state)` (see the
+         * jal/jalr case in `explore`). So `regs[4..7]` here is the correct
+         * post-delay snapshot; no temporary state is needed. */
         const seq = state.effects.length;
+        /* Determine callee identity (name / address / indirect). */
+        let key: string;
+        let calleeAddress: number | undefined;
+        let calleeName: string | null | undefined;
+        let indirect = false;
+        if (insn.op === "jal" && insn.target !== undefined) {
+          calleeAddress = insn.target >>> 0;
+          calleeName = options.resolveCallTarget?.(calleeAddress) ?? null;
+          key = calleeName ?? `0x${calleeAddress.toString(16)}`;
+        } else if (insn.op === "jalr") {
+          const targetExpr = regs[insn.rs]!;
+          const constAddr = asConst(targetExpr);
+          if (constAddr !== undefined) {
+            calleeAddress = constAddr >>> 0;
+            calleeName = options.resolveCallTarget?.(calleeAddress) ?? null;
+            key = calleeName ?? `0x${calleeAddress.toString(16)}`;
+          } else {
+            /* Indirect call through a register — resolve honestly refused. */
+            indirect = true;
+            key = `indirect@0x${insn.vram.toString(16)}`;
+          }
+        } else {
+          key = `0x0`;
+        }
+        /* Over-capture all four argument registers; the delay slot has
+         * already been applied (see above), so each is the post-delay
+         * value. resolveCallSignatures trims this snapshot to the callee's
+         * real arity — three of these may be the caller's entry garbage. */
         const args = [regs[4]!, regs[5]!, regs[6]!, regs[7]!];
-        state.effects.push({ kind: "call", callee, seq, vram: insn.vram, args, resultUsed: false });
+        state.effects.push({
+          kind: "call", callee: key, seq, vram: insn.vram, args, resultUsed: false,
+          calleeAddress, calleeName, indirect,
+        });
         /* Clobber: v0, v1 := call-result; at, a0-a3, t0-t9, ra, hi, lo likewise. */
         const clobbered = [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 31];
         for (const register of clobbered) {

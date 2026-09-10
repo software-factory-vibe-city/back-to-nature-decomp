@@ -22,6 +22,7 @@ import { loadSymbolIndex, resolveAddress, type SymbolIndex } from "../../lib/sym
 import type { Container } from "../../lib/container.js";
 import { canon, type LoadMeta } from "./exec.js";
 import { recognizeDivision } from "./idioms.js";
+import { resolveSignature, type CalleeSignature } from "./callee-signature.js";
 import {
   type CExpr,
   type CStmt,
@@ -66,14 +67,96 @@ export function fitStraightLineEffects(
   leafValue: SymExpr,
   effects: Effect[],
 ): EffectRelation | { unfit: string } {
-  /* No stores and no returned value is still a relation: the empty function. */
-  const sourceEffects = effects.filter((effect) => effect.kind !== "call" && !isSpStore(effect)) as StoreEffect[];
+  /* No stores and no returned value is still a relation: the empty function.
+   * Stack-frame stores (spills and locals) are calling convention, not
+   * source — they are dropped. Calls are kept: the constructor emits them. */
+  const sourceEffects = effects.filter((effect) => !isSpStore(effect)) as Effect[];
   return {
     kind: "straight-line-effects",
     effects: sourceEffects,
     returnValue: leafValue,
-    evidence: [`${sourceEffects.length} store(s) in machine order; return ${canon(leafValue)}`],
+    evidence: [`${sourceEffects.length} effect(s) in machine order; return ${canon(leafValue)}`],
   };
+}
+
+/* ---- call resolution (S2/S3) --------------------------------------------- */
+
+/**
+ * Resolve the signature of every call effect in a relation, trimming each
+ * call's captured argument snapshot to the callee's real arity.
+ *
+ * Over-capture is the bug this fixes: the executor snapshots all four
+ * argument registers (a0..a3) because it cannot know how many the callee
+ * consumes, and three of those "arguments" could be the caller's own
+ * untouched entry-garbage registers. Feeding them to `deriveParamPlans`
+ * manufactures caller parameters that never existed.
+ *
+ * `resolution.arityBySeq` maps each call's seq to its resolved arity;
+ * calls with unknown signatures stay at their captured length (all four),
+ * and the caller-side fallback in the executor keeps them honest.
+ */
+export function resolveCallSignatures(
+  effects: Effect[],
+  container: Container,
+): Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }> {
+  const resolved = new Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }>();
+  for (const effect of effects) {
+    if (effect.kind !== "call") continue;
+    /* The executor already resolved the target to a name when it could. */
+    const name = effect.calleeName ?? effect.callee;
+    const signature = resolveSignature(name, effect.calleeAddress, container);
+    if ("unknown" in signature) continue;
+    resolved.set(effect.seq, {
+      arity: signature.arity,
+      calleeName: effect.calleeName ?? effect.callee,
+      returnsValue: signature.returnsValue,
+      returnType: signature.returnType,
+      source: signature.source,
+    });
+  }
+  return resolved;
+}
+
+/**
+ * Trim a call's captured arguments to the resolved arity, when one is known.
+ * `caps` is the per-seq resolution computed by `resolveCallSignatures`.
+ */
+const trimArgs = (effect: CallEffect, caps: Map<number, { arity: number }>): CallEffect => {
+  const cap = caps.get(effect.seq);
+  if (!cap || cap.arity >= effect.args.length) return effect;
+  return { ...effect, args: effect.args.slice(0, cap.arity) };
+};
+
+/**
+ * Prototype declarations for every resolved, named callee.
+ *
+ * Every candidate containing a call MUST declare the callee (S3 §3): an
+ * undeclared callee is C89 implicit-int, which defines `$v0` even when
+ * nothing reads it and reshapes allocation. In umbrella context the generated
+ * header declares matched callees, but unmatched ones are absent there, and
+ * in standalone context nothing is declared — so emitting the prototype from
+ * the recovered signature in both contexts keeps the boundary safe.
+ * A callee with an unknown signature cannot be declared; those calls are
+ * refused by the caller earlier, so none reach here.
+ */
+export function calleeDeclarations(
+  caps: Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string }>,
+): string[] {
+  const seen = new Set<string>();
+  const decls: string[] = [];
+  for (const cap of caps.values()) {
+    if (seen.has(cap.calleeName)) continue;
+    seen.add(cap.calleeName);
+    /* A name that is still a bare hex address never got resolved — the call
+     * is refused upstream, but guard anyway: never declare with a guess. */
+    if (/^0x[0-9a-f]+$/i.test(cap.calleeName)) continue;
+    const returnType = cap.returnsValue ? cap.returnType : "void";
+    const params = cap.arity === 0
+      ? "void"
+      : Array.from({ length: cap.arity }, (_, i) => `s32 arg${i}`).join(", ");
+    decls.push(`${returnType} ${cap.calleeName}(${params});`);
+  }
+  return decls;
 }
 
 /* ---- cell collection ------------------------------------------------------ */
@@ -752,7 +835,60 @@ export function constructEffectCandidates(
   loadsMeta: LoadMeta[],
   container: Container,
 ): EffectCandidate[] | { unresolved: string } | { invalid: string } {
-  const isVoid = canon(relation.returnValue) === canon(ENTRY_V0);
+  let isVoid = canon(relation.returnValue) === canon(ENTRY_V0);
+
+  /* S3: resolve call signatures from the callee oracle and trim captured
+   * argument registers to the real arity. Over-capture of untouched entry
+   * registers pollutes the caller's parameter inference. */
+  const callCaps = resolveCallSignatures(relation.effects, container);
+
+  /* Pre-compute which call results are consumed and whether the function is
+   * a void wrapper around a void callee (CR atom from jr liveness, not a
+   * real return value). */
+  const consumedCalls = new Set<number>();
+  const walkCR = (expr: SymExpr): void => {
+    if (expr.kind === "call-result") consumedCalls.add(expr.seq);
+  };
+  const walkAll = (expr: SymExpr): void => {
+    walkCR(expr);
+    if (expr.kind === "unary") walkAll(expr.operand);
+    else if (expr.kind === "binary") { walkAll(expr.left); walkAll(expr.right); }
+  };
+  for (const effect of relation.effects) {
+    if (effect.kind === "call") {
+      for (const arg of effect.args) walkAll(arg);
+    } else {
+      walkAll(effect.value);
+    }
+  }
+  if (!isVoid) walkAll(relation.returnValue);
+
+  /* When the return value is a call-result from a void callee, the function
+   * is a void wrapper — the CR atom is just `jr $ra`'s v0 liveness, not a
+   * real value. Drop the return. */
+  if (!isVoid && relation.returnValue.kind === "call-result") {
+    const cap = callCaps.get(relation.returnValue.seq);
+    if (cap && !cap.returnsValue) isVoid = true;
+  }
+
+  /* For each consumed call result, prepare a temp name and check that the
+   * signature provides a return type. When a void callee's CR is consumed
+   * elsewhere (not as the return value — checked above), that is reading
+   * undefined garbage and must be refused. */
+  const callResultTemps = new Map<string, string>();
+  for (const seq of consumedCalls) {
+    const cap = callCaps.get(seq);
+    if (!cap || (!cap.returnsValue && !(isVoid && relation.returnValue.kind === "call-result" && relation.returnValue.seq === seq))) {
+      /* A call whose result is consumed but whose callee either cannot be
+       * resolved or returns void (making the CR atom garbage) is an
+       * honest refusal. */
+      const why = !cap ? "its callee signature is unknown" : "its callee returns void — the CR atom is jr liveness, not a real result";
+      return { invalid: `call seq ${seq} has a consumed result but ${why}` };
+    }
+    if (!cap.returnsValue) continue; /* void callee's CR is handled as void-wrapper above. */
+    const tempName = `callRet${seq}`;
+    callResultTemps.set(`CR(${seq},v0)`, tempName);
+  }
 
   /* Every accessed cell: stores, loads inside values, and pointer bases. */
   const atoms = new Map<string, Atom>();
@@ -799,11 +935,21 @@ export function constructEffectCandidates(
   if ("invalid" in map) return map;
 
   const exprs = [...relation.effects.flatMap((effect) => {
-    if (effect.kind === "call") return effect.args;
+    if (effect.kind === "call") {
+      /* Trim to the resolved arity when known; otherwise keep all
+       * captured args (caller-side liveness fallback is applied later). */
+      const cap = callCaps.get(effect.seq);
+      const args = cap ? effect.args.slice(0, cap.arity) : effect.args;
+      return args;
+    }
     return [effect.value];
   }), ...(isVoid ? [] : [relation.returnValue])];
   const plans = deriveParamPlans(exprs, map.pointerParams);
   if ("invalid" in plans) return plans;
+
+  /* S3: symbols referenced by call arguments — resolved const addresses —
+   * need extern declarations in the emitted unit. */
+  const refedSyms = new Set<string>();
 
   /* A value that reads a cell an *earlier* assignment overwrote must read it
    * before that assignment; those pre-store reads become temporaries at the
@@ -975,10 +1121,46 @@ export function constructEffectCandidates(
             });
             temps.set(sub.key, name);
           }
+          /* S3: consumed call results become declared temps whose value is
+           * bound by the call; `translate` reads them back by canon. */
+          for (const [canonKey, tempName] of callResultTemps) {
+            const seq = Number(canonKey.slice(3, canonKey.indexOf(",")));
+            const cap = callCaps.get(seq);
+            body.push({
+              kind: "declare",
+              type: cap ? (cap.returnType === "void" ? "s32" : cap.returnType) : "s32",
+              name: tempName,
+            });
+            temps.set(canonKey, tempName);
+          }
           for (const effect of relation.effects) {
             if (effect.kind === "call") {
-              const args = effect.args.map((arg) => translate(arg, map, plan, temps));
-              body.push({ kind: "exprstmt", expr: { kind: "call", callee: effect.callee, args } });
+              const cap = callCaps.get(effect.seq);
+              const calleeName = effect.calleeName ?? effect.callee;
+              const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
+              /* Resolve const addresses to symbols so the compiler emits
+               * symbol-relative lui/addiu with relocations — matching the
+               * original — rather than a raw literal. */
+              const args = capturedArgs.map((arg) => {
+                if (arg.kind === "const") {
+                  const resolved = resolveAddress(index, arg.value >>> 0);
+                  if (resolved && resolved.offset === 0) {
+                    refedSyms.add(resolved.symbol);
+                    return { kind: "cast", type: "s32", expr: { kind: "unaryop", op: "&", expr: id(resolved.symbol) } } as CExpr;
+                  }
+                }
+                return translate(arg, map, plan, temps);
+              });
+              const consumed = callResultTemps.get(`CR(${effect.seq},v0)`);
+              if (consumed) {
+                body.push({
+                  kind: "assign",
+                  target: id(consumed),
+                  value: { kind: "call", callee: calleeName, args },
+                });
+              } else {
+                body.push({ kind: "exprstmt", expr: { kind: "call", callee: calleeName, args } });
+              }
             } else {
               if (isSpStore(effect)) continue;
               body.push({
@@ -998,12 +1180,21 @@ export function constructEffectCandidates(
         plan.params.length === 0 ? "void" : plan.params.map((param) => `${param.type}${param.type.endsWith("*") ? "" : " "}${param.name}`).join(", ")
       })`;
 
+      /* S3 §3: every call-bearing candidate declares its callees — in both
+       * contexts (umbrella's generated header does not cover unmatched callees). */
+      const calleeDecls = calleeDeclarations(callCaps);
+
       const source = [
         context === "umbrella" ? `#include "common.h"` : STANDALONE_TYPEDEF_BLOCK,
         "",
         ...map.typedefs.flatMap((typedef) => [typedef, ""]),
         ...(context === "standalone" ? map.externDecls.flatMap((decl) => [decl, ""]) : []),
         ...map.tentativeDefs.flatMap((decl) => [decl, ""]),
+        ...calleeDecls.flatMap((decl) => [decl, ""]),
+        ...[...refedSyms].sort()
+          .filter((symbol) => !map.externDecls.some((decl) => decl.includes(symbol)))
+          .map((symbol) => `extern u8 ${symbol}[];`)
+          .flatMap((decl) => [decl, ""]),
         `${signature} {`,
         ...renderStmts(body, "    "),
         "}",

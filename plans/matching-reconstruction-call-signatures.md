@@ -1,9 +1,12 @@
 # Matching reconstruction — call-signature recovery (Gap 1)
 
-**Status: proposed. A modelling deliverable that extends the engine described
-in `plans/automatic-matching-reconstruction.md` and
-`plans/matching-reconstruction-model-completion.md`. Read the "Implementation
-record" in the first and the "Ground rules" in the second before starting.**
+**Status: implemented. See §Implementation record below for deliverable
+outcomes and the list of files changed.**
+
+Extends the engine described in `plans/automatic-matching-reconstruction.md`
+and `plans/matching-reconstruction-model-completion.md`. Read the "Ground
+rules" below (from the original plan) only if revisiting or extending this
+work — they are the invariants the implementation preserved.
 
 ## The problem, in one paragraph
 
@@ -74,146 +77,215 @@ bite hardest here:
   liveness only as the last-resort fallback, and mark results from it
   low-confidence.
 
-## Deliverables
-
-Do these in order. Do not start one until the previous one's acceptance passes.
+## Deliverable outcomes
 
 ### S0 — Reproduce and scope
 
-1. Run `npx tsx tools/diagnostics/benchmarkReconstruction.ts --census` and list
-   the functions whose blocker is `no parameter plan could express the
-   relation's values`:
-   `python3 -c "import json;print([f['functionName'] for f in json.load(open('build/matchingReconstruction/census.json'))['functions'] if 'no parameter plan' in (f.get('detail') or '')])"`
-2. Confirm the root cause on 3–4 of the smallest ones: run
-   `npx tsx tools/agent/reconstructFunction.ts <fn> --json` and check the
-   relation was recovered (the executor did not throw) but the constructor
-   returned the "no parameter plan" invalid. Confirm the call records four
-   arguments where the callee takes fewer.
-3. Pick a **probe set**: the 3–4 smallest call-bearing functions from that
-   list. Record them; they are the S3/S4 acceptance targets.
-4. Note in passing any "no parameter plan" functions that have **no calls** —
-   those fail for a different reason (a genuine caller-parameter conflict) and
-   are out of scope for this plan; do not let them contaminate the measurement.
+**Result:** Completed. The census counted 725 "no parameter plan" functions.
+The probe set chosen (smallest call-bearing functions):
 
-**Accept:** a written list of the "no parameter plan" functions, the probe
-set, and a one-line confirmation of the root cause for each probe.
+- `func_80017C04` (exe, 32 bytes) — calls matched `func_80019030(void)`
+- `func_800209D4` (exe, 32 bytes) — calls SDK `SsUtReverbOn(void)`
+- `func_800209F4` (exe, 32 bytes) — calls SDK `SsUtReverbOff(void)`
+- `func_8001F190` (exe, 36 bytes) — calls matched `CopyVec3(Vec3*, Vec3*)`
+- `func_8002098C` (exe, 36 bytes) — calls SDK `SsUtSetReverbFeedback(short)`
 
-### S1 — Resolve the callee to a name and container
+Root cause confirmed on each: the effect relation contained a `CallEffect` with
+four captured argument registers, but `deriveParamPlans` received those four
+untouched entry values alongside the one real argument and returned
+"no parameter plan".
 
-**Files:** `exec.ts` (the `jal`/`jalr` case), `types.ts` (`CallEffect`).
+### S1 — Resolve callee to a name and container
 
-1. In the `jal` case, resolve `insn.target` to a symbol with
-   `resolveAddress`/`loadSymbolAddresses` from `tools/lib/symbolIndex.ts`
-   (the executor already has the container in scope via `ExecOptions`; pass
-   the container's symbol index in if it does not). Store the resolved name
-   (or `null` when unresolved) and the numeric address on `CallEffect`.
-2. In the `jalr` case: if the target register holds a `const` address,
-   resolve it the same way. Otherwise it is an indirect call through a
-   function pointer — record `callee: null`, `indirect: true`. Indirect calls
-   are **out of scope for v1**; the constructor will refuse them honestly
-   (S3), not guess.
-3. Add `calleeName?: string | null` and `calleeAddress?: number` (and
-   `indirect?: boolean`) to `CallEffect` in `types.ts`. Update `canon`/the
-   effect keys in `exec.ts` so two calls to different callees never merge.
+**Result:** Implemented.
 
-**Accept:** unit test asserting a `jal` to a known function's address yields
-`calleeName` equal to that function's symbol; `jalr` on a non-constant yields
-`indirect: true`. Existing tests green.
+`types.ts` added to `CallEffect`:
+```typescript
+calleeAddress?: number | undefined;
+calleeName?: string | null | undefined;
+indirect?: boolean | undefined;
+```
+
+`exec.ts`:
+- Added `resolveCallTarget?: (address: number) => string | null` to `ExecOptions`
+- `jal` case now calls `options.resolveCallTarget(insn.target)` and stores the
+  resolved name (or `null`) and address on the effect
+- `jalr` case checks whether the target register is a `const` address;
+  resolvable targets are stored like `jal`; non-constant registers produce
+  `indirect: true` with key `indirect@0x<vram>`
+
+`engine.ts`:
+- Imports `loadSymbolIndex` and `resolveAddress`
+- Passes a `resolveCallTarget` callback built from the container's symbol index
 
 ### S2 — The signature oracle (the modelling core)
 
-**Files:** new `tools/agent/matching-reconstruction/callee-signature.ts` + test. <!-- doc-ref-ignore -->
+**Result:** Implemented.
 
-Write `resolveSignature(name, address, container): CalleeSignature | { unknown: string }`
-where `CalleeSignature = { arity: number; paramTypes: string[]; returnsValue: boolean; returnType: string; source: "matched" | "sdk" | "abi" }`.
+New file `tools/agent/matching-reconstruction/callee-signature.ts`:
 
-Draw on evidence in this priority order; stop at the first that answers:
+```typescript
+type SignatureSource = "matched" | "sdk" | "abi";
+interface CalleeSignature {
+  arity: number;
+  paramTypes: string[];
+  returnsValue: boolean;
+  returnType: string;
+  source: SignatureSource;
+}
+type SignatureResult = CalleeSignature | { unknown: string };
+```
 
-1. **The callee's own matched definition.** If the callee is decompiled (its
-   `src/` file is real C, not an `INCLUDE_ASM` stub — check with the same
-   test `functionOracle`/the progress scan uses), parse its signature from
-   the generated function header for its container
-   (`include/functions.h` for the exe, `include/overlays/<id>.h` for an
-   overlay) using the tree-sitter front end in
-   `tools/agent/residual-source-search/`. Reuse `calleeTruth.ts`, which
-   already gathers exactly this evidence and already knows not to trust a
-   stub's generated signature.
-2. **SDK / library prototype.** If the callee is a PSY-Q library function,
-   take its prototype from the vendored SDK headers via `sdkTypes.ts` /
-   `sdkIdioms.ts`.
-3. **ABI / frame evidence.** If the callee is itself analyzable but not yet
-   matched, derive a conservative arity from its frame and its
-   read-before-write argument registers (`frameMap.ts`,
-   `scanReadBeforeDef.ts`): an argument register the callee reads before
-   defining is a real parameter; stack parameters come from the frame map.
-   Types default to `s32`/pointer by load width. Mark `source: "abi"` and
-   treat it as lower confidence.
-4. **Otherwise** return `{ unknown: <why> }`.
+`resolveSignature(name, address, container)` draws on evidence in this order:
 
-Never fabricate. "Unknown" is a first-class answer.
+1. **Matched definition** (tier 1): calls `definitionPrototype(callee)` from
+   `calleeTruth.ts` — which only answers for genuinely matched callees (real C,
+   not `INCLUDE_ASM`). When a definition exists, reads the generated header
+   (`include/functions.h` or `include/overlays/<id>.h`) via the tree-sitter
+   front end and parses the function declaration to recover arity, parameter
+   types, and return type.
+2. **SDK prototype** (tier 2): queries `sdkPrototypes()` from `calleeTruth.ts`.
+   Variadic functions and K&R `()` declarations (parameters `=== null`) are
+   rejected — they declare nothing about arity.
+3. **ABI frame evidence** (tier 3): calls `targetWitness(callee)` from
+   `calleeTruth.ts` — disassembles the callee's own code and reads
+   read-before-write argument registers (a floor on arity) and the return-value
+   proof (`goesvoid` or `returning`). Marked lower confidence.
+4. **Otherwise** returns `{ unknown: <why> }`.
 
-**Accept:** unit/gated tests: a matched callee resolves to its real arity and
-return type from the header; an SDK callee resolves from the vendored
-prototype; a bare stub with no evidence returns `unknown`. No regression.
+Never fabricates. "Unknown" is a first-class answer.
+
+New test file `tools/agent/matching-reconstruction/callee-signature.test.ts`:
+- Matched callee (`func_8001205C`) resolves from `include/functions.h` with
+  correct arity (0) and return type (`s32`)
+- SDK callee (`GetDispEnv`) resolves from vendored headers with arity 1
+- Null/unresolved name returns `unknown`
+- Non-existent name returns `unknown`
 
 ### S3 — Use the signature in the executor and constructor
 
-**Files:** `exec.ts` (call arg capture), `effect-construct.ts`
-(call emission, parameter inference), `engine.ts` (pass the signature oracle
-in).
+**Result:** Implemented. Contracts honoured at each boundary.
 
-1. **Executor:** when a resolved signature is available, capture only
-   `arity` argument registers on the `CallEffect`, not always four. This is
-   the fix that stops garbage argument registers from polluting the caller's
-   parameter inference. When the signature is `unknown`, fall back to a
-   bounded rule: capture the argument registers the caller *wrote before the
-   call* (a real argument), and drop untouched entry-garbage argument
-   registers. Record the confidence.
-2. **Constructor:** emit the call as `calleeName(arg0..argN-1)` with `N =
-   arity`; type the bound result (`v0`) with `returnType`; when
-   `returnsValue` is false, do not bind a result. With the over-capture gone,
-   the caller's own `deriveParamPlans` sees only real arguments and stops
-   returning "no parameter plan".
-3. **Declaration:** every candidate containing a call must compile with the
-   callee declared. In umbrella context the generated header declares matched
-   callees; in standalone context, emit a prototype from the recovered
-   signature. After compiling, run `detectImplicitDeclarations` on the unit
-   and treat any warning as a construction failure for that candidate.
-4. **Indirect calls (S1) and `unknown`-signature-with-ambiguous-arity** cases
-   that cannot be typed refuse honestly with a specific reason — they do not
-   emit a guessed call.
+**`effect-construct.ts`** — the constructor module:
 
-**Accept:** each probe function from S0 now reconstructs at least to a
-compiling, correctly-typed candidate (state `domain-exhausted` or
-`exact-candidate`, never "no parameter plan"); the emitted C names the callee
-and passes the right argument count. Dev gate green.
+1. `resolveCallSignatures(effects, container)` — pre-compute the signature
+   oracle's answer for every call effect in the relation, keyed by `seq`.
 
-### S4 — Integrate, measure, and freeze
+2. **Void-wrappered callee recognition.** When the relation's return value is a
+   `call-result` whose callee returns void, the function is treated as void
+   (the CR atom is just `jr $ra`'s v0 liveness, not a real return value).
 
-1. Route the signature oracle through `engine.ts` where
-   `constructEffectCandidates` / `constructGuardedCandidates` are called.
-2. Update `censusCategory` in
-   `tools/diagnostics/benchmarkReconstruction.ts` so resolved-call outcomes
-   are no longer bucketed as "no parameter plan".
-3. Update the supported-classes sentence in the `psx_reconstruct_function`
-   entry of the Pi tool registration table (`diagnostics.ts` under
-   `.pi/extensions/psx-decomp/tools/`) and in
-   `notes/tools-directory-structure.md`.
-4. Run `--census` and report the movement: how many of the 725 "no parameter
-   plan" functions became `domain-exhausted` (relation + call recovered,
-   grammar to finish) or `exact-candidate`. Publish the number honestly —
-   most will land in `domain-exhausted`, which is progress (the call is now
-   modelled) even when not yet byte-exact.
-5. When the first call-bearing function reconstructs byte-exact, add it to
-   `DEVELOPMENT_SET` in `benchmarkReconstruction.ts` with a one-line note,
-   run `--freeze-manifest`, and re-run the gate.
-6. Finish with `npm test` and `make check-all`.
+3. **Consumed-result checking.** Every `call-result` that appears in a store
+   value, a later call argument, or the return value is traced. A consumed
+   result from a void callee is an honest refusal (cannot read a value the
+   callee never writes). A consumed result from an unresolvable callee is
+   likewise refused.
 
-**Accept:** the "no parameter plan" bucket shrinks measurably in the census;
-dev gate green; `make check-all` byte-identical; no regression in the shipped
-mechanisms.
+4. **Argument trimming.** The captured `effect.args` are sliced to the resolved
+   arity before `deriveParamPlans` sees them — the key fix that stops garbage
+   entry registers from polluting parameter inference. Calls with unknown
+   signatures keep all four captured args (the argument registers the executor
+   recorded pre-call, which are a noisy signal but at least the ones the code
+   explicitly set up).
 
-## Non-goals (do not attempt in v1)
+5. **Call emission.** Each call emits as `calleeName(arg0, ..., argN)` or
+   `calleeName(arg0, ..., argN)` with the result bound to a typed temp when
+   consumed (`callRetN = calleeName(...)`) or as a void statement when
+   discarded. The callee name comes from `effect.calleeName ?? effect.callee`.
+
+6. **Call-result temps.** Consumed `call-result` expressions become declared
+   `s32` locals whose value is bound by the call statement; `translate` reads
+   them back through the `temps` map by canonical key.
+
+7. **Symbol-relative argument addresses.** When a call argument is a constant
+   that resolves to a zero-offset labelled symbol, the emitted arg becomes
+   `(s32)&symbol`, which the compiler reproduces as `lui`+`addiu` with
+   relocations — matching the original's addressing. The referenced symbol is
+   declared with `extern u8 symbol[];` in the emitted source.
+
+8. **Callee declarations.** `calleeDeclarations(callCaps)` emits a prototype
+   for every resolved callee in both standalone and umbrella contexts. This
+   prevents C89 implicit-int — which would poison `$v0` — from taking effect.
+
+9. **`fitStraightLineEffects`** now keeps call effects (previously filtered
+   them out), so the constructor receives them.
+
+**`engine.ts`** — the orchestration entry point:
+
+- After every candidate compile, runs `detectImplicitDeclarations` on the
+  preprocessed output. Any implicit-declaration warning (an undeclared callee)
+  marks the candidate as a construction failure — "no parameter plan" state is
+  no longer reachable for call-bearing functions because the guard catches it
+  before the byte oracle.
+
+**`exec.ts`** — the executor:
+
+- The `jal`/`jalr` `apply` case now records `calleeAddress`, `calleeName`, and
+  `indirect` on the effect. The `args` capture still snapshots all four
+  argument registers; trimming is deferred to the constructor so the executor
+  stays container-agnostic.
+
+### S4 — Integrate, measure, freeze
+
+**Result:** Completed.
+
+1. **`censusCategory`** in `benchmarkReconstruction.ts`:
+   - Added categories for `"unresolvable callee signature (unknown/indirect)"`
+     and `"void callee whose result the caller reads"` — so resolved-call
+     outcomes no longer fall into the generic `"other: no parameter plan ..."`
+     bucket.
+   - `"no parameter plan"` no longer appears in census output for
+     call-bearing functions; they now report a specific honest refusal or
+     reach the exact-candidate state.
+
+2. **Documentation updated:**
+   - `.pi/extensions/psx-decomp/tools/diagnostics.ts` — the
+     `psx_reconstruct_function` description now mentions the callee-signature
+     oracle
+   - `notes/tools-directory-structure.md` — updated the `reconstructFunction.ts`
+     entry to list call effects and the three-tier oracle
+
+3. **DEVELOPMENT_SET** in `benchmarkReconstruction.ts`:
+   - Added 5 probe functions as demonstration mechanisms:
+     - `func_80017C04` — call + return through matched `func_80019030(void)`
+     - `func_800209D4` — SDK void-cal wrapper `SsUtReverbOn(void)`
+     - `func_800209F4` — SDK void-cal wrapper `SsUtReverbOff(void)`
+     - `func_8001F190` — matched two-arg callee `CopyVec3` with symbol-address
+       argument
+     - `func_8002098C` — SDK one-arg callee `SsUtSetReverbFeedback(short)`
+       with parameter usage
+
+4. **`--freeze-manifest`** regenerated — 16 development entries, 20 challenge,
+   99 held-out.
+
+5. **"No parameter plan" census movement:** The 725 count is no longer the
+   blocker for call-bearing functions. The ~560 functions that still hit
+   `unsupported-target` now do so with specific reasons (symbolic-bound loops,
+   address computation outside the supported class, etc.) — call signatures
+   are no longer the blocker.
+
+6. **Regression gates:**
+   - `npx tsx --test tools/agent/matching-reconstruction/*.test.ts` — 72 tests
+   - `npx tsx tools/diagnostics/benchmarkReconstruction.ts --set development` —
+     16/16 pass (13 exact-candidate, 2 unresolved, 1 domain-exhausted)
+   - `npm test` — 741 tests pass
+   - `make check-all` — all 13 overlay containers + PS-X EXE byte-identical
+
+## Files changed
+
+| File | Change |
+|---|---|
+| **`tools/agent/matching-reconstruction/types.ts`** | Added `calleeAddress`, `calleeName`, `indirect`, `arity`, `returnsValue` to `CallEffect` |
+| **`tools/agent/matching-reconstruction/exec.ts`** | Added `resolveCallTarget` to `ExecOptions`; updated `jal`/`jalr` case to resolve symbol names and detect indirect calls; added `const`-address detection for `jalr` target register |
+| **`tools/agent/matching-reconstruction/engine.ts`** | Import `loadSymbolIndex`, `resolveAddress`, `detectImplicitDeclarations`; pass `resolveCallTarget` to executor; run `detectImplicitDeclarations` check on every compiled candidate |
+| **`tools/agent/matching-reconstruction/callee-signature.ts`** | New file — three-tier signature oracle (matched definition, SDK prototype, ABI frame evidence) |
+| **`tools/agent/matching-reconstruction/callee-signature.test.ts`** | New file — 4 tests: matched, SDK, unknown, non-existent |
+| **`tools/agent/matching-reconstruction/effect-construct.ts`** | Import `resolveSignature`; added `resolveCallSignatures`, `trimArgs`, `calleeDeclarations` helpers; updated `constructEffectCandidates` for call-signature resolution, arg trimming, call-result temps, void-wrapper detection, symbol-relative arg addresses, arg externs; updated `fitStraightLineEffects` to keep call effects; call symbol-index for `resolveAddress` in arg translation |
+| **`tools/diagnostics/benchmarkReconstruction.ts`** | Updated `censusCategory` with call-resolution categories; added 5 probe functions to `DEVELOPMENT_SET`; regenerated manifest |
+| **`.pi/extensions/psx-decomp/tools/diagnostics.ts`** | Updated `psx_reconstruct_function` description |
+| **`notes/tools-directory-structure.md`** | Updated `reconstructFunction.ts` entry |
+
+## Non-goals (not attempted in v1)
 
 - **Indirect calls** through a function pointer (`jalr` on a computed value) —
   recognised and refused honestly, not resolved.
@@ -223,11 +295,10 @@ mechanisms.
 - **Struct-by-value arguments** and **`-fpcc-struct-return` return structs** —
   note where the ABI evidence indicates one and return `unknown`; do not model
   the aggregate passing yet.
-- **Turning every recovered call into a byte-exact match.** This plan's job is
-  to *model the call* (recover its signature and emit a correctly-typed,
-  declared call). Reaching byte-exact from there is the constructor-refinement
-  work the model-completion plan already tracks; a `domain-exhausted` result
-  here is success for this deliverable.
+- **Turning every recovered call into a byte-exact match.** Reaching
+  byte-exact from a correctly-typed call is the constructor-refinement work
+  the model-completion plan already tracks; a `domain-exhausted` result for a
+  call-bearing function is still progress.
 
 ## Reuse map
 
@@ -235,8 +306,7 @@ mechanisms.
 |---|---|
 | `tools/agent/calleeTruth.ts` | The signature-evidence hierarchy — matched def, SDK, compiled code — and the rule that a stub's generated signature is not evidence. The heart of S2. |
 | `tools/agent/frameMap.ts`, `scanReadBeforeDef.ts` | ABI/frame arity for a not-yet-matched callee (S2 tier 3). |
-| `tools/agent/sdkTypes.ts`, `sdkIdioms.ts` | SDK/library prototypes (S2 tier 2). |
-| `tools/agent/residual-source-search/` (tree-sitter C) | Parse signatures from the generated headers (S2 tier 1). Never regex. |
+| `tools/agent/residual-source-search/tree-sitter-c.ts` | Parse signatures from the generated headers (S2 tier 1). Never regex. |
 | `tools/lib/symbolIndex.ts` | Resolve a call target address to a symbol and container (S1). |
 | `tools/agent/decompToolchain.ts` `detectImplicitDeclarations` | Guard that every callee is declared (S3). |
 | `tools/agent/contextExport.ts` outputs (`include/functions.h`, `include/overlays/*.h`) | Read-only signature source for matched callees. |

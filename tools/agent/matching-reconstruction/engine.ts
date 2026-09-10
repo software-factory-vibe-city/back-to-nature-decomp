@@ -18,9 +18,9 @@
 
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ROOT, compileSource } from "../decompToolchain.js";
+import { ROOT, compileSource, detectImplicitDeclarations } from "../decompToolchain.js";
 import { containerTargetPath, loadContainer, vramToRom } from "../../lib/container.js";
-import { requireFunctionLocation } from "../../lib/symbolIndex.js";
+import { requireFunctionLocation, loadSymbolIndex, resolveAddress } from "../../lib/symbolIndex.js";
 import { compareFunction } from "../../lib/functionOracle.js";
 import { computeProvenance, stamped, writeStableJson } from "../provenance.js";
 import { decodeBytes, executeFunction, UnsupportedTarget } from "./exec.js";
@@ -142,6 +142,18 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
           containerKind: container.kind,
         });
         bundle.compiles++;
+
+        /* S3 §3: any implicit function declaration in the compiled unit makes
+         * the candidate a construction failure — an undeclared callee changes
+         * codegen by defining `$v0` even when nothing reads it. */
+        const implicit = detectImplicitDeclarations(readFileSync(artifacts.preprocessed, "utf-8"), functionName);
+        if (implicit.length > 0) {
+          outcome.compileError = `implicit declaration(s): ${implicit.join(", ")}`;
+          notify(`  ${candidate.id}: implicit declaration — construction failure (${implicit[0]})`);
+          bundle.candidates.push(outcome);
+          continue;
+        }
+
         const oracle = compareFunction(functionName, { objectPath: artifacts.object!, container });
         outcome.verdict = oracle.verdict === "stub" ? "error" : oracle.verdict;
         outcome.matchedWords = oracle.same;
@@ -194,6 +206,10 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
 
     let executed;
     try {
+      /* S1: resolve every call target to a symbol through the container's
+       * symbol index (requires a container-scoped resolver; the executor
+       * stays container-agnostic). */
+      const symbolIndex = loadSymbolIndex(container);
       executed = executeFunction(insns, {
         gpValue: container.gpValue || undefined,
         readWord: (vram) => {
@@ -202,6 +218,10 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
           const rom = vramToRom(container, vram);
           if (rom < 0 || rom + 4 > image.length) return undefined;
           return image.readUInt32LE(rom);
+        },
+        resolveCallTarget: (address) => {
+          const resolved = resolveAddress(symbolIndex, address >>> 0);
+          return resolved ? resolved.symbol : null;
         },
       });
     } catch (error) {
