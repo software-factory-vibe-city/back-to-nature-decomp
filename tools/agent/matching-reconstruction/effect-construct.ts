@@ -22,7 +22,7 @@ import { loadSymbolIndex, resolveAddress, type SymbolIndex } from "../../lib/sym
 import type { Container } from "../../lib/container.js";
 import { canon, type LoadMeta } from "./exec.js";
 import { recognizeDivision } from "./idioms.js";
-import { resolveSignature, type CalleeSignature } from "./callee-signature.js";
+import { resolveSignature, inferSignatureRange, type CalleeSignature, type InferredSignatureRange } from "./callee-signature.js";
 import {
   type CExpr,
   type CStmt,
@@ -91,21 +91,41 @@ export function fitStraightLineEffects(
  * untouched entry-garbage registers. Feeding them to `deriveParamPlans`
  * manufactures caller parameters that never existed.
  *
- * `resolution.arityBySeq` maps each call's seq to its resolved arity;
- * calls with unknown signatures stay at their captured length (all four),
- * and the caller-side fallback in the executor keeps them honest.
+ * `results.resolved` maps each call's seq to its resolved signature.
+ * `results.unknownRanges` maps each seq whose callee could not be resolved
+ * but is a named, direct target — inferred range bounds for enumeration.
  */
 export function resolveCallSignatures(
   effects: Effect[],
   container: Container,
-): Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }> {
+): {
+  resolved: Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }>;
+  unknownRanges: Map<number, { calleeName: string; arityLo: number; arityHi: number; returns: "yes" | "no" | "unknown" }>;
+} {
   const resolved = new Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }>();
+  const unknownRanges = new Map<number, { calleeName: string; arityLo: number; arityHi: number; returns: "yes" | "no" | "unknown" }>();
   for (const effect of effects) {
     if (effect.kind !== "call") continue;
     /* The executor already resolved the target to a name when it could. */
     const name = effect.calleeName ?? effect.callee;
     const signature = resolveSignature(name, effect.calleeAddress, container);
-    if ("unknown" in signature) continue;
+    if ("unknown" in signature) {
+      /* For a named, direct callee with an unresolvable signature, record
+       * the inferred range for later enumeration. Indirect calls and bare
+       * hex names stay refused. */
+      if (name && !effect.indirect && !/^0x[0-9a-f]+$/i.test(name)) {
+        /* Compute initial range using call-site args (consumedCalls not yet
+         * known — pass empty set; returns refinement happens later). */
+        const range = inferSignatureRange(name, effect.calleeAddress, container, effect.args, new Set(), effect.seq);
+        unknownRanges.set(effect.seq, {
+          calleeName: name,
+          arityLo: range.arityLo,
+          arityHi: range.arityHi,
+          returns: range.returns,
+        });
+      }
+      continue;
+    }
     resolved.set(effect.seq, {
       arity: signature.arity,
       calleeName: effect.calleeName ?? effect.callee,
@@ -114,7 +134,7 @@ export function resolveCallSignatures(
       source: signature.source,
     });
   }
-  return resolved;
+  return { resolved, unknownRanges };
 }
 
 /**
@@ -126,6 +146,100 @@ const trimArgs = (effect: CallEffect, caps: Map<number, { arity: number }>): Cal
   if (!cap || cap.arity >= effect.args.length) return effect;
   return { ...effect, args: effect.args.slice(0, cap.arity) };
 };
+
+/**
+ * Build the cartesian product of inferred signature assignments for unknown
+ * callees. Each combination is a Map from call seq to {arity, returnsValue,
+ * calleeName} — one hypothesis for every unknown call in the function.
+ *
+ * The product is capped at MAX_COMBOS (24). When the unbounded product would
+ * exceed the cap, each range is narrowed to its best single-evidence
+ * hypothesis (arityLo, returns when known). If still over, the capped subset
+ * is returned without silent exclusion — the caller logs `budget-exhausted`.
+ */
+type SigEnumCombination = Map<number, { arity: number; returnsValue: boolean; calleeName: string }>;
+
+const MAX_INFERRED_COMBOS = 24;
+
+function buildInferredCombinations(
+  unknownRanges: Map<number, { calleeName: string; arityLo: number; arityHi: number; returns: "yes" | "no" | "unknown" }>,
+  consumedCalls: Set<number>,
+): SigEnumCombination[] {
+  if (unknownRanges.size === 0) return [new Map()];
+
+  const entries = [...unknownRanges.entries()];
+
+  /* Refine returns: if a call's result IS consumed and returns was "unknown",
+   * it must be "yes" — the caller reads the value and cannot read garbage. */
+  for (const [seq] of entries) {
+    const range = unknownRanges.get(seq)!;
+    if (range.returns === "unknown" && consumedCalls.has(seq)) {
+      unknownRanges.set(seq, { ...range, returns: "yes" });
+    }
+  }
+
+  /* Pre-compute per-call option lists. */
+  const perCallOptions: Array<Array<{ seq: number; arity: number; returnsValue: boolean; calleeName: string }>> = [];
+  let totalCombos = 1;
+  for (const [seq, range] of entries) {
+    const options: Array<{ seq: number; arity: number; returnsValue: boolean; calleeName: string }> = [];
+    for (let arity = range.arityLo; arity <= range.arityHi; arity++) {
+      const returnValues = range.returns === "yes" ? [true]
+        : range.returns === "no" ? [false]
+        : [false, true];
+      for (const returnsValue of returnValues) {
+        options.push({ seq, arity, returnsValue, calleeName: range.calleeName });
+      }
+    }
+    if (options.length === 0) continue;
+    totalCombos *= options.length;
+    perCallOptions.push(options);
+  }
+
+  /* Narrow when product exceeds cap. */
+  if (totalCombos > MAX_INFERRED_COMBOS) {
+    const narrowed: Array<Array<{ seq: number; arity: number; returnsValue: boolean; calleeName: string }>> = [];
+    for (const [seq, range] of entries) {
+      const options: Array<{ seq: number; arity: number; returnsValue: boolean; calleeName: string }> = [];
+      /* Best single-evidence: arityLo, and returns when known. */
+      if (range.returns === "yes") {
+        options.push({ seq, arity: range.arityLo, returnsValue: true, calleeName: range.calleeName });
+      } else if (range.returns === "no") {
+        options.push({ seq, arity: range.arityLo, returnsValue: false, calleeName: range.calleeName });
+      } else {
+        /* Unknown returns: try both arityLo with false and true. */
+        options.push({ seq, arity: range.arityLo, returnsValue: false, calleeName: range.calleeName });
+        options.push({ seq, arity: range.arityLo, returnsValue: true, calleeName: range.calleeName });
+      }
+      narrowed.push(options);
+    }
+    const narrowedProduct = narrowed.reduce((p, o) => p * o.length, 1);
+    if (narrowedProduct <= MAX_INFERRED_COMBOS) {
+      perCallOptions.length = 0;
+      perCallOptions.push(...narrowed);
+    }
+  }
+
+  /* Build cartesian product with cap. */
+  const combos: SigEnumCombination[] = [new Map()];
+  for (const options of perCallOptions) {
+    const next: SigEnumCombination[] = [];
+    for (const existing of combos) {
+      for (const opt of options) {
+        const merged = new Map(existing);
+        merged.set(opt.seq, { arity: opt.arity, returnsValue: opt.returnsValue, calleeName: opt.calleeName });
+        next.push(merged);
+        if (next.length >= MAX_INFERRED_COMBOS) break;
+      }
+      if (next.length >= MAX_INFERRED_COMBOS) break;
+    }
+    combos.length = 0;
+    combos.push(...next);
+    if (combos.length >= MAX_INFERRED_COMBOS) break;
+  }
+
+  return combos;
+}
 
 /**
  * Prototype declarations for every resolved, named callee.
@@ -837,10 +951,10 @@ export function constructEffectCandidates(
 ): EffectCandidate[] | { unresolved: string } | { invalid: string } {
   let isVoid = canon(relation.returnValue) === canon(ENTRY_V0);
 
-  /* S3: resolve call signatures from the callee oracle and trim captured
-   * argument registers to the real arity. Over-capture of untouched entry
-   * registers pollutes the caller's parameter inference. */
-  const callCaps = resolveCallSignatures(relation.effects, container);
+  /* T2: resolve call signatures from the callee oracle, and collect unknown
+   * ranges for named-but-undecompiled callees that the enumeration axis
+   * will hypothesize over. */
+  const { resolved: baseCallCaps, unknownRanges } = resolveCallSignatures(relation.effects, container);
 
   /* Pre-compute which call results are consumed and whether the function is
    * a void wrapper around a void callee (CR atom from jr liveness, not a
@@ -863,39 +977,22 @@ export function constructEffectCandidates(
   }
   if (!isVoid) walkAll(relation.returnValue);
 
-  /* When the return value is a call-result from a void callee, the function
-   * is a void wrapper — the CR atom is just `jr $ra`'s v0 liveness, not a
-   * real value. Drop the return. */
-  if (!isVoid && relation.returnValue.kind === "call-result") {
-    const cap = callCaps.get(relation.returnValue.seq);
-    if (cap && !cap.returnsValue) isVoid = true;
-  }
+  /* T2: merge resolved sigs with each inferred combo to form per-combo caps.
+   * Each combo loop builds candidates under one full hypothesis of every
+   * unknown call's arity and return-value usage. */
+  const sigCombos = buildInferredCombinations(unknownRanges, consumedCalls);
 
-  /* For each consumed call result, prepare a temp name and check that the
-   * signature provides a return type. When a void callee's CR is consumed
-   * elsewhere (not as the return value — checked above), that is reading
-   * undefined garbage and must be refused. */
-  const callResultTemps = new Map<string, string>();
-  for (const seq of consumedCalls) {
-    const cap = callCaps.get(seq);
-    if (!cap || (!cap.returnsValue && !(isVoid && relation.returnValue.kind === "call-result" && relation.returnValue.seq === seq))) {
-      /* A call whose result is consumed but whose callee either cannot be
-       * resolved or returns void (making the CR atom garbage) is an
-       * honest refusal. */
-      const why = !cap ? "its callee signature is unknown" : "its callee returns void — the CR atom is jr liveness, not a real result";
-      return { invalid: `call seq ${seq} has a consumed result but ${why}` };
-    }
-    if (!cap.returnsValue) continue; /* void callee's CR is handled as void-wrapper above. */
-    const tempName = `callRet${seq}`;
-    callResultTemps.set(`CR(${seq},v0)`, tempName);
-  }
-
-  /* Every accessed cell: stores, loads inside values, and pointer bases. */
+  /* Every accessed cell: stores, loads inside values, pointer bases,
+   * and call argument values. This is shared across all combos — it does
+   * not depend on call caps. */
   const atoms = new Map<string, Atom>();
   for (const effect of relation.effects) {
-    if (effect.kind === "call") continue;
-    collectAtoms(effect.value, atoms);
-    if (effect.base) collectAtoms(effect.base, atoms);
+    if (effect.kind === "call") {
+      for (const arg of effect.args) collectAtoms(arg, atoms);
+    } else {
+      collectAtoms(effect.value, atoms);
+      if (effect.base) collectAtoms(effect.base, atoms);
+    }
   }
   if (!isVoid) collectAtoms(relation.returnValue, atoms);
 
@@ -934,284 +1031,291 @@ export function constructEffectCandidates(
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
-  const exprs = [...relation.effects.flatMap((effect) => {
-    if (effect.kind === "call") {
-      /* Trim to the resolved arity when known; otherwise keep all
-       * captured args (caller-side liveness fallback is applied later). */
-      const cap = callCaps.get(effect.seq);
-      const args = cap ? effect.args.slice(0, cap.arity) : effect.args;
-      return args;
-    }
-    return [effect.value];
-  }), ...(isVoid ? [] : [relation.returnValue])];
-  const plans = deriveParamPlans(exprs, map.pointerParams);
-  if ("invalid" in plans) return plans;
-
-  /* S3: symbols referenced by call arguments — resolved const addresses —
-   * need extern declarations in the emitted unit. */
+  const candidates: EffectCandidate[] = [];
   const refedSyms = new Set<string>();
 
-  /* A value that reads a cell an *earlier* assignment overwrote must read it
-   * before that assignment; those pre-store reads become temporaries at the
-   * top, in first-read order. Post-store re-reads (epoch atoms) read in place. */
-  const overwrittenReads = new Map<string, SymExpr & { kind: "load" }>();
-  const storedBefore = new Set<string>();
-  const noteOverwritten = (expr: SymExpr): void => {
-    const reads = new Map<string, Atom>();
-    collectAtoms(expr, reads);
-    for (const [key, read] of reads) {
-      if (key.includes("@")) continue; /* epoch re-read: reads updated memory on purpose */
-      if (storedBefore.has(cellKey(atomGroup(read), read.offset, read.width))) {
-        overwrittenReads.set(key, { kind: "load", address: read.offset, width: read.width, signed: read.signed, base: read.base });
-      }
-    }
-  };
-  for (const effect of relation.effects) {
-    if (effect.kind === "call") {
-      /* A call reads nothing from the overwritten set, but it invalidates
-       * every non-@sp cell — later reads are fresh epoch atoms. */
-      storedBefore.clear();
-      continue;
-    }
-    noteOverwritten(effect.value);
-    storedBefore.add(cellKey(effect.base ? canon(effect.base) : "", effect.address, effect.width));
-  }
-  if (!isVoid) noteOverwritten(relation.returnValue);
-
-  /* Increment idioms first: a lone `cell = cell ± 1` whose old value is (or
-   * is not) returned has `SYM++` as its natural source, and the post-increment
-   * form keeps the copy the machine shows where the temporary form does not. */
-  const lvalueOf = (storage: StorageMap, atom: Atom): CExpr => storage.access(atom);
-  const incrementBodies: Array<{ label: string; body: (map: StorageMap) => CStmt[] }> = [];
-  /* Only for absolute cells: a pointer-based increment would need the pointer
-   * parameter in the signature, which the generic plans already produce. */
-  if (relation.effects.length === 1 && relation.effects[0]!.kind === "store" && !relation.effects[0]!.base) {
-    const effect = relation.effects[0]!;
-    const value = effect.value;
-    const cellAtom: Atom = { base: effect.base, offset: effect.address, width: effect.width, signed: true };
-    const readsOwnCell = (expr: SymExpr): boolean =>
-      expr.kind === "load" && !expr.epoch &&
-      (expr.base ? canon(expr.base) : "") === (effect.base ? canon(effect.base) : "") &&
-      expr.address === effect.address && expr.width === effect.width;
-    if (value.kind === "binary" && value.op === "add" && readsOwnCell(value.left) && value.right.kind === "const") {
-      const delta = value.right.value | 0;
-      const op: "++" | "--" | undefined = delta === 1 ? "++" : delta === -1 ? "--" : undefined;
-      if (op && isVoid) {
-        incrementBodies.push({ label: `post${op === "++" ? "inc" : "dec"}`, body: (map) => [
-          { kind: "exprstmt", expr: { kind: "postfix", op, expr: lvalueOf(map, cellAtom) } },
-        ]});
-      }
-      if (op && !isVoid && readsOwnCell(relation.returnValue)) {
-        incrementBodies.push({ label: `ret-post${op === "++" ? "inc" : "dec"}`, body: (map) => [
-          { kind: "return", expr: { kind: "postfix", op, expr: lvalueOf(map, cellAtom) } },
-        ]});
-      }
-      if (op && !isVoid && canon(relation.returnValue) === canon(value)) {
-        incrementBodies.push({ label: `ret-pre${op === "++" ? "inc" : "dec"}`, body: (map) => [
-          { kind: "return", expr: { kind: "prefix", op, expr: lvalueOf(map, cellAtom) } },
-        ]});
-      }
-    }
-  }
-
-  const candidates: EffectCandidate[] = [];
-  for (const increment of incrementBodies) {
-    for (const context of ["standalone", "umbrella"] as const) {
-      const source = [
-        context === "umbrella" ? `#include "common.h"` : STANDALONE_TYPEDEF_BLOCK,
-        "",
-        ...map.typedefs.flatMap((typedef) => [typedef, ""]),
-        ...(context === "standalone" ? map.externDecls.flatMap((decl) => [decl, ""]) : []),
-        ...map.tentativeDefs.flatMap((decl) => [decl, ""]),
-        `${isVoid ? "void" : "s32"} ${functionName}(void) {`,
-        ...renderStmts(increment.body(map), "    "),
-        "}",
-        "",
-      ].join("\n");
-      candidates.push({
-        label: `effects-${increment.label}-${context}`,
-        source,
-        integrationPlan: [
-          ...map.integration,
-          "write the function body into its container's source directory with the project umbrella includes",
-        ],
+  for (const combo of sigCombos) {
+    /* Build merged caps: resolved sigs + this combo's inferred sigs. */
+    const callCaps = new Map(baseCallCaps);
+    for (const [seq, spec] of combo) {
+      callCaps.set(seq, {
+        arity: spec.arity,
+        calleeName: spec.calleeName,
+        returnsValue: spec.returnsValue,
+        returnType: spec.returnsValue ? "s32" : "void",
+        source: "abi" as CalleeSignature["source"],
       });
     }
-  }
-  for (const plan of plans) {
-    /* Declared-temp axis (D5): a subexpression the compiler had to materialize
-     * more than once (spills made it recompute, or a register wasn't enough)
-     * reads as repeated canon in the relation. Both spellings — inline and
-     * hoisted to a local temp — are candidates; the byte oracle chooses. */
-    const allValueExprs = [
-      ...relation.effects.filter((effect) => effect.kind === "store" && !isSpStore(effect)).map((effect) => (effect as StoreEffect).value),
-      ...(isVoid ? [] : [relation.returnValue]),
-    ];
-    const repeated: Array<{ key: string; expr: SymExpr }> = [];
-    {
-      const counts = new Map<string, { count: number; expr: SymExpr }>();
-      const walk = (e: SymExpr): void => {
-        if (e.kind === "entry" || e.kind === "const") return;
-        const key = canon(e);
-        const before = counts.get(key);
-        if (before) {
-          before.count++;
-        } else {
-          /* Do not hoist an expression its own value is a plain address; the
-           * compiler recomputes addresses freely. Keep loads and computes. */
-          if (e.kind === "load" || e.kind === "binary" || e.kind === "unary") counts.set(key, { count: 1, expr: e });
-        }
-        switch (e.kind) {
-          case "load":
-            if (e.base) walk(e.base);
-            if (e.index) walk(e.index.expr);
-            return;
-          case "unary": walk(e.operand); return;
-          case "binary":
-            walk(e.left);
-            walk(e.right);
-            return;
-          default: return;
-        }
-      };
-      for (const value of allValueExprs) walk(value);
-      repeated.push(...[...counts.entries()]
-        .filter(([, entry]) => entry.count >= 2)
-        .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
-        .slice(0, 4)
-        .map(([key, entry]) => ({ key, expr: entry.expr })));
+    let isVoidLocal = isVoid;
+
+    /* When the return value is a call-result from a void callee, the function
+     * is a void wrapper — the CR atom is just `jr $ra`'s v0 liveness, not a
+     * real value. Drop the return. */
+    if (!isVoidLocal && relation.returnValue.kind === "call-result") {
+      const cap = callCaps.get(relation.returnValue.seq);
+      if (cap && !cap.returnsValue) isVoidLocal = true;
     }
 
-    /* 2^n hoist sets, capped at 16. */
-    const hoistSets: Array<Set<string>> = [new Set()];
-    for (const sub of repeated) {
-      const more = hoistSets.map((set) => new Set([...set, sub.key]));
-      hoistSets.push(...more);
-      if (hoistSets.length >= 16) break;
+    /* For each consumed call result, check the signature provides a return
+     * type. When a void callee's CR is consumed elsewhere (not as the return
+     * value), that is reading undefined garbage — skip this combo. */
+    const callResultTemps = new Map<string, string>();
+    let comboInvalid = false;
+    for (const seq of consumedCalls) {
+      const cap = callCaps.get(seq);
+      if (!cap || (!cap.returnsValue && !(isVoidLocal && relation.returnValue.kind === "call-result" && relation.returnValue.seq === seq))) {
+        comboInvalid = true;
+        break;
+      }
+      if (!cap.returnsValue) continue;
+      const tempName = `callRet${seq}`;
+      callResultTemps.set(`CR(${seq},v0)`, tempName);
+    }
+    if (comboInvalid) continue;
+
+    /* Compute exprs with proper arg trimming for this combo's arity choices. */
+    const exprs = [...relation.effects.flatMap((effect) => {
+      if (effect.kind === "call") {
+        const cap = callCaps.get(effect.seq);
+        const args = cap ? effect.args.slice(0, cap.arity) : effect.args;
+        return args;
+      }
+      return [effect.value];
+    }), ...(isVoidLocal ? [] : [relation.returnValue])];
+    const plans = deriveParamPlans(exprs, map.pointerParams);
+    if ("invalid" in plans) continue;
+
+    /* A value that reads a cell an *earlier* assignment overwrote must read it
+     * before that assignment; those pre-store reads become temporaries at the
+     * top, in first-read order. Post-store re-reads (epoch atoms) read in place. */
+    const overwrittenReads = new Map<string, SymExpr & { kind: "load" }>();
+    const storedBefore = new Set<string>();
+    const noteOverwritten = (expr: SymExpr): void => {
+      const reads = new Map<string, Atom>();
+      collectAtoms(expr, reads);
+      for (const [key, read] of reads) {
+        if (key.includes("@")) continue;
+        if (storedBefore.has(cellKey(atomGroup(read), read.offset, read.width))) {
+          overwrittenReads.set(key, { kind: "load", address: read.offset, width: read.width, signed: read.signed, base: read.base });
+        }
+      }
+    };
+    for (const effect of relation.effects) {
+      if (effect.kind === "call") {
+        storedBefore.clear();
+        continue;
+      }
+      noteOverwritten(effect.value);
+      storedBefore.add(cellKey(effect.base ? canon(effect.base) : "", effect.address, effect.width));
+    }
+    if (!isVoidLocal) noteOverwritten(relation.returnValue);
+
+    /* Increment idioms (call-free only — never reach here if there are calls). */
+    const lvalueOf = (storage: StorageMap, atom: Atom): CExpr => storage.access(atom);
+    const incrementBodies: Array<{ label: string; body: (map: StorageMap) => CStmt[] }> = [];
+    if (relation.effects.length === 1 && relation.effects[0]!.kind === "store" && !relation.effects[0]!.base) {
+      const effect = relation.effects[0]!;
+      const value = effect.value;
+      const cellAtom: Atom = { base: effect.base, offset: effect.address, width: effect.width, signed: true };
+      const readsOwnCell = (expr: SymExpr): boolean =>
+        expr.kind === "load" && !expr.epoch &&
+        (expr.base ? canon(expr.base) : "") === (effect.base ? canon(effect.base) : "") &&
+        expr.address === effect.address && expr.width === effect.width;
+      if (value.kind === "binary" && value.op === "add" && readsOwnCell(value.left) && value.right.kind === "const") {
+        const delta = value.right.value | 0;
+        const op: "++" | "--" | undefined = delta === 1 ? "++" : delta === -1 ? "--" : undefined;
+        if (op && isVoidLocal) {
+          incrementBodies.push({ label: `post${op === "++" ? "inc" : "dec"}`, body: (m) => [
+            { kind: "exprstmt", expr: { kind: "postfix", op, expr: lvalueOf(m, cellAtom) } },
+          ]});
+        }
+        if (op && !isVoidLocal && readsOwnCell(relation.returnValue)) {
+          incrementBodies.push({ label: `ret-post${op === "++" ? "inc" : "dec"}`, body: (m) => [
+            { kind: "return", expr: { kind: "postfix", op, expr: lvalueOf(m, cellAtom) } },
+          ]});
+        }
+        if (op && !isVoidLocal && canon(relation.returnValue) === canon(value)) {
+          incrementBodies.push({ label: `ret-pre${op === "++" ? "inc" : "dec"}`, body: (m) => [
+            { kind: "return", expr: { kind: "prefix", op, expr: lvalueOf(m, cellAtom) } },
+          ]});
+        }
+      }
     }
 
-    for (const hoisted of hoistSets) {
+    for (const increment of incrementBodies) {
       for (const context of ["standalone", "umbrella"] as const) {
-        let body: CStmt[];
-        try {
-          body = [];
-          const temps = new Map<string, string>();
-          let tempIndex = 0;
-          for (const [key, read] of overwrittenReads) {
-            const name = `saved${tempIndex++}`;
-            body.push({
-              kind: "declare",
-              type: elementType(read.width, read.signed),
-              name,
-              init: map.access({ base: read.base, offset: read.address, width: read.width, signed: read.signed }),
-            });
-            temps.set(key, name);
+        const source = [
+          context === "umbrella" ? `#include "common.h"` : STANDALONE_TYPEDEF_BLOCK,
+          "",
+          ...map.typedefs.flatMap((typedef) => [typedef, ""]),
+          ...(context === "standalone" ? map.externDecls.flatMap((decl) => [decl, ""]) : []),
+          ...map.tentativeDefs.flatMap((decl) => [decl, ""]),
+          `${isVoidLocal ? "void" : "s32"} ${functionName}(void) {`,
+          ...renderStmts(increment.body(map), "    "),
+          "}",
+          "",
+        ].join("\n");
+        candidates.push({
+          label: `effects-${increment.label}-${context}`,
+          source,
+          integrationPlan: [...map.integration],
+        });
+      }
+    }
+
+    for (const plan of plans) {
+      const allValueExprs = [
+        ...relation.effects.filter((effect) => effect.kind === "store" && !isSpStore(effect)).map((effect) => (effect as StoreEffect).value),
+        ...(isVoidLocal ? [] : [relation.returnValue]),
+      ];
+      const repeated: Array<{ key: string; expr: SymExpr }> = [];
+      {
+        const counts = new Map<string, { count: number; expr: SymExpr }>();
+        const walkR = (e: SymExpr): void => {
+          if (e.kind === "entry" || e.kind === "const") return;
+          const key = canon(e);
+          const before = counts.get(key);
+          if (before) {
+            before.count++;
+          } else {
+            if (e.kind === "load" || e.kind === "binary" || e.kind === "unary") counts.set(key, { count: 1, expr: e });
           }
-          /* Hoisted subexpressions: declare before first use, keep the name
-           * for every later occurrence. */
-          let hoistIndex = 0;
-          for (const sub of repeated) {
-            if (!hoisted.has(sub.key)) continue;
-            const name = `temp${hoistIndex++}`;
-            body.push({
-              kind: "declare",
-              type: sub.expr.kind === "load" ? elementType(sub.expr.width, sub.expr.signed) : "s32",
-              name,
-              init: translate(sub.expr, map, plan, temps),
-            });
-            temps.set(sub.key, name);
+          switch (e.kind) {
+            case "load":
+              if (e.base) walkR(e.base);
+              if (e.index) walkR(e.index.expr);
+              return;
+            case "unary": walkR(e.operand); return;
+            case "binary":
+              walkR(e.left);
+              walkR(e.right);
+              return;
+            default: return;
           }
-          /* S3: consumed call results become declared temps whose value is
-           * bound by the call; `translate` reads them back by canon. */
-          for (const [canonKey, tempName] of callResultTemps) {
-            const seq = Number(canonKey.slice(3, canonKey.indexOf(",")));
-            const cap = callCaps.get(seq);
-            body.push({
-              kind: "declare",
-              type: cap ? (cap.returnType === "void" ? "s32" : cap.returnType) : "s32",
-              name: tempName,
-            });
-            temps.set(canonKey, tempName);
-          }
-          for (const effect of relation.effects) {
-            if (effect.kind === "call") {
-              const cap = callCaps.get(effect.seq);
-              const calleeName = effect.calleeName ?? effect.callee;
-              const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
-              /* Resolve const addresses to symbols so the compiler emits
-               * symbol-relative lui/addiu with relocations — matching the
-               * original — rather than a raw literal. */
-              const args = capturedArgs.map((arg) => {
-                if (arg.kind === "const") {
-                  const resolved = resolveAddress(index, arg.value >>> 0);
-                  if (resolved && resolved.offset === 0) {
-                    refedSyms.add(resolved.symbol);
-                    return { kind: "cast", type: "s32", expr: { kind: "unaryop", op: "&", expr: id(resolved.symbol) } } as CExpr;
-                  }
-                }
-                return translate(arg, map, plan, temps);
+        };
+        for (const value of allValueExprs) walkR(value);
+        repeated.push(...[...counts.entries()]
+          .filter(([, entry]) => entry.count >= 2)
+          .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
+          .slice(0, 4)
+          .map(([key, entry]) => ({ key, expr: entry.expr })));
+      }
+
+      const hoistSets: Array<Set<string>> = [new Set()];
+      for (const sub of repeated) {
+        const more = hoistSets.map((set) => new Set([...set, sub.key]));
+        hoistSets.push(...more);
+        if (hoistSets.length >= 16) break;
+      }
+
+      for (const hoisted of hoistSets) {
+        for (const context of ["standalone", "umbrella"] as const) {
+          let body: CStmt[];
+          let comboLabelTag = combo.size > 0 ? [...combo.entries()].map(([s, spec]) => `c${s}a${spec.arity}r${spec.returnsValue ? 1 : 0}`).join("_") : "";
+          try {
+            body = [];
+            const temps = new Map<string, string>();
+            let tempIndex = 0;
+            for (const [key, read] of overwrittenReads) {
+              const name = `saved${tempIndex++}`;
+              body.push({
+                kind: "declare",
+                type: elementType(read.width, read.signed),
+                name,
+                init: map.access({ base: read.base, offset: read.address, width: read.width, signed: read.signed }),
               });
-              const consumed = callResultTemps.get(`CR(${effect.seq},v0)`);
-              if (consumed) {
+              temps.set(key, name);
+            }
+            let hoistIndex = 0;
+            for (const sub of repeated) {
+              if (!hoisted.has(sub.key)) continue;
+              const name = `temp${hoistIndex++}`;
+              body.push({
+                kind: "declare",
+                type: sub.expr.kind === "load" ? elementType(sub.expr.width, sub.expr.signed) : "s32",
+                name,
+                init: translate(sub.expr, map, plan, temps),
+              });
+              temps.set(sub.key, name);
+            }
+            for (const [canonKey, tempName] of callResultTemps) {
+              const seq = Number(canonKey.slice(3, canonKey.indexOf(",")));
+              const cap = callCaps.get(seq);
+              body.push({
+                kind: "declare",
+                type: cap ? (cap.returnType === "void" ? "s32" : cap.returnType) : "s32",
+                name: tempName,
+              });
+              temps.set(canonKey, tempName);
+            }
+            for (const effect of relation.effects) {
+              if (effect.kind === "call") {
+                const cap = callCaps.get(effect.seq);
+                const calleeName = effect.calleeName ?? effect.callee;
+                const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
+                const args = capturedArgs.map((arg) => {
+                  if (arg.kind === "const") {
+                    const resolved = resolveAddress(index, arg.value >>> 0);
+                    if (resolved && resolved.offset === 0) {
+                      refedSyms.add(resolved.symbol);
+                      return { kind: "cast", type: "s32", expr: { kind: "unaryop", op: "&", expr: id(resolved.symbol) } } as CExpr;
+                    }
+                  }
+                  return translate(arg, map, plan, temps);
+                });
+                const consumed = callResultTemps.get(`CR(${effect.seq},v0)`);
+                if (consumed) {
+                  body.push({ kind: "assign", target: id(consumed), value: { kind: "call", callee: calleeName, args } });
+                } else {
+                  body.push({ kind: "exprstmt", expr: { kind: "call", callee: calleeName, args } });
+                }
+              } else {
+                if (isSpStore(effect)) continue;
                 body.push({
                   kind: "assign",
-                  target: id(consumed),
-                  value: { kind: "call", callee: calleeName, args },
+                  target: map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true }),
+                  value: translate(effect.value, map, plan, temps),
                 });
-              } else {
-                body.push({ kind: "exprstmt", expr: { kind: "call", callee: calleeName, args } });
               }
-            } else {
-              if (isSpStore(effect)) continue;
-              body.push({
-                kind: "assign",
-                target: map.access({ base: effect.base, offset: effect.address, width: effect.width, signed: true }),
-                value: translate(effect.value, map, plan, temps),
-              });
             }
+            if (!isVoidLocal) body.push({ kind: "return", expr: translate(relation.returnValue, map, plan, temps) });
+          } catch {
+            continue;
           }
-          if (!isVoid) body.push({ kind: "return", expr: translate(relation.returnValue, map, plan, temps) });
-        } catch {
-          /* An untranslatable expression fails this plan, not the whole class. */
-          continue;
+
+          const signature = `${isVoidLocal ? "void" : "s32"} ${functionName}(${
+            plan.params.length === 0 ? "void" : plan.params.map((param) => `${param.type}${param.type.endsWith("*") ? "" : " "}${param.name}`).join(", ")
+          })`;
+
+          const calleeDecls = calleeDeclarations(callCaps);
+
+          const source = [
+            context === "umbrella" ? `#include "common.h"` : STANDALONE_TYPEDEF_BLOCK,
+            "",
+            ...map.typedefs.flatMap((typedef) => [typedef, ""]),
+            ...(context === "standalone" ? map.externDecls.flatMap((decl) => [decl, ""]) : []),
+            ...map.tentativeDefs.flatMap((decl) => [decl, ""]),
+            ...calleeDecls.flatMap((decl) => [decl, ""]),
+            ...[...refedSyms].sort()
+              .filter((symbol) => !map.externDecls.some((decl) => decl.includes(symbol)))
+              .map((symbol) => `extern u8 ${symbol}[];`)
+              .flatMap((decl) => [decl, ""]),
+            `${signature} {`,
+            ...renderStmts(body, "    "),
+            "}",
+            "",
+          ].join("\n");
+
+          candidates.push({
+            label: `effects-${plan.label || "noargs"}${comboLabelTag ? `-${comboLabelTag}` : ""}-${context}`,
+            source,
+            integrationPlan: [...map.integration],
+          });
         }
-
-      const signature = `${isVoid ? "void" : "s32"} ${functionName}(${
-        plan.params.length === 0 ? "void" : plan.params.map((param) => `${param.type}${param.type.endsWith("*") ? "" : " "}${param.name}`).join(", ")
-      })`;
-
-      /* S3 §3: every call-bearing candidate declares its callees — in both
-       * contexts (umbrella's generated header does not cover unmatched callees). */
-      const calleeDecls = calleeDeclarations(callCaps);
-
-      const source = [
-        context === "umbrella" ? `#include "common.h"` : STANDALONE_TYPEDEF_BLOCK,
-        "",
-        ...map.typedefs.flatMap((typedef) => [typedef, ""]),
-        ...(context === "standalone" ? map.externDecls.flatMap((decl) => [decl, ""]) : []),
-        ...map.tentativeDefs.flatMap((decl) => [decl, ""]),
-        ...calleeDecls.flatMap((decl) => [decl, ""]),
-        ...[...refedSyms].sort()
-          .filter((symbol) => !map.externDecls.some((decl) => decl.includes(symbol)))
-          .map((symbol) => `extern u8 ${symbol}[];`)
-          .flatMap((decl) => [decl, ""]),
-        `${signature} {`,
-        ...renderStmts(body, "    "),
-        "}",
-        "",
-      ].join("\n");
-
-      candidates.push({
-        label: `effects-${plan.label || "noargs"}-${context}`,
-        source,
-        integrationPlan: [
-          ...map.integration,
-          "write the function body into its container's source directory with the project umbrella includes",
-        ],
-      });
+      }
     }
   }
-  }
+
   if (candidates.length === 0) return { invalid: "no parameter plan could express the relation's values" };
   return candidates;
 }

@@ -24,6 +24,11 @@
   "development": [
     {
       "expect": "exact-candidate",
+      "name": "ovl_21_func_800BA670",
+      "note": "inferred call signature + void wrapper — ABI tier 3 resolved arity, callee undecompiled"
+    },
+    {
+      "expect": "exact-candidate",
       "name": "ovl_11_func_800F13D8",
       "note": "embedded-table scan via witnessed parent origin (plan §2)"
     },
@@ -103,7 +108,7 @@
       "note": "sentinel-terminated parallel pointer scan"
     }
   ],
-  "frozenAt": "2026-09-10T02:06:07.527Z",
+  "frozenAt": "2026-09-10T03:42:34.521Z",
   "heldOut": [
     {
       "name": "func_80011370",

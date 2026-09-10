@@ -1,6 +1,8 @@
 /**
  * callee-signature.ts — The signature oracle (S2 of
- * plans/matching-reconstruction-call-signatures.md).
+ * plans/matching-reconstruction-call-signatures.md) and the
+ * inference-range estimator (T1 of
+ * plans/matching-reconstruction-inferred-call-signatures.md).
  *
  * Resolve a callee to a `CalleeSignature` — arity, parameter types, and return
  * type — drawing on evidence in this priority order:
@@ -11,7 +13,8 @@
  *      end. The callee must be genuinely matched (its `src/` file is real C,
  *      not an `INCLUDE_ASM` stub) — `definitionPrototype` from `calleeTruth.ts`
  *      already encodes that rule, so a stub's generated signature is never
- *      read back as evidence.
+ *      read back as evidence. For cross-container calls (overlay calling an
+ *      exe function), also checks `include/functions.h`.
  *   2. A PSY-Q SDK / library prototype from the vendored headers.
  *   3. ABI / frame evidence: the callee's own target code, with a
  *      conservative arity (an argument register read before definition is a
@@ -19,6 +22,12 @@
  *   4. Otherwise `{ unknown: <why> }`.
  *
  * "Unknown" is a first-class answer — never fabricate an arity or a type.
+ *
+ * When the signature is unknown but the callee is a named, direct target,
+ * `inferSignatureRange` estimates a bounded range of plausible arities and
+ * a returns-value signal from the callee's own machine code and the caller's
+ * call-site evidence. The engine enumerates within that range rather than
+ * dropping the call.
  */
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -33,6 +42,7 @@ import {
   walk,
   type Node,
 } from "../residual-source-search/tree-sitter-c.js";
+import type { SymExpr } from "./types.js";
 
 /* ------------------------------------------------------------------ */
 /* CalleeSignature                                                     */
@@ -118,7 +128,7 @@ function parseHeaderSignature(
   return result;
 }
 
-/** The generated function header for a callee's container, or null. */
+/** The generated function header for a container, or null. */
 function generatedHeaderPath(container: Container): string | null {
   if (container.id === "exe") {
     const path = join(ROOT, "include/functions.h");
@@ -126,6 +136,12 @@ function generatedHeaderPath(container: Container): string | null {
   }
   const overlayId = container.id.replace(/^ovl_/, "");
   const path = join(ROOT, `include/overlays/${overlayId}.h`);
+  return existsSync(path) ? path : null;
+}
+
+/** The exe's generated function header, for cross-container resolution. */
+function exeHeaderPath(): string | null {
+  const path = join(ROOT, "include/functions.h");
   return existsSync(path) ? path : null;
 }
 
@@ -140,29 +156,59 @@ function generatedHeaderPath(container: Container): string | null {
  * callee — a `src/` file that is real C, not an `INCLUDE_ASM` stub. Trusting
  * the generated header for a stub would be reading a guess back; the gate
  * keeps that circularity out.
+ *
+ * For a callee defined in the exe but called from an overlay, also searches
+ * `include/functions.h` as a fallback (cross-container reference).
  */
 function matchedDefinition(callee: string, container: Container): SignatureResult | null {
   const matched = definitionPrototype(callee);
   if (!matched) return null;
 
-  const headerPath = generatedHeaderPath(container);
-  if (!headerPath) return null;
-  let tree;
-  try {
-    tree = parseC(readFileSync(headerPath, "utf-8"));
-  } catch {
-    return null;
+  /* Try the container's own header first (functions.h for exe,
+   * overlays/<id>.h for an overlay). */
+  const ownHeader = generatedHeaderPath(container);
+  if (ownHeader) {
+    try {
+      const tree = parseC(readFileSync(ownHeader, "utf-8"));
+      const parsed = parseHeaderSignature(callee, tree);
+      if (parsed) {
+        return {
+          arity: parsed.arity,
+          paramTypes: parsed.paramTypes,
+          returnsValue: !parsed.returnsVoid,
+          returnType: parsed.returnsVoid ? "void" : "s32",
+          source: "matched",
+        };
+      }
+    } catch {
+      /* fall through to cross-container check */
+    }
   }
-  const parsed = parseHeaderSignature(callee, tree);
-  if (!parsed) return null;
 
-  return {
-    arity: parsed.arity,
-    paramTypes: parsed.paramTypes,
-    returnsValue: !parsed.returnsVoid,
-    returnType: parsed.returnsVoid ? "void" : "s32",
-    source: "matched",
-  };
+  /* Cross-container fallback: an overlay function calling an exe function.
+   * The exe's functions.h declares it even if the overlay's header does not. */
+  if (container.id !== "exe") {
+    const exeHeader = exeHeaderPath();
+    if (exeHeader) {
+      try {
+        const tree = parseC(readFileSync(exeHeader, "utf-8"));
+        const parsed = parseHeaderSignature(callee, tree);
+        if (parsed) {
+          return {
+            arity: parsed.arity,
+            paramTypes: parsed.paramTypes,
+            returnsValue: !parsed.returnsVoid,
+            returnType: parsed.returnsVoid ? "void" : "s32",
+            source: "matched",
+          };
+        }
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -213,6 +259,111 @@ function abiEvidence(callee: string): SignatureResult | null {
     returnType: returns?.type === "void" ? "void" : "s32",
     source: "abi",
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Inferred signature range (T1)                                       */
+/* ------------------------------------------------------------------ */
+
+export interface InferredSignatureRange {
+  arityLo: number;
+  arityHi: number;
+  returns: "yes" | "no" | "unknown";
+}
+
+/**
+ * Estimate a bounded range of plausible signatures for an unknown callee.
+ *
+ * Draws on three sources of evidence, all from bytes — no decompilation:
+ *
+ *   1. **Callee's own machine code** (via `targetWitness`): the argument
+ *      registers the callee reads before writing establish a *lower* bound
+ *      on arity (`arityLo`). Whether the callee writes `$v0` before a return
+ *      is a returns-value signal (strengthens an existing tier-3 facility).
+ *   2. **Caller's argument setup at the call site**: the highest argument
+ *      register index into which the caller wrote a *non-passthrough* value
+ *      gives an *upper* hint (`arityHi`). A non-passthrough value is any
+ *      expression that is not a bare `entry(aN)` — it is an explicit
+ *      argument the caller computed. Default 4 when unclear.
+ *   3. **Caller's use of `$v0`**: if the caller reads the call's result
+ *      (`call-result` for this seq appears in later expressions), then
+ *      `returns = "yes"`. If the caller never reads it, `returns =
+ *      "unknown"` (NOT "no").
+ *
+ * Safe defaults when evidence is silent: arityLo = 0, arityHi = 4,
+ * returns = "unknown". Clamped to [0, 4].
+ *
+ * @param name    Resolved callee name (may be null for indirect).
+ * @param address Numeric call target address.
+ * @param container The caller's container.
+ * @param args    Captured argument register values at the call site, in
+ *                order [a0, a1, a2, a3] — the same snapshot the executor
+ *                stores on the CallEffect.
+ * @param consumedCallResults Set of call seq numbers whose call-result
+ *                atom appears in a later expression (return value, store
+ *                value, or another call's argument).
+ * @param seq     The call effect's sequence number, for matching against
+ *                consumedCallResults.
+ */
+export function inferSignatureRange(
+  name: string | null | undefined,
+  address: number | undefined,
+  container: Container,
+  args: SymExpr[],
+  consumedCallResults: Set<number>,
+  seq: number,
+): InferredSignatureRange {
+  let arityLo = 0;
+  let arityHi = 4;
+  let returns: "yes" | "no" | "unknown" = "unknown";
+
+  /* 1. Callee's own machine code via targetWitness. */
+  if (name) {
+    try {
+      const scratch = join(ROOT, "build/inferredSignatureRange");
+      mkdirSync(scratch, { recursive: true });
+      const witness = targetWitness(name, scratch);
+      if (witness?.arity) {
+        arityLo = witness.arity.min;
+      }
+      if (witness?.returns) {
+        returns = witness.returns.type === "s32" ? "yes" : "no";
+      }
+    } catch {
+      /* targetWitness may fail (stub, undecoded op, etc.) — keep defaults */
+    }
+  }
+
+  /* 2. Caller's argument setup: the highest arg register with a
+   *    non-passthrough value gives an upper hint.
+   *    An arg is "non-passthrough" when it is not a bare `entry(aN)`.
+   *    When ALL args are passthrough (the caller wrote nothing), arityHi
+   *    defaults to 0 — no evidence of any explicit argument. */
+  let highestNonPassthrough = -1;
+  for (let i = 0; i < 4; i++) {
+    const arg = args[i];
+    if (arg && !(arg.kind === "entry" && arg.register === `a${i}`)) {
+      highestNonPassthrough = i;
+    }
+  }
+  if (highestNonPassthrough >= 0) {
+    arityHi = Math.min(highestNonPassthrough + 1, 4);
+  } else {
+    arityHi = 0;
+  }
+
+  /* 3. Caller's use of $v0: if the result is consumed, returns is "yes". */
+  if (consumedCallResults.has(seq)) {
+    returns = "yes";
+  }
+  /* Note: if not consumed, returns stays "unknown" — NOT "no". The callee
+   * may return a value the caller discards; we cannot prove it does not. */
+
+  /* Clamp: arityLo ≤ arityHi, and both in [0, 4]. */
+  arityLo = Math.max(0, Math.min(arityLo, arityHi));
+  arityHi = Math.min(arityHi, 4);
+
+  return { arityLo, arityHi, returns };
 }
 
 /* ------------------------------------------------------------------ */

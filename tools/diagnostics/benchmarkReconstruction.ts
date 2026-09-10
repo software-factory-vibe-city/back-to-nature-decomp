@@ -126,6 +126,7 @@ interface Manifest {
 /** Development regressions: one entry per demonstrated mechanism, plus the
  * documented honest failures whose mechanisms are future work. */
 const DEVELOPMENT_SET: ManifestEntry[] = [
+  { name: "ovl_21_func_800BA670", expect: "exact-candidate", note: "inferred call signature + void wrapper — ABI tier 3 resolved arity, callee undecompiled" },
   { name: "ovl_11_func_800F13D8", expect: "exact-candidate", note: "embedded-table scan via witnessed parent origin (plan §2)" },
   { name: "ovl_11_func_800DBB94", expect: "exact-candidate", note: "scan with != guard and raw argument compare" },
   { name: "ovl_11_func_800DBF60", expect: "exact-candidate", note: "scan starting at record 1 of a labelled table" },
