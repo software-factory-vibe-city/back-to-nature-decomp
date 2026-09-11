@@ -78,6 +78,14 @@ export const UNEXPOSED_CLIS: Record<string, string> = {
     "able to reach for mid-search — a rewritten ledger changes every later reading of " +
     "what has already been tried. New rows are written correctly at the source, so the " +
     "migration is needed once per tree.",
+  bestCandidate:
+    "A convenience CLI for reading the engine's reconstruction result and printing " +
+    "the best-effort C. It is a data-retrieval command, not a diagnostic: it reads " +
+    "build/matchingReconstruction/<fn>/result.json and prints the winner or " +
+    "best-effort source. The `psx_repair_m2c` tool reads the same artifacts and " +
+    "should be the model-facing interface; bestCandidate is the shell-facing one. " +
+    "It should evolve into an ordinary module imported by the repair layer and " +
+    "retired as a CLI once repairM2c covers all its consumers.",
   diffFunc:
     "Two better tools split its job. `psx_residual_objective` gives the same MATCH " +
     "verdict from the same oracle at the same cost, plus a residual that is a distance " +
@@ -438,6 +446,53 @@ export const TOOL_SPECS: ToolSpec[] = [
     }),
     argv: (p) => (p.topic ? [p.topic as string] : []),
     timeout: 30_000,
+  },
+
+  /* ---- m2c repair (supplement layer, plan §A) ---- */
+  {
+    name: "psx_repair_m2c",
+    label: "PSX Repair m2c",
+    script: "repairM2c.ts",
+    description:
+      "Repair m2c's output for one function using the reconstruction engine's analysis: " +
+      "fix undeclared globals, replace `?` unknown types and `void*` derefs with recovered " +
+      "types, and reconcile call signatures. The repaired draft becomes the agent's seed " +
+      "whenever it compiles. Pass --compile to also compile and compare against the target.",
+    parameters: Type.Object({
+      functionName: FUNCTION("Exact function symbol to repair"),
+      compile: Type.Optional(Type.Boolean({ description: "Compile the repaired source and compare against target" })),
+      write: Type.Optional(Type.Boolean({ description: "Write repaired source back to src/<function>.c" })),
+    }),
+    argv: (p) => [
+      p.functionName as string,
+      ...(p.write ? ["--write"] : []),
+      ...(p.compile ? ["--compile"] : []),
+    ],
+    timeout: 600_000,
+  },
+
+  /* ---- finalize the engine's byte-exact matches into the tree ---- */
+  {
+    name: "psx_finalize_engine_matches",
+    label: "PSX Finalize Engine Matches",
+    script: "finalizeEngineMatches.ts",
+    description:
+      "Finalize the reconstruction engine's byte-exact matches into their source files, " +
+      "with no LLM engagement: it swaps each winner's standalone typedefs for the project " +
+      "umbrella include, reconciles global declarations against the generated headers, and " +
+      "confirms every candidate with the byte oracle before writing — a subtly wrong " +
+      "transform simply fails to match and the function is left as a stub. Omit the function " +
+      "name to finalize every current engine match; pass --write to apply (dry run otherwise). " +
+      "Verify the result with psx_finalize_function / make check afterward.",
+    parameters: Type.Object({
+      functionName: Type.Optional(Type.String({ description: "Restrict to one function; omit to finalize all current engine matches" })),
+      write: Type.Optional(Type.Boolean({ description: "Write integrated source to src/; omit for a dry run" })),
+    }),
+    argv: (p) => [
+      ...(p.functionName ? [p.functionName as string] : []),
+      ...(p.write ? ["--write"] : []),
+    ],
+    timeout: 600_000,
   },
 
   /* ---- policy and prompts ---- */

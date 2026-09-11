@@ -74,12 +74,18 @@ a second when it refuses, and either finishes the function or hands the
 session its first classified fact:
 
 - `exact-candidate` — the bundle under `build/matchingReconstruction/<fn>/`
-  is byte-verified C. Integrate it instead of decompiling: put its view
-  typedefs and declarations where the bundle's integration plan says (the
-  shared type header, the override header, tentative definitions in the TU
-  for gp-relative globals — never a redeclaration in the `.c`), write the
-  body into the function's source file with the umbrella include, regenerate
-  the generated headers, and go straight to Finish.
+  is byte-verified C. Integrate it instead of decompiling. First try
+  **`psx_finalize_engine_matches <fn> --write`**: it finalizes the winner into
+  the source file automatically (umbrella include, global declarations
+  reconciled against the generated headers) and re-confirms the byte match
+  before writing — for most matches this is the whole integration, then go
+  straight to Finish. If it reports the function as not auto-finalizable (its
+  globals need a hand-authored type override), fall back to manual integration:
+  put its view typedefs and declarations where the bundle's integration plan
+  says (the shared type header, the override header, tentative definitions in
+  the TU for gp-relative globals — never a redeclaration in the `.c`), write
+  the body into the source file with the umbrella include, regenerate the
+  generated headers, and go to Finish.
 - `domain-exhausted` — the machine relation was recovered and every candidate
   in the bundle compiles. Start from the bundle's closest candidate
   (`tools/agent/bestCandidate.ts <fn>` serves the best-effort C with its diff
@@ -93,9 +99,14 @@ session its first classified fact:
 Only when the engine produced no usable candidate (unsupported-target or
 context-unresolved, with no `best-effort.c` under
 `build/matchingReconstruction/<fn>/`), generate a first source with `psx_m2c`
-and clean it before step 3 has anything to read. When a best-effort candidate
-does exist, prefer it over m2c — its semantics are grounded in the target's
-actual data flow, and the `psx_residual_objective` loop can start immediately.
+and repair it with **`psx_repair_m2c`** — the repair layer fixes undeclared
+globals, `?` unknown types, and call signatures using the engine's analysis.
+
+The seed priority is: **repaired m2c > best-effort C > raw m2c**.
+
+When a best-effort candidate does exist, prefer it over raw m2c — its semantics
+are grounded in the target's actual data flow, and the `psx_residual_objective`
+loop can start immediately.
 
 **This is the only classification pass you get.** The residual is now
 classified. From here, every diagnostic you run must be followed by an edit and
