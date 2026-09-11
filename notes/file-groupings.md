@@ -3558,6 +3558,38 @@ on the single s32 flag, and all sit inside the unbroken link run
   helper with two shared tables `D_8009CBF8` and `D_8008F7F8` (both absolute
   `lui`+`addiu` %lo), feeding `(s16)`-sign-extended keys from an `lh`.
 
+## `ovl_11` D_80129184 caller/callee pair — 0x800DD45C / 0x800DD4D8 (confidence: high)
+
+Candidate same-TU pair in `ovl_11` (`Obj\GF_FARM.bin`): the function that
+writes `D_80129184` sits hard-contiguous before and is called by the one that
+reads it — the same shared-global + direct-call + zero-gap link-adjacency
+fingerprint proven by the D_80123754 / D_8012D52C documented runs.
+
+Fingerprints:
+- **zero-gap link adjacency:** map confirms `ovl_11_func_800DD45C` (0x7C bytes
+  at 0x800DD45C) ends exactly at `ovl_11_func_800DD4D8` (0xD8 bytes at
+  0x800DD4D8);
+- **shared global D_80129184:** 800DD45C writes it (`sw $a2, %lo(D_80129184)`),
+  800DD4D8 reads it (`lw %lo`) and conditionally re-writes it (`sw %lo`) — the
+  glocal mediates their data flow;
+- **direct call:** 800DD4D8 calls 800DD45C (`jal ovl_11_func_800DD45C`) in two
+  switch cases (arg2 = 2 and arg2 = 3); triage confirms the caller reads the
+  callee's return value (`$v0`, checked against callers of the caller);
+- **D_80129178 block adjacency:** the same `lui`+`%lo` base register reaches
+  `D_80129178` (800DD4D8 only) and `D_80129184` (both), a two-word data block
+  that no other ovl_11 code references.
+
+Members (address order):
+- ovl_11_func_800DD45C (m, matched this session, 0x7C, byte-exact) — the
+  shared-global setter: increments a struct's halfword counter, tests it
+  against a maximum, either returns 0 or (on overflow) writes `D_80129184 = arg2`,
+  sets two flags and returns 1; uses the CAPTURE_PREV_RET dead-$v0 fossil (same
+  as the documented v0-channel ovl_11 leaves 800D1CD0/800D0600/800D12A0)
+- ovl_11_func_800DD4D8 (s) — the caller: dispatches on the callee's return
+  value in a switch, then either calls func_8001AF44(7) or calls back into
+  the callee with new arguments; sole caller of 0x800DD45C; its other global
+  write is the `D_80129184 = 1` store at 0x800DD53C.
+
 ## `exe` byte-triple setter twins — 0x8001BF74 / 0x8001BF88 (confidence: medium)
 
 - func_8001BF74 (m, matched via automatic reconstruction, byte-exact) — stores
