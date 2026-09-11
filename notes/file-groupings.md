@@ -3671,3 +3671,47 @@ Members (link order):
 - ovl_11_func_800F1C48 (m, this session) — 7-case sibling over D_80070CF6
   (masks 0x4000000 / 0x2000000 / 0x1000000 / 0x800000 / 0x400000 /
   0x200000 / 0x100000)
+
+## `ovl_11` dispatch + 7-callback leaf run — 0x800F5944–0x800F6578 (confidence: high)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) threaded through a
+jump-table dispatch (`ovl_11_func_800F5944`, 0x27C) that selects one of seven
+leaf callbacks and passes it as `$a2` to a shared engine callee
+(`ovl_11_func_800F5BC0`). All seven targets are loaded as function pointers
+from a single jump table (`jtbl_800BA33C`).
+
+Fingerprints:
+- **jump table:** `ovl_11_func_800F5944` reads a dispatch id from
+  `struct.field_0xA` and jumps through `jtbl_800BA33C` to one of seven
+  `lui+addiu`+`j` sequences that load a target address into `$s1`;
+  each target is then passed as the callback argument to
+  `ovl_11_func_800F5BC0`;
+- **shared callee:** `ovl_11_func_800F5BC0` receives the callback pointer in
+  `$a2` and is called 3+ times per dispatch invocation (for arg codes 1, 0xA,
+  and the stack-copy path);
+- **address adjacency:** the dispatch head (0x800F5944), the shared callee
+  (0x800F5BC0), and all seven targets (0x800F5D04–0x800F6578) occupy a
+  contiguous 0xE34-byte run with no gaps;
+- **shared signature pattern:** the two matched targets
+  (`ovl_11_func_800F64F8` and `ovl_11_func_800F6578`) share the same
+  `s32(s32 arg0, s32 *arg1, s32 *arg2)` switch-return-id idiom.
+
+Members (link order):
+- ovl_11_func_800F5944 (s) — dispatch head: reads struct id via `lh` at +0xA,
+  switches through jtbl_800BA33C, loads target address into $s1, and calls
+  ovl_11_func_800F5BC0 with arg codes 1/0xA and the stack-copy path;
+  writes back D_8006C838+0x5DD8/0x5DD4/0x5DCC through the callee
+- ovl_11_func_800F5BC0 (s) — shared engine callee: takes a callback in $a2
+  and calls it with struct-field arguments; invoked by the dispatch head for
+  multiple arg codes
+- ovl_11_func_800F6118 (s) — dispatch target case 0
+- ovl_11_func_800F64F8 (m, this session) — dispatch target case 1: leaf
+  switch-return-id mapper, maps id 0x64/0x65/0xE8/0x122–0x124 to return
+  codes 0x19/0x1A/0x1E/0x1D
+- ovl_11_func_800F5D04 (s) — dispatch target case 2
+- ovl_11_func_800F62D8 (s) — dispatch target case 3; also reads D_80070D0E
+  (listed in the D_80070D0E cluster)
+- ovl_11_func_800F6218 (s) — dispatch target case 4
+- ovl_11_func_800F5EE0 (s) — dispatch target case 5
+- ovl_11_func_800F6578 (m, already matched) — dispatch target case 6: leaf
+  switch-return-id mapper, maps id 0x64→0x11/0x65→0x13
