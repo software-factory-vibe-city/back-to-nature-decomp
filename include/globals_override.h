@@ -885,4 +885,7 @@ extern struct struct_8005E340_target *D_8005E340;
 /* D_800B9626 - ovl_28 state halfword tested by ovl_28_func_800B935C. */
 extern s16 D_800B9626;
 
+/* D_80070CF2 - s16 global used in overlay 11 button-check functions */
+extern s16 D_80070CF2;
+
 #endif /* GLOBALS_OVERRIDE_H */
