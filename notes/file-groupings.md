@@ -3403,6 +3403,12 @@ Members (address order):
 - ovl_11_func_800D589C (m, matched this session) — s16 index, returns `(flags & 0x8100) != 0` via the same `(m & 0x8100) > zero` bool-idiom as 800D5868
 - ovl_11_func_800D58D0 (s) — s16 index; flags & 0x800 → action sub-struct at
   +0x1C (fn ptr +0, bytes +4/+5, s16 +6), else returns -1
+- ovl_11_func_800D5B3C (m, matched this session) — two-level item table lookup
+  through the `D_8006C838`+0x20/+0x24 pointer slots: reads s16 index from arg0+0,
+  looks up ItemData field_0E via the +0x20 slot (= D_8006C858), uses that as a
+  secondary index plus arg0+2 to index a 0xB0-stride table via the +0x24 slot,
+  returns u16 at +0xAC; shares the 0xB0 stride and field_0E access with parked
+  neighbour 0x800D5ABC; byte-exact clean C, baseline flags
 - ovl_11_func_800D5C3C (m, matched this session) — s16 index; reads the item
   table through the `D_8006C838`+0x20 pointer slot (same 0x28-stride *40
   `ItemData` multiply chain), maps the signed byte at +0x3 through a 0x10-stride
