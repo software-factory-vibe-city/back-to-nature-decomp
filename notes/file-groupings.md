@@ -330,6 +330,10 @@ Members (address order, matched so far):
   over the same D_8012D050 buffer (reads u16 @+0xA as the case index and s16
   @+8 in one arm; same +8/+A field pair as ovl_11_func_801084E0), 16-entry
   jtbl returning status codes; byte-exact clean C, baseline flags
+- ovl_11_func_80108864 (m, this session) — leaf state-probe writing four s16
+  fields (0/2/4/6) of D_8012D060 based on a value loaded through the
+  D_8007AFF0+0x25388 pointer chain; shares the D_8012D060 global with
+  ovl_11_func_80108930; byte-exact clean C
 
 ---
 
