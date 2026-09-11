@@ -941,31 +941,37 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_80070D38/3A/40 decrement-counter helper trio — 0x800F3950 / 0x800F3A18 / 0x800F3BA0 (confidence: low)
+## `ovl_11` D_80070D38/3A/3E/40 adjacent-u16 counter-leaves — 0x800F3950 / 0x800F3A18 / 0x800F3A44 / 0x800F3AC4 / 0x800F3BA0 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): three matched leaf
-helpers with **numerically byte-identical bodies** differing only in which
-adjacent file-scope global they decrement — the identical-body fingerprint
-class proven by the short-fold helper trio / reset-stub family. They touch the
-three globals immediately above the documented D_80070D0E cluster in the same
-main-RAM data run (0x80070D0E, 0x80070D10, 0x80070D38, 0x80070D3A, 0x80070D40).
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): Four matched leaf helpers with **numerically byte-identical bodies** (decrement-counter
+family) plus one increment+clamp leaf sharing the same global cluster. The four
+decr helpers differ only in which adjacent file-scope global they decrement — the
+identical-body fingerprint class proven by the short-fold helper trio / reset-stub
+family. They touch the globals immediately above the documented D_80070D0E cluster
+in the same main-RAM data run (0x80070D0E, 0x80070D10, 0x80070D38, 0x80070D3A,
+0x80070D3E, 0x80070D40).
 All are extern-referenced with absolute `lui`+`%lo` (defining TU elsewhere);
-function addresses 0x800F3950, 0x800F3A18 and 0x800F3BA0 are ~0x188 apart in
-total, not link-order adjacent, so same-TU is plausible rather than established.
+function addresses span ~0x250 in total, not link-order adjacent, so same-TU is
+plausible rather than established.
 
 Fingerprints:
-- **identical-body triplets over adjacent globals**: `ovl_11_func_800F3950`
-  (matched this session), `ovl_11_func_800F3A18` (matched earlier) and
-  `ovl_11_func_800F3BA0` (matched earlier) compile to the same 0x2C-byte body
-  — `lui`+`lhu` the global, `sltu` against masked arg0, branch into the
-  decrement-and-`sh` path (`return 1`), fall to `return 0` — differing only
-  in the `%lo` global displacement;
+- **identical-body quadruplets over adjacent globals**: `ovl_11_func_800F3950`
+  (matched this session), `ovl_11_func_800F3A18` (matched earlier),
+  `ovl_11_func_800F3AC4` (matched this session) and `ovl_11_func_800F3BA0`
+  (matched earlier) compile to the same 0x2C-byte body — `lui`+`lhu` the
+  global, `sltu` against masked arg0, branch into the decrement-and-`sh` path
+  (`return 1`), fall to `return 0` — differing only in the `%lo` global
+  displacement;
 - **adjacent file-scope globals** `D_80070D38` (0x80070D38), `D_80070D3A`
-  (0x80070D3A) and `D_80070D40` (0x80070D40), sitting immediately above
-  `D_80070D10` in the already-documented D_80070D0E data region — the
-  adjacent-file-scope vars fingerprint extending that cluster's run;
-- shared semantics: each is a guarded decrement helper `if (current >= arg0)
-  { current -= arg0; return 1; } return 0;` over a scalar u16 counter.
+  (0x80070D3A), `D_80070D3E` (0x80070D3E) and `D_80070D40` (0x80070D40),
+  sitting immediately above `D_80070D10` in the already-documented D_80070D0E
+  data region — the adjacent-file-scope vars fingerprint extending that
+  cluster's run;
+- shared semantics: each decrement helper is `if (current >= arg0)
+  { current -= arg0; return 1; } return 0;` over a scalar u16 counter;
+  the increment+clamp leaf `ovl_11_func_800F3A44` writes to the same global
+  `D_80070D3E` through a switch dispatch (increment on case 0/default,
+  add-arg1 on case 1) then clamps to 999.
 
 Members (address order):
 - ovl_11_func_800F3950 (m, matched this session) — decrement-counter helper
@@ -976,7 +982,13 @@ Members (address order):
 - ovl_11_func_800F3A18 (m, matched earlier) — decrement-counter helper over
   D_80070D3A; byte-identical body to the triplet
 - ovl_11_func_800F3BA0 (m, matched earlier) — decrement-counter helper over
-  D_80070D40; byte-identical body to the triplet, the run's other counter
+  D_80070D40; byte-identical body to the quadruplet, the run's other counter
+- ovl_11_func_800F3AC4 (m, matched this session) — decrement-counter helper
+  over D_80070D3E; byte-identical body to the quadruplet, the fourth member
+- ovl_11_func_800F3A44 (m, matched this session) — increment+clamp leaf over
+  D_80070D3E (the same global 800F3AC4 decrements): switch on arg0 (0→++,
+  1→+=arg1, default→++), then clamp to 999; 0x80 bytes, no calls, no frame;
+  sits between 0x800F3A18 and 0x800F3AC4 in address order
 
 ---
 
