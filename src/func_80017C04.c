@@ -1,4 +1,8 @@
 #include "common.h"
-#include "include_asm.h"
+s32 func_80019030(void);
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80017C04", func_80017C04);
+s32 func_80017C04(void) {
+    s32 callRet1;
+    callRet1 = func_80019030();
+    return callRet1;
+}

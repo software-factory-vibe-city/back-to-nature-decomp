@@ -1,4 +1,6 @@
 #include "common.h"
-#include "include_asm.h"
+void SsSetRVol(s32 arg0, s32 arg1);
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80020964", func_80020964);
+void func_80020964(s16 arg0) {
+    SsSetRVol(arg0, arg0);
+}

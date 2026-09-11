@@ -1,3 +1,6 @@
 #include "common.h"
+void ovl_19_func_800BAC9C(s32 arg0);
 
-INCLUDE_ASM("build/ovl_19/asm/nonmatchings/ovl_19_func_800BAC5C", ovl_19_func_800BAC5C);
+void ovl_19_func_800BAC5C(void) {
+    ovl_19_func_800BAC9C(0);
+}

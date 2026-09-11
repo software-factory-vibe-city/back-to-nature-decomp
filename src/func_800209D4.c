@@ -1,4 +1,6 @@
 #include "common.h"
-#include "include_asm.h"
+void SsUtReverbOn(void);
 
-INCLUDE_ASM("build/asm/nonmatchings/func_800209D4", func_800209D4);
+void func_800209D4(void) {
+    SsUtReverbOn();
+}

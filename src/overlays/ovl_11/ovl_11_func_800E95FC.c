@@ -1,3 +1,7 @@
 #include "common.h"
+void func_8001FABC(s32 arg0);
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800E95FC", ovl_11_func_800E95FC);
+s32 ovl_11_func_800E95FC(s16 arg0) {
+    func_8001FABC(arg0);
+    return 1;
+}

@@ -1,4 +1,6 @@
 #include "common.h"
-#include "include_asm.h"
+void SsUtSetReverbDelay(s32 arg0);
 
-INCLUDE_ASM("build/asm/nonmatchings/func_800209B0", func_800209B0);
+void func_800209B0(s16 arg0) {
+    SsUtSetReverbDelay(arg0);
+}

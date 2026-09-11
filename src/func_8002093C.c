@@ -1,4 +1,6 @@
 #include "common.h"
-#include "include_asm.h"
+void SsUtSetReverbDepth(s32 arg0, s32 arg1);
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8002093C", func_8002093C);
+void func_8002093C(s16 arg0) {
+    SsUtSetReverbDepth(arg0, arg0);
+}

@@ -1,3 +1,6 @@
 #include "common.h"
+void ovl_11_func_800BCF28(void);
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800F6650", ovl_11_func_800F6650);
+void ovl_11_func_800F6650(void) {
+    ovl_11_func_800BCF28();
+}

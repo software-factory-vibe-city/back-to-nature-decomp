@@ -1,3 +1,6 @@
 #include "common.h"
+void func_8001E334(s32 arg0);
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800DBFC4", ovl_11_func_800DBFC4);
+void ovl_11_func_800DBFC4(void) {
+    func_8001E334(0xC8);
+}

@@ -1,4 +1,6 @@
 #include "common.h"
-#include "include_asm.h"
+void SsUtSetReverbFeedback(s32 arg0);
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8002098C", func_8002098C);
+void func_8002098C(s16 arg0) {
+    SsUtSetReverbFeedback(arg0);
+}
