@@ -3409,6 +3409,12 @@ Members (address order):
   secondary index plus arg0+2 to index a 0xB0-stride table via the +0x24 slot,
   returns u16 at +0xAC; shares the 0xB0 stride and field_0E access with parked
   neighbour 0x800D5ABC; byte-exact clean C, baseline flags
+- ovl_11_func_800D5BBC (m, matched this session) — sibling of 800D5B3C: same
+  `D8006C838Lookup` view, same two-level lookup through +0x20/+0x24 pointer
+  slots with the same 0x28 and 0xB0 strides, same secondary index computation
+  (s16(temp_a0*5) + u16(arg0+2) then sign-extended), returns u16 at +0xAE
+  instead of +0xAC — a sibling field of the same 0xB0-stride table; byte-exact
+  clean C, baseline flags
 - ovl_11_func_800D5C3C (m, matched this session) — s16 index; reads the item
   table through the `D_8006C838`+0x20 pointer slot (same 0x28-stride *40
   `ItemData` multiply chain), maps the signed byte at +0x3 through a 0x10-stride
