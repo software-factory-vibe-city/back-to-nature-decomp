@@ -350,9 +350,9 @@ export class DagArena {
     });
   }
 
-  loop(induction: Array<{ register: string; delta: number }>, body: DagRef): DagRef {
-    const key = `Lp${induction.map((iv) => `${iv.register}+${iv.delta}`).join(",")}|B${body}`;
-    return this.intern(key, { kind: "loop", induction, body });
+  loop(induction: Array<{ register: string; delta: number }>, body: DagRef, entryEffectCount = 0): DagRef {
+    const key = `Lp${induction.map((iv) => `${iv.register}+${iv.delta}`).join(",")}|B${body}|E${entryEffectCount}`;
+    return this.intern(key, { kind: "loop", induction, body, entryEffectCount });
   }
 
   node(ref: DagRef): DagNode {
@@ -1158,41 +1158,14 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
 
     const rawBody = explore(pc, ivState, { head: pc, entered: false });
 
-    /* Effect purity: every real leaf below the body must carry exactly the
-     * pre-loop effect log — nothing stored, nothing called, per iteration. */
-    const entryEffects = state.effects.length;
-    const seen = new Set<DagRef>();
-    const checkPure = (ref: DagRef): void => {
-      if (ref === (LOOP_BACK as DagRef) || seen.has(ref)) return;
-      seen.add(ref);
-      const node = arena.node(ref);
-      if (node.kind === "leaf") {
-        if (node.effects.length !== entryEffects) {
-          throw new UnsupportedTarget(
-            `the loop at 0x${(start + pc * 4).toString(16)} stores or calls inside its body — outside the summarized class`,
-            [start + pc * 4],
-          );
-        }
-        return;
-      }
-      if (node.kind === "test") {
-        checkPure(node.onTrue);
-        checkPure(node.onFalse);
-        return;
-      }
-      if (node.kind === "dispatch") {
-        for (const target of node.targets) checkPure(target);
-        return;
-      }
-      throw new UnsupportedTarget(
-        `nested loop inside the loop at 0x${(start + pc * 4).toString(16)} — outside the summarized class`,
-        [start + pc * 4],
-      );
-    };
-    checkPure(rawBody);
+    /* Record the effect count at loop entry so the constructor can separate
+     * pre-loop effects from per-iteration body effects. We no longer require
+     * the body to be pure — stores and calls inside loops are now supported
+     * (D1: counted loops with effects in the body). */
+    const entryEffectCount = state.effects.length;
 
     const body = replaceSentinel(rawBody, LOOP_BACK as DagRef, arena.continueRef());
-    return arena.loop(deltas, body);
+    return arena.loop(deltas, body, entryEffectCount);
   };
 
   const explore = (entryIndex: number, entryState: ExecState, loop?: { head: number; entered: boolean }): DagRef => {

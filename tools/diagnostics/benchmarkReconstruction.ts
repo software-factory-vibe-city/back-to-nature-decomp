@@ -364,6 +364,25 @@ if (json) {
     const exactM2c = [...baselines.values()].filter((baseline) => baseline.verdict === "match").length;
     console.log(`m2c baseline: ${exactM2c}/${baselines.size} byte-exact as raw drafts`);
   }
+
+  /* Near-miss analysis (T0: categorize by cause). */
+  const nearMisses = results.filter((r) => r.state === "domain-exhausted" && r.bestEffort && r.bestEffort.matchedWords !== undefined && r.bestEffort.totalWords !== undefined);
+  if (nearMisses.length > 0) {
+    const totalWords = nearMisses.reduce((s, r) => s + r.bestEffort!.totalWords!, 0);
+    const diffWords = nearMisses.reduce((s, r) => s + (r.bestEffort!.totalWords! - r.bestEffort!.matchedWords!), 0);
+    const close4 = nearMisses.filter((r) => (r.bestEffort!.totalWords! - r.bestEffort!.matchedWords!) <= 4);
+    const close12 = nearMisses.filter((r) => {
+      const off = r.bestEffort!.totalWords! - r.bestEffort!.matchedWords!;
+      return off > 4 && off <= 12;
+    });
+    const far = nearMisses.filter((r) => (r.bestEffort!.totalWords! - r.bestEffort!.matchedWords!) > 12);
+    console.log("---");
+    console.log(`Near-miss analysis (domain-exhausted with best-effort): ${nearMisses.length} functions`);
+    console.log(`  within 4 words:  ${close4.length}`);
+    console.log(`  5-12 words off:  ${close12.length}`);
+    console.log(`  >12 words off:   ${far.length}`);
+    console.log(`  total diff words: ${diffWords}/${totalWords}`);
+  }
 }
 
 if (expectationFailures > 0) process.exit(1);

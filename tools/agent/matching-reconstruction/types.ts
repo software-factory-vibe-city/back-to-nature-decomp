@@ -154,6 +154,10 @@ export type DagNode =
       kind: "loop";
       /** Induction registers and their per-iteration advances. */
       induction: Array<{ register: string; delta: number }>;
+      /** Effect count at the time the loop was entered — body leaf effects
+       *  before this index are pre-loop; only effects from this index onward
+       *  are per-iteration and should be emitted inside the loop body. */
+      entryEffectCount: number;
       /** One full iteration from the loop head: exit paths end in ordinary
        *  return leaves, and every path that reaches the head again ends in
        *  the continue-marker leaf (canon `@__continue`). Induction advances

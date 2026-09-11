@@ -584,8 +584,23 @@ export function constructControlFlowCandidates(
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
-  /* 4. Parameter plans. */
-  const plans = deriveParamPlans(exprs, map.pointerParams);
+  /* 4. Parameter plans. Pass the full effect list so deriveParamPlans can tell
+   * a register used only as a call argument (a pointer passed through) from a
+   * genuine value use — the pointer-and-value relaxation, wired here into the
+   * control-flow path as well as the guarded one. */
+  const allEffects: Effect[] = [];
+  const seenEffectNodes = new Set<DagRef>();
+  const collectAllEffects = (ref: DagRef): void => {
+    if (seenEffectNodes.has(ref)) return;
+    seenEffectNodes.add(ref);
+    const node = arena.node(ref);
+    if (node.kind === "leaf") { for (const effect of node.effects) allEffects.push(effect); return; }
+    if (node.kind === "test") { collectAllEffects(node.onTrue); collectAllEffects(node.onFalse); }
+    else if (node.kind === "dispatch") { for (const t of node.targets) collectAllEffects(t); }
+    else if (node.kind === "loop") { collectAllEffects(node.body); }
+  };
+  collectAllEffects(root);
+  const plans = deriveParamPlans(exprs, map.pointerParams, allEffects);
   if ("invalid" in plans) return { invalid: `no parameter plan: ${plans.invalid}` };
 
   /* 5. Detect mixed return/void. */

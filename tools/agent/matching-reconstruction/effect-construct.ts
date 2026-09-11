@@ -140,10 +140,24 @@ export function resolveCallSignatures(
 /**
  * Trim a call's captured arguments to the resolved arity, when one is known.
  * `caps` is the per-seq resolution computed by `resolveCallSignatures`.
+ * When the resolved arity exceeds the captured args, pad with zero constants
+ * (the captured register snapshot undershoots for functions with >4 args or
+ * when the executor missed some argument setups).
  */
 const trimArgs = (effect: CallEffect, caps: Map<number, { arity: number }>): CallEffect => {
   const cap = caps.get(effect.seq);
-  if (!cap || cap.arity >= effect.args.length) return effect;
+  if (!cap) return effect;
+  if (cap.arity >= effect.args.length) {
+    /* Pad with zero constants if the real arity is larger than what we captured. */
+    if (cap.arity > effect.args.length) {
+      const padded = [...effect.args];
+      while (padded.length < cap.arity) {
+        padded.push({ kind: "const", value: 0 } as SymExpr);
+      }
+      return { ...effect, args: padded };
+    }
+    return effect;
+  }
   return { ...effect, args: effect.args.slice(0, cap.arity) };
 };
 
@@ -460,31 +474,54 @@ export function buildStorageMap(
 
   /** Emit one view struct over a group's cells; returns the typedef text and
    *  the struct's byte size. `strideTo` pads the tail so the pointee size
-   *  equals a loop induction's advance and `pointer++` walks one record. */
+   *  equals a loop induction's advance and `pointer++` walks one record.
+   *
+   *  When two accesses at the same offset disagree on width, a union member
+   *  is emitted (E: overlapping/mixed-width access). The oracle judges which
+   *  axis the compiler actually used. */
   const viewTypedef = (
     viewName: string,
     groupCells: CellUse[],
     strideTo?: number,
   ): { text: string; size: number } | { invalid: string } => {
-    const byOffset = new Map<number, CellUse>();
+    const byOffset = new Map<number, CellUse[]>();
     for (const cell of groupCells) {
       const existing = byOffset.get(cell.offset);
-      if (existing && existing.width !== cell.width) {
-        return { invalid: `two access widths at offset 0x${cell.offset.toString(16)} of ${viewName}` };
+      if (existing) {
+        /* Collect all cells at this offset — union/overlap resolution
+         * happens at emission time (E). */
+        existing.push(cell);
+      } else {
+        byOffset.set(cell.offset, [cell]);
       }
-      if (!existing || (cell.loaded && !existing.loaded) || cell.pointeeView) byOffset.set(cell.offset, cell);
     }
     const offsets = [...byOffset.keys()].sort((a, b) => a - b);
     const lines: string[] = ["typedef struct {"];
     let cursor = 0;
     for (const offset of offsets) {
-      const cell = byOffset.get(offset)!;
-      if (offset % cell.width !== 0) return { invalid: `misaligned field at offset 0x${offset.toString(16)} of ${viewName}` };
+      const cells = byOffset.get(offset)!;
+      const primary = cells.find((c) => c.loaded || c.pointeeView) ?? cells[0]!;
+      if (offset % primary.width !== 0) return { invalid: `misaligned field at offset 0x${offset.toString(16)} of ${viewName}` };
       if (offset < cursor) return { invalid: `overlapping fields at offset 0x${offset.toString(16)} of ${viewName}` };
       if (offset > cursor) lines.push(`    char pad_${cursor.toString(16).toUpperCase()}[0x${(offset - cursor).toString(16).toUpperCase()}];`);
-      const type = cell.pointeeView ? `${cell.pointeeView} *` : elementType(cell.width, cell.signed);
-      lines.push(`    ${type}${type.endsWith("*") ? "" : " "}${fieldName(offset)};`);
-      cursor = offset + cell.width;
+
+      /* When multiple widths exist at one offset, emit a union (E). */
+      if (cells.length > 1 && cells.some((c) => c.width !== cells[0]!.width)) {
+        const unionLines = cells.map((cell) => {
+          const type = cell.pointeeView ? `${cell.pointeeView} *` : elementType(cell.width, cell.signed);
+          return `        ${type}${type.endsWith("*") ? "" : " "}w${cell.width}_${cell.signed ? "s" : "u"};`;
+        });
+        lines.push(`    union {`);
+        lines.push(...unionLines);
+        lines.push(`    } unk${offset.toString(16).toUpperCase()};`);
+        const maxWidth = Math.max(...cells.map((c) => c.width));
+        cursor = offset + maxWidth;
+      } else {
+        const type = primary.pointeeView ? `${primary.pointeeView} *` : elementType(primary.width, primary.signed);
+        const fieldType = `${type}${type.endsWith("*") ? "" : " "}`;
+        lines.push(`    ${fieldType}unk${offset.toString(16).toUpperCase()};`);
+        cursor = offset + primary.width;
+      }
     }
     if (strideTo !== undefined) {
       if (cursor > strideTo) return { invalid: `fields of ${viewName} extend past its induction stride ${strideTo}` };
@@ -801,13 +838,68 @@ function argumentUses(exprs: SymExpr[]): Map<string, Set<UnaryOp | "raw">> {
   return uses;
 }
 
+/**
+ * Identify registers whose only "raw" entry references occur as call arguments,
+ * never in store values, return values, or comparison/arithmetic contexts.
+ * These are pointer-compatible — the callee receives the pointer value itself,
+ * and the caller never performs arithmetic on it.
+ */
+function callArgOnlyRegisters(exprs: SymExpr[], effects: Effect[]): Set<string> {
+  /* Collect every register mentioned in a value context (store values,
+   * return values, branch conditions). A register that only appears in
+   * call argument positions and never here is call-arg-only. */
+  const valueContextRegs = new Set<string>();
+  const walkValue = (expr: SymExpr): void => {
+    switch (expr.kind) {
+      case "entry":
+        if (ARG_ORDER.includes(expr.register)) valueContextRegs.add(expr.register);
+        return;
+      case "iv": return;
+      case "unary": walkValue(expr.operand); return;
+      case "binary": walkValue(expr.left); walkValue(expr.right); return;
+      case "call-result": return;
+      default: return;
+    }
+  };
+  for (const effect of effects) {
+    if (effect.kind === "store") walkValue(effect.value);
+    /* call effects are NOT value context — their args are the callee's concern */
+  }
+  /* Also check exprs that are NOT from call effects (standalone value expressions) */
+  for (const expr of exprs) walkValue(expr);
+
+  /* Now collect all registers mentioned in call argument positions. */
+  const callArgRegs = new Set<string>();
+  for (const effect of effects) {
+    if (effect.kind !== "call") continue;
+    for (const arg of effect.args) {
+      const walkArg = (e: SymExpr): void => {
+        if (e.kind === "entry" && ARG_ORDER.includes(e.register)) callArgRegs.add(e.register);
+        if (e.kind === "unary") walkArg(e.operand);
+        if (e.kind === "binary") { walkArg(e.left); walkArg(e.right); }
+      };
+      walkArg(arg);
+    }
+  }
+
+  /* A register is call-arg-only if it appears in call args but not in value context. */
+  const result = new Set<string>();
+  for (const reg of callArgRegs) {
+    if (!valueContextRegs.has(reg)) result.add(reg);
+  }
+  return result;
+}
+
 export function deriveParamPlans(
   exprs: SymExpr[],
   pointerParams: Map<string, string>,
+  /** Optional — effects list for distinguishing call-argument uses from value uses */
+  effects?: Effect[] | undefined,
 ): ParamPlan[] | { invalid: string } {
   const uses = argumentUses(exprs);
+  const callArgOnly = effects ? callArgOnlyRegisters(exprs, effects) : new Set<string>();
   for (const register of pointerParams.keys()) {
-    if (uses.has(register)) {
+    if (uses.has(register) && !callArgOnly.has(register)) {
       return { invalid: `${register} is used both as a pointer base and as a value` };
     }
   }
@@ -1155,7 +1247,7 @@ export function constructEffectCandidates(
       }
       return [effect.value];
     }), ...(isVoidLocal ? [] : [relation.returnValue])];
-    const plans = deriveParamPlans(exprs, map.pointerParams);
+    const plans = deriveParamPlans(exprs, map.pointerParams, relation.effects);
     if ("invalid" in plans) continue;
 
     /* A value that reads a cell an *earlier* assignment overwrote must read it
@@ -1326,7 +1418,11 @@ export function constructEffectCandidates(
                 const cap = callCaps.get(effect.seq);
                 const calleeName = effect.calleeName ?? effect.callee;
                 const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
-                const args = capturedArgs.map((arg) => {
+                /* Pad with zeros when the real arity exceeds captured args. */
+                const paddedArgs: SymExpr[] = cap && cap.arity > effect.args.length
+                  ? [...capturedArgs, ...Array.from({ length: cap.arity - effect.args.length }, () => ({ kind: "const", value: 0 } as SymExpr))]
+                  : capturedArgs;
+                const args = paddedArgs.map((arg) => {
                   if (arg.kind === "const") {
                     const resolved = resolveAddress(index, arg.value >>> 0);
                     if (resolved && resolved.offset === 0) {
@@ -1573,7 +1669,13 @@ export function constructGuardedCandidates(
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
-  const plans = deriveParamPlans(exprs, map.pointerParams);
+  /* Collect the flat effect list for pointer-compatible call-arg detection. */
+  const allEffects: Effect[] = [];
+  for (const ref of leafRefs) {
+    for (const effect of sourceEffects.get(ref) ?? []) allEffects.push(effect);
+  }
+  /* Also include predicate values since they use registers as value context */
+  const plans = deriveParamPlans(exprs, map.pointerParams, allEffects);
   if ("invalid" in plans) return plans;
 
   const effectKey = (effect: Effect): string =>
@@ -1803,7 +1905,9 @@ export function constructGuardedCandidates(
             }
             steps.push(step);
           }
-          const inner = emitNode(node.body, emitted, new Set(stored), true);
+          /* Start rendering body effects from the entry effect boundary,
+           * skipping pre-loop effects (D1: counted loops with body stores). */
+          const inner = emitNode(node.body, node.entryEffectCount, new Set(stored), true);
           if (advanceStyle === "trailing") {
             /* Trailing advances run only on the fall-through path; a body
              * that still contains an explicit `continue` would skip them. */
