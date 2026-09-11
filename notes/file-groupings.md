@@ -3615,3 +3615,31 @@ Members (address order):
 - ovl_23_func_800BB0D8 (m, matched via automatic reconstruction, byte-exact) —
   byte-for-byte the same body over the same record shape (shared
   Ovl23Func800BB0C8Arg view), gapless with the previous function.
+
+## `ovl_11` D_80070CF2 / D_80070CF6 mask-switch pair — 0x800F1BD0 / 0x800F1C48 (confidence: low)
+
+Candidate same-TU pair in `ovl_11` (`Obj\GF_FARM.bin`): two gapless
+link-contiguous switch-on-global mask-selector leaves over adjacent s16
+globals in the D_80070Cxx base-engine region. Already-matched
+`ovl_11_func_800F1BD0` (the existing `D_80070CF2` leaf) is now confirmed as
+the immediate link predecessor of the newly matched
+`ovl_11_func_800F1C48`.
+
+Fingerprints:
+- **address adjacency:** `ovl_11_func_800F1BD0` (0x78 bytes at 0x800F1BD0)
+  ends exactly at `ovl_11_func_800F1C48` (0x7C bytes at 0x800F1C48) —
+  gapless link-contiguous pair;
+- **shared idiom:** both read a single s16 global (`D_80070CF2` / `D_80070CF6`),
+  switch on its value, assign a power-of-two mask to a local, then return
+  `(mask & arg0) != 0` — 12/16 instruction shapes align in order
+  (identical toolchain);
+- **adjacent globals:** `D_80070CF2` and `D_80070CF6` sit adjacently in the
+  D_80070Cxx base-engine region, already recorded as a shared-data cluster
+  by the existing `D_80070CF2` switch-leaf pair entry.
+
+Members (link order):
+- ovl_11_func_800F1BD0 (m) — 4-case mask-switch over D_80070CF2
+  (masks 0x40000000 / 0x20000000 / 0x10000000 / 0x08000000)
+- ovl_11_func_800F1C48 (m, this session) — 7-case sibling over D_80070CF6
+  (masks 0x4000000 / 0x2000000 / 0x1000000 / 0x800000 / 0x400000 /
+  0x200000 / 0x100000)
