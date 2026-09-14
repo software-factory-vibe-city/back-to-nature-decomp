@@ -29,6 +29,7 @@ import { groupHeadingOf } from "../agent/fileGroupings.js";
 import { runM2c } from "../agent/m2cFunc.js";
 import { decodeBytes } from "../agent/matching-reconstruction/exec.js";
 import { reconstructFunction } from "../agent/matching-reconstruction/engine.js";
+import { describeCategory, failureLayer } from "../agent/matching-reconstruction/failure-category.js";
 import type { ResultBundle } from "../agent/matching-reconstruction/types.js";
 
 const PARK_MARKER = "PARKED by /auto_decompilation_loop";
@@ -65,49 +66,35 @@ function unmatchedFunctions(): string[] {
   return names;
 }
 
-/** Bucket an unresolved detail into a census category naming a mechanism. */
+/**
+ * The census category for one result: the typed mechanism the engine named at
+ * the refusal site, with the target's own population facts attached.
+ *
+ * What this replaces: buckets selected by searching a concatenated refusal
+ * string. That produced a "read-only, call-free" bucket 443 of whose 510
+ * still-stub members contain `jal` in their own words — because a bucket built
+ * from prose describes the prose. `category` comes from the code that refused;
+ * the `calls`/`stores`/`back-edge` tags come from the decode. Neither is
+ * recoverable from an error message, and neither is guessed.
+ */
 export function censusCategory(result: ResultBundle): string {
   if (result.state === "exact-candidate") return "exact-candidate";
-  const detail = result.unresolved?.detail ?? "";
-  if (result.state === "domain-exhausted") return "domain-exhausted (relation fits; grammar lacks a witness)";
-  if (result.state === "context-unresolved") return "context-unresolved (relation fits; origin evidence missing)";
-  if (result.state === "budget-exhausted") return "budget-exhausted";
-  if (result.state === "tool-failure") return "tool-failure";
-  /* CR(n,reg) — call result as predicate/value/return. */
-  if (detail.includes("call-result")) return "call-result referenced without a temp binding";
-  if (detail.includes("CR(")) return "call-result (CR) in predicate or value expression";
-  /* S3 categories: calls whose callee signature could not be recovered are
-   * now honest refusals (state unsupported-target) with a specific reason,
-   * no longer "no parameter plan". */
-  if (detail.includes("callee signature is unknown") || detail.includes("indirect call")) {
-    return "unresolvable callee signature (unknown/indirect)";
+  const category = result.unresolved?.category;
+  if (!category) return `unclassified (${result.state})`;
+  const described = describeCategory(category, result.features);
+  /* A recognised compiler operation is the more useful heading: "unaligned
+   * access" says which instruction stopped the executor, "aggregate copy"
+   * says which capability would finish the function. */
+  if (result.recognizedOperations && result.recognizedOperations.length > 0) {
+    return `${described} — ${result.recognizedOperations[0]}`;
   }
-  if (detail.includes("returns void — the CR atom")) {
-    return "void callee whose result the caller reads";
-  }
-  /* Not plain C: coprocessor, handwritten, undecoded ops. */
-  if (detail.includes("undecoded operation") || detail.includes("coprocessor") || detail.includes("handwritten")) {
-    return "not plain C (coprocessor/handwritten/undecoded)";
-  }
-  const stores = detail.includes("stores memory");
-  const calls = detail.includes("calls another function");
-  if (stores && calls) return "writes + calls";
-  if (stores) return "writes, no calls";
-  if (calls) return "calls, no writes";
-  if (detail.includes("outside the decoded integer subset")) return "undecoded operations (coprocessor/handwritten)";
-  if (detail.includes("symbolic address")) return "symbolic address base (pointer/computed indexing)";
-  if (detail.includes("state budget") || detail.includes("cycle with unchanged live state") || detail.includes("step budget")) {
-    return "unbounded or symbolic-bound control";
-  }
-  if (detail.includes("short-circuit chain") || detail.includes("not a scan") || detail.includes("template")
-    || detail.includes("record") || detail.includes("unconditional return") || detail.includes("constant")
-    || detail.includes("affine")) {
-    return "read-only, call-free, but not a fixed-stride scan";
-  }
-  if (detail.includes("general control flow")) {
-    return "general control flow: " + detail.slice(0, 60);
-  }
-  return `other: ${detail.slice(0, 60)}`;
+  return described;
+}
+
+/** The bare mechanism, without population tags — for grouping by capability. */
+export function censusMechanism(result: ResultBundle): string {
+  if (result.state === "exact-candidate") return "exact-candidate";
+  return result.unresolved?.category ?? `unclassified (${result.state})`;
 }
 
 /* ---- the frozen evaluation manifest (plan §5) ----------------------------- */
@@ -227,8 +214,11 @@ function m2cBaseline(name: string): { verdict: string; detail: string } {
      * artifact rather than a real defect. Compile the draft as-is. */
     writeFileSync(sourcePath, draft);
     const location = requireFunctionLocation(name);
+    /* The effective flag column, overrides included: an m2c baseline measured
+     * under a different set is a baseline for a different translation unit,
+     * and the engine it is compared against uses the effective one. */
     const artifacts = compileSource(sourcePath, directory, name, {
-      assemble: true, useOverrides: false, containerKind: location.container.kind,
+      assemble: true, containerKind: location.container.kind,
     });
     const oracle = compareFunction(name, { objectPath: artifacts.object!, container: location.container });
     return { verdict: oracle.verdict, detail: `${oracle.same}/${Math.max(oracle.targetWords.length, oracle.candidateWords.length)} words` };
@@ -318,6 +308,35 @@ if (json) {
   for (const [category, bucket] of [...buckets.entries()].sort((a, b) => b[1].bytes - a[1].bytes)) {
     console.log(`  ${String(bucket.functions).padStart(5)} fn ${String(bucket.bytes).padStart(8)} B  ${category}`);
   }
+
+  /* The capability view: which layer's missing representation accounts for
+   * how much of the remaining work. This is the number a capability plan is
+   * prioritised by, and it is meaningless when categories are prose. */
+  const byLayer = new Map<string, { functions: number; bytes: number }>();
+  for (const result of results) {
+    const category = result.unresolved?.category;
+    const key = result.state === "exact-candidate" ? "solved" : category ? failureLayer(category) : "unclassified";
+    const bucket = byLayer.get(key) ?? { functions: 0, bytes: 0 };
+    bucket.functions++;
+    bucket.bytes += result.sizeBytes;
+    byLayer.set(key, bucket);
+  }
+  console.log("by layer:");
+  for (const [layer, bucket] of [...byLayer.entries()].sort((a, b) => b[1].bytes - a[1].bytes)) {
+    console.log(`  ${String(bucket.functions).padStart(5)} fn ${String(bucket.bytes).padStart(8)} B  ${layer}`);
+  }
+
+  /* Population facts, read from the words. Reported next to the categories so
+   * a reader can see that a bucket's members do or do not contain calls
+   * without trusting the bucket's name. */
+  const withCalls = results.filter((result) => result.features?.hasCalls).length;
+  const withStores = results.filter((result) => result.features?.hasStores).length;
+  const withLoops = results.filter((result) => result.features?.hasBackEdge).length;
+  const withUnknown = results.filter((result) => (result.features?.unknownOpcodes.length ?? 0) > 0).length;
+  console.log(
+    `population (from the original words): ${withCalls} contain calls, ${withStores} contain stores, ` +
+    `${withLoops} contain a back edge, ${withUnknown} contain an undecoded opcode`,
+  );
   for (const state of ["exact-candidate", "domain-exhausted", "context-unresolved", "budget-exhausted", "tool-failure"]) {
     const matching = results.filter((result) => result.state === state);
     if (matching.length === 0) continue;
@@ -337,7 +356,13 @@ if (json) {
       containerId: result.containerId,
       sizeBytes: result.sizeBytes,
       state: result.state,
+      /* The typed mechanism is the field a consumer should select on; the
+       * rendered description is for a reader. Both are recorded so nothing
+       * has to parse the second to recover the first. */
+      mechanism: censusMechanism(result),
+      layer: result.unresolved ? failureLayer(result.unresolved.category) : "solved",
       category: censusCategory(result),
+      features: result.features,
       detail: result.unresolved?.detail,
       winner: result.winner?.id,
     })),

@@ -28,14 +28,26 @@ import {
 } from "./decode.js";
 import type { BinaryOp, CallEffect, DagNode, DagRef, Effect, Predicate, StoreEffect, SymExpr } from "./types.js";
 import { LOOP_BACK } from "./types.js";
+import { isUnaligned } from "./decode.js";
+import { classifyUnknownWord, type FailureCategory } from "./failure-category.js";
 
 /* Re-import for the executor's register file. */
 import * as decodeModule from "./decode.js";
 
 /* ---- failure carrying its location -------------------------------------- */
 
+/**
+ * A refusal that names both where it happened and *which capability* would
+ * lift it. The category is chosen at the throw site, because the code that
+ * refuses is the only thing that reliably knows the mechanism — recovering it
+ * later by searching the prose is the census defect this replaces.
+ */
 export class UnsupportedTarget extends Error {
-  constructor(readonly reason: string, readonly vram: number[]) {
+  constructor(
+    readonly reason: string,
+    readonly vram: number[],
+    readonly category: FailureCategory = "structure-unsupported",
+  ) {
     super(reason);
     this.name = "UnsupportedTarget";
   }
@@ -46,6 +58,23 @@ export class UnsupportedTarget extends Error {
 export const HI_REG = 32;
 export const LO_REG = 33;
 export const REGISTER_COUNT = 34;
+
+/**
+ * Where the fifth argument sits in the caller's frame.
+ *
+ * O32 reserves sixteen bytes of outgoing argument area for the four register
+ * arguments even though they travel in registers, so argument five is the
+ * first word past that reservation.
+ */
+export const OUTGOING_ARGUMENT_BASE = 0x10;
+
+/** Registers a callee must preserve; their entry values in the frame are spills. */
+const CALLEE_SAVED = new Set(["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "fp", "ra", "gp", "sp"]);
+
+/** True when a stack cell holds the untouched entry value of a saved register. */
+function isCalleeSavedSpill(value: SymExpr): boolean {
+  return value.kind === "entry" && CALLEE_SAVED.has(value.register);
+}
 
 /* Extended register name table for the executor's internal register file.
  * REGISTER_NAMES in decode.ts stays at 32 entries for consumers that assume
@@ -95,7 +124,8 @@ export function canon(expr: SymExpr): string {
     case "entry": return `@${normalized.register}`;
     case "load": {
       const place = normalized.base ? `${canon(normalized.base)}+${normalized.address}` : `${normalized.address >>> 0}`;
-      const idx = normalized.index ? `[${canon(normalized.index.expr)}*${normalized.index.scale}]` : "";
+      const outer = normalized.outerIndex ? `[${canon(normalized.outerIndex.expr)}*${normalized.outerIndex.scale}]` : "";
+      const idx = `${outer}${normalized.index ? `[${canon(normalized.index.expr)}*${normalized.index.scale}]` : ""}`;
       const epoch = normalized.epoch ? `@${normalized.epoch}` : "";
       return `M${normalized.width}${normalized.signed ? "s" : "u"}[${place}]${idx}${epoch}`;
     }
@@ -148,7 +178,7 @@ export function splitAddress(expr: SymExpr): { base: SymExpr; offset: number } |
  */
 export function splitIndexedAddress(
   expr: SymExpr,
-): { base: SymExpr; offset: number; index?: { expr: SymExpr; scale: number } } | null {
+): { base: SymExpr; offset: number; index?: { expr: SymExpr; scale: number }; outerIndex?: { expr: SymExpr; scale: number } } | null {
   /* Flatten the add tree into terms, depth ≤ 8. */
   const terms: SymExpr[] = [];
   const flatten = (e: SymExpr, depth: number): void => {
@@ -162,18 +192,24 @@ export function splitIndexedAddress(
   };
   flatten(expr, 0);
 
-  /* Find the constant term, the index term (sll), and potential base(s). */
+  /* Find the constant term, the scaled index terms, and potential base(s).
+   *
+   * Two index terms are permitted, not one. `base + 40*i + 2*j + 4` is a
+   * halfword array inside a record array — ordinary C — and refusing it as a
+   * "computed address" discards the whole function, not just the access. The
+   * wider stride is the outer subscript; the narrower one indexes within an
+   * element. A third term has no two-dimensional reading, so it is refused. */
   let constant = 0;
-  let indexTerm: { expr: SymExpr; scale: number } | undefined;
+  const indexTerms: Array<{ expr: SymExpr; scale: number }> = [];
   const baseCandidates: SymExpr[] = [];
 
   for (const term of terms) {
     if (term.kind === "const") {
       constant += term.value | 0;
     } else if (term.kind === "binary" && term.op === "sll" && term.left.kind !== "const") {
-      if (indexTerm) return null; /* at most one index */
+      if (indexTerms.length >= 2) return null;
       const scale = (term.right.kind === "const") ? (1 << (term.right.value & 31)) : 1;
-      indexTerm = { expr: term.left, scale };
+      indexTerms.push({ expr: term.left, scale });
     } else if (term.kind === "entry" || term.kind === "load" || term.kind === "call-result" || term.kind === "iv") {
       baseCandidates.push(term);
     } else {
@@ -184,6 +220,15 @@ export function splitIndexedAddress(
 
   if (baseCandidates.length > 1) return null; /* ambiguous */
   const base = baseCandidates[0];
+  if (indexTerms.length === 2) {
+    /* Two subscripts of equal stride have no nesting order, so there is no
+     * unique reading and the refusal is honest rather than arbitrary. */
+    if (indexTerms[0]!.scale === indexTerms[1]!.scale) return null;
+  }
+  indexTerms.sort((left, right) => left.scale - right.scale);
+  const indexTerm = indexTerms[0];
+  const outerTerm = indexTerms[1];
+
   if (!base && indexTerm && constant === 0) {
     /* Pure index with no base and zero offset — an absolute index? Refuse —
      * we need a base for array semantics. */
@@ -192,14 +237,26 @@ export function splitIndexedAddress(
   if (!base && indexTerm) {
     /* Absolute base + index: the constant is the base address.
      * Return it as a constant base, offset 0, with the index term. */
-    return { base: { kind: "const", value: constant >>> 0 }, offset: 0, index: indexTerm };
+    return {
+      base: { kind: "const", value: constant >>> 0 },
+      offset: 0,
+      index: indexTerm,
+      ...(outerTerm ? { outerIndex: outerTerm } : {}),
+    };
   }
   if (!base && !indexTerm) {
     /* Only a constant — that is an ordinary absolute address. */
     return null;
   }
 
-  return base ? { base, offset: constant, ...(indexTerm ? { index: indexTerm } : {}) } : null;
+  return base
+    ? {
+        base,
+        offset: constant,
+        ...(indexTerm ? { index: indexTerm } : {}),
+        ...(outerTerm ? { outerIndex: outerTerm } : {}),
+      }
+    : null;
 }
 
 const asConst = (expr: SymExpr): number | undefined =>
@@ -241,19 +298,19 @@ export function binary(op: BinaryOp, left: SymExpr, right: SymExpr): SymExpr {
         return constExpr(Number((product >> 32n) & 0xffffffffn));
       }
       case "divS": {
-        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", [], "division-by-zero");
         return constExpr(toSigned(Math.trunc(toSigned(a) / toSigned(b))));
       }
       case "divU": {
-        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", [], "division-by-zero");
         return constExpr((a >>> 0) / (b >>> 0) >>> 0);
       }
       case "remS": {
-        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", [], "division-by-zero");
         return constExpr(toSigned(a) % toSigned(b));
       }
       case "remU": {
-        if (b === 0) throw new UnsupportedTarget("division by constant zero", []);
+        if (b === 0) throw new UnsupportedTarget("division by constant zero", [], "division-by-zero");
         return constExpr((a >>> 0) % (b >>> 0));
       }
     }
@@ -310,6 +367,21 @@ export function canonPredicate(pred: Predicate): string {
   return `${pred.op}(${left},${right})`;
 }
 
+/**
+ * The identity of one effect, for memoization and hash-consing.
+ *
+ * Stack arguments are part of it. Two calls that agree on their four argument
+ * registers and differ in the fifth are different calls, and a key that
+ * omitted the fifth would let the executor merge them.
+ */
+export function effectKeyOf(effect: Effect): string {
+  if (effect.kind !== "call") {
+    return `${effect.base ? canon(effect.base) : ""}+${effect.address}:${effect.width}:${canon(effect.value)}`;
+  }
+  const stack = (effect.stackArgs ?? []).map((arg) => (arg === null ? "?" : canon(arg))).join(",");
+  return `call(${effect.seq},${effect.callee},${effect.args.map(canon).join(",")}${stack ? `|${stack}` : ""})`;
+}
+
 export class DagArena {
   readonly nodes: DagNode[] = [];
   private readonly keys = new Map<string, DagRef>();
@@ -324,9 +396,7 @@ export class DagArena {
   }
 
   leaf(value: SymExpr, effects: Effect[] = []): DagRef {
-    const effectKey = effects.map((effect) => effect.kind === "call"
-      ? `call(${effect.seq},${effect.callee},${effect.args.map(canon).join(",")})`
-      : `${effect.address}:${effect.width}:${canon(effect.value)}`).join(",");
+    const effectKey = effects.map(effectKeyOf).join(",");
     return this.intern(`L${canon(value)}|E${effectKey}`, { kind: "leaf", value, effects });
   }
 
@@ -339,6 +409,21 @@ export class DagArena {
   dispatch(index: SymExpr, targets: DagRef[]): DagRef {
     const targetKey = targets.join(",");
     return this.intern(`D${canon(index)}|${targetKey}`, { kind: "dispatch", index, targets });
+  }
+
+  /**
+   * The leaf an exceptional exit reaches.
+   *
+   * A `break` does not return; it traps. Modelling it as a distinguished leaf
+   * keeps the path in the relation — its existence is what identifies the
+   * guard around it — without pretending it produces a value.
+   */
+  trapRef(): DagRef {
+    return this.intern("@__trap", {
+      kind: "leaf",
+      value: { kind: "entry", register: "__trap" },
+      effects: [],
+    });
   }
 
   /** Sentinel "continue" leaf used inside loop body DAGs. */
@@ -367,23 +452,46 @@ export class DagArena {
  * is reported at once, so an unsupported function names all its blockers
  * rather than the first one per run.
  */
-export function classifySupport(insns: DecodedInsn[]): { reason: string; vram: number[] }[] {
-  const found = new Map<string, number[]>();
-  const note = (reason: string, vram: number) => {
-    found.set(reason, [...(found.get(reason) ?? []), vram]);
+export function classifySupport(
+  insns: DecodedInsn[],
+): { reason: string; vram: number[]; category: FailureCategory }[] {
+  const found = new Map<string, { vram: number[]; category: FailureCategory }>();
+  const note = (reason: string, vram: number, category: FailureCategory) => {
+    const existing = found.get(reason);
+    if (existing) existing.vram.push(vram);
+    else found.set(reason, { vram: [vram], category });
   };
   const start = insns[0]?.vram ?? 0;
   const end = start + insns.length * 4;
 
   for (const insn of insns) {
-    if (insn.op === "unknown") note(`word 0x${(insn.word >>> 0).toString(16)} is outside the decoded integer subset`, insn.vram);
-    else if ((isBranch(insn.op) || insn.op === "j") && insn.target !== undefined && (insn.target < start || insn.target >= end)) {
-      note("control transfers outside the function", insn.vram);
+    if (insn.op === "unknown") {
+      /* The word says which mechanism is missing, and they are not the same
+       * capability: unaligned accesses and the division trap packet are
+       * ordinary compiler output, COP2 may be an SDK macro or handwritten
+       * code. Collapsing them into one "undecoded" bucket is what made the
+       * bucket unactionable. */
+      const tag = classifyUnknownWord(insn.word >>> 0);
+      const category: FailureCategory =
+        tag === "lwl-lwr" || tag === "swl-swr" ? "unaligned-access"
+          : tag === "break" ? "trap-packet"
+          : tag === "cop2" || tag === "cop0" ? "coprocessor"
+          : "undecoded-opcode";
+      note(`word 0x${(insn.word >>> 0).toString(16)} (${tag}) is outside the decoded integer subset`, insn.vram, category);
+    } else if (isUnaligned(insn.op)) {
+      /* Decoded, but not a scalar access. `lwl`/`lwr` and `swl`/`swr` come in
+       * pairs that together move one unaligned word, and they appear in this
+       * project almost exclusively inside the backend's expansion of an
+       * aggregate copy. Executing the halves would model the expansion; the
+       * useful recovery is the copy, so the refusal names that capability. */
+      note("unaligned word access (lwl/lwr/swl/swr)", insn.vram, "unaligned-access");
+    } else if ((isBranch(insn.op) || insn.op === "j") && insn.target !== undefined && (insn.target < start || insn.target >= end)) {
+      note("control transfers outside the function", insn.vram, "nonlocal-control");
     }
     /* `jr rs` with rs !== ra is a dispatch — handled in the executor. */
     /* `jal`/`jalr` are opaque calls handled in the executor (D6). */
   }
-  return [...found.entries()].map(([reason, vram]) => ({ reason, vram }));
+  return [...found.entries()].map(([reason, entry]) => ({ reason, vram: entry.vram, category: entry.category }));
 }
 
 /* ---- liveness ------------------------------------------------------------ */
@@ -481,6 +589,9 @@ export function buildSuccessors(insns: DecodedInsn[]): number[][] {
         }
       }
       index++; /* the delay slot's own fall-through edge was just added */
+    } else if (insn.op === "break") {
+      /* An exceptional exit has no successor; giving it a fall-through makes
+       * the liveness fixpoint carry values past a path that never resumes. */
     } else if (index + 1 < count) {
       successors[index]!.push(index + 1);
     }
@@ -551,6 +662,10 @@ export interface LoadMeta {
   viaGp: boolean;
   /** Canonical base for pointer-relative loads; absent for absolute ones. */
   baseCanon?: string | undefined;
+  /** Stride of the innermost subscript, when the access is indexed. */
+  indexScale?: number | undefined;
+  /** Stride of the outer subscript, for a nested access. */
+  outerIndexScale?: number | undefined;
 }
 
 export interface ExecResult {
@@ -561,8 +676,25 @@ export interface ExecResult {
   /** Canonical keys of unsigned load atoms the machine re-masked — evidence
    *  of a wide-variable + narrowed-variable pair in the source. */
   maskWitnesses: Set<string>;
+  /**
+   * The operands of every division this execution performed, canonicalised.
+   *
+   * The divide-check trap packet is recognised by testing the *guard* against
+   * these, not by noticing that a division happened somewhere in the function.
+   * Without the operands, "this function divides" is the only available
+   * evidence, and it licenses removing any guarded trap at all.
+   */
+  divisions: DivisionWitness[];
   states: number;
   steps: number;
+}
+
+/** One division, by the canonical form of its dividend and divisor. */
+export interface DivisionWitness {
+  signed: boolean;
+  dividend: string;
+  divisor: string;
+  vram: number;
 }
 
 type Registers = SymExpr[];
@@ -610,10 +742,22 @@ class RestartWithLoop extends Error {
 export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {}): ExecResult {
   const blockers = classifySupport(insns);
   if (blockers.length > 0) {
-    throw new UnsupportedTarget(
-      blockers.map((blocker) => blocker.reason).join("; "),
-      blockers.flatMap((blocker) => blocker.vram),
-    );
+    /* Several blockers can coexist; the reported category is the first in a
+     * fixed precedence so the same function always buckets the same way.
+     * Coprocessor code outranks the rest because it is the one class that may
+     * not be ordinary compiler output at all. */
+    const precedence: FailureCategory[] = ["coprocessor", "undecoded-opcode", "unaligned-access", "trap-packet", "nonlocal-control"];
+    const category = precedence.find((candidate) => blockers.some((blocker) => blocker.category === candidate))
+      ?? blockers[0]!.category;
+    /* One line per distinct mechanism, with a count and the first location.
+     * A refusal that repeats the same sentence once per instruction is a wall
+     * of text that hides how many distinct problems there are. */
+    const reason = blockers
+      .map((blocker) =>
+        `${blocker.reason}${blocker.vram.length > 1 ? ` ×${blocker.vram.length}` : ""}` +
+        `${blocker.vram.length > 0 ? ` from 0x${blocker.vram[0]!.toString(16)}` : ""}`)
+      .join("; ");
+    throw new UnsupportedTarget(reason, blockers.flatMap((blocker) => blocker.vram), category);
   }
 
   const knownHeads = new Map<number, Array<{ register: string; delta: number }>>();
@@ -631,7 +775,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       throw error;
     }
   }
-  throw new UnsupportedTarget("too many interacting symbolic-bound loops", []);
+  throw new UnsupportedTarget("too many interacting symbolic-bound loops", [], "loop-interaction");
 
   function runAttempt(): ExecResult {
   const start = insns[0]?.vram ?? 0;
@@ -640,6 +784,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
   const arena = new DagArena();
   const loads = new Map<string, LoadMeta>();
   const maskWitnesses = new Set<string>();
+  const divisions: DivisionWitness[] = [];
   const maxStates = options.maxStates ?? 4096;
   const maxSteps = options.maxSteps ?? 200_000;
   let states = 0;
@@ -657,7 +802,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
   const indexOf = (vram: number): number => {
     const index = (vram - start) / 4;
     if (!Number.isInteger(index) || index < 0 || index >= count) {
-      throw new UnsupportedTarget("control transfers outside the function", [vram]);
+      throw new UnsupportedTarget("control transfers outside the function", [vram], "nonlocal-control");
     }
     return index;
   };
@@ -676,11 +821,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     if (live1 & LO_BIT) parts.push(`lo=${canon(state.regs[LO_REG]!)}`);
     /* Memory and the store log are live state everywhere — a merged
      * continuation must agree on what has been written and in what order. */
-    const memoryKey = state.effects
-      .map((effect) => effect.kind === "call"
-        ? `call(${effect.seq},${effect.callee},${effect.args.map(canon).join(",")})`
-        : `${effect.address}:${effect.width}:${canon(effect.value)}`)
-      .join(",");
+    const memoryKey = state.effects.map(effectKeyOf).join(",");
     return `${index}|${parts.join(",")}|M${memoryKey}`;
   };
 
@@ -692,6 +833,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     viaGp: boolean,
     epoch: number,
     index?: { expr: SymExpr; scale: number } | undefined,
+    outerIndex?: { expr: SymExpr; scale: number } | undefined,
   ): SymExpr => {
     const atom: SymExpr = {
       kind: "load",
@@ -700,6 +842,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       signed,
       ...(base ? { base } : {}),
       ...(index ? { index } : {}),
+      ...(outerIndex ? { outerIndex } : {}),
       ...(epoch > 0 ? { epoch } : {}),
     };
     const key = canon(atom).replace(/@\d+$/, "");
@@ -711,9 +854,47 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         signed,
         viaGp,
         ...(base ? { baseCanon: canon(base) } : {}),
+        ...(index ? { indexScale: index.scale } : {}),
+        ...(outerIndex ? { outerIndexScale: outerIndex.scale } : {}),
       });
     } else if (viaGp) existing.viaGp = true;
     return atom;
+  };
+
+  /** The cell whose bytes wholly contain `[offset, offset + width)`, if any. */
+  const containingCell = (state: ExecState, group: string, offset: number, width: number): MemCell | undefined => {
+    for (const [key, cell] of state.memory) {
+      const cellGroup = key.slice(0, key.lastIndexOf("|", key.lastIndexOf("|") - 1));
+      if (cellGroup !== group) continue;
+      if (cell.offset === offset && cell.width === width) continue;
+      if (cell.offset <= offset && offset + width <= cell.offset + cell.width) return cell;
+    }
+    return undefined;
+  };
+
+  /**
+   * The value a sized read at `offset` sees inside a wider stored cell.
+   *
+   * Little-endian: byte k of a word sits in bits [8k, 8k+8). The shift and the
+   * narrowing are both expressed symbolically, so the recovered relation says
+   * what the machine says without a byte-array model.
+   */
+  const extractFrom = (cell: MemCell, offset: number, width: 1 | 2 | 4, signed: boolean): SymExpr => {
+    const shift = (offset - cell.offset) * 8;
+    const shifted = shift === 0 ? cell.value : binary("srl", cell.value, constExpr(shift));
+    if (width === 4) return shifted;
+    const bits: 8 | 16 = width === 2 ? 16 : 8;
+    return signed ? signExtend(shifted, bits) : zeroExtend(shifted, bits);
+  };
+
+  /** Forget every cell a write at `[offset, offset + width)` partially covers. */
+  const forgetOverlapping = (state: ExecState, group: string, offset: number, width: number): void => {
+    for (const [key, cell] of [...state.memory]) {
+      const cellGroup = key.slice(0, key.lastIndexOf("|", key.lastIndexOf("|") - 1));
+      if (cellGroup !== group) continue;
+      if (cell.offset === offset && cell.width === width) continue;
+      if (cell.offset < offset + width && offset < cell.offset + cell.width) state.memory.delete(key);
+    }
   };
 
   /** Narrow a stored value back out the way a sized load would see it. */
@@ -784,11 +965,13 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       case "div": {
         const quotient = binary("divS", rs, rt);
         const remainder = binary("remS", rs, rt);
+        divisions.push({ signed: true, dividend: canon(rs), divisor: canon(rt), vram: insn.vram });
         return setHiLo(remainder, quotient);
       }
       case "divu": {
         const quotient = binary("divU", rs, rt);
         const remainder = binary("remU", rs, rt);
+        divisions.push({ signed: false, dividend: canon(rs), divisor: canon(rt), vram: insn.vram });
         return setHiLo(remainder, quotient);
       }
       case "mfhi": return set(insn.rd, regs[HI_REG]!);
@@ -797,13 +980,22 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         const place = resolvePlace(rs, insn, "load");
         const width = loadWidth(insn.op);
         if (place.offset % width !== 0) {
-          throw new UnsupportedTarget(`misaligned load at 0x${insn.vram.toString(16)}`, [insn.vram]);
+          throw new UnsupportedTarget(`misaligned load at 0x${insn.vram.toString(16)}`, [insn.vram], "misaligned-access");
         }
         const cellKey = `${place.group}|${place.offset}|${width}`;
         const known = state.memory.get(cellKey);
         if (known) return set(insn.rt, loadedBack(known, loadSigned(insn.op)));
+        /* A narrower read inside a wider cell this path already wrote is not
+         * an unsupported overlap — it is a byte view of a value we hold. On a
+         * little-endian target the byte at offset k of a stored word is
+         * `(value >> 8k)`, narrowed. Refusing it excluded the ordinary
+         * "write the word, then read one of its bytes" shape. */
+        const contained = containingCell(state, place.group, place.offset, width);
+        if (contained) {
+          return set(insn.rt, extractFrom(contained, place.offset, width, loadSigned(insn.op)));
+        }
         checkOverlap(state, place.group, place.offset, width, insn.vram, "load");
-        const atom = loadAtom(place.base, place.offset, width, loadSigned(insn.op), insn.rs === 28, state.effects.length, place.index);
+        const atom = loadAtom(place.base, place.offset, width, loadSigned(insn.op), insn.rs === 28, state.effects.length, place.index, place.outerIndex);
         /* Remember the atom so a repeat read is the same value, not a twin. */
         state.memory.set(cellKey, { offset: place.offset, width, value: atom });
         return set(insn.rt, atom);
@@ -812,11 +1004,15 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         const place = resolvePlace(rs, insn, "store");
         const width: 1 | 2 | 4 = insn.op === "sw" ? 4 : insn.op === "sh" ? 2 : 1;
         if (place.offset % width !== 0) {
-          throw new UnsupportedTarget(`misaligned store at 0x${insn.vram.toString(16)}`, [insn.vram]);
+          throw new UnsupportedTarget(`misaligned store at 0x${insn.vram.toString(16)}`, [insn.vram], "misaligned-access");
         }
-        checkOverlap(state, place.group, place.offset, width, insn.vram, "store");
+        /* A store that partially covers an earlier cell makes that cell's
+         * forwarded value stale. The cell is forgotten; the store log keeps
+         * both writes in order, so nothing about the sequence is lost — only
+         * the ability to read the older value back, which is correct. */
+        forgetOverlapping(state, place.group, place.offset, width);
         if (state.effects.length >= 1024) {
-          throw new UnsupportedTarget("store budget (1024) exhausted", [insn.vram]);
+          throw new UnsupportedTarget("store budget (1024) exhausted", [insn.vram], "store-budget");
         }
         /* A store through one base may alias any cell reached through a
          * different base (two absolute cells excepted — their addresses are
@@ -838,6 +1034,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
           vram: insn.vram,
           ...(place.base ? { base: place.base } : {}),
           ...(place.index ? { index: place.index } : {}),
+          ...(place.outerIndex ? { outerIndex: place.outerIndex } : {}),
           viaGp: insn.rs === 28,
         });
         return;
@@ -884,9 +1081,32 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
          * value. resolveCallSignatures trims this snapshot to the callee's
          * real arity — three of these may be the caller's entry garbage. */
         const args = [regs[4]!, regs[5]!, regs[6]!, regs[7]!];
+        /* Arguments five and beyond travel in the caller's outgoing argument
+         * area at sp+0x10 onward. Those cells are already tracked, so the
+         * complete ABI list costs a lookup — and a snapshot that stopped at
+         * four registers could only express a five-argument call by inventing
+         * the fifth value. `null` records "the caller never wrote this slot",
+         * which is what an honest arity decision needs. */
+        const stackArgs: Array<SymExpr | null> = [];
+        for (let slot = 0; slot < 4; slot++) {
+          /* Relative to the *current* stack pointer, not the entry one: the
+           * prologue has already opened the frame, so the outgoing area sits
+           * at `sp_entry - frameSize + 0x10`. Resolving through the same
+           * splitter the store used is what makes the two keys agree. */
+          const place = splitAddress(binary("add", regs[29]!, constExpr(OUTGOING_ARGUMENT_BASE + slot * 4)));
+          const cell = place ? state.memory.get(`${canon(place.base)}|${place.offset}|4`) : undefined;
+          /* The outgoing area ends where the frame's own bookkeeping begins.
+           * Two things end it, and both must, or a saved `$s0` two words up
+           * is read as a seventh argument: a slot the caller never wrote (ABI
+           * arguments are contiguous), and a slot holding the entry value of a
+           * callee-saved register, which is a spill rather than an argument. */
+          if (!cell || isCalleeSavedSpill(cell.value)) break;
+          stackArgs.push(cell.value);
+        }
         state.effects.push({
           kind: "call", callee: key, seq, vram: insn.vram, args, resultUsed: false,
           calleeAddress, calleeName, indirect,
+          ...(stackArgs.length > 0 ? { stackArgs } : {}),
         });
         /* Clobber: v0, v1 := call-result; at, a0-a3, t0-t9, ra, hi, lo likewise. */
         const clobbered = [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 31];
@@ -906,7 +1126,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         return;
       }
       default:
-        throw new UnsupportedTarget(`unmodelled instruction ${insn.op} at 0x${insn.vram.toString(16)}`, [insn.vram]);
+        throw new UnsupportedTarget(`unmodelled instruction ${insn.op} at 0x${insn.vram.toString(16)}`, [insn.vram], "unmodelled-instruction");
     }
   };
 
@@ -915,7 +1135,13 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     rs: SymExpr,
     insn: DecodedInsn,
     what: string,
-  ): { group: string; offset: number; base?: SymExpr | undefined; index?: { expr: SymExpr; scale: number } | undefined } {
+  ): {
+    group: string;
+    offset: number;
+    base?: SymExpr | undefined;
+    index?: { expr: SymExpr; scale: number } | undefined;
+    outerIndex?: { expr: SymExpr; scale: number } | undefined;
+  } {
     const addressExpr = binary("add", rs, constExpr(insn.simm));
     const absolute = asConst(addressExpr);
     if (absolute !== undefined) return { group: "", offset: absolute };
@@ -925,16 +1151,21 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
     /* Try the indexed split (D3) */
     const indexed = splitIndexedAddress(addressExpr);
     if (indexed) {
+      const subscripts =
+        (indexed.outerIndex ? `[${canon(indexed.outerIndex.expr)}*${indexed.outerIndex.scale}]` : "") +
+        (indexed.index ? `[${canon(indexed.index.expr)}*${indexed.index.scale}]` : "");
       return {
-        group: canon(indexed.base) + (indexed.index ? "[" + canon(indexed.index.expr) + "*" + indexed.index.scale + "]" : ""),
+        group: canon(indexed.base) + subscripts,
         offset: indexed.offset,
         base: indexed.base,
         index: indexed.index,
+        ...(indexed.outerIndex ? { outerIndex: indexed.outerIndex } : {}),
       };
     }
     throw new UnsupportedTarget(
       `${what} at 0x${insn.vram.toString(16)} has a computed address (${canon(addressExpr)})`,
       [insn.vram],
+      "computed-address",
     );
   }
 
@@ -953,6 +1184,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         throw new UnsupportedTarget(
           `${what} at 0x${vram.toString(16)} partially overlaps an earlier access at offset 0x${cell.offset.toString(16)}`,
           [vram],
+          "mixed-width-overlap",
         );
       }
     }
@@ -994,7 +1226,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         return { pred: { op, left: rs } };
       }
       default:
-        throw new UnsupportedTarget(`unmodelled branch ${insn.op}`, [insn.vram]);
+        throw new UnsupportedTarget(`unmodelled branch ${insn.op}`, [insn.vram], "unmodelled-branch");
     }
   };
 
@@ -1151,6 +1383,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         throw new UnsupportedTarget(
           `loop induction ${register} does not start at a parameter value (${current ? canon(current) : "?"})`,
           [start + pc * 4],
+          "loop-induction-origin",
         );
       }
       ivState.regs[idx] = { kind: "iv", register, delta };
@@ -1188,6 +1421,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         throw new UnsupportedTarget(
           `cycle with unchanged live state at 0x${(start + pc * 4).toString(16)} — the function does not terminate on this path`,
           [start + pc * 4],
+          "nonterminating-cycle",
         );
       }
       if (known !== undefined) return finish(known);
@@ -1224,10 +1458,11 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
         throw new UnsupportedTarget(
           `nested symbolic-bound loops at 0x${(start + pc * 4).toString(16)} are outside the summarized class`,
           [start + pc * 4],
+          "nested-loop",
         );
       }
       if (memo.size >= maxStates) {
-        throw new UnsupportedTarget(`state budget (${maxStates}) exhausted — the control structure is outside the bounded class`, []);
+        throw new UnsupportedTarget(`state budget (${maxStates}) exhausted — the control structure is outside the bounded class`, [], "state-budget");
       }
       memo.set(key, "in-progress");
       states++;
@@ -1237,10 +1472,10 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
       /* Straight-line run until the next control transfer. */
       transfer: for (;;) {
         if (pc < 0 || pc >= count) {
-          throw new UnsupportedTarget("execution fell off the end of the function", [start + (pc - 1) * 4]);
+          throw new UnsupportedTarget("execution fell off the end of the function", [start + (pc - 1) * 4], "fell-off-end");
         }
         if (++steps > maxSteps) {
-          throw new UnsupportedTarget(`step budget (${maxSteps}) exhausted`, []);
+          throw new UnsupportedTarget(`step budget (${maxSteps}) exhausted`, [], "step-budget");
         }
         /* A known loop head is a checkpoint even when reached by plain
          * fall-through — summarization (outer) and the back-edge test (loop
@@ -1266,6 +1501,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
                 throw new UnsupportedTarget(
                   "indirect jump needs a container word reader (readWord) to resolve the jump table",
                   [insn.vram],
+                  "indirect-jump",
                 );
               }
               /* Read consecutive table words; each must decode to an address
@@ -1287,6 +1523,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
                 throw new UnsupportedTarget(
                   `jump table at 0x${tableBase.toString(16)} has fewer than 2 in-function entries`,
                   [insn.vram],
+                  "indirect-jump",
                 );
               }
               const delay = insns[pc + 1];
@@ -1302,6 +1539,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
             throw new UnsupportedTarget(
               `indirect jump at 0x${insn.vram.toString(16)} does not carry a recognized jump-table load`,
               [insn.vram],
+              "indirect-jump",
             );
           }
           const delay = insns[pc + 1];
@@ -1313,9 +1551,16 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
             throw new UnsupportedTarget(
               `unbalanced stack frame at 0x${insn.vram.toString(16)}: sp is ${canon(state.regs[29]!)} at return`,
               [insn.vram],
+              "unbalanced-frame",
             );
           }
           return finish(arena.leaf(state.regs[V0]!, state.effects));
+        }
+
+        if (insn.op === "break") {
+          /* An exceptional exit. The path stops here; the guard that skips it
+           * is recognised afterwards and removed if it is a compiler packet. */
+          return finish(arena.trapRef());
         }
 
         if (insn.op === "j") {
@@ -1341,7 +1586,7 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
            * loop unrolling itself — outside the bounded class, and a stack
            * overflow if left to recurse. */
           if (++forkDepth > 256) {
-            throw new UnsupportedTarget("decision depth (256) exceeded — a symbolic-bound loop is outside the bounded class", [insn.vram]);
+            throw new UnsupportedTarget("decision depth (256) exceeded — a symbolic-bound loop is outside the bounded class", [insn.vram], "decision-depth");
           }
           try {
             const onTaken = explore(takenIndex, cloneState(state), loop);
@@ -1370,13 +1615,14 @@ export function executeFunction(insns: DecodedInsn[], options: ExecOptions = {})
 
   const applyDelay = (insn: DecodedInsn, state: ExecState): void => {
     if (isBranch(insn.op) || insn.op === "j" || insn.op === "jr") {
-      throw new UnsupportedTarget(`control instruction in a delay slot at 0x${insn.vram.toString(16)}`, [insn.vram]);
+      throw new UnsupportedTarget(`control instruction in a delay slot at 0x${insn.vram.toString(16)}`, [insn.vram], "delay-slot-control");
     }
     apply(insn, state);
   };
 
-  const root = explore(0, { regs: initial, memory: new Map(), effects: [] });
-  return { arena, root, loads: [...loads.values()], maskWitnesses, states, steps };
+  const rawRoot = explore(0, { regs: initial, memory: new Map(), effects: [] });
+  const root = stripTrapGuards(arena, rawRoot, insns, divisions);
+  return { arena, root, loads: [...loads.values()], maskWitnesses, divisions, states, steps };
   }
 }
 
@@ -1387,4 +1633,152 @@ export function decodeBytes(bytes: Buffer, baseVram: number): DecodedInsn[] {
     insns.push(decodeWord(bytes.readUInt32LE(offset), baseVram + offset));
   }
   return insns;
+}
+
+/* ---- compiler trap packets ------------------------------------------------ */
+
+/**
+ * Remove the guards around a compiler-generated trap, or refuse.
+ *
+ * `a / b` with a variable divisor expands to the division, a test that the
+ * divisor is non-zero, and a `break` on the failing arm — and for signed
+ * division a second packet guarding `INT_MIN / -1`. Those guards are not part
+ * of the source: the source wrote `/`, and this backend emits the packet for
+ * every `/` it compiles. Leaving them in makes the recovered relation a
+ * decision structure no C expression produces.
+ *
+ * The evidence bar is the *guard*, not the function. "This function divides
+ * somewhere" licenses removing any guarded trap in it, including a
+ * hand-written one that has nothing to do with the division — and removing a
+ * guard is removing a path, so the recovered relation then describes a program
+ * that behaves differently from the target. So a guard is removed only when
+ * its predicate is one of the four the packet actually emits, over the
+ * operands of a division this execution actually performed. Anything else
+ * keeps its trap, and the surviving trap is refused with its own category.
+ */
+const INT_MIN_U32 = 0x80000000;
+
+export function stripTrapGuards(
+  arena: DagArena,
+  root: DagRef,
+  insns: DecodedInsn[],
+  divisions: DivisionWitness[],
+): DagRef {
+  const trap = arena.trapRef();
+  const breaks = insns.filter((insn) => insn.op === "break");
+  if (breaks.length === 0) return root;
+
+  const divisors = new Set(divisions.map((division) => division.divisor));
+  const signedDivisors = new Set(divisions.filter((d) => d.signed).map((d) => d.divisor));
+  const signedDividends = new Set(divisions.filter((d) => d.signed).map((d) => d.dividend));
+
+  const constantOf = (expr: SymExpr | undefined): number | undefined =>
+    expr && expr.kind === "const" ? expr.value >>> 0 : undefined;
+
+  /**
+   * Whether `pred` is one of the divide-check packet's guards.
+   *
+   * All four are equalities *whose true arm is the exceptional one*, so only a
+   * trap on the true arm is ever a packet: the backend spells the guard
+   * `bne <operand>, <guard>, ok`, and the DAG builder maps the inverted
+   * branch's fall-through — the `break` — to the true arm. A trap on the false
+   * arm is some other structure, and this returns false for it.
+   */
+  const isPacketGuard = (pred: Predicate): boolean => {
+    if (pred.op !== "eq") return false;
+    const left = pred.left;
+    const right = pred.right;
+    const sides: Array<[SymExpr, SymExpr | undefined]> = [[left, right], ...(right ? [[right, left] as [SymExpr, SymExpr]] : [])];
+    for (const [value, against] of sides) {
+      const constant = constantOf(against);
+      /* `divisor == 0`, written `bne divisor, $zero`. A missing right operand
+       * is the same comparison against zero. */
+      if ((constant === 0 || against === undefined) && divisors.has(canon(value))) return true;
+      if (constant === undefined) continue;
+      /* `divisor == -1`, either directly or as `divisor + 1 == 0`. */
+      if (constant === 0xffffffff && signedDivisors.has(canon(value))) return true;
+      /* `dividend == INT_MIN`, against the `lui $at, 0x8000` the packet sets. */
+      if (constant === INT_MIN_U32 && signedDividends.has(canon(value))) return true;
+    }
+    /* `divisor + 1 == 0` — the backend forms `addiu $at, divisor, 1` and tests
+     * that, rather than materialising -1. */
+    const zeroSide = constantOf(right) === 0 ? left : constantOf(left) === 0 ? right : undefined;
+    if (zeroSide && zeroSide.kind === "binary" && zeroSide.op === "add") {
+      for (const [value, against] of [[zeroSide.left, zeroSide.right], [zeroSide.right, zeroSide.left]] as Array<[SymExpr, SymExpr]>) {
+        if (constantOf(against) === 1 && signedDivisors.has(canon(value))) return true;
+      }
+    }
+    return false;
+  };
+
+  /** Whether every leaf reachable from `ref` is the trap leaf. */
+  const onlyTraps = (ref: DagRef, seen = new Set<DagRef>()): boolean => {
+    if (ref === trap) return true;
+    if (ref < 0 || seen.has(ref)) return false;
+    seen.add(ref);
+    const node = arena.node(ref);
+    if (!node) return false;
+    if (node.kind === "leaf") return false;
+    if (node.kind === "test") return onlyTraps(node.onTrue, seen) && onlyTraps(node.onFalse, seen);
+    if (node.kind === "dispatch") return node.targets.every((target) => onlyTraps(target, seen));
+    return false;
+  };
+
+  const rewritten = new Map<DagRef, DagRef>();
+  const rewrite = (ref: DagRef): DagRef => {
+    if (ref < 0) return ref;
+    const cached = rewritten.get(ref);
+    if (cached !== undefined) return cached;
+    const node = arena.node(ref);
+    let result = ref;
+    if (node.kind === "test") {
+      if (onlyTraps(node.onTrue) && isPacketGuard(node.pred)) result = rewrite(node.onFalse);
+      else {
+        const onTrue = rewrite(node.onTrue);
+        const onFalse = rewrite(node.onFalse);
+        result = onTrue === node.onTrue && onFalse === node.onFalse ? ref : arena.test(node.pred, onTrue, onFalse);
+      }
+    } else if (node.kind === "dispatch") {
+      const targets = node.targets.map(rewrite);
+      result = targets.every((target, index) => target === node.targets[index]) ? ref : arena.dispatch(node.index, targets);
+    } else if (node.kind === "loop") {
+      const body = rewrite(node.body);
+      result = body === node.body ? ref : arena.loop(node.induction, body, node.entryEffectCount);
+    }
+    rewritten.set(ref, result);
+    return result;
+  };
+
+  if (divisions.length === 0) {
+    throw new UnsupportedTarget(
+      `break at ${breaks.map((insn) => `0x${insn.vram.toString(16)}`).join(", ")} is not a division trap packet ` +
+      `— the function performs no division, so the exceptional exit is not compiler-generated`,
+      breaks.map((insn) => insn.vram),
+      "trap-packet",
+    );
+  }
+
+  const stripped = rewrite(root);
+  /* A trap the guard removal could not reach means the exceptional path is not
+   * guarded the way a division packet is; say so rather than discarding it. */
+  const reachable = new Set<DagRef>();
+  const visit = (ref: DagRef): void => {
+    if (ref < 0 || reachable.has(ref)) return;
+    reachable.add(ref);
+    const node = arena.node(ref);
+    if (!node) return;
+    if (node.kind === "test") { visit(node.onTrue); visit(node.onFalse); }
+    else if (node.kind === "dispatch") { for (const target of node.targets) visit(target); }
+    else if (node.kind === "loop") visit(node.body);
+  };
+  visit(stripped);
+  if (reachable.has(trap)) {
+    throw new UnsupportedTarget(
+      "a trap path survives guard removal — its guard is not one of the divide-check packet's tests over an " +
+      `operand of a division this function performs (${divisions.length} division(s) witnessed)`,
+      breaks.map((insn) => insn.vram),
+      "trap-packet",
+    );
+  }
+  return stripped;
 }

@@ -262,3 +262,82 @@ export function recognizeDivision(
 
   return null;
 }
+/* ---- constant multiplication -------------------------------------------- */
+
+/**
+ * Recover `x * K` from the shift-and-add sequence the compiler expanded it to.
+ *
+ * At `-O2` a multiply by a small constant becomes shifts and adds: `i * 40`
+ * comes out as `((i << 2) + i) << 3`. Translated literally that is what the
+ * candidate says, and while it computes the right value it is not what the
+ * source said — which matters here, because the next compilation has to
+ * re-derive the same expansion from it, and a reader has to recognise a
+ * stride.
+ *
+ * The recognition is exact rather than sampled: an expression built only from
+ * shifts, additions and subtractions of one leaf *is* linear in that leaf, so
+ * evaluating it at 0 and 1 settles both the coefficient and the absence of a
+ * constant term. Anything else — a second leaf, a mask, a multiply-high —
+ * returns null.
+ */
+export function recognizeConstantMultiply(expr: SymExpr): { operand: SymExpr; factor: number } | null {
+  if (expr.kind !== "binary") return null;
+  const leaf = singleLeafKey(expr);
+  if (leaf === null) return null;
+
+  /* Only the operations an expansion uses. A `sll` by a constant, an `add` or
+   * a `sub`; the leaf itself; and constants. */
+  /* The multiplicand: whatever the expansion is built over. A narrowing —
+   * `(u16)i` — is part of the multiplicand, not part of the arithmetic, so it
+   * is treated as opaque; every occurrence must be the same one, or the
+   * expression is over two different values that happen to share a leaf. */
+  let operand: SymExpr | undefined;
+  let operandCanon: string | undefined;
+  const noteOperand = (node: SymExpr): boolean => {
+    const key = canon(node);
+    if (operandCanon === undefined) {
+      operandCanon = key;
+      operand = node;
+      return true;
+    }
+    return operandCanon === key;
+  };
+  const linear = (node: SymExpr): boolean => {
+    switch (node.kind) {
+      case "const": return true;
+      case "entry": return noteOperand(node);
+      case "unary": return noteOperand(node);
+      case "load":
+        if (node.base) return false;
+        return noteOperand(node);
+      case "binary":
+        if (node.op === "sll") return node.right.kind === "const" && linear(node.left);
+        if (node.op === "add" || node.op === "sub") return linear(node.left) && linear(node.right);
+        return false;
+      default:
+        return false;
+    }
+  };
+  if (!linear(expr) || !operand) return null;
+
+  const at = (value: number): number | null => evaluateConcrete(expr, new Map([[leaf, value]]));
+  const zero = at(0);
+  const one = at(1);
+  if (zero === null || one === null) return null;
+  /* A non-zero value at zero means there is an additive term, which is a
+   * different expression from a scale and must not be spelled as one. */
+  if ((zero | 0) !== 0) return null;
+  const factor = (one | 0) - (zero | 0);
+  /* Factors of zero and one are not multiplications, and a power of two is
+   * already spelled as a shift by the ordinary translation. */
+  if (factor <= 1 || (factor & (factor - 1)) === 0) return null;
+
+  /* Confirm linearity at two further points rather than trusting the shape:
+   * a shift by 31 overflows, and an overflowing expansion is not `x * K`. */
+  for (const sample of [2, 3, 7]) {
+    const observed = at(sample);
+    if (observed === null) return null;
+    if (((observed | 0) >>> 0) !== ((Math.imul(sample, factor)) >>> 0)) return null;
+  }
+  return { operand, factor };
+}

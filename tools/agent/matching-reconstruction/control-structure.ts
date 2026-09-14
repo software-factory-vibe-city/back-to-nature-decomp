@@ -27,6 +27,7 @@ import type {
 } from "./construct.js";
 import {
   STANDALONE_TYPEDEF_BLOCK,
+  castForParameter,
   elementType,
   id,
   int,
@@ -43,12 +44,15 @@ import type {
 } from "./types.js";
 
 import {
+  abiArguments,
+  argumentsForArity,
   buildStorageMap,
   collectAtoms,
   deriveParamPlans,
   translate,
   resolveCallSignatures,
   calleeDeclarations,
+  expressibleType,
   type Atom,
   type CellUse,
   type EffectCandidate,
@@ -436,7 +440,11 @@ export function collectAllAtomsAndExprs(
       }
       for (const effect of node.effects) {
         if (effect.kind === "call") {
-          for (const arg of effect.args) { exprs.push(arg); collectAtoms(arg, atoms); }
+          for (const arg of abiArguments(effect)) {
+            if (!arg) continue;
+            exprs.push(arg);
+            collectAtoms(arg, atoms);
+          }
         } else {
           exprs.push(effect.value);
           collectAtoms(effect.value, atoms);
@@ -580,7 +588,7 @@ export function constructControlFlowCandidates(
 
   /* 3. Build storage map. */
   const index = loadSymbolIndex(container);
-  const map = buildStorageMap(cells, index);
+  const map = buildStorageMap(cells, index, new Map(), functionName);
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
@@ -603,35 +611,11 @@ export function constructControlFlowCandidates(
   const plans = deriveParamPlans(exprs, map.pointerParams, allEffects);
   if ("invalid" in plans) return { invalid: `no parameter plan: ${plans.invalid}` };
 
-  /* 5. Detect mixed return/void. */
-  const allReturns = new Map<DagRef, SymExpr>();
-  const allVoidLeaves = new Set<DagRef>();
-  const visited = new Set<DagRef>();
-  const collectReturns = (ref: DagRef): void => {
-    if (visited.has(ref)) return;
-    visited.add(ref);
-    const node = arena.node(ref);
-    if (node.kind === "leaf") {
-      if (canon(node.value) === "@v0" || canon(node.value) === "@__continue") {
-        allVoidLeaves.add(ref);
-      } else {
-        allReturns.set(ref, node.value);
-      }
-      return;
-    }
-    if (node.kind === "test") { collectReturns(node.onTrue); collectReturns(node.onFalse); }
-    else if (node.kind === "dispatch") { for (const t of node.targets) collectReturns(t); }
-    else if (node.kind === "loop") { collectReturns(node.body); }
-  };
-  collectReturns(root);
-
-  const hasVoidLeaves = allVoidLeaves.size > 0;
-  const isMixedReturn = hasVoidLeaves && allReturns.size > 0;
-  const allVoid = hasVoidLeaves && allReturns.size === 0;
-  const returnType = isMixedReturn || allVoid ? "void" : "s32";
-
   /* 5.5. Collect call effects, resolve signatures, build call-result temps. */
-  const callEffects: Array<{ seq: number; callee: string; calleeName?: string | null; calleeAddress?: number; args: SymExpr[]; indirect?: boolean }> = [];
+  const callEffects: Array<{
+    seq: number; callee: string; calleeName?: string | null; calleeAddress?: number;
+    args: SymExpr[]; abi: Array<SymExpr | null>; indirect?: boolean;
+  }> = [];
   const callResultRefs = new Set<number>();
   const visitedCalls = new Set<DagRef>();
   const collectCallsAndResults = (ref: DagRef): void => {
@@ -644,12 +628,16 @@ export function constructControlFlowCandidates(
           callEffects.push({
             seq: effect.seq,
             callee: effect.callee,
-            args: effect.args,
+            /* The complete ABI list — register slots plus any outgoing-area
+             * slots the caller wrote — so the signature oracle sees a fifth
+             * argument rather than inferring its absence. */
+            args: abiArguments(effect).filter((arg): arg is SymExpr => arg !== null),
+            abi: abiArguments(effect),
             indirect: effect.indirect || false,
             ...(effect.calleeName !== undefined ? { calleeName: effect.calleeName } : {}),
             ...(effect.calleeAddress !== undefined ? { calleeAddress: effect.calleeAddress } : {}),
           });
-          for (const arg of effect.args) walkSymExprForCR(arg, callResultRefs);
+          for (const arg of abiArguments(effect)) { if (arg) walkSymExprForCR(arg, callResultRefs); }
         } else {
           walkSymExprForCR(effect.value, callResultRefs);
         }
@@ -675,7 +663,16 @@ export function constructControlFlowCandidates(
 
   /* Effect-constructor-style resolution. */
   const { resolved: baseCallCaps } = resolveCallSignatures(
-    callEffects.map((e) => ({ kind: "call", seq: e.seq, callee: e.callee, args: e.args, calleeName: e.calleeName, calleeAddress: e.calleeAddress, indirect: e.indirect || false, resultUsed: false, vram: 0 })),
+    callEffects.map((e) => ({
+      kind: "call" as const, seq: e.seq, callee: e.callee,
+      /* Register slots and outgoing-area slots kept apart, so the signature
+       * oracle can tell "the caller wrote a fifth argument" from "the caller
+       * left a register untouched". */
+      args: e.abi.slice(0, 4).map((arg) => arg ?? ({ kind: "const", value: 0 } as SymExpr)),
+      stackArgs: e.abi.slice(4),
+      calleeName: e.calleeName, calleeAddress: e.calleeAddress,
+      indirect: e.indirect || false, resultUsed: false, vram: 0,
+    })),
     container,
   );
   const callCaps = new Map(baseCallCaps);
@@ -689,7 +686,11 @@ export function constructControlFlowCandidates(
 
   /* Helper: walk a SymExpr looking for call-result references. */
   function walkSymExprForCR(expr: SymExpr, into: Set<number>): void {
-    if (expr.kind === "call-result") { into.add(expr.seq); return; }
+    /* Only `$v0` is a result. Every other caller-saved register carries a
+     * clobber atom for the same call, and reading one of those as consumption
+     * makes the next call's argument slot look like a use of the previous
+     * call's return value. */
+    if (expr.kind === "call-result") { if (expr.register === "v0") into.add(expr.seq); return; }
     if (expr.kind === "unary") { walkSymExprForCR(expr.operand, into); return; }
     if (expr.kind === "binary") {
       walkSymExprForCR(expr.left, into);
@@ -703,7 +704,52 @@ export function constructControlFlowCandidates(
     }
   }
 
-  const calleeDecls = calleeDeclarations(callCaps);
+  const declaredCallees = calleeDeclarations(callCaps);
+  if ("invalid" in declaredCallees) {
+    return { invalid: declaredCallees.invalid };
+  }
+  const calleeDecls = declaredCallees;
+
+  /* 5. Detect mixed return/void. */
+  const allReturns = new Map<DagRef, SymExpr>();
+  const allVoidLeaves = new Set<DagRef>();
+  const visited = new Set<DagRef>();
+  const collectReturns = (ref: DagRef): void => {
+    if (visited.has(ref)) return;
+    visited.add(ref);
+    const node = arena.node(ref);
+    if (node.kind === "leaf") {
+      /* `$v0` after a void call is not a return value: it is the register's
+       * liveness at `jr $ra`, and the function is a void wrapper. This is why
+       * the classification has to run *after* the callee signatures — before
+       * them, such a leaf reads as a returned value the body cannot produce. */
+      const voidCallResult = node.value.kind === "call-result"
+        && node.value.register === "v0"
+        && callCaps.get(node.value.seq)?.returnsValue === false;
+      if (canon(node.value) === "@v0" || canon(node.value) === "@__continue" || voidCallResult) {
+        allVoidLeaves.add(ref);
+      } else {
+        allReturns.set(ref, node.value);
+      }
+      return;
+    }
+    if (node.kind === "test") { collectReturns(node.onTrue); collectReturns(node.onFalse); }
+    else if (node.kind === "dispatch") { for (const t of node.targets) collectReturns(t); }
+    else if (node.kind === "loop") { collectReturns(node.body); }
+  };
+  collectReturns(root);
+
+  const hasVoidLeaves = allVoidLeaves.size > 0;
+  const allVoid = hasVoidLeaves && allReturns.size === 0;
+  /* Mixed leaves take the *valued* type, not `void`. A void leaf emits no
+   * return at all (it falls off the end, which is what its DAG says: that path
+   * never defines `$v0`), so a `void` signature here would sit over leaves that
+   * still emit `return expr;` — a C89 constraint violation that GCC accepts
+   * with a warning and the byte oracle cannot see, because on MIPS the return
+   * type is only `$v0` liveness and costs no instruction either way. Declaring
+   * the value is therefore free in machine terms and valid in source terms. */
+  const returnType = allVoid ? "void" : "s32";
+
 
   /* 6. Try emitting candidates through the translation-aware DAG walker. */
   const candidates: ControlFlowCandidate[] = [];
@@ -1003,9 +1049,12 @@ export function emitDagBody(
   plan: ParamPlan,
   temps: Map<string, string>,
   options: EmitOptions,
-  callCaps?: Map<number, { calleeName: string; arity: number; returnsValue: boolean; returnType: string }>,
+  callCaps?: Map<number, { calleeName: string; arity: number; returnsValue: boolean; returnType: string; paramTypes?: string[] }>,
   callResultTemps?: Map<string, string>,
 ): CStmt[] {
+  /* Names the plan gives pointer type, so an argument or a return can be
+   * written with the conversion C89 requires rather than left implicit. */
+  const pointerNames = new Set(plan.params.filter((param) => param.type.trim().endsWith("*")).map((param) => param.name));
   /* The "else" exit style renders leaf returns as a shared temp assignment
    * with a single trailing return — a genuinely different C shape from the
    * early-return form. Only valid when every leaf carries a value; void or
@@ -1079,8 +1128,21 @@ export function emitDagBody(
       if (effect.kind === "call") {
         const cap = callCaps?.get(effect.seq);
         const calleeName = effect.calleeName ?? effect.callee;
-        const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
-        const args = capturedArgs.map((a) => translate(a, map, plan, temps));
+        const selected = cap
+          ? argumentsForArity(effect, cap.arity)
+          : { args: abiArguments(effect).filter((arg): arg is SymExpr => arg !== null) };
+        if ("missing" in selected) {
+          throw new Error(`${calleeName} argument slot(s) ${selected.missing.join(", ")} were never established`);
+        }
+        /* The cast must name the type the *declaration* names, which is the
+         * expressible form — `void *`, not the project's `ObjectState *`,
+         * which a standalone candidate has no definition for. */
+        const declared = (slot: number): string | undefined => {
+          const raw = cap?.paramTypes?.[slot];
+          return raw === undefined ? undefined : (expressibleType(raw) ?? undefined);
+        };
+        const args = selected.args.map((a, slot) =>
+          castForParameter(translate(a, map, plan, temps), declared(slot), pointerNames));
         const tempName = callResultTemps?.get(`CR(${effect.seq},v0)`);
         if (tempName) {
           stmts.push({ kind: "assign", target: id(tempName), value: { kind: "call", callee: calleeName, args } });
@@ -1117,7 +1179,10 @@ export function emitDagBody(
       const effs = sourceEffects.get(ref) ?? [];
       const statements = assignStmts(effs.slice(emitted));
       if (!options.voidLeaves.has(ref)) {
-        const value = translate(node.value, map, plan, temps);
+        /* The signature is `s32`, so a returned pointer needs the conversion
+         * spelled out; `castForParameter` inserts nothing when it is already
+         * a value. */
+        const value = castForParameter(translate(node.value, map, plan, temps), "s32", pointerNames);
         if (elseMode) {
           statements.push({ kind: "assign", target: id("__ret"), value });
         } else {

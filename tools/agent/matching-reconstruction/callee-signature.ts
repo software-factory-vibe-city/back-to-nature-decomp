@@ -15,6 +15,11 @@
  *      already encodes that rule, so a stub's generated signature is never
  *      read back as evidence. For cross-container calls (overlay calling an
  *      exe function), also checks `include/functions.h`.
+ *   1b. A verified recovery published to the recovered-artifact overlay this
+ *      run. The overlay holds only sources the relocated-byte oracle matched,
+ *      so the definition's own parameter list is a declaration — and it is the
+ *      tier that lets a campaign's success reach its callers, which are still
+ *      looking at a stub in `src/`.
  *   2. A PSY-Q SDK / library prototype from the vendored headers.
  *   3. ABI / frame evidence: the callee's own target code, with a
  *      conservative arity (an argument register read before definition is a
@@ -43,12 +48,14 @@ import {
   type Node,
 } from "../residual-source-search/tree-sitter-c.js";
 import type { SymExpr } from "./types.js";
+import { contextMode, warmContextAllowed } from "./context-mode.js";
+import { overlayRevision, overlaySourceFor } from "../campaign/artifact-overlay.js";
 
 /* ------------------------------------------------------------------ */
 /* CalleeSignature                                                     */
 /* ------------------------------------------------------------------ */
 
-export type SignatureSource = "matched" | "sdk" | "abi";
+export type SignatureSource = "matched" | "recovered" | "sdk" | "abi";
 
 export interface CalleeSignature {
   arity: number;
@@ -80,6 +87,49 @@ function flatten(node: Node): string {
     .replace(/([(\[])\s+/g, "$1")
     .replace(/\*\s+/g, "*")
     .trim();
+}
+
+/**
+ * One parameter's type, *including* the decoration its declarator carries.
+ *
+ * The `type` field of a `parameter_declaration` holds only the specifier:
+ * `Vec3 *dest` yields `Vec3`, because the star belongs to the declarator. A
+ * signature rebuilt from the specifier alone turns every pointer parameter
+ * into a value parameter — which is how `void CopyVec3(Vec3 *, Vec3 *)` was
+ * re-emitted as `void CopyVec3(Vec3, Vec3)` and stopped compiling. Pointer
+ * depth and array-to-pointer decay are read off the declarator instead.
+ */
+function parameterType(declaration: Node): string {
+  const typeNode = field(declaration, "type");
+  const base = typeNode ? flatten(typeNode) : "s32";
+  let stars = "";
+  let declarator = field(declaration, "declarator");
+  while (declarator) {
+    if (declarator.type === "pointer_declarator") {
+      stars += "*";
+      declarator = field(declarator, "declarator");
+      continue;
+    }
+    if (declarator.type === "array_declarator") {
+      /* An array parameter is a pointer parameter; its bound is not part of
+       * the callee's interface. */
+      stars += "*";
+      declarator = field(declarator, "declarator");
+      continue;
+    }
+    if (declarator.type === "abstract_pointer_declarator") {
+      stars += "*";
+      declarator = field(declarator, "declarator");
+      continue;
+    }
+    if (declarator.type === "abstract_array_declarator") {
+      stars += "*";
+      declarator = field(declarator, "declarator");
+      continue;
+    }
+    break;
+  }
+  return stars ? `${base} ${stars}` : base;
 }
 
 /**
@@ -115,10 +165,7 @@ function parseHeaderSignature(
       const paramDecls = children(params).filter((child) => child.type === "parameter_declaration");
       const voidParam = paramDecls.length === 1 && flatten(paramDecls[0]!) === "void";
       const arity = voidParam ? 0 : paramDecls.length;
-      const paramTypes = voidParam ? [] : paramDecls.map((decl) => {
-        const typeNode = field(decl, "type");
-        return typeNode ? flatten(typeNode) : "s32";
-      });
+      const paramTypes = voidParam ? [] : paramDecls.map(parameterType);
       const returnsVoid = flatten(returnType) === "void";
       result = { arity, paramTypes, returnsVoid, line: node.startPosition.row + 1 };
       return false;
@@ -174,6 +221,11 @@ function parsedHeader(path: string): ReturnType<typeof parseC> {
 }
 
 function matchedDefinition(callee: string, container: Container): SignatureResult | null {
+  /* Cold mode withholds recovered game C, and a matched definition is exactly
+   * that: somebody already wrote this callee's signature. The lower tiers —
+   * the SDK's own declarations and the callee's machine code — stay, because
+   * neither is recovered material. */
+  if (!warmContextAllowed()) return null;
   const matched = definitionPrototype(callee);
   if (!matched) return null;
 
@@ -222,6 +274,77 @@ function matchedDefinition(callee: string, container: Container): SignatureResul
   }
 
   return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tier 1b — a verified recovery published this run                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The signature the overlay's own recovered C declares.
+ *
+ * Without this tier a campaign's successes are invisible to its callers: the
+ * callee is still a stub in `src/`, so tier 1 answers nothing and the caller
+ * falls through to the ABI floor — a bound to enumerate over rather than a
+ * signature to use. The recovered definition is a declaration, because the
+ * overlay only holds sources the byte oracle matched, and a function's own
+ * matching definition is the strongest statement of its interface there is.
+ *
+ * It is parsed from the *definition*, not from a generated header: the overlay
+ * is not in any header, and re-deriving a declaration from it would be a second
+ * spelling of a fact the source already states.
+ */
+function publishedDefinition(callee: string): SignatureResult | null {
+  const published = overlaySourceFor(callee);
+  if (!published) return null;
+  let parsed: ReturnType<typeof parseDefinitionSignature>;
+  try {
+    parsed = parseDefinitionSignature(callee, parseC(published.text));
+  } catch {
+    return null;
+  }
+  if (!parsed) return null;
+  return {
+    arity: parsed.arity,
+    paramTypes: parsed.paramTypes,
+    returnsValue: !parsed.returnsVoid,
+    returnType: parsed.returnsVoid ? "void" : "s32",
+    source: "recovered",
+  };
+}
+
+/** The signature a function *definition* states, as opposed to a declaration. */
+function parseDefinitionSignature(
+  callee: string,
+  tree: ReturnType<typeof parseC>,
+): { arity: number; paramTypes: string[]; returnsVoid: boolean } | null {
+  let result: { arity: number; paramTypes: string[]; returnsVoid: boolean } | null = null;
+  walk(tree.rootNode, (node) => {
+    if (result) return false;
+    if (node.type !== "function_definition") return true;
+    const returnType = field(node, "type");
+    const declarator = field(node, "declarator");
+    if (!returnType || !declarator) return false;
+    let core = declarator;
+    while (core.type === "pointer_declarator") {
+      const inner = field(core, "declarator");
+      if (!inner) break;
+      core = inner;
+    }
+    if (core.type !== "function_declarator") return false;
+    const nameNode = field(core, "declarator");
+    const params = field(core, "parameters");
+    if (!nameNode || !params || nameNode.text !== callee) return false;
+    const paramDecls = children(params).filter((child) => child.type === "parameter_declaration");
+    const voidParam = paramDecls.length === 1 && flatten(paramDecls[0]!) === "void";
+    result = {
+      arity: voidParam ? 0 : paramDecls.length,
+      paramTypes: voidParam ? [] : paramDecls.map(parameterType),
+      returnsVoid: flatten(returnType) === "void",
+    };
+    return false;
+  });
+  return result;
 }
 
 /* ------------------------------------------------------------------ */
@@ -322,12 +445,15 @@ export function inferSignatureRange(
   name: string | null | undefined,
   address: number | undefined,
   container: Container,
-  args: SymExpr[],
+  args: Array<SymExpr | null>,
   consumedCallResults: Set<number>,
   seq: number,
 ): InferredSignatureRange {
   let arityLo = 0;
-  let arityHi = 4;
+  /* The upper hint may exceed four: an outgoing-argument-area slot the caller
+   * wrote is a fifth or later argument, and clamping to four is how a
+   * five-argument call was made to look like a four-argument one. */
+  let arityHi = Math.max(4, args.length);
   let returns: "yes" | "no" | "unknown" = "unknown";
 
   /* 1. Callee's own machine code via targetWitness. */
@@ -347,22 +473,32 @@ export function inferSignatureRange(
     }
   }
 
-  /* 2. Caller's argument setup: the highest arg register with a
-   *    non-passthrough value gives an upper hint.
-   *    An arg is "non-passthrough" when it is not a bare `entry(aN)`.
-   *    When ALL args are passthrough (the caller wrote nothing), arityHi
-   *    defaults to 0 — no evidence of any explicit argument. */
+  /* 2. Caller's argument setup: the highest arg register the caller actually
+   *    wrote. An arg is "non-passthrough" when it is not a bare `entry(aN)`.
+   *
+   *    This is an *upper* hint only. An untouched `$aN` at a call site is
+   *    indistinguishable from the caller forwarding its own parameter of the
+   *    same index — `f(arg0, arg1)` compiles to no instructions at all, because
+   *    the values are already in place — so silence here is not evidence of
+   *    absence, and it can never lower a floor the callee's own code proved.
+   *    Letting it do so is how a two-argument callee whose caller forwards both
+   *    parameters is reported as taking none, and every hypothesis built from
+   *    that range then calls it with the wrong arity. */
   let highestNonPassthrough = -1;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg && !(arg.kind === "entry" && arg.register === `a${i}`)) {
+    if (!arg) continue;
+    /* A stack slot the caller wrote is always explicit; a register slot is
+     * explicit only when it is not the caller's own untouched entry value. */
+    if (i >= 4 || !(arg.kind === "entry" && arg.register === `a${i}`)) {
       highestNonPassthrough = i;
     }
   }
-  if (highestNonPassthrough >= 0) {
-    arityHi = Math.min(highestNonPassthrough + 1, 4);
-  } else {
-    arityHi = 0;
+  const callerHint = highestNonPassthrough >= 0 ? highestNonPassthrough + 1 : 0;
+  /* A written outgoing slot proves the arity is at least that high, whatever
+   * the callee's own code showed. */
+  if (args.length > 4 && args[4] !== null && args[4] !== undefined) {
+    arityLo = Math.max(arityLo, 5);
   }
 
   /* 3. Caller's use of $v0: if the result is consumed, returns is "yes". */
@@ -372,9 +508,12 @@ export function inferSignatureRange(
   /* Note: if not consumed, returns stays "unknown" — NOT "no". The callee
    * may return a value the caller discards; we cannot prove it does not. */
 
-  /* Clamp: arityLo ≤ arityHi, and both in [0, 4]. */
-  arityLo = Math.max(0, Math.min(arityLo, arityHi));
-  arityHi = Math.min(arityHi, 4);
+  /* The range spans both bounds. `arityLo` is what the callee's own code reads
+   * and is never narrowed; `arityHi` is the wider of the two hints. Both may
+   * exceed four when the outgoing argument area is in use; the O32 upper bound
+   * this model handles is eight. */
+  arityLo = Math.min(Math.max(0, arityLo), 8);
+  arityHi = Math.min(Math.max(callerHint, arityLo), 8);
 
   return { arityLo, arityHi, returns };
 }
@@ -408,7 +547,13 @@ export function resolveSignature(
   if (!name) {
     return { unknown: address === undefined ? "indirect call target is not resolvable to a symbol" : `no symbol resolves the call target 0x${(address >>> 0).toString(16)}` };
   }
-  const cacheKey = `${container.id}|${name}|${address ?? ""}`;
+  /* The mode is part of the cache key: the same callee resolves differently
+   * warm and cold, and a cache that ignored that would report a warm answer in
+   * a cold run. */
+  /* The overlay's revision is part of the key: publishing a callee's recovered
+   * C changes what this function answers, and a cache that outlived the
+   * publication would keep serving the ABI bound it replaced. */
+  const cacheKey = `${contextMode()}|${overlayRevision()}|${container.id}|${name}|${address ?? ""}`;
   const cached = signatureCache.get(cacheKey);
   if (cached) return cached;
   const result = computeSignature(name, address, container);
@@ -423,6 +568,8 @@ function computeSignature(
 ): SignatureResult {
   const matched = matchedDefinition(name, container);
   if (matched) return matched;
+  const recovered = publishedDefinition(name);
+  if (recovered) return recovered;
   const sdk = sdkPrototype(name);
   if (sdk) return sdk;
   const abi = abiEvidence(name);

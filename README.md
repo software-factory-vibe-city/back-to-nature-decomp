@@ -832,7 +832,7 @@ libraries, the references between files, and the BSS layout. Therefore
 | `.pi/` | The Pi commands, the PlayStation skills, the tool wrappers, and the autonomous supervisor |
 | `tools/agent/` | The decompilation tools. See the list below |
 | `tools/build/` | The `make split` pipeline |
-| `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts`, `benchmarkReconstruction.ts` |
+| `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts`, `benchmarkReconstruction.ts`, `coldContextEvaluation.ts`, `feedbackLoop.ts` |
 | `tools/lib/` | `psxExeInfo.ts` (shared binary constants), `symbolIndex.ts` (address and symbol lookup), `functionOracle.ts` (the byte comparison that `diffFunc.ts` reports) |
 | `tools/vendor/` | The vendored repositories |
 
@@ -856,6 +856,11 @@ The main tools under `tools/agent/` are:
 | `synthesizeSourceShapes.ts` | Derives a grammar from the requirements |
 | `searchResidualSourceSpace.ts` | Searches the residual source space automatically |
 | `reconstructFunction.ts` | Reconstructs clean C from the original bytes alone — no source seed; explicit unresolved states outside its supported class |
+| `familyTransfer.ts` | Finds a function's family by the shape of its original words, instantiates a matched member's C for it, and verifies every candidate through the byte oracle |
+| `machineIr.ts` | The CFG / SSA / region view of the original words; its size is proportional to the graph, not to the paths through it |
+| `recipeAtlas.ts` | Compiles a catalogue of small C constructions under the production flags and indexes what each emits, so a target's words can be looked up |
+| `nearMissRepair.ts` | Places a residual in the target's own basic blocks and turns it into an ordered set of bounded source moves |
+| `campaignRun.ts` | An unattended campaign to a fixed point; a recovery is published to the recovered-artifact overlay, requeues only its dependents, and everything unfinished gets a prepared bundle (`--overlay`, `--retract`) |
 | `reversePipeline.ts` | Runs the compiler backward and names the pass that owns the residual |
 | `loopTrace.ts` | Reads the loop optimizer's own `-dL` log and solves for its unprinted threshold |
 | `analyzeTargetLoopEmission.ts` | Derives what the original's loop pass must have done, and scores a candidate on it |

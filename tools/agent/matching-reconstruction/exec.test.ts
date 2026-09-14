@@ -168,12 +168,34 @@ test("stores land on the leaf in machine order, with forwarding to later loads",
   }
 });
 
-test("a partial overlap between store sizes is refused, not guessed", () => {
+test("a narrower read inside a wider stored cell is a byte view, not a refusal", () => {
+  /* Store a word through a pointer, then read one of its bytes back. On a
+   * little-endian target byte k of the word is `(value >> 8k)`, and refusing
+   * this excluded the ordinary "fill the word, then look at a field" shape. */
+  const result = run([
+    ["lui", "t2", 0x8007],
+    ["sw", "a0", 0x1000, "t2"],
+    ["lbu", "v0", 0x1001, "t2"],
+    ["jr", "ra"],
+    ["nop"],
+  ]);
+  const node = result.arena.node(result.root);
+  assert.equal(node.kind, "leaf");
+  if (node.kind === "leaf") {
+    assert.equal(canon(node.value), "zext8(srl(@a0,#8))");
+  }
+});
+
+test("a read that straddles two differently sized writes is refused, not guessed", () => {
+  /* The word at 0x1000 is half the earlier `sw` and half the later `sh`;
+   * composing it needs a byte-array model this relation does not carry, so the
+   * refusal names the mechanism instead of forwarding a wrong value. */
   assert.throws(
     () => run([
       ["lui", "t2", 0x8007],
       ["sw", "a0", 0x1000, "t2"],
       ["sh", "a1", 0x1002, "t2"],
+      ["lw", "v0", 0x1000, "t2"],
       ["jr", "ra"],
       ["nop"],
     ]),

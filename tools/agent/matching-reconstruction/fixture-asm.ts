@@ -43,6 +43,7 @@ export function assemble(lines: AsmLine[], baseVram: number): Array<{ raw: numbe
     switch (op) {
       case "nop": word = 0; break;
       case "addu": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x21; break;
+      case "or": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x25; break;
       case "subu": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x23; break;
       case "slt": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x2a; break;
       case "sltu": word = (reg(operands[1]!) << 21) | (reg(operands[2]!) << 16) | (reg(operands[0]!) << 11) | 0x2b; break;
@@ -53,6 +54,11 @@ export function assemble(lines: AsmLine[], baseVram: number): Array<{ raw: numbe
       case "mfhi": word = (reg(operands[0]!) << 11) | 0x10; break;
       case "mflo": word = (reg(operands[0]!) << 11) | 0x12; break;
       case "jr": word = (reg(operands[0]!) << 21) | 0x08; break;
+      case "break": word = ((Number(operands[0] ?? 0) & 0xfffff) << 6) | 0x0d; break;
+      case "lwl": word = (0x22 << 26) | (reg(operands[2]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[1]!); break;
+      case "lwr": word = (0x26 << 26) | (reg(operands[2]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[1]!); break;
+      case "swl": word = (0x2a << 26) | (reg(operands[2]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[1]!); break;
+      case "swr": word = (0x2e << 26) | (reg(operands[2]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[1]!); break;
       case "sll": word = (reg(operands[1]!) << 16) | (reg(operands[0]!) << 11) | ((Number(operands[2]) & 31) << 6); break;
       case "sra": word = (reg(operands[1]!) << 16) | (reg(operands[0]!) << 11) | ((Number(operands[2]) & 31) << 6) | 0x03; break;
       case "addiu": word = (0x09 << 26) | (reg(operands[1]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[2]!); break;

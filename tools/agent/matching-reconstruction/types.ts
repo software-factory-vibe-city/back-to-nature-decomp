@@ -15,7 +15,14 @@
  * or rejects a concrete combination.
  */
 
-export const MATCHING_RECONSTRUCTION_SCHEMA_VERSION = 1 as const;
+import type { FailureCategory, TargetFeatures } from "./failure-category.js";
+
+/**
+ * Bumped to 2 when the result contract grew typed failure categories, the
+ * effective-build record, the artifact manifest and partial facts. A consumer
+ * reading a version-1 document must not assume those fields exist.
+ */
+export const MATCHING_RECONSTRUCTION_SCHEMA_VERSION = 2 as const;
 
 /** Terminal states, from the plan's Phase F table. */
 export type TerminalState =
@@ -52,6 +59,15 @@ export type SymExpr =
       base?: SymExpr | undefined;
       /** Scaled index for array-style addressing (D3). */
       index?: { expr: SymExpr; scale: number } | undefined;
+      /**
+       * A second, wider scaled index: the outer subscript of a nested access.
+       *
+       * `base + 40*i + 2*j + 4` is an ordinary two-dimensional read — a
+       * halfword array inside a record array — and a model that allows only
+       * one index term has to call the whole address "computed" and refuse the
+       * function. The outer term always has the larger stride.
+       */
+      outerIndex?: { expr: SymExpr; scale: number } | undefined;
       /** Distinguishes re-reads after a potentially-aliasing store. */
       epoch?: number | undefined;
     }
@@ -106,6 +122,8 @@ export interface StoreEffect {
   base?: SymExpr | undefined;
   /** Scaled index for array-style addressing. */
   index?: { expr: SymExpr; scale: number } | undefined;
+  /** The outer subscript of a nested access; the wider stride. */
+  outerIndex?: { expr: SymExpr; scale: number } | undefined;
   /** The access went through `$gp` — small-data addressing, a TU-ownership fact. */
   viaGp?: boolean | undefined;
 }
@@ -122,6 +140,17 @@ export interface CallEffect {
   vram: number;
   /** Argument register snapshot (a0..a3) at the call site. */
   args: SymExpr[];
+  /**
+   * The outgoing-argument-area slots, arguments five through eight, read from
+   * the caller's frame at `sp+0x10`, `+0x14`, `+0x18`, `+0x1c`.
+   *
+   * `null` means the caller never wrote that slot, which is a different fact
+   * from "the caller passed zero". A snapshot that stopped at the four
+   * argument registers could only represent a five-argument call by inventing
+   * a value for the fifth, and a family of handlers in this project passes a
+   * nonzero pointer there.
+   */
+  stackArgs?: Array<SymExpr | null> | undefined;
   /** Whether `call-result` values from this call are used by later expressions. */
   resultUsed: boolean;
   /** Callee address — the jal target or the value in the jalr register. */
@@ -318,15 +347,69 @@ export interface CandidateOutcome {
   verdict: "match" | "mismatch" | "undetermined" | "error";
   matchedWords?: number;
   totalWords?: number;
+  /**
+   * The *complete* number of differing words. `differingVram` is truncated to
+   * a readable sample; ranking by its length compares a truncated count with
+   * an untruncated one and silently prefers whichever candidate happened to be
+   * measured first. Every ranking decision uses this field.
+   */
+  differingCount?: number;
+  /** A bounded sample of the differing addresses, for a human reading the bundle. */
   differingVram?: number[];
   compileError?: string;
 }
 
 export interface UnresolvedReason {
   state: Exclude<TerminalState, "exact-candidate" | "verified">;
+  /** Which capability would lift this refusal. Chosen at the refusal site. */
+  category: FailureCategory;
   detail: string;
   /** VRAM addresses implicated, when the reason is located. */
   vram?: number[];
+}
+
+/**
+ * What the candidates were actually built with.
+ *
+ * Reconstruction used to compile with per-file overrides disabled, which makes
+ * a matching campaign a different experiment from the production build for
+ * every translation unit that has an override. Recording the effective set is
+ * half the fix; using it is the other half.
+ */
+export interface EffectiveBuild {
+  containerKind: "exe" | "overlay";
+  cc1Flags: string[];
+  /** The per-file override entry that contributed, when one did. */
+  overrideFlags?: string[];
+}
+
+/**
+ * Facts recovered before a refusal. A budget stop or an unsupported
+ * instruction does not erase what was already proved, and an agent handed the
+ * result should not have to re-derive it.
+ */
+export interface PartialFacts {
+  /** Population facts read from the original words; always available. */
+  features?: TargetFeatures;
+  /** Call sites the executor saw, with their resolved identity. */
+  calls?: Array<{ vram: number; callee: string; indirect: boolean; resolved: boolean }>;
+  /** Distinct absolute addresses the function's words name. */
+  absoluteAddresses?: number[];
+  /** Free-text notes each carrying its own producer. */
+  notes?: string[];
+}
+
+/**
+ * Every file this run wrote, with its content hash.
+ *
+ * The consumption rule: a reader may open `winner.c` or `best-effort.c` only
+ * when the current manifest names it *and* the file still hashes to the
+ * recorded value. A previous run's leftover winner sitting in the directory is
+ * then unreadable rather than silently authoritative.
+ */
+export interface ResultArtifacts {
+  /** Path relative to the result directory → sha256 of the bytes written. */
+  files: Record<string, string>;
 }
 
 export interface ResultBundle {
@@ -346,13 +429,39 @@ export interface ResultBundle {
     /** Context changes an authorized integration would make; never applied here. */
     integrationPlan: string[];
   };
-  /** Best-effort candidate for domain-exhausted functions: the closest we got. */
+  /**
+   * The closest candidate, present for every terminal state that produced at
+   * least one compiled non-matching candidate — a budget stop keeps its draft
+   * exactly as a domain-exhausted run does.
+   */
   bestEffort?: CandidateOutcome & {
     source: string;
     integrationPlan: string[];
     diffSummary: string;
   };
   unresolved?: UnresolvedReason;
+  /** Population facts from the original words, independent of how far we got. */
+  features?: TargetFeatures;
+  /**
+   * Compiler operations recognised in the words — a block move the backend
+   * expanded inline, say. Present even when nothing compiled, because the
+   * recognition is what tells a census that a refusal is about an unmodelled
+   * *operation* rather than about handwritten code.
+   */
+  recognizedOperations?: string[];
+  /** Analysis that survived a refusal. */
+  partialFacts?: PartialFacts;
+  /** The flag set the candidates were compiled under. */
+  build?: EffectiveBuild;
+  /**
+   * Whether recovered game C was available to this run.
+   *
+   * Recorded because a warm result and a cold one answer different questions,
+   * and a table that mixes them silently reports the easier one.
+   */
+  contextMode?: "warm" | "cold";
+  /** Files this run wrote, hashed — the only authority on what may be read back. */
+  artifacts: ResultArtifacts;
   /** Input categories the engine read, for the source-hidden evaluation contract. */
   inputsRead: string[];
   compiles: number;

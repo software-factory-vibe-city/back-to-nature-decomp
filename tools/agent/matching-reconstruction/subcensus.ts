@@ -163,37 +163,44 @@ function analyze(): SubcensusResult {
       containerId: string;
       sizeBytes: number;
       state: string;
+      /** Typed mechanism, from the refusal site. Absent in schema-1 censuses. */
+      mechanism?: string;
+      layer?: string;
       category: string;
+      features?: { hasCalls: boolean; hasStores: boolean; hasBackEdge: boolean };
       detail?: string;
     }>;
   };
 
-  /* Select the 907 read-only, call-free functions.
-   * The relevant categories:
-   *   "read-only, call-free, but not a fixed-stride scan"
-   *   "other: no parameter plan could express the relation's values"
-   *   "other: structure too large for the guarded class (...)"
-   *   "other: some paths return a value and some leave it unset"
-   * Also include "domain-exhausted" (relation fits, grammar lacks witness) 
-   * and "context-unresolved" since they're in the same bucket. */
-  const roCategories = [
-    "read-only, call-free, but not a fixed-stride scan",
-    "domain-exhausted (relation fits; grammar lacks a witness)",
-  ];
+  /*
+   * The population this sub-census is about: functions whose *relation* was
+   * recovered but whose *source structure* has no constructor — the
+   * constructor and evaluation layers, not the decoder or the memory model.
+   *
+   * Selected by typed mechanism. The previous selection searched the prose for
+   * phrases like "no parameter plan", which is how a bucket named "read-only,
+   * call-free" came to hold 443 functions that call something. `read-only` and
+   * `call-free` are now asserted against the decode, not assumed.
+   */
+  const STRUCTURE_MECHANISMS = new Set([
+    "structure-unsupported",
+    "relation-unfit",
+    "parameter-plan-unavailable",
+    "domain-exhausted",
+  ]);
   const targetFunctions = census.functions.filter((fn) => {
-    if (fn.category.startsWith("other:")) {
-      const d = fn.detail ?? "";
-      if (d.includes("no parameter plan") || d.includes("structure too large") ||
-          d.includes("some paths return") || d.includes("not a fixed-stride scan") ||
-          d.includes("unconditional return") || d.includes("constant") ||
-          d.includes("affine")) {
-        return true;
-      }
-    }
-    if (roCategories.includes(fn.category)) return true;
-    if (fn.state === "domain-exhausted") return true;
-    return false;
+    if (fn.mechanism) return STRUCTURE_MECHANISMS.has(fn.mechanism);
+    /* A census written before typed mechanisms: fall back to the state, which
+     * was always structured, and say so rather than mining the prose. */
+    return fn.state === "domain-exhausted";
   });
+  const readOnlyCallFree = targetFunctions.filter(
+    (fn) => fn.features && !fn.features.hasCalls && !fn.features.hasStores,
+  ).length;
+  console.error(
+    `subcensus population: ${targetFunctions.length} function(s) in the structure/evaluation layers; ` +
+    `${readOnlyCallFree} of them are genuinely read-only and call-free in their own words`,
+  );
 
   const result: SubcensusResult = {
     totalFunctions: targetFunctions.length,

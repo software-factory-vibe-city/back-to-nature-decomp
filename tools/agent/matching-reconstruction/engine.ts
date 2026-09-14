@@ -12,13 +12,35 @@
  *
  * Supported classes, routed by the recovered decision DAG's shape:
  *   - a single leaf: straight-line effects (stores in machine order + return);
- *   - a test DAG with pure leaves: the fixed-bound read-only record scan.
+ *   - a test DAG with pure leaves: the fixed-bound record scan.
  * Anything else reports the blocking evidence, never a guess.
+ *
+ * Three contract rules this file is the enforcement point for:
+ *
+ *   1. **Effective flags.** Candidates compile under the flag set the
+ *      production build would use for this translation unit, per-file
+ *      overrides included. Compiling a matching campaign with overrides
+ *      disabled makes it a different experiment from the build it is trying
+ *      to reproduce. Selecting a *new* override is still forbidden — this
+ *      applies what `configs/flag_overrides.mk` already records.
+ *   2. **Best effort is kept on every stop.** A budget stop is the case most
+ *      likely to have produced a useful draft, and it was the one case that
+ *      threw it away.
+ *   3. **Everything written is manifested.** Files are produced through an
+ *      `ArtifactRecorder`, so a consumer can tell this run's winner from a
+ *      previous run's leftover.
  */
 
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ROOT, compileSource, detectImplicitDeclarations } from "../decompToolchain.js";
+import {
+  ROOT,
+  compileSource,
+  configuredCc1FlagsForContainer,
+  detectImplicitDeclarations,
+  loadFlagOverrides,
+  rejectionFromDiagnostics,
+} from "../decompToolchain.js";
 import { containerTargetPath, loadContainer, vramToRom } from "../../lib/container.js";
 import { requireFunctionLocation, loadSymbolIndex, resolveAddress } from "../../lib/symbolIndex.js";
 import { compareFunction } from "../../lib/functionOracle.js";
@@ -29,10 +51,16 @@ import { ensureAccessIndex, deriveOrigins } from "./access-index.js";
 import { constructCandidate, enumerateChoices } from "./construct.js";
 import { constructEffectCandidates, constructGuardedCandidates, fitStraightLineEffects } from "./effect-construct.js";
 import { constructControlFlowCandidates } from "./control-structure.js";
+import { targetFeatures, type FailureCategory } from "./failure-category.js";
+import { recoverContextFrom, renderContext, type RecoveredContext } from "./context-product.js";
+import { ArtifactRecorder } from "./result-contract.js";
+import { contextMode, describeContextMode, warmContextAllowed } from "./context-mode.js";
+import { stableJson } from "../provenance.js";
 import {
   MATCHING_RECONSTRUCTION_SCHEMA_VERSION,
   type CandidateOutcome,
   type ConstructionChoice,
+  type PartialFacts,
   type ResultBundle,
 } from "./types.js";
 
@@ -44,6 +72,12 @@ export interface ReconstructOptions {
   maxCandidates?: number | undefined;
   /** Evaluate every candidate even after an exact match. */
   exhaustive?: boolean | undefined;
+  /**
+   * Compile without this translation unit's per-file flag overrides. Off by
+   * default: the campaign must reproduce the production build. Set only to
+   * measure what an override is worth.
+   */
+  ignoreFlagOverrides?: boolean | undefined;
   notify?: ((line: string) => void) | undefined;
 }
 
@@ -77,6 +111,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
   const span = location.span;
   const outputDirectory = options.outputDirectory ?? join(ROOT, "build/matchingReconstruction", functionName);
   mkdirSync(outputDirectory, { recursive: true });
+  const artifacts = new ArtifactRecorder(outputDirectory);
 
   const inputsRead = [
     container.targetPath,
@@ -86,6 +121,16 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
     container.paths.undefinedFuncs,
   ];
 
+  /* The flag set the production build would use for this translation unit.
+   * Recorded whether or not a candidate ever compiles, because "which
+   * experiment was this" is a fact about the run, not about its outcome. */
+  const overrideFlags = options.ignoreFlagOverrides ? undefined : loadFlagOverrides().get(functionName);
+  const build: ResultBundle["build"] = {
+    containerKind: container.kind,
+    cc1Flags: [...configuredCc1FlagsForContainer(container.kind), ...(overrideFlags ?? [])],
+    ...(overrideFlags ? { overrideFlags } : {}),
+  };
+
   const bundle: ResultBundle = {
     schemaVersion: MATCHING_RECONSTRUCTION_SCHEMA_VERSION,
     functionName,
@@ -94,16 +139,38 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
     sizeBytes: span.size,
     state: "tool-failure",
     candidates: [],
+    build,
+    contextMode: contextMode(),
+    artifacts: { files: {} },
     inputsRead,
     compiles: 0,
     wallMs: 0,
   };
 
+  const refuse = (
+    state: Exclude<ResultBundle["state"], "exact-candidate" | "verified">,
+    category: FailureCategory,
+    detail: string,
+    vram?: number[],
+  ): void => {
+    bundle.state = state;
+    bundle.unresolved = { state, category, detail, ...(vram && vram.length > 0 ? { vram } : {}) };
+  };
+
   const finish = (result: ResultBundle): ResultBundle => {
     result.wallMs = Date.now() - startedAt;
+    result.artifacts = artifacts.manifest();
     const provenance = computeProvenance(functionName, {
       files: [container.targetPath, container.paths.splat],
-      values: { options: { maxCandidates: options.maxCandidates, exhaustive: options.exhaustive } },
+      values: {
+        options: {
+          maxCandidates: options.maxCandidates,
+          exhaustive: options.exhaustive,
+          ignoreFlagOverrides: options.ignoreFlagOverrides,
+        },
+        contextMode: contextMode(),
+        cc1Flags: build.cc1Flags,
+      },
       implementation: ["tools/agent/matching-reconstruction"],
     });
     writeStableJson(join(outputDirectory, "result.json"), stamped(result, provenance));
@@ -115,7 +182,28 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
    * first exact match unless asked to be exhaustive, and settle the terminal
    * state. Shared by every supported class — the oracle is the same oracle.
    */
-  const evaluate = (sources: CandidateSource[], totalConstructible: number): void => {
+  const evaluate = (allSources: CandidateSource[]): void => {
+    /* Cold mode withholds the project's umbrella header, which is recovered
+     * material: it declares the globals and types somebody already recovered.
+     * A candidate that compiles only against it is a warm result. */
+    const sources = warmContextAllowed()
+      ? allSources
+      : allSources.filter((candidate) => !candidate.id.endsWith("-umbrella"));
+    /* The domain is what this run is *allowed* to compile, not what the
+     * constructor produced. Comparing the evaluated count against the
+     * unfiltered total reports a cold run that saw its whole domain as stopped
+     * by the candidate budget, which turns a real "nothing here matches" into a
+     * spurious "try harder". */
+    const totalConstructible = sources.length;
+    if (sources.length !== allSources.length) {
+      bundle.partialFacts = {
+        ...(bundle.partialFacts ?? {}),
+        notes: [
+          ...(bundle.partialFacts?.notes ?? []),
+          `${allSources.length - sources.length} umbrella-context candidate(s) were withheld: ${describeContextMode()}`,
+        ],
+      };
+    }
     const maxCandidates = options.maxCandidates ?? sources.length;
     const candidatesDir = join(outputDirectory, "candidates");
     mkdirSync(candidatesDir, { recursive: true });
@@ -128,8 +216,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
       if (bundle.candidates.length >= maxCandidates) break;
       if (winner && !options.exhaustive) break;
 
-      const sourcePath = join(candidatesDir, `${candidate.id}.c`);
-      writeFileSync(sourcePath, candidate.source);
+      const sourcePath = artifacts.write(join("candidates", `${candidate.id}.c`), candidate.source);
 
       const outcome: CandidateOutcome = {
         id: candidate.id,
@@ -138,9 +225,9 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
         verdict: "error",
       };
       try {
-        const artifacts = compileSource(sourcePath, join(candidatesDir, candidate.id), functionName, {
+        const compiled = compileSource(sourcePath, join(candidatesDir, candidate.id), functionName, {
           assemble: true,
-          useOverrides: false,
+          useOverrides: !options.ignoreFlagOverrides,
           containerKind: container.kind,
         });
         bundle.compiles++;
@@ -148,7 +235,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
         /* S3 §3: any implicit function declaration in the compiled unit makes
          * the candidate a construction failure — an undeclared callee changes
          * codegen by defining `$v0` even when nothing reads it. */
-        const implicit = detectImplicitDeclarations(readFileSync(artifacts.preprocessed, "utf-8"), functionName);
+        const implicit = detectImplicitDeclarations(readFileSync(compiled.preprocessed, "utf-8"), functionName);
         if (implicit.length > 0) {
           outcome.compileError = `implicit declaration(s): ${implicit.join(", ")}`;
           notify(`  ${candidate.id}: implicit declaration — construction failure (${implicit[0]})`);
@@ -156,20 +243,37 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
           continue;
         }
 
-        const oracle = compareFunction(functionName, { objectPath: artifacts.object!, container });
+        /* A zero exit status is not a claim that the source is valid C. A
+         * candidate the front end diagnosed as violating a constraint is a
+         * construction failure even if it would assemble to the target's exact
+         * words — the byte oracle compares machine output and cannot see a
+         * source defect, so accepting one here files invalid C as recovered. */
+        const rejection = rejectionFromDiagnostics(compiled.diagnostics);
+        if (rejection) {
+          outcome.compileError = `invalid C accepted by the front end: ${rejection}`;
+          notify(`  ${candidate.id}: invalid C — construction failure (${rejection})`);
+          bundle.candidates.push(outcome);
+          continue;
+        }
+
+        const oracle = compareFunction(functionName, { objectPath: compiled.object!, container });
         outcome.verdict = oracle.verdict === "stub" ? "error" : oracle.verdict;
         outcome.matchedWords = oracle.same;
         const totalOracleWords = Math.max(oracle.targetWords.length, oracle.candidateWords.length);
         outcome.totalWords = totalOracleWords;
+        /* The complete count is what ranking uses; the list is a sample for a
+         * reader. Ranking on the sample's length compares a truncated number
+         * with an untruncated one and picks whichever ran first. */
+        outcome.differingCount = oracle.differing.length;
         outcome.differingVram = oracle.differing.slice(0, 16);
         if (oracle.verdict === "undetermined") undeterminedSeen++;
         if (oracle.verdict === "match") {
           winner = { ...outcome, source: candidate.source, integrationPlan: candidate.integrationPlan };
           notify(`  ${candidate.id}: MATCH (${oracle.same}/${outcome.totalWords})`);
         } else {
-          /* Track best-effort by matched-word ratio. */
           const diffCount = oracle.differing.length;
-          if (!bestEffortCandidate || diffCount < (bestEffortCandidate.outcome.differingVram?.length ?? 9999)) {
+          const incumbent = bestEffortCandidate?.outcome.differingCount ?? Number.POSITIVE_INFINITY;
+          if (diffCount < incumbent) {
             bestEffortCandidate = { outcome, source: candidate.source, integrationPlan: candidate.integrationPlan };
           }
           notify(`  ${candidate.id}: ${outcome.verdict} (${oracle.same}/${outcome.totalWords})`);
@@ -184,37 +288,42 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
     if (winner) {
       bundle.state = "exact-candidate";
       bundle.winner = winner;
-      writeFileSync(join(outputDirectory, "winner.c"), winner.source);
-    } else if (bundle.candidates.length < totalConstructible) {
-      bundle.state = "budget-exhausted";
-      bundle.unresolved = {
-        state: "budget-exhausted",
-        detail: `${totalConstructible - bundle.candidates.length} of ${totalConstructible} constructible candidates remain unevaluated`,
-      };
+      artifacts.write("winner.c", winner.source);
+      return;
+    }
+
+    if (bundle.candidates.length < totalConstructible) {
+      refuse(
+        "budget-exhausted",
+        "budget-exhausted",
+        `${totalConstructible - bundle.candidates.length} of ${totalConstructible} constructible candidates remain unevaluated`,
+      );
     } else if (undeterminedSeen > 0 && bundle.candidates.every((candidate) => candidate.verdict !== "mismatch")) {
-      bundle.state = "oracle-undetermined";
-      bundle.unresolved = {
-        state: "oracle-undetermined",
-        detail: `${undeterminedSeen} candidate(s) could not be byte-compared (unresolved relocations); none mismatched, none proven`,
-      };
+      refuse(
+        "oracle-undetermined",
+        "oracle-undetermined",
+        `${undeterminedSeen} candidate(s) could not be byte-compared (unresolved relocations); none mismatched, none proven`,
+      );
     } else {
-      bundle.state = "domain-exhausted";
-      bundle.unresolved = {
-        state: "domain-exhausted",
-        detail: `all ${bundle.candidates.length} constructible candidates in the bounded domain were evaluated without an exact result`,
+      refuse(
+        "domain-exhausted",
+        "domain-exhausted",
+        `all ${bundle.candidates.length} constructible candidates in the bounded domain were evaluated without an exact result`,
+      );
+    }
+
+    /* The closest draft survives every stop, not only domain exhaustion. A
+     * budget stop is in fact the likeliest to hold a useful one. */
+    if (bestEffortCandidate) {
+      const diffSummary = `${bestEffortCandidate.outcome.matchedWords}/${bestEffortCandidate.outcome.totalWords} words match, ` +
+        `${bestEffortCandidate.outcome.differingCount ?? 0} differing word(s)`;
+      bundle.bestEffort = {
+        ...bestEffortCandidate.outcome,
+        source: bestEffortCandidate.source,
+        integrationPlan: bestEffortCandidate.integrationPlan,
+        diffSummary,
       };
-      /* Record best-effort candidate for domain-exhausted. */
-      if (bestEffortCandidate) {
-        const diffSummary = `${bestEffortCandidate.outcome.matchedWords}/${bestEffortCandidate.outcome.totalWords} words match, ${bestEffortCandidate.outcome.differingVram?.length ?? 0} differing locations`;
-        bundle.bestEffort = {
-          ...bestEffortCandidate.outcome,
-          source: bestEffortCandidate.source,
-          integrationPlan: bestEffortCandidate.integrationPlan,
-          diffSummary,
-        };
-        /* Persist best-effort C file. */
-        writeFileSync(join(outputDirectory, "best-effort.c"), bestEffortCandidate.source);
-      }
+      artifacts.write("best-effort.c", bestEffortCandidate.source);
     }
   };
 
@@ -223,6 +332,35 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
     const image = readFileSync(containerTargetPath(container));
     const rom = vramToRom(container, span.vram);
     const insns = decodeBytes(image.subarray(rom, rom + span.size), span.vram);
+
+    /* Population facts are read from the words themselves, so they hold even
+     * when execution refuses on the first instruction. A census that buckets
+     * on these is describing the target, not the error message. */
+    bundle.features = targetFeatures(insns);
+    const partialFacts: PartialFacts = { features: bundle.features };
+    bundle.partialFacts = partialFacts;
+
+    /**
+     * The recovered-context product is written for every outcome, including
+     * the ones that produce no C at all. A consumer that needs parameters,
+     * call signatures or field offsets should never have to get them by
+     * parsing a draft that may not exist.
+     */
+    const publishContext = (context: RecoveredContext): void => {
+      artifacts.write("context.json", stableJson(context));
+      artifacts.write("context.txt", `${renderContext(context).join("\n")}\n`);
+      partialFacts.notes = [
+        ...(partialFacts.notes ?? []),
+        `recovered context: ${context.parameters.length} parameter(s), ${context.calls.length} call site(s), ` +
+        `${context.globals.length} global cell(s), ${context.objects.length} object base(s)`,
+        ...context.operations.map((operation) => `recovered operation: ${operation.summary}`),
+      ];
+      /* A recognised compiler operation changes what the refusal *means*: a
+       * region of unaligned accesses that is a block move is ordinary
+       * compiler output, and filing it as handwritten code would send the
+       * wrong capability after it. */
+      if (context.operations.length > 0) bundle.recognizedOperations = context.operations.map((operation) => operation.summary);
+    };
 
     let executed;
     try {
@@ -246,13 +384,22 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
       });
     } catch (error) {
       if (error instanceof UnsupportedTarget) {
-        bundle.state = "unsupported-target";
-        bundle.unresolved = { state: "unsupported-target", detail: error.reason, vram: error.vram };
+        /* Even a refused function yields call-site facts: `jal` targets are
+         * absolute and resolve without any execution at all. */
+        partialFacts.calls = callFacts(insns, container);
+        publishContext(recoverContextFrom({
+          functionName, container, vram: span.vram, sizeBytes: span.size, insns,
+          notes: [`symbolic execution refused (${error.category}): ${error.reason}`],
+        }));
+        refuse("unsupported-target", error.category, error.reason, error.vram);
         return finish(bundle);
       }
       throw error;
     }
     notify(`  relation recovery: ${executed.states} states, ${executed.steps} steps, ${executed.loads.length} load atoms`);
+    publishContext(recoverContextFrom({
+      functionName, container, vram: span.vram, sizeBytes: span.size, insns, executed,
+    }));
 
     const rootNode = executed.arena.node(executed.root);
 
@@ -260,8 +407,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
     if (rootNode.kind === "leaf") {
       const relation = fitStraightLineEffects(rootNode.value, rootNode.effects);
       if ("unfit" in relation) {
-        bundle.state = "unsupported-target";
-        bundle.unresolved = { state: "unsupported-target", detail: relation.unfit };
+        refuse("unsupported-target", "relation-unfit", relation.unfit);
         return finish(bundle);
       }
       bundle.effectRelation = relation;
@@ -269,13 +415,11 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
 
       const constructed = constructEffectCandidates(functionName, relation, executed.loads, container);
       if ("unresolved" in constructed) {
-        bundle.state = "context-unresolved";
-        bundle.unresolved = { state: "context-unresolved", detail: constructed.unresolved };
+        refuse("context-unresolved", contextCategory(constructed.unresolved), constructed.unresolved);
         return finish(bundle);
       }
       if ("invalid" in constructed) {
-        bundle.state = "unsupported-target";
-        bundle.unresolved = { state: "unsupported-target", detail: constructed.invalid };
+        refuse("unsupported-target", "structure-unsupported", constructed.invalid);
         return finish(bundle);
       }
       evaluate(
@@ -284,7 +428,6 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
           source: candidate.source,
           integrationPlan: candidate.integrationPlan,
         })),
-        constructed.length,
       );
       return finish(bundle);
     }
@@ -295,8 +438,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
       /* 2c. Not a scan — try the bounded guarded-effects class. */
       const guarded = constructGuardedCandidates(functionName, executed.arena, executed.root, executed.loads, container, executed.maskWitnesses);
       if ("unresolved" in guarded) {
-        bundle.state = "context-unresolved";
-        bundle.unresolved = { state: "context-unresolved", detail: guarded.unresolved };
+        refuse("context-unresolved", contextCategory(guarded.unresolved), guarded.unresolved);
         return finish(bundle);
       }
       if ("invalid" in guarded) {
@@ -305,8 +447,7 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
          * or structures larger than the guarded bounds. */
         const controlFlow = constructControlFlowCandidates(functionName, executed.arena, executed.root, executed.loads, container);
         if ("unresolved" in controlFlow) {
-          bundle.state = "context-unresolved";
-          bundle.unresolved = { state: "context-unresolved", detail: controlFlow.unresolved };
+          refuse("context-unresolved", contextCategory(controlFlow.unresolved), controlFlow.unresolved);
           return finish(bundle);
         }
         if (!("invalid" in controlFlow)) {
@@ -317,16 +458,15 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
               source: candidate.source,
               integrationPlan: candidate.integrationPlan,
             })),
-            controlFlow.length,
           );
           return finish(bundle);
         }
         /* Both constructors failed — report the best detail. */
-        bundle.state = "unsupported-target";
-        bundle.unresolved = {
-          state: "unsupported-target",
-          detail: `not a fixed-stride scan (${fit.reason}); guarded construction: ${guarded.invalid}; general control flow: ${controlFlow.invalid}`,
-        };
+        refuse(
+          "unsupported-target",
+          "structure-unsupported",
+          `not a fixed-stride scan (${fit.reason}); guarded construction: ${guarded.invalid}; general control flow: ${controlFlow.invalid}`,
+        );
         return finish(bundle);
       }
       notify(`  guarded decision structure; ${guarded.length} candidate(s)`);
@@ -336,7 +476,6 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
           source: candidate.source,
           integrationPlan: candidate.integrationPlan,
         })),
-        guarded.length,
       );
       return finish(bundle);
     }
@@ -364,11 +503,11 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
       notify(`  origin: ${origin.kind === "standalone" ? origin.symbol : `${origin.parentSymbol} + 0x${origin.offset.toString(16)}`} — ${origin.evidence[0]}`);
     }
     if (derived.origins.length === 0) {
-      bundle.state = "context-unresolved";
-      bundle.unresolved = {
-        state: "context-unresolved",
-        detail: `no labeled origin for the scanned storage at 0x${fit.relation.base.toString(16)}: ${derived.notes.join("; ") || "no witnesses"}`,
-      };
+      refuse(
+        "context-unresolved",
+        "no-origin-evidence",
+        `no labeled origin for the scanned storage at 0x${fit.relation.base.toString(16)}: ${derived.notes.join("; ") || "no witnesses"}`,
+      );
       return finish(bundle);
     }
 
@@ -386,14 +525,58 @@ export function reconstructFunction(options: ReconstructOptions): ResultBundle {
         choice,
       });
     }
-    evaluate(sources, sources.length);
+    evaluate(sources);
     return finish(bundle);
   } catch (error) {
-    bundle.state = "tool-failure";
-    bundle.unresolved = {
-      state: "tool-failure",
-      detail: error instanceof Error ? `${error.message}` : String(error),
-    };
+    refuse("tool-failure", "tool-failure", error instanceof Error ? `${error.message}` : String(error));
     return finish(bundle);
   }
+}
+
+/**
+ * Which context capability a `context-unresolved` refusal is asking for.
+ *
+ * The constructors return prose because the prose is what a reader needs; the
+ * category is what a capability plan needs. Only three shapes exist at this
+ * boundary and each has a distinct producer, so the mapping is a small closed
+ * decision rather than open-ended text mining.
+ */
+function contextCategory(detail: string): FailureCategory {
+  if (detail.includes("signature") || detail.includes("callee")) return "callee-signature-unknown";
+  if (detail.includes("call-result") || detail.includes("CR(")) return "call-result-unbound";
+  if (detail.includes("parameter plan")) return "parameter-plan-unavailable";
+  return "no-origin-evidence";
+}
+
+/**
+ * Call sites read straight from the words: a `jal` target is absolute, so this
+ * holds even for a function the executor refused on its first instruction.
+ */
+function callFacts(
+  insns: ReturnType<typeof decodeBytes>,
+  container: Parameters<typeof loadSymbolIndex>[0],
+): NonNullable<PartialFacts["calls"]> {
+  let index: ReturnType<typeof loadSymbolIndex> | undefined;
+  try {
+    index = loadSymbolIndex(container);
+  } catch {
+    index = undefined;
+  }
+  const calls: NonNullable<PartialFacts["calls"]> = [];
+  for (const insn of insns) {
+    if (insn.op === "jalr") {
+      calls.push({ vram: insn.vram, callee: `indirect@0x${insn.vram.toString(16)}`, indirect: true, resolved: false });
+      continue;
+    }
+    if (insn.op !== "jal" || insn.target === undefined) continue;
+    const address = insn.target >>> 0;
+    const resolved = index ? resolveAddress(index, address) : null;
+    calls.push({
+      vram: insn.vram,
+      callee: resolved ? resolved.symbol : `0x${address.toString(16)}`,
+      indirect: false,
+      resolved: resolved !== null,
+    });
+  }
+  return calls;
 }

@@ -21,12 +21,13 @@
 import { loadSymbolIndex, resolveAddress, type SymbolIndex } from "../../lib/symbolIndex.js";
 import type { Container } from "../../lib/container.js";
 import { canon, type LoadMeta } from "./exec.js";
-import { recognizeDivision } from "./idioms.js";
+import { recognizeConstantMultiply, recognizeDivision } from "./idioms.js";
 import { resolveSignature, inferSignatureRange, type CalleeSignature, type InferredSignatureRange } from "./callee-signature.js";
 import {
   type CExpr,
   type CStmt,
   STANDALONE_TYPEDEF_BLOCK,
+  castForParameter,
   elementType,
   id,
   int,
@@ -95,14 +96,34 @@ export function fitStraightLineEffects(
  * `results.unknownRanges` maps each seq whose callee could not be resolved
  * but is a named, direct target — inferred range bounds for enumeration.
  */
+export interface ResolvedCall {
+  arity: number;
+  calleeName: string;
+  returnsValue: boolean;
+  returnType: string;
+  /**
+   * The callee's declared parameter types, in order.
+   *
+   * Carried rather than discarded. Printing `s32` for every parameter turns a
+   * pointer argument into an integer argument in the declaration the candidate
+   * compiles against, and a draft handed to an agent then states a signature
+   * the evidence contradicts.
+   */
+  paramTypes: string[];
+  source: CalleeSignature["source"];
+}
+
 export function resolveCallSignatures(
   effects: Effect[],
   container: Container,
 ): {
-  resolved: Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }>;
+  resolved: Map<number, ResolvedCall>;
   unknownRanges: Map<number, { calleeName: string; arityLo: number; arityHi: number; returns: "yes" | "no" | "unknown" }>;
+  /** Declared signatures the caller's own setup contradicts. Never resolved here. */
+  conflicts: string[];
 } {
-  const resolved = new Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; source: CalleeSignature["source"] }>();
+  const resolved = new Map<number, ResolvedCall>();
+  const conflicts: string[] = [];
   const unknownRanges = new Map<number, { calleeName: string; arityLo: number; arityHi: number; returns: "yes" | "no" | "unknown" }>();
   for (const effect of effects) {
     if (effect.kind !== "call") continue;
@@ -115,8 +136,10 @@ export function resolveCallSignatures(
        * hex names stay refused. */
       if (name && !effect.indirect && !/^0x[0-9a-f]+$/i.test(name)) {
         /* Compute initial range using call-site args (consumedCalls not yet
-         * known — pass empty set; returns refinement happens later). */
-        const range = inferSignatureRange(name, effect.calleeAddress, container, effect.args, new Set(), effect.seq);
+         * known — pass empty set; returns refinement happens later). The
+         * complete ABI list is passed, so a written fifth slot raises the
+         * bound instead of being invisible. */
+        const range = inferSignatureRange(name, effect.calleeAddress, container, abiArguments(effect), new Set(), effect.seq);
         unknownRanges.set(effect.seq, {
           calleeName: name,
           arityLo: range.arityLo,
@@ -126,40 +149,81 @@ export function resolveCallSignatures(
       }
       continue;
     }
+    /*
+     * ABI evidence is a *lower bound*, not an exact signature: it counts the
+     * argument registers and stack slots the callee is seen to read, and a
+     * callee that reads its fifth argument on one path only reads none on the
+     * others. So a caller that wrote an outgoing-argument slot proves the
+     * arity reaches that slot, and the bound is raised to meet it.
+     *
+     * A `matched` or `sdk` signature is a declaration, not a bound; a caller
+     * that appears to write past it is a disagreement, recorded on the result
+     * rather than silently resolved in either direction.
+     */
+    let arity = signature.arity;
+    const full = abiArguments(effect);
+    let writtenSlots = 0;
+    for (let slot = full.length - 1; slot >= 4; slot--) {
+      if (full[slot] !== null && full[slot] !== undefined) { writtenSlots = slot + 1; break; }
+    }
+    if (writtenSlots > arity) {
+      if (signature.source === "abi") {
+        arity = writtenSlots;
+      } else {
+        conflicts.push(
+          `${effect.calleeName ?? effect.callee} is declared with ${signature.arity} parameter(s) (${signature.source}), ` +
+          `but the caller at 0x${effect.vram.toString(16)} writes outgoing argument slot ${writtenSlots - 1}`,
+        );
+      }
+    }
     resolved.set(effect.seq, {
-      arity: signature.arity,
+      arity,
       calleeName: effect.calleeName ?? effect.callee,
       returnsValue: signature.returnsValue,
       returnType: signature.returnType,
+      paramTypes: signature.paramTypes,
       source: signature.source,
     });
   }
-  return { resolved, unknownRanges };
+  return { resolved, unknownRanges, conflicts };
 }
 
 /**
- * Trim a call's captured arguments to the resolved arity, when one is known.
- * `caps` is the per-seq resolution computed by `resolveCallSignatures`.
- * When the resolved arity exceeds the captured args, pad with zero constants
- * (the captured register snapshot undershoots for functions with >4 args or
- * when the executor missed some argument setups).
+ * The complete ABI argument list at one call site: four register slots, then
+ * the outgoing-argument-area slots the caller wrote.
+ *
+ * `null` marks a slot nothing established. It is deliberately not zero: a
+ * fabricated zero compiles, reproduces nothing, and tells a reader that the
+ * caller passed a value it never passed.
  */
-const trimArgs = (effect: CallEffect, caps: Map<number, { arity: number }>): CallEffect => {
-  const cap = caps.get(effect.seq);
-  if (!cap) return effect;
-  if (cap.arity >= effect.args.length) {
-    /* Pad with zero constants if the real arity is larger than what we captured. */
-    if (cap.arity > effect.args.length) {
-      const padded = [...effect.args];
-      while (padded.length < cap.arity) {
-        padded.push({ kind: "const", value: 0 } as SymExpr);
-      }
-      return { ...effect, args: padded };
-    }
-    return effect;
+export function abiArguments(effect: CallEffect): Array<SymExpr | null> {
+  const full: Array<SymExpr | null> = [...effect.args, ...(effect.stackArgs ?? [])];
+  while (full.length > 4 && full[full.length - 1] === null) full.pop();
+  return full;
+}
+
+/**
+ * The first `arity` arguments, or the slots that are missing.
+ *
+ * A missing slot is a construction failure for that arity hypothesis, not
+ * something to fill in. The enumeration over unknown arities then discards
+ * exactly the hypotheses the evidence cannot support, which is how an arity
+ * gets decided by the target rather than by a default.
+ */
+export function argumentsForArity(
+  effect: CallEffect,
+  arity: number,
+): { args: SymExpr[] } | { missing: number[] } {
+  const full = abiArguments(effect);
+  const args: SymExpr[] = [];
+  const missing: number[] = [];
+  for (let index = 0; index < arity; index++) {
+    const value = full[index];
+    if (value === undefined || value === null) missing.push(index);
+    else args.push(value);
   }
-  return { ...effect, args: effect.args.slice(0, cap.arity) };
-};
+  return missing.length > 0 ? { missing } : { args };
+}
 
 /**
  * Build the cartesian product of inferred signature assignments for unknown
@@ -267,9 +331,33 @@ function buildInferredCombinations(
  * A callee with an unknown signature cannot be declared; those calls are
  * refused by the caller earlier, so none reach here.
  */
+/**
+ * Types a reconstruction candidate can actually name.
+ *
+ * A candidate compiles either standalone (a fixed typedef block) or against
+ * the umbrella header; neither has the project's aggregate types. So a
+ * recovered `Vec3 *` is written `void *` — which preserves the one property
+ * the code generator reads, pointer-ness, and produces identical words — and a
+ * recovered aggregate *by value* is refused, because its size and alignment
+ * change the calling sequence and no substitute is equivalent.
+ */
+const EXPRESSIBLE_SCALARS = new Set([
+  "void", "char", "signed char", "unsigned char", "short", "unsigned short",
+  "int", "unsigned int", "long", "unsigned long", "unsigned",
+  "s8", "u8", "s16", "u16", "s32", "u32",
+]);
+
+export function expressibleType(type: string): string | null {
+  const trimmed = type.replace(/\s+/g, " ").trim();
+  if (trimmed === "") return null;
+  if (trimmed.endsWith("*")) return "void *";
+  if (EXPRESSIBLE_SCALARS.has(trimmed)) return trimmed;
+  return null;
+}
+
 export function calleeDeclarations(
-  caps: Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string }>,
-): string[] {
+  caps: Map<number, { arity: number; calleeName: string; returnsValue: boolean; returnType: string; paramTypes?: string[] }>,
+): string[] | { invalid: string } {
   const seen = new Set<string>();
   const decls: string[] = [];
   for (const cap of caps.values()) {
@@ -278,11 +366,28 @@ export function calleeDeclarations(
     /* A name that is still a bare hex address never got resolved — the call
      * is refused upstream, but guard anyway: never declare with a guess. */
     if (/^0x[0-9a-f]+$/i.test(cap.calleeName)) continue;
-    const returnType = cap.returnsValue ? cap.returnType : "void";
-    const params = cap.arity === 0
-      ? "void"
-      : Array.from({ length: cap.arity }, (_, i) => `s32 arg${i}`).join(", ");
-    decls.push(`${returnType} ${cap.calleeName}(${params});`);
+    const returnType = cap.returnsValue ? (expressibleType(cap.returnType) ?? null) : "void";
+    if (returnType === null) {
+      return { invalid: `${cap.calleeName} returns ${cap.returnType}, which a reconstruction candidate cannot name` };
+    }
+    let params: string;
+    if (cap.arity === 0) {
+      params = "void";
+    } else {
+      const rendered: string[] = [];
+      for (let index = 0; index < cap.arity; index++) {
+        /* A parameter the evidence says nothing about stays `s32`; one the
+         * evidence types keeps its type, expressible form. */
+        const declared = cap.paramTypes?.[index];
+        const type = declared === undefined ? "s32" : expressibleType(declared);
+        if (type === null) {
+          return { invalid: `${cap.calleeName}'s parameter ${index} is ${declared}, which a reconstruction candidate cannot name` };
+        }
+        rendered.push(`${type}${type.endsWith("*") ? "" : " "}arg${index}`);
+      }
+      params = rendered.join(", ");
+    }
+    decls.push(`${returnType}${returnType.endsWith("*") ? "" : " "}${cap.calleeName}(${params});`);
   }
   return decls;
 }
@@ -296,15 +401,16 @@ export interface Atom {
   signed: boolean;
   /** Scaled index for array-style addressing (D3). */
   index?: { expr: SymExpr; scale: number } | undefined;
+  /** The outer subscript of a nested access; the wider stride. */
+  outerIndex?: { expr: SymExpr; scale: number } | undefined;
 }
 
 const atomGroup = (atom: Atom): string => {
-  if (atom.base) {
-    const base = canon(atom.base);
-    if (atom.index) return `${base}[${canon(atom.index.expr)}*${atom.index.scale}]`;
-    return base;
-  }
-  return "";
+  if (!atom.base) return "";
+  const base = canon(atom.base);
+  const outer = atom.outerIndex ? `[${canon(atom.outerIndex.expr)}*${atom.outerIndex.scale}]` : "";
+  const inner = atom.index ? `[${canon(atom.index.expr)}*${atom.index.scale}]` : "";
+  return `${base}${outer}${inner}`;
 };
 const cellKey = (group: string, offset: number, width: number): string => `${group}|${offset}|${width}`;
 
@@ -312,10 +418,14 @@ const cellKey = (group: string, offset: number, width: number): string => `${gro
 export function collectAtoms(expr: SymExpr, into: Map<string, Atom>): void {
   switch (expr.kind) {
     case "load": {
-      const atom: Atom = { base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed, index: expr.index };
+      const atom: Atom = {
+        base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed,
+        index: expr.index, outerIndex: expr.outerIndex,
+      };
       into.set(`${atomGroup(atom)}|${atom.offset}|${atom.width}|${atom.index ? canon(atom.index.expr) : ""}`, atom);
       if (expr.base) collectAtoms(expr.base, into);
       if (expr.index) collectAtoms(expr.index.expr, into);
+      if (expr.outerIndex) collectAtoms(expr.outerIndex.expr, into);
       return;
     }
     case "unary": return collectAtoms(expr.operand, into);
@@ -337,6 +447,33 @@ export interface CellUse extends Atom {
 
 /* ---- storage mapping ------------------------------------------------------ */
 
+/** Where the array an indexed access walks begins, relative to its base. */
+export function arrayStartOf(atom: Atom): number {
+  if (!atom.index || atom.index.scale <= 0) return 0;
+  return atom.offset - (((atom.offset % atom.index.scale) + atom.index.scale) % atom.index.scale);
+}
+
+const indexedKey = (base: string, arrayOffset: number): string => `${base}@${arrayOffset}`;
+
+/**
+ * A pointer to the array's first element: the base stepped forward by the
+ * array's own offset and retyped.
+ *
+ * `(T *)base` when the array starts at the base, `(T *)((u8 *)base + k)`
+ * otherwise. The byte cast is what makes the arithmetic mean bytes regardless
+ * of what the base was already typed as.
+ */
+function castArrayBase(base: CExpr, arrayOffset: number, elementTypeName: string): CExpr {
+  const pointerType = `${elementTypeName} *`;
+  if (arrayOffset === 0) return { kind: "cast", type: pointerType, expr: base };
+  return {
+    kind: "cast",
+    type: pointerType,
+    expr: { kind: "binary", op: "+", left: { kind: "cast", type: "u8 *", expr: base }, right: int(arrayOffset, true) },
+  };
+}
+
+
 export interface StorageMap {
   typedefs: string[];
   externDecls: string[];
@@ -345,11 +482,33 @@ export interface StorageMap {
   tentativeDefs: string[];
   /** Pointer-typed parameters, by register. */
   pointerParams: Map<string, string>;
+  /**
+   * Call sequence → the view-pointer type its result carries, for a callee
+   * that returns a pointer the body dereferences.
+   *
+   * The body declares one local per consumed call result; without this it
+   * would declare that local `s32` and then dereference it, which is a
+   * different program from the one the target runs.
+   */
+  callResultViews: Map<number, string>;
   /** Loop step text per induction register (`arg0++`, `arg0 += 2`), for
    *  registers whose IV group maps to a pointer whose pointee size divides
    *  the delta. A register absent here cannot be advanced in C. */
   pointerSteps: Map<string, string>;
   access: (atom: Atom) => CExpr;
+  /**
+   * Byte offset the indexed accessor already covers.
+   *
+   * `translate` turns the rest of the offset into element counts, so it must
+   * not count bytes the base expression has already stepped over — otherwise
+   * `object->tail[i]` comes out as `object->tail[i + 20]`.
+   */
+  indexBaseOffset?: (atom: Atom) => number;
+  /**
+   * The C expression for a symbolic base whose accesses are spelled as byte
+   * arithmetic rather than through a declared view — a nested subscript.
+   */
+  basePointer?: (base: SymExpr) => CExpr | undefined;
   /** Cast-form accessor for fallback plans: `*(s16 *)((u8 *)arg0 + 0x1C)`.
    *  Present when the map contains pointer-based cells and can produce raw
    *  access expressions without typed views. */
@@ -379,20 +538,47 @@ function baseDepth(expr: SymExpr): number {
  * deterministic mapping — the byte oracle judges it; alternatives can widen
  * this later if the census shows misses.
  */
+/**
+ * A private type name nothing else in the project can collide with.
+ *
+ * A view is invented for *this* function's pointer parameter, and its layout is
+ * this function's evidence — `arg0` here is not `arg0` anywhere else. A shared
+ * spelling like `ReconA0View` compiles anyway, because each candidate is its
+ * own translation unit, and then fails at the boundary where the names become
+ * project-wide: the exported m2c context sees one name referenced by three
+ * signatures with three layouts and publishes one opaque guess for all of them.
+ * Stamping the owner into the name makes the collision impossible rather than
+ * detectable.
+ */
+function viewOwnerTag(owner: string | undefined): string {
+  if (!owner) return "";
+  const address = owner.match(/([0-9A-Fa-f]{6,8})$/)?.[1];
+  return address ? address.toUpperCase() : owner.replace(/\W/g, "");
+}
+
 export function buildStorageMap(
   cells: Map<string, CellUse>,
   index: SymbolIndex,
   ivDeltas: Map<string, number> = new Map(),
+  /** The function these views belong to; stamped into every invented name. */
+  owner?: string,
 ): StorageMap | { invalid: string } | { unresolved: string } {
+  const tag = viewOwnerTag(owner);
   const typedefs: string[] = [];
   const externDecls: string[] = [];
   const tentativeDefs: string[] = [];
   const integration: string[] = [];
   const pointerParams = new Map<string, string>();
   const pointerSteps = new Map<string, string>();
+  const callResultViews = new Map<number, string>();
   const accessors = new Map<string, CExpr>();
-  /* Base accessors for indexed groups, keyed by the canonical base expression. */
+  /* Base accessors for indexed groups, keyed by base *and* the array's own
+   * start offset: one pointer can carry several arrays. */
   const indexedBaseAccessors = new Map<string, CExpr>();
+  /* How many bytes each indexed base expression already accounts for, so the
+   * subscript is computed from the remainder rather than from the whole
+   * offset. */
+  const indexedOffsets = new Map<string, number>();
 
   /* Separate cells by group. */
   const byGroup = new Map<string, CellUse[]>();
@@ -404,6 +590,7 @@ export function buildStorageMap(
   /* ---- split into absolute, plain symbolic, and indexed symbolic groups --- */
   const plainGroups: Array<{ group: string; cells: CellUse[] }> = [];
   const indexedGroups: Array<{ group: string; cells: CellUse[] }> = [];
+  const nestedGroups: Array<{ group: string; cells: CellUse[] }> = [];
   let hasSpAccess = false;
   for (const [group, groupCells] of byGroup) {
     if (group === "") { plainGroups.push({ group, cells: groupCells }); continue; }
@@ -414,7 +601,13 @@ export function buildStorageMap(
       hasSpAccess = true;
       continue;
     }
-    if (groupCells.some((cell) => cell.index)) {
+    if (groupCells.some((cell) => cell.outerIndex)) {
+      /* A nested access carries two strides. It is expressed by arithmetic on
+       * a byte pointer rather than by a declared two-dimensional type: the
+       * strides are witnessed, the extents are not, and a `T v[N][M]` would
+       * assert both. */
+      nestedGroups.push({ group, cells: groupCells });
+    } else if (groupCells.some((cell) => cell.index)) {
       indexedGroups.push({ group, cells: groupCells });
     } else {
       plainGroups.push({ group, cells: groupCells });
@@ -436,8 +629,15 @@ export function buildStorageMap(
       if (!["a0", "a1", "a2", "a3"].includes(effectiveBase.register)) {
         return { invalid: `pointer base ${canon(base)} is not an argument register` };
       }
+    } else if (effectiveBase.kind === "call-result") {
+      /* A callee returned a pointer and this function dereferenced it. The C
+       * is a local holding the call's result; refusing it excluded every
+       * "ask the helper for an object, then read a field of it" function. */
+      if (effectiveBase.register !== "v0") {
+        return { invalid: `pointer base ${canon(base)} is a call result in $${effectiveBase.register}, not the return register` };
+      }
     } else if (effectiveBase.kind !== "load") {
-      return { invalid: `pointer base ${canon(base)} is neither an argument nor a loaded pointer` };
+      return { invalid: `pointer base ${canon(base)} is neither an argument, a loaded pointer, nor a call result` };
     }
     const mergeKey = canon(effectiveBase);
     const existing = byEffectiveBase.get(mergeKey);
@@ -450,7 +650,11 @@ export function buildStorageMap(
       group,
       groups: [group],
       base: effectiveBase,
-      viewName: effectiveBase.kind === "entry" ? `Recon${effectiveBase.register.toUpperCase()}View` : `ReconPointee${viewIndex++}View`,
+      viewName: effectiveBase.kind === "entry"
+        ? `Recon${tag}${effectiveBase.register.toUpperCase()}View`
+        : effectiveBase.kind === "call-result"
+          ? `Recon${tag}CallRet${effectiveBase.seq}View`
+          : `Recon${tag}Pointee${viewIndex++}View`,
       cells: groupCells,
       depth: baseDepth(effectiveBase),
     };
@@ -472,6 +676,19 @@ export function buildStorageMap(
 
   const fieldName = (offset: number): string => `unk${offset.toString(16).toUpperCase()}`;
 
+  /**
+   * Union members, per view: `viewName` → (offset*8 + width) → member name.
+   *
+   * A mixed-width field is emitted as a union, and C requires the member to be
+   * named at every use. Recording the mapping here is what lets the accessor
+   * write `p->unk0.w4_s` instead of `p->unk0`, which does not compile.
+   */
+  const unionMembers = new Map<string, Map<number, string>>();
+  const unionSuffix = (viewName: string, cell: CellUse, offset: number): string => {
+    const member = unionMembers.get(viewName)?.get(offset * 8 + cell.width);
+    return member ? `.${member}` : "";
+  };
+
   /** Emit one view struct over a group's cells; returns the typedef text and
    *  the struct's byte size. `strideTo` pads the tail so the pointee size
    *  equals a loop induction's advance and `pointer++` walks one record.
@@ -483,7 +700,7 @@ export function buildStorageMap(
     viewName: string,
     groupCells: CellUse[],
     strideTo?: number,
-  ): { text: string; size: number } | { invalid: string } => {
+  ): { text: string; size: number; unions: Map<number, string> } | { invalid: string } => {
     const byOffset = new Map<number, CellUse[]>();
     for (const cell of groupCells) {
       const existing = byOffset.get(cell.offset);
@@ -497,6 +714,10 @@ export function buildStorageMap(
     }
     const offsets = [...byOffset.keys()].sort((a, b) => a - b);
     const lines: string[] = ["typedef struct {"];
+    /* Offsets whose field is a union, and the member name each (offset,width)
+     * access must select. A union member that is never named does not compile,
+     * and this used to be the only thing the mixed-width path produced. */
+    const unions = new Map<number, string>();
     let cursor = 0;
     for (const offset of offsets) {
       const cells = byOffset.get(offset)!;
@@ -507,12 +728,15 @@ export function buildStorageMap(
 
       /* When multiple widths exist at one offset, emit a union (E). */
       if (cells.length > 1 && cells.some((c) => c.width !== cells[0]!.width)) {
-        const unionLines = cells.map((cell) => {
+        const members = new Map<string, string>();
+        for (const cell of cells) {
           const type = cell.pointeeView ? `${cell.pointeeView} *` : elementType(cell.width, cell.signed);
-          return `        ${type}${type.endsWith("*") ? "" : " "}w${cell.width}_${cell.signed ? "s" : "u"};`;
-        });
+          const member = `w${cell.width}_${cell.signed ? "s" : "u"}`;
+          members.set(member, `        ${type}${type.endsWith("*") ? "" : " "}${member};`);
+          unions.set(offset * 8 + cell.width, member);
+        }
         lines.push(`    union {`);
-        lines.push(...unionLines);
+        lines.push(...members.values());
         lines.push(`    } unk${offset.toString(16).toUpperCase()};`);
         const maxWidth = Math.max(...cells.map((c) => c.width));
         cursor = offset + maxWidth;
@@ -531,7 +755,7 @@ export function buildStorageMap(
       }
     }
     lines.push("}");
-    return { text: `${lines.join("\n")} ${viewName};`, size: cursor };
+    return { text: `${lines.join("\n")} ${viewName};`, size: cursor, unions };
   };
 
   /* Symbolic groups: parameter pointers and loaded pointers. Their accessors
@@ -550,6 +774,7 @@ export function buildStorageMap(
       if (!accessor) return { invalid: `no accessor yet for pointer base ${canon(base)}` };
       return accessor;
     }
+    if (base.kind === "call-result") return id(`callRet${base.seq}`);
     return { invalid: `unsupported pointer base ${canon(base)}` };
   };
 
@@ -578,6 +803,7 @@ export function buildStorageMap(
     if ("invalid" in typedef) return typedef;
     typedefs.push(typedef.text);
     viewSizes.set(symbolicGroup.viewName, typedef.size);
+    unionMembers.set(symbolicGroup.viewName, typedef.unions);
   }
 
   for (const group of [...absoluteBySymbol.values()].sort((a, b) => a.base - b.base)) {
@@ -594,17 +820,21 @@ export function buildStorageMap(
       continue;
     }
 
-    const viewName = `Recon${group.symbol.replace(/\W/g, "")}View`;
+    const viewName = `Recon${tag}${group.symbol.replace(/\W/g, "")}View`;
     const shifted = group.cells.map((cell) => ({ ...cell, offset: cell.offset - group.base }));
     const typedef = viewTypedef(viewName, shifted);
     if ("invalid" in typedef) return typedef;
     typedefs.push(typedef.text);
+    unionMembers.set(viewName, typedef.unions);
     if (group.viaGp) {
       tentativeDefs.push(`${viewName} ${group.symbol};`);
       integration.push(`${group.symbol} is $gp-relative small data; the view type and tentative definition must live with its owning translation unit`);
       for (const cell of group.cells) {
         accessors.set(cellKey("", cell.offset, cell.width), {
-          kind: "member", base: id(group.symbol), field: fieldName(cell.offset - group.base), arrow: false,
+          kind: "member",
+          base: id(group.symbol),
+          field: `${fieldName(cell.offset - group.base)}${unionSuffix(viewName, cell, cell.offset - group.base)}`,
+          arrow: false,
         });
       }
     } else {
@@ -614,7 +844,7 @@ export function buildStorageMap(
         accessors.set(cellKey("", cell.offset, cell.width), {
           kind: "member",
           base: { kind: "cast", type: `${viewName} *`, expr: id(group.symbol) },
-          field: fieldName(cell.offset - group.base),
+          field: `${fieldName(cell.offset - group.base)}${unionSuffix(viewName, cell, cell.offset - group.base)}`,
           arrow: true,
         });
       }
@@ -631,6 +861,9 @@ export function buildStorageMap(
     if (symbolicGroup.base.kind === "entry") {
       pointerParams.set(symbolicGroup.base.register, `${symbolicGroup.viewName} *`);
       integration.push(`the ${symbolicGroup.base.register} parameter is a ${symbolicGroup.viewName} pointer; move the typedef to the shared type header`);
+    } else if (symbolicGroup.base.kind === "call-result") {
+      callResultViews.set(symbolicGroup.base.seq, `${symbolicGroup.viewName} *`);
+      integration.push(`the call at sequence ${symbolicGroup.base.seq} returns a ${symbolicGroup.viewName} pointer; declare the callee's return type accordingly`);
     } else {
       integration.push(`the ${symbolicGroup.viewName} typedef belongs in the shared type header`);
     }
@@ -638,7 +871,7 @@ export function buildStorageMap(
       accessors.set(cellKey(atomGroup(cell), cell.offset, cell.width), {
         kind: "member",
         base: lvalue,
-        field: fieldName(cell.offset),
+        field: `${fieldName(cell.offset)}${unionSuffix(symbolicGroup.viewName, cell, cell.offset)}`,
         arrow: true,
       });
     }
@@ -657,85 +890,148 @@ export function buildStorageMap(
     }
   }
 
+  /* ---- nested groups: a subscript inside a subscript ----------------------- */
+  /*
+   * The base still has to be typed — an argument, a loaded pointer, a call
+   * result — because the arithmetic starts from it. Nothing else is declared:
+   * `translate` builds the whole address from the witnessed strides, which is
+   * the only spelling that claims exactly what the target proves.
+   */
+  const nestedBases = new Map<string, CExpr>();
+  for (const { group, cells: groupCells } of nestedGroups) {
+    const base = groupCells[0]!.base;
+    if (!base) return { invalid: `nested indexed group ${group} has no base` };
+    const effectiveBase = base.kind === "iv" ? { kind: "entry" as const, register: base.register } : base;
+    if (effectiveBase.kind === "entry") {
+      const idx = ["a0", "a1", "a2", "a3"].indexOf(effectiveBase.register);
+      if (idx < 0) return { invalid: `nested indexed base ${canon(base)} is not an argument register` };
+      nestedBases.set(canon(base), id(`arg${idx}`));
+      integration.push(`the ${effectiveBase.register} parameter carries a nested array; its strides are witnessed, its extents are not`);
+      continue;
+    }
+    if (effectiveBase.kind === "const") {
+      const resolved = resolveAddress(index, effectiveBase.value >>> 0);
+      if (!resolved) return { unresolved: `no label covers the nested array base at 0x${(effectiveBase.value >>> 0).toString(16)}` };
+      externDecls.push(`extern u8 ${resolved.symbol}[];`);
+      nestedBases.set(canon(base), id(resolved.symbol));
+      integration.push(`${resolved.symbol} carries a nested array reached by byte arithmetic`);
+      continue;
+    }
+    const lvalue = baseLvalue(effectiveBase);
+    if (!("kind" in lvalue)) return lvalue;
+    nestedBases.set(canon(base), lvalue);
+    integration.push(`${canon(effectiveBase)} carries a nested array; its strides are witnessed, its extents are not`);
+  }
+
   /* ---- indexed groups: array access --------------------------------------- */
+  /*
+   * An indexed access reads `base + scale*index + offset`. The offset splits
+   * in exactly one way that is always meaningful:
+   *
+   *     arrayOffset = offset - (offset mod scale)   the array's own start
+   *     elemOffset  = offset mod scale              a field inside one element
+   *
+   * Requiring `offset < scale` — which is what this used to do — asserts that
+   * every indexed access starts at the base, and refused the ordinary shape
+   * `object->halfwords[i]`, where the array is a member at a constant offset.
+   * Splitting instead of refusing costs nothing and is exact: both readings
+   * produce the same address, and the split is forced by the arithmetic.
+   *
+   * The array's extent is deliberately never declared. A pointer cast at the
+   * array's own start says exactly what the target says — "elements of this
+   * width live here" — where a struct member `T field[N]` would additionally
+   * assert an N nothing witnessed.
+   */
   for (const { group, cells: groupCells } of indexedGroups) {
     const base = groupCells[0]!.base!;
     if (!groupCells[0]!.index) {
       return { invalid: `indexed group ${group} has no index on its first cell` };
     }
     const scale = groupCells[0]!.index!.scale;
-
-    /* Validate: all offsets must be < scale (within element) or multiples of scale (next element). */
+    if (scale <= 0) return { invalid: `indexed group ${group} has a non-positive scale ${scale}` };
     for (const cell of groupCells) {
-      if (cell.offset < 0 || cell.offset >= scale) {
-        return { invalid: `indexed group ${group} has offset 0x${cell.offset.toString(16)} >= scale ${scale}` };
+      if (cell.offset < 0) {
+        return { invalid: `indexed group ${group} has a negative offset ${cell.offset}` };
+      }
+      if (cell.index && cell.index.scale !== scale) {
+        return { invalid: `indexed group ${group} mixes strides ${scale} and ${cell.index.scale}` };
       }
     }
 
-    /* Determine if plain array or struct array. */
-    const offsets = [...new Set(groupCells.map((c) => c.offset))].sort((a, b) => a - b);
-    const isSimple = offsets.length === 1 && offsets[0] === 0;
-
-    /* Resolve the base expression. */
-    let baseExpr: CExpr | { invalid: string } | undefined;
-    if (base.kind === "entry") {
-      const idx = ["a0", "a1", "a2", "a3"].indexOf(base.register);
-      if (idx < 0) return { invalid: `indexed base ${canon(base)} is not an argument register` };
-      if (isSimple) {
-        const elemType = elementType(groupCells[0]!.width, groupCells[0]!.signed);
-        pointerParams.set(base.register, `${elemType} *`);
-        integration.push(`the ${base.register} parameter is a ${elemType} array pointer`);
-      } else {
-        /* Struct array: emit a view typedef with stride = scale. */
-        const viewName = `Recon${base.register.toUpperCase()}ArrView`;
-        const typedefResult = viewTypedef(viewName, groupCells);
-        if ("invalid" in typedefResult) return typedefResult;
-        typedefs.push(typedefResult.text);
-        pointerParams.set(base.register, `${viewName} *`);
-        integration.push(`the ${base.register} parameter is a ${viewName} array pointer; move to shared type header`);
-      }
-      baseExpr = id(`arg${idx}`);
-    } else if (base.kind === "const") {
-      /* Absolute base: resolve the address as a symbol. */
-      const resolved = resolveAddress(index, base.value >>> 0);
-      if (!resolved) return { unresolved: `no label covers the array base at 0x${(base.value >>> 0).toString(16)}` };
-      const viaGp = false; /* Absolute bases are not gp-relative. */
-      if (isSimple) {
-        const elemType = elementType(groupCells[0]!.width, groupCells[0]!.signed);
-        externDecls.push(`extern ${elemType} ${resolved.symbol}[];`);
-        integration.push(`${resolved.symbol} is an array of ${elemType}`);
-      } else {
-        const viewName = `Recon${resolved.symbol.replace(/\W/g, "")}ArrView`;
-        const typedefResult = viewTypedef(viewName, groupCells);
-        if ("invalid" in typedefResult) return typedefResult;
-        typedefs.push(typedefResult.text);
-        externDecls.push(`extern ${viewName} ${resolved.symbol}[];`);
-        integration.push(`${resolved.symbol} is a ${viewName} array`);
-      }
-      baseExpr = id(resolved.symbol);
-    } else if (base.kind === "load") {
-      /* Loaded pointer: need the accessor from the loaded cell. */
-      const accessorKey = cellKey(base.base ? canon(base.base) : "", base.address, base.width);
-      const loadedAccessor = accessors.get(accessorKey);
-      if (!loadedAccessor) {
-        return { invalid: `no accessor for the loaded pointer base ${canon(base)}` };
-      }
-      if (isSimple) {
-        integration.push(`indexed access through loaded pointer ${canon(base)}, typed ${elementType(groupCells[0]!.width, groupCells[0]!.signed)} array`);
-      } else {
-        integration.push(`indexed struct access through loaded pointer ${canon(base)}`);
-      }
-      baseExpr = loadedAccessor;
-    } else {
-      return { invalid: `indexed base ${canon(base)} is not an entry, const, or load` };
-    }
-    if (!baseExpr || "invalid" in baseExpr) return baseExpr as unknown as { invalid: string };
-
-    indexedBaseAccessors.set(canon(base), baseExpr);
-
-    /* Store accessors for every cell in this indexed group. */
+    /* One array per distinct start offset: `p[i]` and `p->tail[i]` are two
+     * arrays through one pointer, and merging them would misplace both. */
+    const byArrayOffset = new Map<number, CellUse[]>();
     for (const cell of groupCells) {
-      accessors.set(cellKey(group, cell.offset, cell.width), baseExpr);
+      const arrayOffset = cell.offset - (cell.offset % scale);
+      byArrayOffset.set(arrayOffset, [...(byArrayOffset.get(arrayOffset) ?? []), cell]);
+    }
+
+    /* Whether this base already has a non-indexed view. When it does, the
+     * parameter (or local) is already typed, and the array is reached from
+     * that pointer rather than by retyping it. */
+    const effectiveBase = base.kind === "iv" ? { kind: "entry" as const, register: base.register } : base;
+    const plainGroup = byEffectiveBase.get(canon(effectiveBase));
+
+    for (const [arrayOffset, cells] of [...byArrayOffset.entries()].sort((a, b) => a[0] - b[0])) {
+      const elemOffsets = [...new Set(cells.map((cell) => cell.offset % scale))].sort((a, b) => a - b);
+      const isSimple = elemOffsets.length === 1 && elemOffsets[0] === 0;
+      const elemType = elementType(cells[0]!.width, cells[0]!.signed);
+
+      /* The element type: the scalar itself when the element is one cell, a
+       * view struct padded to the stride when it holds several fields. */
+      let elementTypeName = elemType;
+      if (!isSimple) {
+        const viewName = `Recon${tag}Arr${arrayOffset.toString(16).toUpperCase()}_${scale}View`;
+        const rebased = cells.map((cell) => ({ ...cell, offset: cell.offset % scale }));
+        const typedefResult = viewTypedef(viewName, rebased, scale);
+        if ("invalid" in typedefResult) return typedefResult;
+        typedefs.push(typedefResult.text);
+        unionMembers.set(viewName, typedefResult.unions);
+        elementTypeName = viewName;
+        integration.push(`the ${viewName} element type belongs in the shared type header; its stride ${scale} is witnessed, its element count is not`);
+      } else if (cells[0]!.width !== scale) {
+        /* A stride wider than the element means the access skips bytes the
+         * target never touched — real, but not an array of this scalar. */
+        integration.push(`the array at +0x${arrayOffset.toString(16)} is read ${cells[0]!.width} byte(s) at a stride of ${scale}; the element type is a hypothesis`);
+      }
+
+      /* The base expression the subscript applies to. */
+      let baseExpr: CExpr;
+      if (plainGroup === undefined && base.kind === "entry" && arrayOffset === 0) {
+        const idx = ["a0", "a1", "a2", "a3"].indexOf(base.register);
+        if (idx < 0) return { invalid: `indexed base ${canon(base)} is not an argument register` };
+        pointerParams.set(base.register, `${elementTypeName} *`);
+        integration.push(`the ${base.register} parameter is a ${elementTypeName} array pointer`);
+        baseExpr = id(`arg${idx}`);
+      } else if (plainGroup === undefined && base.kind === "const") {
+        const resolved = resolveAddress(index, base.value >>> 0);
+        if (!resolved) return { unresolved: `no label covers the array base at 0x${(base.value >>> 0).toString(16)}` };
+        if (arrayOffset === 0 && resolved.offset === 0) {
+          externDecls.push(`extern ${elementTypeName} ${resolved.symbol}[];`);
+          integration.push(`${resolved.symbol} is an array of ${elementTypeName}`);
+          baseExpr = id(resolved.symbol);
+        } else {
+          externDecls.push(`extern u8 ${resolved.symbol}[];`);
+          integration.push(`${resolved.symbol} carries a ${elementTypeName} array at +0x${(arrayOffset + resolved.offset).toString(16)}`);
+          baseExpr = castArrayBase(id(resolved.symbol), arrayOffset + resolved.offset, elementTypeName);
+        }
+      } else {
+        /* Reached through an already-typed pointer: an argument, a loaded
+         * pointer, a call result, or a base with its own view. */
+        const lvalue = baseLvalue(effectiveBase);
+        if (!("kind" in lvalue)) return lvalue;
+        baseExpr = castArrayBase(lvalue, arrayOffset, elementTypeName);
+        integration.push(
+          `the array of ${elementTypeName} at +0x${arrayOffset.toString(16)} of ${canon(effectiveBase)} is reached by cast; ` +
+          `its element count is not witnessed`,
+        );
+      }
+
+      indexedBaseAccessors.set(indexedKey(canon(base), arrayOffset), baseExpr);
+      indexedOffsets.set(indexedKey(canon(base), arrayOffset), arrayOffset);
+      for (const cell of cells) {
+        accessors.set(cellKey(group, cell.offset, cell.width), baseExpr);
+      }
     }
   }
 
@@ -745,12 +1041,22 @@ export function buildStorageMap(
     tentativeDefs,
     pointerParams,
     pointerSteps,
+    callResultViews,
+    indexBaseOffset: (atom) => (atom.index && !atom.outerIndex ? arrayStartOf(atom) : 0),
+    basePointer: (base) => nestedBases.get(canon(base)),
     integration,
     access: (atom) => {
+      if (atom.outerIndex) {
+        /* Built by `translate`, which is where the subscript expressions are
+         * available; the map only supplies the base pointer. */
+        throw new Error(`nested indexed access at ${atomGroup(atom)} is built by translate, not by the accessor table`);
+      }
       if (atom.index) {
-        /* Indexed access: return the base expression; translate adds the subscript. */
-        const baseExpr = indexedBaseAccessors.get(canon(atom.base!));
-        if (!baseExpr) throw new Error(`no indexed base for ${canon(atom.base!)}`);
+        /* Indexed access: return the base expression; translate adds the
+         * subscript, minus whatever the base expression already covers. */
+        const key = indexedKey(canon(atom.base!), arrayStartOf(atom));
+        const baseExpr = indexedBaseAccessors.get(key);
+        if (!baseExpr) throw new Error(`no indexed base for ${canon(atom.base!)} at +0x${arrayStartOf(atom).toString(16)}`);
         return baseExpr;
       }
       const found = accessors.get(cellKey(atomGroup(atom), atom.offset, atom.width));
@@ -804,7 +1110,14 @@ export function buildStorageMap(
 export interface ParamPlan {
   params: Array<{ name: string; type: string; register: string }>;
   absorbed: Map<string, UnaryOp>;
+  /** Pointer parameters the body also reads as plain values; cast at use. */
+  pointerValueUses?: Set<string>;
   label: string;
+}
+
+/** The plan's pointer-typed parameter names, for pointer-ness of an expression. */
+export function pointerParamNames(plan: ParamPlan): Set<string> {
+  return new Set(plan.params.filter((param) => param.type.trim().endsWith("*")).map((param) => param.name));
 }
 
 const ARG_ORDER = ["a0", "a1", "a2", "a3"];
@@ -830,6 +1143,14 @@ function argumentUses(exprs: SymExpr[]): Map<string, Set<UnaryOp | "raw">> {
       case "binary":
         walk(expr.left);
         walk(expr.right);
+        return;
+      case "load":
+        /* A subscript is a value use: `p[i]` reads `i` as a number. The base
+         * is not — `p` is dereferenced, not read — so it is descended into
+         * only past a bare register, where a deeper subscript may hide. */
+        if (expr.index) walk(expr.index.expr);
+        if (expr.outerIndex) walk(expr.outerIndex.expr);
+        if (expr.base && expr.base.kind !== "entry" && expr.base.kind !== "iv") walk(expr.base);
         return;
       default: return;
     }
@@ -858,6 +1179,11 @@ function callArgOnlyRegisters(exprs: SymExpr[], effects: Effect[]): Set<string> 
       case "unary": walkValue(expr.operand); return;
       case "binary": walkValue(expr.left); walkValue(expr.right); return;
       case "call-result": return;
+      case "load":
+        if (expr.index) walkValue(expr.index.expr);
+        if (expr.outerIndex) walkValue(expr.outerIndex.expr);
+        if (expr.base && expr.base.kind !== "entry" && expr.base.kind !== "iv") walkValue(expr.base);
+        return;
       default: return;
     }
   };
@@ -872,7 +1198,8 @@ function callArgOnlyRegisters(exprs: SymExpr[], effects: Effect[]): Set<string> 
   const callArgRegs = new Set<string>();
   for (const effect of effects) {
     if (effect.kind !== "call") continue;
-    for (const arg of effect.args) {
+    for (const arg of abiArguments(effect)) {
+      if (arg === null) continue;
       const walkArg = (e: SymExpr): void => {
         if (e.kind === "entry" && ARG_ORDER.includes(e.register)) callArgRegs.add(e.register);
         if (e.kind === "unary") walkArg(e.operand);
@@ -898,10 +1225,27 @@ export function deriveParamPlans(
 ): ParamPlan[] | { invalid: string } {
   const uses = argumentUses(exprs);
   const callArgOnly = effects ? callArgOnlyRegisters(exprs, effects) : new Set<string>();
+  /*
+   * A pointer parameter the body also uses as a value is ordinary C — storing
+   * a pointer in a field, passing it on, comparing it against null. Refusing
+   * it excluded a whole family of state handlers, each of which stores its own
+   * argument somewhere. The value uses are recorded instead, and `translate`
+   * casts at those sites; the pointer and the integer are the same register
+   * value, so the cast costs no instruction.
+   *
+   * A *narrowing* use is different and still refused: a parameter the body
+   * sign-extends from sixteen bits is not a pointer at all, and typing it as
+   * one would be a claim the machine contradicts.
+   */
+  const pointerValueUses = new Set<string>();
   for (const register of pointerParams.keys()) {
-    if (uses.has(register) && !callArgOnly.has(register)) {
-      return { invalid: `${register} is used both as a pointer base and as a value` };
+    const registerUses = uses.get(register);
+    if (!registerUses || callArgOnly.has(register)) continue;
+    const narrowing = [...registerUses].filter((use) => use !== "raw");
+    if (narrowing.length > 0) {
+      return { invalid: `${register} is a pointer base but the body narrows it (${narrowing.join(", ")})` };
     }
+    pointerValueUses.add(register);
   }
   const used = ARG_ORDER.filter((register) => uses.has(register) || pointerParams.has(register));
   if (used.length === 0) return [{ params: [], absorbed: new Map(), label: "no-args" }];
@@ -942,6 +1286,7 @@ export function deriveParamPlans(
       register,
     })),
     absorbed: plan.absorbed,
+    ...(pointerValueUses.size > 0 ? { pointerValueUses } : {}),
     label: registers.map((register) => (plan.types.get(register) ?? "s32").replace(/[^A-Za-z0-9]+/g, "p"),).join("-"),
   }));
 }
@@ -971,6 +1316,64 @@ function collectArgRegs(expr: SymExpr, into: Set<string>): void {
   }
 }
 
+/**
+ * A nested subscript, spelled as byte arithmetic on the base pointer.
+ *
+ * `*(u16 *)((u8 *)base + i * 40 + j * 2 + 4)` says exactly what the machine
+ * says: two witnessed strides and a witnessed offset, from a pointer the
+ * evidence types. The alternative — declaring `struct { ...; u16 row[M]; } v[N]`
+ * — would additionally assert an N and an M that no access witnesses, which is
+ * the standalone-array mistake in two dimensions.
+ */
+function nestedAccess(
+  expr: SymExpr & { kind: "load" },
+  base: SymExpr,
+  outerIndex: { expr: SymExpr; scale: number },
+  innerIndex: { expr: SymExpr; scale: number } | undefined,
+  map: StorageMap,
+  plan: ParamPlan,
+  temps: Map<string, string>,
+): CExpr {
+  const basePointer = map.basePointer?.(base);
+  if (!basePointer) throw new Error(`no base pointer for the nested access at ${canon(base)}`);
+  let address: CExpr = { kind: "cast", type: "u8 *", expr: basePointer };
+  const addTerm = (term: CExpr): void => {
+    address = { kind: "binary", op: "+", left: address, right: term };
+  };
+  const scaled = (subscript: { expr: SymExpr; scale: number }): CExpr => {
+    /* A subscript the compiler expanded into shifts and adds is written back
+     * as the multiplication it came from, and folded into the stride: the
+     * source said `i * 40`, not `((i << 2) + i) * 8`. */
+    const recognized = recognizeConstantMultiply(subscript.expr);
+    const inner = recognized ? recognized.operand : subscript.expr;
+    const factor = (recognized ? recognized.factor : 1) * subscript.scale;
+    const translated = translate(inner, map, plan, temps);
+    return factor === 1
+      ? translated
+      : { kind: "binary", op: "*", left: translated, right: int(factor) };
+  };
+  addTerm(scaled(outerIndex));
+  if (innerIndex) addTerm(scaled(innerIndex));
+  if (expr.address !== 0) addTerm(int(expr.address, true));
+  const pointerType = `${elementType(expr.width, expr.signed)} *`;
+  return { kind: "unaryop", op: "*", expr: { kind: "cast", type: pointerType, expr: address } };
+}
+
+/**
+ * A parameter read in a value context.
+ *
+ * A pointer parameter the body also treats as a number is spelled with an
+ * explicit cast rather than left to an implicit conversion: the cast emits no
+ * instruction, and it is the difference between source that states what it is
+ * doing and source that relies on the compiler not to complain.
+ */
+function asValue(param: { name: string; type: string; register: string }, plan: ParamPlan): CExpr {
+  if (plan.pointerValueUses?.has(param.register) && param.type.trim().endsWith("*")) {
+    return { kind: "cast", type: "s32", expr: id(param.name) };
+  }
+  return id(param.name);
+}
+
 export function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps: Map<string, string>): CExpr {
   /* A hoisted subexpression (D5 declared-temp axis) is one name. */
   const temp = temps.get(canon(expr));
@@ -983,7 +1386,7 @@ export function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps
     case "entry": {
       const param = plan.params.find((entry) => entry.register === expr.register);
       if (!param) throw new Error(`entry value of ${expr.register} reaches the result but is not a parameter`);
-      return id(param.name);
+      return asValue(param, plan);
     }
     case "iv": {
       /* IV expressions (D7) represent the induction variable's value at the
@@ -991,40 +1394,49 @@ export function translate(expr: SymExpr, map: StorageMap, plan: ParamPlan, temps
        * register — the loop body's pointer increments represent the advance. */
       const param = plan.params.find((entry) => entry.register === expr.register);
       if (!param) throw new Error(`entry value of ${expr.register} (iv) reaches the result but is not a parameter`);
-      return id(param.name);
+      return asValue(param, plan);
     }
     case "load": {
       const temp = temps.get(canon({ ...expr, epoch: undefined }));
       if (temp) return id(temp);
-      const baseAccess = map.access({ base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed });
+      if (expr.outerIndex && expr.base) {
+        return nestedAccess(expr, expr.base, expr.outerIndex, expr.index, map, plan, temps);
+      }
+      /* The index travels with the atom: it is what tells the map which of a
+       * base's arrays this access walks, and dropping it made every indexed
+       * read look like a plain field read at the same offset. */
+      const baseAccess = map.access({
+        base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed,
+        ...(expr.index ? { index: expr.index } : {}),
+      });
       if (expr.index) {
         const idxExpr = translate(expr.index.expr, map, plan, temps);
-        /* When the offset is non-zero within the stride, it is a struct field access. */
-        if (expr.address !== 0 && expr.index.scale > 1) {
-          const elemOffset = expr.address % expr.index.scale;
-          const elemIndex = Math.floor(expr.address / expr.index.scale);
-          if (elemOffset !== 0) {
-            /* Struct array: base[idx + N].field */
-            const adjustedIdx: CExpr = elemIndex === 0
-              ? idxExpr
-              : { kind: "binary", op: "+", left: idxExpr, right: int(elemIndex) };
-            return {
-              kind: "member",
-              base: { kind: "index", base: baseAccess, index: adjustedIdx },
-              field: `unk${elemOffset.toString(16).toUpperCase()}`,
-              arrow: false,
-            };
-          }
+        /* The base expression already steps to the array's own start; only
+         * the remainder becomes a subscript and a field. */
+        const atom: Atom = {
+          base: expr.base, offset: expr.address, width: expr.width, signed: expr.signed, index: expr.index,
+        };
+        const covered = map.indexBaseOffset?.(atom) ?? 0;
+        const remaining = expr.address - covered;
+        const elemOffset = expr.index.scale > 0 ? remaining % expr.index.scale : remaining;
+        const elemIndex = expr.index.scale > 0 ? Math.floor(remaining / expr.index.scale) : 0;
+        if (elemOffset !== 0) {
+          /* A field inside one element: base[idx + N].field */
+          const adjustedIdx: CExpr = elemIndex === 0
+            ? idxExpr
+            : { kind: "binary", op: "+", left: idxExpr, right: int(elemIndex) };
+          return {
+            kind: "member",
+            base: { kind: "index", base: baseAccess, index: adjustedIdx },
+            field: `unk${elemOffset.toString(16).toUpperCase()}`,
+            arrow: false,
+          };
         }
-        /* Plain array: base[idx + offset/scale] */
-        if (expr.address !== 0) {
-          const offsetElements = expr.address / expr.index.scale;
-          if (offsetElements !== 0) {
-            return {
-              kind: "index", base: baseAccess,
-              index: { kind: "binary", op: "+", left: idxExpr, right: int(offsetElements) },
-            };
-          }
+        if (elemIndex !== 0) {
+          return {
+            kind: "index", base: baseAccess,
+            index: { kind: "binary", op: "+", left: idxExpr, right: int(elemIndex) },
+          };
         }
         return { kind: "index", base: baseAccess, index: idxExpr };
       }
@@ -1123,18 +1535,38 @@ export function constructEffectCandidates(
   /* Pre-compute which call results are consumed and whether the function is
    * a void wrapper around a void callee (CR atom from jr liveness, not a
    * real return value). */
+  /*
+   * A call's *result* is `$v0`, and only `$v0`.
+   *
+   * The executor marks every caller-saved register a call clobbers with a
+   * `call-result` atom, because after the call none of them holds what it held
+   * before. That is the right model of the machine and the wrong thing to read
+   * as consumption: the next call's `$a0` slot is full of the previous call's
+   * clobber atom, so counting any `call-result` here reports the earlier call's
+   * result as consumed by the later one. The consequences are not cosmetic —
+   * the candidate declares a temporary and assigns a value nothing reads, and a
+   * callee correctly declared `void` makes the whole hypothesis invalid,
+   * refusing a function whose weaker-evidence spelling reconstructs exactly.
+   */
   const consumedCalls = new Set<number>();
   const walkCR = (expr: SymExpr): void => {
-    if (expr.kind === "call-result") consumedCalls.add(expr.seq);
+    if (expr.kind === "call-result" && expr.register === "v0") consumedCalls.add(expr.seq);
   };
   const walkAll = (expr: SymExpr): void => {
     walkCR(expr);
     if (expr.kind === "unary") walkAll(expr.operand);
     else if (expr.kind === "binary") { walkAll(expr.left); walkAll(expr.right); }
+    else if (expr.kind === "load") {
+      /* A call result used as a *pointer base* is consumed just as surely as
+       * one used as a value; not descending here left the body with no local
+       * to hold the pointer it then dereferenced. */
+      if (expr.base) walkAll(expr.base);
+      if (expr.index) walkAll(expr.index.expr);
+    }
   };
   for (const effect of relation.effects) {
     if (effect.kind === "call") {
-      for (const arg of effect.args) walkAll(arg);
+      for (const arg of abiArguments(effect)) { if (arg) walkAll(arg); }
     } else {
       walkAll(effect.value);
     }
@@ -1152,7 +1584,7 @@ export function constructEffectCandidates(
   const atoms = new Map<string, Atom>();
   for (const effect of relation.effects) {
     if (effect.kind === "call") {
-      for (const arg of effect.args) collectAtoms(arg, atoms);
+      for (const arg of abiArguments(effect)) { if (arg) collectAtoms(arg, atoms); }
     } else {
       collectAtoms(effect.value, atoms);
       if (effect.base) collectAtoms(effect.base, atoms);
@@ -1191,7 +1623,7 @@ export function constructEffectCandidates(
   }
 
   const index = loadSymbolIndex(container);
-  const map = buildStorageMap(cells, index);
+  const map = buildStorageMap(cells, index, new Map(), functionName);
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
@@ -1208,8 +1640,18 @@ export function constructEffectCandidates(
         calleeName: spec.calleeName,
         returnsValue: spec.returnsValue,
         returnType: spec.returnsValue ? "s32" : "void",
+        /* An inferred arity carries no declared types: the hypothesis is
+         * about how many arguments there are, not what they are. */
+        paramTypes: [],
         source: "abi" as CalleeSignature["source"],
       });
+    }
+    /* A callee whose result this function dereferences returns a pointer.
+     * Declaring it `s32` and assigning that to a pointer local is an implicit
+     * conversion the draft should not contain — the evidence says pointer. */
+    for (const [seq] of map.callResultViews) {
+      const cap = callCaps.get(seq);
+      if (cap && cap.returnsValue) callCaps.set(seq, { ...cap, returnType: "void *" });
     }
     let isVoidLocal = isVoid;
 
@@ -1238,15 +1680,27 @@ export function constructEffectCandidates(
     }
     if (comboInvalid) continue;
 
-    /* Compute exprs with proper arg trimming for this combo's arity choices. */
+    /* Compute exprs under this combo's arity choices. An arity whose
+     * arguments the caller never established is not a hypothesis the target
+     * supports; the combo is dropped rather than completed with zeros. */
+    let argumentsMissing: string | undefined;
     const exprs = [...relation.effects.flatMap((effect) => {
       if (effect.kind === "call") {
         const cap = callCaps.get(effect.seq);
-        const args = cap ? effect.args.slice(0, cap.arity) : effect.args;
-        return args;
+        if (!cap) return abiArguments(effect).filter((arg): arg is SymExpr => arg !== null);
+        const selected = argumentsForArity(effect, cap.arity);
+        if ("missing" in selected) {
+          argumentsMissing = `${cap.calleeName} takes ${cap.arity} argument(s) but the caller never established slot(s) ${selected.missing.join(", ")}`;
+          return [];
+        }
+        return selected.args;
       }
       return [effect.value];
     }), ...(isVoidLocal ? [] : [relation.returnValue])];
+    if (argumentsMissing !== undefined) {
+      errors.push(argumentsMissing);
+      continue;
+    }
     const plans = deriveParamPlans(exprs, map.pointerParams, relation.effects);
     if ("invalid" in plans) continue;
 
@@ -1406,23 +1860,29 @@ export function constructEffectCandidates(
             for (const [canonKey, tempName] of callResultTemps) {
               const seq = Number(canonKey.slice(3, canonKey.indexOf(",")));
               const cap = callCaps.get(seq);
-              body.push({
-                kind: "declare",
-                type: cap ? (cap.returnType === "void" ? "s32" : cap.returnType) : "s32",
-                name: tempName,
-              });
+              /* A result the body dereferences is a pointer to the view the
+               * storage map built for it; anything else takes the callee's
+               * declared return type, in a form a candidate can name. */
+              const viewType = map.callResultViews.get(seq);
+              const declaredType = viewType
+                ?? (cap && cap.returnType !== "void" ? expressibleType(cap.returnType) ?? "s32" : "s32");
+              body.push({ kind: "declare", type: declaredType, name: tempName });
               temps.set(canonKey, tempName);
             }
             for (const effect of relation.effects) {
               if (effect.kind === "call") {
                 const cap = callCaps.get(effect.seq);
                 const calleeName = effect.calleeName ?? effect.callee;
-                const capturedArgs = cap ? effect.args.slice(0, cap.arity) : effect.args;
-                /* Pad with zeros when the real arity exceeds captured args. */
-                const paddedArgs: SymExpr[] = cap && cap.arity > effect.args.length
-                  ? [...capturedArgs, ...Array.from({ length: cap.arity - effect.args.length }, () => ({ kind: "const", value: 0 } as SymExpr))]
-                  : capturedArgs;
-                const args = paddedArgs.map((arg) => {
+                /* The complete ABI list, trimmed to the resolved arity. A
+                 * slot the caller never wrote fails the candidate — it is
+                 * never completed with a zero it would not have passed. */
+                const selected = cap
+                  ? argumentsForArity(effect, cap.arity)
+                  : { args: abiArguments(effect).filter((arg): arg is SymExpr => arg !== null) };
+                if ("missing" in selected) {
+                  throw new Error(`${calleeName} argument slot(s) ${selected.missing.join(", ")} were never established`);
+                }
+                const args = selected.args.map((arg, slot) => {
                   if (arg.kind === "const") {
                     const resolved = resolveAddress(index, arg.value >>> 0);
                     if (resolved && resolved.offset === 0) {
@@ -1430,7 +1890,15 @@ export function constructEffectCandidates(
                       return { kind: "cast", type: "s32", expr: { kind: "unaryop", op: "&", expr: id(resolved.symbol) } } as CExpr;
                     }
                   }
-                  return translate(arg, map, plan, temps);
+                  /* The conversion C89 requires between an integer and the
+                   * pointer the callee declares; the cast names the declared
+                   * type in its expressible form, as the prototype does. */
+                  const declared = cap?.paramTypes?.[slot];
+                  return castForParameter(
+                    translate(arg, map, plan, temps),
+                    declared === undefined ? undefined : (expressibleType(declared) ?? undefined),
+                    pointerParamNames(plan),
+                  );
                 });
                 const consumed = callResultTemps.get(`CR(${effect.seq},v0)`);
                 if (consumed) {
@@ -1447,9 +1915,13 @@ export function constructEffectCandidates(
                 });
               }
             }
-            if (!isVoidLocal) body.push({ kind: "return", expr: translate(relation.returnValue, map, plan, temps) });
-          } catch {
-            errors.push("body construction failed");
+            if (!isVoidLocal) {
+              body.push({ kind: "return", expr: castForParameter(translate(relation.returnValue, map, plan, temps), "s32", pointerParamNames(plan)) });
+            }
+          } catch (error) {
+            /* The message is the finding. "body construction failed" told a
+             * reader nothing and made every distinct gap look like one gap. */
+            errors.push(`body construction failed: ${error instanceof Error ? error.message : String(error)}`);
             continue;
           }
 
@@ -1457,7 +1929,12 @@ export function constructEffectCandidates(
             plan.params.length === 0 ? "void" : plan.params.map((param) => `${param.type}${param.type.endsWith("*") ? "" : " "}${param.name}`).join(", ")
           })`;
 
-          const calleeDecls = calleeDeclarations(callCaps);
+          const declared = calleeDeclarations(callCaps);
+          if ("invalid" in declared) {
+            errors.push(declared.invalid);
+            continue;
+          }
+          const calleeDecls = declared;
 
           const source = [
             context === "umbrella" ? `#include "common.h"` : STANDALONE_TYPEDEF_BLOCK,
@@ -1609,7 +2086,8 @@ export function constructGuardedCandidates(
   for (const ref of leafRefs) {
     for (const effect of sourceEffects.get(ref) ?? []) {
       if (effect.kind === "call") {
-        for (const arg of effect.args) {
+        for (const arg of abiArguments(effect)) {
+          if (!arg) continue;
           exprs.push(arg);
           collectAtoms(arg, atoms);
         }
@@ -1665,7 +2143,7 @@ export function constructGuardedCandidates(
   }
 
   const index = loadSymbolIndex(container);
-  const map = buildStorageMap(cells, index, ivDeltas);
+  const map = buildStorageMap(cells, index, ivDeltas, functionName);
   if ("unresolved" in map) return map;
   if ("invalid" in map) return map;
 
@@ -1873,7 +2351,11 @@ export function constructGuardedCandidates(
         const assignments = (effects: Effect[]): CStmt[] =>
           effects.map((effect) => {
             if (effect.kind === "call") {
-              const args = effect.args.map((a) => translate(a, map, plan, temps));
+              const captured = abiArguments(effect);
+              if (captured.some((arg) => arg === null)) {
+                throw new Error(`${effect.callee} has an argument slot the caller never established`);
+              }
+              const args = (captured as SymExpr[]).map((a) => translate(a, map, plan, temps));
               return { kind: "exprstmt", expr: { kind: "call", callee: effect.callee, args } } as CStmt;
             }
             /* A store whose value is the hoisted shared return reuses the

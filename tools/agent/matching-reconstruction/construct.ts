@@ -56,6 +56,46 @@ export type CStmt =
 export const id = (name: string): CExpr => ({ kind: "id", name });
 export const int = (value: number, hex = false): CExpr => ({ kind: "int", value, hex });
 
+/**
+ * Whether a constructed expression has pointer type.
+ *
+ * The grammar above is small enough to answer this exactly for the shapes the
+ * constructors build: a name the caller says is a pointer, a cast to a pointer
+ * type, an address-of, and pointer arithmetic over any of those. Everything
+ * else — a member read, an index, an arithmetic result — is a value, because
+ * the recovered views this project builds hold scalars.
+ */
+export function pointerValued(expr: CExpr, pointerNames: ReadonlySet<string>): boolean {
+  switch (expr.kind) {
+    case "id": return pointerNames.has(expr.name);
+    case "cast": return expr.type.trim().endsWith("*");
+    case "unaryop": return expr.op === "&";
+    case "binary":
+      return (expr.op === "+" || expr.op === "-")
+        && (pointerValued(expr.left, pointerNames) || pointerValued(expr.right, pointerNames));
+    default: return false;
+  }
+}
+
+/**
+ * An argument written so its type matches the parameter it is passed to.
+ *
+ * C89 makes an implicit conversion between a pointer and an integer a
+ * constraint violation; GCC 2.95 diagnoses it and compiles it anyway, which is
+ * how a candidate that passes an `s32` where a `void *` is declared reaches the
+ * byte oracle and matches. On this ABI the two are the same width, so the cast
+ * costs no instruction — the generated words are identical and the source
+ * becomes valid. Nothing is inserted when the types already agree, so ordinary
+ * drafts stay free of cast noise.
+ */
+export function castForParameter(expr: CExpr, declaredType: string | undefined, pointerNames: ReadonlySet<string>): CExpr {
+  if (!declaredType) return expr;
+  const wantsPointer = declaredType.trim().endsWith("*");
+  const isPointer = pointerValued(expr, pointerNames);
+  if (wantsPointer === isPointer) return expr;
+  return { kind: "cast", type: declaredType.trim(), expr };
+}
+
 /* C's own precedence order, compressed; only relative order matters here. */
 const PRECEDENCE: Record<string, number> = {
   "*": 13, "/": 13, "%": 13, "+": 12, "-": 12, "<<": 11, ">>": 11,

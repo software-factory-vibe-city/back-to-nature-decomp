@@ -2,6 +2,13 @@
  * finalizeEngineMatches.ts — automated, reproducible finalization of the
  * reconstruction engine's byte-exact matches into the source tree.
  *
+ * Integration runs as a *transaction*: the candidate is rewritten for the
+ * project (its scalar typedefs dropped for `common.h`, and a declaration
+ * dropped only when the preprocessed umbrella scope genuinely provides that
+ * name), written, re-verified as it now sits in the tree, and rolled back byte
+ * for byte if anything fails. `--legacy` selects the original path, which
+ * tried two rewritings and reported whichever failure came last.
+ *
  * The reconstruction engine (benchmarkReconstruction.ts --census) statically
  * transpiles unmatched functions to C and, for the ones it reproduces exactly,
  * writes a `winner.c` under build/matchingReconstruction/<fn>/. This tool takes
@@ -36,6 +43,7 @@ import { ROOT, compileSource } from "./decompToolchain.js";
 import { requireFunctionLocation } from "../lib/symbolIndex.js";
 import { compareFunction } from "../lib/functionOracle.js";
 import { loadContainers, containerOfSymbol, EXE_CONTAINER_ID } from "../lib/container.js";
+import { applyTransaction, planIntegration, renderTransaction } from "./campaign/integration.js";
 
 const RECON_DIR = "build/matchingReconstruction";
 const BASE_TYPEDEF = /^typedef (signed|unsigned) (char|short|int) [su](8|16|32);$/;
@@ -121,6 +129,40 @@ function oracleVerdict(functionName: string, integrated: string, tag: string): {
   }
 }
 
+/**
+ * Finalize through the transactional planner.
+ *
+ * The difference from the legacy path below is what happens when something is
+ * wrong. The legacy path tries two rewritings and reports whichever failure
+ * came last; this one states which declarations it dropped and why, verifies
+ * the file *as written into the tree* rather than only as a staged copy, and
+ * restores the tree exactly if the verification fails. A half-applied
+ * integration is the one outcome nothing downstream can reason about.
+ */
+export function finalizeTransactional(functionName: string, write: boolean): FinalizeOutcome {
+  const planned = planIntegration(functionName);
+  if ("refused" in planned) {
+    return {
+      functionName,
+      status: planned.refused.includes("no result") || planned.refused.includes("no draft") ? "no-winner" : "not-a-match",
+      detail: `${planned.refused}${planned.detail ? `: ${planned.detail}` : ""}`,
+    };
+  }
+  const result = applyTransaction(planned, { write });
+  if (result.status === "refused") {
+    return {
+      functionName,
+      status: result.reason.includes("does not compile") ? "compile-error" : "not-a-match",
+      detail: `${result.reason}${result.detail ? ` — ${result.detail}` : ""}`,
+    };
+  }
+  return {
+    functionName,
+    status: "integrated",
+    detail: renderTransaction(planned, result).slice(1).join("; "),
+  };
+}
+
 export function finalizeMatch(functionName: string, write: boolean): FinalizeOutcome {
   const winnerPath = join(ROOT, RECON_DIR, functionName, "winner.c");
   if (!existsSync(winnerPath)) return { functionName, status: "no-winner" };
@@ -152,14 +194,19 @@ export function finalizeMatch(functionName: string, write: boolean): FinalizeOut
 function main(): void {
   const args = process.argv.slice(2);
   const write = args.includes("--write");
+  /* The transactional planner is the default: it says which declarations it
+   * dropped and why, verifies the file as written into the tree, and rolls
+   * back on failure. `--legacy` keeps the original two-variant rewriting for
+   * comparison while the new path is being trusted. */
+  const legacy = args.includes("--legacy");
   const requested = args.filter((a) => !a.startsWith("--"));
   const targets = requested.length > 0 ? requested : exactCandidates();
 
-  const outcomes = targets.map((fn) => finalizeMatch(fn, write));
+  const outcomes = targets.map((fn) => (legacy ? finalizeMatch(fn, write) : finalizeTransactional(fn, write)));
   const by = (s: FinalizeOutcome["status"]) => outcomes.filter((o) => o.status === s);
 
   const integrated = by("integrated");
-  console.log(`${write ? "WROTE" : "DRY RUN"} — ${targets.length} engine match(es) evaluated`);
+  console.log(`${write ? "WROTE" : "DRY RUN"} — ${targets.length} engine match(es) evaluated${legacy ? " (legacy rewriting)" : " (transactional)"}`);
   console.log(`  integrated (byte-oracle confirmed): ${integrated.length}`);
   for (const status of ["not-a-match", "compile-error", "no-winner", "no-src"] as const) {
     const group = by(status);
