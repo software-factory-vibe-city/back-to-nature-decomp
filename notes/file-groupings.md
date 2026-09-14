@@ -337,6 +337,14 @@ Members (address order, matched so far):
 - ovl_11_func_80108214 (m, matched this session) — leaf probe reading u16
   D_8012D052, returns (D_8012D052 - 0x10) < 2; byte-exact clean C, baseline
   flags; the run's only confirmed reader of the +2 field
+- ovl_11_func_8010822C (m, matched this session) — guarded setter writing
+  D_8012D050[0] at +0/+2 (field_0/field_2): field_0 from D_801278E4[arg1]
+  (+1 when arg0 > 0) or the constants 0x270/0x275, field_2 = state 4–8
+  selected by arg0; first confirmed writer of the +2 field that
+  ovl_11_func_80108214 probes, closing the writer/reader pair; shares the
+  D_8012D050 base with ovl_11_func_801081A0, ovl_11_func_801084E0 and
+  ovl_11_func_801082B0; also reads the 4-entry s16 table D_801278E4
+  (0x801278E4); byte-exact clean C, baseline flags
 - ovl_11_func_801082B0 (m, matched this session) — leaf setter writing the
   D_8012D050 buffer at +4/+6/+C/+E (s16 fields): maps a short pair to
   `base+4 = grid*30+col+0x277`, `base+6 = 0`, `base+C = grid*30+col+0x2EF`,
