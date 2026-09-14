@@ -1,4 +1,7 @@
 import { strict as assert } from "node:assert";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { ROOT } from "./decompToolchain.js";
 import {
@@ -9,6 +12,8 @@ import {
   type Prototype,
   type Witness,
 } from "./calleeTruth.js";
+
+const projectTest = existsSync(join(ROOT, "configs/splat")) ? test : test.skip;
 
 function only(source: string, name: string): Prototype {
   const found = prototypesIn(source, "t.c").find((item) => item.name === name);
@@ -164,4 +169,47 @@ test("a header outside the repository keeps its absolute path", () => {
     "int puts(const char *);",
   ].join("\n"));
   assert.equal(prototypesIn(source, "src/f.c", lineOf)[0]!.where, "/opt/toolchain/stdio.h");
+});
+
+/* ---- the witness is the same answer no matter what else is running -------- */
+
+/**
+ * `targetWitness` assembles the callee's own code into a scratch directory, and
+ * that directory is shared: a census runs several worker processes over one of
+ * them. When two workers reach the same callee, they used to write the same
+ * `<callee>.target.s` and `<callee>.target.o` — one assembling a file the other
+ * was mid-write — and the witness came back with a different arity, or with
+ * nothing at all. A signature that depends on what else happened to be running
+ * makes every measurement taken under it unreproducible, which is exactly how
+ * one census winner failed to reproduce on a later retry.
+ *
+ * The processes are real ones because the defect is a file-system race; two
+ * calls inside one process could never have exposed it.
+ */
+projectTest("concurrent processes witness the same callee identically", () => {
+  const scratch = join(ROOT, "build/witnessDeterminism");
+  rmSync(scratch, { recursive: true, force: true });
+  const probe = join(scratch, "probe.ts");
+  mkdirSync(scratch, { recursive: true });
+  writeFileSync(probe, [
+    `import { targetWitness } from ${JSON.stringify(join(ROOT, "tools/agent/calleeTruth.ts"))};`,
+    `const scratch = ${JSON.stringify(join(scratch, "shared"))};`,
+    "const seen = new Set();",
+    "for (let attempt = 0; attempt < 20; attempt++) {",
+    "  const witness = targetWitness(process.argv[2], scratch);",
+    "  seen.add(JSON.stringify(witness?.arity ?? null));",
+    "}",
+    "process.stdout.write([...seen].join(\"\\u0000\"));",
+    "",
+  ].join("\n"));
+
+  const runs = [0, 1, 2, 3].map(() =>
+    spawnSync("npx", ["tsx", probe, "SquareRoot0"], { cwd: ROOT, encoding: "utf-8" }));
+  const answers = new Set<string>();
+  for (const run of runs) {
+    assert.equal(run.status, 0, run.stderr);
+    for (const answer of run.stdout.split("\u0000")) answers.add(answer);
+  }
+  assert.deepEqual([...answers].sort(), [JSON.stringify({ min: 1, max: 4 })],
+    "four processes, twenty witnesses each, and exactly one answer between them");
 });

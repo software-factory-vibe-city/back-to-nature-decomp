@@ -1,6 +1,6 @@
 import { execFileSync, spawn, spawnSync } from "child_process";
 import { createHash } from "crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "fs";
 import { basename, dirname, isAbsolute, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import {
@@ -188,6 +188,17 @@ export interface CompileArtifacts {
   outputDir: string;
   stem: string;
   cc1Flags: string[];
+  /**
+   * Everything the front end said while succeeding.
+   *
+   * A zero exit status is not a statement that the source is valid C: GCC 2.95
+   * diagnoses a constraint violation such as `return` with a value in a
+   * function returning `void`, then compiles it anyway. Discarding this stream
+   * is how a candidate that violates C89 reaches the byte oracle, matches, and
+   * is reported as a recovered seed — the oracle compares machine words and
+   * cannot see the source defect. Callers that accept generated C must read it.
+   */
+  diagnostics: string;
 }
 
 function commandError(tool: string, error: any): Error {
@@ -210,6 +221,29 @@ export function runTool(command: string, args: string[], cwd: string = ROOT): st
   }
 }
 
+/**
+ * `runTool`, keeping what the tool said on the way to succeeding.
+ *
+ * `runTool` throws on failure and returns stdout on success, which silently
+ * drops the one stream a compiler uses to report that it accepted something it
+ * should not have.
+ */
+export function runToolCapturing(
+  command: string,
+  args: string[],
+  cwd: string = ROOT,
+): { stdout: string; stderr: string } {
+  const result = spawnSync(command, args, {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.error) throw commandError(command, { message: result.error.message });
+  if (result.status !== 0) throw commandError(command, result);
+  return { stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+}
+
 export function runToolAsync(
   command: string,
   args: string[],
@@ -225,6 +259,27 @@ export function runToolAsync(
     child.on("error", (error) => reject(commandError(command, { message: error.message, stderr: Buffer.concat(stderr) })));
     child.on("close", (code) => {
       if (code === 0) resolvePromise(Buffer.concat(stdout).toString("utf8"));
+      else reject(commandError(command, { message: `exit ${code}`, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) }));
+    });
+  });
+}
+
+/** `runToolAsync`, returning what the tool said rather than what it wrote. */
+export function runToolAsyncCapturingStderr(
+  command: string,
+  args: string[],
+  cwd: string = ROOT,
+  signal?: AbortSignal,
+): Promise<string> {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(command, args, { cwd, stdio: ["ignore", "pipe", "pipe"], signal });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
+    child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
+    child.on("error", (error) => reject(commandError(command, { message: error.message, stderr: Buffer.concat(stderr) })));
+    child.on("close", (code) => {
+      if (code === 0) resolvePromise(Buffer.concat(stderr).toString("utf8"));
       else reject(commandError(command, { message: `exit ${code}`, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) }));
     });
   });
@@ -278,6 +333,74 @@ export function resolveSource(funcName: string, requested?: string): string {
   const absolute = isAbsolute(source) ? source : join(ROOT, source);
   if (!existsSync(absolute)) throw new Error(`Source file not found: ${source}`);
   return absolute;
+}
+
+/**
+ * A compiler diagnostic, split into the two kinds that matter to a generator.
+ *
+ * `rejecting` means the source violates a C89 constraint or converts between
+ * incompatible types without saying so. GCC 2.95 diagnoses these and then
+ * compiles the program anyway, so exit status cannot be the acceptance test
+ * for generated C: a candidate that returns a value from a function declared
+ * `void` assembles to exactly the same words as the valid spelling, matches the
+ * byte oracle, and would be filed as recovered source that no one can compile
+ * cleanly.
+ *
+ * `advisory` means the code is valid and the compiler is remarking on it — a
+ * comparison that is always true, a constant that is unsigned. Those are
+ * reported but never block a candidate, because a target genuinely can contain
+ * the code that provokes them.
+ */
+export interface CompilerDiagnostic {
+  severity: "rejecting" | "advisory";
+  /** The diagnostic text, from `warning:`/`error:` onward. */
+  message: string;
+  /** The whole line, including the file and line number the compiler named. */
+  line: string;
+}
+
+/**
+ * Diagnostics that mean the generated C is wrong, not merely remarkable.
+ *
+ * Kept as an explicit list rather than "anything that is not on an allow list":
+ * an unrecognised diagnostic should surface for a human to classify, not
+ * silently condemn every candidate in a census.
+ */
+const REJECTING_DIAGNOSTICS: Array<{ pattern: RegExp; why: string }> = [
+  { pattern: /with a value, in function returning void/, why: "C89 constraint: a void function cannot return a value" },
+  { pattern: /with no value, in function returning non-void/, why: "C89: a valued function's `return` must carry a value" },
+  { pattern: /makes pointer from integer without a cast/, why: "an implicit integer-to-pointer conversion" },
+  { pattern: /makes integer from pointer without a cast/, why: "an implicit pointer-to-integer conversion" },
+  { pattern: /from incompatible pointer type/, why: "incompatible pointer types" },
+  { pattern: /incompatible types in/, why: "incompatible types" },
+  { pattern: /conflicting types for/, why: "a declaration that conflicts with another in scope" },
+  { pattern: /implicit declaration of function/, why: "an undeclared callee, which is implicit int and changes codegen" },
+  { pattern: /parameter names \(without types\)/, why: "a parameter list without types" },
+];
+
+/** Split a front-end stderr stream into classified diagnostics. */
+export function classifyDiagnostics(stderr: string): CompilerDiagnostic[] {
+  const out: CompilerDiagnostic[] = [];
+  for (const line of stderr.split("\n")) {
+    const marker = line.search(/\b(?:warning|error):/);
+    if (marker < 0) continue;
+    const message = line.slice(marker);
+    const rejecting = REJECTING_DIAGNOSTICS.some((entry) => entry.pattern.test(message));
+    out.push({ severity: rejecting ? "rejecting" : "advisory", message, line });
+  }
+  return out;
+}
+
+/**
+ * One line naming why a compile's output is not acceptable source, or null when
+ * every diagnostic it produced was advisory.
+ */
+export function rejectionFromDiagnostics(stderr: string): string | null {
+  const rejecting = classifyDiagnostics(stderr).filter((entry) => entry.severity === "rejecting");
+  if (rejecting.length === 0) return null;
+  const first = rejecting[0]!.message.replace(/^(?:warning|error):\s*/, "");
+  const rest = rejecting.length > 1 ? ` (+${rejecting.length - 1} more)` : "";
+  return `${first}${rest}`;
 }
 
 export function loadFlagOverrides(): Map<string, string[]> {
@@ -432,7 +555,7 @@ export function compileSource(
   if (options.emissionAttribution) cc1Flags.push("-dp");
 
   /* Running cc1 in the artifact directory keeps all -da files together. */
-  runTool(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput);
+  const front = runToolCapturing(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput);
 
   if (options.assemble) assembleCompilerOutput(assembly, object, kind);
 
@@ -443,6 +566,7 @@ export function compileSource(
     outputDir: absoluteOutput,
     stem,
     cc1Flags,
+    diagnostics: front.stderr,
   };
   if (options.assemble) result.object = object;
   return result;
@@ -471,14 +595,17 @@ export async function compileSourceAsync(
   const kind = options.containerKind ?? containerKindForSymbol(stem);
   const cc1Flags = [...configuredCc1FlagsForContainer(kind), ...overrides];
   if (options.dumps) cc1Flags.push("-da");
-  await runToolAsync(CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput, options.signal);
+  const diagnostics = await runToolAsyncCapturingStderr(
+    CC, [...cc1Flags, basename(preprocessed), "-o", basename(assembly)], absoluteOutput, options.signal);
   if (options.assemble) {
     await runToolAsync("python3", [
       MASPSX, ...configuredMaspsxFlags(),
       "--gnu-as-path", AS, "-o", object, ...configuredAsFlagsForContainer(kind), assembly,
     ], ROOT, options.signal);
   }
-  const result: CompileArtifacts = { source: absoluteSource, preprocessed, assembly, outputDir: absoluteOutput, stem, cc1Flags };
+  const result: CompileArtifacts = {
+    source: absoluteSource, preprocessed, assembly, outputDir: absoluteOutput, stem, cc1Flags, diagnostics,
+  };
   if (options.assemble) result.object = object;
   return result;
 }
@@ -530,16 +657,44 @@ export function assembleTarget(funcName: string, outputDir: string): string {
   const object = join(absoluteOutput, `${funcName}.target.o`);
   const relativeAsm = asmSource.slice(ROOT.length + 1);
 
-  writeFileSync(wrapper,
+  /*
+   * Built under private names and moved into place, because these paths are
+   * shared. A census runs several worker processes over one scratch directory,
+   * and two of them resolving the same callee both write `<callee>.target.s`
+   * and `<callee>.target.o`: one assembles a file the other is mid-write, and
+   * the witness that comes back describes nothing. The result is a signature
+   * that depends on what else happened to be running — the same function
+   * resolving one way in a census and another on a retry, which is the shape
+   * of every non-reproducible measurement. A rename is atomic on one
+   * filesystem, so a concurrent reader sees the previous complete object or
+   * this one, never a partial file, and both hold the same bytes.
+   */
+  const privateSuffix = `${process.pid}.${assembleTargetSequence++}`;
+  const stagedWrapper = `${wrapper}.${privateSuffix}`;
+  const stagedObject = `${object}.${privateSuffix}`;
+
+  writeFileSync(stagedWrapper,
     `.include "include/macro.inc"\n` +
     `.set noat\n` +
     `.set noreorder\n` +
     `.include "${relativeAsm}"\n`,
   );
 
-  runTool(AS, [...asFlags, wrapper, "-o", object]);
+  try {
+    runTool(AS, [...asFlags, stagedWrapper, "-o", stagedObject]);
+    renameSync(stagedObject, object);
+    renameSync(stagedWrapper, wrapper);
+  } catch (error) {
+    for (const staged of [stagedObject, stagedWrapper]) {
+      try { if (existsSync(staged)) rmSync(staged); } catch { /* best effort */ }
+    }
+    throw error;
+  }
   return object;
 }
+
+/** Distinguishes concurrent assemblies inside one process as well as across them. */
+let assembleTargetSequence = 0;
 
 /** Where a container's disassembly archive lives, for an error message. */
 function containerPathHint(container: Container): string {
