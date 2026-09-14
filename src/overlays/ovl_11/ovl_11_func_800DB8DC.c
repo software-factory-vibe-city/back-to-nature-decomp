@@ -1,3 +1,12 @@
 #include "common.h"
+#include "game_types.h"
+#include "psyq/stddef.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800DB8DC", ovl_11_func_800DB8DC);
+void GsSetProjection(long h);
+
+void SetGeomScreen(long h);
+
+void ovl_11_func_800DB8DC(void) {
+    GsSetProjection(0x3E8);
+    SetGeomScreen(0x3E8);
+}

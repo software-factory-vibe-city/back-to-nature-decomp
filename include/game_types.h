@@ -238,6 +238,104 @@ typedef struct {
     /* 0x08 */ s16 unk8;
 } Ovl23Func800BB0C8Arg;
 
+/* Minimal views recovered from exact-match functions. Only the named fields
+ * are witnessed; padding does not establish the full object extent. Names
+ * include the container/function identity to avoid overlay-address collisions. */
+typedef struct {
+    u8 unk0;
+} Recon_ovl_11_func_800BF3D0_CallRet1View;
+
+typedef struct {
+    char pad_0[0x1A];
+    s16 unk1A;
+    char pad_1C[0x50];
+    s32 unk6C;
+} Recon_ovl_11_func_800C97D0_A0View;
+
+typedef struct {
+    char pad_0[0x6C];
+    s32 unk6C;
+} Recon_ovl_11_func_800CD08C_A0View;
+
+typedef struct {
+    s16 unk0;
+} Recon_ovl_11_func_800D3404_A0View;
+
+typedef struct {
+    s32 unk0;
+} Recon_ovl_11_func_800D6380_A3View;
+
+typedef struct { u16 unk0; } UnkStruct800DF4F0;
+
+typedef struct {
+    char pad_0[0xB0];
+    u16 unkB0;
+} Recon_ovl_11_func_800DEEE0_A0View;
+
+typedef struct {
+    char pad_0[0x2C];
+    s16 unk2C;
+    s16 unk2E;
+    char pad_30[0x4];
+    s32 unk34;
+} Recon_ovl_11_func_800E0220_A0View;
+
+typedef struct { u16 unk0; } UnkStruct800E109C;
+
+typedef struct {
+    char pad_0[0xB0];
+    u16 unkB0;
+} Recon_ovl_11_func_800E0AFC_A0View;
+
+typedef struct {
+    char pad_0[0x2C];
+    s16 unk2C;
+    s16 unk2E;
+    char pad_30[0x4];
+    s32 unk34;
+} Recon_ovl_11_func_800E1D48_A0View;
+
+typedef struct {
+    s16 unk0;
+} Recon_ovl_11_func_800FB394_A0View;
+
+typedef struct {
+    char pad_0[0x2C];
+    s16 unk2C;
+    s16 unk2E;
+    char pad_30[0x4];
+    s32 unk34;
+} Recon_ovl_11_func_8010BF8C_A0View;
+
+typedef struct {
+    char pad_0[0x24];
+    u8 unk24;
+} Recon_ovl_17_func_800BAFAC_A0View;
+
+typedef struct {
+    char pad_0[0x24];
+    u8 unk24;
+} Recon_ovl_17_func_800BB094_A0View;
+
+typedef struct {
+    char pad_0[0x24];
+    u8 unk24;
+} Recon_ovl_17_func_800BB020_A0View;
+
+typedef struct {
+    char pad_0[0x4];
+    s16 unk4;
+    s16 unk6;
+} Recon_ovl_19_func_800B9DD0_A0View;
+
+typedef struct {
+    char pad_0[0x4];
+    s16 unk4;
+    s16 unk6;
+    char pad_8[0xA];
+    s16 unk12;
+} Recon_ovl_19_func_800BA054_A0View;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14

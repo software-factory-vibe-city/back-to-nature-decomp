@@ -61,6 +61,23 @@ translation units.
 
 ---
 
+## `ovl_11` two-table field-lookup siblings — 0x800D5ABC–0x800D5BBC (confidence: medium)
+
+Evidence: three adjacent 0x80-byte functions access the pointer members at
+`D_8006C838 + 0x20` and `+0x24`, use the same 0x28/0xB0 record strides,
+16-bit narrowing steps and -1 sentinel, and differ in the final halfword
+field offset (0xAA, 0xAC, 0xAE). Their original instruction streams agree
+under local-label relocation and that field substitution. This is strong
+source-family evidence; original translation-unit membership remains a prior.
+
+Members:
+- ovl_11_func_800D5ABC (m) — reads field 0xAA; sibling-derived C integrated and verified across all containers.
+- ovl_11_func_800D5B3C (m) — reads field 0xAC.
+- ovl_11_func_800D5BBC (m) — reads field 0xAE.
+
+The static-first strategy investigation and candidate verification are recorded
+in `plans/static-first-matching-decompilation.md`.
+
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 
 The whole container is one translation unit: six functions, one of which calls
@@ -2119,7 +2136,7 @@ Members (address order):
 - func_8002374C (s) — mode-1 callback for the cmd==0x20 path
 - func_80023794 (s) — mode-1 callback for the default path (returns s16,
   stored to D_8005E33A)
-- func_80023710 (s) — mode-2 callback for the cmd==0x40 path
+- func_80023710 (m) — mode-2 callback for the cmd==0x40 path
 - func_80023774 (s) — mode-2 callback for the cmd==0x20 path
 - func_800237FC (s) — mode-2 callback for the default path
 - func_80023910 (m, 2026-08-20) — family endpoint: gate entry after the
@@ -3336,7 +3353,7 @@ Fingerprints:
 Members (address order):
 - func_8001719C (m) — small value helper (no callees, many external callers);
   not clearly part of this cluster
-- func_800171CC (s) — wrapper: func_80017300(tag=1, zeros, 0)
+- func_800171CC (m) — wrapper: func_80017300(tag=1, zeros, 0)
 - func_80017200 (m) — wrapper: func_80017300(tag=0, four s16 args pass-through) (matched 2026-08-21)
 - func_80017240 (s) — wrapper: func_80017300(tag=2, four s16 args pass-through, same frame shape as func_80017200)
 - func_80017284 (s) — distinct shape: func_80015AAC → func_80015B24 →

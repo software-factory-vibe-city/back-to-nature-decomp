@@ -888,4 +888,80 @@ extern s16 D_800B9626;
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 
+/* Partial global-object views and external storage used by the integrated
+ * reconstruction batch. Field offsets are witnessed; unknown extents remain
+ * unsized. Parameter views live in game_types.h. */
+typedef struct {
+    char pad_0[0x4];
+    s16 unk4;
+} Recon_func_80023710_Pointee0View;
+
+typedef struct {
+    /* 0x00 */ char pad_00[0x20];
+    /* 0x20 */ void *field_20;
+    /* 0x24 */ char pad_24[0x04];
+    /* 0x28 */ void *field_28;
+} Recon_ovl_11_func_800D5D38_D8006C838Lookup;
+
+typedef struct {
+    /* 0x00 */ char pad_00[4];
+    /* 0x04 */ s16 arr[18];
+} Recon_ovl_11_func_800D5D38_D8006C838Row;
+
+typedef struct {
+    /* 0x00 */ char pad_00[0x20];
+    /* 0x20 */ void *field_20;
+    /* 0x24 */ void *field_24;
+} Recon_ovl_11_func_800D5ABC_D8006C838Lookup_800D5ABC;
+
+typedef struct {
+    char pad_0[0x5];
+    s8 unk5;
+} Recon_ovl_11_func_800C9E90_D_800A0728View;
+
+typedef struct {
+    char pad_0[0x4];
+    u8 unk4;
+    u8 unk5;
+} Recon_ovl_11_func_800F7010_D_800A0728View;
+
+extern s32 D_8005E3B0;
+
+extern s16 D_80128800;
+
+extern u8 D_8007BFF8[];
+
+extern s32 D_80126E40;
+
+extern s32 D_80126FE0;
+
+extern s16 D_8012720C;
+
+extern s16 D_80127222;
+
+extern s16 D_80127226;
+
+extern s16 D_8012722A;
+
+extern u8 D_8012D548[];
+
+extern s16 D_80128420;
+
+extern u8 D_800C4BD0[];
+
+extern s32 D_800BB4E4[];
+
+extern s32 D_800C49F8[];
+
+
+/* D_8012D060: four halfwords written by ovl_11_func_80108864 and read
+ * by ovl_11_func_801089DC. Shared declaration for both sides. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+} Ovl11D060Fields;
+extern Ovl11D060Fields D_8012D060;
+
 #endif /* GLOBALS_OVERRIDE_H */

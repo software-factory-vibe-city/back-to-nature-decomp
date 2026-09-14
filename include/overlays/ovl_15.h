@@ -3,6 +3,7 @@
  * passed to m2c before this file. */
 
 s32 ovl_15_func_80134444(Ovl15Func80134444Arg *arg0);
+s32 ovl_15_func_80137228(s16 arg0, s16 arg1, s32 arg2, s32 arg3);
 void ovl_15_func_801372F0(void);
 void ovl_15_func_801372F8(void);
 void ovl_15_func_80137398(void);

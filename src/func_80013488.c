@@ -1,4 +1,15 @@
 #include "common.h"
-#include "include_asm.h"
+#include "game_types.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_80013488", func_80013488);
+s32 D_8005E3D4;
+
+s32 D_8005E3D8;
+
+s32 D_8005E3DC;
+
+s32 func_80013488(s32 arg0) {
+    D_8005E3DC = 1;
+    D_8005E3D8 = arg0;
+    D_8005E3D4 = 0xFF / arg0;
+    return 1;
+}

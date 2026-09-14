@@ -1,3 +1,11 @@
 #include "common.h"
+#include "game_types.h"
 
-INCLUDE_ASM("build/ovl_19/asm/nonmatchings/ovl_19_func_800B942C", ovl_19_func_800B942C);
+void ovl_19_func_800BAD50(void);
+
+void ovl_19_func_800BA770(void);
+
+void ovl_19_func_800B942C(void) {
+    ovl_19_func_800BAD50();
+    ovl_19_func_800BA770();
+}
