@@ -532,6 +532,23 @@ Members (address order):
 - ovl_11_func_80103B24 (s) — leaf reader of D_80127428
 - ovl_11_func_801040A8 (s) — trailer reader of D_80127428
 
+Widening (2026-09-14, byte-exact match of `ovl_11_func_80104394`): the run's
+buffer consumer is now matched. `ovl_11_func_80104394` (m, 0x80104394, 0x84,
+leaf) reads the exact `D_8012CF10[0..5]` window that member `ovl_11_func_801037EC`
+clears, and both of its callers — `ovl_11_func_80103C00` (0x80103C00) and
+`ovl_11_func_80103D44` (0x80103D44, two call sites) — are link-contiguous
+members of this cluster's zero-gap span. `ovl_11_func_80104394` itself sits
+address-apart (0x80104394, past the run trailer 0x801040A8) and touches none
+of D_80127428/2C, so its TU membership with the cluster is supported by the
+caller adjacency + shared 6-halfword buffer but unproven. Additional tie: the
+parked stub `ovl_11_func_80103770` (0x6C, gapless predecessor of the run head
+0x801037DC) is this function's idiom twin — identical `+0xE514` select (default
+2 when the halfword == 3) and `base + 0xE522 + sel * 0x54` table walk with 6
+s16 at +0xE stride — summing (returns sum == 0) where 80104394 compares
+(returns all-equal). Its non-matching C and the byte-exact 80104394 spelling
+are the two witnesses for how this author forms that large-offset table
+address (indexed member access, not precomputed pointer arithmetic).
+
 ---
 
 ## `ovl_11` s16-pair setter pair — 0x800D0DB0 / 0x800D0DBC (confidence: low)
