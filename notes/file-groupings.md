@@ -3798,14 +3798,13 @@ Members (address order):
   byte-for-byte the same body over the same record shape (shared
   Ovl23Func800BB0C8Arg view), gapless with the previous function.
 
-## `ovl_11` D_80070CF2 / D_80070CF6 mask-switch pair — 0x800F1BD0 / 0x800F1C48 (confidence: low)
+## `ovl_11` mask-switch leaf run — 0x800F1BD0 / 0x800F1C48 / 0x800F1CC4 (confidence: low)
 
-Candidate same-TU pair in `ovl_11` (`Obj\GF_FARM.bin`): two gapless
-link-contiguous switch-on-global mask-selector leaves over adjacent s16
-globals in the D_80070Cxx base-engine region. Already-matched
-`ovl_11_func_800F1BD0` (the existing `D_80070CF2` leaf) is now confirmed as
-the immediate link predecessor of the newly matched
-`ovl_11_func_800F1C48`.
+Candidate same-TU run in `ovl_11` (`Obj\GF_FARM.bin`): gapless
+link-contiguous switch-on-global mask-selector leaves. Already-matched
+`ovl_11_func_800F1BD0` (the existing `D_80070CF2` leaf) is the immediate link
+predecessor of `ovl_11_func_800F1C48`, which is in turn the immediate link
+predecessor of the newly matched `ovl_11_func_800F1CC4`.
 
 Fingerprints:
 - **address adjacency:** `ovl_11_func_800F1BD0` (0x78 bytes at 0x800F1BD0)
@@ -3817,14 +3816,28 @@ Fingerprints:
   (identical toolchain);
 - **adjacent globals:** `D_80070CF2` and `D_80070CF6` sit adjacently in the
   D_80070Cxx base-engine region, already recorded as a shared-data cluster
-  by the existing `D_80070CF2` switch-leaf pair entry.
+  by the existing `D_80070CF2` switch-leaf pair entry;
+- **rodata adjacency:** each leaf owns the jump table immediately following
+  its predecessor's — `ovl_11_func_800F1C48`'s table ends at 0x2184 and
+  `ovl_11_func_800F1CC4`'s (`jtbl_800B9FA8`) starts at 0x2188, gapless but
+  for the 4-byte alignment pad word.
+
+The third member weakens the adjacent-globals fingerprint: its switch global
+is the s16 at `D_8006C838+0xE4C8` (0x8007AD00), outside the D_80070Cxx
+region, and it alone carries an early all-masks-set guard
+(`arg0 & 0xC3800 == 0xC3800` → return 1). Membership rests on the gapless
+link run and the shared idiom (13/16 shapes align in order with
+`ovl_11_func_800F1C48`), not on a shared global cluster.
 
 Members (link order):
 - ovl_11_func_800F1BD0 (m) — 4-case mask-switch over D_80070CF2
   (masks 0x40000000 / 0x20000000 / 0x10000000 / 0x08000000)
-- ovl_11_func_800F1C48 (m, this session) — 7-case sibling over D_80070CF6
+- ovl_11_func_800F1C48 (m) — 7-case sibling over D_80070CF6
   (masks 0x4000000 / 0x2000000 / 0x1000000 / 0x800000 / 0x400000 /
   0x200000 / 0x100000)
+- ovl_11_func_800F1CC4 (m) — 5-case sibling over the s16 at
+  D_8006C838+0xE4C8 (masks 0x80000 / 0x2000 / 0x40000 / 0x1000 / 0x800),
+  plus the 0xC3800 all-set early-return guard
 
 ## `ovl_11` dispatch + 7-callback leaf run — 0x800F5944–0x800F6578 (confidence: high)
 
