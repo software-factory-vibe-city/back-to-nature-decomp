@@ -1064,10 +1064,21 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_80070D38/3A/3E/40 adjacent-u16 counter-leaves — 0x800F3950 / 0x800F3A18 / 0x800F3A44 / 0x800F3AC4 / 0x800F3BA0 (confidence: low)
+## `ovl_11` D_80070D38/3A/3E/40 adjacent-u16 counter-leaves — 0x800F3950 / 0x800F397C / 0x800F3A18 / 0x800F3A44 / 0x800F3AC4 / 0x800F3BA0 (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): Four matched leaf helpers with **numerically byte-identical bodies** (decrement-counter
-family) plus one increment+clamp leaf sharing the same global cluster. The four
+family) plus two increment+clamp leaves sharing the same global cluster (one per
+written global, D_80070D3A and D_80070D3E, built from the same switch+clamp
+construction). The four
+decr helpers differ only in which adjacent file-scope global they decrement — the
+identical-body fingerprint class proven by the short-fold helper trio / reset-stub
+family. They touch the globals immediately above the documented D_80070D0E cluster
+in the same main-RAM data run (0x80070D0E, 0x80070D10, 0x80070D38, 0x80070D3A,
+0x80070D3E, 0x80070D40).
+All are extern-referenced with absolute `lui`+`%lo` (defining TU elsewhere);
+function addresses span ~0x250 in total, not link-order adjacent, so same-TU is
+plausible rather than established — though five of the six members now form a
+gapless link run 0x800F3950–0x800F3AF0 (see members). The four
 decr helpers differ only in which adjacent file-scope global they decrement — the
 identical-body fingerprint class proven by the short-fold helper trio / reset-stub
 family. They touch the globals immediately above the documented D_80070D0E cluster
@@ -1085,6 +1096,15 @@ Fingerprints:
   global, `sltu` against masked arg0, branch into the decrement-and-`sh` path
   (`return 1`), fall to `return 0` — differing only in the `%lo` global
   displacement;
+- **shared increment+clamp idiom**: `ovl_11_func_800F397C` and
+  `ovl_11_func_800F3A44` are structural twins — `u16 *p = &global;` switch on
+  arg0 with case bodies over the global and the default through `*p`, then a
+  `v = *p; if (v > 999) v = 999; *p = v;` clamp tail compiling to the same
+  `sltiu`/conditional-register-select/`sh`-in-delay-slot tail;
+- **gapless run**: 0x800F3950 (0x2C) ends exactly at 0x800F397C (0x9C), which
+  ends exactly at 0x800F3A18 (0x2C), which ends exactly at 0x800F3A44 (0x80),
+  which ends exactly at 0x800F3AC4 (0x2C) — the address-adjacency fingerprint
+  holding across five members;
 - **adjacent file-scope globals** `D_80070D38` (0x80070D38), `D_80070D3A`
   (0x80070D3A), `D_80070D3E` (0x80070D3E) and `D_80070D40` (0x80070D40),
   sitting immediately above `D_80070D10` in the already-documented D_80070D0E
@@ -1104,14 +1124,19 @@ Members (address order):
   baseline flags; the run's first counter, at 0x800F3950
 - ovl_11_func_800F3A18 (m, matched earlier) — decrement-counter helper over
   D_80070D3A; byte-identical body to the triplet
+- ovl_11_func_800F397C (m, matched this session) — increment+clamp leaf over
+  D_80070D3A (the same global 800F3A18 decrements): switch on arg0 (0,1→++,
+  2→+=arg1, default→++ through `*p`), then clamp to 999 through the `p` pointer;
+  0x9C bytes, no calls, no frame; sits directly between 0x800F3950 and
+  0x800F3A18 in the gapless run
 - ovl_11_func_800F3BA0 (m, matched earlier) — decrement-counter helper over
   D_80070D40; byte-identical body to the quadruplet, the run's other counter
 - ovl_11_func_800F3AC4 (m, matched this session) — decrement-counter helper
   over D_80070D3E; byte-identical body to the quadruplet, the fourth member
 - ovl_11_func_800F3A44 (m, matched this session) — increment+clamp leaf over
   D_80070D3E (the same global 800F3AC4 decrements): switch on arg0 (0→++,
-  1→+=arg1, default→++), then clamp to 999; 0x80 bytes, no calls, no frame;
-  sits between 0x800F3A18 and 0x800F3AC4 in address order
+  1→+=arg1, default→++ through `*p`), then clamp to 999; 0x80 bytes, no calls,
+  no frame; sits between 0x800F3A18 and 0x800F3AC4 in address order
 
 ---
 
