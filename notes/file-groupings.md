@@ -959,6 +959,14 @@ Members (address order):
   from src to dst (`dst[i]=src[i]` for i 0..2, `lhu`+`sh` ×3, final store in
   the jr delay slot); byte-exact clean C `void f(u16 *dst, u16 *src)`,
   baseline flags; the run's copy member
+- ovl_11_func_800D736C (m, matched this session) — item-table status
+  classifier: `s32 f(s16 *arg0)` reads index `*(s16*)arg0`, tests
+  `D_8006C858[h].u0.flags` (lhu) bits 0x400/0x1800/0x40/0x100 → 4/3/1/0, then
+  `h ∈ {0x65,0x3F,0x3A,0x3E,0x64}` → 5, else 2; byte-exact clean C, baseline
+  flags. Its idiom belongs to the D_8006C858 accessor cluster (see that
+  entry), not the 3-halfword vector idiom of this run — it joins the run on
+  zero-gap adjacency alone, so if one TU holds the whole 0x800D72E8–0x800D740C
+  span, that file mixes vector helpers with an item-table accessor.
 
 ---
 
@@ -3677,7 +3685,13 @@ Members (address order):
 
 Scattered siblings sharing D_8006C858 (broader cluster, not confirmed same
 TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
-800CCF58, 800D12B8, 800D196C, 800D736C, 800E93CC.
+800CCF58, 800D12B8, 800D196C, 800E93CC. 800D736C is now matched (byte-exact
+clean C, baseline flags) and confirmed to use the run's exact accessor idiom
+— exactly two D_8006C858 references (lui/%lo pair), the same
+`*40 = (idx*4 + idx) << 3` multiply chain, and the lhu flags read with
+bit-test dispatch — but sits ~0x12DC above the run tail 0x800D6090 with no
+adjacency, so it stays a scattered sibling; its zero-gap adjacency instead
+ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 
 ---
 ## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x8010C1C0 (confidence: low)
