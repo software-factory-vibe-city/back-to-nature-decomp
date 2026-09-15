@@ -80,6 +80,24 @@ Members:
 - ovl_11_func_800CB0B0 (m) — sibling range map: 0x01–0x19 → (arg0-1)/5;
   0x1A–0x1D → (s16)(arg0-26); else 0.
 
+## `ovl_11` D_800749F4 record-array accessor pair — 0x800D0C34 / 0x800D0D7C (confidence: low)
+
+Evidence: both walk the same absolute-addressed D_800749F4 record array with
+the same 0xB8 stride (20 entries), as a complementary accessor pair — one
+finds the first free entry, the other maps a pointer back to its index —
+plus shared callers (ovl_11_func_800DE8A4, 800DF72C, 800E047C, 800E12D8 call
+both) and ovl_11 link-order adjacency with only two small functions between.
+The same array is also scanned by the exe container's 0x8001A574 dispatch
+family (see that entry), so D_800749F4 is a cross-container shared object;
+same-TU membership here rests on the pair roles, not on the global alone.
+
+Members:
+- ovl_11_func_800D0C34 (m) — find-first-free entry: scans up to 10/20
+  (D_80070D08-selected) records for `u16@+0 == 0 && !(u32@+0x34 &
+  0x02000000)`, returns the record pointer or NULL.
+- ovl_11_func_800D0D7C (m) — index-of-pointer: returns the record's array
+  index (0..19) or -1.
+
 ## `ovl_11` two-table field-lookup siblings — 0x800D5ABC–0x800D5BBC (confidence: medium)
 
 Evidence: three adjacent 0x80-byte functions access the pointer members at
