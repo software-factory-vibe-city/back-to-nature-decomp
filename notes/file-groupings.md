@@ -3899,3 +3899,28 @@ Members:
   returns 1 immediately for arg0==0x1F or arg1==0x1F; clamps arg1 to 0x18;
   zero-length path is the exact-match test above, otherwise scans
   `arg0..arg0+arg1-1` mod 0x18 for the record's first halfword
+
+## `ovl_11` D_801230B0/D0/F0 {s16,s16} pair-table selector run — 0x800C9938 / 0x800CB114 (confidence: low)
+
+Evidence: `ovl_11_func_800C9938` (matched, byte-exact clean C, 0x90) is the
+first matched reader of the contiguous 0x20-apart {s16,s16} pair tables
+`D_801230B0`/`D_801230D0`/`D_801230F0` (0x80123xxx data body) — absolute
+`lui`+`addiu %lo` base, selection by arg0 `u16@+0x3C` (==2 → B0+0x10,
+==4 → D0) then arg0 flags bit 0x100 of s32@+0x6C (→ D0 when mode==2 else F0),
+in-place pointer advance by `u16@+0x38 * 4`, two signed `lh` cell reads.
+Stub `ovl_11_func_800CB114` (0x3CC) is a second reader of `D_801230B0` with
+the same absolute base idiom and `lh` pair loads (index `(unk38*2)+s16@+0x3C`),
+so the table family has one matched and one stub reader in the same
+0x800C9xxx–0x800CBxxx link band. Both touch the shared object flags word
+s32@+0x6C (matched leaf `ovl_11_func_800CD6F4` tests bit 8 of the same field),
+and this function's link-adjacent caller 0x800C99C8 reads `D_801231F4` as u16 —
+tying the band to the recorded `D_801231F4`/`D_801231F8`/`D_801232B4` cluster,
+whose entry already lists 800CB114 and 800C99C8 as users. Address-apart
+(0x800C9938 vs 0x800CB114, ~0x17DC) so same-TU membership stays unproven (low).
+
+Members:
+- ovl_11_func_800C9938 (m, matched this session, 0x90, byte-exact) —
+  three-table {s16,s16} cell selector leaf: accumulates the selected cell's
+  two halves into arg0 s32@+0x110/@+0x118 and returns the second.
+- ovl_11_func_800CB114 (stub) — second reader of `D_801230B0`, same absolute
+  `lui`+`addiu %lo` base and `lh` pair-load idiom, 0x3CC.
