@@ -362,7 +362,7 @@ Members (address order, matched so far):
 
 ---
 
-## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C06B0–0x800C0D9C (confidence: medium)
+## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C0688–0x800C0EFC (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing two adjacent
 file-scope s32 globals. Same shared-global-cluster fingerprint as the
@@ -388,13 +388,30 @@ Fingerprints:
   and `D_80128B5C`): seen so far only written by `ovl_11_func_800C0D9C`
   (from `$a0`, a 1-arg init pair with B50 in one 0x18 leaf) — the
   B50/B58/B5C trio sits in 12 consecutive bytes of one data run;
-- zero-gap link-order contiguity (map): 0x800C06B0 (0x174) → 0x800C0824
-  (0x10) → 0x800C0834 (0x48) → 0x800C087C (0x6C) → 0x800C08E8 (0x24) →
-  0x800C090C → 0x800C09D0 → 0x800C0A28 (0x18) → 0x800C0A40 (0xC) →
-  0x800C0A4C (0x350) → 0x800C0D9C (0x18) — each starts exactly where the
-  previous ends, the whole span 0x800C06B0–0x800C0D9C contiguous with no
-  unrelated code between; the `D_80128B50` sites run out to the 0x800C0D9C
-  writer, extending the earlier-recorded span past 0x800C0A4C.
+- zero-gap link-order contiguity (map): 0x800C0688 (0x28) → 0x800C06B0
+  (0x174) → 0x800C0824 (0x10) → 0x800C0834 (0x48) → 0x800C087C (0x6C) →
+  0x800C08E8 (0x24) → 0x800C090C → 0x800C09D0 → 0x800C0A28 (0x18) →
+  0x800C0A40 (0xC) → 0x800C0A4C (0x350) → 0x800C0D9C (0x18) →
+  0x800C0DB4 (0xF0) → 0x800C0EA4 (0x58) → 0x800C0EFC (0x88) — each starts
+  exactly where the previous ends, the whole span 0x800C0688–0x800C0EFC
+  contiguous with no unrelated code between; the `D_80128B50` sites run out
+  to the 0x800C0D9C writer, and the span now extends through the
+  `D_80128A88` cluster (below) to the 0x800C0EFC remover;
+- shared 50×s32 global `D_80128A88` (main RAM 0x80128A88, absolute
+  `lui`+`%lo`, entry 0 = selected id, 1..49 = -1-terminated id slots):
+  probed by `ovl_11_func_800C0A28` (`~arr[0] != 0`), written by
+  `ovl_11_func_800C0EA4` (first `-1` slot wins, entry 0 or scan 1..0x31),
+  and consumed by `ovl_11_func_800C0EFC` (removes the selected id: shifts
+  entries 1..49 down one, re-terminates entry 49 with `-1`);
+- callback table `D_800B7F54` (ovl_11 rodata, 10× fn-pointer, ends at the
+  `jtbl_800B7F7C` label): indexed by `D_80128A88[0]` and called indirectly
+  by `ovl_11_func_800C0EFC` (`sll`×4 + `jalr`); members are ovl_11
+  0x800DDDB4.. handlers, one matched as plain `s32 f(void)`;
+- shared s16 global `D_8006C908` (absolute `lui`+`sh`): cleared to 0 by
+  `ovl_11_func_800C0EFC` when the removal fires;
+- call-graph links inside the span (map): `ovl_11_func_800C0688` →
+  `ovl_11_func_800C0A4C` + `ovl_11_func_800C0EFC`;
+  `ovl_11_func_800C0DB4` → `ovl_11_func_800C0EA4`.
 
 Members (address order):
 - ovl_11_func_800C06B0 (s) — reads/clears D_80128B5C and reads/clears
@@ -414,6 +431,17 @@ Members (address order):
   `D_80128B50 = 1; D_80128B58 = arg0;` (both stores in the delay slot,
   `lui`-addressed); byte-exact clean C, baseline flags; confirmed the
   cluster's far-end writer and the only known D_80128B58 site
+- ovl_11_func_800C0688 (m) — two-call dispatcher: runs
+  `ovl_11_func_800C0A4C` then `ovl_11_func_800C0EFC`; sits immediately
+  before 0x800C06B0 in link order
+- ovl_11_func_800C0DB4 (s) — button-state reader (D_80070CF0–CFA `lh`s)
+  that calls `ovl_11_func_800C0EA4` to register the id it selects
+- ovl_11_func_800C0EA4 (m) — id registrar: `D_80128A88` entry 0, else the
+  first `-1` slot among entries 1..0x31
+- ovl_11_func_800C0EFC (m, matched this session) — id remover: when
+  `D_800B7F54[D_80128A88[0]]()` returns nonzero, clears `D_8006C908`,
+  shifts the id table down one slot and re-terminates entry 49 with `-1`;
+  byte-exact clean C, baseline flags
 
 ---
 
