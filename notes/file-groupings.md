@@ -3757,3 +3757,35 @@ Members (link order):
 - ovl_11_func_800F5EE0 (s) — dispatch target case 5
 - ovl_11_func_800F6578 (m, already matched) — dispatch target case 6: leaf
   switch-return-id mapper, maps id 0x64→0x11/0x65→0x13
+
+## `ovl_11` D_800719F8 flag-word status pair — 0x801124E8–0x8011256C (confidence: medium)
+
+Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`) built around the
+`D_800719F8` flag word. Evidence produced by matching both members this
+region's session:
+
+- **address adjacency:** `ovl_11_func_801124E8` (0x84 bytes) ends exactly at
+  `ovl_11_func_8011256C` — a contiguous link-order run; both are leaf void
+  functions;
+- **shared global cluster:** both take no arguments and operate on the
+  `D_800719F8` flag word, reading the `D_80070D30` status word as a far
+  pointer offset from it;
+- **shared idiom:** both spell the far access as `base = &D_800719F8;` plus
+  `(u8 *)base - <const>` anchor arithmetic (801124E8 anchors at
+  `D_8006C838` for `+0x44F8`/`+0x51E6`/`+0x51C4`, 8011256C uses `-0xCC8`
+  for `D_80070D30`) — the same anchor-construction fingerprint, not a
+  direct-global spelling.
+
+Members (link order):
+- ovl_11_func_801124E8 (m, this session) — file-status flag routine: clears
+  0xE0 off `D_800719F8`, sets 0x20 while the `D_80070D30` 0x800 bit is
+  clear, then branches on the `D_80071A1E` state halfword (0: set 0x40 and
+  return; 2: return) and the `D_800719FC` x halfword (>0: return), falling
+  through to set 0x80
+- ovl_11_func_8011256C (m, already matched) — companion flag routine: clears
+  0x100 off `D_800719F8` and re-sets it from the `D_80070D30` 0x200000 bit
+  and a 37-entry scan of `D_80076220` u16 fields
+
+The stubs immediately before the pair (`ovl_11_func_80112494`, 80112440,
+801123AC, 80112318, 80112284, 80112160) may extend this run; membership is
+not yet evidenced.

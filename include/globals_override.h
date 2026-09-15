@@ -968,3 +968,9 @@ typedef struct {
 extern Ovl11D060Fields D_8012D060;
 
 #endif /* GLOBALS_OVERRIDE_H */
+
+/* D_80070D30 and D_800719F8 - the ovl_11 file-status flag word and its
+ * status sibling (reached as &D_800719F8 - 0xCC8). Both are >8-byte-view
+ * symbols accessed with absolute addressing (lui + %lo) from ovl_11 code. */
+extern s32 D_80070D30;
+extern s32 D_800719F8;
