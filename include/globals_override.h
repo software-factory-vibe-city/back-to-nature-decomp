@@ -993,3 +993,9 @@ extern Ovl11D060Fields D_8012D060;
  * symbols accessed with absolute addressing (lui + %lo) from ovl_11 code. */
 extern s32 D_80070D30;
 extern s32 D_800719F8;
+
+/* D_80074838 - large ovl_11 work-area base. Referenced with absolute
+ * addressing from ovl_11 code; the card-table region this overlay clears
+ * sits at +0x6520 (three rows of six 14-byte card records, also reached
+ * as D_8007AD4E). */
+extern u8 D_80074838[0x8000];
