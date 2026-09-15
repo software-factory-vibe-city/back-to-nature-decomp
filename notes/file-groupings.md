@@ -1366,6 +1366,36 @@ Members (address order):
 
 ---
 
+## `ovl_11` 0x80110494 state-key probe run — 0x80110494–0x80110544 (confidence: low)
+
+Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) tied by a call edge that
+the link order independently agrees on.
+
+Fingerprints:
+- zero-gap link run with a direct call edge: `ovl_11_func_80110494` (0x8C) ends
+  exactly at 0x80110520 where its sole matched caller `ovl_11_func_80110520`
+  begins, and the caller ends exactly at 0x80110544 (stub successor); the caller
+  calls the leaf with constants `(arg0, 5, 0)` and reads the s32 result;
+- the leaf is the third matched reader of the `D_8007AFF0` far-buffer halfword
+  @+0x25476 (recorded accessor family 0x800C9D64 / 0x800E8960, same single-`lui`
+  +`addu` far-base idiom), address-apart from both, so it widens that family
+  without changing its (low) same-TU vote;
+- the arg0 object view {u16@0x24, s16@0x2A, s16@0x30, u16@0x7A} has no other
+  matched reader yet — the other callers (`ovl_11_func_8010F80C`,
+  `ovl_11_func_8010FBC4`) are stubs.
+
+Members (address order):
+- ovl_11_func_80110494 (m, matched this session) — state-key probe leaf: guards
+  u16@0x24 against arg1 (resetting @0x24/@0x2A on mismatch), else clamps the
+  @0x2A counter against arg2 and gates return 1 on `@0x30 == far+0x25476 &&
+  (@0x7A & 0x300) == 0`; byte-exact clean C, baseline flags
+- ovl_11_func_80110520 (m) — gapless link successor and direct caller; maps the
+  leaf's result to 0/1 via `sltu`; shares the link run
+- ovl_11_func_80110544 (s) — 0x84-byte stub continuing the run (no grouping
+  evidence of its own yet)
+
+---
+
 ## `ovl_10` overlay tail — /15 date-utility pair around 0x800BB728 (confidence: low)
 
 Candidate tail-cluster of `ovl_10` (`Obj\gf_mcard.bin`, the memory-card manager
