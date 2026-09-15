@@ -3954,3 +3954,25 @@ Members:
   two halves into arg0 s32@+0x110/@+0x118 and returns the second.
 - ovl_11_func_800CB114 (stub) — second reader of `D_801230B0`, same absolute
   `lui`+`addiu %lo` base and `lh` pair-load idiom, 0x3CC.
+
+## `ovl_11` D_80128DE8 bounds-struct init/copy/clamp run — 0x800DAFD4–0x800DB054 (confidence: medium)
+
+Evidence: three contiguous link-order functions (0x800DAFD4 ends 0x800DB00C,
+which ends 0x800DB054, which ends 0x800DB0E4 — one unbroken run) whose only
+shared state is the 0xE-byte s16 struct `D_80128DE8`, with complementary
+roles: writer, copier, consumer. `ovl_11_func_800DAFD4` and
+`ovl_11_func_800DB00C` are matched byte-exact and each carry the same local
+`Ovl11DE8` typedef + `extern` idiom; `ovl_11_func_800DB054` (matched this
+session, byte-exact) reads all six populated fields as clamp bounds against
+an arg struct — the consumer side of the same object. Shared-global cluster +
+address adjacency + role complementarity; no call edges between them, so
+same-TU membership stays medium rather than proven.
+
+Members:
+- ovl_11_func_800DAFD4 (m) — resets the six bound halfwords to constants
+  (-0x32C8/0x1194/-0x1F40/0/0x1B8/0x9C4).
+- ovl_11_func_800DB00C (m) — copies two arg structs' {unk0,unk2,unk4} triples
+  into D_80128DE8 +0x0 and +0x8.
+- ovl_11_func_800DB054 (m, matched this session) — clamps arg0->unk0/unk4
+  into [D_80128DE8.unk0..unk8] / [unk4..unkC] with four min/max halfword
+  clamps (leaf, 0x90, void).
