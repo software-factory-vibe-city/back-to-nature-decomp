@@ -713,7 +713,7 @@ Members:
 
 ---
 
-## `ovl_11` D_800742EC 0xB4-struct-array scan/count/init run — 0x800E20B8, 0x800E2934 / 0x800E2968 (confidence: low)
+## `ovl_11` D_800742EC 0xB4-struct-array scan/count/init run — 0x800D0CD8, 0x800E20B8, 0x800E2934 / 0x800E2968 (confidence: low)
 
 Zero-gap link-order adjacency (0x800E2934, 0x30 bytes, ends exactly at
 0x800E2968) over the same 0xB4-byte struct array whose base global is
@@ -728,6 +728,13 @@ owner allocating an array entry by index then initializing it. The same
 0xB4-stride family is link-adjacent to that owner: `ovl_11_func_800E1F9C`
 (0x11c) ends exactly at `ovl_11_func_800E20B8` (0x38), which ends exactly at
 `ovl_11_func_800E20F0`.
+0x800D0CD8 (matched 2026-09-15) joins the same array family: it is the
+find-first-free scan over the same `D_800742EC` 0xB4-stride array (5/10
+entries selected by `D_80070D0A`), shares the caller `ovl_11_func_800E1F9C`
+with 0x800E2934/0x800E2968, and its source is the same find-first-free
+construction as 0x800D0C34's (`u16@+0 == 0 && !(u32@+0x34 & 0x02000000)`) —
+zero-gap link-adjacent to that D_800749F4 accessor. Idiom-template kinship
+plus the shared array and caller, not adjacency, put it in this group.
 Members:
 - ovl_11_func_800E2934 (m, matched this session) — array index lookup: returns
   the 0-based index of `arg0` within the `D_800742EC` 0xB4-stride array, or
@@ -737,6 +744,11 @@ Members:
 - ovl_11_func_800E20B8 (m, matched this session) — counts how many of the 10
   `D_800742EC` 0xB4-stride entries have a non-zero u16 at 0x0 (the same field
   the initializer `sh`s), returns the count; leaf, no callers in the overlay
+- ovl_11_func_800D0CD8 (m, matched 2026-09-15) — find-first-free entry over
+  the same array: scans up to 5/10 (D_80070D0A-selected) records for
+  `u16@+0 == 0 && !(u32@+0x34 & 0x02000000)`, returns the entry pointer or
+  NULL; same accessor role for D_800742EC that 0x800D0C34 plays for
+  D_800749F4
 
 ---
 
