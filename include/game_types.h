@@ -336,6 +336,14 @@ typedef struct {
     s16 unk12;
 } Recon_ovl_19_func_800BA054_A0View;
 
+/* ovl_11_func_800CADBC arg0: array of three-s16 records; the function moves
+ * each later non-empty record into the first empty slot and zeroes its source. */
+typedef struct {
+    s16 unk0;
+    s16 unk2;
+    s16 unk4;
+} Ovl11Func800CADBCArg0;
+
 /* ovl_11_func_800D0408 arg1: three s32 vector components selected by a
  * direction code; the switch stores into exactly one of the fields. */
 typedef struct {

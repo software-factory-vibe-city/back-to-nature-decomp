@@ -4271,3 +4271,35 @@ Members:
   neighbours are unmatched, recorded here as position only.
 - ovl_11_func_800ED760 (m) — writer-side probe: resolves scan target through
   the table when `arg2 != 0`, then scans `D_80070C72[5]`.
+
+## `ovl_11` D_80071A90/D_80071AC0 3×s16 record-table compaction cluster — 0x800C9D98–0x800CAE64 (confidence: medium)
+
+Evidence: `D_80071AC0` is `D_80071A90 + 0x30` (two adjacent 8-entry tables of
+6-byte, three-s16 records), and the cluster's functions all operate on that
+record shape: the adjacent caller pair `800C9D98`/`800C9DC0` passes each table
+with count 8 to `ovl_11_func_800CADBC`, which sits immediately before its
+other caller `ovl_11_func_800CAE64` (link-order adjacency, and `800CAE64`
+calls `800CADBC` three times around its own record save/zero/rotate idiom).
+The compaction body's loop shapes also align with exe `func_8001AE34`'s scan
+loop (idiom-precedent hit), and `func_8001AE34` scans `D_80071A90` with the
+same 6-byte entry shape — cross-container, so it witnesses the shared object,
+not TU membership. `ovl_11_func_80102844` (far link order, separate-TU prior)
+is a pure 6-byte-stride accessor over `D_80071AC0`/`D_80070D42` and is listed
+as same-object only. Note: `globals.h` still types `D_80071A90` as `s32[3]`
+and `D_80071AC0` is only declared ad-hoc; the record-table reading is now
+witnessed by three functions.
+
+Members:
+- ovl_11_func_800CADBC (m) — table compaction: moves each later non-empty
+  3×s16 record into the first empty slot of one table and zeroes its source.
+- ovl_11_func_800CAE64 — record remove/rotate: saves a record to the stack,
+  zeroes it, compacts via `800CADBC`, and moves the tail record into the hole.
+- ovl_11_func_800C9D98 (m) — compacts `D_80071AC0` (count 8).
+- ovl_11_func_800C9DC0 (m) — compacts `D_80071A90` (count 8).
+
+Same object, outside the suspected TU:
+- ovl_11_func_80102844 (m) — accessor: `(arg1*6)+&D_80071AC0`, or into
+  `D_80070D42` for a second table.
+- exe func_8001AE34 (m) — scans `D_80071A84`/`D_80071A90`/`D_80070EC2` for an
+  entry whose first s16 is in [0x15,0x1A); shares the entry shape and the
+  compaction-loop idiom, cross-container.
