@@ -325,6 +325,42 @@ no callers matched yet in this container (reads only `D_80075854`, with the
 
 ---
 
+## `ovl_11` keyed-table lookup run — 0x80107B54–0x80107BE4 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) at the tail of the
+gapless 0x80107B54–0x80108104 map run whose other end is the D_8012D0xx
+cluster head below. Evidence is zero-gap link-order adjacency plus a
+caller/callee pair the call graph confirms; as elsewhere in this
+absolute-addressed (-G0) overlay the data tie is a shared-private-cluster
+tie, not the ASPSX definer/declarer rule.
+
+Fingerprints:
+- zero-gap link-order contiguity (map): 0x80107B54 (0x30) → 0x80107B84
+  (0x60) → 0x80107BE4 (0x9C), each starting exactly where the previous
+  ends; the span continues gapless through 0x80107C80 … 0x80107F58 into the
+  0x80108104 head run of the D_8012D0xx section, whose member
+  ovl_11_func_80107F38 writes `D_8012D044`;
+- caller/callee adjacency: `ovl_11_func_80107B84` is `ovl_11_func_80107BE4`'s
+  only caller and sits immediately before it;
+- private data cluster: `D_801278D8` (3-entry pointer table, splat data
+  `69960.data.s`, next symbol `D_801278E4`) and the records it points to
+  (`D_80127890`/`D_80127898`/`D_801278A8`/`D_801278CC`, each a
+  {s16,s16,s32 count,s16* list} entry with its s16 list in the same blob)
+  are referenced only by `ovl_11_func_80107BE4` in the whole container.
+
+Members (address order):
+- ovl_11_func_80107B54 (m) — run head; range-check leaf on the engine s16
+  `D_80070CF8` (returns 0 inside the range, 1 outside)
+- ovl_11_func_80107B84 (s) — calls `ovl_11_func_80107BE4` (uses its result)
+  and `ovl_11_func_800C1224`; reads the `D_8006C838` flags/state buffer
+- ovl_11_func_80107BE4 (m, matched this session) — keyed-table lookup leaf:
+  walks the 3-entry pointer table `D_801278D8`, matches the {s16,s16} key
+  pair and positive count, then scans the entry's s16 list for arg0
+  (return 1 on hit, 0 after all three entries); sole user of the
+  `D_80127890`–`D_801278E4` records
+
+---
+
 ## `ovl_11` D_8012D0xx tiny-global cluster / state-probe run — 0x80108104–0x8010AE64 (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a compact
