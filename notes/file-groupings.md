@@ -4143,9 +4143,9 @@ Members:
   into [D_80128DE8.unk0..unk8] / [unk4..unkC] with four min/max halfword
   clamps (leaf, 0x90, void).
 
-## `ovl_11` struct_80076220 u16@+4 reader/writer cluster — 0x800F02C8 / 0x8011256C / 0x8011FF0C (confidence: low)
+## `ovl_11` struct_80076220 u16@+4 reader/writer cluster — 0x800F02C8 / 0x8011256C / 0x8011FF0C / 0x800C3CCC (confidence: low)
 
-Three ovl_11 functions reaching the same field of the 37-entry 0x1D4-stride
+Four ovl_11 functions reaching the same field of the 37-entry 0x1D4-stride
 absolute-addressed array `D_80076220`: the unsigned halfword at entry +0x4
 (entry offset 4 of `struct_80076220`), addressed through the shared two-stage
 split `p = (char *)&D_8006C838 + idx * 0x1D4; *(u16 *)(p + 0x8000 + 0x19EC)`
@@ -4166,6 +4166,13 @@ Members:
   the scan reaches this same field via `&D_80076220` + pointer walk)
 - ovl_11_func_8011FF0C (m) — increment/limit writer of the same u16@+4 field
   for one entry (`arg0 * 0x1D4` stride, same split form)
+- ovl_11_func_800C3CCC (m, matched this session) — guarded countdown sweep:
+  when the s16 behind the far pointer `*(s32 **)((char *)&D_8007AFF0 +
+  0x25388)` reads 0x13, decrements the u16s at +0x2 and +0x4 of all 37
+  entries (clamping each at 0, the +0x2 one via a signed-16 view — first
+  recorded reference to u16@+2), walking `&D_80076220` by 0x1D4; also
+  increments `D_8006C838 + 0x5238` while it is < 0xF; same data tie as the
+  other members (0x800C3CCC is far from all three), TU membership unproven
 
 ---
 
