@@ -1176,6 +1176,16 @@ Members (address order):
   `return D_80071A22 == (arg0 & 0xFF);` (6 words, `andi` + `lh` + `sltu` mount,
   no branches); byte-exact clean C, baseline flags; run's only confirmed
   D_80071A22 reference; caller is link-adjacent ovl_11_func_800F19E0
+- ovl_11_func_800CD3C4 (m, matched this session) — multi-cell evaluation leaf:
+  sums guards over three pool cells (`lh` +0x12, `lhu` +0x36, and a second
+  `& 0x200` mask-and-test of s32 `D_80071A6C`, joining 0x800CBDFC as a reader
+  of that word), halves the score when bit 0x200 is set, and zeroes it on the
+  `lhu` +0x36 bit-3 test; also forms two far sub-bases from the same
+  `char *base = (char *)&D_80071A00` idiom as 0x800CCC5C — base+0x2E38 (=
+  `D_80074838`, s16 at +0x64C8 = 0x8007AD00, the cell the mask-switch run reads
+  as D_8006C838+0xE4C8) and base-0x51C8 (= `D_8006C838`, u16 at +0x44C0 =
+  0x80070CF8, beside the D_80070CF2/D_80070CF6 switch globals); see the
+  D_8006C838 cluster entry
 - ovl_11_func_8011D06C (m, matched earlier) — leaf: `return D_80071A5C >= arg0;`
   `>=`-guard on the pool's middle sibling
 
@@ -3595,7 +3605,7 @@ TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
 800CCF58, 800D12B8, 800D196C, 800D736C, 800E93CC.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x8010C1C0 (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x8010C1C0 (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -3613,6 +3623,12 @@ the overlay, never GP-relative), and the large-offset writers use the same
 - ovl_11_func_800BFD04 (m) — s16 setter at +0xE4C8 via the +0x8000 split
   (base+0x8000, disp +0x64C8)
 - ovl_11_func_800CBE14 (m) — swaps u16 pair at +0x5800/+0x5802
+- ovl_11_func_800CD3C4 (m, matched this session) — evaluation leaf: masks bit
+  0x200 of the u16 at +0x44C0 (= 0x80070CF8) into a running score (via sub-base
+  base-0x51C8 formed from `&D_80071A00`; see the D_80071A00 pool cluster
+  entry), and gates a second read at `D_80074838`+0x64C8 (= 0x8007AD00, the
+  cell 0x800F1CC4 reaches as +0xE4C8); its +0x8000-relative region ties it to
+  the D_80071A00 pool cluster as well
 - ovl_11_func_800D12A0 (m) — s16 setter at +0x99E6 via the +0x8000 split
   (already documented as the D_80123754 run head)
 - ovl_11_func_8010C1C0 (m, this session) — copies four s32 fields from arg0
