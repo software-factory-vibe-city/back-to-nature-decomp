@@ -3520,8 +3520,13 @@ Members (address order):
 - ovl_11_func_800D583C (s) — s16 index, returns type byte at +0x2
 - ovl_11_func_800D5868 (m, matched this session) — s16 index, returns `(flags & 0x40) != 0`; reads the offset-0x00 word *signed* (lh), the same access 800D5750/800D589C/800D58D0 use and the opposite view from the lhu readers named in the ItemData struct comment
 - ovl_11_func_800D589C (m, matched this session) — s16 index, returns `(flags & 0x8100) != 0` via the same `(m & 0x8100) > zero` bool-idiom as 800D5868
-- ovl_11_func_800D58D0 (s) — s16 index; flags & 0x800 → action sub-struct at
-  +0x1C (fn ptr +0, bytes +4/+5, s16 +6), else returns -1
+- ovl_11_func_800D58D0 (m, matched this session) — s16 index; flags & 0x800 →
+  dispatches the action sub-struct at +0x1C (fn ptr +0 called as (s8, s8, s16, s32),
+  s8 at +4/+5, s16 at +6; first arg = arg0's s8 at +2 on the 0x800 path, else the
+  sub-struct's s8 at +4), else -1; reads the flags word *unsigned* (lhu); byte-exact
+  clean C, baseline flags, through the shared ItemData override — confirms the
+  predicted 0x1C sub-struct layout, and its arg0 record ({s16@+0, byte@+2}, the byte
+  here read signed) is the same arg shape the 800D5B3C/800D5BBC members read
 - ovl_11_func_800D5B3C (m, matched this session) — two-level item table lookup
   through the `D_8006C838`+0x20/+0x24 pointer slots: reads s16 index from arg0+0,
   looks up ItemData field_0E via the +0x20 slot (= D_8006C858), uses that as a

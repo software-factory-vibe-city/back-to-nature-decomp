@@ -781,6 +781,16 @@ extern s32 D_800BB88C;
 extern unsigned char D_800BB9BC[];
 extern s32 D_800BBA3C;
 
+/* Action sub-structure at 0x1C of ItemData (ovl_11_func_800D58D0): fn ptr at
+ * +0 called as (s8, s8, s16, s32) -> s32, signed byte at +4, signed byte at
+ * +5, s16 at +6. */
+typedef struct {
+    /* 0x00 */ s32 (*field_0)(s8 arg0, s8 arg1, s16 arg2, s32 arg3);
+    /* 0x04 */ s8 field_4;
+    /* 0x05 */ s8 field_5;
+    /* 0x06 */ s16 field_6;
+} ItemAction;
+
 /* Shared item table entry (array behind the D_8006C858 pointer, stride 0x28).
  * Referenced by the ovl_11 item-cluster functions: the offset-0x00 word is
  * read both signed (lh: ovl_11_func_800D5868/800D589C/800D5750 bit tests
@@ -798,7 +808,8 @@ typedef struct {
     /* 0x10 */ s16 field_10;
     /* 0x12 */ char pad_12[0x18 - 0x12];
     /* 0x18 */ s32 field_18;
-    /* 0x1C */ char pad_1C[0x28 - 0x1C];
+    /* 0x1C */ ItemAction action;
+    /* 0x24 */ char pad_24[0x28 - 0x24];
 } ItemData; /* 0x28 */
 
 /* D_8006C858 - shared item table pointer (main-binary data, absolute addressed
