@@ -3083,12 +3083,22 @@ Members (address order):
 - func_80021E60's pool-carving table neighborhood (19-entry pointer/count
   parallel arrays over 0x18-byte elements) — func_80021DA8 is a confirmed
   caller and address predecessor; shared gp-rel globals unverified.
-- ovl_11 D_8012D520 getter/compare trio — ovl_11_func_80118C6C (m, matched
-  this session), ovl_11_func_801165C8 (m, now matched) and
-  ovl_11_func_80115FC8 (m, matched this session) are the three ovl_11 readers
+- ovl_11 D_8012D520 getter/compare quartet — ovl_11_func_80118C6C (m, matched
+  this session), ovl_11_func_801165C8 (m, now matched),
+  ovl_11_func_80115FC8 (m, matched this session) and
+  ovl_11_func_801189C8 (m, matched this session) are the four ovl_11 readers
   of s32 D_8012D520 (all `lui %hi` + `lw %lo`); ovl_11_func_801165C8 is the
   boolean test `D_8012D520 != 0x1A` (xori 0x1A + sltu-vs-zero) and
   ovl_11_func_80115FC8 the same-shape test `D_8012D520 != 0x14`.
+  ovl_11_func_801189C8 additionally reads D_8012D52C in the same body and is
+  the dispatcher over the ovl_11 case-handler tables D_800BB228[8] /
+  D_800BB248[26] / D_800BB2C0[27] — indexed by D_8012D520 and D_8012D52C
+  respectively, returning "handled" 1/0 for the caller
+  ovl_11_func_800C162C — and its table entries are largely the D_8012D52C
+  reset-stub family members above (e.g. 8011A708–8011A998, 8011AA44,
+  8011AA54, 8011B6B4, 80114184/80114194), tying the reader trio, the
+  busy-flag writers and the handler run together as one state-machine
+  neighbourhood.
   D_8012D520 sits in the contiguous data block D_8012D51A/51C/520/524 that
   no other code references. Shared-global fingerprint only; data TU ownership
   unconfirmed.
