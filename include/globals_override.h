@@ -957,6 +957,14 @@ extern s32 D_800BB4E4[];
 extern s32 D_800C49F8[];
 
 
+/* D_800711C4 - main-EXE progress-counter record, absolute-addressed from the
+ * ovl_11 overlays (-G0). ovl_11_func_800F3BCC increments a u16 entry selected
+ * by arg and folds the return into the s32 at 0x34; ovl_11_func_800F3EF0
+ * folds the pending half of the u16 array (entries 1..25 at 0xFE..0x12E) into
+ * the counter half (entries 0..24 at 0x00..0x30) with a 999 clamp, clears the
+ * pending entries, and folds the s32 at 0x130 into the s32 at 0x34. */
+extern u16 D_800711C4[0x9A];
+
 /* D_8012D060: four halfwords written by ovl_11_func_80108864 and read
  * by ovl_11_func_801089DC. Shared declaration for both sides. */
 typedef struct {
