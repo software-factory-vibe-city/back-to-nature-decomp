@@ -815,6 +815,36 @@ in the D_80123754 setter run. Members:
 
 ---
 
+## `ovl_11` D_80128CD0 coord-set run — 0x800CE210–0x800CE37C (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the adjacent
+main-RAM globals `D_80128CD0` / `D_80128CE0` / `D_80128CEC` (0x80128CD0,
+0x80128CE0, 0x80128CEC).
+
+Fingerprints:
+- caller/callee + shared global cluster: `ovl_11_func_800CE210` calls
+  `ovl_11_func_800CE2EC` with `$a0 = &D_80128CD0`; the callee fills fields
+  +0/+4/+8 of that struct from the 3-entry s16-pair table `D_801232BC` (its
+  only referencing function in the container, a private table), and the caller
+  then keeps updating `D_80128CD0` (+0 −= 0x226, +4, +8) and `D_80128CE0`
+  and clears `D_80128CEC`;
+- zero-gap link-order contiguity (map): 0x800CE210 (0xDC) → 0x800CE2EC
+  (0x90) → 0x800CE37C, each starting exactly where the previous ends; the
+  successor `ovl_11_func_800CE37C` likewise touches `D_80128CEC`.
+
+Members (address order):
+- ovl_11_func_800CE210 (s) — init/update of the D_80128CD0/D_80128CE0 state
+  pair and the D_80128CEC flag; calls 0x800CE2EC to (re)fill the D_80128CD0
+  coordinate triple
+- ovl_11_func_800CE2EC (m, matched this session) — leaf selector: switch on
+  the state u16 behind the `D_8007AFF0+0x25388` pointer (+4 field, cases
+  0x50–0x5B) picks row 0/1/2 of table `D_801232BC`, writes `{row.f0, 0,
+  row.f1}` to `D_80128CD0` +0/+4/+8 and returns `row.f1`
+- ovl_11_func_800CE37C (s) — larger setup body over `D_80128CEC` and
+  `D_8006C838`; link successor of the run
+
+---
+
 ## `ovl_11` short-fold helper trio — 0x800CE514–0x800CE53C (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) — three tiny range/
