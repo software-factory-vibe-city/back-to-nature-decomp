@@ -4047,3 +4047,39 @@ Members (address order):
   select: zeroes the record, switch on s16 arg0 (−2..4) stores ±arg2 into
   component 0/4/8 or clears the whole record, returning −arg2 on the negative
   paths
+## `ovl_11` D_8012D110 record feed/clear caller/callee pair — 0x80113B80 / 0x80113C3C (confidence: medium)
+
+Candidate same-TU pair in `ovl_11`: zero-gap link adjacency + direct call + a
+shared global that mediates their data flow — the same fingerprint as the
+documented D_80129184 caller/callee pair.
+
+Fingerprints:
+- **zero-gap link adjacency:** `ovl_11_func_80113B80` (0xBC bytes) ends exactly
+  at `ovl_11_func_80113C3C` (0x94 bytes at 0x80113C3C, matched this session,
+  byte-exact);
+- **direct call, sole caller:** 80113B80 calls 80113C3C once, conditionally
+  (after a `func_8001AF70` round-trip gates on the record's +0x8/+0xA values);
+  the callee's return value is unused by the caller and its early path sets no
+  `$v0` (void);
+- **shared global D_8012D110:** the caller reads +0x8/+0xA as s16, computes the
+  `400 * x` strength-reduced products, and stores results into
+  `D_8006C838`+0x52C8/0x52CC/0x52D0; the callee then reads +0x0 as a gate,
+  multiplies the same +0x8/+0xA fields by 400, writes results into
+  `&D_8007AFF0 + 0x250E4..0x250FC` (the `D_800A00D4..D_800A00EC` block, reached
+  via the two-stage `base + 0x20000` split), and copies +0x8/+0xA back into
+  +0x4/+0x6 — complementary populate/clear roles over one record;
+- the wider `D_8012D110` block has readers scattered across ovl_11
+  (0x80112EC4–0x80113818, 0x80113A20, 0x800DBFEC), so the global alone is not a
+  TU tie; and the callee's output block `D_800A00CC+0x8..0x20` has separate
+  direct readers at 0x800DBFEC / 0x80104CB8 — data-family ties only.
+
+Members:
+- ovl_11_func_80113B80 (s) — populates the D_8012D110 record (+0x8/+0xA) from
+  the `D_8006C838`+0x52C6 state, writes the 400*x results into the
+  `D_8006C838`+0x52C8/0x52CC/0x52D0 scratch words, then conditionally calls the
+  callee.
+- ovl_11_func_80113C3C (m, matched this session, 0x94, byte-exact, void) —
+  gated by the record's s16 at +0x0: clears bit 0x1000 of the word at
+  `D_800A00D4`, zeroes `D_800A00EA`, stores the two 400*x products at
+  `D_800A00E8`/`D_800A00EC` (the latter doubled as the function's residual
+  `$v0`), and copies +0x8/+0xA back into +0x4/+0x6.
