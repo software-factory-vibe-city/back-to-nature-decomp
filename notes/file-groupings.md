@@ -3847,3 +3847,31 @@ Members (link order):
 The stubs immediately before the pair (`ovl_11_func_80112494`, 80112440,
 801123AC, 80112318, 80112284, 80112160) may extend this run; membership is
 not yet evidenced.
+
+## `ovl_11` record-halfword match sibling pair — 0x800F13D8 / 0x800F144C (confidence: low)
+
+Two link-adjacent (zero gap: 0x800F13D8 ends at 0x800F144C exactly) leaf
+helpers that answer the same kind of question over a two-halfword record
+`{first, second}` from opposite sides, and no shared caller explains the
+adjacency: 0x800F144C's only caller is `ovl_11_func_800F1078` (`jal` at
+0x800F1194, link-earlier), while 0x800F13D8's caller is `ovl_11_func_800F1AE0`
+(link-later). Shared author idiom, witnessed by both matched sources: a
+`found`-flag `for` + `break` loop returning 1/0 with the result kept in `$t0`
+through the `jr $ra; addu $v0,$t0,$zero` epilogue — 0x800F144C's byte-exact
+source needed exactly this `for`/`break` spelling (the goto/while respelling
+left a 7-word temp/result register swap), matching the already-matched
+`ovl_11_func_800F13D8` shape. Predicates are complementary: 0x800F13D8 tests
+`record[0]==0 && record[1]==arg0`; 0x800F144C's zero-length path tests
+`record[0]==arg0 && record[1]==0`. 0x800F144C takes the record by pointer
+parameter rather than reading `D_8006C838`, so no shared-global tie yet; TU
+membership unproven.
+
+Members:
+- ovl_11_func_800F13D8 (m, matched earlier) — sentinel-row lookup over the
+  `D_8006C838` record table: returns 1 when a record's first halfword is zero
+  and its second equals the u16 argument
+- ovl_11_func_800F144C (m, matched this session, 0x8C, byte-exact) —
+  parameterized window matcher over a caller-supplied two-halfword record:
+  returns 1 immediately for arg0==0x1F or arg1==0x1F; clamps arg1 to 0x18;
+  zero-length path is the exact-match test above, otherwise scans
+  `arg0..arg0+arg1-1` mod 0x18 for the record's first halfword
