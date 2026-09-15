@@ -160,6 +160,12 @@ typedef struct {
 } ReadFlag;
 
 typedef struct {
+    s32 unk0;
+    s32 unk4;
+    s32 unk8;
+} Recon800D0408A1View;
+
+typedef struct {
     char pad_0[0x1A];
     s16 unk1A;
     char pad_1C[0x50];

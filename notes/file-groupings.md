@@ -4021,3 +4021,29 @@ Members:
   the scan reaches this same field via `&D_80076220` + pointer walk)
 - ovl_11_func_8011FF0C (m) — increment/limit writer of the same u16@+4 field
   for one entry (`arg0 * 0x1D4` stride, same split form)
+
+---
+
+## `ovl_11` 3×s32 vector-record pair — 0x800D03B4 / 0x800D0408 (confidence: medium)
+
+Two link-contiguous leaf functions operating on the identical 12-byte record
+(three s32 components at 0/4/8):
+
+- `Struct_800D03B4` (field_0/4/8, local typedef in the matched source) and the
+  type 0x800D0408 writes (`Recon800D0408A1View`, game_types.h) are the same
+  layout — same component offsets, same component width;
+- link-order adjacency: `ovl_11_func_800D03B4` (0x54) ends exactly at
+  `ovl_11_func_800D0408` (0x94); the map places them one unbroken run, with
+  stub `ovl_11_func_800D049C` continuing it;
+- semantic kinship: 0x800D03B4 is the record's component-wise add/clear
+  writer, 0x800D0408 its component-select writer (s16 selector, zeroes the
+  record then stores ±arg2 into one component, and clears all three for the
+  all-zero selector 4).
+
+Members (address order):
+- ovl_11_func_800D03B4 (m) — vector-record add: adds arg1's three components
+  into arg0's, optionally re-clearing arg1
+- ovl_11_func_800D0408 (m, matched this session) — vector-record component
+  select: zeroes the record, switch on s16 arg0 (−2..4) stores ±arg2 into
+  component 0/4/8 or clears the whole record, returning −arg2 on the negative
+  paths

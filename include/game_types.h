@@ -336,6 +336,14 @@ typedef struct {
     s16 unk12;
 } Recon_ovl_19_func_800BA054_A0View;
 
+/* ovl_11_func_800D0408 arg1: three s32 vector components selected by a
+ * direction code; the switch stores into exactly one of the fields. */
+typedef struct {
+    s32 unk0;
+    s32 unk4;
+    s32 unk8;
+} Recon800D0408A1View;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14
