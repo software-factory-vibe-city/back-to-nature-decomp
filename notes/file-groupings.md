@@ -3976,3 +3976,27 @@ Members:
 - ovl_11_func_800DB054 (m, matched this session) — clamps arg0->unk0/unk4
   into [D_80128DE8.unk0..unk8] / [unk4..unkC] with four min/max halfword
   clamps (leaf, 0x90, void).
+
+## `ovl_11` struct_80076220 u16@+4 reader/writer cluster — 0x800F02C8 / 0x8011256C / 0x8011FF0C (confidence: low)
+
+Three ovl_11 functions reaching the same field of the 37-entry 0x1D4-stride
+absolute-addressed array `D_80076220`: the unsigned halfword at entry +0x4
+(entry offset 4 of `struct_80076220`), addressed through the shared two-stage
+split `p = (char *)&D_8006C838 + idx * 0x1D4; *(u16 *)(p + 0x8000 + 0x19EC)`
+(`D_8006C838 + 0x8000 + 0x19EC` = `D_80076220 + 0x4`). Same shared-global
+cluster fingerprint as the documented D_8006C838 entry — the base is absolute
+in every site (extern in the overlay, never GP-relative), and the three
+addresses are far apart (0x800F02C8 vs 0x8011256C vs 0x8011FF0C), so this is
+a data tie, not link-order adjacency; TU membership unproven.
+
+Members:
+- ovl_11_func_800F02C8 (m, matched this session, 0x90, byte-exact) — argmax
+  scan: indexes the array by the five s16 values at `D_80124DD8`..+0x8 (first
+  project reference to that data region), tracks the largest entry whose
+  u16@+4 >= 0x1F4, returns its index else -1; shares the exact `+0x8000
+  +0x19EC` split spelling with 8011FF0C (identical toolchain, same container)
+- ovl_11_func_8011256C (m) — scans all 37 entries and sets the D_800719F8 bit
+  0x100 when u16@+4 > 0xC350 (recorded under the D_800719F8 bit-flag family;
+  the scan reaches this same field via `&D_80076220` + pointer walk)
+- ovl_11_func_8011FF0C (m) — increment/limit writer of the same u16@+4 field
+  for one entry (`arg0 * 0x1D4` stride, same split form)
