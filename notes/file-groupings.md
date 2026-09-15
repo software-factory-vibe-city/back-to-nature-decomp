@@ -604,6 +604,20 @@ s16 at +0xE stride — summing (returns sum == 0) where 80104394 compares
 are the two witnesses for how this author forms that large-offset table
 address (indexed member access, not precomputed pointer arithmetic).
 
+Widening (2026-09-15, byte-exact match of `ovl_11_func_801047FC`): the record
+region's initializer is now matched. `ovl_11_func_801047FC` (m, 0x801047FC,
+0x9C, void leaf) zero-gaps after parked stub `ovl_11_func_8010476C` and is
+called only by `ovl_11_func_801044E4` (s, immediately link-preceding). Same
+D_8006C838 shared-global-cluster fingerprint: absolute-addressed
+`(View *)&D_8006C838` view with the identical `ori 0x8000 + addu` large-offset
+formation as 80104394, plus one far store through the
+`char *far_base = (char *)&D_8007AFF0` idiom (s32 at +0x2549C). Data-boundary
+tie: it writes the five 0xC-stride s16 records at +0xE4D8 (fields +0/+8/+A set
+to -1) — the table ends exactly at +0xE514, the select halfword 80104394 reads
+and 80103770 walks — an initializer/consumer tie on one data region, so it
+extends this TU family past the 0xE514 boundary; membership in the
+D_80127428 run itself remains unproven (touches none of D_80127428/2C).
+
 ---
 
 ## `ovl_11` s16-pair setter pair — 0x800D0DB0 / 0x800D0DBC (confidence: low)
