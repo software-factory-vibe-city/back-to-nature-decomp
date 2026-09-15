@@ -4174,3 +4174,39 @@ Members:
   `D_800A00D4`, zeroes `D_800A00EA`, stores the two 400*x products at
   `D_800A00E8`/`D_800A00EC` (the latter doubled as the function's residual
   `$v0`), and copies +0x8/+0xA back into +0x4/+0x6.
+
+## `ovl_11` D_80129560 s32-table accessor family — 0x800E6914–0x800ED760 + 0x800EC490 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): six matched functions
+sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
+(`globals_override.h`), each guarded-indexing it with `s16`-scaled slots.
+
+Fingerprints:
+- **shared private global:** `D_80129560` is defined in ovl_11 data and has
+  exactly these six accessors container-wide — readers 800E6914 (bit-gated
+  `arg0`-selects which of `arg2`/`arg3` resolve through the table),
+  800E69B8 (passes `D_80129560[arg2]` as `ovl_11_func_800EFABC`'s third arg),
+  800ED760 (`arg2 != 0` resolves the scan target through the table) — and
+  writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
+  slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490;
+- **what the tie is not:** the members are scattered over ~0x6E4C of text with
+  no call edges among them (800EC490 has no callers anywhere in the link —
+  an exported entry), so per the ledger convention the global alone is a
+  data-family tie, not a TU tie.
+
+Members:
+- ovl_11_func_800E6914 (m) — three-slot compare leaf: `D_80129560[arg1]` vs
+  bit-selected `D_80129560[arg2]`/`[arg3]`, returns the in-range test.
+- ovl_11_func_800E69B8 (m) — forwards `D_80129560[arg2]` into
+  `ovl_11_func_800EFABC`.
+- ovl_11_func_800E8BA0 (m) — writer: `D_80129560[arg1] = entity->u16@+2`.
+- ovl_11_func_800E8D00 (m) — writer: stores the store-view s16 pair into slots.
+- ovl_11_func_800EC490 (m, matched 2026-11 — this session, 0x9C, byte-exact) —
+  four-slot default restore: for each of four args, if `!= -1`, writes
+  `D_80129560[arg] = D_80070D06/08/0A/0C` (four adjacent engine-rodata u16s,
+  read nowhere else in ovl_11 except `D_80070D06` at 800CD0C0); returns 1.
+  Sits zero-gap between `ovl_11_func_800EC354` (0x13C, stub) and
+  `ovl_11_func_800EC52C` (0xF7C, stub) — adjacency uncorroborated while both
+  neighbours are unmatched, recorded here as position only.
+- ovl_11_func_800ED760 (m) — writer-side probe: resolves scan target through
+  the table when `arg2 != 0`, then scans `D_80070C72[5]`.
