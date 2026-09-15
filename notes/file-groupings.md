@@ -61,6 +61,25 @@ translation units.
 
 ---
 
+## `ovl_11` s16 range-map helper pair — 0x800CB020–0x800CB110 (confidence: medium)
+
+Evidence: link-order adjacency (0x800CB020 ends at 0x800CB0B0 where the next
+function starts) plus a shared caller: `ovl_11_func_800C72F8` calls
+`ovl_11_func_800CB0B0` at 0x800C7338 and `ovl_11_func_800CB020` at 0x800C7344
+back to back. Both are leaf `s16(s16)` value-mapping helpers with the same
+author idiom cluster — `andi+sltiu` u16 range guards, the 0x66666667 signed
+`/5` strength reduction, and per-return sll/sra tails with delay-slot hoisting.
+The 800CB020 reconstruction was settled by inheriting 800CB0B0's spelling
+(positive-form second range check, no shared return tail), confirming the
+idiom kinship.
+
+Members:
+- ovl_11_func_800CB020 (m) — maps an s16 through a /5 range dispatch:
+  0x01–0x19 → `(s16)((t*0x14+0x48) + (arg0 - (t*5+1)))` with t=(arg0-1)/5;
+  0x1A–0x1D → `(arg0-0x1A)*4+0xB6`; else 0.
+- ovl_11_func_800CB0B0 (m) — sibling range map: 0x01–0x19 → (arg0-1)/5;
+  0x1A–0x1D → (s16)(arg0-26); else 0.
+
 ## `ovl_11` two-table field-lookup siblings — 0x800D5ABC–0x800D5BBC (confidence: medium)
 
 Evidence: three adjacent 0x80-byte functions access the pointer members at
