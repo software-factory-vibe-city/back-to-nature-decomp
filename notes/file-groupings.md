@@ -4426,3 +4426,34 @@ Members:
   cell[1] to the third (dividing each by 2 when arg2==4)
 - ovl_11_func_80113310 (s) — same struct view and table read as 800CE034
   (no +0x10 select), passing the summed pair to `ovl_11_func_801136D0`
+
+## `ovl_11` D_8006C838 pool-entry run — 0x800F4994 / 0x800F4A58 / 0x800F4FC8 (confidence: medium for the pair, low for 0x800F4FC8)
+
+Fingerprints:
+- shared private global: `D_80129634` is referenced container-wide by exactly
+  `ovl_11_func_800F4994` (stores 3) and `ovl_11_func_800F4A58` (decrements to
+  0 as a guard), both with the absolute `lui`+`sw`/`lw` form;
+- shared struct view: all three view `D_8006C838` as a giant struct whose
+  +0xDDD4 field is the pool-entry pointer (absolute 0x8007A60C), each with a
+  per-file local view typedef — `field_DDD4` has no other referencing
+  functions in the container;
+- link-order adjacency for the pair: `ovl_11_func_800F4994` (0xBC) ends at
+  0x800F4A50 and `ovl_11_func_800F4A58` (0x48) follows immediately (an
+  8-byte function at 0x800F4A50 between them);
+- what the tie is not: `ovl_11_func_800F4FC8` sits ~0x570 bytes later in link
+  order (0x800F4E84 between), so its membership rests on the shared
+  `field_DDD4` data view alone; and the container-wide
+  `far_base = &D_8007AFF0` idiom is not part of this tie — none of the three
+  uses it.
+
+Members:
+- ovl_11_func_800F4994 (m, matched this session, 0xBC, byte-exact) — bounds
+  gate: requires the far state halfword (D_8007AFF0+0x25476) to equal the
+  pool entry's s16@0, tests a position's three components against the entry's
+  limits at +0xC/8/0x10 (±20/±200/±200), then sets `D_80129634 = 3` and
+  returns the entry pointer.
+- ovl_11_func_800F4A58 (m) — flag timer: when the pool entry's flag word bit
+  8 is set and `D_80129634` has not counted down to 0, clears the bit and
+  decrements `D_80129634`.
+- ovl_11_func_800F4FC8 (m) — pool advance: on a flag in the view's +0x44F8
+  word, steps the pool entry pointer forward and clears the entry's low flag.
