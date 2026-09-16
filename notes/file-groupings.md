@@ -4303,26 +4303,37 @@ Members:
   `D_800A00E8`/`D_800A00EC` (the latter doubled as the function's residual
   `$v0`), and copies +0x8/+0xA back into +0x4/+0x6.
 
-## `ovl_11` D_80129560 s32-table accessor family — 0x800E6914–0x800ED760 + 0x800EC490 (confidence: low)
+## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): six matched functions
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): seven matched functions
 sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
 (`globals_override.h`), each guarded-indexing it with `s16`-scaled slots.
 
 Fingerprints:
 - **shared private global:** `D_80129560` is defined in ovl_11 data and has
-  exactly these six accessors container-wide — readers 800E6914 (bit-gated
+  exactly these seven accessors container-wide — readers 800E6914 (bit-gated
   `arg0`-selects which of `arg2`/`arg3` resolve through the table),
   800E69B8 (passes `D_80129560[arg2]` as `ovl_11_func_800EFABC`'s third arg),
+  800E5A1C (loads `D_80129560[(s16)arg1]` as the limit, compares
+  `D_80129560[(s16)arg0]`/2 — or `(s16)arg0`/2 when `arg2 == 0` — against it),
   800ED760 (`arg2 != 0` resolves the scan target through the table) — and
   writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
-  slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490;
+  slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
+  (800E5A1C also increments `D_80129560[(s16)arg1]`);
 - **what the tie is not:** the members are scattered over ~0x6E4C of text with
   no call edges among them (800EC490 has no callers anywhere in the link —
   an exported entry), so per the ledger convention the global alone is a
   data-family tie, not a TU tie.
 
 Members:
+- ovl_11_func_800E5A1C (m, matched 2026-09 — this session, 0xC0, byte-exact) —
+  compare-then-increment probe: sets the returned flag when
+  `D_80129560[(s16)arg0] / 2 < limit` (arg2 != 0) or `(s16)arg0 / 2 < limit`
+  (arg2 == 0) with `limit = D_80129560[(s16)arg1]`, then increments
+  `D_80129560[(s16)arg1]` unless `arg3 != 0 && (D_8006C844 & 0x8000000)`;
+  lowest-address member of the family, at the head of the recorded
+  0x800E5A1C–0x800EExxx accessor band, same absolute `lui`+`addiu %lo` base
+  and s16-fused index idiom as the sibling accessors.
 - ovl_11_func_800E6914 (m) — three-slot compare leaf: `D_80129560[arg1]` vs
   bit-selected `D_80129560[arg2]`/`[arg3]`, returns the in-range test.
 - ovl_11_func_800E69B8 (m) — forwards `D_80129560[arg2]` into
