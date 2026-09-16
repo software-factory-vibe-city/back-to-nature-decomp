@@ -4577,3 +4577,25 @@ Members:
 - ovl_11_func_801098B0 (s) — run tail: sole caller, builds the by-value
   record (selector from a source record's s16@+0x30, radius from +0x38, out
   pointer = &D_8012D080) and dispatches on the scan result.
+
+## `ovl_11` D_8007AFF0 +0x253B4/+0x253B8 pair-consumer pair — 0x800D92FC–0x800D93C8 (confidence: low)
+
+Evidence: gapless link adjacency (0x800D92FC is 0xCC and ends exactly at
+0x800D93C8) with an agreeing call edge — 0x800D93C8 direct-calls
+0x800D92FC (`jal` at 0x800D940C) — plus a shared far-buffer global cluster:
+0x800D92FC reads `s16`@+0x253B4/+0x253B8 of `D_8007AFF0` with the same
+single-`lui`+`addu` far-base build as the recorded +0x253AC halfword-block
+pair member `ovl_11_func_800DB978` (matched), which zeroes exactly those two
+fields. So the +0x253AC halfword family gains a matched consumer of two of
+its six cleared halfwords. Address-apart from that family, so same-TU
+membership between the two runs is unproven; the pair's own membership rests
+on adjacency + call edge only (low).
+
+Members:
+- ovl_11_func_800D92FC (m, matched this session, byte-exact) — two-pass
+  leaf: per pass reads the shared halfword pair, computes
+  `(v ± 0xE10 + 0x1130) / 400` clamped to [0,0x2D] and
+  `(v ± 0xE10 - 0x640) / -400` clamped to [0,0x19], and stores the two
+  results as the s32 pair at `arg0[2*i]`/`arg0[2*i+1]`.
+- ovl_11_func_800D93C8 (s) — link successor and sole caller; consumes the
+  written pair.
