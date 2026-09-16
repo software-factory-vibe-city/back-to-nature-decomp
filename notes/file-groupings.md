@@ -4047,7 +4047,7 @@ Members (link order):
 - ovl_11_func_800F6578 (m, already matched) — dispatch target case 6: leaf
   switch-return-id mapper, maps id 0x64→0x11/0x65→0x13
 
-## `ovl_11` D_800719F8 flag-word status group — 0x801124E8–0x801125DC (confidence: medium)
+## `ovl_11` D_800719F8 flag-word status group — 0x801124E8–0x801126C8 (confidence: medium)
 
 Candidate same-TU group of `ovl_11` (`Obj\GF_FARM.bin`) built around the
 `D_800719F8` flag word. Evidence produced by matching the members across
@@ -4055,18 +4055,21 @@ this region's sessions:
 
 - **address adjacency:** `ovl_11_func_801124E8` (0x84 bytes) ends exactly at
   `ovl_11_func_8011256C`, which (0x70 bytes) ends exactly at
-  `ovl_11_func_801125DC` — a contiguous zero-gap link-order run; all three
-  are leaf void functions;
+  `ovl_11_func_801125DC`, which (0x90 bytes) ends exactly at the
+  `ovl_11_func_8011266C` stub (0x5C), which ends exactly at
+  `ovl_11_func_801126C8` (0xB4) — a contiguous zero-gap link-order run; all
+  matched members are leaf void functions;
 - **shared global cluster:** all take no arguments and operate on the
   `D_800719F8` flag word, reading status data as far pointer offsets from it;
 - **shared idiom:** all spell the far access as `base = &D_800719F8;` plus
-  `(u8 *)base - <const>` anchor arithmetic (801124E8 and 801125DC share the
-  identical `-0x51C0` anchor constant, 8011256C uses `-0xCC8`
+  `(u8 *)base - <const>` anchor arithmetic (801124E8, 801125DC and 801126C8
+  share the identical `-0x51C0` anchor constant, 8011256C uses `-0xCC8`
   for `D_80070D30`) — the same anchor-construction fingerprint, not a
   direct-global spelling;
-- **shared data region:** 801124E8 and 801125DC both read the halfword
-  cluster at `anchor+0x44C4`–`anchor+0x44F8` (the `D_80070D06`/`08`/`0A`/`0C`
-  file-status flags and neighbours), anchoring them to one data region.
+- **shared data region:** 801124E8, 801125DC and 801126C8 all read the
+  halfword cluster at `anchor+0x44C4`–`anchor+0x44F8` (the
+  `D_80070D06`/`08`/`0A`/`0C` file-status flags, the `D_80070D30` word and
+  neighbours), anchoring them to one data region.
 
 Members (link order):
 - ovl_11_func_801124E8 (m, this session) — file-status flag routine: clears
@@ -4082,10 +4085,15 @@ Members (link order):
   0x200/0x400/0x800/0x1000 from the `D_80070D0A`/`06`/`08` halfwords (with a
   `D_80070D06 == 1` tie-break) via the shared `-0x51C0` anchor, falling
   through to set 0x2000 and store it only when `D_80070D0C` is clear
+- ovl_11_func_801126C8 (m, this session) — file-status flag routine: clears
+  0x38000 off `D_800719F8` via the shared `-0x51C0` anchor, then sets
+  0x10000 when `D_80070D0A` is set and the `D_80070D30` 0x100000 bit is
+  clear; otherwise gates on `D_80070D08` and the `D_80070D30` 0x100000 bit
+  and sets 0x8000/0x20000 from the `D_80070D30` 0x100/0x200 bits
 
 The stubs immediately before the group (`ovl_11_func_80112494`, 80112440,
-801123AC, 80112318, 80112284, 80112160) may extend this run; membership is
-not yet evidenced.
+801123AC, 80112318, 80112284, 80112160) and the `ovl_11_func_8011266C` stub
+inside the run may extend it; membership is not yet evidenced.
 
 ## `ovl_11` record-halfword match sibling pair — 0x800F13D8 / 0x800F144C (confidence: low)
 
