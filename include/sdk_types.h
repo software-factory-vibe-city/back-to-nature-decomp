@@ -113,6 +113,33 @@ typedef struct {
 } Ovl11D124Entry;
 
 typedef struct {
+    s16 unk0;
+    s16 unk2;
+    s16 unk4;
+} Ovl11Func800CADBCArg0;
+
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ char pad_02[0x2E];
+    /* 0x30 */ s16 unk30;
+    /* 0x32 */ char pad_32[6];
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ char pad_3C[4];
+    /* 0x40 */ s32 unk40;
+    /* 0x44 */ char pad_44[0x6C];
+} UnkStruct80075BC4;
+
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ char pad_04[4];
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ char pad_0C[4];
+    /* 0x10 */ s16 unk10;
+    /* 0x14 */ s32 unk14;
+    /* 0x18 */ UnkStruct80075BC4 **unk18;
+} Ovl11Func801097F4Arg;
+
+typedef struct {
     /* 0x00 */ s16 unk0;
 } Ovl15Func80134444Arg;
 
@@ -460,6 +487,8 @@ typedef struct {
 
 /* Unresolved: referenced by a signature, defined nowhere.
  * Layout is a guess — these are placeholders, not definitions. */
+typedef struct { unsigned long pad[1]; } BoundsArgs4994;
+typedef struct { unsigned long pad[1]; } BoundsEntry4994;
 typedef struct { unsigned long pad[1]; } BufView;
 typedef struct { unsigned long pad[1]; } Cell4;
 typedef struct { unsigned long pad[1]; } Cell5A0;
@@ -485,6 +514,8 @@ typedef struct { unsigned long pad[1]; } ReconA0View;
 typedef struct { unsigned long pad[1]; } ReconA1View;
 typedef struct { unsigned long pad[1]; } Struct800C2A98;
 typedef struct { unsigned long pad[1]; } StructC1C0;
+typedef struct { unsigned long pad[1]; } StructOvl11CE034A;
+typedef struct { unsigned long pad[1]; } StructOvl11CE034B;
 typedef struct { unsigned long pad[1]; } Struct_800D03B4;
 typedef struct { unsigned long pad[1]; } SwapStruct_B45C;
 typedef struct { unsigned long pad[1]; } Unk800D3D2C;
