@@ -308,6 +308,18 @@ typedef struct {
 } Recon_ovl_11_func_8010BF8C_A0View;
 
 typedef struct {
+    char pad_0[0x26];
+    s16 unk26;                /* 0x26 - selected handler id */
+    s16 unk28;                /* 0x28 */
+    s16 unk2A;                /* 0x2A */
+    s16 unk2C;                /* 0x2C */
+    char pad_2E[0x34 - 0x2E];
+    s32 unk34;                /* 0x34 - flags (bit 11 = 0x800) */
+    char pad_38[0xB8 - 0x38];
+    u16 unkB8;                /* 0xB8 - flags, bit 11 cleared on select */
+} Recon_ovl_11_func_8010CE80_A0View;
+
+typedef struct {
     char pad_0[0x24];
     u8 unk24;
 } Recon_ovl_17_func_800BAFAC_A0View;

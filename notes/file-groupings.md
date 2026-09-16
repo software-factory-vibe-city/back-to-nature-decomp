@@ -343,6 +343,43 @@ no callers matched yet in this container (reads only `D_80075854`, with the
 
 ---
 
+## `ovl_11` object-mode dispatch run — 0x8010CB6C–0x8010CE80 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` around the two function-pointer
+dispatch tables `D_800BAA84` (sparse, 14 slots, entries `8010DD38`/`8010DA04`/
+`8010DDC8`) and `D_800BAABC` (dense, 14 slots, entries 0x8010E2C4–0x8010F4CC),
+both sitting adjacent in the same rodata dlabel run (2A28.rodata.s, after the
+`D_800BAA34` table).
+
+Evidence:
+- shared data-table cluster: `ovl_11_func_8010CE80` (matched this session)
+  reads both tables (`D_800BAA84[arg1]` handler call, `D_800BAABC[arg1]`
+  presence test); `ovl_11_func_8010CD80` reads `D_800BAABC` (functions.csv).
+- zero-gap link-order contiguity (map): 0x8010CB6C (0x214) → 0x8010CD80
+  (0x100) → 0x8010CE80 (0xD8) → 0x8010CF58.
+- call graph: 8010CB6C and 8010CD80 both call 8010CE80; the `D_800BAABC`
+  handler entries (8010EB24, 8010ECC0, 8010EEE4, 8010F324, 8010F4CC) call
+  8010CE80 back — a dispatcher/handler coupling. The handlers are
+  link-order interleaved with unrelated functions, so their TU membership
+  is not claimed here.
+
+- ovl_11_func_8010CB6C (s) — caller of 8010CE80 (×2) and engine helpers;
+  head of the gapless run
+- ovl_11_func_8010CD80 (s) — reads `D_800BAABC`, calls 8010CE80 and
+  8010D250
+- ovl_11_func_8010CE80 (m, matched this session) — object-mode dispatcher:
+  if `D_800BAA84[arg1]` is set, calls the mode handler (`s32 (*)(void*)`)
+  unless the object already selected `arg1` with flag 0x800; when the
+  `D_800BAABC[arg1]` handler exists and the result ≠ -1, records the
+  selection (u16@0x26) and clears u16@0x28/0x2A/0x2C and flag 0x800 of
+  u16@0xB8. Clean C, baseline flags (no override); the -1-guard merge shape
+  (`unk26==arg1 && (unk34&0x800)` ternary-style single call site) was the
+  byte-exact spelling
+- ovl_11_func_8010CF58 (s) — adjacent tail, no shared data with the run
+  (listed only to mark the link-order boundary)
+
+---
+
 ## `ovl_11` keyed-table lookup run — 0x80107B54–0x80107BE4 (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) at the tail of the
