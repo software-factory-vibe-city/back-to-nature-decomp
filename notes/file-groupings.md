@@ -3734,7 +3734,7 @@ adjacency, so it stays a scattered sibling; its zero-gap adjacency instead
 ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x8010C1C0 (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -3786,6 +3786,14 @@ the overlay, never GP-relative), and the large-offset writers use the same
   post-loop s16 through a struct-view cast on `&D_8006C838`, so cc1 keeps one `lui
   %hi(D_8006C838)` fragment live across the loop and re-splices `%lo` after — the
   same shared-base idiom as 0x800F2508
+- ovl_11_func_800F2354 (m, matched this session) — accumulator counter leaf:
+  clamps the s32 at +0x5224 (0x1489 words) into 0..0x98967F, adds its delta to
+  the s32 pos/neg totals at +0x49C4/+0x49C8, returns 0/1/2; 0xAC, byte-exact
+  clean C, baseline flags; fix-and-carry offsets sit in the same buffer region
+  as siblings 0x800F2508 (+0x44FC/+0x49E6/+0x4A36) and 0x800F00AC (+0x498C),
+  and it fixes `&D_8006C838` in a shared `base` pointer with per-arm pointer
+  variables that cc1 splices `%lo` into — the same shared-base idiom as
+  0x800F00AC/0x800F2508
 - ovl_11_func_800F45A4 (s) — loads the +0x8000+0x5DB4 entity slot and
   calls ovl_11_func_800F5700 to find a matching entry, then OR/AND flips bit 0
   of the result's u16 at +0x4; one of the two readers of the same slot
