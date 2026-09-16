@@ -4396,3 +4396,33 @@ Members:
   `D_80070400`, called from `800BD5A8`.
 - ovl_11_func_801110CC — reads the `D_80125528` table (role not yet
   reconstructed).
+
+## `ovl_11` D_801281F0 {s16,s16} pair-table accessor cluster — 0x800BF4B4 / 0x800CE034 / 0x80113310 (confidence: low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the
+ovl_11-private 0x80128xxx pair table `D_801281F0`: 4-byte-stride {s16,s16}
+records (an alternate +0x10 segment exists), indexed by a struct's `u16@+0x38
+* 4` and read as an `lh`/`lhu` halfword pair at +0/+2.
+
+Fingerprints:
+- shared private global: `D_801281F0` has exactly these three referencing
+  functions container-wide, all with the absolute `lui`+`addiu %lo` base and
+  the same `unk38 << 2` index into halfword pairs;
+- shared struct view: `800CE034` and `80113310` read the identical arg0 view
+  (`u16@0x38`, `s32@0x100/0x104/0x108`) and both add cell[0] to the +0x100
+  component and cell[1] to the +0x108 component;
+- what the tie is not: the members are scattered over ~0x73E5C of text
+  (0x800BF4B4 → 0x80113310) with no call edges among them, so per the ledger
+  convention this is a data-family tie, not proven TU membership (two of the
+  three members are still stubs).
+
+Members:
+- ovl_11_func_800BF4B4 (s) — collision-ish probe: reads a cell pair from
+  `D_801281F0[arg<<2]`, forms {x+dx, y, z+dz} records on the stack and calls
+  `ovl_11_func_8011E090` twice on them
+- ovl_11_func_800CE034 (m, matched this session, 0xBC, byte-exact) — cell
+  applier: copies arg0's s32@0x100/0x104/0x108 into arg1, selects the table
+  segment (+0x10 when arg2==2), then adds cell[0] to the first component and
+  cell[1] to the third (dividing each by 2 when arg2==4)
+- ovl_11_func_80113310 (s) — same struct view and table read as 800CE034
+  (no +0x10 select), passing the summed pair to `ovl_11_func_801136D0`
