@@ -1013,3 +1013,8 @@ typedef struct {
 } struct_80123E04;
 extern struct_80123E04 _D_80123E04[1] __asm__("D_80123E04");
 #define D_80123E04 (*_D_80123E04)
+
+/* D_801287CC - s16 threshold table (13 halfwords) walked with a stride-2
+ * pointer by ovl_11_func_80121204. Absolute-addressed (lui + %lo) from
+ * ovl_11 code. */
+extern s16 D_801287CC[13];
