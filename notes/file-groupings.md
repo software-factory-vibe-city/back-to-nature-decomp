@@ -3752,7 +3752,7 @@ adjacency, so it stays a scattered sibling; its zero-gap adjacency instead
 ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -3800,6 +3800,17 @@ the overlay, never GP-relative), and the large-offset writers use the same
   two D_80071Axx symbols into this cluster; link-sits in the 0x800E5A1C–
   0x800EExxx accessor band between D_8006C858-member 0x800E93CC and
   0x800E95FC
+- ovl_11_func_800E63C8 (m, matched this session) — flag set/clear leaf on the
+  sibling cells: arg0 picks mask path vs set path — s32 at +0xC cleared of
+  0x400000 and s32 at +0x5234 cleared of 0x08000400 vs s32 at +0x5234 set of
+  0x00800000 — then an s16 read at +0x52C6 gates u16 at +0x51FE (|= 0x8 vs
+  &= 0xFFF7), and arg1 == 0 clears bit 1 of the +0x5234 word; proves
+  `D_80071AFE` is an alias of `D_8006C838`+0x52C6 (the base-relative lh hits
+  the cell the symbol map names D_80071AFE, joining the +0x5234/+0x51FE alias
+  proof of 0x800E953C); fixes `&D_8006C838` in per-arm `char *base` variables
+  that cc1 splices `%lo` into — the same shared-base idiom as 0x800F2354;
+  link-sits in the 0x800E5A1C–0x800EExxx accessor band (callers 0x800E5294 /
+  0x800E537C / 0x800E60A0 / 0x800E648C / 0x800E6D2C)
 - ovl_11_func_800F2508 (m, matched this session) — stride-4 clear leaf: stores
   -1 into 20 byte fields at +0x49E6 / +0x4A36 (byte read/write class shared with
   the documented 0x800D0EA4 / 0x800D0ED0 flag-byte pair near +0x4AC0) and zeroes
