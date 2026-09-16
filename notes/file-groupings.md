@@ -4359,6 +4359,32 @@ Members:
   neighbours are unmatched, recorded here as position only.
 - ovl_11_func_800ED760 (m) — writer-side probe: resolves scan target through
   the table when `arg2 != 0`, then scans `D_80070C72[5]`.
+- ovl_11_func_800E9778 (m, matched 2026-11 — this session, 0xC0, byte-exact) —
+  three-slot snapshot write: selects a 0xC-byte record from the `D_80076280`
+  0x1D4-stride table (special base `D_80071B00` when `arg0 == 0x29`, bounds
+  `(u32)(arg0-1) < 0x24` otherwise, else returns 0), then for each of three
+  args, if `!= -1`, writes `D_80129560[arg] = record.field` (fields +4/+0/+8);
+  returns 1. Same guarded multi-slot write idiom and return-1 shape as
+  `800EC490`; sits in the same 0x800E5A1C–0x800EExxx accessor band.
+
+## `ovl_11` D_80076280 record-selector pair — 0x800E9778 / 0x800EDEB8 (confidence: low)
+
+Data-family tie: `ovl_11_func_800E9778` and `ovl_11_func_800EDEB8` are the only
+two functions container-wide touching the `D_80076280` record table, and their
+original instruction streams share the same record-selector construction —
+`0x29` test selecting base `D_80071B00`, otherwise the identical
+`(a<<3 - a)<<2 + a)<<2 + a)<<2` multiply chain for the 0x1D4 byte stride —
+with complementary effects on the selected record (copy fields out to
+`D_80129560` slots vs add `2*arg` deltas into the fields). No link-order
+adjacency (~0x2740 apart), so per ledger convention this is a shared-global
+tie, not a TU tie. Both members also belong to the D_80129560 accessor family
+above.
+
+Members:
+- ovl_11_func_800E9778 (m) — snapshot: record selector + three -1-guarded
+  `D_80129560[arg] = record.field` writes, bounds-checked, returns 1/0.
+- ovl_11_func_800EDEB8 (m) — delta: same record selector, no bounds check,
+  adds `arg*2` into record fields +4/+0/+8, returns 1.
 
 ## `ovl_11` D_80071A90/D_80071AC0 3×s16 record-table compaction cluster — 0x800C9D98–0x800CAE64 (confidence: medium)
 
