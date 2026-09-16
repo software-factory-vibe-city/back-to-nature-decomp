@@ -4457,3 +4457,29 @@ Members:
   decrements `D_80129634`.
 - ovl_11_func_800F4FC8 (m) — pool advance: on a flag in the view's +0x44F8
   word, steps the pool entry pointer forward and clears the entry's low flag.
+## `ovl_11` D_80075BC4 record-table scan caller/callee pair — 0x801097F4 / 0x801098B0 (confidence: low)
+
+- call-graph adjacency for the pair: `ovl_11_func_801097F4` (0xBC) ends at
+  0x801098B0 and its sole caller `ovl_11_func_801098B0` starts exactly there
+  (link order and the call graph agree); the caller's `jal` reads the
+  callee's result (`beq $v0, 1`).
+- shared by-value record ABI: the callee takes a struct by value (first 16
+  bytes ride `$a0`-`$a3` and are homed to sp+0..0xC on entry, tail fields on
+  the stack — s16 selector at 0x10, s32 radius at 0x14, out pointer at
+  0x18), and the caller materializes exactly those stack slots from another
+  record's fields at +0x30..0x44 before the call. Same homing idiom family
+  as the 0x8011D934 by-value run, but a different record type.
+- shared-global fingerprint: D_80075BC4 is referenced by eight container
+  functions (0x800BEB28, 0x800CE96C, 0x800CEBC8, 0x800CF044, 0x800CF36C,
+  0x800D2240, 0x800D2F48, 0x801097F4); only the last is matched, so data TU
+  ownership is unconfirmed.
+
+Members:
+- ovl_11_func_801097F4 (m, matched this session, byte-exact) — leaf: scans
+  six 0xB0-byte records at D_80075BC4 for tag 0x15B, the arg's s16 selector
+  at +0x30, and a ±radius window over the s32 coordinates at +0x38/+0x40;
+  stores the first full match's pointer through the arg's out pointer and
+  returns 1/0.
+- ovl_11_func_801098B0 (s) — run tail: sole caller, builds the by-value
+  record (selector from a source record's s16@+0x30, radius from +0x38, out
+  pointer = &D_8012D080) and dispatches on the scan result.

@@ -379,3 +379,32 @@ typedef struct {
     /* 0x5E */ char pad_5E[2];
     /* 0x60 */ u32 mode;
 } Ovl11Func8011D890Arg;
+
+/* Records of the table at D_80075BC4, scanned by ovl_11_func_801097F4:
+ * six 0xB0-byte entries; entry u16 tag 0x15B at 0x00, an s16 selector at
+ * 0x30, and two s32 coordinates at 0x38/0x40 range-tested against an
+ * arg0/arg2 window of half-width arg5. Only the witnessed fields are named. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ char pad_02[0x2E];
+    /* 0x30 */ s16 unk30;
+    /* 0x32 */ char pad_32[6];
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ char pad_3C[4];
+    /* 0x40 */ s32 unk40;
+    /* 0x44 */ char pad_44[0x6C];
+} UnkStruct80075BC4;
+
+/* ovl_11_func_801097F4 argument record, passed by value: the first 16 bytes
+ * ride in $a0-$a3 and are homed to 0x0($sp) on entry; the witnessed tail
+ * fields sit at 0x10 (s16 selector), 0x14 (s32 radius) and 0x18 (out
+ * pointer). Only the fields the function reads are named. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ char pad_04[4];
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ char pad_0C[4];
+    /* 0x10 */ s16 unk10;
+    /* 0x14 */ s32 unk14;
+    /* 0x18 */ UnkStruct80075BC4 **unk18;
+} Ovl11Func801097F4Arg;
