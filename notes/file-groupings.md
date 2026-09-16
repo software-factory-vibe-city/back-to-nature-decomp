@@ -4677,3 +4677,28 @@ Members:
   results as the s32 pair at `arg0[2*i]`/`arg0[2*i+1]`.
 - ovl_11_func_800D93C8 (s) — link successor and sole caller; consumes the
   written pair.
+
+## `ovl_11` index/5 table-copy record trio — 0x800D29B0 / 0x80110CE8 / 0x80110E34 (confidence: low)
+
+Shared-idiom cluster, not a same-TU claim: `ovl_11_func_800D29B0` (matched,
+byte-exact, this session) is a near-verbatim construction twin of matched
+`ovl_11_func_80110CE8` — identical s16 `x/idx/j` spelling, signed div-by-5 via
+the magic 0x66666667 with the same special-case chain (extreme inputs map to
+idx 4/5 with j=0), the same per-index 3-word table copy with `j*600` added to
+the third word, and the same instruction shapes throughout. `800D29B0` also
+writes the exact record field shape (`u16@0x22`, `u16@0x30`, s32
+`0x38/0x3C/0x40`) that matched `ovl_11_func_80110E34` writes, suggesting one
+record type serving both. No shared global, and `800D29B0` is address-apart
+from the 0x80110xxx pair, so same-TU membership is unproven — this is
+author-idiom and record-shape evidence only; the proven `80110CE8` spelling is
+the idiom dictionary for solving the other two's relatives.
+
+Members:
+- ovl_11_func_800D29B0 (m, matched this session, byte-exact) — leaf: maps an
+  s16 arg (-1/-2 or x/5, x%5) and copies `D_80123A2C[idx][0..2]` (+`j*600` on
+  the third) into a record's 0x38/0x3C/0x40, sets `u16@0x22 = (idx&1)?1:3` and
+  `u16@0x30 = 5`, returns 5.
+- ovl_11_func_80110CE8 (m) — same construction against `D_80127E60` (special
+  cases 20/21), copying into `dst[0..2]`; the idiom donor for the trio.
+- ovl_11_func_80110E34 (m) — refreshes the same record shape's 0x38/0x3C/0x40
+  from `D_80127EE0[unkAC]` and sets `u16@0x30 = 0x28`, `u16@0x22`.
