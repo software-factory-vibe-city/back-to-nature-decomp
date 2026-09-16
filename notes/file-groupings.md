@@ -4151,6 +4151,20 @@ Members:
   into [D_80128DE8.unk0..unk8] / [unk4..unkC] with four min/max halfword
   clamps (leaf, 0x90, void).
 
+## `ovl_11` D_8006C838 table-scan caller + exclusion-set leaf — 0x800F00E4 / 0x800F021C (confidence: low)
+
+- ovl_11_func_800F00E4 (stub) — sole caller (two `jal` sites): nested s16-table
+  scans over two sub-tables inside `D_8006C838` (sub-bases +0x78EE and +0x55C6,
+  both absolute `lui`+`%lo`, same shared-buffer fingerprint as the D_8006C838
+  cluster) counting entries whose halfword is NOT in the exclusion set below,
+  then scales the count ×25.
+- ovl_11_func_800F021C (m, matched this session, 0xAC, byte-exact) — the
+  exclusion-set membership leaf `s32 func(s16)`: returns 0 for the 18 values
+  0x3A–0x40 and 0x16C–0x175 (one 18-term `||` chain, constants in `$v0`),
+  else 1; touches no globals. 0x800F00E4+0x138 = 0x800F021C, so the helper
+  starts exactly where its only caller ends (gapless link pair; call graph and
+  link order agree — same-TU hint only).
+
 ## `ovl_11` struct_80076220 u16@+4 reader/writer cluster — 0x800F02C8 / 0x8011256C / 0x8011FF0C / 0x800C3CCC (confidence: low)
 
 Four ovl_11 functions reaching the same field of the 37-entry 0x1D4-stride
