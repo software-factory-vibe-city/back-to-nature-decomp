@@ -4115,6 +4115,25 @@ Members:
   zero-length path is the exact-match test above, otherwise scans
   `arg0..arg0+arg1-1` mod 0x18 for the record's first halfword
 
+## `ovl_11` 0x800C9888–0x800C99C8 shared-caller link run (confidence: low)
+
+Evidence: one unbroken link-order run — `ovl_11_func_800C9888` (0xB0, ends
+0x800C9938), `ovl_11_func_800C9938` (0x90, ends 0x800C99C8),
+`ovl_11_func_800C99C8` — and the call graph agrees: 0x800C99C8 is the sole
+caller of both 0x800C9888 and 0x800C9938 (its other callees 0x800CBE14 and
+0x800C70CC sit outside the band). No shared globals: 0x800C9888 is a pure
+leaf dispatch with no memory traffic, so this is adjacency + call-edge only
+and the entry for the D_801230B0/D0/F0 pair-table run above already carries
+0x800C9938/0x800C99C8 with its own low-confidence tie.
+
+Members:
+- ovl_11_func_800C9888 (m, matched this session, 0xB0, byte-exact) — leaf
+  u16 event-code dispatcher: switch over arg0 (0x1000/0x3000→2, 0x2000/0x6000→3,
+  0x8000/0x9000→1, 0x4000/0xC000→0), default passes arg1 (u16) through; no
+  loads, stores or calls.
+- ovl_11_func_800C9938 (m) and ovl_11_func_800C99C8 (stub) — see the
+  D_801230B0/D0/F0 pair-table selector run entry above.
+
 ## `ovl_11` D_801230B0/D0/F0 {s16,s16} pair-table selector run — 0x800C9938 / 0x800CB114 (confidence: low)
 
 Evidence: `ovl_11_func_800C9938` (matched, byte-exact clean C, 0x90) is the
