@@ -4370,3 +4370,29 @@ Same object, outside the suspected TU:
 - exe func_8001AE34 (m) — scans `D_80071A84`/`D_80071A90`/`D_80070EC2` for an
   entry whose first s16 is in [0x15,0x1A); shares the entry shape and the
   compaction-loop idiom, cross-container.
+
+## `ovl_11` D_80125528/D_80126254 record-table + D_800957F8 blob cluster (confidence: low)
+
+Evidence: a shared global cluster — `D_80125528` (per-index pointer table),
+`D_80126254` (per-index s16 key-list table) and the `D_800957F8` blob base —
+is operated on by four functions, two of which are directly linked
+(`ovl_11_func_800BD5A8` calls `ovl_11_func_800DA588` after filling its entry
+from the same tables). `ovl_11_func_800D688C` (m) is the lookup accessor:
+given an s16 key it resolves the index through the `D_8007AFF0+0x25388`
+header field, compares it against the `D_80126254[idx]` s16 list, and returns
+the matching `D_80125528[idx]` entry offset by `D_800957F8` — the read side of
+the record system `800BD5A8`/`800DA588` populate. Members are link-order far
+apart (0x800BD5A8, 0x800D688C, 0x800DA588, 0x801110CC) and the tables are
+container data, so this witnesses a shared data system, not proven TU
+membership.
+
+Members:
+- ovl_11_func_800D688C (m, matched this session) — key lookup: maps an s16
+  key through `D_80126254[idx]` to an entry of `D_80125528[idx]`, returning
+  the entry word offset by `D_800957F8`, or NULL.
+- ovl_11_func_800BD5A8 — per-index loader: memcpy's the `D_80125528[idx]`
+  record out of the `D_800957F8` blob, then calls `800DA588`.
+- ovl_11_func_800DA588 — iterates a `D_80125528` entry's records against
+  `D_80070400`, called from `800BD5A8`.
+- ovl_11_func_801110CC — reads the `D_80125528` table (role not yet
+  reconstructed).
