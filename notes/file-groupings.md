@@ -1328,28 +1328,35 @@ Members (address order):
   `>=`-guard on the pool's middle sibling
 
 
-## `ovl_11` D_800719FE s16-global cluster — 0x800FDEDC–0x800FDFD8 / 0x80112160 (confidence: low)
+## `ovl_11` D_800719FE s16-global cluster — 0x800FDEDC–0x800FDFD8 / 0x80112160 (near trio: medium; 80112160: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
 file-scope s16 global. Same shared-global fingerprint as the documented
 D_80071A00 pool: main-RAM file-scope global absent from the generated
-`globals.h`, read by short leaf helpers. The two address-adjacent members are
-tightly bound: `ovl_11_func_800FDEDC` (0x800FDEDC) loads the global, branches
-on `(D_800719FE - arg0) < 5`, and takes the address of
-`ovl_11_func_800FDFD8` directly. Third member `ovl_11_func_80112160`
-(0x80112160) is a state probe switching on arg0 to return `D_800719FE != 0`
-(arg0==0) or the s16 value itself (arg0==1) — same global, same file-scope
-state. Spread between the near pair and the far probe is large, so
-same-family for 80112160 is plausible rather than established.
+`globals.h`, read by short leaf helpers. The near members are tightly bound:
+`ovl_11_func_800FDEDC` (0x800FDEDC, matched) loads the global, branches on
+`(D_800719FE - arg0) < 5`, and forms the addresses of both
+`ovl_11_func_800FDFA8` and `ovl_11_func_800FDFD8` directly, selecting one as
+a function pointer per loop iteration — a code-level binding, not just
+adjacency. Link order is a zero-gap run 0x800FDEDC (0xCC) → 0x800FDFA8
+(0x30) → 0x800FDFD8. Third member `ovl_11_func_80112160` (0x80112160) is a
+state probe switching on arg0 to return `D_800719FE != 0` (arg0==0) or the
+s16 value itself (arg0==1) — same global, same file-scope state. Spread
+between the near trio and the far probe is large, so same-family for
+80112160 is plausible rather than established.
 
 Members (address order):
-- ovl_11_func_800FDEDC (s) — 0xCC-byte consumer run: `lh D_800719FE`,
-  branches on `D_800719FE - arg0 < 5` into the 800FDFD8 / 800FDFA8 helper pair
-  whose addresses it forms directly (link adjacency to both)
-- ovl_11_func_800FDFD8 (m, matched this session) — leaf equality helper:
-  `return D_800719FE == arg0;` (7 words, `lh` + `sll/sra` sign-extend +
-  `xor` + `sltiu`, no branches); byte-exact clean C, baseline flags; the
-  cluster's only pure getter
+- ovl_11_func_800FDEDC (m, matched) — 0xCC-byte consumer run: `lh
+  D_800719FE`, branches on `D_800719FE - arg0 < 5` to pick one of the two
+  helpers below as a callee, loops it over a 5-entry window and negates the
+  result when the FDFD8 branch was taken; byte-exact clean C, baseline flags
+- ovl_11_func_800FDFA8 (m) — comparator delegate: forwards arg0 to
+  `ovl_11_func_800E6EE0(arg0, 0, 2, 0)`; does not touch the global itself,
+  bound to the TU only by the address taken in 800FDEDC
+- ovl_11_func_800FDFD8 (m) — leaf equality helper: `return D_800719FE ==
+  arg0;` (7 words, `lh` + `sll/sra` sign-extend + `xor` + `sltiu`, no
+  branches); byte-exact clean C, baseline flags; the cluster's only pure
+  getter
 - ovl_11_func_80112160 (s) — state probe over the same global, returns
   `D_800719FE != 0` on arg0==0 and the raw s16 on arg0==1
 
