@@ -4315,18 +4315,19 @@ Members:
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): seven matched functions
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): eight matched functions
 sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
 (`globals_override.h`), each guarded-indexing it with `s16`-scaled slots.
 
 Fingerprints:
 - **shared private global:** `D_80129560` is defined in ovl_11 data and has
-  exactly these seven accessors container-wide — readers 800E6914 (bit-gated
+  exactly these eight accessors container-wide — readers 800E6914 (bit-gated
   `arg0`-selects which of `arg2`/`arg3` resolve through the table),
   800E69B8 (passes `D_80129560[arg2]` as `ovl_11_func_800EFABC`'s third arg),
   800E5A1C (loads `D_80129560[(s16)arg1]` as the limit, compares
   `D_80129560[(s16)arg0]`/2 — or `(s16)arg0`/2 when `arg2 == 0` — against it),
-  800ED760 (`arg2 != 0` resolves the scan target through the table) — and
+  800ED760 (`arg2 != 0` resolves the scan target through the table),
+  800EB79C (`arg2 != 0` resolves the record index through the table) — and
   writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
   slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
   (800E5A1C also increments `D_80129560[(s16)arg1]`);
@@ -4350,6 +4351,13 @@ Members:
   `ovl_11_func_800EFABC`.
 - ovl_11_func_800E8BA0 (m) — writer: `D_80129560[arg1] = entity->u16@+2`.
 - ovl_11_func_800E8D00 (m) — writer: stores the store-view s16 pair into slots.
+- ovl_11_func_800EB79C (m, matched 2026-09 — this session, 0xC0, byte-exact) —
+  record flag-field setter: index = `D_80129560[(s16)arg0]` when `arg2 != 0`,
+  the raw `(s16)arg0` otherwise; then in the 0x1D4-stride record space off
+  `D_8006C838` (field u16 @ +0x9A08 + index*0x1D4) clears the halfword to its
+  0x3FFF payload and re-sets 0x8000 (`arg1 == 0`) / 0x4000 (`arg1 == 2`) via a
+  case-0/1/2 switch; returns 1. Reader-side counterpart of the writer members:
+  the table slot it consumes is what `800E8BA0`/`800E8D00`/`800E9778` fill.
 - ovl_11_func_800EC490 (m, matched 2026-11 — this session, 0x9C, byte-exact) —
   four-slot default restore: for each of four args, if `!= -1`, writes
   `D_80129560[arg] = D_80070D06/08/0A/0C` (four adjacent engine-rodata u16s,
@@ -4385,6 +4393,14 @@ Members:
   `D_80129560[arg] = record.field` writes, bounds-checked, returns 1/0.
 - ovl_11_func_800EDEB8 (m) — delta: same record selector, no bounds check,
   adds `arg*2` into record fields +4/+0/+8, returns 1.
+
+A third function shares the record geometry without the selector: `ovl_11_func_800EB79C`
+(m) runs the identical `((v<<3 - v)<<2 + v)<<2 + v)<<2` multiply chain for the
+0x1D4 byte stride against base `D_8006C838 + 0x9A08` (= `D_80076280` − 0x40),
+read-modify-writing the u16 flag halfword there (0x3FFF payload, 0x8000/0x4000
+status bits). Recorded as same-geometry evidence tying the D_80129560 accessor
+family to this record table; whether its field is a -0x40 sub-table view or
+field +0x194 of the preceding slot is unresolved while the record layout is.
 
 ## `ovl_11` D_80071A90/D_80071AC0 3×s16 record-table compaction cluster — 0x800C9D98–0x800CAE64 (confidence: medium)
 
