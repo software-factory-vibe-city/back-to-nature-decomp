@@ -1317,6 +1317,13 @@ Members (address order):
   as D_8006C838+0xE4C8) and base-0x51C8 (= `D_8006C838`, u16 at +0x44C0 =
   0x80070CF8, beside the D_80070CF2/D_80070CF6 switch globals); see the
   D_8006C838 cluster entry
+- ovl_11_func_800D63C4 (m, matched this session) — dual-gauge clamp leaf over
+  the pool: adds a sign-extended s8 arg to u16 +0x14 (clamp 0..0xFF, result
+  also stored to s16 +0x12, which 0x800CD3C4 reads) and a second s8 arg to u16
+  +0x16 (clamp 0..0x64); increments the u16 counter at `D_8006C838`+0x4A84
+  (0x800712BC) through the same `base - 0x51C8` sub-base as 0x800CD3C4; 0xC4,
+  byte-exact clean C, baseline flags; zero-gap link order between 0x800D6380
+  (which calls cluster member 0x800F2354) and 0x800D6488
 - ovl_11_func_8011D06C (m, matched earlier) — leaf: `return D_80071A5C >= arg0;`
   `>=`-guard on the pool's middle sibling
 
@@ -3856,6 +3863,16 @@ the overlay, never GP-relative), and the large-offset writers use the same
   0x800BFEA4 is link-adjacent); first matched reference to `D_80128A80`
   (0x80128xxx data region, beside the `D_801285xx`/`D_80128BB0`/`D_80128DE8`
   reset clusters)
+- ovl_11_func_800D63C4 (m, matched this session) — dual-gauge clamp leaf:
+  adds a sign-extended s8 arg to the u16 gauge at `D_80071A00`+0x14 (clamp
+  0..0xFF, mirrored to +0x12) and a second s8 arg to the u16 gauge at +0x16
+  (clamp 0..0x64), then increments the u16 counter at +0x4A84 (0x800712BC, a
+  new offset sitting between the +0x49xx accumulator fields and the +0x4AC0
+  flag-byte pair) on every gauge-0 update; forms the counter sub-base as
+  `base - 0x51C8` from `&D_80071A00`, the same sub-base idiom as 0x800CD3C4
+  (see the D_80071A00 pool cluster entry); 0xC4, byte-exact clean C, baseline
+  flags; zero-gap link order between 0x800D6380 (which calls cluster member
+  0x800F2354) and 0x800D6488
 ## `ovl_11` D_8006C838 +0x7A78 halfword-record table — 0x800DBB94 / 0x800DBF60 / 0x800DBE9C (confidence: low)
 
 Scans and a shift over the same main-binary 5-entry record table — absolute
