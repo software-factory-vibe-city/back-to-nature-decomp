@@ -672,6 +672,21 @@ and 80103770 walks — an initializer/consumer tie on one data region, so it
 extends this TU family past the 0xE514 boundary; membership in the
 D_80127428 run itself remains unproven (touches none of D_80127428/2C).
 
+Widening (byte-exact match of `ovl_11_func_80104418`): the run's accumulator
+mutator is now matched. `ovl_11_func_80104418` (m, 0x80104418, 0xCC, void leaf)
+is called only by `ovl_11_func_80103C00` — the same link-contiguous cluster
+member that also calls matched member `ovl_11_func_80104394` — and it
+read-modify-writes `D_8012CF20` (s32, absolute `lui`+`%lo`, main RAM), a new
+site in the `0x8012CFxx` region this cluster already ties to via
+`ovl_11_func_801037EC`'s clear and `ovl_11_func_80104394`'s read. Role: a
+rate-limited s16 setter — it clamps `*arg1 + arg0` against a limit derived
+from `old + D_8012CF20 / 50` (clamped 0..99), stores one of `0` / `limit` /
+`new` into `*arg1` (wrap-at-endpoint semantics on both sides), then transfers
+the accumulator by 50 per unit of change (`D_8012CF20 += old*50; -= *arg1*50`).
+It sits zero-gap between matched member `ovl_11_func_80104394` (ends
+0x80104418) and parked stub `ovl_11_func_801044E4`; TU membership with the
+D_80127428 run itself remains unproven (touches none of D_80127428/2C).
+
 ---
 
 ## `ovl_11` s16-pair setter pair — 0x800D0DB0 / 0x800D0DBC (confidence: low)
