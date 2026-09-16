@@ -4040,8 +4040,9 @@ Fingerprints:
 - **address adjacency:** the dispatch head (0x800F5944), the shared callee
   (0x800F5BC0), and all seven targets (0x800F5D04–0x800F6578) occupy a
   contiguous 0xE34-byte run with no gaps;
-- **shared signature pattern:** the two matched targets
-  (`ovl_11_func_800F64F8` and `ovl_11_func_800F6578`) share the same
+- **shared signature pattern:** the three matched targets
+  (`ovl_11_func_800F64F8`, `ovl_11_func_800F6218`, and
+  `ovl_11_func_800F6578`) share the same
   `s32(s32 arg0, s32 *arg1, s32 *arg2)` switch-return-id idiom.
 
 Members (link order):
@@ -4059,7 +4060,9 @@ Members (link order):
 - ovl_11_func_800F5D04 (s) — dispatch target case 2
 - ovl_11_func_800F62D8 (s) — dispatch target case 3; also reads D_80070D0E
   (listed in the D_80070D0E cluster)
-- ovl_11_func_800F6218 (s) — dispatch target case 4
+- ovl_11_func_800F6218 (m, this session) — dispatch target case 4: leaf
+  switch-return-id mapper, maps id 0x64/0x65/0x68/0x69/0xE8/0x122–0x124 to
+  return codes 2/3/4/7/6/5
 - ovl_11_func_800F5EE0 (s) — dispatch target case 5
 - ovl_11_func_800F6578 (m, already matched) — dispatch target case 6: leaf
   switch-return-id mapper, maps id 0x64→0x11/0x65→0x13
