@@ -3151,6 +3151,25 @@ Members (address order):
 
 ## candidates to investigate
 
+- ovl_11 0x80115FE0→0x801164F8 caller/leaf run — zero-gap link order
+  (ovl_11_func_80115FE0 (s), 0x518 bytes, ends 0x801164F4; next function
+  ovl_11_func_801164F8 starts at 0x801164F8 with no unrelated code between)
+  and the call graph agree: the head `jal`s the leaf at 0x80116320 and feeds
+  its u16 return straight to func_8002261C(2, result), then advances the
+  documented D_8012D520 state machine via ovl_11_func_8011D084(0x18, 0x1A)
+  — the same 0x1A id the D_8012D520 reader quartet's
+  ovl_11_func_801165C8 tests for, tying the run to that neighbourhood.
+  - ovl_11_func_80115FE0 (s) — state-machine dispatch step: big 0xA8-frame
+    handler that picks ids for ovl_11_func_8011D084 and calls the leaf below
+    to obtain one of them
+  - ovl_11_func_801164F8 (m, matched 2026-11) — leaf tier id: reads
+    D_8006C838+0x51DA/51DC/51DE, buckets ratio*100/den and level into
+    row/col, returns table D_80128214[row][col] (sole reader of that 5×4
+    u16 table — private data, no shared global with the caller)
+  Evidence class: link-order adjacency + caller relation only (the leaf is a
+  private-table reader with no shared gp-rel/absolute global); confidence
+  low.
+
 - func_80021DA8 (m) — buffer/address initializer: clears D_8006C838 and
   D_8007AFF0, calls func_80021E60(0), computes 2048-byte-aligned addresses
   from D_8001009C - D_80010098, stores results in D_8007AFF0[0..1].
