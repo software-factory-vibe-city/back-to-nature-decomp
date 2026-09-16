@@ -1004,3 +1004,12 @@ extern s32 D_800719F8;
  * sits at +0x6520 (three rows of six 14-byte card records, also reached
  * as D_8007AD4E). */
 extern u8 D_80074838[0x8000];
+
+/* D_80123E04 - {s16,s16} bounds record indexed by a byte offset (arg3, an
+ * s16 multiplied by 4) from ovl_11_func_800D806C. Absolute-addressed. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+} struct_80123E04;
+extern struct_80123E04 _D_80123E04[1] __asm__("D_80123E04");
+#define D_80123E04 (*_D_80123E04)
