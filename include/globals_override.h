@@ -40,22 +40,40 @@ typedef struct {
 /* Forward declaration - defined in game_types.h */
 struct GfxObj;
 
+/* Per-entry 8-byte table stored at offset 0xE4 of each D_80076220 record.
+ * ovl_11_func_800F227C scans .unk0 (s16 threshold) and reads .unk2/.unk4/.unk6
+ * of the first entry whose threshold is >= the requested value. */
+typedef struct {
+    s16 unk0;                 /* 0x00 */
+    u8 unk2;                  /* 0x02 */
+    u16 unk4;                 /* 0x04 */
+    u16 unk6;                 /* 0x06 */
+} struct_80076220_entry;
+
 /* D_80076220 - absolute-addressed array of 0x1D4-byte entries.
  * ovl_11_func_800C1BE0 zeroes the u16 at offset 0xA of all 37 entries.
  * ovl_11_func_800C3CCC decrements the u16s at offsets 0x2 and 0x4 of all
- * 37 entries. */
+ * 37 entries. ovl_11_func_800F227C writes unkC/unkE/unk22/unk2C/unk2E and
+ * scans the 30-entry table at 0xE4. */
 typedef struct {
     u8 unk0[2];               /* 0x00 */
     u16 unk2;                 /* 0x02 */
     u16 unk4;                 /* 0x04 */
     u8 unk6[0xA - 6];         /* 0x06 */
     u16 unkA;                 /* 0x0A */
-    u8 unkC[0x1E - 0xC];      /* 0x0C */
+    u16 unkC;                 /* 0x0C */
+    u16 unkE;                 /* 0x0E */
+    u8 unk10[0x1E - 0x10];    /* 0x10 */
     u16 unk1E;                /* 0x1E */
-    u8 unk20[0x24 - 0x20];    /* 0x20 */
+    u8 unk20[0x22 - 0x20];    /* 0x20 */
+    u16 unk22;                /* 0x22 */
     s16 unk24;                /* 0x24 - read by ovl_11_func_800BFC20 */
     s16 unk26;                /* 0x26 - read by ovl_11_func_800BFC20 */
-    u8 unk28[0x1D4 - 0x28];   /* 0x28 */
+    u8 unk28[0x2C - 0x28];    /* 0x28 */
+    u16 unk2C;                /* 0x2C */
+    u16 unk2E;                /* 0x2E */
+    u8 unk30[0xE4 - 0x30];    /* 0x30 */
+    struct_80076220_entry unkE4[30]; /* 0xE4 - ends at 0x1D4 */
 } struct_80076220;
 extern struct_80076220 _D_80076220[1] __asm__("D_80076220");
 #define D_80076220 (*((struct_80076220*)_D_80076220))
