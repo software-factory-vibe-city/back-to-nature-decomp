@@ -119,6 +119,21 @@ typedef struct {
     /* 0x7A78 */ s16 records[5][6];
 } D8006C838RecordTableView;
 
+/* One record of the 0x18-byte pools referenced by the pointer array at
+ * D_8006C838+0xDD8C (built by func_80021E60 over D_8004ED04; 0xC5 records
+ * per pool). func_800BF2F4 scans one pool for a record whose s16 at 0
+ * matches a reference halfword and whose s32 at 8 / 0x10 lies inside a
+ * range box; the u16 at 2 is the record's id/return value. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ char pad_04[0x04];
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ char pad_0C[0x04];
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ char pad_14[0x04];
+} PoolRecord18;
+
 /* Sprite data header: tag + offsets into the sprite's sub-tables.
  * Tag 0xE is the expected magic value (func_80015704 validates this).
  * Offsets at 0x10–0x20 are added to the header base to produce the
