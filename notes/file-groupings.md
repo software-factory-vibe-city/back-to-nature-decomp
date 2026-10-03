@@ -4646,13 +4646,15 @@ sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
 
 Fingerprints:
 - **shared private global:** `D_80129560` is defined in ovl_11 data and has
-  exactly these eight accessors container-wide — readers 800E6914 (bit-gated
+  these accessors container-wide — readers 800E6914 (bit-gated
   `arg0`-selects which of `arg2`/`arg3` resolve through the table),
   800E69B8 (passes `D_80129560[arg2]` as `ovl_11_func_800EFABC`'s third arg),
   800E5A1C (loads `D_80129560[(s16)arg1]` as the limit, compares
   `D_80129560[(s16)arg0]`/2 — or `(s16)arg0`/2 when `arg2 == 0` — against it),
   800ED760 (`arg2 != 0` resolves the scan target through the table),
-  800EB79C (`arg2 != 0` resolves the record index through the table) — and
+  800EB79C (`arg2 != 0` resolves the record index through the table),
+  800E9CE4 (byte-slot reader: `lbu` of the low byte of
+  `D_80129560[(s16)arg0]` through a 4-byte-strided element cast) — and
   writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
   slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
   (800E5A1C also increments `D_80129560[(s16)arg1]`);
@@ -4704,6 +4706,13 @@ Members:
   neighbours are unmatched, recorded here as position only.
 - ovl_11_func_800ED760 (m) — writer-side probe: resolves scan target through
   the table when `arg2 != 0`, then scans `D_80070C72[5]`.
+- ovl_11_func_800E9CE4 (m, matched 2026-11 — this session, 0x44, byte-exact) —
+  byte-slot copy leaf: `p = ovl_11_func_800E3A94(); p->u8@+1 =
+  ((u8-stride-4 element *)D_80129560)[(s16)arg0].u8@+0; return 1;`. Same
+  `s16`-scaled `lui`+`addiu %lo` base and index*4 idiom as the sibling
+  readers, but the slot is consumed one byte wide rather than as an s32;
+  the only family member that writes through the `D_801291B4` value the
+  zero-arg accessor 800E3A94 returns, and it sits inside the band.
 - ovl_11_func_800E9778 (m, matched 2026-11 — this session, 0xC0, byte-exact) —
   three-slot snapshot write: selects a 0xC-byte record from the `D_80076280`
   0x1D4-stride table (special base `D_80071B00` when `arg0 == 0x29`, bounds
