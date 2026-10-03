@@ -4953,3 +4953,22 @@ Members (link order):
   `D_80054BC0[0] + &D_80051808` via func_8001ABF0
 - ovl_11_func_8011CF10 (m) — twin wrapper over `D_80054BC0[0] +
   &D_8005180C`
+
+## `ovl_17` D_800BD848 0x50-stride record area + caller hub (confidence: low)
+
+Evidence: shared data cluster and call graph. `ovl_17_func_800B9F10` (m,
+matched 2026-10-03) indexes the `D_800BD848` work area as 0x50-byte records
+with an s16 field at +0x2A; `D_800BD870` is the same records aliased at
++0x28, and `func_800B8470` (s) walks it with the identical 0x50 stride for
+5 records. The global itself is referenced by most of the overlay, so it is
+weak TU evidence on its own; the group's binding evidence is the call graph:
+800B9F10's sole caller is `ovl_17_func_800B9324`, which also calls
+800B9CE4, 800B9F44 and 800B9F78 in one branch sequence.
+
+Members:
+- ovl_17_func_800B9F10 (m) — leaf predicate: returns
+  `(s16)arg1 < record[arg0].s16@+0x2A` over the D_800BD848 record area.
+- ovl_17_func_800B9324 (s) — caller hub: twice calls 800B9F10 with record
+  halfword fields around calls to 800B9CE4/800B9F44/800B9F78.
+- func_800B8470 (s) — counter reset that walks the same records from
+  D_800BD870 with the 0x50 stride (5 records, per-record func_800BAC24 call).
