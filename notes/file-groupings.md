@@ -6029,3 +6029,23 @@ Members:
   `if (ovl_11_func_800F3E00(0x5D) >= 0x33) *base |= 1;`
 - ovl_11_func_80112494 (m, matched this session) — same shape with bit `2`
   (`*base &= ~2`, `*base |= 2`) and argument `0x5F`.
+
+---
+
+## `ovl_11` 0x80110838 shared-helper leaf run — 0x80110838–0x80110944 (confidence: medium)
+
+A gapless three-function run whose members all call the same leaf at the tail:
+0x80110838 (size 0x58, ends 0x80110890) → 0x80110890 (0x68, ends 0x801108F8)
+→ 0x801108F8 (0x4C, ends 0x80110944), zero gaps. The call graph agrees: both
+predecessors call 0x801108F8, and 0x801108F8 is the only callee 0x80110838
+and 0x80110890 share. 0x80110838 and the leaf 0x801108F8 also read one object
+through a shared view: the leaf reads an s16 at +0x0, the caller a u16 at
++0x2, and the caller forwards its own arg0 straight to the leaf.
+Members (address order):
+- ovl_11_func_80110838 (m, matched this session) — guard/return leaf: calls
+  0x801108F8, returns 0 when its result is 0, otherwise returns 1 when the
+  u16 at +0x2 is 0x168 or 0x16A and 0 elsewhere.
+- ovl_11_func_80110890 (s) — middle run member; calls the same 0x801108F8
+  helper with its own arg0.
+- ovl_11_func_801108F8 (m) — run-tail shared leaf: reads the s16 at +0x0 and
+  calls ovl_11_func_800D5868, then returns the XOR-with-0x36 test.
