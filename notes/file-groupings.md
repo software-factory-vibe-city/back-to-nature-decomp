@@ -3500,6 +3500,15 @@ Members (address order):
   Call-graph agreement via the shared by-value parameter ABI + zero-gap
   link order; callers (0x80114604 etc.) are stubs, so data TU ownership
   unconfirmed. StructD548 is shared-typed in include/game_types.h.
+- ovl_11 80114604-hub zero-gap link successor — ovl_11_func_801152BC (m,
+  matched this session) is a small economy leaf that begins exactly where its
+  sole caller ovl_11_func_80114604 (stub, above) ends (0x80114604 + 0xCB8 →
+  0x801152BC, no unrelated code between), reads s16 +0x8/+0xA of its arg, and
+  forwards `-(unkA*unk8)` plus `2,unk8` to the counter leaves 0x800F2354 /
+  0x800F397C — the first is a callee of 0x80114604 too. Ties the 80114604 hub
+  (already the stub caller of the D_8012D548 by-value run and the D_8012D520
+  bridge above) to a matched link-successor. Link order + shared callee; data
+  TU ownership unconfirmed.
 - ovl_11 v0-channel/static-chain fossil run — 0x8011D400 / 0x8011D438 /
   0x8011D474, zero-gap link run (0x8011D400 0x38 → 0x8011D438 0x3C →
   0x8011D474 0x2C0, each ending exactly where the next starts; the caller
