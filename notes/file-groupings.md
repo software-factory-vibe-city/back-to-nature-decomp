@@ -1227,7 +1227,11 @@ Members (address order):
 - ovl_11_func_800F62D8 (s) — reads D_80070D0E (`lhu`), the run's getter
 - ovl_11_func_80111EE0 (m, matched this session) — leaf setter:
   `D_80070D10 = 3` (single `lui`/`sh`, delay-slot scheduled); byte-exact clean
-  C, baseline flags; adjacent-sibling writer of the cluster's other global
+  C, baseline flags; adjacent-sibling writer of the cluster's other global.
+  Widening (2026-10-03): its clear counterpart `ovl_11_func_80111E38`
+  (zeroes D_80070D10/D_80070D12/D_800719FE) is matched and link-adjacent
+  (one function between, zero-gap run) — see the D_80070D10/D_800719FE
+  reset-run entry, which upgrades this tie from far-sibling to same-run.
 
 ---
 
@@ -1438,6 +1442,46 @@ Members (address order):
   getter
 - ovl_11_func_80112160 (s) — state probe over the same global, returns
   `D_800719FE != 0` on arg0==0 and the raw s16 on arg0==1
+
+Widening (byte-exact match of `ovl_11_func_80111E38`, 2026-10-03): the
+cluster's first known writer is now matched — `ovl_11_func_80111E38`
+resets `D_800719FE` to 0 (via its `&D_8006C838` base, +0x51C6) and sits in
+the gapless link run 0x80111D94–0x80111F10 with `ovl_11_func_80111EE0`
+(see the D_80070D10 reset-run entry below).
+
+---
+
+## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): a fully gapless
+link run (0x80111D94 +0xA4 → 0x80111E38 +0x30 → 0x80111E68 +0x78 →
+0x80111EE0 +0x10 → 0x80111EF0 +0x20 → 0x80111F10, each ending exactly
+where the next begins) holding a setter/clear pair over the same s16
+`D_80070D10` plus a same-run call edge.
+
+Fingerprints:
+- setter/clear pair over one s16: `ovl_11_func_80111EE0` (m) sets
+  `D_80070D10 = 3`; `ovl_11_func_80111E38` (m) clears it (and its +2
+  sibling and `D_800719FE`) — the same file-scope-global fingerprint as
+  the documented D_80070D0E cluster, here with both directions in one run;
+- same-run call edge: `ovl_11_func_80111E38` calls `ovl_11_func_80111EF0`
+  (0xB8 ahead, two members away in the run), which tail-calls
+  `ovl_11_func_80111F10` — call graph and link order agree;
+- shared caller: `ovl_11_func_80111E38`'s sole caller is parked stub
+  `ovl_11_func_801044E4`, which also solely calls matched
+  `ovl_11_func_801047FC`; both callees touch the `D_8006C838` work area
+  (80111E38 clears +0x44D8/+0x44DA/+0x51C6 through one `&D_8006C838` base
+  and returns that base), extending that shared-caller family.
+
+Members (address order):
+- ovl_11_func_80111D94 (s) — gapless run predecessor, role unknown
+- ovl_11_func_80111E38 (m, matched 2026-10-03) — reset: zeroes
+  D_80070D10/D_80070D12/D_800719FE through one `&D_8006C838` base
+  (+0x44D8/+0x44DA/+0x51C6) and returns the base; calls 80111EF0
+- ovl_11_func_80111E68 (s) — role unknown
+- ovl_11_func_80111EE0 (m) — sets `D_80070D10 = 3` (leaf)
+- ovl_11_func_80111EF0 (s) — trampoline to `ovl_11_func_80111F10`
+- ovl_11_func_80111F10 (s) — role unknown
 
 ---
 
