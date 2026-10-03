@@ -5434,3 +5434,42 @@ Members (link order):
 - ovl_15_func_801344E8 (s) — `lh` of `D_8013759E`, called from `ovl_15_func_80133B28`
 - ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
   `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
+
+## `ovl_25` leaf run — 0x800BB9D0–0x800BBA7C (confidence: low-medium)
+
+Candidate same-TU run of `ovl_25` at file offsets 0x3BB0–0x3D20. Evidence is a
+gapless link run whose call graph agrees with it, plus a shared leaf-prologue
+idiom; there is **no** shared-global cluster inside the run.
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800BB9D0` (0x60, ends 0x3C10) sits immediately
+  before `ovl_25_func_800BBA30` (0x4C, ends 0x3C5C), which is followed directly
+  by `ovl_25_func_800BBA7C` (0xC4, ends 0x3D20, then the overlay data segment) —
+  contiguous, no unrelated code between;
+- call graph agrees with link order: `ovl_25_func_800BBA7C` issues
+  `jal ovl_25_func_800BBA30` (at 0x3C9C), and the callee immediately precedes
+  the caller;
+- shared leaf-prologue idiom: `ovl_25_func_800BB9D0` and `ovl_25_func_800BBA30`
+  both open with `sll $a0,16` / `sra $a0,16` (a sign-extended s16 first
+  argument) followed by a `lui/addiu` absolute global base, and both are leaves
+  terminating in `jr $ra`.
+
+Non-evidence: the run shares no global — `ovl_25_func_800BB9D0` uses
+`D_8006C838`, `ovl_25_func_800BBA30` writes `D_8005E5E8` (a cross-container
+render-context global reached absolutely from shared RAM, judge it not
+TU-owned), and `ovl_25_func_800BBA7C` uses `D_800BCD50`/`52`/`AC`/`B8`. The body
+of `ovl_25_func_800BBA30` matches matched `ovl_11_func_800DC114` 13 of 13
+instruction shapes; that cross-container twin relation is not TU-membership
+evidence here.
+
+Members (link order):
+- ovl_25_func_800BB9D0 (s) — leaf; indexes `D_8006C838` with the s16 argument,
+  reads the u16 at +0x19EC, returns the value +0x1F4 when it is ≤ 0xFE0A and
+  else writes and returns 0xFFFF
+- ovl_25_func_800BBA30 (m, matched this session, byte-exact) — leaf; stores the
+  three s16 arguments as bytes at +0x19/+0x1A/+0x1B of both 0x134-stride
+  `D_8005E5E8` render contexts and sets `unk18` = 1 in each
+- ovl_25_func_800BBA7C (s) — calls `func_8001F278` over `D_800BCDAC`/
+  `D_800BCDB8`, feeds three s16 sampled from the returned record to
+  `ovl_25_func_800BBA30`, then advances the `D_800BCD52` counter and raises the
+  `D_800BCD50` flag once it reaches 0x200
