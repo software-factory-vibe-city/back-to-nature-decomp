@@ -5311,6 +5311,23 @@ a single TU:
 Any of the three matched ovl_17/23/25 members is a donor template for the
 offset-0x4488/0x448C variant.
 
+## `ovl_27` 6-byte-record leaf run — 0x800BAA34 / 0x800BABD4 / 0x800BAC14 (confidence: low)
+
+Evidence: a gapless link-order run ending at the ovl_27 data segment —
+0x800BAA34 (0x1A0) → 0x800BABD4 (0x40) → 0x800BAC14 (0x4C) → 0x2E40 data.
+`ovl_27_func_800BAC14` (matched this session, byte-exact) is a leaf copying
+five 6-byte records (`s32`+`s16`) from overlay data `D_800BCFF0` to
+`D_8006C838 + 0x468A`, with a count-up `u32` loop (`sltiu`/`bnez`, stride-6
+pointer bump). Matched run neighbour `ovl_27_func_800BABD4` forms its
+`D_8006C838` base the same two-stage way (base symbol, then a separate offset
+add), and unmatched `ovl_27_func_800BAA34` carries the same count-up
+`sltiu`/`bnez` stride-6 loop form (original asm, including a bound-0x5 loop).
+
+Members (link order):
+- ovl_27_func_800BAA34 (s) — leaf: multi-loop 6-byte-stride field initialiser over `D_80071A00`
+- ovl_27_func_800BABD4 (m) — `D_8006C838 + 0xE4CC` s16 field writer, calls `func_80020A40`
+- ovl_27_func_800BAC14 (m, matched this session) — leaf: 5×6-byte record copy `D_800BCFF0` → `D_8006C838 + 0x468A`
+
 ## `ovl_11` D_8012720C guard/set pair — 0x800FBE4C / 0x800FC320 (confidence: low)
 
 Evidence: both functions write the same overlay-local flag `D_8012720C`
