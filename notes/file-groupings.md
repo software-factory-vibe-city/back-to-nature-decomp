@@ -5487,6 +5487,35 @@ Members (link order):
 Only one member is matched; the rest are read off original asm, hence medium
 confidence.
 
+## `ovl_28` D_8005E3B0+0x4290 display-setup run — 0x800B8B0C / 0x800B8B70 / 0x800B8C94 / 0x800B8CE4 / 0x800B8D48 (confidence: medium)
+
+Evidence: one gapless link-order run — `ovl_28_func_800B8B0C` (0x64) ends at
+`ovl_28_func_800B8B70` (0x124), which ends at `ovl_28_func_800B8C94` (0x50),
+which ends at `ovl_28_func_800B8CE4` (0x64), which ends at
+`ovl_28_func_800B8D48` (0x154) — and all five share the display-setup idiom
+`func_8003B3E0`/`func_8003B8CC` (DrawSync/ClearOTagR) → `func_80014CBC` →
+`func_8001719C` over the `D_8005E3B0 + 0x4290` primitive buffer, plus the
+`func_80015704`/`func_80015840` record-handoff pair. It is the ovl_28 twin of
+the ovl_27 0x800BA4C4–0x800BA914 display-setup run (and of the ovl_17/ovl_23
+runs). `ovl_28_func_800B8E9C` ends exactly at 0x800B9074 but is not a member:
+it builds POLY_FT4 primitives via `func_80011F5C`/`func_80011FD8`.
+
+Members (link order):
+- ovl_28_func_800B8B0C (s) — display-setup: DrawSync(0)/ClearOTagR +
+  `func_80014CBC(0,0x3D77000,0x6000,D_8005E3B0+0x4290,1,1)`
+- ovl_28_func_800B8B70 (s) — display-setup: same call with tail arg 0 +
+  `func_8001719C(D_8005E3B0+0x4900)` + record copy from D_8005E3B0+0x4290
+- ovl_28_func_800B8C94 (m, matched this session, byte-exact) — audio-setup
+  leaf: `func_8001FBE4(0, D_8005E3B0+0x4290)` then `func_8001FBF0` 0 / 0x3E8 / 0x23
+- ovl_28_func_800B8CE4 (s) — display-setup:
+  `func_80014CBC(0,0x2000,0x23000,D_8005E3B0+0x4290,1,1)`
+- ovl_28_func_800B8D48 (s) — display-setup: same call with tail arg 0 +
+  `func_8001719C(D_8005E3B0+0x4FAC)` + record copy from D_8005E3B0+0x4290,
+  tail `func_80015840` 31
+
+Only the audio leaf is matched; the rest are read off original asm, hence medium
+confidence.
+
 ## `ovl_21` D_8007AFF0 far-buffer state writer + GTE reader — 0x800BB0F8 / 0x800BB138 (confidence: medium)
 
 Evidence: gapless link adjacency (0x800BB0F8 is 0x40 and ends exactly at
