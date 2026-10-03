@@ -4896,6 +4896,23 @@ Members (link order):
 - ovl_30_func_8012F084 (s) — main consumer of both globals (data-family
   member only)
 
+## `ovl_30` mirror sibling pair — 0x8012F3D4 / 0x8012F410 (confidence: medium)
+
+Two call-sequence leaves in `ovl_30` (`Obj\GF_swind.bin`):
+
+- **gapless link adjacency:** `ovl_30_func_8012F3D4` (0x3C bytes at
+  0x8012F3D4, matched) ends exactly at `ovl_30_func_8012F410` (0x3C bytes at
+  0x8012F410, matched byte-exact this session) — one unbroken link run;
+- **identical call shape, one differing constant:** both emit the same
+  three-call sequence `func_80020B80(2, 0)`, `func_80020B80(1, 0)`,
+  `func_8001FBF0(<k>, 0)` — 8012F3D4 uses 0x3E7, 8012F410 uses 0x3E8;
+- **what the tie is not:** the next link neighbours (`ovl_30_func_8012F44C`,
+  empty leaf; `ovl_30_func_8012F454`, stub) share no call shape with the pair.
+
+Members (link order):
+- ovl_30_func_8012F3D4 (m) — call-sequence leaf, constant 0x3E7
+- ovl_30_func_8012F410 (m) — call-sequence leaf, constant 0x3E8
+
 ## `ovl_11` D_801273D8/D_801273DA init/reset pair — 0x800FFA28 / 0x800FFA40 (confidence: medium)
 
 - **gapless link adjacency:** `ovl_11_func_800FFA28` (0x18 bytes at 0x47C08)
