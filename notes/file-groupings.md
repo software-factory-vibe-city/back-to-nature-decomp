@@ -115,6 +115,24 @@ Members:
 The static-first strategy investigation and candidate verification are recorded
 in `plans/static-first-matching-decompilation.md`.
 
+## `ovl_11` +0x34 flag-to-constant map run — 0x800D3C04–0x800D3CE8 (confidence: high)
+
+Evidence: four link-order-contiguous functions with no gaps (0x800D3C04
+len 0x50, 0x800D3C54 len 0x50, 0x800D3CA4 len 0x44, 0x800D3CE8 len 0x44)
+sharing one author idiom and one callee. Each reads `u32@+0x34 & 0x2000`
+to pick a first argument, calls `func_80012A34`, then maps its return value
+onto a small constant; they differ only in the two/three constants chosen.
+The original instruction streams agree under constant substitution alone,
+which is strong source-family evidence (adjacency + shared idiom + shared
+callee all point the same way).
+
+Members:
+- ovl_11_func_800D3C04 (m) — flag → arg 3/8, result 8 / 1 / 9.
+- ovl_11_func_800D3C54 (m) — flag → arg 3/8, result 11 / 1 / 12; same
+  body as 800D3C04 with the two result constants changed.
+- ovl_11_func_800D3CA4 (m) — flag → arg 2/7, result 0xA / 1.
+- ovl_11_func_800D3CE8 (m) — flag → arg 2/7, result 0xD / 1.
+
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 
 The whole container is one translation unit: six functions, one of which calls
