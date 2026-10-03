@@ -230,7 +230,11 @@ coding tools. This project supplies the PlayStation decompilation policy and
 the workflow. The resources are in `.pi/`.
 
 `tools/agent/callGraph.ts` builds the worklist and ranks it by priority. The
-Pi extension reads that graph.
+in-code strategy selection defaults to dependency-ready/small-first: dependency
+depth, instruction count, caller count, then container order. The original
+container-first strategy remains available in `tools/agent/callGraphStrategies.ts`.
+Eligibility and the loop's family deferrals are independent of this ranking.
+The Pi extension reads the ranked graph.
 
 Start `pi` from the repository root. Then use a command. Run `/reload` after
 you edit a `.pi` resource in an open session.

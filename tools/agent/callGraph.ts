@@ -32,6 +32,7 @@ import { computeLiveness } from "../lib/liveness.js";
 import { scanOverlayReferences } from "../lib/overlayReferences.js";
 import { containerPath, loadContainers, requireContainer, type Container } from "../lib/container.js";
 import { loadFunctionSpans } from "../lib/symbolIndex.js";
+import { dependencyReadySmallFirstStrategy, rankWorklist } from "./callGraphStrategies.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "../..");
@@ -45,8 +46,8 @@ const containerIdx = args.indexOf("--container");
 const onlyContainer = containerIdx >= 0 ? args[containerIdx + 1] : undefined;
 
 /* Containers, in build order: the PS-X EXE first, then each overlay member.
-   Scoping a run to one container is the scheduling shape the plan argues for —
-   once the engine API is matched the overlays are worked independently. */
+   --container still scopes a run; the worklist strategy decides ranking within
+   the chosen set of containers. */
 const containers: Container[] = onlyContainer
   ? [requireContainer(onlyContainer)]
   : loadContainers();
@@ -327,41 +328,13 @@ for (const entry of funcMap.values()) {
 
 // --- Step 7: Assign priority and sort ---
 
-const entries = [...funcMap.values()];
-
-/* The PS-X EXE comes first, and that is the dependency structure rather than a
-   preference: no overlay translation unit compiles without correct declarations
-   for the engine functions it calls, and a wrong callee declaration poisons the
-   caller. Once the engine API is finished the overlays are independent of each
-   other and a run is scoped to one with --container. */
-const containerRank = new Map(containers.map((container, index) => [container.id, index]));
-
-entries.sort((a, b) => {
-  // Decompiled, pure-asm (not GTE), and dead code go to end
-  const aSkip = a.decompiled || a.handwritten === "asm" || a.dead;
-  const bSkip = b.decompiled || b.handwritten === "asm" || b.dead;
-  if (aSkip !== bSkip) return aSkip ? 1 : -1;
-
-  // Containers in dependency order: the engine API is the frontier
-  const aRank = containerRank.get(a.container) ?? 99;
-  const bRank = containerRank.get(b.container) ?? 99;
-  if (aRank !== bRank) return aRank - bRank;
-
-  // Sort by tier
-  if (a.tier !== b.tier) return a.tier - b.tier;
-
-  // Within Tier 3, sort by depth
-  if (a.tier === 3) {
-    const da = depthMap.get(a.name) ?? maxDepth + 1;
-    const db = depthMap.get(b.name) ?? maxDepth + 1;
-    if (da !== db) return da - db;
-  }
-
-  // Smaller instruction count first
-  if (a.instructionCount !== b.instructionCount) return a.instructionCount - b.instructionCount;
-
-  // Higher caller count first (breaks ties)
-  return b.callerCount - a.callerCount;
+/* Change this one selection to switch every consumer of build/callGraph.json.
+   The legacy container-first strategy remains available for comparison. */
+const worklistStrategy = dependencyReadySmallFirstStrategy;
+const entries = rankWorklist([...funcMap.values()], worklistStrategy, {
+  containerRank: new Map(containers.map((container, index) => [container.id, index])),
+  depthByName: depthMap,
+  maxDepth,
 });
 
 // Assign sequential priority
@@ -409,6 +382,7 @@ const perContainer = containers.map((container) => {
 });
 
 const output = {
+  rankingStrategy: worklistStrategy.name,
   functions: entries,
   containers: perContainer,
   crossContainerEdges: [...crossPairs.entries()].map(([pair, count]) => ({ pair, count })),
@@ -434,7 +408,7 @@ const output = {
 mkdirSync(dirname(OUT_FILE), { recursive: true });
 writeFileSync(OUT_FILE, JSON.stringify(output, null, 2));
 
-console.log(`Call graph: ${entries.length} functions`);
+console.log(`Call graph: ${entries.length} functions (${worklistStrategy.name})`);
 console.log(`  Tier 1 (pure leaf):    ${String(tier1).padStart(3)} functions`);
 console.log(`  Tier 2 (SDK-only):     ${String(tier2).padStart(3)} functions`);
 console.log(`  Tier 3 (game callers): ${String(tier3).padStart(3)} functions`);
