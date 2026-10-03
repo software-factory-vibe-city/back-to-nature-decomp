@@ -5010,6 +5010,11 @@ Members:
 - ovl_17_func_800B9CAC (m, 2026-10-03) — countdown walk of 6 D_800BD848
   records (0x50 stride): bumps each s16@+0x2A by 5 when it is < 0xFF; same
   `base = D_800BD848` + 0x50-stride record idiom as 800B9F10/800B9F44.
+- ovl_17_func_800BAFDC (m, 2026-11-01) — countdown walk of 6 D_800BD870
+  records (0x50 stride): calls ovl_17_func_800BAFAC(base); same
+  `base = D_800BD870` + 0x50-stride countdown idiom as 800B9CAC and the
+  still-unmatched twins ovl_17_func_800BB050 (calls 800BB020) and
+  ovl_17_func_800B8534 (interleaved 0xF0/0x50 walk, calls 800BAC24).
 - ovl_17_func_800B9324 (s) — caller hub: twice calls 800B9F10 with record
   halfword fields around calls to 800B9CE4/800B9F44/800B9F78.
 - func_800B8470 (s) — counter reset that walks the same records from
