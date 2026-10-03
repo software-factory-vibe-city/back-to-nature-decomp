@@ -5656,8 +5656,18 @@ Members (link order):
 - ovl_21_func_800B95EC (m, matched this session, byte-exact) — after
   `ovl_21_func_800BA4C0` and `func_80013394() == 1`, calls
   `func_800132B8(10, 0, 2)`, then clears `D_800C0448[0]` and increments
-  `D_800C0448[1]`; the object is `u16[2]`, since the `lhu` increment needs the
-  unsigned declaration to allocate its registers as the target does.
+  `D_800C0448[1]`; the `lhu` increment needs the unsigned declaration.
+- ovl_21_func_800B9798 (m, matched this session, byte-exact) — leaf that
+  writes a halfword at record offset 0x18 into three consecutive
+  `D_800C0448` records starting at index `arg0*3`; membership rests on the
+  shared global, not on adjacency (it is not link-adjacent to the trio).
+
+Fingerprints:
+- shared global cluster: `D_800C0448` is the base of a record table of
+  0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
+  above) and a halfword at 0x18 (written by `ovl_21_func_800B9798`), three
+  records per 0x318-byte group (`func_800B9A20` walks the table at a 0x318
+  stride). The trio's declaration only witnessed the leading halfwords.
 
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 

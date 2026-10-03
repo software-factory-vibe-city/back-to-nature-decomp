@@ -431,6 +431,19 @@ typedef struct {
     /* 0x44 */ char pad_44[0x6C];
 } UnkStruct80075BC4;
 
+/* Element of the D_800C0448 state table, stride 0x108. The two leading
+ * halfwords are the state pair written by ovl_21_func_800B9538 /
+ * ovl_21_func_800B95EC; ovl_21_func_800B9798 writes a halfword at 0x18 of
+ * three consecutive entries starting at index arg0*3. Only the witnessed
+ * fields are named. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ char pad_04[0x14];
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ char pad_1A[0x108 - 0x1A];
+} UnkStruct800C0448;
+
 /* ovl_11_func_801097F4 argument record, passed by value: the first 16 bytes
  * ride in $a0-$a3 and are homed to 0x0($sp) on entry; the witnessed tail
  * fields sit at 0x10 (s16 selector), 0x14 (s32 radius) and 0x18 (out
