@@ -5118,6 +5118,33 @@ Members:
 - func_800B8470 (s) — counter reset that walks the same records from
   D_800BD870 with the 0x50 stride (5 records, per-record func_800BAC24 call).
 
+## `ovl_17` D_800BB524 display-setup state-handler run — 0x800B9FA8–0x800BA54C (confidence: medium)
+
+Evidence: the dispatcher `ovl_17_func_800B7E78` (s) selects on the state byte
+`D_800BB524` and, from consecutive jump-table branches, calls
+`ovl_17_func_800B9FA8`, `ovl_17_func_800BA21C`, `ovl_17_func_800BA2C8` and
+`ovl_17_func_800BA504`, then on its terminal state calls
+`ovl_17_func_800BA54C`. Those five members are one gapless link-order run
+(9FA8 + 0x274 = BA21C, + 0xAC = BA2C8, + 0x23C = BA504, + 0x48 = BA54C), so
+the call graph and the link order agree. The recovered handlers share the
+display-setup idiom `DrawSync` → `ClearOTagR` → `func_80014CBC` →
+`func_8001719C` → `func_80015704`.
+
+Members (link order):
+- ovl_17_func_800B9FA8 (s) — display-setup state: DrawSync/ClearOTagR plus
+  func_80014CBC/1719C/15704
+- ovl_17_func_800BA21C (s) — same display-setup idiom
+- ovl_17_func_800BA2C8 (s) — same display-setup idiom, plus D_800BD74C/
+  D_800BD750 stores
+- ovl_17_func_800BA504 (m) — audio-setup leaf: func_80020B80(2,0),
+  func_80020B80(1,0), func_8001FBF0(0x3E7,0), func_8001FBF0(0x15,1)
+- ovl_17_func_800BA54C (s) — D_800BD848 record-area initialiser (calls
+  800BA630/800BA698/800BA704/800BB0C4)
+
+Cross-container note: 800BA504's leading three calls are the same sequence the
+`ovl_30` mirror pair 8012F3D4/8012F410 emit; that twin relation is not
+TU-membership evidence here.
+
 ## `ovl_28` D_800B9626/D_800B9628/D_800BAB0C state-cluster run — 0x800B92F0 / 0x800B9328 / 0x800B935C (confidence: medium)
 
 Evidence: one gapless link-order run over one ovl_28 state cluster —
