@@ -22,7 +22,7 @@ typedef struct {
 s16 D_8005E33A;
 u16 D_8005E33C;
 u16 D_8005E338;
-cursor_table_entry *D_8005E340;
+struct struct_8005E340_target *D_8005E340;
 
 void func_80023910(void) {
     s32 temp_v1;

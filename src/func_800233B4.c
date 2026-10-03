@@ -15,7 +15,7 @@ typedef struct {
 } cursor_entry;
 
 u16 D_8005E338;
-cursor_entry *D_8005E340;
+struct struct_8005E340_target *D_8005E340;
 
 void func_800233B4(void) {
     s32 base;
@@ -29,6 +29,6 @@ void func_800233B4(void) {
         func_80024A10(base, 0xFD, 0x23, D_8005E340->unk2);
     }
     if (D_8005E338 >= 3) {
-        func_8001AAF4((s16)(D_8005E340->unk4 + 1), 2, base, 0x115, 0x23);
+        func_8001AAF4((s16)(((cursor_entry *)D_8005E340)->unk4 + 1), 2, base, 0x115, 0x23);
     }
 }
