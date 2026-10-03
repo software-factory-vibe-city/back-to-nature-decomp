@@ -208,18 +208,17 @@ Members:
 
 ---
 
-## `ovl_11` memset-clear struct-constructor idiom family — 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C (confidence: low)
+## `ovl_11` memset-clear struct-constructor idiom family — 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0 (confidence: low)
 
 Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
 `memset(arg0, 0, N); *(s16 *)arg0 = 0;` — clear a caller-provided struct then
-zero its first s16 field. Five instances in the matched corpus, all in
+zero its first s16 field. Six instances in the matched corpus, all in
 `ovl_11`, and the 12-word machine shape is identical apart from the size
 immediate — a family transfer from one member solved the next. No other tie:
 struct sizes differ (0xB0/0xB8/0xB8/0xB4/0xF0, so possibly different types,
 though two members share 0xB8), address span is ~0x38000 with no adjacency,
 and the caller sets are disjoint (0x8010B64C's single caller is 0x800E8760).
-If a sixth member appears, check these spellings first; do not add members on
-the idiom alone.
+Members:
 Members:
 - ovl_11_func_800D3200 (m) — clears an 0xB0-byte struct (memset 0xB0, sh 0 at
   +0); called by nine functions in the 0x800CF044–0x800D506C run
@@ -229,6 +228,10 @@ Members:
 - ovl_11_func_800E2904 (m) — same construction over 0xB4 bytes
 - ovl_11_func_8010B64C (m, matched this session) — same construction over 0xF0
   bytes; sole caller ovl_11_func_800E8760
+- ovl_11_func_801092E0 (m, matched this session) — same construction over 0xF0
+  bytes, byte-identical to 8010B64C in all 12 words including the 0xF0
+  immediate (a duplicated helper, likely its own TU copy); no direct caller
+  found in any extracted bytes — dispatched indirectly or dead
 
 ---
 
