@@ -4336,6 +4336,28 @@ Cross-container note: the audio-setup call sequence is a twin of
 at those entries, that twin relation is not TU-membership evidence — here only
 the dispatcher call graph and the gapless link run are.
 
+## `ovl_23` 2D vector math helper run — 0x800BA1E0–0x800BA368 (confidence: medium)
+
+Evidence: gapless link order in ovl_23 — `ovl_23_func_800BA1E0` (0x98, ends
+0x800BA278), `ovl_23_func_800BA278` (0x94, ends 0x800BA30C),
+`ovl_23_func_800BA30C` (0x5C, ends 0x800BA368), then this function (0x4C, ends
+0x800BA3B4). The call graph agrees: `ovl_23_func_800BA1E0` calls
+`ovl_23_func_800BA368` and forwards its result straight to
+`ovl_23_func_800BA278`. The two helpers share the s16 (dx, dy) argument style —
+`ovl_23_func_800BA30C` squares the deltas and takes `SquareRoot0`, this function
+takes `ratan2` and scales to degrees.
+
+Members (link order):
+- ovl_23_func_800BA1E0 (s) — reads s16 fields from a pointer record, computes two
+  `>>12` differences, calls this function then passes the result to 800BA278
+- ovl_23_func_800BA278 (s) — 0x2D-wide threshold chain mapping an angle to
+  small indices 0–7
+- ovl_23_func_800BA30C (s) — distance helper: sum of squared s16 deltas through
+  `SquareRoot0`
+- ovl_23_func_800BA368 (m, byte-exact this session) — angle helper:
+  `ratan2(arg0, arg1)`, negative-result wrap by `+0x1000`, then
+  `* 0x168 / 0x1000` to degrees
+
 ## `ovl_11` mask-switch leaf run — 0x800F1BD0 / 0x800F1C48 / 0x800F1CC4 (confidence: low)
 
 Candidate same-TU run in `ovl_11` (`Obj\GF_FARM.bin`): gapless
