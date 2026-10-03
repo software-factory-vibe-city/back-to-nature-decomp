@@ -4572,7 +4572,7 @@ Members:
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): eight matched functions
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): nine matched functions
 sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
 (`globals_override.h`), each guarded-indexing it with `s16`-scaled slots.
 
@@ -4588,12 +4588,24 @@ Fingerprints:
   writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
   slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
   (800E5A1C also increments `D_80129560[(s16)arg1]`);
+- **contiguous accessor run:** the members 800E6834, 800E686C, 800E6914, 800E69B8
+  form a zero-gap link-order run (0x800E6834 onward, entries at 0x800E6834/686C/
+  6914/69B8), three of them proved load-side users of the table and the fourth
+  (800E686C) recorded as the same by `globals_override.h` — positive adjacency
+  evidence among family members, which the scattered 0x800E5A1C/800EB79C/
+  800EC490/800ED760 sites do not supply;
 - **what the tie is not:** the members are scattered over ~0x6E4C of text with
   no call edges among them (800EC490 has no callers anywhere in the link —
   an exported entry), so per the ledger convention the global alone is a
   data-family tie, not a TU tie.
 
 Members:
+- ovl_11_func_800E6834 (m, matched 2026-11 — this session, 0x38, byte-exact) —
+  compare-forward leaf: `return ovl_11_func_800EFDA0(D_80129560[(s16)arg0],
+  arg3, arg2)` — loads the s16-scaled slot with the same `sll 16`/`sra 14`
+  fused index as the sibling readers, then tail-calls the shared three-arg
+  compare leaf (mode `arg2`); lowest-address member of the contiguous run
+  above and immediate link-order predecessor of the load-side user 800E686C.
 - ovl_11_func_800E5A1C (m, matched 2026-09 — this session, 0xC0, byte-exact) —
   compare-then-increment probe: sets the returned flag when
   `D_80129560[(s16)arg0] / 2 < limit` (arg2 != 0) or `(s16)arg0 / 2 < limit`
