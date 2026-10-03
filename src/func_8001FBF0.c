@@ -13,7 +13,10 @@ s32 func_800200E4(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 s32 func_80020148(s32 arg0);
 s32 func_80020174(s32 arg0, s32 arg1);
 
-void func_8001FBF0(s16 arg0) {
+/* Every caller in the binary passes a second argument ($a1); it is unused
+ * here, but the prototype carries it so call sites keep their argument
+ * setup. */
+void func_8001FBF0(s16 arg0, s16 arg1) {
     s32 var_s0;
 
     D_80061F1C = 0;
