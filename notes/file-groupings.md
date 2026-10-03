@@ -5173,12 +5173,20 @@ overlay-local globals (0x80134xxx data region):
   other referencer of the pair (reads/writes both globals across its body)
   but sits 0x84 past the pair, so its membership rests on the shared-global
   data tie alone.
+- **data-cluster + link adjacency (low):** `ovl_30_func_8012F030` ends exactly
+  at `ovl_30_func_8012F084`, inside the same gapless link run, and references
+  the overlay-local `D_8013400C`, four bytes past the group's `D_80134008`;
+  it touches neither of the pair's globals, so its membership rests on the
+  data cluster and the run, not on the init/read tie.
 
 Members (link order):
 - ovl_30_func_8012EFEC (m) — void init leaf: zeroes D_80134008 and
   D_80134B0C; no callers or callees recorded in the call graph
 - ovl_30_func_8012F000 (m) — read-and-conditionally-clear of D_80134B0C,
   returning the value read
+- ovl_30_func_8012F030 (m, matched byte-exact) — branches on its s32 arg to
+  StoreImage/LoadImage `&D_8013400C` from `D_8005E3B0+0x4290`, then
+  DrawSync(0)
 - ovl_30_func_8012F084 (s) — main consumer of both globals (data-family
   member only)
 
