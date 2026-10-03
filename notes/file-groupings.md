@@ -5866,3 +5866,43 @@ Members (link order):
 - ovl_11_func_800F7230 (s) — larger CD-load + state machine: same call head,
   then result-gated handling of a case index against `D_80126F74` /
   `D_80126E30` state tables; role not yet reconstructed.
+
+---
+
+## `ovl_11` D_80126F7C/80/84/88 menu-state run — 0x800F9D3C–0x800F9FF4 (confidence: medium)
+
+Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) built from zero-gap
+link-order contiguity plus a shared four-word file-scope state cluster at
+0x80126F7C–0x80126F88. Same shared-global + link-adjacency fingerprint class as
+the documented `D_80126FE0/E4/E8/EC` and `D_8012DB10` runs; absolute-addressed
+main-RAM globals (no gp-rel in this container), so the referencing TU only
+*declares* the cluster extern.
+
+Fingerprints:
+- shared cluster `D_80126F7C` / `D_80126F80` / `D_80126F84` / `D_80126F88`
+  (main RAM 0x80126F7C–0x80126F88, s32 words) plus the sibling s16
+  `D_80070CF0` / `D_80070CF4` pair: `ovl_11_func_800F9D3C` resets 0x7C/0x84/0x88;
+  `ovl_11_func_800F9D5C` writes 0x7C/0x84/0x88 and reads s16 `D_80070CF4`;
+  `ovl_11_func_800F9DB0` and `ovl_11_func_800F9E4C`/`800F9F58`/`800F9FF4` all
+  address the same words, so the cluster is not a one-function private cell.
+- zero-gap link order: `ovl_11_func_800F9D3C` (0x20, ends 0x800F9D5C) →
+  `ovl_11_func_800F9D5C` (0x54, ends 0x800F9DB0) → `ovl_11_func_800F9DB0` (0x9C)
+  → `ovl_11_func_800F9E4C` (0x10C) → `ovl_11_func_800F9F58` (0x9C) →
+  `ovl_11_func_800F9FF4`, each starting exactly where the previous ends.
+- shared helper-call set across the run: `func_8001FABC(3)`,
+  `ovl_11_func_800F6640`, and `func_800226B0` / `func_80022738`; shared constants
+  `D_8005E3A8` / `D_8005E3C0` files kept alongside the state cluster.
+
+Members (address order):
+- ovl_11_func_800F9D3C (m) — leaf reset stub: zeroes the three s32 words
+  0x7C/0x84/0x88; tail of the run head.
+- ovl_11_func_800F9D5C (m, matched this session) — set-up stub called from
+  0x800C7AC0: calls 800F9D3C, stores 800F6648() into 0x80126F88, calls
+  800F6638, `func_8001FABC(3)`, sets 0x80126F7C = 1, then copies the s16
+  `D_80070CF4` into 0x80126F84.
+- ovl_11_func_800F9DB0 (s) — next run member; reads 0x80126F7C and drives the
+  0x40000 packet path plus func_800226A4/226F0/17A48.
+- ovl_11_func_800F9E4C (s) — reads 0x80126F7C/0x88 and `D_80070CF0`, calls
+  `ovl_11_func_800F6640` and `func_8001FABC`; adjacent run member.
+- ovl_11_func_800F9F58 (s), ovl_11_func_800F9FF4 (s) — later run members
+  reading the same cluster; 800F9FF4 additionally walks `D_8006C838`.
