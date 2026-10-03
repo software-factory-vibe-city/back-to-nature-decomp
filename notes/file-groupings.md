@@ -250,6 +250,21 @@ Members:
 
 ---
 
+## `ovl_11` `D_80128E08` 0x30-stride entry-table walk — 0x800DC990 / 0x800DCA10 (confidence: low)
+
+Bulk walk `ovl_11_func_800DC990` (matched this session, byte-exact) walks the
+shared table global `D_80128E08` 15 times (count-down `i = 0xE .. 0`, `bgez`)
+at +0x30 stride, calling `ovl_11_func_800DCA10` on each entry with the entry
+pointer in `$a0`. Structurally the third twin of the two 0x34-stride clusters
+(same `p = <table>; for i { call(p); p += stride; }` author idiom), but a
+distinct global, stride and callee. Members:
+- ovl_11_func_800DC990 (m, matched this session) — bulk walk over entries
+  0–14 of `D_80128E08` (+0x30 stride)
+- ovl_11_func_800DCA10 (s) — per-entry callee at 0x800DCA10, +0x80 after the
+  walker; role unknown
+
+---
+
 ## `ovl_11` `D_80128BB0` 0x34-stride init run — 0x800CBEF8 / 0x800CBF40 / 0x800CBF70 (confidence: medium)
 
 Bulk initialiser `ovl_11_func_800CBEF8` (matched this session) walks the
