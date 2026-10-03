@@ -4997,3 +4997,24 @@ Members (link order):
 - ovl_28_func_800B9328 (m, matched this session) — initialiser:
   `D_800B9626 = 2`, `D_800BAB0C = 0`, record = (a0, a1, 0x50, 0x50)
 - ovl_28_func_800B935C (m) — predicate: returns `D_800B9626 == 0`
+
+## `ovl_27` D_800C4A14/D_800C4A1C state-handler cluster — 0x800B845C–0x800B92E4 (confidence: low)
+
+Evidence: `ovl_27_func_800B8E28` (matched this session, byte-exact) is a
+state transition: it calls the hub `ovl_27_func_800B92E4`, resets
+`D_800C4A1C = 0`, installs `ovl_27_func_800B8E5C` as the
+`D_800C4A14` handler and returns that pointer — and `D_800C4A14`'s data
+initializer is `ovl_27_func_800B8E28` itself, so the slot is a self-starting
+function-pointer state machine shared across the neighborhood. The call graph
+is a star: `ovl_27_func_800B92E4` (itself a driver over five siblings) is
+called by nine functions in one gapless link-order run, 0x800B845C–0x800B90DC.
+The original asm of every function in that run plus `800B7F2C`, `800B7F7C` and
+`800B9FF4` touches `D_800C4A14` and/or `D_800C4A1C`.
+
+Members (link order):
+- ovl_27_func_800B8E28 (s, matched this session) — handler transition:
+  hub call, `D_800C4A1C = 0`, `D_800C4A14 = ovl_27_func_800B8E5C`, returns it
+- ovl_27_func_800B92E4 (m) — shared driver hub; nine callers in the run
+
+Only one member is matched; the rest of the cluster is read off original asm
+and the call graph, hence low confidence until more of the run is decompiled.
