@@ -4825,7 +4825,7 @@ Members (link order):
 - ovl_11_func_800FFA40 (m) — void reset: calls 800FFA28, then
   `D_801273DA = 0`
 
-## `ovl_11` D_80128420/D_80128422 init/set cluster — 0x8011E574 / 0x8011E588 / 0x8011EC84 (confidence: medium for the pair, low for 0x8011EC84)
+## `ovl_11` D_80128420/D_80128422 init/set cluster — 0x8011E574 / 0x8011E588 / 0x8011EC54 / 0x8011EC84 (confidence: medium for the pair, low for 0x8011EC54 and 0x8011EC84)
 
 Same fingerprint class as the D_801273D8/D_801273DA entry above: an
 overlay-local {s16,s16} flag pair with an init leaf and callers that reset
@@ -4843,11 +4843,22 @@ one member after calling it.
   call-init-then-set idiom, but 0x6D4 past the pair, so adjacency does not
   cover it. `D_80128424` (the 0x8C-byte table at 0x80128428 read by
   8011EE40) is a separate object, not part of this pair.
+- **fourth member by adjacency + shared set/callee idiom:**
+  `ovl_11_func_8011EC54` (0x30 at 0x66E34, matched) ends exactly at
+  0x66E64 where 8011EC84 begins — a gapless link run onto a cluster
+  member; it sets `D_80128420 = 8` and calls the same
+  `func_80022738` / `func_8001FABC(3)` pair as 8011EC84 (though it does
+  not call the 8011E574 init leaf). Its sole caller
+  `ovl_11_func_8011EA0C` ignores `$v0` after the call, matching 8011E588's
+  caller behaviour; it calls 8011EC54 only after first storing 6 into
+  `D_80128420` itself.
 
 Members (link order):
 - ovl_11_func_8011E574 (m) — void init leaf: `D_80128420 = 0`,
   `D_80128422 = 0`
 - ovl_11_func_8011E588 (m) — void: calls 8011E574, then `D_80128420 = 1`
+- ovl_11_func_8011EC54 (m) — sets `D_80128420 = 8` after calling
+  func_80022738 and func_8001FABC(3); caller ignores $v0
 - ovl_11_func_8011EC84 (m) — calls 8011E574, sets `D_80128420 = 6`, then
   calls 8011EE98 with D_80070CF2
 
