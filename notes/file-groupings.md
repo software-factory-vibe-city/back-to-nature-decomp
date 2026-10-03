@@ -4907,9 +4907,9 @@ Fingerprints:
   writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
   slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
   (800E5A1C also increments `D_80129560[(s16)arg1]`);
-- **contiguous accessor run:** the members 800E6834, 800E686C, 800E6914, 800E69B8
-  form a zero-gap link-order run (0x800E6834 onward, entries at 0x800E6834/686C/
-  6914/69B8), three of them proved load-side users of the table and the fourth
+- **contiguous accessor run:** the members 800E6834, 800E686C, 800E6914, 800E69B8,
+  800E69F8 form a zero-gap link-order run (0x800E6834 onward, entries at 0x800E6834/686C/
+  6914/69B8/69F8), four of them proved load-side users of the table and the fifth
   (800E686C) recorded as the same by `globals_override.h` — positive adjacency
   evidence among family members, which the scattered 0x800E5A1C/800EB79C/
   800EC490/800ED760 sites do not supply;
@@ -4937,6 +4937,12 @@ Members:
   bit-selected `D_80129560[arg2]`/`[arg3]`, returns the in-range test.
 - ovl_11_func_800E69B8 (m) — forwards `D_80129560[arg2]` into
   `ovl_11_func_800EFABC`.
+- ovl_11_func_800E69F8 (m, matched 2026-11 — this session, 0x58, byte-exact) —
+  guarded-slot forwarder: `ptr = &D_80129560[(s16)arg0]` built with the family's
+  fused `sll 16`/`sra 14` index, then forwards `ptr` and a conditionally
+  table-resolved value (`D_80129560[arg2]` when `arg1 != 0`, the raw `arg2`
+  otherwise) into `ovl_11_func_800EFE34`; returns 1. Zero-gap link-order
+  successor of 800E69B8 (0x40), extending the contiguous run above.
 - ovl_11_func_800E8BA0 (m) — writer: `D_80129560[arg1] = entity->u16@+2`.
 - ovl_11_func_800E8D00 (m) — writer: stores the store-view s16 pair into slots.
 - ovl_11_func_800EB79C (m, matched 2026-09 — this session, 0xC0, byte-exact) —
