@@ -5121,3 +5121,35 @@ Members (link order):
 - ovl_21_func_800BB138 (s) — link successor; builds a GTE matrix from
   `GsIDMATRIX` and the writer's +0x253A0/+0x25394 state fields and calls the
   PSY-Q GTE helpers.
+
+## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
+
+Candidate same-TU run of `ovl_25` around the s16 flag at `D_800BFE46`
+(= `D_800BFE44` + 0x2). Evidence is gapless link adjacency plus a shared
+write-only global cluster plus a shared state-probe call pair; no gp-rel
+cluster observed (the global is `extern` and reached absolutely, so it is not
+TU-owned).
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800BA7F0` (0x28, ends 0x800BA818) sits
+  immediately before `ovl_25_func_800BA818` (0x40, ends 0x800BA858), which is
+  followed directly by `ovl_25_func_800BA858` (0xB0) — contiguous, no
+  unrelated code between;
+- shared s16 flag: all three write `D_800BFE46` — `ovl_25_func_800BA7F0` the
+  constant 1, `ovl_25_func_800BA818` the value 2 (via a variable), and
+  `ovl_25_func_800BA858` the constant 3 (as `sh`, 0x2(`$s0`), where
+  `$s0 = D_800BFE44`);
+- shared state-probe pair: `ovl_25_func_800BA818` and `ovl_25_func_800BA858`
+  both call `func_8002261C(4, 0x31)` / `func_8002261C(4, 0x32)` then
+  `func_800226A4()` (the `D_8005E5B4` getter) and test the result `== 2`
+  before writing the flag; `ovl_25_func_800BA7F0` does not (it calls
+  `ovl_25_func_800B8478`).
+
+Members (link order):
+- ovl_25_func_800BA7F0 (s) — calls `ovl_25_func_800B8478`, then
+  unconditionally stores 1 to `D_800BFE46`
+- ovl_25_func_800BA818 (m, matched this session, byte-exact) — issues the
+  `func_8002261C(4, 0x31)` state request, reads `func_800226A4()`, and stores
+  the value 2 to `D_800BFE46` only when the read equals 2
+- ovl_25_func_800BA858 (s) — far-buffer/field updater; on its `... == 2` probe
+  path sets `D_800BFE46` to 3 and writes `D_800BCD21`/`D_800BCD48`
