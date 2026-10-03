@@ -1510,7 +1510,7 @@ Members (address order):
   `>=`-guard on the pool's middle sibling
 
 
-## `ovl_11` D_800719FE s16-global cluster — 0x800FDEDC–0x800FDFD8 / 0x80112160 (near trio: medium; 80112160: low)
+## `ovl_11` D_800719FE s16-global cluster — 0x800FDE98–0x800FDFD8 / 0x80112160 (near trio: medium; 80112160: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
 file-scope s16 global. Same shared-global fingerprint as the documented
@@ -1520,14 +1520,20 @@ D_80071A00 pool: main-RAM file-scope global absent from the generated
 `(D_800719FE - arg0) < 5`, and forms the addresses of both
 `ovl_11_func_800FDFA8` and `ovl_11_func_800FDFD8` directly, selecting one as
 a function pointer per loop iteration — a code-level binding, not just
-adjacency. Link order is a zero-gap run 0x800FDEDC (0xCC) → 0x800FDFA8
-(0x30) → 0x800FDFD8. Third member `ovl_11_func_80112160` (0x80112160) is a
+adjacency. Link order is a zero-gap run 0x800FDE98 (0x44) → 0x800FDEDC
+(0xCC) → 0x800FDFA8 (0x30) → 0x800FDFD8. Third member `ovl_11_func_80112160` (0x80112160) is a
 state probe switching on arg0 to return `D_800719FE != 0` (arg0==0) or the
 s16 value itself (arg0==1) — same global, same file-scope state. Spread
 between the near trio and the far probe is large, so same-family for
 80112160 is plausible rather than established.
 
 Members (address order):
+- ovl_11_func_800FDE98 (m, matched 2026-11) — short s16-table lookup leaf:
+  clamps arg0 to <5 (else 4), indexes `.data` s16 table `D_80127370`
+  (absent from `globals.h`, extern + absolute addressing) and tail-calls
+  the consumer below with the looked-up value; ends at 0x800FDEDC, gapless
+  before the consumer, so it extends the run and binds to the same TU;
+  byte-exact clean C, baseline flags
 - ovl_11_func_800FDEDC (m, matched) — 0xCC-byte consumer run: `lh
   D_800719FE`, branches on `D_800719FE - arg0 < 5` to pick one of the two
   helpers below as a callee, loops it over a 5-entry window and negates the
