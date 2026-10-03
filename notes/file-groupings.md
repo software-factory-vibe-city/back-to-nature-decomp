@@ -5943,3 +5943,23 @@ Members (address order):
   `ovl_11_func_800F6640` and `func_8001FABC`; adjacent run member.
 - ovl_11_func_800F9F58 (s), ovl_11_func_800F9FF4 (s) — later run members
   reading the same cluster; 800F9FF4 additionally walks `D_8006C838`.
+
+---
+
+## `ovl_11` `D_800719F8` clear/set-then-test run — 0x80112440 / 0x80112494 (confidence: medium)
+
+Two constant-for-constant twins in `ovl_11`, immediately adjacent in link order.
+Both declare the same global `D_800719F8` (s32, absolute `lui`+`%lo`) and both
+call the same SDK helper `ovl_11_func_800F3E00(u16)`, clearing one flag bit of
+the global, testing the helper's result against 0x33, and re-setting the bit.
+The only differences are the bit (`1` vs `2`), the helper argument (`0x5D` vs
+`0x5F`) and a schedule difference in where the reload of the global lands
+(delay slot vs after the branch), which is why the second needed its own source
+rather than a byte-identical copy. Shared global + shared callee + zero-gap
+address adjacency.
+
+Members:
+- ovl_11_func_80112440 (m) — `base = &D_800719F8; *base &= ~1;`
+  `if (ovl_11_func_800F3E00(0x5D) >= 0x33) *base |= 1;`
+- ovl_11_func_80112494 (m, matched this session) — same shape with bit `2`
+  (`*base &= ~2`, `*base |= 2`) and argument `0x5F`.
