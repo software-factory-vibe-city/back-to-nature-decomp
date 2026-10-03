@@ -935,6 +935,20 @@ extern Ovl28B9628View D_800B9628;
 /* D_800BAB0C - ovl_28 state halfword cleared by ovl_28_func_800B9328. */
 extern s16 D_800BAB0C;
 
+/* VWD0 - PSY-Q libgs vertical display resolution (libgs.h). Forward-declared
+ * here because libgs.h is not self-contained. */
+extern s32 VWD0;
+
+/* D_800B9630 - 20-record (0xC stride) initialised by ovl_28_func_800B895C:
+ * s32@+0 = 0, s16@+4 = 0, s32@+8 = VWD0 << 12. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ char pad_6[0x2];
+    /* 0x08 */ s32 unk8;
+} Ovl28B9630Record;
+extern Ovl28B9630Record D_800B9630[];
+
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 

@@ -5038,3 +5038,26 @@ Members (link order):
   and call `func_800132F0(10, 0, 2)`, else return `D_8012720C`
 - ovl_11_func_800FC320 (m, matched this session) — void: `func_8001FABC(3)`,
   `func_800132F0(10, 0, 2)`, `D_8012720C = 5`
+
+## `ovl_28` D_800B9630 record-table run — 0x800B895C / 0x800B8994 / 0x800B8A20 / 0x800B8AA8 (confidence: medium)
+
+Evidence: one gapless link-order run — `ovl_28_func_800B895C` (0x38) ends
+at `ovl_28_func_800B8994` (0x8C), which ends at `ovl_28_func_800B8A20` (0x88),
+which ends at `ovl_28_func_800B8AA8` — and all four walk the same 20-record
+(0xC stride) `D_800B9630` table. `ovl_28_func_800B895C` and
+`ovl_28_func_800B8994` additionally read the same SDK global `VWD0` and each
+write `VWD0 << 12` into a record's s32@+0x8; `800B8A20` reads the adjacent
+`D_800B9720` (end of the table) as a call argument.
+
+Members (link order):
+- ovl_28_func_800B895C (m, matched this session) — initialiser: fills all 20
+  records with (s32@+0 = 0, s16@+4 = 0, s32@+8 = `VWD0 << 12`)
+- ovl_28_func_800B8994 (s) — allocator: finds the first record with
+  unk0 == 0, writes (1, arg0, `VWD0 << 12`) there, or returns if full
+- ovl_28_func_800B8A20 (s) — walker: for records with unk0 == 1, feeds
+  unk8 and unk4 into `func_80015EE8`
+- ovl_28_func_800B8AA8 (s) — updater: for records with unk0 == 1, subtracts
+  `D_800B93B4` from unk8 and clears unk0 when the result underflows
+
+Only one member is matched; the rest are read off original asm, hence medium
+confidence.
