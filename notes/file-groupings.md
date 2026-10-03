@@ -5645,14 +5645,17 @@ Members (link order):
   `D_800BCC10[0]`/`[2]` and writes the `D_8007AFF0+0x20000` work-area fields
   +0x5394..+0x53A4 and the +0x53B4/+0x53B8 halfwords
 
-## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 (confidence: medium)
+## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 / 0x800B83C0 (confidence: medium)
 
 Evidence: one gapless link-order run (0x800B7F30 +0x50 -> 0x800B7F80
 +0x54 -> 0x800B7FD4 +0x150 -> 0x800B8124 +0x1E0 -> 0x800B8304 +0x40 ->
-0x800B8344 +0x7C -> 0x800B83C0, with no unrelated code between) in which all
-six functions build the same absolute base `lui/addiu %hi/%lo(D_8006C838)`
+0x800B8344 +0x7C -> 0x800B83C0, with no unrelated code between) in which the
+first six functions build the same absolute base `lui/addiu %hi/%lo(D_8006C838)`
 and touch the same s32 word at +0x4488 (= `D_80070CC0`, 0x8006C838+0x4488),
-all six with the identical load / `+1` / store increment. No other
+the first six with the identical load / `+1` / store increment; the
+run-final `ovl_28_func_800B83C0` shares the base and the +0x4488 word but
+clears it instead of incrementing, and reads the two-stage
+`D_8006C838+0x8000` base. No other
 `ovl_28` function reaching the +0x4488 word was found, so the tie is
 adjacency plus a shared read-modify-write word. Cross-container note: the
 byte-shape of `ovl_28_func_800B8304` matches matched `ovl_27_func_800B8C6C`
@@ -5676,6 +5679,10 @@ Members (link order):
   counter and returns the new value
 - ovl_28_func_800B8344 (s) — calls `func_80013394`/`func_8001FBBC`/
   `func_8001FE6C`/`func_80020818`/`func_80020B80`, then increments the counter
+- ovl_28_func_800B83C0 (m, matched this session, byte-exact) — run terminator:
+  clears the +0x4488 word with a plain zero store (no increment) and gates on
+  a u16 at `D_8006C838+0x8000+0x67A0` against 10, calling
+  `func_80011EF0(0xD)` on `>= 10` and `func_80011EF0(0x14)` otherwise
 
 Only one member is matched; the rest are read off original asm, hence medium
 confidence.
