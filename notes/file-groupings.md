@@ -645,10 +645,14 @@ Fingerprints:
   `ovl_11_func_800C090C` and `ovl_11_func_800C09D0`, written by
   `ovl_11_func_800C0D9C`; `ovl_11_func_800C06B0` touches both globals, tying
   the two half-clusters together — they are adjacent file-scope vars of one TU;
-- middle s32 global `D_80128B58` (main RAM 0x80128B58, between `D_80128B50`
-  and `D_80128B5C`): seen so far only written by `ovl_11_func_800C0D9C`
-  (from `$a0`, a 1-arg init pair with B50 in one 0x18 leaf) — the
-  B50/B58/B5C trio sits in 12 consecutive bytes of one data run;
+- middle s32 globals `D_80128B54` / `D_80128B58` (main RAM 0x80128B54 /
+  0x80128B58, between `D_80128B50` and `D_80128B5C`): B58 written by
+  `ovl_11_func_800C0D9C` (from `$a0`, a 1-arg init pair with B50 in one
+  0x18 leaf); B54 and B58 both cleared by `ovl_11_func_800C09D0`, whose
+  0xC8-byte `memset(&D_80128A88, -1, ...)` stops exactly at B50 — the
+  B50/B54/B58/B5C run sits in 16 consecutive bytes of one data run, and
+  09D0's single reset of the `D_80128A88` array plus that run ties the two
+  clusters to one TU;
 - zero-gap link-order contiguity (map): 0x800C0688 (0x28) → 0x800C06B0
   (0x174) → 0x800C0824 (0x10) → 0x800C0834 (0x48) → 0x800C087C (0x6C) →
   0x800C08E8 (0x24) → 0x800C090C → 0x800C09D0 → 0x800C0A28 (0x18) →
@@ -683,7 +687,10 @@ Members (address order):
 - ovl_11_func_800C087C (s) — leaf clear: `D_80128B5C = 0`
 - ovl_11_func_800C08E8 (s) — leaf clear: `D_80128B5C = 0`
 - ovl_11_func_800C090C (s) — leaf clear: `D_80128B50 = 0`
-- ovl_11_func_800C09D0 (s) — leaf clear: `D_80128B50 = 0`
+- ovl_11_func_800C09D0 (m, matched this session) — input-state reset:
+  `memset(&D_80128A88, -1, 0xC8)`, then clears `D_80128B50/B54/B58` and
+  `D_8006C838` fields 0xD0/0xD4; the run's `D_80128A88`↔B5x bridge; byte-exact
+  clean C, baseline flags
 - ovl_11_func_800C0A40 (m, matched earlier session) — leaf setter:
   `D_80128B5C = arg0` (single `sw $a0`, delay-slot scheduled); byte-exact
   clean C, baseline flags; confirmed member of the shared-global cluster
