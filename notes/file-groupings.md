@@ -1487,7 +1487,12 @@ Fingerprints:
   (0x2C) → 0x800EEBF4 (0x20) → 0x800EEC14 (0x8) → 0x800EEC1C (0x2B0) runs
   without a gap — the setter at the run head, the getter two nodes later;
 - the two other `D_801295C6` sites (0x800E60A0, 0x800E880C) are far earlier
-  in the overlay, same-family plausible but not link-adjacent.
+  in the overlay, same-family plausible but not link-adjacent;
+- the run-head writer `ovl_11_func_800EE604` and the sandwiched members
+  `ovl_11_func_800EE7BC`/`800EE944`/`800EEAB8`/`800EEBC8` also touch the
+  s32 table `D_80129560` (main RAM 0x80129560, 0x50 bytes, ends 0x16
+  bytes below `D_801295C6`) — one file-scope data region, two globals —
+  which strengthens the same-TU read of the run.
 
 Members (address order):
 - ovl_11_func_800E60A0 (s) — writes D_801295C6 (`sh v0`), earlier site
@@ -1499,7 +1504,9 @@ Members (address order):
 - ovl_11_func_800EEBB8 (m, matched this session) — leaf getter:
   `return D_801295C6;` (`lui`/`lh`, delay-slot `nop`); byte-exact clean C,
   baseline flags; confirmed member of the shared-global cluster
-- ovl_11_func_800EEBC8 (s) — sandwiched, does not touch the global
+- ovl_11_func_800EEBC8 (m, matched this session) — table reset:
+  `memset(D_80129560, 0, 0x50); return 1;` (callers discard the value);
+  does not touch `D_801295C6`, kept in the run by link adjacency
 
 ---
 
