@@ -208,7 +208,7 @@ Members:
 
 ---
 
-## `ovl_11` memset-clear struct-constructor idiom family — 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0 (confidence: low)
+## `ovl_11` memset-clear struct-constructor idiom family — 0x800C1C5C, 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0 (confidence: low)
 
 Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
 `memset(arg0, 0, N); *(s16 *)arg0 = 0;` — clear a caller-provided struct then
@@ -219,7 +219,10 @@ struct sizes differ (0xB0/0xB8/0xB8/0xB4/0xF0, so possibly different types,
 though two members share 0xB8), address span is ~0x38000 with no adjacency,
 and the caller sets are disjoint (0x8010B64C's single caller is 0x800E8760).
 Members:
-Members:
+- ovl_11_func_800C1C5C (m, matched this session) — same construction over
+  0x1D4 bytes with store value −1 (`memset(arg0, 0, 0x1D4); *(s16 *)arg0 =
+  -1;`); the 0x1D4 size ties it to `sizeof(struct_80076220)` (see the
+  struct_80076220 record run below), unlike the other members' sizes
 - ovl_11_func_800D3200 (m) — clears an 0xB0-byte struct (memset 0xB0, sh 0 at
   +0); called by nine functions in the 0x800CF044–0x800D506C run
 - ovl_11_func_800DF0F8 (m) — same construction over 0xB8 bytes
@@ -4411,6 +4414,39 @@ Members:
   else 1; touches no globals. 0x800F00E4+0x138 = 0x800F021C, so the helper
   starts exactly where its only caller ends (gapless link pair; call graph and
   link order agree — same-TU hint only).
+
+## `ovl_11` struct_80076220 record-init/clear run — 0x800C1BA0–0x800C1D68 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): one gapless
+link-order run whose matched members all operate on the 0x1D4-byte record of
+the 37-entry absolute-addressed array `D_80076220`.
+
+Fingerprints:
+- **gapless contiguous run**: 0x800C1BA0 (0x40, ends exactly at 0x800C1BE0)
+  → 0x800C1BE0 (0x28, ends exactly at 0x800C1C08) → 0x800C1C08 (0x54, ends
+  exactly at 0x800C1C5C) → 0x800C1C5C (0x34, ends exactly at 0x800C1C90) →
+  0x800C1C90 (0x2C, ends exactly at 0x800C1CBC) → 0x800C1CBC (0xAC, ends
+  exactly at 0x800C1D68) → 0x800C1D68 (0x22C, ends exactly at 0x800C1F94).
+- **shared record type**: `ovl_11_func_800C1C5C` memsets exactly 0x1D4 bytes
+  (`sizeof(struct_80076220)`) then writes s16@0 = −1 — a whole-record
+  initializer; `ovl_11_func_800C1BE0` and `ovl_11_func_800C1C90` walk the
+  same array by the same 0x1D4 stride (37 entries), clearing unkA and
+  unk1E bit 0x10 respectively. Three members of one run on one record type.
+- **shared callee pattern**: 800C1C08 and 800C1CBC each call 800C1C5C then
+  80107DD0 (the run's heads pair the initializer with the same callee).
+
+Members (address order):
+- ovl_11_func_800C1BA0 (s) — calls 800C1CBC and 800F0C70
+- ovl_11_func_800C1BE0 (m) — zeroes u16 unkA of all 37 D_80076220 entries
+- ovl_11_func_800C1C08 (s) — calls 800C1C5C, 80107DD0, 800F0C70
+- ovl_11_func_800C1C5C (m, matched this session) — record initializer:
+  `memset(arg0, 0, 0x1D4)` then s16@0 = −1; also a member of the
+  memset-clear struct-constructor idiom family above
+- ovl_11_func_800C1C90 (m) — clears bit 0x10 of u16 unk1E in all 37 entries
+- ovl_11_func_800C1CBC (s) — calls 800C1C5C, 80107DD0, 800C3548
+- ovl_11_func_800C1D68 (s) — calls 800C3548, func_80012A34, func_8001AF70
+
+---
 
 ## `ovl_11` struct_80076220 u16@+4 reader/writer cluster — 0x800F02C8 / 0x8011256C / 0x8011FF0C / 0x800C3CCC (confidence: low)
 
