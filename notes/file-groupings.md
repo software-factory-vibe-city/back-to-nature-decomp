@@ -176,9 +176,9 @@ Fingerprints:
   caller uses to blank an entry.
 
 Members (address order):
-- ovl_11_func_80121318 (s) — clears the whole `D_8012DB90` 0x18-entry farm
-  array by looping 0x18 times calling ovl_11_func_801214F8 on each +0x18
-  entry
+- ovl_11_func_80121318 (m, matched this session) — clears the whole
+  `D_8012DB90` farm array of 0x18-byte-stride entries by stepping a
+  countdown from 0x18 and calling ovl_11_func_801214F8 on each entry
 - ovl_11_func_8012135C (s) — role unknown; sits in the run between 80121318
   and 801213D8
 - ovl_11_func_801213D8 (s) — farm-object update: guards field_14, positions
