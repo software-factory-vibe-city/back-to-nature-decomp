@@ -4289,6 +4289,35 @@ Members (address order):
   byte-for-byte the same body over the same record shape (shared
   Ovl23Func800BB0C8Arg view), gapless with the previous function.
 
+## `ovl_23` display-setup state-handler run — 0x800BB214–0x800BB758 (confidence: medium)
+
+Evidence: the dispatcher `ovl_23_func_800B7F00` (s) selects on the state byte
+`D_800BBA3C` via `jtbl_800B7E24` and, from consecutive jump-table branches,
+calls `ovl_23_func_800BB214`, `ovl_23_func_800BB488`,
+`ovl_23_func_800BB534` and `ovl_23_func_800BB758`. Those four are one gapless
+link-order run (0x33F4 +0x274 = 0x3668, +0xAC = 0x3714, +0x224 = 0x3938,
++0x48 = 0x3980), so the call graph and the link order agree — the same
+fingerprint recorded for the `ovl_17` display-setup run. The three leading
+handlers share the display-setup idiom `DrawSync` → `ClearOTagR` →
+`func_80014CBC` → `func_8001719C` (800BB214 additionally `func_80015704`) and
+the run closes with the per-overlay audio-setup leaf, mirroring the ovl_17
+run's 800BA504.
+
+Members (link order):
+- ovl_23_func_800BB214 (s) — display-setup state: DrawSync/ClearOTagR plus
+  func_80014CBC/1719C/15704
+- ovl_23_func_800BB488 (s) — same display-setup idiom
+- ovl_23_func_800BB534 (s) — same display-setup idiom
+- ovl_23_func_800BB758 (m, matched via automatic reconstruction, byte-exact) —
+  audio-setup leaf: `func_80020B80(2,0)`, `func_80020B80(1,0)`,
+  `func_8001FBF0(0x3E7,0)`, `func_8001FBF0(0x12,1)`
+
+Cross-container note: the audio-setup call sequence is a twin of
+`ovl_17_func_800BA504` (0x15), `ovl_19_func_800BBCCC` (0xF),
+`ovl_21_func_800BBA3C` (0x12) and `ovl_30_func_8012F3D4` (0x3E7); as recorded
+at those entries, that twin relation is not TU-membership evidence — here only
+the dispatcher call graph and the gapless link run are.
+
 ## `ovl_11` mask-switch leaf run — 0x800F1BD0 / 0x800F1C48 / 0x800F1CC4 (confidence: low)
 
 Candidate same-TU run in `ovl_11` (`Obj\GF_FARM.bin`): gapless
