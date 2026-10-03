@@ -208,22 +208,24 @@ Members:
 
 ---
 
-## `ovl_11` memset-clear struct-constructor idiom family — 0x800D3200, 0x800DF0F8, 0x800E2904, 0x8010B64C (confidence: low)
+## `ovl_11` memset-clear struct-constructor idiom family — 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C (confidence: low)
 
 Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
 `memset(arg0, 0, N); *(s16 *)arg0 = 0;` — clear a caller-provided struct then
-zero its first s16 field. Exactly four instances in the whole matched corpus
-(idiom_search over 894 clean-C functions hits only these), all in `ovl_11`, and
-the 12-word machine shape is identical apart from the size immediate — a
-family transfer from one member solved the next. No other tie: struct sizes
-differ (0xB0/0xB8/0xB4/0xF0, so possibly different types), address span is
-~0x38000 with no adjacency, and the caller sets are disjoint (0x8010B64C's
-single caller is 0x800E8760). If a fifth member appears, check these spellings
-first; do not add members on the idiom alone.
+zero its first s16 field. Five instances in the matched corpus, all in
+`ovl_11`, and the 12-word machine shape is identical apart from the size
+immediate — a family transfer from one member solved the next. No other tie:
+struct sizes differ (0xB0/0xB8/0xB8/0xB4/0xF0, so possibly different types,
+though two members share 0xB8), address span is ~0x38000 with no adjacency,
+and the caller sets are disjoint (0x8010B64C's single caller is 0x800E8760).
+If a sixth member appears, check these spellings first; do not add members on
+the idiom alone.
 Members:
 - ovl_11_func_800D3200 (m) — clears an 0xB0-byte struct (memset 0xB0, sh 0 at
   +0); called by nine functions in the 0x800CF044–0x800D506C run
 - ovl_11_func_800DF0F8 (m) — same construction over 0xB8 bytes
+- ovl_11_func_800E0D0C (m) — same construction over 0xB8 bytes; sits between
+  800DF0F8 and 800E2904 in the ovl_11 link order
 - ovl_11_func_800E2904 (m) — same construction over 0xB4 bytes
 - ovl_11_func_8010B64C (m, matched this session) — same construction over 0xF0
   bytes; sole caller ovl_11_func_800E8760
