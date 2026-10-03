@@ -514,6 +514,12 @@ Members (address order, matched so far):
   `base+E = 1`; shares the D_8012D050 base with ovl_11_func_801081A0
   (+0/+2/+4/+6/+8/+A) and ovl_11_func_801084E0 (+8/+A); byte-exact clean C,
   baseline flags
+- ovl_11_func_80108738 (m, matched this session) — three-call sequencer:
+  status = ovl_11_func_8010876C(); func_80022738(); return
+  func_8002261C(3, status); sits gaplessly immediately before its callee
+  8010876C in link order and shares the caller ovl_11_func_80107F58 with
+  cluster members 80108104/80108214/80108864; byte-exact clean C, baseline
+  flags
 - ovl_11_func_8010876C (m, matched this session) — signal-field dispatch leaf
   over the same D_8012D050 buffer (reads u16 @+0xA as the case index and s16
   @+8 in one arm; same +8/+A field pair as ovl_11_func_801084E0), 16-entry
