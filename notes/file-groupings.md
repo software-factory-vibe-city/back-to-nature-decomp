@@ -5173,3 +5173,38 @@ Members (link order):
   the value 2 to `D_800BFE46` only when the read equals 2
 - ovl_25_func_800BA858 (s) — far-buffer/field updater; on its `... == 2` probe
   path sets `D_800BFE46` to 3 and writes `D_800BCD21`/`D_800BCD48`
+
+## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 (confidence: medium)
+
+Evidence: one gapless link-order run (0x800B7F30 +0x50 -> 0x800B7F80
++0x54 -> 0x800B7FD4 +0x150 -> 0x800B8124 +0x1E0 -> 0x800B8304 +0x40 ->
+0x800B8344 +0x7C -> 0x800B83C0, with no unrelated code between) in which all
+six functions build the same absolute base `lui/addiu %hi/%lo(D_8006C838)`
+and touch the same s32 word at +0x4488 (= `D_80070CC0`, 0x8006C838+0x4488),
+all six with the identical load / `+1` / store increment. No other
+`ovl_28` function reaching the +0x4488 word was found, so the tie is
+adjacency plus a shared read-modify-write word. Cross-container note: the
+byte-shape of `ovl_28_func_800B8304` matches matched `ovl_27_func_800B8C6C`
+16/16 (same counter idiom over the same +0x4488 word); that twin relation is
+not TU-membership evidence here.
+
+Members (link order):
+- ovl_28_func_800B7F30 (s) — calls `func_800132F0`/`func_800226F0` and
+  `ovl_28_func_800B7E80`/`ovl_28_func_800B8B0C`, then increments the counter
+  and returns the new value
+- ovl_28_func_800B7F80 (s) — calls `func_80013394`; on its `result == 1`
+  branch increments the counter and clears `D_800B961C`
+- ovl_28_func_800B7FD4 (s) — calls `func_8001FB30`/`func_8001FD10`/
+  `func_8001FD74`/`func_8001FE00`/`func_8001FE6C`/`func_80020818` and three
+  `ovl_28` siblings, then increments the counter
+- ovl_28_func_800B8124 (s) — multi-branch dispatcher over `func_800132B8`/
+  `func_800132F0`/`func_80013394`/`func_80015114`/`func_80015EE8`; increments
+  the counter on one path
+- ovl_28_func_800B8304 (m, matched this session, byte-exact) — calls
+  `func_800132F0(10, 0, 2)` and `func_8001FE34(10)`, then increments the
+  counter and returns the new value
+- ovl_28_func_800B8344 (s) — calls `func_80013394`/`func_8001FBBC`/
+  `func_8001FE6C`/`func_80020818`/`func_80020B80`, then increments the counter
+
+Only one member is matched; the rest are read off original asm, hence medium
+confidence.
