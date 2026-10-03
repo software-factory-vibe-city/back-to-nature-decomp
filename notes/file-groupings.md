@@ -208,6 +208,26 @@ Members:
 
 ---
 
+## `ovl_11` `D_801290D8` 0x34-stride entry-table init/accessor cluster — 0x800DCE98, 0x800DCECC, 0x800DCF10 (confidence: low)
+
+Leaf `ovl_11_func_800DCE98` (matched this session, 0x34, byte-exact) is the
+table's entry-init leaf: `memset(arg0, 0, 0x34)` then `u16@+0x2C = 0x8000`
+(free-entry bit). Both of its callers are its gapless link successors
+(0x800DCE98+0x34 = 0x800DCECC, 0x800DCECC+0x44 = 0x800DCF10) and both walk the
+same shared table global `D_801290D8`: 0x800DCECC calls the leaf 3 times
+stepping +0x34; 0x800DCF10 reads `lhu`@+0x2C, tests bit 0x8000, re-inits via
+the leaf, then AND-clears the bit (`andi 0x7FFF`, `sh`@+0x2C). Shared global
+plus call edges plus link order agree; members not yet matched.
+Members:
+- ovl_11_func_800DCE98 (m, matched this session) — entry-init leaf (see the
+  memset-clear idiom family above)
+- ovl_11_func_800DCECC (s) — bulk re-init: calls the leaf over entries 0–2 of
+  `D_801290D8` (+0x34 stride)
+- ovl_11_func_800DCF10 (s) — per-entry accessor: claims/refreshes entries by
+  the @+0x2C free bit and initialises entry fields through `func_8001BFA8`
+
+---
+
 ## `ovl_11` memset-clear struct-constructor idiom family — 0x800C1C5C, 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0 (confidence: low)
 
 Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
@@ -235,6 +255,9 @@ Members:
   bytes, byte-identical to 8010B64C in all 12 words including the 0xF0
   immediate (a duplicated helper, likely its own TU copy); no direct caller
   found in any extracted bytes — dispatched indirectly or dead
+- ovl_11_func_800DCE98 (m, matched this session) — variant member over 0x34
+  bytes: memset 0x34 then stores the free-entry bit as `u16`@+0x2C = 0x8000
+  (`ori`, not a +0 s16 store); see the `D_801290D8` entry-table cluster above
 
 ---
 
