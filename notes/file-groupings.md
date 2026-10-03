@@ -4733,3 +4733,21 @@ Members (link order):
   returning the value read
 - ovl_30_func_8012F084 (s) — main consumer of both globals (data-family
   member only)
+
+## `ovl_11` D_801273D8/D_801273DA init/reset pair — 0x800FFA28 / 0x800FFA40 (confidence: medium)
+
+- **gapless link adjacency:** `ovl_11_func_800FFA28` (0x18 bytes at 0x47C08)
+  ends exactly at `ovl_11_func_800FFA40` (0x24 bytes at 0x47C20) — one
+  unbroken link run, both members matched byte-exact;
+- **shared globals with complementary roles:** 800FFA28 is the init leaf —
+  zeroes `D_801273D8` and sets `D_801273DA = 0xFF`; 800FFA40 calls 800FFA28
+  then clears `D_801273DA` back to 0 (init + reset of the same flag pair);
+- **sole referencers:** no other function in `src/` touches
+  `D_801273D8`/`D_801273DA`; 800FFA40's one call edge is to 800FFA28, and the
+  caller (`ovl_11_func_800C7AC0` state machine) ignores the return value.
+
+Members (link order):
+- ovl_11_func_800FFA28 (m) — void init leaf: `D_801273D8 = 0`,
+  `D_801273DA = 0xFF`
+- ovl_11_func_800FFA40 (m) — void reset: calls 800FFA28, then
+  `D_801273DA = 0`
