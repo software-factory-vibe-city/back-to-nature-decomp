@@ -1063,6 +1063,11 @@ in the D_80123754 setter run. Members:
   then ovl_11_func_800D3104 — a shared dispatch-caller ties this run together;
   also reads `D_80070CF8`, the same absolute-addressed engine s16 as
   ovl_11_func_80107B54 (weak, engine-owned global)
+- ovl_11_func_800D3C04 (m, matched this session) — state-code helper sibling
+  of 800D3CA4/800D3CE8: seeds its call arg with 3, raises it to 8 when the
+  struct field at +0x34 has 0x2000, calls `func_80012A34`, then maps the
+  result 0→8, 1→9, else→1; its only caller is the shared dispatch function
+  `ovl_11_func_800D3468`, the tie that places it in this run
 - ovl_11_func_800D3FEC (s) — reads D_80128D78 (`lhu`), subtracts it from a
   struct field +0xAC and clamps non-negative
 - ovl_11_func_800D55F8 (s) — reads D_80128D7A (`lhu`) into struct field +0x22;
