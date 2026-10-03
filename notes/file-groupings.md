@@ -5616,23 +5616,29 @@ Members (link order):
   `D_800BD048`/`D_800BD080`/`D_800BF570`), so this is an adjacency-and-data
   argument only, not a shared-cluster proof.
 
-## `ovl_11` D_8006C838 +0x8000 work-area halfword pair — 0x80112904 / 0x801129A0 (confidence: medium)
+## `ovl_11` D_8006C838 +0x8000 work-area halfword run — 0x801128B4 / 0x80112904 / 0x801129A0 (confidence: medium)
 
-- **gapless link adjacency:** `ovl_11_func_80112904` (0x9C bytes at 0x80112904)
-  ends exactly at `ovl_11_func_801129A0` (0x4C bytes at 0x801129A0), which ends
+- **gapless link adjacency:** `ovl_11_func_801128B4` (0x50 bytes at 0x801128B4)
+  ends exactly at `ovl_11_func_80112904` (0x9C bytes at 0x80112904), which ends
+  exactly at `ovl_11_func_801129A0` (0x4C bytes at 0x801129A0), which ends
   exactly at the `ovl_11_func_801129EC` stub — consecutive functions.csv rows,
-  both members matched byte-exact;
-- **identical base idiom:** both fix `char *base = (char *)&D_8006C838` and
+  801128B4/80112904/801129A0 all matched byte-exact;
+- **identical base idiom:** all three fix `char *base = (char *)&D_8006C838` and
   reach the large-offset work area through a second pointer
   (`base2 = base + 0x8000`, the `ori 0x8000` + `addu` split), the D_8006C838
   reader fingerprint of this container;
-- **adjacent offsets in one region:** the two bodies touch neighbouring
-  halfwords of the same block — 80112904 reads the packed word at +0x44B8 and
-  writes +0x676C/+0x6776/+0x6778, while 801129A0 reads +0x44BA/+0x44BC and
-  writes +0x5BDC/+0x5BDE/+0x6770 (0x6770 sits between 80112904's 0x676C and
-  0x6776), so both address one D_8006C838 work-area TU.
+- **adjacent offsets in one region:** the bodies touch neighbouring
+  halfwords of the same block — 801128B4 memsets the +0x676C region (0x34 bytes
+  from D_80074838+0x676C) and writes -1 to +0x6776, 80112904 reads the packed
+  word at +0x44B8 and writes +0x676C/+0x6776/+0x6778, while 801129A0 reads
+  +0x44BA/+0x44BC and writes +0x5BDC/+0x5BDE/+0x6770 (0x6770 sits between
+  801128B4/80112904's 0x676C and 0x6776), so all three address one D_8006C838
+  work-area TU.
 
 Members (link order):
+- ovl_11_func_801128B4 (m, matched this session) — void reset routine: memsets the
+  +0x676C region then writes -1 to the +0x6776 mode halfword and calls
+  `func_8001AF70(0x1B, 1)`
 - ovl_11_func_80112904 (m) — 5-way selector: stores the argument at +0x6778,
   sets the +0x6776 mode and clears +0x676C, then copies the packed word at
   +0x44B8 to +0x6796
