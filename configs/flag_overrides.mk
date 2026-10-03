@@ -301,3 +301,24 @@ CC1FLAGS_ovl_11_func_80103B24 := -fno-cse-skip-blocks
 # -fno-schedule-insns{,2} 16/16 masked, 16 instrs (target 16). No contrary
 # regional witness: this is its own TU (single function per src file).
 CC1FLAGS_ovl_21_func_800B98CC := -fno-schedule-insns
+
+# ovl_11_func_8011F574: -fno-schedule-insns (ALLOWLIST DECISION REQUESTED).
+#
+# Target fingerprint: the target's block-0 order keeps the D_80128540 address
+# `lui` in its expand-time position (first, before the two-stage D_8006C838
+# base chain). Under baseline sched1 the ready-list priority hoists the base
+# chain ahead of it, which lengthens the value's life relative to the address,
+# so local-alloc gives the address $a0 and the loaded value $a1; the target has
+# them the other way. Disabling pre-reload scheduling keeps the expand-time
+# order and local-alloc assigns the value $a0 / address $a1.
+#
+# Matching clean-C source (src/overlays/ovl_11/ovl_11_func_8011F574.c) takes
+# the address of D_80128540 into a local pointer `p` born right after the call
+# and used at the store site, which preserves that expand-time birth position.
+# diffFunc under this flag: VERDICT MATCH, 18/18 words. Without it, 14/18.
+#
+# Same mechanism as the pending ovl_11_func_8011FF74 / allowlisted
+# ovl_21_func_800B98CC siblings (sched1 drifts independently-birthed values out
+# of their expand-time position; the target keeps them there). Needs the
+# matching sourcePolicy.allowlist entry for ovl_11_func_8011F574.
+CC1FLAGS_ovl_11_func_8011F574 := -fno-schedule-insns
