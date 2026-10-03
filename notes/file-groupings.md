@@ -5262,9 +5262,13 @@ writes the `D_8007AFF0` far-buffer s32 block at +0x25394/+0x25398/+0x2539C/
 +0x253A0/+0x253A4 and clears the halfwords +0x253B4/+0x253B6/+0x253B8, and its
 link successor `ovl_21_func_800BB138` builds the same `D_8007AFF0+0x20000`
 far base (same `lui`+`addu` idiom) and reads +0x25394 and +0x253A0 as the
-rotation/translation inputs to `RotMatrix`/`SetRotMatrix`/`RotTrans`. No other
-`ovl_21` function touches `D_8007AFF0`, so the tie is adjacency + write/read of
-the shared cluster. Cross-container note: `ovl_21_func_800BB0F8` is
+rotation/translation inputs to `RotMatrix`/`SetRotMatrix`/`RotTrans`. A third
+`ovl_21` function, `ovl_21_func_800BB8B8` (0x800BB8B8), also reads the
+`D_8007AFF0` base (three `lw %lo(D_8007AFF0)` uses, one at +0xBD0 and one at
++0x2000) and copies a 0xBD0-byte block out of it to `D_8009F78C`, and its
+gapless successor `ovl_21_func_800BBA3C` (0x800BBA3C, the last code function
+before the ovl_21 data section) closes the same contiguous code run, so the tie
+is adjacency + write/read of the shared cluster. Cross-container note: `ovl_21_func_800BB0F8` is
 byte-identical to matched `ovl_19_func_800BB318` and a near-twin of matched
 `ovl_11_func_800DB7F0` (same far base, same s32 block), so the same reset code
 was copied into several overlays; that twin relation is not TU-membership
@@ -5277,6 +5281,17 @@ Members (link order):
 - ovl_21_func_800BB138 (s) — link successor; builds a GTE matrix from
   `GsIDMATRIX` and the writer's +0x253A0/+0x25394 state fields and calls the
   PSY-Q GTE helpers.
+- ovl_21_func_800BB8B8 (s) — reads the `D_8007AFF0` base and block-copies 0xBD0
+  bytes of it to `D_8009F78C` (word or unaligned lwl/lwr variants by alignment),
+  then calls `func_8001BFA8`/`func_8001E340`/`func_8001E334`; also reads
+  `D_800BC894`/`D_8005E3B0` and calls `func_80014BCC`/`func_8001719C`.
+- ovl_21_func_800BBA3C (m, matched this session, byte-exact) — gapless link
+  successor of 800BB8B8 (0x184, ends exactly at 0x3C1C) and terminal code
+  function; per-overlay setup leaf that calls `func_80020B80(2,0)`,
+  `func_80020B80(1,0)`, `func_8001FBF0(0x3E7,0)`, `func_8001FBF0(0x12,1)`. Its
+  call pair is a cross-container twin of `ovl_17_func_800BA504` (0x15),
+  `ovl_19_func_800BBCCC` (0xF) and `ovl_30_func_8012F3D4`; that twin relation is
+  not TU-membership evidence, only the adjacency is.
 
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 
