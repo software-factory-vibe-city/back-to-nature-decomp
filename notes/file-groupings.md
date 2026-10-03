@@ -5839,3 +5839,30 @@ Members (address order):
 - ovl_11_func_801034D0 (s) — case 0x3C3 handler; same store, gated helper call
 - ovl_11_func_80103548 (s) — case 0x3C4 handler; same store, gated helper call
 - ovl_11_func_801035C0 (s) — shared helper called by the 0x3C1/0x3C3/0x3C4 arms
+
+---
+
+## `ovl_11` D_8005E3B0+0x4290 CD-load wrapper pair — 0x800F71DC / 0x800F7230 (confidence: medium)
+
+Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`). Evidence is zero-gap
+link-order contiguity plus a shared CD-load source buffer and destination
+constant pair, not a shared private data cluster.
+
+Fingerprints:
+- zero-gap link-order contiguity (map): `ovl_11_func_800F71DC` (0x54, ends
+  0x800F7230) → `ovl_11_func_800F7230` (0x578); each starts exactly where the
+  previous ends;
+- shared main-RAM CD-load source buffer `D_8005E3B0 + 0x4290`: both load
+  `lw $a3, %lo(D_8005E3B0)` then place `addiu $a3, $a3, 0x4290` in the jal
+  delay slot of `func_80014CBC`, passing it as the third CD-load argument;
+- same CD-load destination constants `0x3C19000` / `0x28000` with a scaled
+  index: 800F71DC uses `((arg0 << 16) >> 5) + 0x3C19000`, `0x28000`; 800F7230
+  uses `((arg0 << 16 >> 16) << 11) + 0x3C19000`, `0x28000`.
+
+Members (link order):
+- ovl_11_func_800F71DC (m, matched this session, byte-exact) — void CD-load
+  wrapper: `func_80014CBC(0, ((arg0 << 16) >> 5) + 0x3C19000, 0x28000,
+  (u8 *)D_8005E3B0 + 0x4290, 1, 1)`.
+- ovl_11_func_800F7230 (s) — larger CD-load + state machine: same call head,
+  then result-gated handling of a case index against `D_80126F74` /
+  `D_80126E30` state tables; role not yet reconstructed.
