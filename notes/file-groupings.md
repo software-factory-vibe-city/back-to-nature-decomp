@@ -5473,3 +5473,18 @@ Members (link order):
   `D_800BCDB8`, feeds three s16 sampled from the returned record to
   `ovl_25_func_800BBA30`, then advances the `D_800BCD52` counter and raises the
   `D_800BCD50` flag once it reaches 0x200
+
+## `ovl_19` clamp-table lookup run — 0x800BAD50–0x800BADF8 (confidence: low)
+
+- ovl_19_func_800BADAC (m, matched this session, byte-exact) — leaf; sign-extends
+  its s16 argument, clamps it to [0,19] (negative → 0, `>= 20` → 19), and
+  returns `D_800BCFF8[idx]` (a 20-entry s32 table in the overlay data segment).
+- Evidence: gapless link order — `ovl_19_func_800BAD50` (0x5C, ends 0x800BADAC)
+  precedes this function (0x4C, ends 0x800BADF8), which is followed directly by
+  `ovl_19_func_800BADF8` (0x1B4); and an adjacent referenced-data region —
+  `D_800BCFF8` (used here) is immediately followed by `D_800BD048`, used by
+  `ovl_19_func_800BADF8`; all three labels are in the one `3F54.data.s` blob.
+- Weakness: the run shares no global across all three members
+  (`ovl_19_func_800BAD50` uses `D_800BF660`, `ovl_19_func_800BADF8` uses
+  `D_800BD048`/`D_800BD080`/`D_800BF570`), so this is an adjacency-and-data
+  argument only, not a shared-cluster proof.
