@@ -3623,7 +3623,13 @@ Members (address order):
   predicate helper 0x800FB3E4, and is called (per the recorded summary) by the
   same link-adjacent 0x800FB218/0x800FB290 that call 0x800FB3E4; same-TU
   membership with the 0x800F84xx run unproven, but the swap-shape family now
-  spans two matched sites across two link regions (low).
+  spans two matched sites across two link regions (low). The same widening holds
+  for the run's accumulate-and-clamp shape: freshly-matched
+  `ovl_11_func_800FB404` (this session, byte-exact, 22/22 words) is byte-identical
+  to the run's 0x800F8428 — same +0x4 halfword accumulate, same 100-clamp with
+  excess moved to arg0, same 0x800D5740 callee — and likewise lives in the
+  0x800FBxxx region (at 0x800FB404, beside the 0x800FB3E4 predicate and the
+  0x800FB45C swap site). Same-TU membership with 0x800F84xx unproven (low).
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 
