@@ -5406,3 +5406,31 @@ Members (link order):
 
 Only one member is matched; the rest are read off original asm, hence medium
 confidence.
+
+## `ovl_15` D_8013759E/A0/A2/A4 adjacent-u16 state run — 0x80133808–0x80134724 (confidence: medium)
+
+Evidence: one link-order run (0x5A20–0x693C) in which eight functions read and
+write the same four adjacent u16 globals `D_8013759E` / `D_801375A0` /
+`D_801375A2` / `D_801375A4` (stride 2, contiguous in the ovl_15 data segment at
+0x97B6). Read widths alternate `lh`/`lhu` and the writes are in-place `sh`, so
+the fields are signed update counters rather than a flag set. No function
+outside the run references any of the four. Non-referencing functions
+(`ovl_15_func_80134134`, `ovl_15_func_80134444`, `ovl_15_func_80134450`,
+`ovl_15_func_8013468C`) are interleaved, so the tie is the shared-global
+cluster, not adjacency. The run terminates at the initialiser
+`ovl_15_func_80134724`, which zeroes all four and then memsets the 0x1568-byte
+buffer `D_80140FE0` — the only reference to that buffer anywhere in ovl_15.
+
+Members (link order):
+- ovl_15_func_80133808 (s) — engine-state update; reads `D_8013759E` and writes
+  it back (`lhu`/`sh`), calling `func_80022580`/`func_80017B3C`
+- ovl_15_func_80133B28 (s) — reads and rewrites `D_801375A2`; calls
+  `func_8001AC10`, `ovl_15_func_801344E8`, `func_8001FABC`
+- ovl_15_func_80133F4C (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
+- ovl_15_func_80134000 (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
+- ovl_15_func_801340B8 (s) — `lh` of `D_8013759E`
+- ovl_15_func_801342A0 (s) — `lh` of `D_8013759E`; calls `ovl_15_func_80134134`,
+  `func_8001A970`, `ovl_15_func_80134444`
+- ovl_15_func_801344E8 (s) — `lh` of `D_8013759E`, called from `ovl_15_func_80133B28`
+- ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
+  `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
