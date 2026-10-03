@@ -4723,6 +4723,24 @@ Members (address order):
   select: zeroes the record, switch on s16 arg0 (−2..4) stores ±arg2 into
   component 0/4/8 or clears the whole record, returning −arg2 on the negative
   paths
+
+---
+
+## `ovl_11` `D_800B96BC` dispatch-table run — 0x800E2C64–0x800E2E98 (confidence: medium)
+
+The rodata table `D_800B96BC` (build/ovl_11/asm/data/1664.rodata.s) holds
+function pointers to `ovl_11_func_800E2C64`, `ovl_11_func_800E2D3C`,
+`ovl_11_func_800E2E4C` and `ovl_11_func_800E2E98`; the four are also
+consecutive in the symbol map (configs/symbols/ovl_11.txt), i.e. one unbroken
+link-order run — a shared-table cluster and address adjacency that agree.
+
+Members (address order):
+- ovl_11_func_800E2C64 (s) — role unknown
+- ovl_11_func_800E2D3C (s) — role unknown
+- ovl_11_func_800E2E4C (m, matched this session) — guards a struct's u16@0
+  against 0/0x109, then clears u16@0xAE and calls ovl_11_func_800D049C
+- ovl_11_func_800E2E98 (m) — trivial `return 0;`
+
 ## `ovl_11` D_8012D110 record feed/clear caller/callee pair — 0x80113B80 / 0x80113C3C (confidence: medium)
 
 Candidate same-TU pair in `ovl_11`: zero-gap link adjacency + direct call + a
