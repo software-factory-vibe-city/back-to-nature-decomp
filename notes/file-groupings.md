@@ -4968,6 +4968,9 @@ weak TU evidence on its own; the group's binding evidence is the call graph:
 Members:
 - ovl_17_func_800B9F10 (m) — leaf predicate: returns
   `(s16)arg1 < record[arg0].s16@+0x2A` over the D_800BD848 record area.
+- ovl_17_func_800B9F44 (m) — leaf predicate twin of 800B9F10: returns
+  `record[arg0].s16@+0x36 >= 0x51`; same `base = D_800BD848; scaled = arg0 * 0x50;`
+  idiom and shape set as 800B9F10 (10 of 13 shapes align in order).
 - ovl_17_func_800B9324 (s) — caller hub: twice calls 800B9F10 with record
   halfword fields around calls to 800B9CE4/800B9F44/800B9F78.
 - func_800B8470 (s) — counter reset that walks the same records from
