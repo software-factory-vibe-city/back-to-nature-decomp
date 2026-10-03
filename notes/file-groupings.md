@@ -5097,3 +5097,27 @@ Members (link order):
 
 Only one member is matched; the rest are read off original asm, hence medium
 confidence.
+
+## `ovl_21` D_8007AFF0 far-buffer state writer + GTE reader — 0x800BB0F8 / 0x800BB138 (confidence: medium)
+
+Evidence: gapless link adjacency (0x800BB0F8 is 0x40 and ends exactly at
+0x800BB138) plus a shared far-buffer global cluster: `ovl_21_func_800BB0F8`
+writes the `D_8007AFF0` far-buffer s32 block at +0x25394/+0x25398/+0x2539C/
++0x253A0/+0x253A4 and clears the halfwords +0x253B4/+0x253B6/+0x253B8, and its
+link successor `ovl_21_func_800BB138` builds the same `D_8007AFF0+0x20000`
+far base (same `lui`+`addu` idiom) and reads +0x25394 and +0x253A0 as the
+rotation/translation inputs to `RotMatrix`/`SetRotMatrix`/`RotTrans`. No other
+`ovl_21` function touches `D_8007AFF0`, so the tie is adjacency + write/read of
+the shared cluster. Cross-container note: `ovl_21_func_800BB0F8` is
+byte-identical to matched `ovl_19_func_800BB318` and a near-twin of matched
+`ovl_11_func_800DB7F0` (same far base, same s32 block), so the same reset code
+was copied into several overlays; that twin relation is not TU-membership
+evidence here.
+
+Members (link order):
+- ovl_21_func_800BB0F8 (m, matched this session, byte-exact) — leaf initialiser:
+  stores -0x2328/-0x1194/0/-0x200/0 into the `D_8007AFF0` +0x25394..+0x253A4 s32
+  block and zeroes the +0x253B4/+0x253B6/+0x253B8 halfwords.
+- ovl_21_func_800BB138 (s) — link successor; builds a GTE matrix from
+  `GsIDMATRIX` and the writer's +0x253A0/+0x25394 state fields and calls the
+  PSY-Q GTE helpers.
