@@ -577,6 +577,12 @@ Members (address order, matched so far):
   fields (0/2/4/6) of D_8012D060 based on a value loaded through the
   D_8007AFF0+0x25388 pointer chain; shares the D_8012D060 global with
   ovl_11_func_80108930; byte-exact clean C
+- ovl_11_func_801088E4 (m, this session) — leaf clear/call: writes
+  D_8012D068 = 0 and D_8012D06C = -1, then calls ovl_11_func_800BD9D4 with
+  `D_8012D050[D_8012D040].field_2` (+2 s16); a second writer of the
+  D_8012D068/D_8012D06C pair alongside ovl_11_func_80108930 and the run's
+  second D_8012D040-indexed D_8012D050 reader alongside ovl_11_func_80108828;
+  called by the run's shared caller ovl_11_func_80107F58; byte-exact clean C
 
 ---
 
