@@ -4450,6 +4450,10 @@ Members:
   returns 1 immediately for arg0==0x1F or arg1==0x1F; clamps arg1 to 0x18;
   zero-length path is the exact-match test above, otherwise scans
   `arg0..arg0+arg1-1` mod 0x18 for the record's first halfword
+- ovl_11_func_800F1AE0 (m, matched this session, 0x48, byte-exact) — masked
+  caller-side tie to the anchor: `arg0 & 0x3FF` then `func_8001AF44(mask +
+  0xFB)`; returns 0 when that equals 1, otherwise returns whether
+  `ovl_11_func_800F13D8(mask) == 0`
 
 ## `ovl_11` 0x800C9888–0x800C99C8 shared-caller link run (confidence: low)
 
