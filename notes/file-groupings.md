@@ -3604,7 +3604,7 @@ Members (address order):
   ovl_11_func_800F7E38 (stub) calls three link-adjacent leaf helpers that
   form a zero-gap run 0x800F8404 (0x24) → 0x800F8428 → 0x800F8480 (0x54) →
   0x800F84D4 (0x1c) → 0x800F84F0: ovl_11_func_800F8404 (m, matched this
-  session — leaf 0/1/2 clamp-ish utility, region-shared, called seven times), ovl_11_func_800F8480 (m, matched
+  session — leaf 0/1/2 clamp-ish utility, region-shared, called seven times), ovl_11_func_800F8428 (m, matched this session — the run's accumulate-and-clamp helper sitting between 8404 and 8480: adds the halfword at +0x4 of its two argument objects, stores the sum back at +0x4 of arg1, and on a sum of 100 or more clamps arg1's +0x4 field to 99 while moving the excess onto arg0, otherwise calls the clear helper 0x800D5740 — same offset-0x4 halfword as the run's operands and the same 0x800D5740 callee the orchestrator 0x800F7E38 invokes directly; its caller 0x800F8188 also calls 8404), ovl_11_func_800F8480 (m, matched
   this session — the run's swap helper, swapping two 6-byte {s16; s16; s16} objects through one 8-byte stack temp
   with the same unaligned-4 + halfword block-move idiom as its gapless successor 0x800F84D4; declared the same
   local `CopyStruct` typedef; called by 0x800F7E38/0x800F7FAC), and ovl_11_func_800F84D4 (m, matched
