@@ -5601,3 +5601,33 @@ Members (link order):
 - ovl_11_func_801129A0 (m, matched this session) — void leaf: copies the two
   engine halfwords at +0x44BA/+0x44BC into the +0x5BDC/+0x5BDE slots, calls
   `func_8001AF70(0x4E, 0)`, then clears the +0x6770 halfword
+
+## `ovl_11` CD-load wrapper run — 0x800BD374 / 0x800BD3C4 (confidence: low)
+
+Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`). Evidence is gapless
+link-order adjacency plus a shared CD-load call idiom, not a shared private
+data cluster (the two members index different main-RAM tables).
+
+Fingerprints:
+- zero-gap link-order contiguity (map): `ovl_11_func_800BD374` (0x50, ends
+  0x800BD3C4) → `ovl_11_func_800BD3C4` (0xC4, ends 0x800BD488), each starting
+  exactly where the previous ends;
+- identical `func_80014BCC`/`func_80014CBC` wrapper shape: both select a
+  stride-0x10 record from an absolute main-RAM table (`lw a1,0(v1)`,
+  `lw a2,4(v1)`, `subu a2,a2,a1`) and pass that word difference as the third
+  CD-load argument — 800BD374 calls `func_80014CBC` with the 6th arg, 800BD3C4
+  calls the adjacent `func_80014BCC`;
+- same idiom cluster as the already-matched `ovl_11` CD-load wrappers
+  `ovl_11_func_800BD668` / `800BD8DC` / `800BD9D4` / `800BDA20`, which all call
+  `func_80014BCC` with a plain argument list; the broader 0x800BCF54–0x800BDA70
+  span holds many more `func_80014BCC`/`80014CBC` call sites, so the run is not
+  one TU and only the proven adjacency is claimed here.
+
+Members (link order):
+- ovl_11_func_800BD374 (m, matched this session, byte-exact) — s32 wrapper:
+  indexes the `D_801217A8` stride-0x10 table by arg0 and calls
+  `func_80014CBC(0, record[0], record[1]-record[0], (u8 *)D_8007AFF0, 1, arg1)`,
+  returning the result tested non-zero.
+- ovl_11_func_800BD3C4 (s) — same table-difference CD-load wrapper (indexes
+  `D_801227B0`, `D_80124FCC`) calling `func_80014BCC`; role not yet
+  reconstructed beyond the shared shape.
