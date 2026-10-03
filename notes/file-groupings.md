@@ -3509,6 +3509,13 @@ Members (address order):
   (already the stub caller of the D_8012D548 by-value run and the D_8012D520
   bridge above) to a matched link-successor. Link order + shared callee; data
   TU ownership unconfirmed.
+- ovl_11 counter-leaf forwarding twin — ovl_11_func_80115C60 (m, matched
+  this session) is byte-identical to ovl_11_func_801152BC (above) except its
+  second callee: same s16 +0x8/+0xA view, same `-(unkA*unk8)` first argument
+  to 0x800F2354, and `2,unk8` forwarded to counter-leaf 0x800F3AF0 in place of
+  0x800F397C. Ties 80115C60 to the 801152BC idiom/struct cluster across the
+  0x5D49C/0x5DE40 link gap; zero-gap successor 0x80115CAC is a stub. Shared
+  idiom + struct layout; data TU ownership unconfirmed.
 - ovl_11 v0-channel/static-chain fossil run — 0x8011D400 / 0x8011D438 /
   0x8011D474, zero-gap link run (0x8011D400 0x38 → 0x8011D438 0x3C →
   0x8011D474 0x2C0, each ending exactly where the next starts; the caller
