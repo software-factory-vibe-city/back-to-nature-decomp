@@ -1,3 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800E686C", ovl_11_func_800E686C);
+s32 ovl_11_func_800E686C(s16 arg0, s16 arg1) {
+    return ovl_11_func_800EFDA0(D_80129560[arg0], D_80129560[arg1]);
+}
