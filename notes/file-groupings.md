@@ -4742,6 +4742,33 @@ Members:
 
 ---
 
+## `ovl_11` 0x8011FD2C–0x8011FF0C link-order run — 8011FD7C driver of 8011FF0C (confidence: low)
+
+Zero-gap link-order run in `ovl_11` whose matched member calls the matched
+writer two entries later, so the run is the tightest TU-membership evidence
+for this cluster yet (the struct_80076220 tie above is a data tie only):
+
+- link order: `ovl_11_func_8011FD2C` → `ovl_11_func_8011FD7C` (ends
+  0x8011FDCC) → `ovl_11_func_8011FDCC` → `ovl_11_func_8011FEA0` →
+  `ovl_11_func_8011FF0C`, every symbol start equal to the previous end;
+- internal call edge: `ovl_11_func_8011FD7C` calls `ovl_11_func_8011FF0C`
+  (the matched u16@+4 increment/limit writer of the 37-entry, 0x1D4-stride
+  `D_80076220` array) once per index 0..0x24 — this is the loop driver that
+  applies 8011FF0C to all 37 entries;
+- shared s16 argument idiom: both consume s16 parameters through the
+  `sll 16` / `sra 16` sign-extension pair.
+
+Members:
+- ovl_11_func_8011FD7C (m, matched this session, 0x50, byte-exact) — loop
+  driver: hoists a sign-extended s16 copy of arg0, then calls
+  `ovl_11_func_8011FF0C((s16)i, v)` for i in 0..0x24.
+- ovl_11_func_8011FF0C (m) — per-entry writer of the u16@+4 field (recorded
+  under the struct_80076220 cluster above).
+- ovl_11_func_8011FD2C / 8011FDCC / 8011FEA0 (s) — link-order neighbours in
+  the same run; roles unknown.
+
+---
+
 ## `ovl_11` 3×s32 vector-record pair — 0x800D03B4 / 0x800D0408 (confidence: medium)
 
 Two link-contiguous leaf functions operating on the identical 12-byte record
