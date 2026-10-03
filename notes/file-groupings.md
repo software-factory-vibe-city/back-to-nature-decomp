@@ -4529,7 +4529,9 @@ Candidate same-TU group of `ovl_11` (`Obj\GF_FARM.bin`) built around the
 `D_800719F8` flag word. Evidence produced by matching the members across
 this region's sessions:
 
-- **address adjacency:** `ovl_11_func_801124E8` (0x84 bytes) ends exactly at
+- **address adjacency:** `ovl_11_func_80112440` (0x54 bytes) ends exactly at
+  the `ovl_11_func_80112494` stub, leading the zero-gap run into
+  `ovl_11_func_801124E8` (0x84 bytes), which ends exactly at
   `ovl_11_func_8011256C`, which (0x70 bytes) ends exactly at
   `ovl_11_func_801125DC`, which (0x90 bytes) ends exactly at the
   `ovl_11_func_8011266C` stub (0x5C), which ends exactly at
@@ -4548,6 +4550,11 @@ this region's sessions:
   neighbours), anchoring them to one data region.
 
 Members (link order):
+- ovl_11_func_80112440 (m, this session) — file-status flag routine: clears
+  bit 0 off `D_800719F8`, then sets it back when
+  `ovl_11_func_800F3E00(0x5D) >= 0x33`; the address of the flag word stays
+  live across the callee in `$s0`
+- ovl_11_func_80112494 (s) — link-adjacent stub inside the run
 - ovl_11_func_801124E8 (m, this session) — file-status flag routine: clears
   0xE0 off `D_800719F8`, sets 0x20 while the `D_80070D30` 0x800 bit is
   clear, then branches on the `D_80071A1E` state halfword (0: set 0x40 and
@@ -4567,9 +4574,9 @@ Members (link order):
   clear; otherwise gates on `D_80070D08` and the `D_80070D30` 0x100000 bit
   and sets 0x8000/0x20000 from the `D_80070D30` 0x100/0x200 bits
 
-The stubs immediately before the group (`ovl_11_func_80112494`, 80112440,
-801123AC, 80112318, 80112284, 80112160) and the `ovl_11_func_8011266C` stub
-inside the run may extend it; membership is not yet evidenced.
+The stubs before the proven run (`ovl_11_func_801123AC`, 80112318, 80112284,
+80112160) and the `ovl_11_func_8011266C` stub inside the run may extend it;
+membership is not yet evidenced.
 
 ## `ovl_11` record-halfword match sibling pair — 0x800F13D8 / 0x800F144C (confidence: low)
 
