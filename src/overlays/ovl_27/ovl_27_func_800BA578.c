@@ -1,3 +1,10 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_27/asm/nonmatchings/ovl_27_func_800BA578", ovl_27_func_800BA578);
+/* Callee prototype as the original caller TU saw it: arg4/arg5 are plain
+ * words in the outgoing area (functions.h holds the callee-side 4-byte
+ * aggregate type). */
+u8 *func_80014CBC(s32 arg0, s32 arg1, s32 arg2, u8 *arg3, s32 arg4, s32 arg5);
+
+s32 ovl_27_func_800BA578(void) {
+    return func_80014CBC(0, 0x2A800, 0x49000, (u8 *)D_8007AFF4, 1, 0) != 0;
+}
