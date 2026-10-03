@@ -4289,6 +4289,24 @@ Members (address order):
   byte-for-byte the same body over the same record shape (shared
   Ovl23Func800BB0C8Arg view), gapless with the previous function.
 
+## `ovl_23` D_800BF87C dispatch-index cluster — 0x800B8084–0x800B87F8 (confidence: medium)
+
+Evidence: three ovl_23 functions touch the state index `D_800BF87C` (s16):
+`ovl_23_func_800B8084` reads it, `ovl_23_func_800B850C` stores 1 to it, and
+`ovl_23_func_800B87F8` takes its address three times. `ovl_23_func_800B8084`
+additionally dispatches through the sibling table `D_800BB9F8` indexed by that
+value (`base[D_800BF87C](base)`). All three sit in one contiguous link-order
+span (0x800B8084 +0x48 = 0x800B80CC, … 0x800B850C, … 0x800B87F8), so the shared
+small-data global and the link order agree.
+
+Members (link order):
+- ovl_23_func_800B8084 (m, byte-exact this session) — `func_800225C4()` then
+  `((void (*)(s32 *))D_800BB9F8[D_800BF87C])(D_800BB9F8)`, a no-arg table
+  dispatch stub.
+- ovl_23_func_800B850C (s) — two calls then sets `D_800BF87C = 1`.
+- ovl_23_func_800B87F8 (s) — larger state routine; loads the address of
+  `D_800BF87C`.
+
 ## `ovl_23` display-setup state-handler run — 0x800BB214–0x800BB758 (confidence: medium)
 
 Evidence: the dispatcher `ovl_23_func_800B7F00` (s) selects on the state byte
