@@ -5398,6 +5398,38 @@ a single TU:
 Any of the three matched ovl_17/23/25 members is a donor template for the
 offset-0x4488/0x448C variant.
 
+## `ovl_27` D_800C4A18 display-setup state-handler run — 0x800BA4C4–0x800BA914 (confidence: medium)
+
+Evidence: the dispatcher `ovl_27_func_800B823C` (s, 0x800B823C–0x800B845C;
+selects on the s16 state `D_800C4A18` via `jtbl_800B7E24`) calls all nine
+handlers of this run from consecutive jump-table branches, and they form one
+gapless link-order run (0x50+0x64+0x44+0x64+0x130+0x60+0x5C+0x8+0x100 =
+ends 0x800BA914), so the call graph and the link order agree. The run shares
+the display-setup idiom `DrawSync` → `ClearOTagR` → `func_80014CBC` →
+`func_8001719C` and the address cluster `D_8005E3B0 + 0x4290` / `D_8005E3C0` /
+`D_8007AFF4`; it is the ovl_27 twin of the ovl_17 (0x800B9FA8–0x800BA504) and
+ovl_23 (0x800BB214–0x800BB758) display-setup runs, whose closing audio-setup
+leaf carries the same `func_8001FBF0` call shape.
+
+Members (link order):
+- ovl_27_func_800BA4C4 (m, matched this session) — audio-setup leaf:
+  `func_8001FBE4(0, D_8005E3B0+0x4290)` then `func_8001FBF0` 0 / 0x3E8 / 0x1A
+- ovl_27_func_800BA514 (s) — display-setup: DrawSync/ClearOTagR +
+  `func_80014CBC(0,0x2A800,0x49000,D_8007AFF4,1,1)`
+- ovl_27_func_800BA578 (m) — same call as 800BA514 but leaf, tail `!= 0`
+- ovl_27_func_800BA5BC (s) — display-setup: DrawSync/ClearOTagR +
+  `func_80014CBC(0,0x25000,0x5800,D_8005E3B0+0x4290,1,1)`
+- ovl_27_func_800BA620 (s) — `func_80014CBC` + `func_8001719C(D_8005E3B0+0x566C)`
+  + record copy from D_8005E3B0+0x4290
+- ovl_27_func_800BA750 (s) — display-setup: DrawSync/ClearOTagR +
+  `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,1)`
+- ovl_27_func_800BA7B0 (s) — role unknown
+- ovl_27_func_800BA80C (s) — 8-byte leaf; role unknown
+- ovl_27_func_800BA814 (s) — closing member; role unknown
+
+Not a member: `ovl_27_func_800BA230` ends exactly at 0x800BA4C4 but is called
+by `ovl_27_func_800B80B0`, not by the dispatcher.
+
 ## `ovl_27` 6-byte-record leaf run — 0x800BAA34 / 0x800BABD4 / 0x800BAC14 (confidence: low)
 
 Evidence: a gapless link-order run ending at the ovl_27 data segment —
