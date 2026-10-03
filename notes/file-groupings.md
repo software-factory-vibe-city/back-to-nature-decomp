@@ -1615,7 +1615,7 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_80127F60 s16-table lookup helper — 0x80111D28 (confidence: low)
+## `ovl_11` D_80127F60 s16-table lookup helper — 0x80111D28 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): one short leaf
 helper reading a file-scope s16 table absent from the generated `globals.h`, via
@@ -1631,8 +1631,14 @@ Members (address order):
   `ovl_11_func_80111A60` (0x80111A60) and `ovl_11_func_80111B74`
   (0x80111B74), which `lh` their arg0 — so the helper re-sign-extends a
   value the callers already sign-extended. Adjacent ovl_11 `.data` s16
-  tables (D_80127F50, D_80127F68) suggest a compact data+helper cluster;
-  no matched sibling yet to bind the TU more tightly.
+  tables (D_80127F50, D_80127F68) suggest a compact data+helper cluster.
+- ovl_11_func_80111D48 (m, matched this session) — link-adjacent successor
+  whose 0x20 bytes begin exactly at 0x80111D48: builds a 3-halfword local from
+  table `D_80127F68` at 4-byte stride (`lhu` at +0/+4/+8), zeroes file-scope
+  s32 `D_8012D0EC` (absolute addressing), and calls `ovl_11_func_800DCBDC(0,
+  local)`; byte-exact clean C, baseline flags. The successorship binds the
+  `D_80127F68` table and 80111D28 into this one TU cluster, and `D_8012D0EC`
+  is the same file-scope flag referenced by predecessor stub 80111D94.
 
 ---
 
