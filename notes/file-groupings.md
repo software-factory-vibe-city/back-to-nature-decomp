@@ -5828,7 +5828,7 @@ Members (address order):
 - ovl_11_func_801033D4 (m, matched this session) — case 0x3C0 handler; sets
   `D_801273DC = ovl_11_func_80103714`, no helper call
 - ovl_11_func_80103424 (s) — case 0x3C1 handler; same store, calls helper
-- ovl_11_func_80103480 (s) — case 0x3C2 handler; same store, no helper call
+- ovl_11_func_80103480 (m, matched this session) — case 0x3C2 handler; same store, no helper call
 - ovl_11_func_801034D0 (s) — case 0x3C3 handler; same store, gated helper call
 - ovl_11_func_80103548 (s) — case 0x3C4 handler; same store, gated helper call
 - ovl_11_func_801035C0 (s) — shared helper called by the 0x3C1/0x3C3/0x3C4 arms
