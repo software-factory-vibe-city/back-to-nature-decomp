@@ -5115,6 +5115,27 @@ Members:
   decrements `D_80129634`.
 - ovl_11_func_800F4FC8 (m) — pool advance: on a flag in the view's +0x44F8
   word, steps the pool entry pointer forward and clears the entry's low flag.
+## `ovl_11` D_80075AD4 0xF0-byte record access cluster — 0x800CF314 / 0x800C580C / 0x8010C1FC (confidence: low)
+
+- shared-global fingerprint: D_80075AD4 is the record base reached absolutely
+  by 0x800C580C (passed as arg0) and by 0x8010C1FC (fields +0x22, +0x78);
+  0x800CF314 writes the same record through its interior view anchors
+  D_80075AEA (+0x18/+0x1A) and D_80075B0C (+0/+4/+8, base minus 0xA/−8).
+- record extent: D_80075BC4 follows D_80075AD4 by exactly 0xF0, the same 0xF0
+  struct size the memset-clear family records for 0x8010B64C / 0x801092E0 — so
+  this is the 0xF0-byte record that precedes the D_80075BC4 0xB0-stride table
+  (see the D_80075BC4 entry below; ownership still unconfirmed).
+- link adjacency (weak): 0x800CF308 sits immediately before 0x800CF314 in the
+  0x800CFxxx run; callers/siblings are container-local, so no cross-container tie.
+
+Members:
+- ovl_11_func_800CF314 (m, matched this session, byte-exact) — record fill:
+  copies an arg1 u16 pair into the record's +0x18/+0x1A and an arg2 s32 triple
+  into +0x38/+0x3C/+0x40, then calls ovl_11_func_80107DD0(arg0 + 0xA8).
+- ovl_11_func_800C580C (s) — caller: passes &D_80075AD4 as arg0 (arg1/arg2 are
+  s1+0xFC / s1+0x100).
+- ovl_11_func_8010C1FC (s) — same record base D_80075AD4, fields +0x22 and +0x78.
+
 ## `ovl_11` D_80075BC4 record-table scan caller/callee pair — 0x801097F4 / 0x801098B0 (confidence: low)
 
 - call-graph adjacency for the pair: `ovl_11_func_801097F4` (0xBC) ends at
