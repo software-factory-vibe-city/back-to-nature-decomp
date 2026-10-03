@@ -4215,6 +4215,13 @@ the overlay, never GP-relative), and the large-offset writers use the same
   0x800BFEA4 is link-adjacent); first matched reference to `D_80128A80`
   (0x80128xxx data region, beside the `D_801285xx`/`D_80128BB0`/`D_80128DE8`
   reset clusters)
+- ovl_11_func_800BFEA4 (m, matched this session) — the caller of the
+  7-halfword reset helper 0x800BFF50: walks the 0xE-stride 40-entry object
+  array `D_80128820` (u8 base, countdown from 0x27) calling it on each entry,
+  then points `D_80128A80` at `D_80125E88`; 0x54, byte-exact clean C, baseline
+  flags; second matched reference to `D_80128A80` (after 0x800BFF00) and its
+  0x80128xxx data-region sibling, and the zero-gap-adjacent neighbour sitting
+  0x58 before 0x800BFF50 in link order
 - ovl_11_func_800D63C4 (m, matched this session) — dual-gauge clamp leaf:
   adds a sign-extended s8 arg to the u16 gauge at `D_80071A00`+0x14 (clamp
   0..0xFF, mirrored to +0x12) and a second s8 arg to the u16 gauge at +0x16
