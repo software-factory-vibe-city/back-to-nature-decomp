@@ -270,3 +270,15 @@ CC1FLAGS_ovl_11_func_8011FF74 := -fno-schedule-insns
 # already carries -fno-gcse in this project's exe; per-TU flags exist in ovl_11
 # (ovl_11_func_8011FF74: -fno-schedule-insns).
 CC1FLAGS_ovl_11_func_800F3D40 := -fno-gcse
+
+# ovl_11_func_80103B24: -fno-cse-skip-blocks. The target materializes
+# &D_8006C838 twice: one lui %hi shared (local CSE) with two independent
+# addiu %lo lo_sums (a3 for the 0xE514/0x49C8 first half, a1 recomputed for
+# the 0x5224/0xE522 tail), plus the a2=a3 and t1=a0 copies that come with
+# them. Under baseline the two lo_sums collapse into one address so four
+# words (and the branch-threading `j`) are lost. Flag-probe matrix on this
+# source: baseline 10/55 masked at 49 instrs, -fno-cse-skip-blocks 43/55
+# masked at exactly 55 instrs = target 55; every other flag <= 10/55.
+# Precedent: func_80014494 and ovl_11_func_800F3D40 (same symbol) carry
+# per-TU flag overrides.
+CC1FLAGS_ovl_11_func_80103B24 := -fno-cse-skip-blocks
