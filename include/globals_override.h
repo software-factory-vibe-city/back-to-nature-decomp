@@ -1035,5 +1035,12 @@ extern struct_80123E04 _D_80123E04[1] __asm__("D_80123E04");
  * ovl_11 code. */
 extern s16 D_801287CC[13];
 
+/* ovl_11 farm-state globals. The six halfwords at D_8012CF10 are signed in
+ * the reset and comparison functions; ovl_11_func_80103B24 reads their raw
+ * bits as unsigned halfwords. All three globals are addressed absolutely. */
+extern s16 D_8012CF10[7];
+extern s32 D_8012CF20;
+extern s32 D_80127428;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

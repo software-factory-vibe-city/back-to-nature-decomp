@@ -675,7 +675,12 @@ Members (address order):
 - ovl_11_func_801038E4 (s) — leaf reader of D_80127428
 - ovl_11_func_80103964 (s) — reads/writes D_80127428 at 8 sites; the run's
   mutator
-- ovl_11_func_80103B24 (s) — leaf reader of D_80127428
+- ovl_11_func_80103B24 (m) — leaf reader of D_80127428; updates the
+  D_8006C838 work area and copies six D_8012CF10 halfwords. Its byte-exact
+  source requires `-fno-cse-skip-blocks` to preserve distinct sign-guarded
+  read-modify-write arms on the same field. Matched cluster members
+  ovl_11_func_801037EC and ovl_11_func_80104394 remain byte-exact when
+  compiled with that flag; no same-group flag contradiction was observed.
 - ovl_11_func_801040A8 (s) — trailer reader of D_80127428
 
 Widening (2026-09-14, byte-exact match of `ovl_11_func_80104394`): the run's

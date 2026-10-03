@@ -271,14 +271,12 @@ CC1FLAGS_ovl_11_func_8011FF74 := -fno-schedule-insns
 # (ovl_11_func_8011FF74: -fno-schedule-insns).
 CC1FLAGS_ovl_11_func_800F3D40 := -fno-gcse
 
-# ovl_11_func_80103B24: -fno-cse-skip-blocks. The target materializes
-# &D_8006C838 twice: one lui %hi shared (local CSE) with two independent
-# addiu %lo lo_sums (a3 for the 0xE514/0x49C8 first half, a1 recomputed for
-# the 0x5224/0xE522 tail), plus the a2=a3 and t1=a0 copies that come with
-# them. Under baseline the two lo_sums collapse into one address so four
-# words (and the branch-threading `j`) are lost. Flag-probe matrix on this
-# source: baseline 10/55 masked at 49 instrs, -fno-cse-skip-blocks 43/55
-# masked at exactly 55 instrs = target 55; every other flag <= 10/55.
-# Precedent: func_80014494 and ovl_11_func_800F3D40 (same symbol) carry
-# per-TU flag overrides.
+# ovl_11_func_80103B24: the original keeps separate positive/negative
+# read-modify-write arms on the same work-area field, including a jump after
+# the positive store and a delayed a2=a3 pointer copy. Baseline CSE folds
+# these arms into one store (49 instructions); -fno-cse-skip-blocks retains
+# them and produces all 55 original words from clean C. The flagProbe matrix
+# for the matched source has a single dominant column (55/55 versus baseline
+# 10/55); matched ovl_11_func_80104394 and ovl_11_func_801037EC remain exact
+# under this flag, so there is no contrary witness in the suspected TU group.
 CC1FLAGS_ovl_11_func_80103B24 := -fno-cse-skip-blocks

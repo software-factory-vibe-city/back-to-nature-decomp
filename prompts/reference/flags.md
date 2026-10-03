@@ -39,3 +39,16 @@ equal to the flag delta means the flag is NOT the answer and the source shape
 is (func_8001FF98: the probe's matrix exposed exactly this, killing a wrong
 override within minutes).
 
+### Equivalent guarded stores can expose CSE skipping
+
+A target with sign-exclusive `lw/add/sw` arms on the **same effective address**
+(`move`-copied bases), a jump after the positive store, and two separate stores
+may lose an arm under baseline `-fcse-skip-blocks`. Classify that as a
+population/CFG residual first; an independently written second `if` may retain
+two stores but still lose the target jump. Probe `-fno-cse-skip-blocks`, then
+check pointer provenance: a candidate `addiu %lo(symbol)` where the target
+has `move copied_base` is a different source-web defect, not a flag verdict.
+Require the usual fingerprint/column/regional evidence and a relocated-byte
+match before adopting the override. See
+`notes/retros/2026-10-03-ovl_11_func_80103B24-retro.md`.
+
