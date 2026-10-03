@@ -5058,6 +5058,26 @@ Members (link order):
 Only one member is matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
+Not a member of this cluster: `ovl_27_func_800B8C6C` (0x800B8C6C, matched this
+session, byte-exact) sits inside the 0x800B845C–0x800B92E4 run but touches
+neither `D_800C4A14`/`D_800C4A1C` nor the hub `ovl_27_func_800B92E4`; it is a
+`D_8006C838` counter leaf (below), so the run is not uniform. The entry's
+membership is unchanged — this only narrows its address extent.
+
+## `D_8006C838` one-shot counter leaf, shared across ovl_17/23/25/27 (confidence: medium)
+
+Four byte-exact leaves with one body template: `func_8001FE34(10)` then
+`base = (s32 *)&D_8006C838; v = base[off >> 2] + 1; base[off >> 2] = v;
+return v;`. Each overlay carries its own displacement and its own pre-call,
+which is the signature of one original source compiled per overlay rather than
+a single TU:
+- ovl_17_func_800B8078 (m) — `func_80013328(10)`, off 0x448C
+- ovl_23_func_800B80CC (m) — `func_80013328(10)`, off 0x448C
+- ovl_25_func_800B81B4 (m) — `ovl_25_func_800B93E4()`, `func_80013328(10)`, off 0x448C
+- ovl_27_func_800B8C6C (m, matched this session) — `func_800132F0(10, 0, 2)`, off 0x4488
+Any of the three matched ovl_17/23/25 members is a donor template for the
+offset-0x4488/0x448C variant.
+
 ## `ovl_11` D_8012720C guard/set pair — 0x800FBE4C / 0x800FC320 (confidence: low)
 
 Evidence: both functions write the same overlay-local flag `D_8012720C`
