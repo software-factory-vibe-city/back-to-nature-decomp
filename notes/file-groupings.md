@@ -228,6 +228,25 @@ Members:
 
 ---
 
+## `ovl_11` `D_80128BB0` 0x34-stride init run — 0x800CBEF8 / 0x800CBF40 / 0x800CBF70 (confidence: medium)
+
+Bulk initialiser `ovl_11_func_800CBEF8` (matched this session) walks the
+shared global `D_80128BB0` three times at +0x34 stride, calling the field-clear
+leaf `ovl_11_func_800CBF40` on each entry; `800CBF40` and `800CBF70` are its
+gapless link successors (0x800CBEF8+0x48 = 0x800CBF40, +0x30 = 0x800CBF70), and
+the same global is read again by `800CBF70` and by `800CCB90` (absolute
+`lui`+`%lo`, non-GP). Shared global + call edge + link adjacency; the
+`D_801290D8` cluster above is the structural twin (same 3×0x34 walk, different
+table). Members:
+- ovl_11_func_800CBEF8 (m, matched this session) — bulk init: `p = D_80128BB0;
+  for i < 3 { clear(p); p += 0x34; }`, baseline flags
+- ovl_11_func_800CBF40 (m) — field-clear leaf: zeroes eleven s16/s32 fields of
+  the +0x34-stride entry
+- ovl_11_func_800CBF70 (s) — reads `D_80128BB0`; role unknown
+- ovl_11_func_800CCB90 (s) — reads `D_80128BB0`; role unknown
+
+---
+
 ## `ovl_11` memset-clear struct-constructor idiom family — 0x800C1C5C, 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0 (confidence: low)
 
 Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
