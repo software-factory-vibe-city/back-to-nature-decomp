@@ -5799,3 +5799,36 @@ Members (link order):
 - ovl_11_func_800BD3C4 (s) — same table-difference CD-load wrapper (indexes
   `D_801227B0`, `D_80124FCC`) calling `func_80014BCC`; role not yet
   reconstructed beyond the shared shape.
+
+---
+
+## `ovl_11` D_801273DC handler-table run — 0x801033D4–0x801035C0 (confidence: high)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): a generated run of
+per-case event handlers sharing one file-scope main-RAM function-pointer global.
+
+Fingerprints:
+- shared main-RAM global `D_801273DC` (absolute `lui`+`%lo` in every site, no
+  gp-rel in this container): written with the address of `ovl_11_func_80103714`
+  by four members of this run and by `ovl_11_func_8010289C` (multiple sites);
+  cleared to 0 (with the whole `D_801273Exx` state block) by
+  `ovl_11_func_800FFDCC`, so the reset/init tie also reaches the state cluster;
+- zero-gap link-order contiguity: `ovl_11_func_801033D4` (0x50, ends 0x80103424)
+  → `ovl_11_func_80103424` (0x5C, ends 0x80103480) → `ovl_11_func_80103480`
+  (0x50, ends 0x801034D0) → `ovl_11_func_801034D0` (0x78, ends 0x80103548) →
+  `ovl_11_func_80103548` (0x78, ends 0x801035C0) → helper
+  `ovl_11_func_801035C0`; each starts exactly where the previous ends;
+- one handler template shared verbatim across the run: guard on
+  `func_80013394()`, then `func_8002261C(3, 0x3C0 + case)`, then
+  `func_800226A4() == 2`, then store `D_801273DC = ovl_11_func_80103714` — the
+  case index increments 0x3C0/0x3C1/0x3C2/0x3C3/0x3C4 with the members in
+  address order, a dispatch-table signature no coincidence explains.
+
+Members (address order):
+- ovl_11_func_801033D4 (m, matched this session) — case 0x3C0 handler; sets
+  `D_801273DC = ovl_11_func_80103714`, no helper call
+- ovl_11_func_80103424 (s) — case 0x3C1 handler; same store, calls helper
+- ovl_11_func_80103480 (s) — case 0x3C2 handler; same store, no helper call
+- ovl_11_func_801034D0 (s) — case 0x3C3 handler; same store, gated helper call
+- ovl_11_func_80103548 (s) — case 0x3C4 handler; same store, gated helper call
+- ovl_11_func_801035C0 (s) — shared helper called by the 0x3C1/0x3C3/0x3C4 arms
