@@ -5636,6 +5636,29 @@ Members (link order):
   `ovl_19_func_800BBCCC` (0xF) and `ovl_30_func_8012F3D4`; that twin relation is
   not TU-membership evidence, only the adjacency is.
 
+## `ovl_21` D_800C0448 state-pair writer run — 0x800B9538–0x800B95EC (confidence: medium)
+
+Evidence: gapless link adjacency (0x800B9538 ends at 0x800B9590, which ends
+exactly at 0x800B95EC) plus a shared two-halfword state object `D_800C0448`.
+`ovl_21_func_800B9538` and `ovl_21_func_800B9590` both write `D_800C0448[0] = 5`
+behind the same `func_800226A4() == 2 && func_800225B8() == 1` guard, and
+`ovl_21_func_800B95EC` clears `D_800C0448[0]` and increments `D_800C0448[1]`.
+All three call `ovl_21_func_800BA4C0` and share the 0x18 frame with the
+`lw $ra; nop; jr $ra; addiu $sp` epilogue. `D_800C0448` is referenced by many
+other `ovl_21` functions in the 0x800B80xx–0x800BBxxx run, so this trio is a
+contiguous sub-cluster of a larger `ovl_21` TU.
+
+Members (link order):
+- ovl_21_func_800B9538 (m, matched) — guarded `D_800C0448[0] = 5` / `= 0xF`
+  writer; calls `func_800226A4`, `func_800225B8`, `ovl_21_func_800BA4C0`.
+- ovl_21_func_800B9590 (s) — same guard writes `D_800C0448[0] = 5` after
+  `func_8002261C(4, 0x18)`; calls `ovl_21_func_800BA4C0`.
+- ovl_21_func_800B95EC (m, matched this session, byte-exact) — after
+  `ovl_21_func_800BA4C0` and `func_80013394() == 1`, calls
+  `func_800132B8(10, 0, 2)`, then clears `D_800C0448[0]` and increments
+  `D_800C0448[1]`; the object is `u16[2]`, since the `lhu` increment needs the
+  unsigned declaration to allocate its registers as the target does.
+
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 
 Candidate same-TU run of `ovl_25` around the s16 flag at `D_800BFE46`

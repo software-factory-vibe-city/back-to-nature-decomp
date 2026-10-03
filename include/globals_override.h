@@ -1073,5 +1073,12 @@ extern s16 D_8012CF10[7];
 extern s32 D_8012CF20;
 extern s32 D_80127428;
 
+/* D_800C0448 - two-halfword ovl_21 state. ovl_21_func_800B9538 writes the
+ * first halfword, ovl_21_func_800B95EC clears the first and increments the
+ * second. Unsigned halfwords: the increment target loads with lhu. All the
+ * other ovl_21 references are unmatched stubs, so this type is the only one
+ * the matched pair shares. Absolute-addressed (extern-only, lui + %lo). */
+extern u16 D_800C0448[2];
+
 #endif /* GLOBALS_OVERRIDE_H */
 
