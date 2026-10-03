@@ -280,3 +280,24 @@ CC1FLAGS_ovl_11_func_800F3D40 := -fno-gcse
 # 10/55); matched ovl_11_func_80104394 and ovl_11_func_801037EC remain exact
 # under this flag, so there is no contrary witness in the suspected TU group.
 CC1FLAGS_ovl_11_func_80103B24 := -fno-cse-skip-blocks
+
+# ovl_21_func_800B98CC: -fno-schedule-insns.
+#
+# Target fingerprint (assembly-level, stronger than the flag probe's structural
+# detectors): the target's two return tails each compute the comparison into
+# $v0, store it, and return it with NO register copy (sltiu v0,v0,3 / jr ra /
+# sw v0,24(a0) in both arms). Under baseline sched1 the return copy (v0<-value)
+# is drifted ahead of the store because the store is class-3 (independent of
+# the epilogue use) and the copy is class-1 (data-dependent on it); local-alloc
+# then sees v0 live across the value range and cannot tie the value to v0, so
+# every baseline C spelling of this function emits two extra `move v0,v1` and
+# 18 instructions. Disabling pre-reload scheduling keeps the expand-time
+# store-before-return-copy order, local-alloc ties the value to v0, and the
+# function emits exactly the target's 16 words. Same mechanism as the
+# allowlisted ovl_11_func_8011FF74 (sched1 drifts an independently-birthed
+# value out of its expand-time position).
+#
+# Flag-probe matrix on the matching source: baseline 6/16 masked, 18 instrs;
+# -fno-schedule-insns{,2} 16/16 masked, 16 instrs (target 16). No contrary
+# regional witness: this is its own TU (single function per src file).
+CC1FLAGS_ovl_21_func_800B98CC := -fno-schedule-insns
