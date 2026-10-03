@@ -5526,6 +5526,42 @@ Members (link order):
 - ovl_25_func_800BA858 (s) — far-buffer/field updater; on its `... == 2` probe
   path sets `D_800BFE46` to 3 and writes `D_800BCD21`/`D_800BCD48`
 
+## `ovl_25` D_800BCC10 far-buffer consumer extension — 0x800BA9A4–0x800BAA5C (confidence: medium)
+
+Extension of the `D_800BFE44`/`D_800BFE46` state cluster above: the same s16
+flag is written further along the run, and the run's tail is tied back to the
+overlay-local data table `D_800BCC10` that feeds it. Evidence is gapless link
+adjacency plus a shared overlay-local data symbol; the `D_8007AFF0+0x20000` far
+base is not itself TU evidence (the same reset code appears in `ovl_11`,
+`ovl_19`, `ovl_21`).
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800BA9A4` (0x50, ends 0x800BA9F4) sits
+  immediately before `ovl_25_func_800BA9F4` (0x68, ends exactly 0x800BAA5C),
+  which is followed directly by `ovl_25_func_800BAA5C` (0x50) — contiguous;
+- shared s16 flag: `ovl_25_func_800BA9A4` stores 5 to `D_800BFE46` and
+  `ovl_25_func_800BA9F4` stores 6 through the same `%lo(D_800BFE46)` address,
+  extending the writer run;
+- shared overlay-local table `D_800BCC10`: `ovl_25_func_800BAA5C` reads its
+  first two u16, while `ovl_25_func_800B83A0` and `ovl_25_func_800B8478` stream
+  6 records of 8 bytes from `D_800BCC10` (and `D_800BCC70`) into the
+  `D_800BFE44`-based stride-0x78 records; `D_800BCC10` is the data symbol
+  immediately following the `D_800BCBF8` function-pointer table whose last
+  entry is `ovl_25_func_800BA9F4`;
+- shared far-buffer field region: both `ovl_25_func_800BAA5C` and
+  `ovl_25_func_800BA9F4` write the `D_8007AFF0+0x20000` work-area halfword at
+  +0x53B4 (= +0x253B4 absolute).
+
+Members (link order):
+- ovl_25_func_800BA9A4 (s) — probes `func_8002261C(4,0x34)`/`func_800226A4()`
+  and stores 5 to `D_800BFE46` when the read equals 2
+- ovl_25_func_800BA9F4 (s) — on the `func_80013394() == 1` path calls
+  `ovl_25_func_800B83A0`, writes -0x140 to the `D_8007AFF0`+0x253B4 halfword,
+  and stores 6 to `D_800BFE46`
+- ovl_25_func_800BAA5C (m, matched this session, byte-exact) — leaf; reads u16
+  `D_800BCC10[0]`/`[2]` and writes the `D_8007AFF0+0x20000` work-area fields
+  +0x5394..+0x53A4 and the +0x53B4/+0x53B8 halfwords
+
 ## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 (confidence: medium)
 
 Evidence: one gapless link-order run (0x800B7F30 +0x50 -> 0x800B7F80
