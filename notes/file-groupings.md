@@ -5842,6 +5842,28 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_801273E4/D_801273F4 state-block handler — 0x801014A4 (confidence: low)
+
+Single member, tied to the `D_801273Exx` state block by shared globals and to
+`ovl_11`'s event-handler idiom by its call shape rather than by link adjacency
+(it sits at 0x801014A4, immediately before `ovl_11_func_801014F8` at
+0x801014F8, nowhere near the 0x801033D4 run).
+
+- **shared global cluster:** writes `D_801273E4 = 3`, a member of the
+  `D_801273Exx` block that `ovl_11_func_800FFDCC` clears (the same reset tie
+  already recorded for the `D_801273DC` run above); its load uses the u16
+  array `D_801273F4[(s8)arg0]`, a symbol referenced by no other function;
+- **shared handler idiom:** `func_8002261C(3, ...)` then `func_800226A4() == 2`
+  then a `D_801273Exx` store — the D_801273DC run's template, here without
+  the `func_80013394()` guard and storing `D_801273E4` instead.
+
+Members (address order):
+- ovl_11_func_801014A4 (m, matched this session) — reads `D_801273F4[(s8)arg0]`,
+  calls `func_8002261C(3, value)`, sets `D_801273E4 = 3` when
+  `func_800226A4() == 2`
+
+---
+
 ## `ovl_11` D_8005E3B0+0x4290 CD-load wrapper pair — 0x800F71DC / 0x800F7230 (confidence: medium)
 
 Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`). Evidence is zero-gap
