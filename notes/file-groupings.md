@@ -205,6 +205,10 @@ Members:
 - ovl_11_func_80106DC0 (m, matched this session) — resets an 0x18-byte struct:
   zeroes f0/f4/fC/fE/f10 (s16) and f8/f14 (s32), sets f2 to 4; called by both
   successors
+- ovl_11_func_80106DE8 (m, matched this session) — first of the two immediate
+  successors: walks the 0x18-stride `D_8012CF48` table (10 entries, same table
+  indexed by ovl_11_func_8010734C) calling the reset leaf on each, then calls
+  ovl_11_func_800E54C8; confirms the documented caller edge
 
 ---
 
