@@ -5122,7 +5122,9 @@ state transition: it calls the hub `ovl_27_func_800B92E4`, resets
 `D_800C4A1C = 0`, installs `ovl_27_func_800B8E5C` as the
 `D_800C4A14` handler and returns that pointer — and `D_800C4A14`'s data
 initializer is `ovl_27_func_800B8E28` itself, so the slot is a self-starting
-function-pointer state machine shared across the neighborhood. The call graph
+function-pointer state machine shared across the neighborhood. `ovl_27_func_800B8E5C`
+(matched this session) confirms the slot is a handler chain: it advances
+`D_800C4A14` to `ovl_27_func_800B8EA0` at `D_800C4A1C == 0x1E`. The call graph
 is a star: `ovl_27_func_800B92E4` (itself a driver over five siblings) is
 called by nine functions in one gapless link-order run, 0x800B845C–0x800B90DC.
 The original asm of every function in that run plus `800B7F2C`, `800B7F7C` and
@@ -5131,9 +5133,13 @@ The original asm of every function in that run plus `800B7F2C`, `800B7F7C` and
 Members (link order):
 - ovl_27_func_800B8E28 (s, matched this session) — handler transition:
   hub call, `D_800C4A1C = 0`, `D_800C4A14 = ovl_27_func_800B8E5C`, returns it
+- ovl_27_func_800B8E5C (s, matched this session) — timer stage: hub call, then
+  `D_800C4A14 = ovl_27_func_800B8EA0` once `D_800C4A1C >= 0x1E`, confirming the
+  slot chains handlers in this run
+- ovl_27_func_800B8EA0 (m) — next `D_800C4A14` handler installed by 800B8E5C
 - ovl_27_func_800B92E4 (m) — shared driver hub; nine callers in the run
 
-Only one member is matched; the rest of the cluster is read off original asm
+Three members matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
 Not a member of this cluster: `ovl_27_func_800B8C6C` (0x800B8C6C, matched this
