@@ -261,6 +261,29 @@ Members:
 
 ---
 
+## `ovl_11` D_800A0494 9-`s16`-row table cluster — 0x800D6628 / 0x800D6730 / 0x800D6F78 / 0x800F0A58 (confidence: medium)
+
+Evidence: one shared data object, D_800A0494, addressed absolutely by four
+functions in this container and by no others in any extracted bytes, with a
+consistent structure across all four: a table of rows 0x12 bytes = 9 `s16`
+entries (32 rows total — 0x24 = 2 rows zeroed then 0x21C = 30 rows set to
+0xFF by the initializer). Row-walk structure is the common fingerprint,
+stronger than the global alone, since the ordinary extern global is container-wide
+visible. Link order ties three members (800D6628, 800D6730, 800D6F78) inside
+0x800D66xx–0x800D70xx; 800F0A58 is far away, so adjacency is not claimed.
+Members:
+- ovl_11_func_800D6628 (m, matched this session) — table initializer:
+  `memset(&D_800A0494, 0, 0x24); memset((char *)D_800A0494 + 0x24, 0xFF,
+  0x21C);` — zero the first 2 rows, 0xFF the remaining 30
+- ovl_11_func_800D6730 (m) — find-first-zero: `p = D_800A0494 + row * 9;`
+  scans 9 `s16`, stores `value` at the first zero, returns its index or -1
+- ovl_11_func_800D6F78 (s) — dual-row scan: walks `i < 9` comparing
+  `base + 2i` against `base + 0x12 + 2i` (adjacent rows), returns 0/1/-1
+- ovl_11_func_800F0A58 (s) — scans the 9-`s16` row at `base` (second cursor
+  `base + 0x12`) for a matching `s16`, returns the found index or -1
+
+---
+
 ## `ovl_11` text/sprite table-builder run — 0x80116F4C–0x80117178 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) around the table
