@@ -1,3 +1,10 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_28/asm/nonmatchings/ovl_28_func_800B92F0", ovl_28_func_800B92F0);
+void ovl_28_func_800B92F0(s16 arg0, s16 arg1) {
+    D_800B9626 = 1;
+    D_800BAB0C = 0xFF;
+    D_800B9628.unk0 = arg0;
+    D_800B9628.unk2 = arg1;
+    D_800B9628.unk4 = 0x50;
+    D_800B9628.unk6 = 0x50;
+}

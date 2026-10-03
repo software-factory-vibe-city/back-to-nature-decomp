@@ -4995,7 +4995,7 @@ declaration-order fingerprint: the BAB0C address `lui` precedes the D_800B9628
 0x27C earlier in link order — data-family member only.
 
 Members (link order):
-- ovl_28_func_800B92F0 (s) — twin initialiser: `D_800B9626 = 1`,
+- ovl_28_func_800B92F0 (m) — twin initialiser: `D_800B9626 = 1`,
   `D_800BAB0C = 0xFF`, record = (a0, a1, 0x50, 0x50)
 - ovl_28_func_800B9328 (m, matched this session) — initialiser:
   `D_800B9626 = 2`, `D_800BAB0C = 0`, record = (a0, a1, 0x50, 0x50)
