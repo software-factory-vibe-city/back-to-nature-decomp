@@ -1,4 +1,4 @@
-ovl_30_func_8012EFE4 = 0x8012EFE4; // type:func
+ovl_30_func_8012EFEC = 0x8012EFEC; // type:func
 ovl_30_func_8012F000 = 0x8012F000; // type:func
 ovl_30_func_8012F020 = 0x8012F020; // type:func
 ovl_30_func_8012F028 = 0x8012F028; // type:func

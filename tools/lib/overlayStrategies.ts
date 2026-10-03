@@ -22,15 +22,18 @@
  *   assumption the first strategy makes.
  *
  * When several strategies apply, all of them run and their answers are
- * compared. Agreement is reported as corroboration; disagreement is reported as
- * disagreement, never resolved by preferring the stronger strategy.
+ * compared. Only identical extents count as agreement; even adjacent but
+ * different starts can place rodata words in .text. Both strategies share the
+ * entry detector and ABI lower-edge guard, so agreement is not independent
+ * proof of those shared assumptions.
  */
 
-import { isDecodableInstruction, isJrRa } from "./mips.js";
+import { isJrRa } from "./mips.js";
 import {
   deriveOverlayLayout,
   functionEntryOffsets,
   headPointerRunEnd,
+  pullCodeStartBackwards,
   type OverlayLayout,
 } from "./overlayLayout.js";
 import { collectSelfReferences, type BaseSolverInput } from "./overlayBase.js";
@@ -112,14 +115,12 @@ function mergeSpans(spans: readonly CodeSpan[], gapBound: number): CodeSpan[] {
 }
 
 /** Pull a cluster's lower edge back to the first function entry that opens it. */
-function openCluster(bytes: Buffer, cluster: CodeSpan, entries: readonly number[], floor: number): CodeSpan {
+function openCluster(bytes: Buffer, cluster: CodeSpan, entries: readonly number[], floor: number, evidence: string[]): CodeSpan {
   const opening = entries.filter((offset) => offset <= cluster.start && offset >= floor).pop();
   if (opening !== undefined) return { start: opening, end: cluster.end };
-  /* No entry rule sees a leaf first function with no caller inside the member;
-     walk back while the words still decode. */
-  let cursor = cluster.start;
-  while (cursor - 4 >= floor && isDecodableInstruction(bytes.readUInt32LE(cursor - 4))) cursor -= 4;
-  return { start: cursor, end: cluster.end };
+  /* No entry rule sees a leaf first function with no caller inside the member.
+     Apply the same necessary code/ABI tests as the section-order strategy. */
+  return { start: pullCodeStartBackwards(bytes, cluster.start, floor, evidence), end: cluster.end };
 }
 
 export const RETURN_CLUSTERING: LayoutStrategy = {
@@ -137,12 +138,14 @@ export const RETURN_CLUSTERING: LayoutStrategy = {
     const callOffsets = base === undefined ? [] : refs.calls.map((target) => target - base);
     const entries = functionEntryOffsets(bytes, callOffsets);
     const floor = headPointerRunEnd(bytes);
-    const opened = clusters.map((cluster) => openCluster(bytes, cluster, entries, floor));
+    const boundaryEvidence: string[] = [];
+    const opened = clusters.map((cluster) => openCluster(bytes, cluster, entries, floor, boundaryEvidence));
     const spans = mergeSpans(opened, gapBound);
     return {
       strategy: this.id,
       spans,
       evidence: [
+        ...boundaryEvidence,
         `${returns.length} returns, median spacing ${Math.round(
           returns.length > 1 ? (returns[returns.length - 1]! - returns[0]!) / (returns.length - 1) : 0
         )} bytes, cluster gap bound ${gapBound} bytes`,
@@ -184,15 +187,9 @@ export interface LayoutConsensus {
   evidence: string[];
 }
 
-/** How far two spans may differ and still be called the same region. */
-const AGREEMENT_SLACK = 16;
-
 function sameSpans(a: readonly CodeSpan[], b: readonly CodeSpan[]): boolean {
   if (a.length !== b.length) return false;
-  return a.every(
-    (span, i) =>
-      Math.abs(span.start - b[i]!.start) <= AGREEMENT_SLACK && Math.abs(span.end - b[i]!.end) <= AGREEMENT_SLACK
-  );
+  return a.every((span, i) => span.start === b[i]!.start && span.end === b[i]!.end);
 }
 
 /**

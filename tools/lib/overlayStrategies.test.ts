@@ -7,8 +7,10 @@ import {
   deriveLayoutByStrategy,
   layoutFromConsensus,
   selectLayoutStrategies,
+  type LayoutStrategy,
 } from "./overlayStrategies.ts";
 import { UNKNOWN_TOOLCHAIN, type ToolchainProfile } from "./toolchainProfile.ts";
+import { pullCodeStartBackwards } from "./overlayLayout.ts";
 
 const PSYQ: ToolchainProfile = { id: "psyq", version: "470", verdict: "detected", evidence: [] };
 const SN64: ToolchainProfile = { id: "sn64", version: null, verdict: "detected", evidence: [] };
@@ -53,11 +55,49 @@ test("both strategies find the same code region in a well-formed member", () => 
   assert.deepEqual(generic.spans, psyq.spans);
 });
 
+test("a decodable data tail with a dead callee-saved load is not the first leaf function", () => {
+  const data = [0x0000000f, 0x84814081, 0x000a6425, 0x8d52000a];
+  const leaf = [0x3c028013, 0x3c038013, 0xac404008, 0x03e00008, 0xac604b0c];
+  const words = [...data, ...leaf, ...FUNCTION];
+  const bytes = Buffer.alloc(words.length * 4);
+  words.forEach((word, i) => bytes.writeUInt32LE(word >>> 0, i * 4));
+  const input = { id: "ovl_test", bytes, exeImage: EXE_IMAGE };
+  const psyq = PSYQ_SECTION_ORDER.run(input);
+  const generic = RETURN_CLUSTERING.run(input);
+  assert.deepEqual(psyq.spans, [{ start: data.length * 4, end: bytes.length }]);
+  assert.deepEqual(generic.spans, psyq.spans);
+  assert.ok(psyq.evidence.some((e) => e.includes("callee-saved register")));
+  assert.ok(generic.evidence.some((e) => e.includes("callee-saved register")));
+});
+
+test("the lower-edge guard retains a stack restore and a used saved-register load", () => {
+  for (const words of [
+    [0x8fb20010, 0x03e00008, 0x00000000], // lw s2, 0x10(sp); jr ra; nop
+    [0x8d520000, 0x02401021, 0x03e00008, 0x00000000], // lw s2, 0(t2); addu v0,s2,zero; return
+  ]) {
+    const bytes = Buffer.alloc(words.length * 4);
+    words.forEach((word, i) => bytes.writeUInt32LE(word >>> 0, i * 4));
+    assert.equal(pullCodeStartBackwards(bytes, (words.length - 2) * 4, 0), 0);
+  }
+});
+
 test("consensus reports which strategy was adopted and whether they agreed", () => {
   const consensus = deriveLayoutByStrategy({ id: "ovl_test", bytes: member(8, 6, 32), exeImage: EXE_IMAGE }, PSYQ);
   assert.equal(consensus.adopted, "psyq-section-order");
   assert.equal(consensus.agree, true);
   assert.ok(consensus.evidence.some((e) => e.includes("selects 2 of 2 strategies")));
+});
+
+test("nearby but different section starts are not corroboration", () => {
+  const strategies: LayoutStrategy[] = [
+    { id: "first", appliesTo: ["*"], rationale: "test", run: () => ({ strategy: "first", spans: [{ start: 16, end: 64 }], evidence: [] }) },
+    { id: "second", appliesTo: ["*"], rationale: "test", run: () => ({ strategy: "second", spans: [{ start: 20, end: 64 }], evidence: [] }) },
+  ];
+  const consensus = deriveLayoutByStrategy(
+    { id: "ovl_test", bytes: Buffer.alloc(64), exeImage: EXE_IMAGE }, PSYQ, undefined, strategies
+  );
+  assert.equal(consensus.agree, false);
+  assert.ok(layoutFromConsensus(consensus, 64).residuals.some((r) => r.includes("disagreed")));
 });
 
 test("an unknown toolchain still gets an answer, from the generic strategy alone", () => {

@@ -74,6 +74,49 @@ function looksLikeText(word: number): boolean {
 }
 
 /**
+ * A non-stack load into a callee-saved register with no later reference is
+ * suspicious at the first function boundary: a C leaf would clobber that
+ * register without using it. A restore through an aliased stack pointer is
+ * possible, so this is boundary evidence rather than a proof for arbitrary
+ * handwritten code. Never reject a direct stack restore. The operand check
+ * deliberately over-approximates uses (including writes).
+ */
+function isDeadSavedRegisterLoad(bytes: Buffer, offset: number, returnOffset: number): boolean {
+  const word = bytes.readUInt32LE(offset);
+  const opcode = word >>> 26;
+  if (opcode < 0x20 || opcode > 0x26) return false; // lb/lh/lwl/lw/lbu/lhu/lwr
+  const base = (word >>> 21) & 31;
+  const dest = (word >>> 16) & 31;
+  if (base === 29 || !((dest >= 16 && dest <= 23) || dest === 30)) return false;
+  for (let at = offset + 4; at <= returnOffset + 4; at += 4) {
+    const next = bytes.readUInt32LE(at);
+    const op = next >>> 26;
+    if (op === 2 || op === 3) continue; // jump target bits are not registers
+    if (((next >>> 21) & 31) === dest || ((next >>> 16) & 31) === dest ||
+        (op === 0 && ((next >>> 11) & 31) === dest)) return false;
+  }
+  return true;
+}
+
+/** Shared lower-edge test for the section-order and return-clustering routes. */
+export function pullCodeStartBackwards(
+  bytes: Buffer, returnOffset: number, floor: number, evidence?: string[]
+): number {
+  let cursor = returnOffset;
+  while (cursor - 4 >= floor) {
+    const offset = cursor - 4;
+    const previous = bytes.readUInt32LE(offset);
+    if (!isDecodableInstruction(previous) || looksLikeText(previous)) break;
+    if (isDeadSavedRegisterLoad(bytes, offset, returnOffset)) {
+      evidence?.push(`non-stack load into otherwise unused callee-saved register at 0x${offset.toString(16)} before return at 0x${returnOffset.toString(16)}: suspect data at code boundary`);
+      break;
+    }
+    cursor -= 4;
+  }
+  return cursor;
+}
+
+/**
  * Pull `.text` back to cover a `jr ra` that fell outside it.
  *
  * A return before the derived start is a contradiction: the function holding it
@@ -92,12 +135,7 @@ function extendTextStartBackwards(
   for (let guard = 0; guard < 64; guard++) {
     const stray = [...returns].filter((offset) => offset < start).pop();
     if (stray === undefined) break;
-    let cursor = stray;
-    while (cursor - 4 >= headEnd) {
-      const previous = bytes.readUInt32LE(cursor - 4);
-      if (!isDecodableInstruction(previous) || looksLikeText(previous)) break;
-      cursor -= 4;
-    }
+    const cursor = pullCodeStartBackwards(bytes, stray, Math.max(headEnd, stray - 64 * 4), evidence);
     if (cursor >= start) break;
     evidence.push(
       `a jr ra at 0x${stray.toString(16)} precedes the first entry, so .text is pulled back to 0x${cursor.toString(16)}`
