@@ -922,6 +922,19 @@ extern struct struct_8005E340_target *D_8005E340;
 /* D_800B9626 - ovl_28 state halfword tested by ovl_28_func_800B935C. */
 extern s16 D_800B9626;
 
+/* D_800B9628 - four-halfword record initialised by ovl_28_func_800B9328
+ * (a0, a1, 0x50, 0x50 at +0/+2/+4/+6). */
+typedef struct {
+    s16 unk0;
+    s16 unk2;
+    s16 unk4;
+    s16 unk6;
+} Ovl28B9628View;
+extern Ovl28B9628View D_800B9628;
+
+/* D_800BAB0C - ovl_28 state halfword cleared by ovl_28_func_800B9328. */
+extern s16 D_800BAB0C;
+
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 

@@ -4975,3 +4975,25 @@ Members:
   halfword fields around calls to 800B9CE4/800B9F44/800B9F78.
 - func_800B8470 (s) — counter reset that walks the same records from
   D_800BD870 with the 0x50 stride (5 records, per-record func_800BAC24 call).
+
+## `ovl_28` D_800B9626/D_800B9628/D_800BAB0C state-cluster run — 0x800B92F0 / 0x800B9328 / 0x800B935C (confidence: medium)
+
+Evidence: one gapless link-order run over one ovl_28 state cluster —
+`ovl_28_func_800B92F0` (0x38) ends exactly at `ovl_28_func_800B9328` (0x34,
+matched this session, byte-exact), which ends exactly at the matched
+`ovl_28_func_800B935C` — and all three touch the same globals:
+`D_800B9626` (state halfword), the four-halfword record `D_800B9628`, and
+`D_800BAB0C`. The two initialisers are construction twins: 0x800B92F0's
+original is 0x800B9328's with the constant 1 instead of 2 and
+`D_800BAB0C = 0xFF` instead of 0, sharing the identical
+`D_800B9626 = N; D_800BAB0C = X; record stores` source order (a
+declaration-order fingerprint: the BAB0C address `lui` precedes the D_800B9628
+`lui` in both). 0x800B9074 also reads/writes all three globals but sits
+0x27C earlier in link order — data-family member only.
+
+Members (link order):
+- ovl_28_func_800B92F0 (s) — twin initialiser: `D_800B9626 = 1`,
+  `D_800BAB0C = 0xFF`, record = (a0, a1, 0x50, 0x50)
+- ovl_28_func_800B9328 (m, matched this session) — initialiser:
+  `D_800B9626 = 2`, `D_800BAB0C = 0`, record = (a0, a1, 0x50, 0x50)
+- ovl_28_func_800B935C (m) — predicate: returns `D_800B9626 == 0`
