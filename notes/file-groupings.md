@@ -1751,8 +1751,10 @@ Members:
   `D_8006C838 + 0x7AE8` stepping +0xB4, returns the last index whose u32 flag
   word has bit 0x20000 set, else -1 (s16 result; the 0x20000 mask materializes
   as a preheader `lui` before the address build)
-- ovl_11_func_80115F80 (s) — calls it and re-reads the selected entry's
-  +0x7AE8 word, returns `(word & 0x40) != 0`
+- ovl_11_func_80115F80 (m, matched this session) — calls it and re-reads the
+  selected entry's `D_8006C838 + 0x7AE8` word, returns `(word & 0x40) != 0`;
+  clean C reuses the sibling's `base = (char *)&D_8006C838; base += 0x7AE8`
+  idiom and its 0x2D-word (0xB4-byte) stride, confirming the shared cluster
 
 ---
 
