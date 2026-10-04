@@ -965,6 +965,22 @@ extern Ovl28B9630Record D_800B9630[];
  * subtracted from a record's unk8 by ovl_28_func_800B8AA8. */
 extern s32 D_800B93B4;
 
+/* D_800B93AE/D_800B93B0/D_800B93B2 - ovl_28 halfword state cleared by
+ * ovl_28_func_800B8414. Absolute-addressed (the TU only declares them), so
+ * they are not defined here. */
+extern s16 D_800B93AE;
+extern s16 D_800B93B0;
+extern s16 D_800B93B2;
+
+/* D_800B93B8/D_800B93BC - ovl_28 word state set by ovl_28_func_800B8414
+ * (1 and 0 respectively). */
+extern s32 D_800B93B8;
+extern s32 D_800B93BC;
+
+/* D_800B9614 - ovl_28 callback slot installed by ovl_28_func_800B8414 with
+ * the address of ovl_28_func_800B8478. */
+extern void (*D_800B9614)(void);
+
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 

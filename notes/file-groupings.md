@@ -5982,6 +5982,32 @@ Members (link order):
 Only one member is matched; the rest are read off original asm, hence medium
 confidence.
 
+## `ovl_28` D_800B95F8 handler-pointer table run — 0x800B7F30 … 0x800B83C0 / 0x800B8414 / 0x800B8478 / 0x800B865C (confidence: medium)
+
+Evidence: the data word run at `D_800B95F8`
+(build/ovl_28/asm/data/154C.data.s) is one contiguous pointer table — slots
+0..6 (0x800B95F8..0x800B9613) are exactly the seven functions of the
+D_8006C838+0x4488 counter run (0x800B7F30, 0x800B7F80, 0x800B7FD4,
+0x800B8124, 0x800B8304, 0x800B8344, 0x800B83C0), and the next two words are
+the individually labelled slots `D_800B9614` (initialised to
+`ovl_28_func_800B8414` itself) and `D_800B9618` (`ovl_28_func_800B865C`).
+`ovl_28_func_800B8414` (matched this session, byte-exact) overwrites slot 7
+with `ovl_28_func_800B8478`, and also calls the record-table initialiser
+`ovl_28_func_800B895C` and writes `D_800B93B4` (read by
+`ovl_28_func_800B8AA8`), so the table, the counter run and the record-table
+run are one TU by link-order adjacency plus the shared `D_800B93B4`
+setup/consumer pair.
+
+Members (slot order):
+- ovl_28_func_800B7F30 / 800B7F80 / 800B7FD4 / 800B8124 / 800B8304 /
+  800B8344 / 800B83C0 — slots 0..6, the counter run above
+- ovl_28_func_800B8414 (m, matched this session, byte-exact) — slot 7 setup:
+  calls `ovl_28_func_800B895C`, resets the `D_800B93AE`/`B0`/`B2`/`B4`/`B8`/`BC`
+  state cluster (`D_800B93B4 = 0x800`), and installs `ovl_28_func_800B8478`
+  into slot `D_800B9614`
+- ovl_28_func_800B8478 (s) — slot 7 successor installed by 800B8414
+- ovl_28_func_800B865C (s) — slot 8 (`D_800B9618`)
+
 ## `ovl_28` code-segment-head dispatch cluster — 0x800B7E24 / 0x800B7E80 (confidence: medium)
 
 Evidence: the ovl_28 code-segment head `ovl_28_func_800B7E24` (0x800B7E24,
