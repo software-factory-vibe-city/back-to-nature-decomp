@@ -6310,14 +6310,23 @@ Members (link order):
   reads the 32-bit word at record offset 0x14 of three consecutive
   `D_800C0448` records starting at index `arg0*3` and returns how many equal
   1; membership rests on the shared global, not on adjacency.
+- ovl_21_func_800B9844 (m, matched this session, byte-exact) — leaf; outer
+  loop over six `D_800C0448` records (stride 0x108), inner loop bounded by
+  the halfword at `D_800C0448 + 0x64A` over a 0x4C sub-stride, reading a
+  32-bit word at record offset 0x34 and counting entries equal to 1;
+  near-twin of `ovl_21_func_800BA7F0` (same `sel/pos/step` fixed-point
+  counter idiom); membership rests on the shared global and idiom, not on
+  adjacency.
 
 Fingerprints:
 - shared global cluster: `D_800C0448` is the base of a record table of
   0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
-  above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`) and a
-  halfword at 0x18 (written by `ovl_21_func_800B9798`), three records per
-  0x318-byte group (`func_800B9A20` walks the table at a 0x318 stride). The
-  trio's declaration only witnessed the leading halfwords.
+  above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`), a
+  halfword at 0x18 (written by `ovl_21_func_800B9798`) and a 32-bit word at
+  0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844`),
+  three records per 0x318-byte group (`func_800B9A20` walks the table at a
+  0x318 stride). The trio's declaration only witnessed the leading
+  halfwords.
 
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 
