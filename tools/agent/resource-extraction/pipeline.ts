@@ -156,8 +156,12 @@ async function perform(store: Store, run: Run, job: Job, signal?: AbortSignal): 
       const parser = PARSERS.get(match.parser);
       const parsed = PARSERS.parse(parser.id, bytes, match.offset);
       if (parsed.length !== match.length || parser.format !== match.format) throw new Error("Probe cache failed parser replay");
+      // Resource metadata must replay on its isolated blob, not its container.
+      // Keep container-context observations in the probe report/cache instead.
+      const bounded = PARSERS.parse(parser.id, bytes.subarray(match.offset, match.offset + parsed.length), 0);
+      if (bounded.length !== parsed.length) throw new Error("Bounded resource extent failed parser replay");
       const witness = evidence(m, node.id, "validated", parser.id, `${parser.format} at byte ${match.offset}, ${match.length} bytes; structural constraints validated by ${parser.id} version ${parser.version}; compatibility is not historical naming evidence`);
-      const metadata = { ...parsed.metadata, parserId: parser.id, parserVersion: parser.version };
+      const metadata = { ...bounded.metadata, parserId: parser.id, parserVersion: parser.version };
       const resource = addSlice(store, run, node, match.offset, match.length, "resource", parser.format, metadata, witness);
       const alternative = m.nodes.find(n => n.id !== resource.id && n.source?.node === node.id && n.source.offset === match.offset && n.size === match.length && n.metadata.parserId && n.metadata.parserId !== parser.id);
       if (alternative) { alternative.stages.discovery = "ambiguous"; resource.stages.discovery = "ambiguous"; }

@@ -46,10 +46,12 @@ test("model-visible reports obey byte/line limits without losing their persisted
 function tim(): Buffer {
   const bytes = Buffer.alloc(22); bytes.writeUInt32LE(0x10); bytes.writeUInt32LE(2, 4); bytes.writeUInt32LE(14, 8); bytes.writeUInt16LE(1, 16); bytes.writeUInt16LE(1, 18); bytes.writeUInt16LE(0x1f, 20); return bytes;
 }
-function parserFixture(): Record<string, string> {
+function parserFixture(root: string): Record<string, string> {
   const base = "tools/agent/resource-extraction/";
+  const plugins = readFileSync(join(root, base, "parser-plugins.ts"), "utf8");
   return {
-    [base + "parser-plugins.ts"]: 'import type { AssetParser } from "./registry.ts";\nimport { FIXTURE } from "./parsers/fixture.ts";\nexport const EXTRA_PARSERS: AssetParser[] = [FIXTURE];\n',
+    // Add the fixture without removing plugins already copied into the project.
+    [base + "parser-plugins.ts"]: 'import { FIXTURE } from "./parsers/fixture.ts";\n' + plugins.replace("export const EXTRA_PARSERS: AssetParser[] = [", "export const EXTRA_PARSERS: AssetParser[] = [FIXTURE, "),
     [base + "parsers/fixture.ts"]: `import type { AssetParser } from "../registry.ts";
 /* Independent synthetic format: four-byte FTR1 magic, one length byte, payload. */
 export const FIXTURE: AssetParser = {
@@ -106,7 +108,7 @@ function host(root: string, mode: "normal" | "early" | "no-document" | "builder"
             await assert.rejects(permitted("bash", { command: "anything" }), /no shell/);
             await assert.rejects(permitted("write", { path: "src/anything.c" }), /writes only/);
             await assert.rejects(permitted("edit", { path: "../escape.ts" }), /escapes root/);
-            for (const [path, text] of Object.entries(parserFixture())) {
+            for (const [path, text] of Object.entries(parserFixture(root))) {
               await permitted("write", { path });
               mkdirSync(dirname(join(root, path)), { recursive: true }); writeFileSync(join(root, path), text);
             }
