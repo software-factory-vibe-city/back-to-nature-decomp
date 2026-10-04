@@ -184,13 +184,13 @@ Members:
 - ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
   trailing args `0x120` / `0xC8`.
 
-## `ovl_11` 0x38/0x3C state-switch run — 0x800C6E0C / 0x800C6E8C / 0x800C6F0C (confidence: medium)
+## `ovl_11` 0x38/0x3C state-switch run — 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C7270 (confidence: medium)
 
-Evidence: three functions in the same small 0x800C6E0C–0x800C6F6C link-order
+Evidence: four functions in the same small 0x800C6E0C–0x800C72F4 link-order
 run that read and write the same
-recovered field layout and end in the same call idiom. Both take an a0 view
-with `u16@+0x38` and `u16@+0x3C`, switch on `+0x3C`, store an s32 into an a1
-view's 4-byte union at `+0`, then call
+recovered field layout and end in the same call idiom. The three earlier ones
+take an a0 view with `u16@+0x38` and `u16@+0x3C`, switch on `+0x3C`, store an
+s32 into an a1 view's 4-byte union at `+0`, then call
 `func_80015840((u8*)arg0 + 0x260, arg1->unk0.unk0_b)`. The view typedefs
 recovered from the already-matched `ovl_11_func_800C6F0C` fit the new function
 unchanged, which is shared-type-cluster plus shared-idiom evidence.
@@ -205,6 +205,12 @@ Members:
   only.
 - ovl_11_func_800C6F0C (m) — switch on `+0x3C` over {2,4}: stores
   `+0x38 + 0xAC`, rewrites `+0x3C = 2` in the case-4 arm; same tail call.
+- ovl_11_func_800C7270 (m, matched this session) — stores `+0x3C = arg1`,
+  copies old `+0x3C` into `+0x3E`, sets bit 0x20000000 / clears bit 0x04000000
+  of `+0x6C`, then calls `func_80015840((u8*)arg0 + 0x260, arg2 & 0xFF)` and
+  conditionally `func_8001589C` on the same `+0x260` object; same `+0x38`/
+  `+0x3C` field pair and the same `+0x260` call base, with additional witnessed
+  fields `+0x1C` and `+0x265`.
 
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 

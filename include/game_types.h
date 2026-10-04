@@ -275,6 +275,20 @@ typedef struct {
 } Recon_ovl_11_func_800C6F0C_A1View;
 
 typedef struct {
+    char pad_0[0x1C];
+    /* 0x1C */ u16 unk1C;
+    char pad_1E[0x1A];
+    /* 0x38 */ u8 unk38;
+    char pad_39[0x3];
+    /* 0x3C */ u16 unk3C;
+    /* 0x3E */ u16 unk3E;
+    char pad_40[0x2C];
+    /* 0x6C */ s32 unk6C;
+    char pad_70[0x1F5];
+    /* 0x265 */ u8 unk265;
+} Recon_ovl_11_func_800C7270_A0View;
+
+typedef struct {
     char pad_0[0x1A];
     s16 unk1A;
     char pad_1C[0x50];
