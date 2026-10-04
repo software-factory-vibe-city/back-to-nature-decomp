@@ -850,8 +850,10 @@ exactly at 0x800C141C) → 0x800C141C.
   800C1280's byte-exact C is the 800C1224 template with the counter `u32` and
   the bound 18 (`arg0 == D_80122F0C[i].unk0 && arg1 == D_80122F0C[i].unk2`,
   `UnkStruct800C1280` {s16,s16,s16}), confirming the run's shared-TU family.
-- **third reader**: 800C141C (stub) loads `&D_80122F0C`
-  (`lui %hi`+`addiu %lo`) and passes it as a call argument.
+- **third reader**: 800C141C (matched this session) loads `&D_80122F0C`
+  (`lui %hi`+`addiu %lo`) as the base of an `lh` that reads entry field @4 of
+  the `D_80122F0C[ret-1]` record; the same `{s16,s16,s16}` stride-6 view as the
+  two leaves.
 
 Members (address order):
 - ovl_11_func_800C1224 (m, matched this session) — leaf lookup: returns
@@ -860,7 +862,9 @@ Members (address order):
 - ovl_11_func_800C1280 (m, matched this session) — twin leaf lookup over 18
   entries (`sltiu 0x12`), byte-exact
 - ovl_11_func_800C12DC (s) — no D_80122F0C reference; sits in the run
-- ovl_11_func_800C141C (s) — passes `&D_80122F0C` to a callee
+- ovl_11_func_800C141C (m, matched this session) — range-gated reader: calls
+  `ovl_11_func_800C1224` on the shared `+0x44BA/+0x44BC` s16 pair, then returns
+  field @4 of `D_80122F0C[ret-1]` when it is not -1
 
 ---
 
