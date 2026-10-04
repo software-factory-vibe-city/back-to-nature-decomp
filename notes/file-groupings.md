@@ -4317,6 +4317,11 @@ the overlay, never GP-relative), and the large-offset writers use the same
   flags; second matched reference to `D_80128A80` (after 0x800BFF00) and its
   0x80128xxx data-region sibling, and the zero-gap-adjacent neighbour sitting
   0x58 before 0x800BFF50 in link order
+- ovl_11_func_800BFE3C (m, matched this session) — writes the +0x8000
+  work-area s32 at +0x6768 via the cluster's two-stage split from the result
+  of `ovl_11_func_800C0010(1, &D_80128A80[idx * 3])`; third matched
+  `D_80128A80` reference and the zero-gap link-order predecessor (0x68) of
+  matched 0x800BFEA4
 - ovl_11_func_800D63C4 (m, matched this session) — dual-gauge clamp leaf:
   adds a sign-extended s8 arg to the u16 gauge at `D_80071A00`+0x14 (clamp
   0..0xFF, mirrored to +0x12) and a second s8 arg to the u16 gauge at +0x16
