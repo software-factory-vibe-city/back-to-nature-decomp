@@ -6326,3 +6326,25 @@ Members (link order):
   `(u16)(work[+0x64C8] + 0x12)`.
 - ovl_11_func_800BFD04 (m) — paired writer: stores its s16 argument into the
   same work halfword at `+0x64C8`.
+
+---
+
+## `ovl_17` D_8006C838+0x8000 work-area 0x1D4-stride record pair — 0x800BB394 / 0x800BB3F4 (confidence: medium)
+
+Evidence: zero-gap link-order adjacency plus a shared D_8006C838 large-offset
+fingerprint. `ovl_17_func_800BB394` (0x60, ends exactly 0x800BB3F4) →
+`ovl_17_func_800BB3F4` (0x60). Both sign-extend an s16 arg0, scale it by
+0x1D4 (`sll`/`subu` plus two `sll`+`addu` steps), add `(char *)&D_8006C838`,
+form the work-area base with the `ori 0x8000` + `addu` split (0x8000 cannot
+fold into an `addiu` displacement), and address one u16 halfword at
+base+0x19EA (800BB394) / +0x19EC (800BB3F4) in the same
+read/compare/increment-or-cap leaf shape with the store in the `jr $ra` delay
+slot. The stride and offset match the cross-container idiom twins
+`ovl_11_func_8011FF0C` / `ovl_11_func_8011FEA0`; that cross-container relation
+is not by itself membership evidence, but the same-container adjacency and
+shared work-area fingerprint here are.
+Members (link order):
+- ovl_17_func_800BB394 (m, matched this session, byte-exact) — leaf: if the s16
+  at +0x19EA is < 0xEB then add 0x14 (via an unsigned reload) else store 0xFF.
+- ovl_17_func_800BB3F4 (s) — idiom twin, unmatched: `lhu` at +0x19EC, if
+  0xFE0A < value store -1 else add 0x1F4.
