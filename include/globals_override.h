@@ -1190,5 +1190,14 @@ extern u8 D_800BF700[];
  * lui/addiu addressing. */
 extern u8 D_800C0454[];
 
+/* D_801227F8 - ovl_11 pair table indexed by an s32 argument in
+ * ovl_11_func_800BD1BC; entries are {start, end} s32 pairs. Defined in the
+ * overlay data segment, so only an extern declaration belongs here. */
+extern s32 D_801227F8[];
+
+/* D_8007F7F8 - main-RAM destination buffer written by ovl_11_func_800BD1BC's
+ * memcpy. Address comes from undefined_syms_auto.txt. */
+extern s32 D_8007F7F8;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

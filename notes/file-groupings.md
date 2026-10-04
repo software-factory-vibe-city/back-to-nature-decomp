@@ -6725,9 +6725,11 @@ link-order adjacency plus a shared CD-load call idiom, not a shared private
 data cluster (the two members index different main-RAM tables).
 
 Fingerprints:
-- zero-gap link-order contiguity (map): `ovl_11_func_800BD374` (0x50, ends
-  0x800BD3C4) → `ovl_11_func_800BD3C4` (0xC4, ends 0x800BD488), each starting
-  exactly where the previous ends;
+- zero-gap link-order contiguity (map): `ovl_11_func_800BD1BC` (0x7C, ends
+  0x800BD238) → `ovl_11_func_800BD238` → `ovl_11_func_800BD358` →
+  `ovl_11_func_800BD368` → `ovl_11_func_800BD374` (0x50, ends 0x800BD3C4) →
+  `ovl_11_func_800BD3C4` (0xC4, ends 0x800BD488), each starting exactly where
+  the previous ends (the run extends back through 0x800BD1BC);
 - identical `func_80014BCC`/`func_80014CBC` wrapper shape: both select a
   stride-0x10 record from an absolute main-RAM table (`lw a1,0(v1)`,
   `lw a2,4(v1)`, `subu a2,a2,a1`) and pass that word difference as the third
@@ -6744,6 +6746,12 @@ Fingerprints:
   private data cluster, not merely a shared idiom.
 
 Members (link order):
+- ovl_11_func_800BD1BC (m, matched this session, byte-exact) — same
+  record-difference CD-load wrapper shape as 800BD374/800BD3C4 over the
+  `D_801227F8` pair table: `func_80014BCC(0, p[0], p[1]-p[0], 0,
+  D_8005E3B0 + 0x4290)` then `memcpy(&D_8007F7F8, D_8005E3B0 + 0x4290,
+  p[1]-p[0])`, re-confirming the `D_8005E3B0 + 0x4290` shared cluster and
+  extending the run's gapless link-order span back to 0x800BD1BC.
 - ovl_11_func_800BD374 (m, matched this session, byte-exact) — s32 wrapper:
   indexes the `D_801217A8` stride-0x10 table by arg0 and calls
   `func_80014CBC(0, record[0], record[1]-record[0], (u8 *)D_8007AFF0, 1, arg1)`,
