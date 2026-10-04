@@ -7060,6 +7060,12 @@ Fingerprints:
   `ovl_11_func_80100194` (selected over `ovl_11_func_80103714` by
   `(s16)func_800225B8() == 1`), extending the template below the run's case
   range;
+- `ovl_11_func_80100194` (0x80100194) extends the template at case 0x3B7:
+  `func_8002261C(3, 0x3B7)` + `func_800226A4()` stored in a register that stays
+  live across `func_800225B8()` + three-way `(s16)func_800225B8()` selection
+  storing `ovl_11_func_8010021C` (==1), `ovl_11_func_80100FFC` (==2), else
+  `ovl_11_func_80103714` into `D_801273DC` — it is a handler entry point (stored
+  by `ovl_11_func_80100128`) that itself re-installs one of three handlers;
 - a second such remote member, `ovl_11_func_801022E8` (0x801022E8), carries the
   `func_8002261C(3, case)` + `func_800226A4() == 2` template at case 0x3BF —
   a third distinct case value after 0x3B6 and the 0x3C0–0x3C4 series — and is
@@ -7071,6 +7077,9 @@ Members (address order):
 - ovl_11_func_80100128 (m, matched this session) — remote case 0x3B6 handler;
   no `func_80013394()` guard; stores `ovl_11_func_80100194` when
   `(s16)func_800225B8() == 1`, else `ovl_11_func_80103714`
+- ovl_11_func_80100194 (m, matched this session) — case 0x3B7 handler;
+  three-way `(s16)func_800225B8()` dispatch storing `ovl_11_func_8010021C`,
+  `ovl_11_func_80100FFC`, or `ovl_11_func_80103714` into `D_801273DC`
 - ovl_11_func_801022E8 (m, matched this session) — remote case 0x3BF handler;
   `(s16)func_800225B8() == 1` arm calls `func_800132F0(0xA, 0, 2)` then stores
   `D_801273DC = ovl_11_func_8010289C`, else arm stores `D_801273E4 = 3`
