@@ -6136,6 +6136,32 @@ Members (link order):
   then returns `result < D_800BCCA0[5*(field-1) + arg1] ^ 1`
 - ovl_25_func_800B97E4 (s) — unclassified
 
+## `ovl_25` fixed-point threshold-lookup run — 0x800B9A10–0x800B9A84 (confidence: low)
+
+Evidence is gapless link adjacency plus a shared overlay-local s16 data region;
+the two members reference different symbols, so this ties the data region and
+the code idiom, not a symbol.
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800B9A10` (0x74, ends 0x800B9A84) sits
+  immediately before `ovl_25_func_800B9A84` (0x7C, ends 0x800B9B00), and the run
+  is entered directly by `ovl_25_func_800B97E4` (ends 0x800B9A10);
+- shared overlay-local s16 data region: `ovl_25_func_800B9A10` reads the
+  contiguous halfwords `D_800BCC98`/`D_800BCC9A`/`D_800BCC9C`/`D_800BCC9E`,
+  and `ovl_25_func_800B9A84` reads `D_800BCC90`/`D_800BCC92`/`D_800BCC94`/
+  `D_800BCC96` — one halfword run `D_800BCC90`..0x800BCC9E abutting the
+  `D_800BCCA0` table of the s16-struct predicate run above;
+- shared code idiom: both start with `bgez`/`addiu 0xFFF`/`sll`/`sra 16` and
+  select by the same threshold cascade (0x28, 0x1E, 0x14), 9A10 returning on
+  `>= 0x14` and 9A84 adding a `>= 0xA` case.
+
+Members (link order):
+- ovl_25_func_800B9A10 (m, matched this session, byte-exact) — leaf fixed-point
+  convert `x = (arg0 << 4) >> 16`, then returns
+  `D_800BCC98`/`9A`/`9C`/`9E` by `x >= 0x28`/`0x1E`/`0x14`
+- ovl_25_func_800B9A84 (s) — same convert, one extra `>= 0xA` case; returns
+  `D_800BCC90`/`92`/`94`/`96` or 0
+
 ## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 / 0x800B83C0 (confidence: medium)
 
 Evidence: one gapless link-order run (0x800B7F30 +0x50 -> 0x800B7F80
