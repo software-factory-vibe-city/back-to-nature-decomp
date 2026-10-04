@@ -5281,6 +5281,32 @@ Members:
 - ovl_11_func_800D93C8 (s) — link successor and sole caller; consumes the
   written pair.
 
+## `ovl_11` D_8007AFF0 +0x253AC halfword-state consumer/writer run — 0x800DB78C / 0x800DB7F0 / 0x800DB978 (confidence: medium)
+
+Evidence: gapless link adjacency closing a contiguous small-function run
+(`splat` offsets: 0x2396C = 0x800DB78C is 0x64 and ends exactly at 0x800DB7F0;
+0x800DB7F0 is 0x34 and ends exactly at 0x800DB824; 0x800DB904 is 0x74 and ends
+exactly at 0x800DB978) plus a shared far-buffer global cluster — all three
+build the same single-`lui`+`addu` `D_8007AFF0+0x20000` far base and touch the
++0x253AC/+0x253AE/+0x253B0/+0x253B4/+0x253B6/+0x253B8 halfword state block.
+The run is the `ovl_11` counterpart of the `ovl_21` writer+consumer run
+(800BB0F8 / 800BB250) recorded above: `ovl_11_func_800DB7F0` is a near-twin of
+`ovl_21_func_800BB0F8` and `ovl_11_func_800DB78C` is a byte-identical source
+twin of `ovl_21_func_800BB250` (same forwarding to `func_8001B9F8`/`func_8001BA40`,
+same six-halfword read set). Cross-overlay twin relations are not membership
+evidence; here the run's own membership rests on the adjacency + shared cluster.
+
+Members (link order):
+- ovl_11_func_800DB78C (m, matched this session, byte-exact) — reads the
+  +0x253AC/+0x253AE/+0x253B0/+0x253B4/+0x253B6/+0x253B8 halfwords via the far
+  base and forwards them to `func_8001B9F8` (sum-of-pairs, 4 args) and
+  `func_8001BA40` (3 args); byte-identical source twin of `ovl_21_func_800BB250`.
+- ovl_11_func_800DB7F0 (m) — gapless link successor; near-twin of
+  `ovl_21_func_800BB0F8`/`ovl_19_func_800BB318` reset leaf (same far base, same
+  +0x25394..+0x253A4 s32 block).
+- ovl_11_func_800DB978 (m) — later member of the same run; zeroes exactly the
+  six +0x253AC..+0x253B8 halfwords through the same far base.
+
 ## `ovl_11` index/5 table-copy record trio — 0x800D29B0 / 0x80110CE8 / 0x80110E34 (confidence: low)
 
 Shared-idiom cluster, not a same-TU claim: `ovl_11_func_800D29B0` (matched,
