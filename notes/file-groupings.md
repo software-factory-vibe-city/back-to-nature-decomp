@@ -5449,6 +5449,22 @@ three call `func_80015840(ObjectState *, s8)`.
   work[0x231], 0, 0)`; link-adjacent to 800BAEF0/800BAFAC, same
   func_80015840 callee.
 
+## `ovl_17` Rand(100) percentage-roll wrapper trio + predicate — 0x800B9DB8–0x800B9E34 (confidence: medium)
+
+Evidence: call graph and link order agree. `ovl_17_func_800B9DB8`,
+`ovl_17_func_800B9DE0`, `ovl_17_func_800B9E0C` and `ovl_17_func_800B9E34`
+form one gapless link-order run (9DB8 + 0x28 = 9DE0, + 0x2C = 9E0C,
++ 0x28 = 9E34), and each of the three wrappers is a direct caller of the
+predicate. The predicate is the run's only caller of the exe `Rand`
+(func_80012A34) and passes it 0x64.
+
+Members (link order):
+- ovl_17_func_800B9DB8 (m) — s16 wrapper: `ovl_17_func_800B9E34(arg0 + 1)`.
+- ovl_17_func_800B9DE0 (m) — s16 wrapper: `ovl_17_func_800B9E34(0x7F - arg0)`.
+- ovl_17_func_800B9E0C (m) — s16 wrapper: `ovl_17_func_800B9E34(arg0 + 1)`.
+- ovl_17_func_800B9E34 (m, 2026-10-03) — leaf percentage predicate:
+  `func_80012A34(0x64) < (u16)((arg0 * 100) / 127)`.
+
 ## `ovl_17` D_800BB524 display-setup state-handler run — 0x800B9FA8–0x800BA54C (confidence: medium)
 
 Evidence: the dispatcher `ovl_17_func_800B7E78` (s) selects on the state byte
