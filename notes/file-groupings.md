@@ -4503,6 +4503,23 @@ the overlay, never GP-relative), and the large-offset writers use the same
   +0x44CA → +0x51F4 copy pair as ovl_11_func_800CD624's sub-base form
   (`&D_80071A00` - 0x51C8), tying `D_80070D02` to +0x44CA and `D_80071A2C`
   (map name `D_80071A22`+0xA) to +0x51F4
+## `ovl_11` 0x800E6AB0–0x800E6D2C var/return state run (confidence: low)
+
+Zero-gap link-order run of five ovl_11 functions sitting between the
++0x5234/+0x51FE flag-byte accessor band and the D_8006C838 accessor band. Two
+members share the same register-variable return idiom — `s32 var = 0;` then an
+if/else-if chain, then `return var;` — and each sign-extends a small-integer
+argument. The link-preceding 0x800E6B18's sole callee is the run's own
+0x800E6CAC, so call graph and link order agree on the run. Member roles:
+- ovl_11_func_800E6AB0 (m) — CD-music guard: returns 1 early on `D_8006C904`,
+  else `func_80021B90(arg0)` or `func_80021B64()` sets `var_s0`.
+- ovl_11_func_800E6B18 (s) — caller of 0x800E6CAC.
+- ovl_11_func_800E6BDC (s) — unmatched link gap.
+- ovl_11_func_800E6CAC (m, matched this session) — state toggle: `arg1 == 0`
+  → `func_8001FE34(arg0 ? arg0 : 10)`; else `func_8001FE6C() == 0 || arg1 == 2`
+  → `func_8001FBBC(0)` and return 1; otherwise return 0.
+- ovl_11_func_800E6D2C (s) — D_8006C838 accessor-band caller.
+
 ## `ovl_11` D_8006C838 +0x7A78 halfword-record table — 0x800DBB94 / 0x800DBF60 / 0x800DBE9C (confidence: low)
 
 Scans and a shift over the same main-binary 5-entry record table — absolute
