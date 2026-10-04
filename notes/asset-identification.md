@@ -1345,3 +1345,78 @@ Backing artifacts (not committed):
 - Candidate interpretation: The selected asset is a TIM image parsed by tim-v1 version 1 from input-d0eff97af8780c30caf6a5d7 at file-byte offset 1152, length 192 bytes, with stages discovery and extraction validated. [evidence-dfc00279e80be3ca93c3a2af]
 - Candidate interpretation: The TIM is mode 0 (4 bpp with CLUT): 16x16 pixels, 64 pixels total, 8 row bytes, 4 pixel words, with one palette bank of 16 colors at offset 20 within the image, positioned at (320, 1). [evidence-dfc00279e80be3ca93c3a2af]
 - Candidate interpretation: Structural validation by tim-v1 establishes format compatibility only; it is not evidence of the asset's historical filename, in-game name, or consumer association. [evidence-dfc00279e80be3ca93c3a2af]
+
+<!-- resource-asset:node-7a8c5002d34aabcb589ec52c -->
+## node-7a8c5002d34aabcb589ec52c — TIM
+
+- Parser: tim-v1 v1.
+- Raw SHA-256: 077e83a23ba876f8388065c0bdfbe750818046c82826472b4566fecc8df9cd42; 192 bytes.
+- Verified manifest: 8ba288759b27f2894606441e5eae928b1d718a381930e896457756d62d357436.
+- Stages: {"decoding":"validated","discovery":"validated","export":"validated","extraction":"validated"}.
+- Evidence: evidence-de61de6615b3fdf34c9484f6. Structural compatibility is not historical naming evidence.
+
+### Source and extraction
+
+```json
+[
+  {
+    "node": "node-7a8c5002d34aabcb589ec52c",
+    "blob": "blobs/077e83a23ba876f8388065c0bdfbe750818046c82826472b4566fecc8df9cd42",
+    "size": 192,
+    "source": {
+      "coordinate": "file-byte",
+      "length": 192,
+      "node": "input-d0eff97af8780c30caf6a5d7",
+      "offset": 1344
+    }
+  },
+  {
+    "node": "input-d0eff97af8780c30caf6a5d7",
+    "blob": "blobs/688ddcdc75fc71f451cb6db1e1b9a7638a4e9caf1d4105cde78d94208f7630cb",
+    "size": 4096,
+    "input": {
+      "blob": "blobs/688ddcdc75fc71f451cb6db1e1b9a7638a4e9caf1d4105cde78d94208f7630cb",
+      "hash": "688ddcdc75fc71f451cb6db1e1b9a7638a4e9caf1d4105cde78d94208f7630cb",
+      "id": "input-d0eff97af8780c30caf6a5d7",
+      "path": "extracted/overlays/ovl_16.bin",
+      "size": 4096
+    }
+  }
+]
+```
+
+Recreate a run from the original scope, using the registered parser:
+
+```sh
+npx tsx tools/agent/resourceCampaign.ts --input 'extracted' --limits '{"maxAssets":2000,"maxFileBytes":268435456,"maxFiles":4096,"maxFunctions":128,"maxInputBytes":536870912,"maxInstructions":4096,"maxOutputBytes":268435456}'
+
+```
+
+The documented resource ID and source hashes identify the result independently
+of a generated run directory. Replace RUN with the new campaign's run ID.
+Required schemas (if nonempty, save this JSON to the --schemas path above):
+
+```json
+[]
+```
+
+For transformed views, the commands and code-origin hashes above reproduce the
+recorded parameters. Input association is conditional, not an inferred game call.
+
+Browsable files (not committed):
+- `build/assets/images/node-7a8c5002d34aabcb589ec52c/original.tim`: extraction, SHA-256 077e83a23ba876f8388065c0bdfbe750818046c82826472b4566fecc8df9cd42
+- `build/assets/images/node-7a8c5002d34aabcb589ec52c/bank-0.rgba`: decoding, SHA-256 9d362badabfda3d0c73899e696d9bb5b7ed8df4cab5fed9c0bb8e2fd7226f4cd
+- `build/assets/images/node-7a8c5002d34aabcb589ec52c/bank-0.stp`: decoding, SHA-256 0236a5659a4e4a464fd4f64621b4749aab205b103b55fc8b3bb798965b7b17a6
+- `build/assets/images/node-7a8c5002d34aabcb589ec52c/bank-0.ppm`: export, SHA-256 6a33699a6f89d92b469d3a3048e0ba549481ad2179a29ff56b1e3c934b6676fc
+
+Backing artifacts (not committed):
+- `build/assets/blobs/077e83a23ba876f8388065c0bdfbe750818046c82826472b4566fecc8df9cd42`: slice-v1, {"basis":"validated-parser","source":{"coordinate":"file-byte","length":192,"node":"input-d0eff97af8780c30caf6a5d7","offset":1344}}, SHA-256 077e83a23ba876f8388065c0bdfbe750818046c82826472b4566fecc8df9cd42
+- `build/assets/blobs/9d362badabfda3d0c73899e696d9bb5b7ed8df4cab5fed9c0bb8e2fd7226f4cd`: tim-v1, {"bank":0,"height":16,"kind":"rgba","mode":0,"paletteBank":0,"ppmLoss":"PPM discards transparency and STP; RGBA and STP blobs are authoritative","rgbaConvention":"zero color is transparent; STP stored separately, not approximated by alpha","rowPaddingBytes":0,"variant":{"bank":0},"width":16}, SHA-256 9d362badabfda3d0c73899e696d9bb5b7ed8df4cab5fed9c0bb8e2fd7226f4cd
+- `build/assets/blobs/0236a5659a4e4a464fd4f64621b4749aab205b103b55fc8b3bb798965b7b17a6`: tim-v1, {"bank":0,"height":16,"kind":"stp","mode":0,"paletteBank":0,"ppmLoss":"PPM discards transparency and STP; RGBA and STP blobs are authoritative","rgbaConvention":"zero color is transparent; STP stored separately, not approximated by alpha","rowPaddingBytes":0,"variant":{"bank":0},"width":16}, SHA-256 0236a5659a4e4a464fd4f64621b4749aab205b103b55fc8b3bb798965b7b17a6
+- `build/assets/runs/538f241dded91efe-68e318a9943ec948/exports/artifact-873f3fcd9e8fdcee76c87f18.ppm`: tim-v1, {"bank":0,"height":16,"kind":"ppm","mode":0,"paletteBank":0,"ppmLoss":"PPM discards transparency and STP; RGBA and STP blobs are authoritative","rgbaConvention":"zero color is transparent; STP stored separately, not approximated by alpha","rowPaddingBytes":0,"variant":{"bank":0},"width":16}, SHA-256 6a33699a6f89d92b469d3a3048e0ba549481ad2179a29ff56b1e3c934b6676fc
+
+### Qualified observations
+
+- Candidate interpretation: The selected asset is a TIM image parsed by tim-v1 version 1 from input-d0eff97af8780c30caf6a5d7 at file-byte offset 1344, length 192 bytes, with stages discovery and extraction validated. [evidence-de61de6615b3fdf34c9484f6]
+- Candidate interpretation: The TIM is mode 0 (4 bpp with CLUT): 16x16 pixels, 64 pixels total, 8 row bytes, 4 pixel words, with one palette bank of 16 colors at offset 20 within the image, positioned at (324, 1). [evidence-de61de6615b3fdf34c9484f6]
+- Candidate interpretation: Structural validation by tim-v1 establishes format compatibility only; it is not evidence of the asset's historical filename, in-game name, or consumer association. [evidence-de61de6615b3fdf34c9484f6]
