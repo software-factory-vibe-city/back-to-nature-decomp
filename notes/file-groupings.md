@@ -6344,6 +6344,12 @@ Members (link order):
   `ovl_15_func_8012F0E8`/`ovl_15_func_80130848` (same updater array and
   immediate), contiguous in link order after `ovl_15_func_80131778` and before
   `ovl_15_func_80131BCC` (0x70 bytes)
+- ovl_15_func_80131A34 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_800532FE` updater array; then `ret =
+  ovl_15_func_80137228(8, 0)`, `D_80137584 = ret` (s8; the value is returned),
+  and `D_80137584 = 0` when `D_8013759A >= 0x5B` — exact body duplicate of
+  `ovl_15_func_80130A94` (same updater array and immediate), sitting in link
+  order between `ovl_15_func_801317E8` and `ovl_15_func_80131BCC` (0x70 bytes)
 - ovl_15_func_80131BCC (m, matched this session, byte-exact) — exact body
   duplicate of `ovl_15_func_80130C2C`: same text-draw prologue, then
   `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and `D_80137584 = 12`
