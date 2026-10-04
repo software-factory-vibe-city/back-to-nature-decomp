@@ -7083,7 +7083,7 @@ Members (link order):
   reads the pointer back; calls `memset`; role otherwise unknown.
 - ovl_15_func_80135380 (s) — sets `D_801376D0 = D_80137AB0` and is the
   heaviest reader/writer of the pointer; role unknown.
-- ovl_15_func_801359FC (s) — mirrored sibling: writes the pointer, then 201×
+- ovl_15_func_801359FC (m, matched this session, byte-exact) — mirrored sibling: writes the pointer, then 201×
   `memmove(p + 0x80, p + 0x7F, size)` with `size` decreasing by 0x80; afterwards
   `func_80012A34(0x100)` and `D_80137830[0x7FFE] = (u8)result`.
 - ovl_15_func_80135A78 (m, matched this session, byte-exact) — writes the
