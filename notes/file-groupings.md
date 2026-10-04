@@ -6331,6 +6331,12 @@ Members (link order):
   `D_80137584 = ovl_15_func_80137228(2, 0x1F)` and `D_80137588 = 1` (void;
   `$v0`=1 is the store value, not a returned one — same body as
   `ovl_15_func_8012EE84` with only the immediate `0x16`→`0x1F` changed)
+- ovl_15_func_80131778 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_8005306A` updater array; then `ret =
+  ovl_15_func_80137228(5, 0)`, `D_80137584 = ret` (s8; the value is returned),
+  and `D_80137584 = 0` when `D_8013759A >= 0x5B` — exact body duplicate of
+  `ovl_15_func_8012F078` (same updater array and immediate), sitting in link
+  order between `ovl_15_func_801315B0` and `ovl_15_func_80131BCC` (0x70 bytes)
 - ovl_15_func_80131BCC (m, matched this session, byte-exact) — exact body
   duplicate of `ovl_15_func_80130C2C`: same text-draw prologue, then
   `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and `D_80137584 = 12`
