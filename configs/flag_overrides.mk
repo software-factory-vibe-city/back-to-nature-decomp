@@ -322,3 +322,36 @@ CC1FLAGS_ovl_21_func_800B98CC := -fno-schedule-insns
 # of their expand-time position; the target keeps them there). Needs the
 # matching sourcePolicy.allowlist entry for ovl_11_func_8011F574.
 CC1FLAGS_ovl_11_func_8011F574 := -fno-schedule-insns
+
+# ovl_17_func_800B9158: -fno-cse-skip-blocks.
+#
+# Target fingerprint (proved unreachable from clean C at baseline, no source
+# needed): block 1 computes the record address as `addu v0,a2,v0` (base first)
+# while block 2 computes the same address as `addu v1,v1,a2` (index first).
+# Every baseline source shape tried for block 1 (direct `base + idx*8`, index-
+# first, `<<3`, integer-cast, struct/array indexing, pointer local, scaled-offset
+# local, s16/s32/u32 offset) compiles to the SAME object, and the
+# experimentLedger records one identical outputHash for all of them: CSE's
+# fold_rtx canonicalises the plus to index-first whenever the base's constant
+# equivalent is known, so the target's base-first order is not a spelling.
+#
+# Flag column: on the scaled-offset source shape (offset variable shifted in
+# place, so CSE sees a plain register), -fno-cse-skip-blocks scores 24/24
+# against the target while baseline scores 23/24 and every other matrix row
+# scores <= 23 (psx_flag_probe matrix, two sources). diffFunc with the override
+# reports VERDICT: MATCH, 24/24 byte-identical words.
+#
+# Mechanism: the guard `if (count >= 0x5A) count = 0;` is a branch around a
+# one-statement block. With -fcse-skip-blocks (default) cse.c
+# cse_end_of_basic_block follows that branch and carries the base address's
+# constant equivalence across it, which is what forces the index-first
+# canonicalisation; -fno-cse-skip-blocks keeps the base's state local to the
+# join and the target's base-first `addu` appears. The same flag is already a
+# project precedent (func_80014494, ovl_11_func_80103B24).
+#
+# No contrary regional witness: this is its own TU (single function per src
+# file), so the override cannot disturb the matched ovl_17 neighbours (800B9F10,
+# 800B9F44, 800B9CAC, 800BAEF0) — none is in this translation unit.
+#
+# Needs the matching sourcePolicy.allowlist entry for ovl_17_func_800B9158.
+CC1FLAGS_ovl_17_func_800B9158 := -fno-cse-skip-blocks
