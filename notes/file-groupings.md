@@ -6293,8 +6293,9 @@ Members (link order):
 - ovl_25_func_800B9A10 (m, matched this session, byte-exact) — leaf fixed-point
   convert `x = (arg0 << 4) >> 16`, then returns
   `D_800BCC98`/`9A`/`9C`/`9E` by `x >= 0x28`/`0x1E`/`0x14`
-- ovl_25_func_800B9A84 (s) — same convert, one extra `>= 0xA` case; returns
-  `D_800BCC90`/`92`/`94`/`96` or 0
+- ovl_25_func_800B9A84 (m, matched this session, byte-exact) — same convert, one
+  extra `>= 0xA` case; returns `D_800BCC90`/`92`/`94` by `x >= 0x28`/`0x1E`/`0x14`,
+  `D_800BCC96` by `x >= 0xA`, else 0
 
 ## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 / 0x800B83C0 (confidence: medium)
 
