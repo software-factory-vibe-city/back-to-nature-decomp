@@ -6214,8 +6214,8 @@ D_8005E3C0->field_D8 + 0x14, D_80054BBC[0] + (s32)<updater array>)` — a
 `build/ovl_15/undefined_syms_auto.txt`) plus the s32 value `D_80054BBC[0]`,
 reading `D_8005E3C0->field_D8` (0xD8) once. The updater array is not one symbol:
 seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
-`ovl_15_func_8012F078` uses `D_8005306A`, and `ovl_15_func_8012F0E8` uses `D_800530C8`, and `ovl_15_func_8012F86C` uses
-`D_800531B8`; none is referenced by any function
+`ovl_15_func_8012F078` uses `D_8005306A`, and `ovl_15_func_8012F0E8` uses `D_800530C8`, `ovl_15_func_8012F86C` uses
+`D_800531B8`, and `ovl_15_func_8012F990` uses `D_80053506`; none is referenced by any function
 outside the run, so the tie is the shared-global/idiom cluster, not a single
 symbol or adjacency (the run is not gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
 `func_80131ED8` are interleaved with non-members).
@@ -6242,6 +6242,12 @@ Members (link order):
   `ovl_15_func_8012F078`/`ovl_15_func_8012F0E8` with only the updater array and
   the immediate changed, and contiguous in link order after
   `ovl_15_func_8012F0E8` (both 0x70 bytes)
+- ovl_15_func_8012F990 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80053506` updater array; then `ret =
+  ovl_15_func_80137228(0x10, 0)`, `D_80137584 = ret` (s8; the value is
+  returned), and `D_80137584 = 0` when `D_8013759A >= 0x5B` — same body as
+  `ovl_15_func_8012F078`/`ovl_15_func_8012F0E8`/`ovl_15_func_8012F86C` with only
+  the updater array and the immediate changed
 - ovl_15_func_801305D4 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x11)` and `D_80137588 = 1`
