@@ -6348,3 +6348,11 @@ Members (link order):
   at +0x19EA is < 0xEB then add 0x14 (via an unsigned reload) else store 0xFF.
 - ovl_17_func_800BB3F4 (s) — idiom twin, unmatched: `lhu` at +0x19EC, if
   0xFE0A < value store -1 else add 0x1F4.
+
+Cross-container note: `ovl_19_func_800BBD14` (m, matched this session,
+byte-exact) is a byte-identical shape twin of `ovl_17_func_800BB394` — same
+s16 sign-extend, same 0x1D4 stride, same `(char *)&D_8006C838` + `ori 0x8000`
+work-area split, same +0x19EA halfword, same `< 0xEB then +0x14 else 0xFF`
+leaf with the store in the `jr $ra` delay slot. That twin relation is not
+TU-membership evidence for either container; only the ovl_17 same-container
+link adjacency above is.

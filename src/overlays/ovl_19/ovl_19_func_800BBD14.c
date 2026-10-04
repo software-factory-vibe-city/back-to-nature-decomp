@@ -1,3 +1,14 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_19/asm/nonmatchings/ovl_19_func_800BBD14", ovl_19_func_800BBD14);
+void ovl_19_func_800BBD14(s16 arg0) {
+    char *base;
+    char *p;
+
+    base = (char *)&D_8006C838;
+    p = base + arg0 * 0x1D4;
+    if (*(s16 *)(p + 0x8000 + 0x19EA) < 0xEB) {
+        *(s16 *)(p + 0x8000 + 0x19EA) = (s16)(0x14 + *(u16 *)(p + 0x8000 + 0x19EA));
+    } else {
+        *(s16 *)(p + 0x8000 + 0x19EA) = 0xFF;
+    }
+}
