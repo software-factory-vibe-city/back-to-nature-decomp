@@ -6205,7 +6205,7 @@ Members (link order):
 - ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
   `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
 
-## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012EE84–0x80131ED8 (confidence: medium)
+## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012EE84–0x801328C4 (confidence: medium)
 
 Evidence: a link-order run of ten functions that all open with the same
 text-draw call idiom: `func_8001AC10(D_8005E3C0->field_D8 + 0x18,
@@ -6387,6 +6387,14 @@ Members (link order):
   contiguous in link order after `ovl_15_func_80131DF8` and immediately before
   `func_80131ED8` (0x70 bytes)
 - func_80131ED8 (s) — shared prologue; also `sb` to `D_80137584`
+- ovl_15_func_801328C4 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80053506` updater array (shared with
+  `ovl_15_func_8012F990`); then `ret = ovl_15_func_80137228(0x1C, 0)`,
+  `D_80137584 = ret` (s8; the value is returned), and `D_80137584 = 0` when
+  `D_8013759A >= 0x5B` — same body as `ovl_15_func_8012F990` with only the
+  immediate `0x10`→`0x1C` changed; sits beyond the interleaved non-members
+  `ovl_15_func_80131C2C`/`ovl_15_func_80131CDC`/`ovl_15_func_80131D88`/
+  `ovl_15_func_80131DF8`/`ovl_15_func_80131E68`/`func_80131ED8` (0x70 bytes)
 
 ## `ovl_25` leaf run — 0x800BB970–0x800BBA7C (confidence: medium)
 
