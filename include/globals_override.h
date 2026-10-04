@@ -1164,5 +1164,11 @@ typedef struct {
 } Ovl11ItemEntry; /* 0x18 */
 extern Ovl11ItemEntry D_80123758[];
 
+/* D_80128818 - ovl_11 FuncC0D4Args descriptor whose address
+ * ovl_11_func_800DB904 hands to func_8001C0D4. Only its address is taken, so
+ * an opaque byte object is enough; the overlay build is -G0, giving absolute
+ * lui/addiu addressing. */
+extern u8 D_80128818[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 
