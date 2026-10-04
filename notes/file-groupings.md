@@ -1870,6 +1870,12 @@ Members (address order):
   endpoints), called so the state machine can read the entry s16@0 — same
   direct-callee family as state-machine callees 0x800FB0C4/0x800FB120/0x800FB510,
   call-edge evidence for same-TU, address-apart so unproven (low)
+- ovl_11_func_800FB0C4 (m, matched this session) — state-machine direct callee
+  at 0x800FB0C4: queues `func_8002261C(3, ...)` (0x3E8-biased via
+  `ovl_11_func_800D60D4` when the entry s16@0 is 0xA4), then on
+  `func_800226A4() == 2` writes the cluster head `D_80126FE0 = 1` and calls
+  `func_80022738`; shares the D_80126FE0 write + func_8002261C/226A4 guard
+  idiom with 0x800FAAD4 and 0x801014A4 (shared-global + idiom evidence)
 
 ---
 
