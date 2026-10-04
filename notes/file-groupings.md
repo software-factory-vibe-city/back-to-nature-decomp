@@ -1757,6 +1757,16 @@ resets `D_800719FE` to 0 (via its `&D_8006C838` base, +0x51C6) and sits in
 the gapless link run 0x80111D94–0x80111F10 with `ovl_11_func_80111EE0`
 (see the D_80070D10 reset-run entry below).
 
+Widening (byte-exact match of `ovl_11_func_800FDFF4`, 2026-11): the run's
+gapless successor at 0x800FDFF4 (`ovl_11_func_800FDFD8` + 0x1C) is matched
+and repeats the cluster's signature lookup shape — clamp arg0 to <5 else 4,
+then index a `.data` table (`D_8012737C`, 12 bytes into the same byte block
+as `D_80127370`; absent from `globals.h`, extern + absolute addressing) —
+before calling `func_80015EE8(D_8005E3C0->field_D8 + 0x68, &D_8012CEB8, ...)`,
+the same text-draw path its own gapless successor `ovl_11_func_800FE068`
+(0x800FE068) uses. Membership rests on the zero-gap link order plus the
+shared clamp/lookup idiom; it does not read `D_800719FE`.
+
 ---
 
 ## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)

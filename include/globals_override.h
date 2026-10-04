@@ -1039,6 +1039,10 @@ extern s16 D_80127226;
 
 extern s16 D_8012722A;
 
+extern u8 D_8012737C[];
+
+extern u8 D_8012CEB8[];
+
 extern u8 D_8012D548[];
 
 extern s16 D_80128420;
