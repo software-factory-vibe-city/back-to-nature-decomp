@@ -6153,6 +6153,31 @@ Members (link order):
   `D_800BD048`/`D_800BD080`/`D_800BF570`), so this is an adjacency-and-data
   argument only, not a shared-cluster proof.
 
+## `ovl_19` D_8007AFF0 far-buffer state reader run — 0x800BB358–0x800BB4D4 (confidence: medium)
+
+Evidence: gapless link run — `ovl_19_func_800BB318` (0x40, ends 0x800BB358) →
+`ovl_19_func_800BB358` (0x118, ends 0x800BB470) → `ovl_19_func_800BB470` (0x64,
+ends 0x800BB4D4) → `ovl_19_func_800BB4D4`; all four build the same
+`D_8007AFF0+0x20000` far base with the one-`lui`+`addu` idiom and read the same
+halfword/word state block, which is the shared-cluster proof. Cross-container
+note: `ovl_19_func_800BB318` is byte-identical to the recorded `ovl_21` writer
+`ovl_21_func_800BB0F8`, and `ovl_19_func_800BB470` is a byte-identical source
+twin of `ovl_21_func_800BB250` / `ovl_11_func_800DB78C`, so the same code family
+was copied into several overlays; that twin relation is not itself
+TU-membership evidence, but the shared offsets here are the same cluster.
+
+Members (link order):
+- ovl_19_func_800BB318 (m, matched) — leaf reset; stores the `D_8007AFF0`
+  +0x25394..+0x253A4 s32 block and clears +0x253B4/+0x253B6/+0x253B8.
+- ovl_19_func_800BB358 (s) — GTE matrix reader on the same far base; reads
+  +0x25394/+0x25398/+0x253A0/+0x253AC/+0x253AE/+0x253B0/+0x253B6 and calls
+  `PushMatrix`/`SetRotMatrix`/`SetTransMatrix`/`RotMatrix`/`RotTrans`/`PopMatrix`.
+- ovl_19_func_800BB470 (m, byte-exact) — reads the +0x253AC/+0x253AE/+0x253B0/
+  +0x253B4/+0x253B6/+0x253B8 halfwords via the same far base and passes them to
+  `func_8001B9F8` (sum-of-pairs, 4 args) and `func_8001BA40` (3 args).
+- ovl_19_func_800BB4D4 (s) — gapless successor; same far base and same six
+  halfwords, calls `func_8001C0D4`.
+
 ## `ovl_11` D_8006C838 +0x8000 work-area halfword run — 0x801128B4 / 0x80112904 / 0x801129A0 (confidence: medium)
 
 - **gapless link adjacency:** `ovl_11_func_801128B4` (0x50 bytes at 0x801128B4)
