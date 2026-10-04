@@ -264,6 +264,10 @@ Members:
   successors: walks the 0x18-stride `D_8012CF48` table (10 entries, same table
   indexed by ovl_11_func_8010734C) calling the reset leaf on each, then calls
   ovl_11_func_800E54C8; confirms the documented caller edge
+- ovl_11_func_80106E38 (m, matched this session) — second immediate successor:
+  scans the same 0x18-stride `D_8012CF48` table for the first entry with
+  `f0 == 0`, resets it via the leaf, then sets f0=1, f14=arg0, f2=arg0->unk8;
+  the third zero-gap member of the run
 
 ---
 
