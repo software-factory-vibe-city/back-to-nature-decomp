@@ -4324,7 +4324,7 @@ the overlay, never GP-relative), and the large-offset writers use the same
   and it fixes `&D_8006C838` in a shared `base` pointer with per-arm pointer
   variables that cc1 splices `%lo` into — the same shared-base idiom as
   0x800F00AC/0x800F2508
-- ovl_11_func_800F45A4 (s) — loads the +0x8000+0x5DB4 entity slot and
+- ovl_11_func_800F45A4 (m, matched this session, byte-exact) — loads the +0x8000+0x5DB4 entity slot and
   calls ovl_11_func_800F5700 to find a matching entry, then OR/AND flips bit 0
   of the result's u16 at +0x4; one of the two readers of the same slot
 - ovl_11_func_800F5698 (s) — the other +0x5DB4 reader: gate on an arg3
@@ -6989,7 +6989,7 @@ call-lookup-then-bit idiom on its own table `D_8006C838`, so the bit-toggle
 pattern is the shared fingerprint rather than the segment adjacency alone.
 
 Members (link order):
-- ovl_11_func_800F45A4 (s) — sibling caller: looks up entry 0xD of
+- ovl_11_func_800F45A4 (m, matched this session, byte-exact) — sibling caller: looks up entry 0xD of
   `D_8006C838`, then sets/clears bit 0 of `u16@+0x4` under `arg1 == 1`.
 - ovl_11_func_800F5698 (m, matched this session, byte-exact) — lookup caller:
   `800F5700((s16)arg0, arg1, arg2)`, then `arg3 & arg4` sets bit 0 of
