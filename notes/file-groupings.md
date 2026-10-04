@@ -538,8 +538,9 @@ Fingerprints:
 Members (address order):
 - ovl_11_func_80107B54 (m) — run head; range-check leaf on the engine s16
   `D_80070CF8` (returns 0 inside the range, 1 outside)
-- ovl_11_func_80107B84 (s) — calls `ovl_11_func_80107BE4` (uses its result)
-  and `ovl_11_func_800C1224`; reads the `D_8006C838` flags/state buffer
+- ovl_11_func_80107B84 (m, matched this session) — calls
+  `ovl_11_func_80107BE4` (passes arg0 through, uses its result) and
+  `ovl_11_func_800C1224`; reads the `D_8006C838` buffer at +0x44BA/+0x44BC
 - ovl_11_func_80107BE4 (m, matched this session) — keyed-table lookup leaf:
   walks the 3-entry pointer table `D_801278D8`, matches the {s16,s16} key
   pair and positive count, then scans the entry's s16 list for arg0
