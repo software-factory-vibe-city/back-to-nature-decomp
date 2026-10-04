@@ -6364,6 +6364,13 @@ Members (link order):
   (void; `$v0`=12 is the store value, not a returned one)
 - ovl_15_func_80131C2C (s) — shared prologue (text base `D_80053350`)
 - ovl_15_func_80131CDC (s) — shared prologue (text base `D_80053350`)
+- ovl_15_func_80131D88 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_8005341E` updater array (shared with
+  `ovl_15_func_80130DDC`); then `ret = ovl_15_func_80137228(0xE, 0)`,
+  `D_80137584 = ret` (s8; the value is returned), and `D_80137584 = 0` when
+  `D_8013759A >= 0x5B` — exact body duplicate of `ovl_15_func_80130DDC` (same
+  updater array and immediate), sitting in link order between
+  `ovl_15_func_80131CDC` and `func_80131ED8` (0x70 bytes)
 - func_80131ED8 (s) — shared prologue; also `sb` to `D_80137584`
 
 ## `ovl_25` leaf run — 0x800BB970–0x800BBA7C (confidence: medium)
