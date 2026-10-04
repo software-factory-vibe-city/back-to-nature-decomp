@@ -5669,8 +5669,8 @@ leaf carries the same `func_8001FBF0` call shape.
 Members (link order):
 - ovl_27_func_800BA4C4 (m, matched this session) — audio-setup leaf:
   `func_8001FBE4(0, D_8005E3B0+0x4290)` then `func_8001FBF0` 0 / 0x3E8 / 0x1A
-- ovl_27_func_800BA514 (s) — display-setup: DrawSync/ClearOTagR +
-  `func_80014CBC(0,0x2A800,0x49000,D_8007AFF4,1,1)`
+- ovl_27_func_800BA514 (m, matched this session, byte-exact) — display-setup:
+  DrawSync/ClearOTagR + `func_80014CBC(0,0x2A800,0x49000,D_8007AFF4,1,1)`
 - ovl_27_func_800BA578 (m) — same call as 800BA514 but leaf, tail `!= 0`
 - ovl_27_func_800BA5BC (s) — display-setup: DrawSync/ClearOTagR +
   `func_80014CBC(0,0x25000,0x5800,D_8005E3B0+0x4290,1,1)`
