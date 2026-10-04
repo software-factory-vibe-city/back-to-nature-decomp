@@ -6269,3 +6269,31 @@ Members (address order):
 - ovl_11_func_80117BB4 (s) — reads D_8012D7A8 and calls 80117F14; role unknown.
 - ovl_11_func_80117F14 (m, matched this session) — clamps arg0 to 0..4, calls
   func_80022738, then returns func_8002261C(2, D_8012D7A8[arg0]).
+
+---
+
+## `ovl_11` D_8006C838+0x8000 work-area +0x64C8 halfword pair — 0x800BFCA4 / 0x800BFD04 (confidence: medium)
+
+Pair of `ovl_11` functions sharing one work-area halfword and the container's
+`D_8006C838+0x8000` base fingerprint.
+
+Fingerprints:
+- zero-gap link adjacency (map): `ovl_11_func_800BFCA4` (0x60, ends exactly
+  0x800BFD04) → `ovl_11_func_800BFD04` (0x18, ends 0x800BFD1C);
+- shared object offset: both form `char *base = (char *)&D_8006C838;
+  base += 0x8000;` (the `ori 0x8000` + `addu` split) and address the same
+  halfword at `base + 0x64C8` — 800BFCA4 reads it (`lhu`) and feeds it to
+  `func_8001AF70`, 800BFD04 writes it (`sh`);
+- call graph: 800BFCA4 is called by `ovl_11_func_800BFB28` (0x800BFB28),
+  which also forms the same `base + 0x8000` work-area base;
+- idiom: 800BFCA4 shares the `for (i = 0; i < N; i++)
+  func_8001AF70((u16)(i + K), 0); func_8001AF70((u16)(v + K), 1);` template
+  with matched `ovl_11_func_800C11C4` (same shape, bound 4 and K = 0x17), so
+  it is also a template-family member of that group.
+
+Members (link order):
+- ovl_11_func_800BFCA4 (m, matched this session, byte-exact) — clears flag ids
+  0x12–0x16 via `func_8001AF70(..., 0)`, then sets flag 1 on
+  `(u16)(work[+0x64C8] + 0x12)`.
+- ovl_11_func_800BFD04 (m) — paired writer: stores its s16 argument into the
+  same work halfword at `+0x64C8`.
