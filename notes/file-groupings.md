@@ -4366,6 +4366,13 @@ Members:
   per-use `addiu %lo` tail-rematerialization idiom noted in the recorded
   `D_8006C858` run members, here with the terminator store spelled as a view-struct
   member
+- ovl_11_func_800DBEF8 (m, matched this session, 0x68, byte-exact first try,
+  baseline flags) — the reset/gate caller of the shift writer: returns 0 when
+  the far state halfword (`D_8007AFF0+0x25476`) equals the s16@0x4 of the
+  pointer held at D_8006C838+0x30; otherwise clears the D_8006C838+0x7A74 word
+  (the word immediately before the +0x7A78 table), calls ovl_11_func_800DBE9C,
+  returns 1 — adds a matched member to the 0x800DBAB0 band and a second call
+  edge into the shift writer
 - ovl_11_func_800F13D8 (m) — returns 1 when a record's first halfword is zero
   and its second equals the u16 argument. Its apparent `D_800742B0` base is
   this same embedded table; shared data-family evidence, not proof of one TU
