@@ -5692,6 +5692,10 @@ The original asm of every function in that run plus `800B7F2C`, `800B7F7C` and
 `800B9FF4` touches `D_800C4A14` and/or `D_800C4A1C`.
 
 Members (link order):
+- ovl_27_func_800B7F2C (s, matched this session) — state-block reset wrapper:
+  calls the initializer `ovl_27_func_800B7F7C`, then clears `D_800C4A1C` and
+  zeroes `D_800C4A18`/`D_800C4A24`/`D_800C4A26`/`D_800C4A28`, re-setting
+  `D_800C4A1A = 1`; it shares the whole halfword state block with 800B7F7C
 - ovl_27_func_800B7F7C (s, matched this session) — state-block initializer:
   `D_800C4A1C = 0`, `D_800C4A1A = 1`, zeroes `D_800C4A2C`–`D_800C4A36`, then
   `D_800C4A38 = -0xA0`, `D_800C4A3A = 0x30`, `D_800C4A3C = 0x140`; the last
@@ -5711,7 +5715,7 @@ Members (link order):
 decoded
 - ovl_27_func_800B92E4 (m) — shared driver hub; nine callers in the run
 
-Five members matched; the rest of the cluster is read off original asm
+Six members matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
 Not a member of this cluster: `ovl_27_func_800B8C6C` (0x800B8C6C, matched this
