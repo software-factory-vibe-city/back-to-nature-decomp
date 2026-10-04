@@ -5772,14 +5772,15 @@ Members (link order):
   `func_8001719C(D_8005E3B0+0x4900)` + record copy from D_8005E3B0+0x4290
 - ovl_28_func_800B8C94 (m, matched this session, byte-exact) — audio-setup
   leaf: `func_8001FBE4(0, D_8005E3B0+0x4290)` then `func_8001FBF0` 0 / 0x3E8 / 0x23
-- ovl_28_func_800B8CE4 (s) — display-setup:
+- ovl_28_func_800B8CE4 (m, matched this session, byte-exact) — display-setup:
+  DrawSync(0)/ClearOTagR(D_8005E3C0->field_120,0x800) +
   `func_80014CBC(0,0x2000,0x23000,D_8005E3B0+0x4290,1,1)`
 - ovl_28_func_800B8D48 (s) — display-setup: same call with tail arg 0 +
   `func_8001719C(D_8005E3B0+0x4FAC)` + record copy from D_8005E3B0+0x4290,
   tail `func_80015840` 31
 
-Only the audio leaf is matched; the rest are read off original asm, hence medium
-confidence.
+The audio leaf and ovl_28_func_800B8CE4 are matched; the rest are read off
+original asm, hence medium confidence.
 
 ## `ovl_21` D_8007AFF0 far-buffer state writer + GTE reader — 0x800BB0F8 / 0x800BB138 / 0x800BB250 (confidence: medium)
 
