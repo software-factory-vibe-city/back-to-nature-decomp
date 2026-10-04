@@ -965,6 +965,11 @@ typedef struct {
 } Ovl28B9630Record;
 extern Ovl28B9630Record D_800B9630[];
 
+/* D_800B9720 - zeroed object immediately after the D_800B9630 table
+ * (0x800B9630 + 20*0xC); passed by address to func_80015EE8 by
+ * ovl_28_func_800B8A20. */
+extern u8 D_800B9720[];
+
 /* D_800B93B4 - s32 frame-time delta set to 0x800 by ovl_28_func_800B8414 and
  * subtracted from a record's unk8 by ovl_28_func_800B8AA8. */
 extern s32 D_800B93B4;
