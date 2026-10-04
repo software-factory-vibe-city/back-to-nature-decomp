@@ -7105,6 +7105,11 @@ Members (link order):
   `800B9AB0`/`800B9DC8`/`800B9DD0`/`800B9E14`/… writer chain.
 - ovl_19_func_800B9AB0 (s, 0x318) — second base reader; calls
   `800BA0A0`/`800BA564`/`800BA5B4`/`800BA65C`/`800BAC40`.
+- ovl_19_func_800BA25C (m, matched this session, byte-exact) — predicate
+  dispatcher on the `D_800BF4C0` base: reads the record `s16@+0x12` of the
+  `+0x10` and `+0x58` records and, on the two arms, fills the shared
+  `Ovl19Func800BAC40Arg` command fields via `800BAC40`; returns 0/1/-1. Called
+  by the hub `800B89C8` and by `800B9288`.
 - ovl_19_func_800BA2D4 (m, matched this session, byte-exact) — leaf predicate:
   reads the `+0x8` and `+0x50` s16 of the record, returns `(a <= b)` (or
   `func_80012A34(2) != 0` when they are equal), inverting it when
