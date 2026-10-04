@@ -6277,6 +6277,12 @@ Members (link order):
   and `D_80137584 = 0` when `D_8013759A >= 0x5B` — exact body duplicate of
   `ovl_15_func_8012F078` (same updater array and immediate), just further along
   the link-order run
+- ovl_15_func_80130848 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_800530C8` updater array; then `ret =
+  ovl_15_func_80137228(6, 0)`, `D_80137584 = ret` (s8; the value is returned),
+  and `D_80137584 = 0` when `D_8013759A >= 0x5B` — exact body duplicate of
+  `ovl_15_func_8012F0E8` (same updater array and immediate), and contiguous in
+  link order after `ovl_15_func_801307D8` (both 0x70 bytes)
 - ovl_15_func_80130C2C (m, matched this session, byte-exact) — shared text-draw
   prologue; then `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and
   `D_80137584 = 12` (void; the `$v0`=12 is the store value, not a returned one)
