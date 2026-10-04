@@ -133,6 +133,26 @@ Members:
 - ovl_11_func_800D3CA4 (m) — flag → arg 2/7, result 0xA / 1.
 - ovl_11_func_800D3CE8 (m) — flag → arg 2/7, result 0xD / 1.
 
+## `ovl_11` ovl_11_func_800F6680-driven state-set run — 0x800F66F0–0x800F67E0 (confidence: medium)
+
+Evidence: three link-order-contiguous functions with no gaps
+(0x800F66F0 len 0x44, 0x800F6734 len 0x44, 0x800F6778 len 0x68) that all
+open by calling `ovl_11_func_800F6680`, then write `D_80126E40` and issue a
+short fixed sequence of `func_8001AF70` / `func_8001B2CC` / `func_800226D8` /
+`func_80017B18` / `func_8002261C` calls. 0x800F6778 additionally ORs bit
+0x20000 into `D_8006C838.field_0C`, the shared flag word reached by other
+`D_8006C838` views. Adjacency plus the shared entry callee and shared global
+cluster all point the same way.
+
+Members:
+- ovl_11_func_800F66F0 (m) — opens with `ovl_11_func_800F6680`, sets
+  `D_80126E40 = 6`, then `func_8001AF70(0x71, 1)` / `func_8001B2CC(0, 2)`.
+- ovl_11_func_800F6734 (m) — same prologue, sets `D_80126E40 = 7`, then
+  `func_8001AF70(0x70, 1)` / `func_8001B2CC(0, 2)`.
+- ovl_11_func_800F6778 (m, matched this session) — same prologue, ORs bit
+  0x20000 into `D_8006C838.field_0C`, sets `D_80126E40 = 4`, then
+  `func_800226D8(0)` / `func_80017B18(0)` / `func_8002261C(3, 0x37A)`.
+
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 
 The whole container is one translation unit: six functions, one of which calls
