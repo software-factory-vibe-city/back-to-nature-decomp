@@ -1140,5 +1140,23 @@ extern Ovl11E5230Entry _D_80129230[] __asm__("D_80129230");
 extern u8 _D_8006C904[9] __asm__("D_8006C904");
 #define D_8006C904 (*((u8*)_D_8006C904))
 
+/* D_80123758 - ovl_11 table of 0x18-byte records (17 entries), scanned by
+ * ovl_11_func_800CF258 and ovl_11_func_800CF428. Field 0x0 is an s16 id
+ * (compared against item ids), field 0x4 is a u16 mask ANDed with the
+ * sign-extended ovl_11_func_800D2E20() result. Absolute-addressed
+ * (lui + %lo, split two-register form): declared as an aggregate wider
+ * than -G8 so cc1 emits the split address, and owned by the ovl_11 data
+ * image (this TU only declares it). */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ char pad_06[0x08 - 0x06];
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ char pad_10[0x18 - 0x10];
+} Ovl11ItemEntry; /* 0x18 */
+extern Ovl11ItemEntry D_80123758[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 

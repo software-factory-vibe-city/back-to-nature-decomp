@@ -5346,6 +5346,25 @@ Members:
   s1+0xFC / s1+0x100).
 - ovl_11_func_8010C1FC (s) — same record base D_80075AD4, fields +0x22 and +0x78.
 
+## `ovl_11` D_80123758 0x18-byte item-record table cluster — 0x800CF258 / 0x800CF428 (confidence: medium)
+
+- shared-global fingerprint: D_80123758 is an ovl_11 data table of 17 records
+  with byte stride 0x18, read by both 0x800CF258 and 0x800CF428. Record layout
+  witnessed across the two: s16 id @0x0, s16 @0x2, u16 mask @0x4, s32 @0x8,
+  s32 @0xC.
+- shared callee: both open by calling ovl_11_func_800D2E20 and sign-extend its
+  result to s16 before using it as the record mask (0x800CF264 / 0x800CF480).
+- both records are only ever declared extern (split `lui`/`%lo` absolute form),
+  never defined by this TU; the table is ovl_11 data.
+
+Members:
+- ovl_11_func_800CF258 (m, matched this session, byte-exact) — id lookup:
+  scans the 17 records for the one whose s16 id @0x0 equals arg0 and returns
+  `(mask & record.mask@0x4) != 0`, else 0.
+- ovl_11_func_800CF428 (s) — table walker: additionally reads the record's
+  s16 @0x2 (compared against D_8009AFF0+0x5476) and s32 @0x8/0xC (copied to
+  a new object), so it shares the same record type.
+
 ## `ovl_11` D_80075BC4 record-table scan caller/callee pair — 0x801097F4 / 0x801098B0 (confidence: low)
 
 - call-graph adjacency for the pair: `ovl_11_func_801097F4` (0xBC) ends at
