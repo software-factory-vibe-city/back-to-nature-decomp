@@ -1126,5 +1126,13 @@ typedef struct {
 extern Ovl11E5230Entry _D_80129230[] __asm__("D_80129230");
 #define D_80129230 ((Ovl11E5230Entry *)_D_80129230)
 
+/* D_8006C904 - byte state written by the func_800226F0/func_80022B20/
+ * func_80022D70 cluster (values 0/4/6) and read by
+ * ovl_11_func_800E6AB0 as a plain zero/non-zero test. The original read is
+ * `lbu`, so the byte is unsigned: the generated scalar default is s8 and
+ * would emit `lb`. Absolute-addressed (lui + %lo). */
+extern u8 _D_8006C904[9] __asm__("D_8006C904");
+#define D_8006C904 (*((u8*)_D_8006C904))
+
 #endif /* GLOBALS_OVERRIDE_H */
 
