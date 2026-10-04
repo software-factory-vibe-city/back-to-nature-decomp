@@ -7216,17 +7216,19 @@ Members (link order):
 - ovl_11_func_800FA410 (s) — link successor; reads the same `+0x5488`/
   `+0x548A`/`+0x548C` trio alongside `D_80126F80`/`D_80126F8C`.
 
-## `ovl_11` D_8006C838+0x8000 work-area run — 0x801128B4–0x80112C28 (confidence: medium)
+## `ovl_11` D_8006C838+0x8000 work-area run — 0x801128B4–0x80112C98 (confidence: medium)
 
 Evidence: link-order adjacency across an unbroken run plus a shared global
 cluster. Every member addresses the same work area as `(char *)&D_8006C838
 + 0x8000` and reads/writes halfwords in the narrow window `+0x676C`–`+0x677A`;
 three of the members are byte-exact clean C, so the spellings are the
 author's, not inferred. The caller edge `ovl_11_func_801129EC ->
-ovl_11_func_80112C28` ties the interval together.
+ovl_11_func_80112C28` and `ovl_11_func_801129EC -> ovl_11_func_80112C98`
+tie the interval together (801129EC issues both `jal`s).
 
 Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
-0x801129A0, 0x801129EC, 0x80112A84, 0x80112AB4, 0x80112B60, 0x80112C28):
+0x801129A0, 0x801129EC, 0x80112A84, 0x80112AB4, 0x80112B60, 0x80112C28,
+0x80112C98):
 - ovl_11_func_801128B4 (m) — zeros `+0x676C` (0x34 bytes) then `+0x6776 = -1`
   and `func_8001AF70(0x1B, 1)`.
 - ovl_11_func_80112904 (m) — writes `+0x6778`, sets the `+0x6776` selector
@@ -7237,3 +7239,8 @@ Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
 - ovl_11_func_80112C28 (m, matched this session, byte-exact) — on
   `func_8001AF44(0x4B) == 0` increments `+0x677A`, else clears it; then
   `func_8001AF70(0x4B, 0)` and `func_8001AF70(0x4C, 0)`.
+- ovl_11_func_80112C98 (m, matched this session, byte-exact) — guarded by
+  `arg0->+0x4 < 0x3A99`; on `func_8001AF44(0x2B) == 0` issues
+  `func_8001AF70(0x4D, 1)`/`func_8001AF70(0xAF, 1)`, then increments
+  `+0x6772` up to 3. Same `(char *)&D_8006C838 + 0x8000` two-stage base
+  spelling as the run.
