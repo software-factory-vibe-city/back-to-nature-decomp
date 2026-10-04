@@ -4906,6 +4906,31 @@ this session). It is NOT a member — it touches no D_80128DE8 field, clearing
 0x16 stride from `D_8007AFF0 + 0x253C0`. So the D_80128DE8 grouping ends at
 0x800DB0E4; continuation of the run past that point is adjacency only.
 
+## `ovl_11` 8×0x16 D_800A03B0 record-array init/find/copy/clear run — 0x800DB0E4–0x800DB2AC (confidence: medium)
+
+Evidence: a shared 0x16-stride record object plus a gapless link run of three
+complementary roles. `ovl_11_func_800DB0E4` memsets exactly 0xB4 bytes at
+`D_800A03AC` = a 4-byte prefix plus eight 0x16-stride records at `D_800A03B0`
+(0x4 + 8*0x16 = 0xB4); `ovl_11_func_800DB140` and matched
+`ovl_11_func_800DB23C` both read a record's first halfword and clear/copy
+0x16 bytes of that same record type. Link order 0x800DB0E4 (0x5C) →
+0x800DB140 (0xFC) → 0x800DB23C (0x70) → 0x800DB2AC (0xA8) is gapless.
+The same shape appears in ovl_25 (`ovl_25_func_800BB4B4`/`800BB580`) and as a
+`D_8007AFF0 + 0x253C0` far-buffer mirror in 800DB0E4 — cross-container twin
+and mirror relations, not TU evidence here.
+
+Members (link order):
+- ovl_11_func_800DB0E4 (m, byte-exact) — initializer: `memset(&D_800A03AC, 0,
+  0xB4)` then eight 0xFFFF halfwords at `D_8007AFF0 + 0x253C0`, stride 0x16.
+- ovl_11_func_800DB140 (stub) — find a record whose first halfword equals the
+  arg's first halfword, then copy 0x16 bytes into the first 0xFFFF record.
+- ovl_11_func_800DB23C (m, matched this session, byte-exact) — find a record
+  whose first halfword equals the sign-extended s16 arg and clear it
+  (`memset(record, 0, 0x16)`, then `record->first = 0xFFFF`).
+- ovl_11_func_800DB2AC (stub) — caller side, weaker: iterates the eight
+  0x12-stride `+0x8A8` records of its arg struct, skipping 0xFFFF, and calls
+  `ovl_11_func_800DB140` on each; touches no `D_800A03B0` byte itself.
+
 ## `ovl_11` D_8006C838 table-scan caller + exclusion-set leaf — 0x800F00E4 / 0x800F021C (confidence: low)
 
 - ovl_11_func_800F00E4 (stub) — sole caller (two `jal` sites): nested s16-table
