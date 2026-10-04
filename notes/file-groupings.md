@@ -6449,9 +6449,19 @@ Fingerprints:
   `func_80013394()`, then `func_8002261C(3, 0x3C0 + case)`, then
   `func_800226A4() == 2`, then store `D_801273DC = ovl_11_func_80103714` — the
   case index increments 0x3C0/0x3C1/0x3C2/0x3C3/0x3C4 with the members in
-  address order, a dispatch-table signature no coincidence explains.
+  address order, a dispatch-table signature no coincidence explains;
+- a remote member outside the contiguous run, `ovl_11_func_80100128`
+  (0x80100128), carries the same `func_8002261C(3, case)` +
+  `func_800226A4() == 2` + `D_801273DC` store template at case 0x3B6, without
+  the `func_80013394()` guard, and is the only site that can store
+  `ovl_11_func_80100194` (selected over `ovl_11_func_80103714` by
+  `(s16)func_800225B8() == 1`), extending the template below the run's case
+  range.
 
 Members (address order):
+- ovl_11_func_80100128 (m, matched this session) — remote case 0x3B6 handler;
+  no `func_80013394()` guard; stores `ovl_11_func_80100194` when
+  `(s16)func_800225B8() == 1`, else `ovl_11_func_80103714`
 - ovl_11_func_801033D4 (m, matched this session) — case 0x3C0 handler; sets
   `D_801273DC = ovl_11_func_80103714`, no helper call
 - ovl_11_func_80103424 (s) — case 0x3C1 handler; same store, calls helper
