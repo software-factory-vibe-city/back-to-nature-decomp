@@ -7246,6 +7246,10 @@ return value.
 Members (link order):
 - ovl_19_func_800B89C8 (s, 0x2AC) — cluster hub; also reads `D_800BF4C0` and
   calls `800B95D4`/`800B998C`/`800BA25C`/`800BA770`/`800BAC5C`/`800BAC7C`.
+- ovl_19_func_800B93B0 (m, matched this session, byte-exact) — `D_800BF4C0`
+  state writer: `func_8002261C(4, 0xE)` then, when `func_800226A4() == 2`,
+  clears `s16@+0x6` and, per `func_800225B8()` result 1/2, clears `s16@+0x200`
+  and sets `s16@+0x4` to 3 or to that result.
 - ovl_19_func_800B95D4 (s, 0x3B8) — cluster's large reader/driver on the
   `D_800BF4D0` base; calls `800BA2D4` (reads its result), `800BA33C`,
   `800BA468`, `800BA5B4`, `800BA73C`, `800BA750`, `800BAC40`.
