@@ -6392,7 +6392,9 @@ Members (link order):
   `func_8001AC10`, `ovl_15_func_801344E8`, `func_8001FABC`
 - ovl_15_func_80133F4C (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
 - ovl_15_func_80134000 (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
-- ovl_15_func_801340B8 (s) — `lh` of `D_8013759E`
+- ovl_15_func_801340B8 (m, matched this session, byte-exact) — leaf; `lh` of
+  `D_8013759E` plus a read of the 0x28-stride table `D_80140F90`, which sits
+  0x50 bytes below this run's terminating memset buffer `D_80140FE0`
 - ovl_15_func_801342A0 (s) — `lh` of `D_8013759E`; calls `ovl_15_func_80134134`,
   `func_8001A970`, `ovl_15_func_80134444`
 - ovl_15_func_801344E8 (s) — `lh` of `D_8013759E`, called from `ovl_15_func_80133B28`
