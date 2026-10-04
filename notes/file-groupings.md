@@ -5133,7 +5133,8 @@ Fingerprints:
   800EB79C (`arg2 != 0` resolves the record index through the table),
   800E9CE4 (byte-slot reader: `lbu` of the low byte of
   `D_80129560[(s16)arg0]` through a 4-byte-strided element cast) — and
-  writers 800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
+  writers 800E78E4 (stores the exe `func_80012A34`/`Rand` result into the slot),
+  800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
   slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
   (800E5A1C also increments `D_80129560[(s16)arg1]`);
 - **contiguous accessor run:** the members 800E6834, 800E686C, 800E6914, 800E69B8,
@@ -5197,6 +5198,13 @@ Members:
   readers, but the slot is consumed one byte wide rather than as an s32;
   the only family member that writes through the `D_801291B4` value the
   zero-arg accessor 800E3A94 returns, and it sits inside the band.
+- ovl_11_func_800E78E4 (m, matched 2026-11 — this session, 0x70, byte-exact) —
+  guarded-slot random writer: `temp = func_80012A34(arg0 & 0xFFFF)` (exe
+  `Rand`), then if `arg1 != -1` stores `D_80129560[(s16)arg1] = temp` via the
+  sibling `lui`+`addiu %lo` base (the s16 index materialised once and scaled by
+  2), and forwards to the shared three-arg compare leaf
+  `ovl_11_func_800EFDA0(temp, arg3, arg2)`; same `!= -1` guard-write and
+  compare-forward shape as 800EC490/800E6834, inside the accessor band.
 - ovl_11_func_800E9778 (m, matched 2026-11 — this session, 0xC0, byte-exact) —
   three-slot snapshot write: selects a 0xC-byte record from the `D_80076280`
   0x1D4-stride table (special base `D_80071B00` when `arg0 == 0x29`, bounds
