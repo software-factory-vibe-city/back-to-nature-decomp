@@ -1438,7 +1438,9 @@ Fingerprints:
   neighbour `ovl_11_func_800E4C84`; a packed cluster whose members call each
   other, not the engine.
 - shared idiom: `ovl_11_func_800E4AEC` and `ovl_11_func_800E4D08` both scan an
-  array of s16 words testing the 0x3C00 bit, an idiom local to this run.
+  array of s16 words testing the 0x3C00 bit, an idiom local to this run;
+  `ovl_11_func_800E4C84` is the same scan over the same `base+4` array with the
+  predicate inverted to the 0x4000 bit.
 
 Members (address order, matched in bold):
 - ovl_11_func_800E48CC (s) — run head
@@ -1456,7 +1458,10 @@ Members (address order, matched in bold):
 - ovl_11_func_800E4BA4 (s)
 - ovl_11_func_800E4C30 (s) — `getter(base, i+1) - getter(base, i)`;
   also calls 800E4C84
-- ovl_11_func_800E4C84 (s)
+- **ovl_11_func_800E4C84 (m, matched this session)** — the 0x4000-bit twin of
+  800E4AEC: scans the s16 array at `base+4` for the first entry whose 0x4000
+  bit is set and returns `index-2`; on no match calls `SystemError(0x4E,
+  D_8006C868->unk2)` — the same `D_8006C868->unk2` read as `ovl_11_func_800E3D88`
 - ovl_11_func_800E4D08 (s) — loop calling 800E4B58, storing results into
   `D_801291C0[i]`, guarded by a 0x3C00 bit in an s16 word
 - ovl_11_func_800E4DAC (s) — run tail (0x2CC)
