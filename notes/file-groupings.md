@@ -4501,6 +4501,19 @@ Members (address order):
   byte-for-byte the same body over the same record shape (shared
   Ovl23Func800BB0C8Arg view), gapless with the previous function.
 
+## `ovl_23` D_800BFA90/D_800BF8BC array-pair walkers — 0x800BB0E8 / 0x800BB150 (confidence: medium)
+
+Evidence: both are no-argument functions that walk the same two arrays from one
+shared base — `D_800BFA90` and its sibling `D_800BFA90 - 0x1D4` (= `D_800BF8BC`)
+— six times, advancing 0x44 and 0x50 bytes per step from the same base-register
+preheader; they differ only in the per-slot helper they call. Gapless link order
+agrees (0x800BB0E8 + 0x68 = 0x800BB150).
+
+- ovl_23_func_800BB0E8 (m, byte-exact this session) — 6x `func_80015814(slot, 4)`
+  (set bits) over both arrays.
+- ovl_23_func_800BB150 (s) — same walker, 6x `func_80015828(slot, 4)` (clear
+  bits); gapless successor.
+
 ## `ovl_23` ObjectState reset/handoff leaf — 0x800BB1B8 (confidence: low)
 
 - ovl_23_func_800BB1B8 (m, byte-exact this session) — resets the ovl_23
