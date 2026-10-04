@@ -6598,3 +6598,29 @@ shape, and the run's two non-wrapper members share a direct callee:
   ovl_11_func_800FA950, func_80015EE8.
 - ovl_11_func_800FA950 (m) — shared s16 range-map helper: two `%7`/`/7`
   formulas written through two s16 pointers.
+
+---
+
+## `ovl_15` D_801376D0/D_80137AB0 scratch-buffer run — 0x80134C48–0x80135AE0 (confidence: medium)
+
+A gapless four-function run in `configs/splat/ovl_15.yaml`, every member
+writing the pointer `D_801376D0 = (u8 *)D_80137AB0`: 0x80134C48 (0x738, ends
+exactly 0x80135380) → 0x80135380 (0x67C, ends exactly 0x801359FC) →
+0x801359FC (0x7C, ends exactly 0x80135A78) → 0x80135A78 (0x68, ends
+0x80135AE0 = next unrelated subsegment). The shared absolute global pair is the
+cluster tie and the run is zero-gap. The two tail members additionally share an
+identical prologue (the same `lui $v1,%hi(D_801376D0)` / `lui
+$v0,%hi(D_80137AB0)` / `addiu` / `sw $v0,%lo(D_801376D0)($v1)` sequence) and
+mirror 201-iteration memmove loops on the same buffer, which is what the run's
+tail adjacency adds to the global tie.
+Members (link order):
+- ovl_15_func_80134C48 (s) — sets `D_801376D0 = D_80137AB0`, then repeatedly
+  reads the pointer back; calls `memset`; role otherwise unknown.
+- ovl_15_func_80135380 (s) — sets `D_801376D0 = D_80137AB0` and is the
+  heaviest reader/writer of the pointer; role unknown.
+- ovl_15_func_801359FC (s) — mirrored sibling: writes the pointer, then 201×
+  `memmove(p + 0x80, p + 0x7F, size)` with `size` decreasing by 0x80; afterwards
+  `func_80012A34(0x100)` and `D_80137830[0x7FFE] = (u8)result`.
+- ovl_15_func_80135A78 (m, matched this session, byte-exact) — writes the
+  pointer, then 201× `memmove(p + 0x7F, p + 0x80, size)` from `size = 0x6441`
+  decreasing by 0x7F (the mirror of 801359FC).
