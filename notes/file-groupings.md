@@ -5743,11 +5743,14 @@ Members (link order):
   unk0 == 0, writes (1, arg0, `VWD0 << 12`) there, or returns if full
 - ovl_28_func_800B8A20 (s) — walker: for records with unk0 == 1, feeds
   unk8 and unk4 into `func_80015EE8`
-- ovl_28_func_800B8AA8 (s) — updater: for records with unk0 == 1, subtracts
-  `D_800B93B4` from unk8 and clears unk0 when the result underflows
+- ovl_28_func_800B8AA8 (m, matched this session) — updater: for records with
+  unk0 == 1, subtracts `D_800B93B4` from unk8 and clears unk0 when the result
+  underflows below `-0xE000`
 
-Only one member is matched; the rest are read off original asm, hence medium
-confidence.
+Only two members are matched; the rest are read off original asm, hence medium
+confidence. `ovl_28_func_800B8AA8`'s read of `D_800B93B4` places the record-table
+run in the same TU as the `D_800B93B4` setup/consumer pair `ovl_28_func_800B8414`
+(writes 0x800) and `ovl_28_func_800B8478` (divides 0x10000 by it).
 
 ## `ovl_28` D_8005E3B0+0x4290 display-setup run — 0x800B8B0C / 0x800B8B70 / 0x800B8C94 / 0x800B8CE4 / 0x800B8D48 (confidence: medium)
 

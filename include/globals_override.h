@@ -961,6 +961,10 @@ typedef struct {
 } Ovl28B9630Record;
 extern Ovl28B9630Record D_800B9630[];
 
+/* D_800B93B4 - s32 frame-time delta set to 0x800 by ovl_28_func_800B8414 and
+ * subtracted from a record's unk8 by ovl_28_func_800B8AA8. */
+extern s32 D_800B93B4;
+
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 
