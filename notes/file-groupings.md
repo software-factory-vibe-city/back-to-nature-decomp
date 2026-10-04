@@ -5685,7 +5685,12 @@ Members (link order):
 - ovl_27_func_800BA814 (s) — closing member; role unknown
 
 Not a member: `ovl_27_func_800BA230` ends exactly at 0x800BA4C4 but is called
-by `ovl_27_func_800B80B0`, not by the dispatcher.
+by `ovl_27_func_800B80B0`, not by the dispatcher. Its link-order predecessor
+`ovl_27_func_800BA1CC` (0x800BA1CC–0x800BA230, matched this session,
+byte-exact) shares the display-setup idiom `DrawSync` → `ClearOTagR` →
+`func_80014CBC(0,0x2000,0x23000,D_8005E3B0+0x4290,1,1)` and the
+`D_8005E3B0+0x4290` / `D_8005E3C0` address cluster, but is called by
+`ovl_27_func_800B7FE8`, not by the dispatcher.
 
 ## `ovl_27` 6-byte-record leaf run — 0x800BAA34 / 0x800BABD4 / 0x800BAC14 (confidence: low)
 
