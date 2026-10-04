@@ -233,5 +233,10 @@ which were not authored or modified as part of the Task 1 implementation:
 - `plans/historian.md`
 
 Generated build outputs and extracted binaries remain ignored and are not part
-of the commit. The resulting changeset SHA will be appended after committing;
+of the commit. The resulting changeset SHA was appended after committing;
 a commit cannot contain its own SHA without changing that SHA.
+
+Changeset SHA: `0608df5207a1b3d14818c9ba8c9f769d0a30f4a6`.
+
+This SHA annotation is the only post-commit working-tree change. The commit
+contains the overview and all other changes listed above.
