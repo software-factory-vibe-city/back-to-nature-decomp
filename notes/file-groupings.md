@@ -7026,6 +7026,11 @@ Members (link order):
   reads the `+0x8` and `+0x50` s16 of the record, returns `(a <= b)` (or
   `func_80012A34(2) != 0` when they are equal), inverting it when
   `func_80012A34(100) >= 0x5B`; the result is consumed by `800B95D4`.
+- ovl_19_func_800BA5B4 (m, matched this session, byte-exact) — angle-band
+  classifier: `ovl_19_func_800BA628` result minus `s16@+0x4 << 10`, normalised
+  by `+0x1000` when negative, then `sltiu` band tests returning 1/2/3/0; called
+  by cluster members `800B95D4`/`800B9AB0`, and shares the `800BA628` +
+  `<<10`/`+0x1000` idiom (same `s16@+0x4` field) with `800BA468`.
 - ovl_19_func_800BA770 (s, 0xC4) — reads the base and calls
   `800BA834`/`800BAB4C`/`800BAFAC`.
 - ovl_19_func_800BA834 (s, 0x318) — base reader; resets an ObjectState via
