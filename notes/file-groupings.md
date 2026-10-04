@@ -5940,7 +5940,10 @@ Members (link order):
   `D_8013758E` passed to `ovl_15_func_801367F8`, switch on `jtbl_8012DF44`
 - ovl_15_func_80130D3C (s) — shared prologue; then reads `D_8013758E`, writes
   `D_80137584` on the `ovl_15_func_80135B68` failure path
-- func_80131BCC (s) — shared prologue (text base `D_80053350`)
+- ovl_15_func_80131BCC (m, matched this session, byte-exact) — exact body
+  duplicate of `ovl_15_func_80130C2C`: same text-draw prologue, then
+  `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and `D_80137584 = 12`
+  (void; `$v0`=12 is the store value, not a returned one)
 - ovl_15_func_80131C2C (s) — shared prologue (text base `D_80053350`)
 - ovl_15_func_80131CDC (s) — shared prologue (text base `D_80053350`)
 - func_80131ED8 (s) — shared prologue; also `sb` to `D_80137584`
