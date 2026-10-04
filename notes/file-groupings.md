@@ -170,6 +170,20 @@ Members:
   0x20000 into `D_8006C838.field_0C`, sets `D_80126E40 = 4`, then
   `func_800226D8(0)` / `func_80017B18(0)` / `func_8002261C(3, 0x37A)`.
 
+## `ovl_11` s16 /30 HUD-argument pair — 0x800FE704 / 0x800FE780 (confidence: medium)
+
+Evidence: link-order adjacency with no gap (0x800FE704 len 0x7C ends exactly at
+0x800FE780, len 0x7C) plus an identical call idiom: both compute
+`(((s16)D_80127212) / 30) & 0xFF` and pass it as the 4th argument of
+`func_80015EE8(D_8005E3C0->field_D8 + 0x68, &D_8012CE88, N, v, 0x120, M)`. The
+shared callee, shared globals (`D_80127212`, `D_8012CE88`, `D_8005E3C0`) and
+shared /30 magic-constant sequence all point the same way.
+
+Members:
+- ovl_11_func_800FE704 (m) — sub-mode argument `1`, trailing args `0x120` / `0x30`.
+- ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
+  trailing args `0x120` / `0xC8`.
+
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 
 The whole container is one translation unit: six functions, one of which calls
