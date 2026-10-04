@@ -6903,3 +6903,19 @@ Members (link order):
 - ovl_11_func_800DA518 (m, matched this session, byte-exact) — tag 0x36 +
   nonzero `u8@+0x4` + `func_80012A34` guard → refresh `+0x4` from
   `ovl_11_func_800D5C90(0x36)`, clear `+0x5`, OR `0x8000` into `+0x6`.
+
+## `ovl_11` D_8006C838+0x5488 state-trio run — 0x800FA3A0–0x800FA410 (confidence: medium)
+
+Evidence: zero-gap link-order adjacency (`ovl_11_func_800FA3A0` len 0x70 ends
+0x800FA410) and a shared state cluster — both functions take the
+`(view *)&D_8006C838` base and read the same `s16` trio at `+0x5488`,
+`+0x548A`, `+0x548C`. The nearby caller `ovl_11_func_800FA1CC` calls both
+`ovl_11_func_800FA3A0` and the selector wrapper `ovl_11_func_800FA5C8`, tying
+the run into one call cluster.
+
+Members (link order):
+- ovl_11_func_800FA3A0 (m, matched this session, byte-exact) — guard on
+  `D_8006C838+0x5492 != -1` then `+0x5488 == arg1 && +0x548A == arg2`, then
+  `ovl_11_func_800FA5C8(arg0, +0x548C, arg3)`.
+- ovl_11_func_800FA410 (s) — link successor; reads the same `+0x5488`/
+  `+0x548A`/`+0x548C` trio alongside `D_80126F80`/`D_80126F8C`.
