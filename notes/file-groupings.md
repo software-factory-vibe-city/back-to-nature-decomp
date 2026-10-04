@@ -4581,6 +4581,13 @@ Members:
   — the same far halfword 800DBEF8 reads; returns 0 after filling, else 1 when
   `D_80070C88 & 1` and the low halfword is < 0x12C, or when the slot is null.
   Shared caller `ovl_11_func_800F1078` with the 0x800F13D8/0x800F144C pair.
+- ovl_11_func_800F1354 (m, matched this session, 0x84, byte-exact first try) —
+  byte-twin of ovl_11_func_800F12D0 (immediate link successor: 0x800F12D0 + 0x84
+  = 0x800F1354), identical instruction stream but calls the slot accessor
+  ovl_11_func_800DBC28 instead of 800DBC04. The two accessors are themselves
+  twins differing only in constants passed to ovl_11_func_800DBD78 — 800DBC04
+  = (arg0,1,0), 800DBC28 = (arg0,0,1) — so the pair is a same-table writer
+  couple selecting one of two DBD78 modes.
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
