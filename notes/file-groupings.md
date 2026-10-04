@@ -4679,6 +4679,22 @@ Members (link order):
 - ovl_23_func_800B87F8 (s) — larger state routine; loads the address of
   `D_800BF87C`.
 
+## `ovl_23` D_800BF87C record-append pair — 0x800B9454 / 0x800B94D0 (confidence: medium)
+
+Evidence: gapless link order — 0x800B9454 + 0x7C = 0x800B94D0 (the two are
+consecutive 0x7C-byte functions in the ovl_23 code segment). Both write an
+8-byte-record array (`{s32,s16,s16}`) inside the same `D_800BF87C` aggregate
+and share the identical append idiom `if (cursor >= N) cursor = 0;` then store
+the record and increment the cursor, where N equals the array length. This
+extends the D_800BF87C cluster above and shows that symbol is a large record
+(the dispatch-index s16 sits at offset 0), not only a scalar index.
+
+Members (link order):
+- ovl_23_func_800B9454 (m, byte-exact this session) — 54-entry array at
+  `D_800BF87C`+0x418, cursor at +0x5C8, bound 0x36 (`(s32, s16, s16)`).
+- ovl_23_func_800B94D0 (s) — same routine, 12-entry array at +0x5CC, cursor at
+  +0x62C, bound 0xC.
+
 ## `ovl_23` display-setup state-handler run — 0x800BB214–0x800BB758 (confidence: medium)
 
 Evidence: the dispatcher `ovl_23_func_800B7F00` (s) selects on the state byte

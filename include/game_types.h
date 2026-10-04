@@ -495,3 +495,21 @@ typedef struct {
     /* 0x00 */ void *batch;
     /* 0x04 */ s8 *vecs;
 } FuncC0D4Args;
+
+/* One 8-byte entry of the D_800BF87C record array written by
+ * ovl_23_func_800B9454: s32 at +0, s16 at +4, s16 at +6. */
+typedef struct {
+    s32 unk0;   /* 0x00 */
+    s16 unk4;   /* 0x04 */
+    s16 unk6;   /* 0x06 */
+} Ovl23D87CEntry;
+
+/* D_800BF87C view for ovl_23_func_800B9454: a 54-entry array at 0x418
+ * followed by the s16 write cursor at 0x5C8 (the 54 bound equals the array
+ * length, matching the sibling ovl_23_func_800B94D0 whose 12-entry array at
+ * 0x5CC is followed by its cursor at 0x62C). */
+typedef struct {
+    u8 pad_000[0x418];
+    Ovl23D87CEntry unk418[54];  /* 0x418 */
+    s16 unk5C8;                 /* 0x5C8 */
+} Ovl23D87CView;
