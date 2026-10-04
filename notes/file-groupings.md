@@ -967,7 +967,11 @@ Members:
   magic-constant-division leaf idiom with the pair but its callers are the
   dispatch-caller run 0x800C4A2C–0x800C55FC / 0x800C580C, not 0x800CCCC0, so
   same-TU membership stays unproven (low)
-- ovl_11_func_800CD624 (s) — same-run direct caller of 0x800CD4E4
+- ovl_11_func_800CD624 (m, matched this session) — same-run direct caller of
+  0x800CD4E4; a `char *base = (char *)&D_80071A00` + `base - 0x51C8` sub-base
+  leaf that maps the tier result (or 0 when -1) into ovl_11_func_800C087C and
+  copies the D_8006C838 u16 at +0x44CA to +0x51F4 — joins the D_80071A00 pool
+  sub-base idiom
 
 ---
 
@@ -1678,6 +1682,11 @@ Members (address order):
   (0x800712BC) through the same `base - 0x51C8` sub-base as 0x800CD3C4; 0xC4,
   byte-exact clean C, baseline flags; zero-gap link order between 0x800D6380
   (which calls cluster member 0x800F2354) and 0x800D6488
+- ovl_11_func_800CD624 (m, matched this session) — tier-select leaf over the
+  pool: passes `&D_80071A00` to the same-run tier lookup 0x800CD4E4, maps -1 to
+  0, copies the `base - 0x51C8` (= `D_8006C838`) u16 at +0x44CA to +0x51F4, and
+  calls 0x800C087C with the result; same sub-base idiom as 0x800CD3C4 /
+  0x800D63C4
 - ovl_11_func_8011D06C (m, matched earlier) — leaf: `return D_80071A5C >= arg0;`
   `>=`-guard on the pool's middle sibling
 
