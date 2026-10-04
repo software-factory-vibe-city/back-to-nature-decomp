@@ -6133,7 +6133,7 @@ Members (link order):
 
 ## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012EE84–0x80131ED8 (confidence: medium)
 
-Evidence: a link-order run of eight functions that all open with the same
+Evidence: a link-order run of nine functions that all open with the same
 text-draw call idiom: `func_8001AC10(D_8005E3C0->field_D8 + 0x18,
 D_8005E3C0->field_D8 + 0x14, D_80054BBC[0] + (s32)<updater array>)` — a
 `lui/addiu` of an updater array (undeclared in `globals.h`; undefined sym in
@@ -6160,6 +6160,11 @@ Members (link order):
   `D_8013758E` passed to `ovl_15_func_801367F8`, switch on `jtbl_8012DF44`
 - ovl_15_func_80130D3C (s) — shared prologue; then reads `D_8013758E`, writes
   `D_80137584` on the `ovl_15_func_80135B68` failure path
+- ovl_15_func_801315B0 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80052FFA` updater array; then
+  `D_80137584 = ovl_15_func_80137228(2, 0x1F)` and `D_80137588 = 1` (void;
+  `$v0`=1 is the store value, not a returned one — same body as
+  `ovl_15_func_8012EE84` with only the immediate `0x16`→`0x1F` changed)
 - ovl_15_func_80131BCC (m, matched this session, byte-exact) — exact body
   duplicate of `ovl_15_func_80130C2C`: same text-draw prologue, then
   `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and `D_80137584 = 12`
