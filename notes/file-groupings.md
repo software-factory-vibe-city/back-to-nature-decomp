@@ -711,7 +711,9 @@ Members (address order):
 - ovl_11_func_800C0824 (m, matched this session) — leaf getter: returns
   `D_80128B50` (`lui`/`lw` + `jr $ra`); byte-exact clean C, baseline flags;
   confirmed member of the shared-global cluster (D_80128B50 reader)
-- ovl_11_func_800C087C (s) — leaf clear: `D_80128B5C = 0`
+- ovl_11_func_800C087C (m, matched this session) — clears `D_80128B5C`, then
+  offsets an index by the `D_8006C838` s16 fields 0x44C0/0x44C2 (`*0x3C`
+  stride) and calls `ovl_11_func_800C0D9C`; byte-exact clean C, baseline flags
 - ovl_11_func_800C08E8 (s) — leaf clear: `D_80128B5C = 0`
 - ovl_11_func_800C090C (s) — leaf clear: `D_80128B50 = 0`
 - ovl_11_func_800C09D0 (m, matched this session) — input-state reset:
