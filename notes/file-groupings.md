@@ -4546,6 +4546,12 @@ the overlay, never GP-relative), and the large-offset writers use the same
   +0x44CA → +0x51F4 copy pair as ovl_11_func_800CD624's sub-base form
   (`&D_80071A00` - 0x51C8), tying `D_80070D02` to +0x44CA and `D_80071A2C`
   (map name `D_80071A22`+0xA) to +0x51F4
+- ovl_11_func_800CFA48 (m, matched this session) — gated bit-set leaf: after
+  two `ovl_11_func_800D3230` probes, reads the s16 at +0xE4C8 via the
+  cluster's +0x8000 two-stage split (base+0x8000, disp +0x64C8; same cell as
+  member 0x800BFD04), gates on the +0x44BA s16 (the +0x44BA/+0x44BC pair) and
+  on `func_80012A34(0xA)`, then ORs 0x800000 into the s32 at +0x44F8 (new
+  offset); byte-exact clean C, baseline flags
 ## `ovl_11` 0x800E6AB0–0x800E6D2C var/return state run (confidence: low)
 
 Zero-gap link-order run of five ovl_11 functions sitting between the
