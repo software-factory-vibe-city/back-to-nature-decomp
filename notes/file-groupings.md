@@ -4849,6 +4849,13 @@ Members:
   caller-side tie to the anchor: `arg0 & 0x3FF` then `func_8001AF44(mask +
   0xFB)`; returns 0 when that equals 1, otherwise returns whether
   `ovl_11_func_800F13D8(mask) == 0`
+- ovl_11_func_800F1954 (m, matched this session, 0x74, byte-exact) — same
+  masked `func_8001AF44` caller idiom as its link-run sibling: `arg0 & 0x3FF`
+  then `func_8001AF44(mask + 0xC8) == 1`, then `(arg0 >> 10) & 0x3FF` then
+  `func_8001AF44(mask + 0xC8) == 0`; returns 1 otherwise. It ends exactly at
+  0x800F19C8, inside the 0x800F1878–0x800F1AE0 gapless link run that carries
+  0x800F1AE0, and both bind the shared callee with the same `0x3FF` mask plus
+  constant-offset idiom.
 
 ## `ovl_11` 0x800C9888–0x800C99C8 shared-caller link run (confidence: low)
 
