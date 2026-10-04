@@ -1047,6 +1047,8 @@ extern u8 D_800C4BD0[];
 
 extern s32 D_800BB4E4[];
 
+extern u8 D_800BB710[];
+
 extern u8 D_800BD848[];
 
 extern u8 D_800BDA74[];
