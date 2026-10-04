@@ -6118,3 +6118,21 @@ Members (address order):
 - ovl_11_func_800BF3F4 (m) — gets the object, maps flags 4→2, 0x40→3, 2→bool.
 - ovl_11_func_800BF450 (s, parked asm-needs-human-approval) — gets the object,
   caches it and its low halfword into D_80128808/D_8012880C, tests 0x2000.
+
+---
+
+## `ovl_11` `D_8012D7A8` s16-table accessor run — 0x8011775C–0x80117F14 (confidence: medium)
+
+A gapless four-function run in `configs/splat/ovl_11.yaml`: 0x8011775C
+(0x2E4, ends 0x80117A40) → 0x80117A40 (0x174, ends 0x80117BB4) →
+0x80117BB4 (0x360, ends 0x80117F14) → 0x80117F14 (0x5C, ends 0x80117F70),
+with no unrelated code between. All four target dasm files reference the same
+external s16 table at 0x8012D7A8 — a shared absolute global cluster — and the
+call graph agrees (`80117BB4` calls `80117F14`). The run stops at 0x80117F70,
+which does not reference the table.
+Members (address order):
+- ovl_11_func_8011775C (s) — reads D_8012D7A8; role unknown.
+- ovl_11_func_80117A40 (s) — reads D_8012D7A8; role unknown.
+- ovl_11_func_80117BB4 (s) — reads D_8012D7A8 and calls 80117F14; role unknown.
+- ovl_11_func_80117F14 (m, matched this session) — clamps arg0 to 0..4, calls
+  func_80022738, then returns func_8002261C(2, D_8012D7A8[arg0]).
