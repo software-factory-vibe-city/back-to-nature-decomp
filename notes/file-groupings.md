@@ -6067,13 +6067,18 @@ Members (link order):
   `func_8002261C(4, 0x18)` and sharing the 0x18 `$s0/$ra` frame; membership
   rests on the shared global + identical guard idiom, not on adjacency (it
   sits at 0x800B8654, well before the trio).
+- ovl_21_func_800BA7F0 (m, matched this session, byte-exact) — leaf that
+  reads the 32-bit word at record offset 0x14 of three consecutive
+  `D_800C0448` records starting at index `arg0*3` and returns how many equal
+  1; membership rests on the shared global, not on adjacency.
 
 Fingerprints:
 - shared global cluster: `D_800C0448` is the base of a record table of
   0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
-  above) and a halfword at 0x18 (written by `ovl_21_func_800B9798`), three
-  records per 0x318-byte group (`func_800B9A20` walks the table at a 0x318
-  stride). The trio's declaration only witnessed the leading halfwords.
+  above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`) and a
+  halfword at 0x18 (written by `ovl_21_func_800B9798`), three records per
+  0x318-byte group (`func_800B9A20` walks the table at a 0x318 stride). The
+  trio's declaration only witnessed the leading halfwords.
 
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 
