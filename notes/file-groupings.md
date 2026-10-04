@@ -4414,6 +4414,13 @@ Members:
   (the word immediately before the +0x7A78 table), calls ovl_11_func_800DBE9C,
   returns 1 — adds a matched member to the 0x800DBAB0 band and a second call
   edge into the shift writer
+- ovl_11_func_800DBE30 (m, matched this session, 0x6C, byte-exact) — the
+  sibling reset/gate caller: dispatches `(*D_800B94AC[arg0])(&D_800B94AC[arg0])`,
+  on a `!= 1` result calls `func_8001AF70(2, 1)` and returns 0, else calls
+  `func_8001AF70(2, 0)`, clears D_800742AC (0x800742AC, the +0x7A74 word of
+  D_8006C838 as an absolute symbol), calls ovl_11_func_800DBE9C and returns 1 —
+  same `func_8001AF70(2,0/1)` + shift-writer + clear-the-+0x7A74-word shape as
+  ovl_11_func_800DBEF8, immediate link-order predecessor of it
 - ovl_11_func_800F13D8 (m) — returns 1 when a record's first halfword is zero
   and its second equals the u16 argument. Its apparent `D_800742B0` base is
   this same embedded table; shared data-family evidence, not proof of one TU
