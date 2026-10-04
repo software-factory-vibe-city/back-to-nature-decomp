@@ -887,6 +887,20 @@ It sits zero-gap between matched member `ovl_11_func_80104394` (ends
 0x80104418) and parked stub `ovl_11_func_801044E4`; TU membership with the
 D_80127428 run itself remains unproven (touches none of D_80127428/2C).
 
+Widening (byte-exact match of `ovl_11_func_80103714`): the run's flag arm is
+now matched. `ovl_11_func_80103714` (m, 0x80103714, 0x5C, void leaf) sits
+zero-gap two slots before the run head — its immediate follower is the parked
+`ovl_11_func_80103770`, itself the run head's gapless predecessor — and shares
+the cluster's two fingerprints: the D_8006C838 work area (`|= 0x40000` at
++0xC and `|= 0x2000` at +0x5234, the field 80103B24 updates) and the
+`func_8001FABC(3)` call cluster setter 80103830 makes. Role: zeroes the
+file-scope `D_801273E4` (new site in the 0x801273xx region) before setting
+those work-area bits and running the hook + `func_800226F0`; TU membership
+with the D_80127428 run itself remains unproven (touches neither D_80127428
+nor D_8012742C). Declaration tie: byte-exact only when that shared
+`func_8001FABC` call is left without a prototype (implicit int); the dead
+`$v0` call def keeps `$v0` live and sends the second bit-set to `$v1`.
+
 ---
 
 ## `ovl_11` s16-pair setter pair — 0x800D0DB0 / 0x800D0DBC (confidence: low)
