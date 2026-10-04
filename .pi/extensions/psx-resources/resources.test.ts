@@ -182,6 +182,8 @@ test("parser closure dispatches builder; tested commit hot-reloads and discovers
   try {
     const files = ["resource-extraction", "machine-ir", ...TOOL_SPECS.map(s => s.script)];
     for (const file of files) cpSync(join(repository, "tools/agent", file), join(root, "tools/agent", file), { recursive: true });
+    mkdirSync(join(root, "tools/lib"), { recursive: true });
+    cpSync(join(repository, "tools/lib/resourceLocks.ts"), join(root, "tools/lib/resourceLocks.ts"));
     mkdirSync(join(root, "tools/agent/matching-reconstruction"));
     for (const file of ["decode.ts", "types.ts", "failure-category.ts"]) cpSync(join(repository, "tools/agent/matching-reconstruction", file), join(root, "tools/agent/matching-reconstruction", file));
     symlinkSync(join(repository, "node_modules"), join(root, "node_modules"), "dir");
