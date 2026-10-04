@@ -6218,8 +6218,8 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `D_800531B8`, `ovl_15_func_8012F990` uses `D_80053506`,
 `ovl_15_func_8012FA00` uses `D_8005321A`, `ovl_15_func_8012FA70` uses
 `D_80053294`, `ovl_15_func_8012FFD8` uses `D_80052F4E`,
-`ovl_15_func_80130A94` uses `D_800532FE`, and `ovl_15_func_80130BBC` uses
-`D_800523AC`; none is referenced by any function
+`ovl_15_func_80130A94` uses `D_800532FE`, `ovl_15_func_80130BBC` uses
+`D_800523AC`, and `ovl_15_func_80130DDC` uses `D_8005341E`; none is referenced by any function
 outside the run, so the tie is the shared-global/idiom cluster, not a single
 symbol or adjacency (the run is not gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
 `func_80131ED8` are interleaved with non-members).
@@ -6305,6 +6305,12 @@ Members (link order):
   `D_8013758E` passed to `ovl_15_func_801367F8`, switch on `jtbl_8012DF44`
 - ovl_15_func_80130D3C (s) — shared prologue; then reads `D_8013758E`, writes
   `D_80137584` on the `ovl_15_func_80135B68` failure path
+- ovl_15_func_80130DDC (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_8005341E` updater array; then `ret =
+  ovl_15_func_80137228(0xE, 0)`, `D_80137584 = ret` (s8; the value is returned),
+  and `D_80137584 = 0` when `D_8013759A >= 0x5B` — same body as
+  `ovl_15_func_8012F078`/`ovl_15_func_8012F0E8`/`ovl_15_func_8012F86C` with only
+  the updater array and the immediate changed
 - ovl_15_func_801315B0 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x1F)` and `D_80137588 = 1` (void;
