@@ -566,7 +566,8 @@ Fingerprints:
   ovl_11_func_801081A0 and ovl_11_func_801084E0); `D_8012D052` (u16 field at
   +2 of that base, read by ovl_11_func_80108214); `D_8012D060`/`D_8012D068`/
   `D_8012D06C` (ovl_11_func_80108930), `D_8012D070` (ovl_11_func_8010A47C),
-  `D_8012D084` (ovl_11_func_8010AE64);
+  `D_8012D084` (ovl_11_func_8010AE64) and `D_8012D080`
+  (ovl_11_func_80109E04, an absolute-`lui`+`%lo` pointer);
 - link-order contiguity of the head run (map): 0x80108104 (0x14) → 0x80108118
   → 0x801081A0 → 0x80108214 (0x18) → 0x8010822C, each starting where the
   previous ends; the cluster users span 0x80108104–0x8010AE64.
@@ -621,6 +622,11 @@ Members (address order, matched so far):
   D_8012D068/D_8012D06C pair alongside ovl_11_func_80108930 and the run's
   second D_8012D040-indexed D_8012D050 reader alongside ovl_11_func_80108828;
   called by the run's shared caller ovl_11_func_80107F58; byte-exact clean C
+- ovl_11_func_80109E04 (m, this session) — guard/probe leaf: returns -1 unless
+  the u16 at arg0+0 is nonzero and the cluster pointer D_8012D080 is set,
+  otherwise forwards arg0 plus D_8012D080's +0x38/+0x3C/+0x40/+0x44 words to
+  ovl_11_func_800D05D0 and returns 0; only confirmed reader of D_8012D080;
+  byte-exact clean C, baseline flags
 
 ---
 
