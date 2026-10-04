@@ -679,3 +679,70 @@ Generated artifacts (not committed):
 ### Qualified observations
 
 Semantic name and consumer association remain unknown.
+
+<!-- resource-asset:node-92555b2100f0c7fa123f4e0d -->
+## node-92555b2100f0c7fa123f4e0d — TIM
+
+- Parser: tim-v1 v1.
+- Raw SHA-256: 12d0cd5db4bc7dd043642e3d36368e5c857ef74471c2cfbc3cf12f988e890fcc; 192 bytes.
+- Verified manifest: ac361a9cf5ab9b2d812f2a462a59cac1aa9fd8e7f687f3f1c221c8526dc2ef99.
+- Stages: {"decoding":"validated","discovery":"validated","export":"validated","extraction":"validated"}.
+- Evidence: evidence-c4505a0259c435dea40bcad5. Structural compatibility is not historical naming evidence.
+
+### Source and extraction
+
+```json
+[
+  {
+    "node": "node-92555b2100f0c7fa123f4e0d",
+    "blob": "blobs/12d0cd5db4bc7dd043642e3d36368e5c857ef74471c2cfbc3cf12f988e890fcc",
+    "size": 192,
+    "source": {
+      "coordinate": "file-byte",
+      "length": 192,
+      "node": "input-5fe7a25fe1c481a46175463f",
+      "offset": 133058432
+    }
+  },
+  {
+    "node": "input-5fe7a25fe1c481a46175463f",
+    "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+    "size": 133935104,
+    "input": {
+      "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "hash": "612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "id": "input-5fe7a25fe1c481a46175463f",
+      "path": "extracted/iso/a_file.bin",
+      "size": 133935104
+    }
+  }
+]
+```
+
+Recreate a run from the original scope, using the registered parser:
+
+```sh
+npx tsx tools/agent/resourceCampaign.ts --input 'extracted/iso/a_file.bin' --limits '{"maxAssets":2000,"maxFileBytes":268435456,"maxFiles":4096,"maxFunctions":128,"maxInputBytes":536870912,"maxInstructions":4096,"maxOutputBytes":268435456}'
+
+```
+
+The documented resource ID and source hashes identify the result independently
+of a generated run directory. Replace RUN with the new campaign's run ID.
+Required schemas (if nonempty, save this JSON to the --schemas path above):
+
+```json
+[]
+```
+
+For transformed views, the commands and code-origin hashes above reproduce the
+recorded parameters. Input association is conditional, not an inferred game call.
+
+Generated artifacts (not committed):
+- `build/assets/blobs/12d0cd5db4bc7dd043642e3d36368e5c857ef74471c2cfbc3cf12f988e890fcc`: slice-v1, {"basis":"validated-parser","source":{"coordinate":"file-byte","length":192,"node":"input-5fe7a25fe1c481a46175463f","offset":133058432}}, SHA-256 12d0cd5db4bc7dd043642e3d36368e5c857ef74471c2cfbc3cf12f988e890fcc
+- `build/assets/blobs/3a8d2de58dfac7041fd318c309205043d768d7e0538acc072b21412c9bd5a8b8`: tim-v1, {"bank":0,"height":16,"kind":"rgba","mode":0,"paletteBank":0,"ppmLoss":"PPM discards transparency and STP; RGBA and STP blobs are authoritative","rgbaConvention":"zero color is transparent; STP stored separately, not approximated by alpha","rowPaddingBytes":0,"variant":{"bank":0},"width":16}, SHA-256 3a8d2de58dfac7041fd318c309205043d768d7e0538acc072b21412c9bd5a8b8
+- `build/assets/blobs/6c4c138b0e9161724332ca7cedbfe8777218bdee0cadd8e166140724ec66072b`: tim-v1, {"bank":0,"height":16,"kind":"stp","mode":0,"paletteBank":0,"ppmLoss":"PPM discards transparency and STP; RGBA and STP blobs are authoritative","rgbaConvention":"zero color is transparent; STP stored separately, not approximated by alpha","rowPaddingBytes":0,"variant":{"bank":0},"width":16}, SHA-256 6c4c138b0e9161724332ca7cedbfe8777218bdee0cadd8e166140724ec66072b
+- `build/assets/runs/e752a32e1798386f-619f198c099e90d0/exports/artifact-3e0791dba321eb669d1e84db.ppm`: tim-v1, {"bank":0,"height":16,"kind":"ppm","mode":0,"paletteBank":0,"ppmLoss":"PPM discards transparency and STP; RGBA and STP blobs are authoritative","rgbaConvention":"zero color is transparent; STP stored separately, not approximated by alpha","rowPaddingBytes":0,"variant":{"bank":0},"width":16}, SHA-256 e95fc3e3090b228c43b90154ad10b9eb4caa79bb77beb77ae5d1a9a9d49399e3
+
+### Qualified observations
+
+Semantic name and consumer association remain unknown.
