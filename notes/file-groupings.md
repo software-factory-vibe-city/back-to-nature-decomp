@@ -4511,8 +4511,8 @@ agrees (0x800BB0E8 + 0x68 = 0x800BB150).
 
 - ovl_23_func_800BB0E8 (m, byte-exact this session) — 6x `func_80015814(slot, 4)`
   (set bits) over both arrays.
-- ovl_23_func_800BB150 (s) — same walker, 6x `func_80015828(slot, 4)` (clear
-  bits); gapless successor.
+- ovl_23_func_800BB150 (m, byte-exact this session) — same walker, 6x
+  `func_80015828(slot, 4)` (clear bits); gapless successor.
 
 ## `ovl_23` ObjectState reset/handoff leaf — 0x800BB1B8 (confidence: low)
 
