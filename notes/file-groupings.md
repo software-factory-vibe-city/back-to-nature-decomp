@@ -5549,7 +5549,9 @@ Members (link order):
   + record copy from D_8005E3B0+0x4290
 - ovl_27_func_800BA750 (s) — display-setup: DrawSync/ClearOTagR +
   `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,1)`
-- ovl_27_func_800BA7B0 (s) — role unknown
+- ovl_27_func_800BA7B0 (m, matched this session) — guarded display-setup:
+  `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,0)`, on nonzero
+  `func_8001719C(D_8005E3B0+0x4290)` and return 1, else return 0
 - ovl_27_func_800BA80C (s) — 8-byte leaf; role unknown
 - ovl_27_func_800BA814 (s) — closing member; role unknown
 
