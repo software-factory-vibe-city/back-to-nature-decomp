@@ -6919,3 +6919,25 @@ Members (link order):
   `ovl_11_func_800FA5C8(arg0, +0x548C, arg3)`.
 - ovl_11_func_800FA410 (s) — link successor; reads the same `+0x5488`/
   `+0x548A`/`+0x548C` trio alongside `D_80126F80`/`D_80126F8C`.
+
+## `ovl_11` D_8006C838+0x8000 work-area run — 0x801128B4–0x80112C28 (confidence: medium)
+
+Evidence: link-order adjacency across an unbroken run plus a shared global
+cluster. Every member addresses the same work area as `(char *)&D_8006C838
++ 0x8000` and reads/writes halfwords in the narrow window `+0x676C`–`+0x677A`;
+three of the members are byte-exact clean C, so the spellings are the
+author's, not inferred. The caller edge `ovl_11_func_801129EC ->
+ovl_11_func_80112C28` ties the interval together.
+
+Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
+0x801129A0, 0x801129EC, 0x80112A84, 0x80112AB4, 0x80112B60, 0x80112C28):
+- ovl_11_func_801128B4 (m) — zeros `+0x676C` (0x34 bytes) then `+0x6776 = -1`
+  and `func_8001AF70(0x1B, 1)`.
+- ovl_11_func_80112904 (m) — writes `+0x6778`, sets the `+0x6776` selector
+  from an s16, clears `+0x676C`, copies a packed word from `+0x44B8`.
+- ovl_11_func_801129EC (s) — caller of ovl_11_func_80112C28 (discards $v0).
+- ovl_11_func_80112A84 (m) — same work area read as `s16*`:
+  `p[0x73BB]` = `+0xE776` = base+0x8000+0x6776, indexes `D_80127FD4[5]`.
+- ovl_11_func_80112C28 (m, matched this session, byte-exact) — on
+  `func_8001AF44(0x4B) == 0` increments `+0x677A`, else clears it; then
+  `func_8001AF70(0x4B, 0)` and `func_8001AF70(0x4C, 0)`.
