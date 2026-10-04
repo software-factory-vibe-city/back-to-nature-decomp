@@ -4534,3 +4534,72 @@ Backing artifacts (not committed):
 ### Qualified observations
 
 - Candidate interpretation: Node-2c2b7da50f5d67d78b96f968 is a 4672-byte XA-structured resource at file-byte offset 2385376 of input-5fe7a25fe1c481a46175463f, spanning 2 sectors of 2336 bytes (stripped-2336 form, no trailing bytes), comprising 2 data sectors and 0 audio sectors, with file number 154 and no audio channels, as validated by parser xa-v1 version 1. This establishes format compatibility only; no asset name, disc LBA, or in-game consumer association is claimed. [evidence-6f4a29e153bdc46607f5c3fb]
+
+<!-- resource-asset:node-40e6ce62be074be4fcb4fb13 -->
+## node-40e6ce62be074be4fcb4fb13 — XA
+
+- Parser: xa-v1 v1.
+- Raw SHA-256: fa23a64cac40df66502df78ce4fa7c6e5cd85a498966c32a25cdfd85a0dc6f62; 4672 bytes.
+- Verified manifest: 2602dea6c05d92bfacad5197b060b7fc7150ab23e61e38359ef047abe74e3228.
+- Stages: {"decoding":"validated","discovery":"validated","extraction":"validated"}.
+- Evidence: evidence-d46785c67118a5242c38cc53. Structural compatibility is not historical naming evidence.
+
+### Source and extraction
+
+```json
+[
+  {
+    "node": "node-40e6ce62be074be4fcb4fb13",
+    "blob": "blobs/fa23a64cac40df66502df78ce4fa7c6e5cd85a498966c32a25cdfd85a0dc6f62",
+    "size": 4672,
+    "source": {
+      "coordinate": "file-byte",
+      "length": 4672,
+      "node": "input-5fe7a25fe1c481a46175463f",
+      "offset": 2414508
+    }
+  },
+  {
+    "node": "input-5fe7a25fe1c481a46175463f",
+    "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+    "size": 133935104,
+    "input": {
+      "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "hash": "612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "id": "input-5fe7a25fe1c481a46175463f",
+      "path": "extracted/iso/a_file.bin",
+      "size": 133935104
+    }
+  }
+]
+```
+
+Recreate a run from the original scope, using the registered parser:
+
+```sh
+npx tsx tools/agent/resourceCampaign.ts --input 'extracted' --limits '{"maxAssets":2000,"maxFileBytes":268435456,"maxFiles":4096,"maxFunctions":128,"maxInputBytes":536870912,"maxInstructions":4096,"maxOutputBytes":268435456}'
+
+```
+
+The documented resource ID and source hashes identify the result independently
+of a generated run directory. Replace RUN with the new campaign's run ID.
+Required schemas (if nonempty, save this JSON to the --schemas path above):
+
+```json
+[]
+```
+
+For transformed views, the commands and code-origin hashes above reproduce the
+recorded parameters. Input association is conditional, not an inferred game call.
+
+Browsable files (not committed):
+- `build/assets/video/node-40e6ce62be074be4fcb4fb13/original.xa`: extraction, SHA-256 fa23a64cac40df66502df78ce4fa7c6e5cd85a498966c32a25cdfd85a0dc6f62
+- `build/assets/video/node-40e6ce62be074be4fcb4fb13/variant-62c68d5a435c3507-xa-data.bin`: decoding, SHA-256 f5d07f77f706486a03879f40900ffcbc806066ee7f10acf6c21ecb1f851840fb
+
+Backing artifacts (not committed):
+- `build/assets/blobs/fa23a64cac40df66502df78ce4fa7c6e5cd85a498966c32a25cdfd85a0dc6f62`: slice-v1, {"basis":"validated-parser","source":{"coordinate":"file-byte","length":4672,"node":"input-5fe7a25fe1c481a46175463f","offset":2414508}}, SHA-256 fa23a64cac40df66502df78ce4fa7c6e5cd85a498966c32a25cdfd85a0dc6f62
+- `build/assets/blobs/f5d07f77f706486a03879f40900ffcbc806066ee7f10acf6c21ecb1f851840fb`: xa-v1, {"codings":[0],"form":"stripped-2336","interpretation":"form 1 payload concatenation only; member/frame semantics unresolved","kind":"xa-data","payloadBytes":2048,"sectors":2,"stride":2336,"variant":{"kind":"data"}}, SHA-256 f5d07f77f706486a03879f40900ffcbc806066ee7f10acf6c21ecb1f851840fb
+
+### Qualified observations
+
+- Candidate interpretation: Node-40e6ce62be074be4fcb4fb13 is a 4672-byte XA-structured resource at file-byte offset 2414508 of input-5fe7a25fe1c481a46175463f, spanning 2 sectors of 2336 bytes (stripped-2336 form, no trailing bytes), comprising 2 data sectors and 0 audio sectors, with file number 154 and no audio channels, as validated by parser xa-v1 version 1. This establishes format compatibility only; no asset name, disc LBA, or in-game consumer association is claimed. [evidence-d46785c67118a5242c38cc53]
