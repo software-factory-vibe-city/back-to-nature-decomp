@@ -571,6 +571,34 @@ Evidence:
 
 ---
 
+## `ovl_11` 0x801075C0 gapless run (button/state guards) — 0x801075C0–0x80107B54 (confidence: medium)
+
+Gapless link-order run 0x801075C0 (0x44) → 0x80107604 (0x158) → 0x8010775C
+(0xB0) → 0x8010780C (0x7C) → 0x80107888 (0x2CC = 716), each starting exactly
+where the previous ends and the last ending exactly at 0x80107B54, the head of
+the documented keyed-table lookup run below (so the two entries are one
+contiguous band). Call graph and link order agree: the shared caller
+ovl_11_func_80107528 calls four of the five members, and the sole caller of
+ovl_11_func_8010780C is its zero-gap successor ovl_11_func_80107888. Both
+0x8010780C and 0x80107888 call `func_8001AF44` and touch the same main-binary
+`D_8006C838` +0x44BA/+0x44BC state s16 pair (`D_80070CF2`/`D_80070CF4`).
+Members (address order):
+- ovl_11_func_801075C0 (s) — shared caller's first callee, gapless run head
+- ovl_11_func_80107604 (s) — second gapless member
+- ovl_11_func_8010775C (s) — third gapless member; calls the 0x80107B54
+  lookup leaf
+- ovl_11_func_8010780C (m, matched this session) — state guard leaf: reads the
+  +0x44BA/+0x44BC s16 pair (D_80070CF2 == 3 && D_80070CF4 == 0x17) through
+  the shared `base = (char *)&D_8006C838` idiom, then gates two
+  `func_8001AF44` flag tests (0x1B, and `(arg0 + 0x21) & 0xFFFF`); returns 0
+  or 1. Carries the CAPTURE_PREV_RET dead-$v0 fossil (same family as the
+  documented v0-channel ovl_11 leaves 800D1CD0/800D0600/800D12A0 and
+  800DD45C; see notes/research/func_8001EAE4-v0-channel-delay-slot-fossil.md)
+- ovl_11_func_80107888 (s) — sole caller of 0x8010780C and its zero-gap
+  successor; run tail, ends at 0x80107B54; also calls `func_8001AF44`
+
+---
+
 ## `ovl_11` keyed-table lookup run — 0x80107B54–0x80107BE4 (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) at the tail of the
