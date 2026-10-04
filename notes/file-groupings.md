@@ -6378,6 +6378,14 @@ Members (link order):
   `D_8013759A >= 0x5B` — exact body duplicate of `ovl_15_func_80130E4C` (same
   updater array and immediate), contiguous in link order after
   `ovl_15_func_80131D88` (0x70 bytes)
+- ovl_15_func_80131E68 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80052F4E` updater array (shared with
+  `ovl_15_func_8012FFD8` and `ovl_15_func_80130EBC`); then `ret =
+  ovl_15_func_80137228(0x1E, 0)`, `D_80137584 = ret` (s8; the value is
+  returned), and `D_80137584 = 0` when `D_8013759A >= 0x5B` — exact body
+  duplicate of `ovl_15_func_8012FFD8` (same updater array, immediate `0x15`→`0x1E`),
+  contiguous in link order after `ovl_15_func_80131DF8` and immediately before
+  `func_80131ED8` (0x70 bytes)
 - func_80131ED8 (s) — shared prologue; also `sb` to `D_80137584`
 
 ## `ovl_25` leaf run — 0x800BB970–0x800BBA7C (confidence: medium)
