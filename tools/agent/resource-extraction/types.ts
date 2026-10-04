@@ -23,6 +23,7 @@ export interface Node {
 export interface Artifact {
   id: string; node: string; stage: Stage; hash: string; size: number; path: string;
   processor: string; parameters: Record<string, unknown>; parents: string[]; evidence: string[];
+  extension?: string;
 }
 export interface Job { node: string; stage: "probe" | "analyze" | "extract" | "schema"; schema?: number }
 export interface Manifest {

@@ -3,6 +3,8 @@ import { EXTRA_PARSERS } from "./parser-plugins.ts";
 import { canonical, integer } from "./storage.ts";
 import type { Match } from "./types.ts";
 
+export const ASSET_CATEGORIES = ["images", "sound", "models", "video", "data"] as const;
+export type AssetCategory = typeof ASSET_CATEGORIES[number];
 export interface ParsedAsset { length: number; metadata: Record<string, unknown> }
 export interface DecodedOutput {
   kind: string; extension: string; stage: "decoding" | "export";
@@ -14,6 +16,8 @@ export interface DecodedOutput {
  * can be added as validated views without pretending they have universal magic. */
 export interface AssetParser {
   id: string; format: string; version: number;
+  /** Browsable output routing; unspecified formats remain in data/. */
+  category?: AssetCategory; rawExtension?: string;
   probe(bytes: Buffer, offset: number): boolean;
   parse(bytes: Buffer, offset: number): ParsedAsset;
   variants(bytes: Buffer): Array<Record<string, unknown>>;
@@ -26,6 +30,8 @@ export class ParserRegistry {
     for (const parser of parsers) {
       if (!/^[a-z][a-z0-9-]+$/.test(parser.id) || names.has(parser.id) || ["slice-v1", "byte-xor-v1"].includes(parser.id)) throw new Error(`Invalid/duplicate parser ID: ${parser.id}`);
       integer(parser.version, "parser version", 1);
+      if (parser.category !== undefined && !ASSET_CATEGORIES.includes(parser.category)) throw new Error("Invalid parser asset category");
+      if (parser.rawExtension !== undefined && !/^[a-zA-Z0-9_-]{1,32}$/.test(parser.rawExtension)) throw new Error("Invalid parser raw extension");
       names.add(parser.id);
     }
     this.parsers = Object.freeze([...parsers]);
@@ -54,7 +60,7 @@ export class ParserRegistry {
     const outputs = this.get(name).decode(bytes, variant, maximum);
     const kinds = new Set<string>();
     for (const output of outputs) {
-      if (!/^[a-zA-Z0-9_-]+$/.test(output.kind) || !/^[a-zA-Z0-9_-]+$/.test(output.extension) || kinds.has(output.kind) || !["decoding", "export"].includes(output.stage)) throw new Error("Invalid parser output descriptor");
+      if (!/^[a-zA-Z0-9_-]{1,80}$/.test(output.kind) || !/^[a-zA-Z0-9_-]{1,80}$/.test(output.extension) || kinds.has(output.kind) || !["decoding", "export"].includes(output.stage)) throw new Error("Invalid parser output descriptor");
       kinds.add(output.kind);
     }
     if (outputs.reduce((sum, o) => sum + o.bytes.length, 0) > maximum) throw new Error("budget-exhausted: parser outputs");
@@ -84,7 +90,7 @@ export class ParserRegistry {
 }
 
 export const TIM_PARSER: AssetParser = {
-  id: "tim-v1", format: "TIM", version: 1,
+  id: "tim-v1", format: "TIM", version: 1, category: "images", rawExtension: "tim",
   probe: (bytes, offset) => offset + 8 <= bytes.length && bytes[offset] === 0x10 && bytes.readUInt32LE(offset) === 0x10,
   parse: (bytes, offset) => {
     const tim = parseTim(bytes, offset);

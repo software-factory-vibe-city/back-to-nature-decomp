@@ -766,7 +766,12 @@ without it the loop continues until cancellation, a budget/failure or an
 honestly unsupported builder attempt.
 
 Inputs default to `extracted/`; generated assets, immutable snapshots, provenance
-and reports stay under `build/assets/` and are never committed. Current asset
+and reports stay under `build/assets/` and are never committed. Browse actual
+files in `build/assets/images/<asset-id>/`: `original.tim`, `bank-0.ppm`, RGBA/STP
+files and `asset.json` provenance. `build/assets/index.json` lists all published
+assets. Parsers route future supported formats to `sound/`, `models/`, `video/`
+or `data/`; folders appear only when assets exist. These are regular copies,
+so editing one cannot corrupt the backing blobs. Current asset
 format support is **TIM v1**, with indexed/direct-color validation, RGBA, separate
 STP masks and lossy PPM previews. VAG/VAB, SEQ/SEP, TMD, STR/MDEC and game-specific
 formats remain pending. Supplied archive schemas and one checked byte-XOR

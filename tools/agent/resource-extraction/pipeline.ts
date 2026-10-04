@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { relative } from "node:path";
 import { analyzeOriginal, evaluateByteTransform, transformAt } from "./analysis.ts";
 import { PARSERS, scanFormats } from "./registry.ts";
+import { presentAssets, verifyPresentation } from "./presentation.ts";
 import { schemaExtents, validateSchema } from "./schema.ts";
 import { analyzerVersion, canonical, hash, id, integer, inventory, runPath, safePath, Store } from "./storage.ts";
 import { DEFAULT_LIMITS, type Artifact, type Evidence, type Job, type Limits, type Manifest, type Node, type Operation, type Request, type State } from "./types.ts";
@@ -92,7 +93,7 @@ function artifact(store: Store, m: Manifest, node: Node, stage: Artifact["stage"
   const blob = store.blob(bytes);
   const path = stage === "export" ? `${runPath(m.runId)}/exports/${name}.${suffix}` : blob;
   if (stage === "export") store.atomic(path, bytes);
-  m.artifacts.push({ id: name, node: node.id, stage, hash: hash(bytes), size: bytes.length, path, processor, parameters, parents, evidence: [...node.evidence] });
+  m.artifacts.push({ id: name, node: node.id, stage, hash: hash(bytes), size: bytes.length, path, extension: suffix, processor, parameters, parents, evidence: [...node.evidence] });
 }
 
 async function createRun(store: Store, request: Request, signal?: AbortSignal): Promise<Run> {
@@ -247,7 +248,7 @@ export function verifyRun(store: Store, run: Run): { outcome: "validated"; nodes
     if (a.processor === "slice-v1") expected = store.bytes(node.blob);
     else if (PARSERS.parsers.some(p => p.id === a.processor)) {
       const output = PARSERS.replay(a.processor, store.bytes(node.blob), a.parameters.variant as Record<string, unknown>, a.parameters.kind as string, m.limits.maxOutputBytes);
-      if (a.stage !== output.stage || canonical(a.parameters) !== canonical({ ...output.metadata, ...(a.parameters.variant as Record<string, unknown>), variant: a.parameters.variant, kind: output.kind }) || canonical(a.parents) !== canonical([node.blob])) throw new Error("Parser artifact stage/metadata/provenance mismatch");
+      if ((a.extension !== undefined && a.extension !== output.extension) || a.stage !== output.stage || canonical(a.parameters) !== canonical({ ...output.metadata, ...(a.parameters.variant as Record<string, unknown>), variant: a.parameters.variant, kind: output.kind }) || canonical(a.parents) !== canonical([node.blob])) throw new Error("Parser artifact stage/metadata/provenance mismatch");
       expected = output.bytes;
     } else if (a.processor === "byte-xor-v1") {
       const code = nodeOf(m, a.parameters.codeNode as string);
@@ -269,6 +270,7 @@ function documentBundle(store: Store, run: Run): Record<string, unknown> {
     nodes: m.nodes, artifacts: m.artifacts, evidence: m.evidence, unresolved: m.unresolved,
     coverage: { observedInputFiles: m.inputs.length, observedBytes: m.inputs.reduce((s, i) => s + i.size, 0), supportedFormats: PARSERS.parsers.map(p => ({ id: p.id, format: p.format, version: p.version })), totalGameAssets: "unknown" },
     reproduction: `npx tsx tools/agent/resourceCampaign.ts --resume ${m.runId}`,
+    browsableAssets: "build/assets/index.json (category folders contain copies; run artifacts remain authoritative)",
     limitations: ["Schema validation is conditional on supplied layouts", "Static slices do not independently establish loader/consumer semantics", "Exports are derivative; raw/RGBA/STP blobs remain authoritative"] };
   const bundleHash = hash(canonical(bundle));
   store.json(`${runPath(m.runId)}/docs/handoff-${bundleHash}.json`, bundle);
@@ -328,7 +330,7 @@ export async function executeResource(operation: Operation, project: string, req
     progress?.({ run: m.runId, stage: operation, completed: run.state.completed.length, pending: run.state.pending.length });
     let detail: Record<string, unknown> = {};
     if (operation === "campaign" && request.action === "check") detail = { pending: run.state.pending.length, completed: run.state.completed.length };
-    else if (operation === "verify") detail = verifyRun(store, run);
+    else if (operation === "verify") detail = { ...verifyRun(store, run), presented: verifyPresentation(store, m) };
     else if (operation === "document") {
       detail = documentBundle(store, run);
       const selected = request.node ? [nodeOf(m, request.node)] : m.nodes.slice(0, 50);
@@ -377,6 +379,10 @@ export async function executeResource(operation: Operation, project: string, req
           if (existsSync(store.path(target))) detail[suffix] = store.read(target);
         }
       }
+    }
+    if (operation === "extract" || (operation === "campaign" && request.action !== "check")) {
+      const checked = verifyRun(store, run);
+      detail.presented = await presentAssets(store, m, checked.manifestHash, signal);
     }
     signal?.throwIfAborted();
     const fullReport = `${path}/logs/${operation}-${randomBytes(8).toString("hex")}.json`;

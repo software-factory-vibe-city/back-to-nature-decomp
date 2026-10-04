@@ -40,6 +40,13 @@ Two implemented facilities are useful to parsers but **are not asset parsers**:
   atomic checkpoint generations, resume, bounded caches and output budgets.
 - Byte-wise TIM discovery inside whole files and member/decoded views, followed
   by structural validation; a magic word alone is not accepted.
+- Browsable asset copies under top-level `images/`, `sound/`, `models/`, `video/`
+  and `data/` folders, routed by parser declarations. TIMs have named raw,
+  palette-bank PPM/RGBA/STP files and an `asset.json` provenance sidecar.
+  `build/assets/index.json` merges discovered assets across scopes. Folders are
+  created only when populated; ambiguous/opaque candidates are not promoted.
+  Verification checks presented-file hashes; extraction can regenerate a copy
+  without changing the authoritative blob. This adds no non-TIM parser.
 - Original PS-X EXE entry/direct-call CFG/SSA slices and field observations.
   Unknown calls, overlay mappings, table extents and consumer meanings remain
   explicit blockers. No matched game C or compiler identification is needed.
@@ -303,16 +310,23 @@ other inputs. Establish their lineage when evidence permits, or retain them as
 separate inputs with unverified lineage. Do not count them twice as independent
 proof of an archive interpretation.
 
-Proposed generated layout:
+Generated layout (unimplemented analyzer facilities below remain proposals):
 
 ```text
 build/assets/
+    index.json                       browsable asset catalog across runs/scopes
+    images/<asset-id>/                named TIM/PPM/RGBA/STP files and asset.json
+    sound/<asset-id>/                 future supported audio/bank/sequence files
+    models/<asset-id>/                future supported model files
+    video/<asset-id>/                 future supported video files
+    data/<asset-id>/                  other validated parser resources
     blobs/<content-hash>              preserved raw and decoded byte objects
     cache/                           provenance-keyed deterministic analysis
     runs/<run-id>/
         inputs.json                  consumed input identities and capabilities
         manifest.json                resource/evidence graph snapshot
         state.json                   stage results, dependencies, and checkpoints
+        presented-assets.json        named-file hashes and backing provenance
         schemas/                     proposed and validated layout descriptions
         analysis/                    code slices and operation/transform summaries
         exports/                     derived images, audio, models, and catalogs
@@ -327,6 +341,14 @@ source extents, archive members, transformed buffers, palettes, textures, sample
 banks, metadata, or exports. Edges distinguish containment, references,
 transformation, consumption, and naming evidence. One asset can depend on several
 files; several entries can refer to the same bytes.
+
+Top-level category folders are browsable copies, not a replacement for the
+immutable blobs or run provenance. Names use stable resource IDs, not invented
+historical meanings. TIM palette banks get separate files; PPM still loses
+transparency/STP. Category routing is generic (`AssetParser.category` and
+`rawExtension`); unspecified formats default to `data/` and `.bin`. Publishing
+is idempotent, merges scopes under a lock, and never follows symlinks. It does
+not claim that pending audio/model/video parsers exist.
 
 Each accepted artifact records source hashes/extents, transformation and schema
 versions, parameters, output hash, validation results, and evidence IDs. Code
@@ -574,7 +596,7 @@ assets, speculative semantics, game-source edits or unrelated changes enter them
 
 ## 10. Initial implementation verification
 
-- `npm test`: **959 passed**, no failures/skips. This includes 44 focused
+- Initial `npm test`: **959 passed**, no failures/skips. This included 44 focused
   extraction/registration tests, synthetic TIM modes, malformed data, schemas,
   replay/corruption/drift, budgets, parser admission and scoped Git gates.
 - Scoped TypeScript `--noEmit` check: passed for the extraction core, resource
@@ -592,6 +614,14 @@ assets, speculative semantics, game-source edits or unrelated changes enter them
   procedures belong in `notes/asset-identification.md`, not a binary check-in.
 - New plan/skill/ledger documentation references and `git diff --check` pass.
   No held-out-title evaluation has been completed.
+
+The categorized-file follow-up passes **963 tests** (48 focused extraction/
+registration tests), scoped TypeScript checking and `make check`. A fresh local
+archive run populated `build/assets/images/` with the same 12 assets and 48
+named raw/decoded/export files, plus provenance sidecars. Publication tests cover
+idempotence, merged scopes, category routing, edited-copy/metadata detection,
+regeneration, ambiguity exclusion and symlink refusal. No new audio/model/video
+parser or historical asset names were introduced.
 
 The next parser capabilities remain VAG/VAB, SEQ/SEP, TMD and STR/MDEC; generic
 loader-derived schemas, dependency/consumer semantics and automatic discovery

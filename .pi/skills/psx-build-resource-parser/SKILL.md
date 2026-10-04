@@ -35,6 +35,10 @@ other agent, worktree, git reset/clean or automatic flag changes.
    process, network, dynamic import, eval or global runtime state. Validate counts,
    flags, dimensions, indices and consumed extents before allocating output.
    Preserve raw/structured representation, references and lossy-export warnings.
+   Set `category` to images/sound/models/video/data and `rawExtension` to the
+   format's extension so actual files appear in browsable top-level folders.
+   Unspecified categories/extensions default to data/.bin; these declarations
+   must follow the established format, not guesses about consumer meaning.
 3. Add positive and negative/truncated/malformed fixtures, false-positive magic,
    budget, variant and replay tests. Include independent known results where
    decoding is involved. Fixtures are source arrays or generated/local data;

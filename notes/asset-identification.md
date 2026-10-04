@@ -5,8 +5,15 @@ and supported decoding have been verified. Each successful asset iteration
 commits its extraction instructions and qualified evidence to this ledger.
 
 Generated resources and full reports remain under `build/assets/` and are not
-committed. A parser-compatible asset does not acquire a historical name or
-consumer meaning without evidence. Total game asset count is unknown.
+committed. Browse the image files in `build/assets/images/<asset-id>/`:
+`original.tim`, `bank-0.ppm`, RGBA/STP files and an `asset.json` provenance
+sidecar. `build/assets/index.json` catalogs the named files across runs. The
+backing paths in older entries below remain valid; current extraction also
+publishes these readable copies. Other categories appear when supported assets
+are extracted, not as empty placeholders.
+
+A parser-compatible asset does not acquire a historical name or consumer meaning
+without evidence. Total game asset count is unknown.
 
 Accepted asset iterations are recorded below.
 
