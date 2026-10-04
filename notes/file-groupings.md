@@ -6283,7 +6283,11 @@ Fingerprints:
   `ovl_11_func_800BD668` / `800BD8DC` / `800BD9D4` / `800BDA20`, which all call
   `func_80014BCC` with a plain argument list; the broader 0x800BCF54–0x800BDA70
   span holds many more `func_80014BCC`/`80014CBC` call sites, so the run is not
-  one TU and only the proven adjacency is claimed here.
+  one TU and only the proven adjacency is claimed here;
+- the same-run pair `ovl_11_func_800BDA20` / `ovl_11_func_800BD538` both read
+  the main-RAM global `D_8005E3B0` and pass `D_8005E3B0 + 0x4290` as the CD-load
+  fifth argument, then call `func_8001719C` on the same base object — a shared
+  private data cluster, not merely a shared idiom.
 
 Members (link order):
 - ovl_11_func_800BD374 (m, matched this session, byte-exact) — s32 wrapper:
@@ -6293,6 +6297,12 @@ Members (link order):
 - ovl_11_func_800BD3C4 (s) — same table-difference CD-load wrapper (indexes
   `D_801227B0`, `D_80124FCC`) calling `func_80014BCC`; role not yet
   reconstructed beyond the shared shape.
+- ovl_11_func_800BD538 (m, matched this session, byte-exact) — zero-gap link
+  successor of 800BD488 (which follows 800BD3C4) and `D_8005E3B0` twin of
+  800BDA20: `func_80014BCC(0, 0x380B000, 0x5000, 0, D_8005E3B0 + 0x4290)`,
+  `ovl_11_func_800DD21C(&D_8009A3F8, D_8005E3B0 + 0x4290, 0x540)`, then
+  `func_8001719C(D_8005E3B0 + 0x5790)`. Confirms the shared-global tie, not
+  just the wrapper idiom.
 
 ---
 
