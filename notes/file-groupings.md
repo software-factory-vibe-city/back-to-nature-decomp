@@ -6512,3 +6512,23 @@ leaf body and +0x19EA halfword); as with that pair the cross-container
 relation is not itself TU-membership evidence, but the same-container
 zero-gap adjacency above is. The 0x1D4-stride leaf now appears in all three
 containers at the same relative slot before its +0x19EC twin.
+
+## `ovl_11` 0x800FA4F4 dispatch-wrapper run + shared `800FA950` map helper — 0x800FA4F4–0x800FA600 (confidence: medium)
+
+Evidence: zero-gap link-order over the whole span — `ovl_11_func_800FA4F4`
+(0x64, ends exactly 0x800FA558) → `ovl_11_func_800FA558`/`800FA590`/`800FA5C8`
+(each 0x38, gapless, ending exactly at 0x800FA600) → `ovl_11_func_800FA600`.
+The run head and the three wrappers share the same `(s32, s16, s16)` argument
+shape, and the run's two non-wrapper members share a direct callee:
+`ovl_11_func_800FA4F4` and `ovl_11_func_800FA600` both `jal`
+`ovl_11_func_800FA950`. Members (link order):
+- ovl_11_func_800FA4F4 (m, matched 2026-11, byte-exact) — run head: calls
+  800FA950 to fill two adjacent s16 locals at sp+0x10/0x12, then
+  func_800248B0(arg0, l0+0xC, l1+0x9).
+- ovl_11_func_800FA558 (m) — wrapper: `800FA600(0, arg0, arg1, arg2)`.
+- ovl_11_func_800FA590 (m) — wrapper: `800FA600(1, arg0, arg1, arg2)`.
+- ovl_11_func_800FA5C8 (m) — wrapper: `800FA600(2, arg0, arg1, arg2)`.
+- ovl_11_func_800FA600 (s) — run tail: calls func_80015840, func_8001585C,
+  ovl_11_func_800FA950, func_80015EE8.
+- ovl_11_func_800FA950 (m) — shared s16 range-map helper: two `%7`/`/7`
+  formulas written through two s16 pointers.
