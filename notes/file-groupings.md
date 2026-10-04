@@ -4412,6 +4412,18 @@ Members (address order):
   byte-for-byte the same body over the same record shape (shared
   Ovl23Func800BB0C8Arg view), gapless with the previous function.
 
+## `ovl_23` ObjectState reset/handoff leaf — 0x800BB1B8 (confidence: low)
+
+- ovl_23_func_800BB1B8 (m, byte-exact this session) — resets the ovl_23
+  ObjectState at `D_800BFC30` via `func_80015840(obj, 5)`, then dispatches
+  `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800BFC30,
+  state[4], state[5], 0, 0)` through a base biased by -0x3B4. Gapless
+  link-order predecessor of the display-setup run below: 0x800BB1B8 (0x5C)
+  ends exactly at 0x800BB214, the run's first member.
+- Cross-container note: byte-shape twin of matched `ovl_17_func_800BAF50`
+  (D_800BDA74/4) and `ovl_19_func_800BAD50` (D_800BF660/9); that twin
+  relation is not TU-membership evidence — only the link adjacency is.
+
 ## `ovl_23` D_800BF87C dispatch-index cluster — 0x800B8084–0x800B87F8 (confidence: medium)
 
 Evidence: three ovl_23 functions touch the state index `D_800BF87C` (s16):
