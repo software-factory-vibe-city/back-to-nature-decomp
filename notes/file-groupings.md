@@ -1377,6 +1377,32 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80129230 0x30-byte record cluster — 0x800E4568 / 0x800E516C / 0x800E5230 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the
+absolute-addressed global `D_80129230` — an array of 10 records with a
+0x30-byte stride and an s32 at +0x14.
+
+Fingerprints:
+- shared-global cluster: all three walk `D_80129230` with a 0x30 byte stride;
+  800E516C and 800E5230 touch the same s32@+0x14 while 800E4568 steps the
+  record base;
+- link-order adjacency: `ovl_11_func_800E516C` (0xC4) ends exactly at
+  `ovl_11_func_800E5230` (0x800E5230) — one unbroken run;
+- shared work-area idiom: all three (and 800E8960/800E8BA0) reach the entity
+  pool through `D_8006C838`+0x8000 (`base2[0x5DD0>>2]`).
+
+Members (address order):
+- ovl_11_func_800E4568 (s) — walks the 10 records, tests bit 0 of the u16@+4
+  of each work-area entity and calls 800E48CC for each set record
+- ovl_11_func_800E516C (s) — walks the 10 records and dispatches on the
+  s32@+0x14 (zero = free) through func_80015704 / func_80015868
+- ovl_11_func_800E5230 (m, matched this session) — reset leaf: clears the
+  s32@+0x14 of all 10 records, then clears the work-area entity via
+  ovl_11_func_800F4390 and sets a state halfword
+
+---
+
 ## `ovl_11` D_80070D0E clear/read cluster — 0x800F4CA0–0x800F62D8 (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single

@@ -1094,5 +1094,17 @@ extern s32 D_80127428;
  * the matched pair shares. Absolute-addressed (extern-only, lui + %lo). */
 extern u16 D_800C0448[2];
 
+/* D_80129230 - ovl_11 array of 10 records, stride 0x30. ovl_11_func_800E516C
+ * walks it with a 0x30 byte pointer and reads the s32 at +0x14; the same
+ * stride appears in ovl_11_func_800E4568. Absolute-addressed (extern-only,
+ * lui + %lo). */
+typedef struct {
+    /* 0x00 */ char pad_00[0x14];
+    /* 0x14 */ s32 unk14;
+    /* 0x18 */ char pad_18[0x18];
+} Ovl11E5230Entry; /* 0x30 */
+extern Ovl11E5230Entry _D_80129230[] __asm__("D_80129230");
+#define D_80129230 ((Ovl11E5230Entry *)_D_80129230)
+
 #endif /* GLOBALS_OVERRIDE_H */
 
