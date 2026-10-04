@@ -4692,8 +4692,8 @@ extends the D_800BF87C cluster above and shows that symbol is a large record
 Members (link order):
 - ovl_23_func_800B9454 (m, byte-exact this session) — 54-entry array at
   `D_800BF87C`+0x418, cursor at +0x5C8, bound 0x36 (`(s32, s16, s16)`).
-- ovl_23_func_800B94D0 (s) — same routine, 12-entry array at +0x5CC, cursor at
-  +0x62C, bound 0xC.
+- ovl_23_func_800B94D0 (m, byte-exact this session) — same routine, 12-entry
+  array at +0x5CC, cursor at +0x62C, bound 0xC (`(s32, s16, s16)`).
 
 ## `ovl_23` display-setup state-handler run — 0x800BB214–0x800BB758 (confidence: medium)
 

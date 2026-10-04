@@ -512,4 +512,7 @@ typedef struct {
     u8 pad_000[0x418];
     Ovl23D87CEntry unk418[54];  /* 0x418 */
     s16 unk5C8;                 /* 0x5C8 */
+    u8 pad_5CA[2];
+    Ovl23D87CEntry unk5CC[12];  /* 0x5CC */
+    s16 unk62C;                 /* 0x62C */
 } Ovl23D87CView;
