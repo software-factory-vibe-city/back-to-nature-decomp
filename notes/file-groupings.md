@@ -6131,19 +6131,25 @@ Members (link order):
 - ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
   `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
 
-## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x80130C2C–0x80131ED8 (confidence: medium)
+## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012EE84–0x80131ED8 (confidence: medium)
 
-Evidence: a link-order run of seven functions that all open with the same
+Evidence: a link-order run of eight functions that all open with the same
 text-draw call idiom: `func_8001AC10(D_8005E3C0->field_D8 + 0x18,
-D_8005E3C0->field_D8 + 0x14, D_80054BBC[0] + (s32)D_80053350)` — a `lui/addiu`
-of the updater array `D_80053350` (undeclared in `globals.h`; undefined sym in
+D_8005E3C0->field_D8 + 0x14, D_80054BBC[0] + (s32)<updater array>)` — a
+`lui/addiu` of an updater array (undeclared in `globals.h`; undefined sym in
 `build/ovl_15/undefined_syms_auto.txt`) plus the s32 value `D_80054BBC[0]`,
-reading `D_8005E3C0->field_D8` (0xD8) once. `D_80053350` is referenced by no
-function outside the run, so the tie is the shared-global/idiom cluster, not
-adjacency (the run is not gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`,
-`ovl_15_func_80131CDC`, `func_80131ED8` are interleaved with non-members).
+reading `D_8005E3C0->field_D8` (0xD8) once. The updater array is not one symbol:
+seven members use `D_80053350`, but `ovl_15_func_8012EE84` uses `D_80052FFA`,
+and neither is referenced by any function outside the run, so the tie is the
+shared-global/idiom cluster, not a single symbol or adjacency (the run is not
+gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
+`func_80131ED8` are interleaved with non-members).
 
 Members (link order):
+- ovl_15_func_8012EE84 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80052FFA` updater array; then
+  `D_80137584 = ovl_15_func_80137228(2, 0x16)` and `D_80137588 = 1` (void; the
+  `$v0`=1 is the store value, not a returned one — the `s32` caller reads nothing)
 - ovl_15_func_80130C2C (m, matched this session, byte-exact) — shared text-draw
   prologue; then `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and
   `D_80137584 = 12` (void; the `$v0`=12 is the store value, not a returned one)
