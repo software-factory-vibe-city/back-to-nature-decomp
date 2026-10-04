@@ -4110,3 +4110,74 @@ Backing artifacts (not committed):
 ### Qualified observations
 
 - Candidate interpretation: Node-6bdcd45fd1335d5088f16231 is a 4672-byte XA-structured resource at file-byte offset 2080372 of input-5fe7a25fe1c481a46175463f, spanning 2 sectors of 2336 bytes (stripped-2336 form, no trailing bytes), comprising 1 data sector and 1 audio sector, with channel 106 and file numbers 106 and 128, as validated by parser xa-v1 version 1. This establishes format compatibility only; no asset name, disc LBA, or in-game consumer association is claimed. [evidence-c858d71112476d234bd94f33]
+
+<!-- resource-asset:node-73d8f3aba31b723b781d00ad -->
+## node-73d8f3aba31b723b781d00ad — XA
+
+- Parser: xa-v1 v1.
+- Raw SHA-256: 988fc31fc313e4dcc596f5bb52e1ec5653a29f0c63741a54d696b9be915963f9; 4672 bytes.
+- Verified manifest: 7bd33066152a86eead8bd9a75c577369134159f83a050ead7a7db44ef512b5fd.
+- Stages: {"decoding":"validated","discovery":"validated","extraction":"validated"}.
+- Evidence: evidence-f2bee8fc7dea691c9a0f9fbc. Structural compatibility is not historical naming evidence.
+
+### Source and extraction
+
+```json
+[
+  {
+    "node": "node-73d8f3aba31b723b781d00ad",
+    "blob": "blobs/988fc31fc313e4dcc596f5bb52e1ec5653a29f0c63741a54d696b9be915963f9",
+    "size": 4672,
+    "source": {
+      "coordinate": "file-byte",
+      "length": 4672,
+      "node": "input-5fe7a25fe1c481a46175463f",
+      "offset": 2080960
+    }
+  },
+  {
+    "node": "input-5fe7a25fe1c481a46175463f",
+    "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+    "size": 133935104,
+    "input": {
+      "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "hash": "612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "id": "input-5fe7a25fe1c481a46175463f",
+      "path": "extracted/iso/a_file.bin",
+      "size": 133935104
+    }
+  }
+]
+```
+
+Recreate a run from the original scope, using the registered parser:
+
+```sh
+npx tsx tools/agent/resourceCampaign.ts --input 'extracted' --limits '{"maxAssets":2000,"maxFileBytes":268435456,"maxFiles":4096,"maxFunctions":128,"maxInputBytes":536870912,"maxInstructions":4096,"maxOutputBytes":268435456}'
+
+```
+
+The documented resource ID and source hashes identify the result independently
+of a generated run directory. Replace RUN with the new campaign's run ID.
+Required schemas (if nonempty, save this JSON to the --schemas path above):
+
+```json
+[]
+```
+
+For transformed views, the commands and code-origin hashes above reproduce the
+recorded parameters. Input association is conditional, not an inferred game call.
+
+Browsable files (not committed):
+- `build/assets/video/node-73d8f3aba31b723b781d00ad/original.xa`: extraction, SHA-256 988fc31fc313e4dcc596f5bb52e1ec5653a29f0c63741a54d696b9be915963f9
+- `build/assets/video/node-73d8f3aba31b723b781d00ad/variant-7be818c40ca03370-xa-audio-adpcm.adpcm`: decoding, SHA-256 00650715929886317d70352e80c2b26e09a4bf65a26ab6a0fa5f3a0ec5233d3c
+- `build/assets/video/node-73d8f3aba31b723b781d00ad/variant-62c68d5a435c3507-xa-data.bin`: decoding, SHA-256 cb121830191c65fe09fd58787a6d6156d8cdc6a0c64d5ad69e9e6bb3e42cff73
+
+Backing artifacts (not committed):
+- `build/assets/blobs/988fc31fc313e4dcc596f5bb52e1ec5653a29f0c63741a54d696b9be915963f9`: slice-v1, {"basis":"validated-parser","source":{"coordinate":"file-byte","length":4672,"node":"input-5fe7a25fe1c481a46175463f","offset":2080960}}, SHA-256 988fc31fc313e4dcc596f5bb52e1ec5653a29f0c63741a54d696b9be915963f9
+- `build/assets/blobs/00650715929886317d70352e80c2b26e09a4bf65a26ab6a0fa5f3a0ec5233d3c`: xa-v1, {"adpcm":"raw XA sound groups preserved; PCM synthesis is not performed","channel":102,"codings":[0],"emphasis":false,"form":"stripped-2336","kind":"xa-audio-adpcm","payloadBytes":2324,"sampleRateHz":37800,"sectors":1,"stereo":false,"stride":2336,"variant":{"channel":102,"kind":"audio"}}, SHA-256 00650715929886317d70352e80c2b26e09a4bf65a26ab6a0fa5f3a0ec5233d3c
+- `build/assets/blobs/cb121830191c65fe09fd58787a6d6156d8cdc6a0c64d5ad69e9e6bb3e42cff73`: xa-v1, {"codings":[0],"form":"stripped-2336","interpretation":"form 1 payload concatenation only; member/frame semantics unresolved","kind":"xa-data","payloadBytes":2324,"sectors":1,"stride":2336,"variant":{"kind":"data"}}, SHA-256 cb121830191c65fe09fd58787a6d6156d8cdc6a0c64d5ad69e9e6bb3e42cff73
+
+### Qualified observations
+
+- Candidate interpretation: Node-73d8f3aba31b723b781d00ad is a 4672-byte XA-structured resource at file-byte offset 2080960 of input-5fe7a25fe1c481a46175463f, spanning 2 sectors of 2336 bytes (stripped-2336 form, no trailing bytes), comprising 1 data sector and 1 audio sector, with channel 102 and file numbers 102 and 104, as validated by parser xa-v1 version 1. This establishes format compatibility only; no asset name, disc LBA, or in-game consumer association is claimed. [evidence-f2bee8fc7dea691c9a0f9fbc]
