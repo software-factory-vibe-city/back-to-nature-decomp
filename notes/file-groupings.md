@@ -6150,6 +6150,9 @@ Members (link order):
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x16)` and `D_80137588 = 1` (void; the
   `$v0`=1 is the store value, not a returned one — the `s32` caller reads nothing)
+- ovl_15_func_801305D4 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80052FFA` updater array; then
+  `D_80137584 = ovl_15_func_80137228(2, 0x11)` and `D_80137588 = 1`
 - ovl_15_func_80130C2C (m, matched this session, byte-exact) — shared text-draw
   prologue; then `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and
   `D_80137584 = 12` (void; the `$v0`=12 is the store value, not a returned one)
