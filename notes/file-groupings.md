@@ -6217,7 +6217,8 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `ovl_15_func_8012F078` uses `D_8005306A`, and `ovl_15_func_8012F0E8` uses `D_800530C8`, `ovl_15_func_8012F86C` uses
 `D_800531B8`, `ovl_15_func_8012F990` uses `D_80053506`,
 `ovl_15_func_8012FA00` uses `D_8005321A`, `ovl_15_func_8012FA70` uses
-`D_80053294`, and `ovl_15_func_8012FFD8` uses `D_80052F4E`; none is referenced by any function
+`D_80053294`, `ovl_15_func_8012FFD8` uses `D_80052F4E`, and
+`ovl_15_func_80130A94` uses `D_800532FE`; none is referenced by any function
 outside the run, so the tie is the shared-global/idiom cluster, not a single
 symbol or adjacency (the run is not gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
 `func_80131ED8` are interleaved with non-members).
@@ -6283,6 +6284,12 @@ Members (link order):
   and `D_80137584 = 0` when `D_8013759A >= 0x5B` — exact body duplicate of
   `ovl_15_func_8012F0E8` (same updater array and immediate), and contiguous in
   link order after `ovl_15_func_801307D8` (both 0x70 bytes)
+- ovl_15_func_80130A94 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_800532FE` updater array; then `ret =
+  ovl_15_func_80137228(8, 0)`, `D_80137584 = ret` (s8; the value is returned),
+  and `D_80137584 = 0` when `D_8013759A >= 0x5B` — same body as
+  `ovl_15_func_8012F078`/`ovl_15_func_8012F0E8`/`ovl_15_func_8012F86C` with only
+  the updater array and the immediate changed (0x70 bytes)
 - ovl_15_func_80130C2C (m, matched this session, byte-exact) — shared text-draw
   prologue; then `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and
   `D_80137584 = 12` (void; the `$v0`=12 is the store value, not a returned one)
