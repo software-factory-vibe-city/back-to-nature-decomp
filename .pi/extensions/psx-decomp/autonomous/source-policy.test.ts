@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { DEFAULT_CONFIG } from "./config.ts";
+import { DEFAULT_CONFIG, loadConfig } from "./config.ts";
 import { checkSourcePolicy, isPendingStub } from "./source-policy.ts";
 
 function fixture(source: string) {
@@ -66,6 +67,50 @@ test("a note quoting embedded asm is documentation, not a violation", () => {
   ].join("\n");
   const result = checkSourcePolicy({ projectRoot: root, config, scanFunctions: ["target"], patch });
   assert.equal(result.pass, true);
+});
+
+test("project scope permits plans without widening unrelated roots or source exceptions", () => {
+  const { root, config } = fixture("void target(void) {}\n");
+  /* Finalization reads the project's integration roots, not DEFAULT_CONFIG. */
+  const projectRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+  config.integration = loadConfig(projectRoot).integration;
+  const changedFiles = [
+    "plans/retired-overview.md",
+    "./plans/static-recompilation-project/overview.md",
+    "plans/static-recompilation-project/phase-01-end-to-end-slice.md",
+  ];
+  const patch = [
+    "+++ b/plans/static-recompilation-project/overview.md",
+    "@@ -0,0 +1 @@",
+    '+__asm__("nop");',
+  ].join("\n");
+  const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target", changedFiles, patch });
+  assert.equal(result.pass, true);
+  assert.deepEqual(result.outOfScopeFiles, []);
+
+  const unrelated = checkSourcePolicy({
+    projectRoot: root,
+    config,
+    changedFiles: [...changedFiles, "README.md", "plans-other/overview.md"],
+  });
+  assert.equal(unrelated.pass, false);
+  assert.deepEqual(unrelated.outOfScopeFiles, ["README.md", "plans-other/overview.md"]);
+
+  const sourcePatch = [
+    patch,
+    "+++ b/src/target.c",
+    "@@ -0,0 +1 @@",
+    '+void target(void) { __asm__("nop"); }',
+  ].join("\n");
+  const forbidden = checkSourcePolicy({
+    projectRoot: root,
+    config,
+    functionName: "target",
+    changedFiles: [...changedFiles, "src/target.c"],
+    patch: sourcePatch,
+  });
+  assert.equal(forbidden.pass, false);
+  assert(forbidden.hardFailures.some((finding) => finding.kind === "embedded-asm"));
 });
 
 test("classifies a pin written without underscores as register pinning, not embedded asm", () => {

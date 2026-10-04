@@ -7,7 +7,8 @@ corrected, and what is deliberately left outside. Findings are recorded in
 `notes/bootstrapping.md`.
 
 Written 2026-08-16; revised twice the same day as measurement accumulated.
-Origin: a scope discovery made while scoping `plans/static-recompilation.md` —
+Origin: a scope discovery made while scoping
+`plans/static-recompilation-project/overview.md` —
 `extracted/iso/a_file.bin` contains overlay executables holding roughly five
 times as much game code as the PS-X EXE this project has been decompiling.
 
@@ -200,8 +201,9 @@ the three fixes above, that sequence failed three times over.
 ---
 
 Scope is the **decompilation** pipeline only. The static recompiler is a
-separate direction planned in `plans/static-recompilation.md`; Deliverable 3
-is shared with it and should be built once, here.
+separate direction planned in
+`plans/static-recompilation-project/overview.md`; Deliverable 3 is shared
+with it and should be built once, here.
 
 ## Purpose
 
@@ -667,7 +669,7 @@ is reported dead by either tool.
 
 **The linchpin. Nothing after this is meaningful without it, and it is the one
 genuine derivation in this plan.** Also required by
-`plans/static-recompilation.md` Phase B — build it once, here.
+`plans/static-recompilation-project/overview.md` Phase B — build it once, here.
 
 An overlay carries no header and no relocation table. Branch targets are
 PC-relative and survive any base; `lui`/`addiu` pairs, jump tables, and the
@@ -1132,7 +1134,7 @@ when the tooling lands.
 - Decompiling any overlay function. This plan ends when one can be attempted.
   Every code member is in the project's target; this plan only makes them
   reachable.
-- The static recompiler; see `plans/static-recompilation.md`.
+- The static recompiler; see `plans/static-recompilation-project/overview.md`.
 - The nested container formats in members #0, #2–#5, and #12 — **conditional on
   Deliverable 5 confirming they hold no code.** They classify as data today on a
   `jr ra` density scan, which would miss code that is compressed or nested one

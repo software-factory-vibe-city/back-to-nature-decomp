@@ -551,8 +551,9 @@ explores representations of an existing source; this work must construct
 source origins from the target. It builds on
 `plans/deterministic-pipeline-reversal.md` without assuming every pass has a
 small independently invertible domain or that local inverses necessarily
-compose into valid C. `plans/static-recompilation.md` describes a different
-acceptance contract and is not the implementation route here.
+compose into valid C. `plans/static-recompilation-project/overview.md`
+describes a different acceptance contract and is not the implementation
+route here.
 
 ## 11. Work order and decision gates
 

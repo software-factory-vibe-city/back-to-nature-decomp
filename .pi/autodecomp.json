@@ -32,7 +32,8 @@
       "include",
       "configs",
       ".pi/autodecomp.json",
-      "notes"
+      "notes",
+      "plans"
     ]
   },
   "budgets": {
