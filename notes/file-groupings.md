@@ -6981,12 +6981,12 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_801273E4/D_801273F4 state-block handler — 0x801014A4 (confidence: low)
+## `ovl_11` D_801273E4/D_801273F4 state-block handler — 0x801014A4 / 0x80102268 (confidence: low)
 
-Single member, tied to the `D_801273Exx` state block by shared globals and to
-`ovl_11`'s event-handler idiom by its call shape rather than by link adjacency
-(it sits at 0x801014A4, immediately before `ovl_11_func_801014F8` at
-0x801014F8, nowhere near the 0x801033D4 run).
+Members tied to the `D_801273Exx` state block by shared globals and to
+`ovl_11`'s event-handler idiom by their call shape rather than by link
+adjacency (0x801014A4 sits immediately before `ovl_11_func_801014F8` at
+0x801014F8, nowhere near 0x80102268 or the 0x801033D4 run).
 
 - **shared global cluster:** writes `D_801273E4 = 3`, a member of the
   `D_801273Exx` block that `ovl_11_func_800FFDCC` clears (the same reset tie
@@ -7000,6 +7000,10 @@ Members (address order):
 - ovl_11_func_801014A4 (m, matched this session) — reads `D_801273F4[(s8)arg0]`,
   calls `func_8002261C(3, value)`, sets `D_801273E4 = 3` when
   `func_800226A4() == 2`
+- ovl_11_func_80102268 (m, matched this session) — resolves
+  `ovl_11_func_80102844((s8)arg1, (s8)arg0)` to a 3×s16 record, takes its first
+  halfword (0xA4 branch adds `ovl_11_func_800D60D4(record) + 0x3E8`), calls
+  `func_8002261C(3, value)`, sets `D_801273E4 = 3` when `func_800226A4() == 2`
 
 ---
 
