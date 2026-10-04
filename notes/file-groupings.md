@@ -184,7 +184,7 @@ Members:
 - ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
   trailing args `0x120` / `0xC8`.
 
-## `ovl_11` 0x38/0x3C state-switch run — 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C7270 / 0x800C8334 / 0x800C838C / 0x800C83FC (confidence: medium)
+## `ovl_11` 0x38/0x3C state-switch run — 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C7270 / 0x800C8334 / 0x800C838C / 0x800C83FC / 0x800C846C (confidence: medium)
 
 Evidence: four functions in the same small 0x800C6E0C–0x800C72F4 link-order
 run that read and write the same
@@ -229,6 +229,14 @@ Members:
   against an a1 view's `s16@+0x8`, and calls `ovl_11_func_800C7270` with
   `0x5B`, `+0x38 + 0x17`, `arg3 = -2`; else-branch calls
   `func_8002261C(2, 0x1A2)` — constants and the predicate callee differ,
+  everything else including the `Recon_ovl_11_func_800C8334_A0View` type and
+  the callee cluster is shared.
+- ovl_11_func_800C846C (m, matched this session, byte-exact) — third clone in
+  the link-order-adjacent 838C/83FC/846C run, sharing that exact word shape:
+  gates on `ovl_11_func_800D753C(s16@+0x8A) != 0` (the predicate trio's second
+  member), compares `u16@+0x38` against an a1 view's `s16@+0x8`, and calls
+  `ovl_11_func_800C7270` with `0x59`, `+0x38 + 0x17`, `arg3 = -2`; else-branch
+  calls `func_8002261C(2, 0x1A3)` — constants and the predicate callee differ,
   everything else including the `Recon_ovl_11_func_800C8334_A0View` type and
   the callee cluster is shared.
 
