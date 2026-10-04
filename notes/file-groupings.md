@@ -6787,3 +6787,27 @@ Members (link order):
 - ovl_11_func_800DF5AC (m, matched this session, byte-exact) — guard then
   `u16@+0x16 -= 10` clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8,
   0x1F, 0x1E)`; caller-side role of the predicate run.
+
+## `ovl_11` `ovl_11_func_800E109C` predicate-caller run — 0x800E05A8–0x800E15C8 (confidence: medium)
+
+Evidence: the overlay-local leaf `ovl_11_func_800E109C` (0x800E109C, 44 bytes)
+is byte-structurally the twin of `ovl_11_func_800DF4F0` (same `u16@+0x0 == 0`
+guard and same `s32@+0x34 & 0x10000` test) but sits ~0x1B00 bytes later and has
+its own single-callee fan-in: 9 recorded callers (`800E05A8`, `800E06E0`,
+`800E0D3C`, `800E10C8`, `800E1158`, `800E11C0`, `800E1254`, `800E1404`,
+`800E15C8`) plus `800E0AFC`, all inside `ovl_11` and all inside the contiguous
+link-order run 0x800E05A8–0x800E15C8, with the callee itself inside that run.
+That is the same caller-cluster signature the 800DF4F0 run shows, so it is a
+second predicate-caller TU span rather than part of the first.
+Members (link order):
+- ovl_11_func_800E109C (m) — shared predicate: returns 0 when `u16@+0x0 == 0`,
+  else `(s32@+0x34 & 0x10000) > 0` (twin of ovl_11_func_800DF4F0).
+- ovl_11_func_800E0AFC (m) — earlier caller: guard then `u16@+0xB0 < 14` →
+  `0x164` / `0x165`.
+- ovl_11_func_800E05A8 (s), 800E06E0 (s), 800E0D3C (s), 800E10C8 (s),
+  800E11C0 (s), 800E1254 (s), 800E1404 (s), 800E15C8 (s) — callers; the common
+  guard is `if (ovl_11_func_800E109C(arg0) == 0) return -1;`.
+- ovl_11_func_800E1158 (m, matched this session, byte-exact) — guard then
+  `u16@+0x16 -= 1` clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8,
+  0x1F, 0x2D)`; structural twin of ovl_11_func_800DF5AC on the 800E109C
+  predicate.
