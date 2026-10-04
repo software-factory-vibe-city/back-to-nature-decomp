@@ -1334,21 +1334,26 @@ Fingerprints:
   (0xA4) → 0x800E4DAC (0x2CC) — each starts exactly where the previous ends,
   the whole span 0x800E48CC–0x800E5078 contiguous with no unrelated code
   between;
-- internal call graph: the leaf `ovl_11_func_800E4B58` is called by three of
-  its neighbours — `ovl_11_func_800E4B6C`, `ovl_11_func_800E4C30` (twice,
-  subtracting two consecutive getter results), `ovl_11_func_800E4D08` — and
-  `ovl_11_func_800E4C30` also calls its own neighbour `ovl_11_func_800E4C84`;
-  a packed cluster whose members call each other, not the engine.
+- internal call graph: the leaf `ovl_11_func_800E4B58` is called by four of
+  its neighbours — `ovl_11_func_800E4AEC`, `ovl_11_func_800E4B6C`,
+  `ovl_11_func_800E4C30` (twice, subtracting two consecutive getter results),
+  `ovl_11_func_800E4D08` — and `ovl_11_func_800E4C30` also calls its own
+  neighbour `ovl_11_func_800E4C84`; a packed cluster whose members call each
+  other, not the engine.
+- shared idiom: `ovl_11_func_800E4AEC` and `ovl_11_func_800E4D08` both scan an
+  array of s16 words testing the 0x3C00 bit, an idiom local to this run.
 
 Members (address order, matched in bold):
 - ovl_11_func_800E48CC (s) — run head
 - ovl_11_func_800E499C (s)
-- ovl_11_func_800E4AEC (s) — sibling leaf, falls through to its own `jr $ra`
+- **ovl_11_func_800E4AEC (m, matched this session)** — scans the s16 array at
+  `base+4` for the first entry whose 0x3C00 bit is clear, then returns
+  `getter(base, index-2)` or 0 when no entry is found
 - **ovl_11_func_800E4B58 (m, matched this session)** — shared getter leaf,
   byte-exact clean C: `return *(s32 *)(arg0 + arg1*4 + 0x34);` — a
   base-pointer plus 4-byte-stride index plus fixed 0x34 offset; baseline
-  flags. Called by 800E4B6C / 800E4C30 / 800E4D08 (whose `sw $v0` sites and
-  `subu`-of-two-calls pattern consume it)
+  flags. Called by 800E4AEC / 800E4B6C / 800E4C30 / 800E4D08 (whose `sw $v0`
+  sites and `subu`-of-two-calls pattern consume it)
 - ovl_11_func_800E4B6C (s) — feeds the getter `base + (s16)a0[2]*4 + 0x38`
   in `$a0`, passes its own incoming index through untouched in `$a1`
 - ovl_11_func_800E4BA4 (s)
