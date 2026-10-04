@@ -5856,6 +5856,12 @@ Members (link order):
   writes a halfword at record offset 0x18 into three consecutive
   `D_800C0448` records starting at index `arg0*3`; membership rests on the
   shared global, not on adjacency (it is not link-adjacent to the trio).
+- ovl_21_func_800B8654 (m, matched this session, byte-exact) — same
+  `func_800226A4() == 2 && func_800225B8() == 1` guard writing
+  `D_800C0448[0]` (`= 2`/`= 1`), preceded by `ovl_21_func_800BA4C0()` then
+  `func_8002261C(4, 0x18)` and sharing the 0x18 `$s0/$ra` frame; membership
+  rests on the shared global + identical guard idiom, not on adjacency (it
+  sits at 0x800B8654, well before the trio).
 
 Fingerprints:
 - shared global cluster: `D_800C0448` is the base of a record table of
