@@ -4438,17 +4438,24 @@ Members (address order):
   (D_800BDA74/4) and `ovl_19_func_800BAD50` (D_800BF660/9); that twin
   relation is not TU-membership evidence — only the link adjacency is.
 
-## `ovl_23` D_800BF87C dispatch-index cluster — 0x800B8084–0x800B87F8 (confidence: medium)
+## `ovl_23` D_800BF87C dispatch-index cluster — 0x800B7EA4–0x800B87F8 (confidence: medium)
 
-Evidence: three ovl_23 functions touch the state index `D_800BF87C` (s16):
-`ovl_23_func_800B8084` reads it, `ovl_23_func_800B850C` stores 1 to it, and
-`ovl_23_func_800B87F8` takes its address three times. `ovl_23_func_800B8084`
-additionally dispatches through the sibling table `D_800BB9F8` indexed by that
-value (`base[D_800BF87C](base)`). All three sit in one contiguous link-order
-span (0x800B8084 +0x48 = 0x800B80CC, … 0x800B850C, … 0x800B87F8), so the shared
-small-data global and the link order agree.
+Evidence: the state dispatcher `ovl_23_func_800B7F00`'s gapless link-order
+predecessor `ovl_23_func_800B7EA4` (the ovl_23 code-segment head) dispatches
+`((void (*)(s32 *))D_800BB9E4[D_80070CC4])(&D_800BB9E4)`, the same
+`base[index](base)` idiom over the adjacent sibling table `D_800BB9F8`
+(D_800BB9E4 + 0x14 = D_800BB9F8). Three further ovl_23 functions touch the
+state index `D_800BF87C` (s16): `ovl_23_func_800B8084` reads it,
+`ovl_23_func_800B850C` stores 1 to it, and `ovl_23_func_800B87F8` takes its
+address three times. `ovl_23_func_800B8084` additionally dispatches through
+`D_800BB9F8` indexed by that value (`base[D_800BF87C](base)`). All four sit in
+one contiguous link-order span running from the code-segment head through
+0x800B87F8 (0x800B7EA4 +0x5C = 0x800B7F00, … 0x800B8084 +0x48 = 0x800B80CC, …
+0x800B850C, … 0x800B87F8), so the shared tables and the link order agree.
 
 Members (link order):
+- ovl_23_func_800B7EA4 (m, byte-exact this session) — `func_80017A64()` saved,
+  `func_80017A48(3)`, then `((void (*)(s32 *))D_800BB9E4[D_80070CC4])(&D_800BB9E4)`.
 - ovl_23_func_800B8084 (m, byte-exact this session) — `func_800225C4()` then
   `((void (*)(s32 *))D_800BB9F8[D_800BF87C])(D_800BB9F8)`, a no-arg table
   dispatch stub.
