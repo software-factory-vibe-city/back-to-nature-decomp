@@ -261,6 +261,20 @@ typedef struct {
 } Recon_ovl_11_func_800BF3D0_CallRet1View;
 
 typedef struct {
+    char pad_0[0x38];
+    u16 unk38;
+    char pad_3A[0x2];
+    u16 unk3C;
+} Recon_ovl_11_func_800C6F0C_A0View;
+
+typedef struct {
+    union {
+        u8 unk0_b;
+        s32 unk0_w;
+    } unk0;
+} Recon_ovl_11_func_800C6F0C_A1View;
+
+typedef struct {
     char pad_0[0x1A];
     s16 unk1A;
     char pad_1C[0x50];
