@@ -6716,3 +6716,37 @@ Members (link order):
   `u16@+0x4`, else clears it.
 - ovl_11_func_800F5700 (m) — shared lookup: scans `arg2` entries of the 0x18-byte
   table for `u16@+0x2 == (s16)arg0`, returns `&entry` or 0.
+
+---
+
+## `ovl_19` D_800BF4D0 overlay-local s16-state consumer cluster — 0x800B89C8 … 0x800BA834 (confidence: medium)
+
+Evidence: seven `ovl_19` functions build the absolute base
+`lui/addiu %hi/%lo(D_800BF4D0)` (0x800BF4D0, a 16-byte label that begins a larger
+overlay-local s16 state array in `3F54.data.s`; the `D_800BF4C0` label
+immediately precedes it and `D_800BF4E0` follows). The symbol lives in the
+overlay's own data segment, so sharing it is same-TU private-data evidence, not
+shared-RAM noise. The call graph agrees inside the cluster:
+`ovl_19_func_800B89C8` calls `800B95D4`/`800B998C`/`800BA770`,
+`ovl_19_func_800B998C` calls `800B9AB0`, `ovl_19_func_800BA770` calls
+`800BA834`, and `ovl_19_func_800B95D4` calls `800BA2D4` and consumes its
+return value.
+
+Members (link order):
+- ovl_19_func_800B89C8 (s, 0x2AC) — cluster hub; also reads `D_800BF4C0` and
+  calls `800B95D4`/`800B998C`/`800BA25C`/`800BA770`/`800BAC5C`/`800BAC7C`.
+- ovl_19_func_800B95D4 (s, 0x3B8) — cluster's large reader/driver on the
+  `D_800BF4D0` base; calls `800BA2D4` (reads its result), `800BA33C`,
+  `800BA468`, `800BA5B4`, `800BA73C`, `800BA750`, `800BAC40`.
+- ovl_19_func_800B998C (s, 0x124) — reads the base then calls the
+  `800B9AB0`/`800B9DC8`/`800B9DD0`/`800B9E14`/… writer chain.
+- ovl_19_func_800B9AB0 (s, 0x318) — second base reader; calls
+  `800BA0A0`/`800BA564`/`800BA5B4`/`800BA65C`/`800BAC40`.
+- ovl_19_func_800BA2D4 (m, matched this session, byte-exact) — leaf predicate:
+  reads the `+0x8` and `+0x50` s16 of the record, returns `(a <= b)` (or
+  `func_80012A34(2) != 0` when they are equal), inverting it when
+  `func_80012A34(100) >= 0x5B`; the result is consumed by `800B95D4`.
+- ovl_19_func_800BA770 (s, 0xC4) — reads the base and calls
+  `800BA834`/`800BAB4C`/`800BAFAC`.
+- ovl_19_func_800BA834 (s, 0x318) — base reader; resets an ObjectState via
+  `func_80015840`/`8001585C`/`80015868` and calls `800BADF8`.
