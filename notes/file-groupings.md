@@ -5920,6 +5920,31 @@ Members (link order):
 - ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
   `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
 
+## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x80130C2C–0x80131ED8 (confidence: medium)
+
+Evidence: a link-order run of seven functions that all open with the same
+text-draw call idiom: `func_8001AC10(D_8005E3C0->field_D8 + 0x18,
+D_8005E3C0->field_D8 + 0x14, D_80054BBC[0] + (s32)D_80053350)` — a `lui/addiu`
+of the updater array `D_80053350` (undeclared in `globals.h`; undefined sym in
+`build/ovl_15/undefined_syms_auto.txt`) plus the s32 value `D_80054BBC[0]`,
+reading `D_8005E3C0->field_D8` (0xD8) once. `D_80053350` is referenced by no
+function outside the run, so the tie is the shared-global/idiom cluster, not
+adjacency (the run is not gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`,
+`ovl_15_func_80131CDC`, `func_80131ED8` are interleaved with non-members).
+
+Members (link order):
+- ovl_15_func_80130C2C (m, matched this session, byte-exact) — shared text-draw
+  prologue; then `ovl_15_func_80137544((s32)D_80140EC0, D_8013758E)` and
+  `D_80137584 = 12` (void; the `$v0`=12 is the store value, not a returned one)
+- ovl_15_func_80130C8C (s) — shared prologue; then `lh` of `D_8013758C`/
+  `D_8013758E` passed to `ovl_15_func_801367F8`, switch on `jtbl_8012DF44`
+- ovl_15_func_80130D3C (s) — shared prologue; then reads `D_8013758E`, writes
+  `D_80137584` on the `ovl_15_func_80135B68` failure path
+- func_80131BCC (s) — shared prologue (text base `D_80053350`)
+- ovl_15_func_80131C2C (s) — shared prologue (text base `D_80053350`)
+- ovl_15_func_80131CDC (s) — shared prologue (text base `D_80053350`)
+- func_80131ED8 (s) — shared prologue; also `sb` to `D_80137584`
+
 ## `ovl_25` leaf run — 0x800BB9D0–0x800BBA7C (confidence: low-medium)
 
 Candidate same-TU run of `ovl_25` at file offsets 0x3BB0–0x3D20. Evidence is a
