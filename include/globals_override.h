@@ -1226,5 +1226,12 @@ extern s32 D_801227F8[];
  * memcpy. Address comes from undefined_syms_auto.txt. */
 extern s32 D_8007F7F8;
 
+/* D_80137830 / D_80137A30 - ovl_15 checksum buffers. Absolute-addressed
+ * (lui + %lo) from ovl_15 code; this TU family only declares them. The
+ * target ovl_15_func_80135AE0 checksums 127-byte records at 0x80 stride
+ * into byte 0x7F of each record, and reads D_80137A30 separately. */
+extern u8 D_80137830[];
+extern u8 D_80137A30[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 
