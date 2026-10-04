@@ -7557,3 +7557,36 @@ Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
   `func_8001AF70(0x4D, 1)`/`func_8001AF70(0xAF, 1)`, then increments
   `+0x6772` up to 3. Same `(char *)&D_8006C838 + 0x8000` two-stage base
   spelling as the run.
+
+## `ovl_11` D_80129618/D_8012961C private state pair — 0x800F0E00 / 0x800F0F50 / 0x800F0FB0 / 0x800F19E0 (confidence: medium)
+
+Shared-private-cluster tie in `ovl_11` (`Obj\GF_FARM.bin`) around the adjacent
+file-scope `.word` pair `D_80129618` (0x80129618, list count) and `D_8012961C`
+(0x8012961C, state code), both emitted as s32 in the overlay's own data blob
+(`69960.data.s`, next symbols to each other). Only these four functions
+reference either word anywhere in the container, so the cluster is private to
+this candidate TU rather than an engine global. The same absolute-addressed
+(-G0) overlay, so a shared private global is the data tie. Reinforced by
+zero-gap link-order contiguity: `ovl_11_func_800F0E00` (0x150) ends exactly at
+0x800F0F50, which (0x60) ends exactly at 0x800F0FB0, which (0x88) ends exactly
+at 0x800F1038; `ovl_11_func_800F19E0` reads the same word from the later
+gapless 0x800F1878–0x800F1AE0 run. The engine s16 `D_80070CF8` read by
+0x800F0FB0 is not a tie — that one is shared across the whole overlay — and
+0x800F0FB0's `lw` of it differs from the `lh`/`lhu` the other ovl_11 readers
+use, a declaration-width question, not a membership one.
+
+Members (address order):
+- ovl_11_func_800F0E00 (s) — resets the 0xE10-byte buffer at `D_8006F5F0`,
+  copies arg0's block into it, recounts the `0xFFFF`-terminated u16 list into
+  `D_80129618`, then clears `D_8012961C` on every exit path.
+- ovl_11_func_800F0F50 (s) — returns 1 early when the `D_8006C838`+0x10 word
+  has bit 0x800; otherwise, when `D_8012961C` is set, calls
+  `ovl_11_func_800F1078(record+0x2DB8, D_80129618)`, then clears
+  `D_8012961C` and returns 1.
+- ovl_11_func_800F0FB0 (m, matched this session, 0x88, byte-exact first try)
+  — state setter: stores arg0 into `D_8012961C` when it is 1 or
+  `func_8001AF44(2) == 0`; then, when the engine `D_80070CF8 == 6` and
+  `ovl_11_func_800C0A28() != 0` and `D_8012961C != 8`, clears the state word.
+- ovl_11_func_800F19E0 (s) — state-code dispatcher: when arg0 equals
+  `D_8012961C` and arg0 is in 2..8, jumps through `jtbl_800B9F68`; the
+  0..1 and out-of-range paths return 1/0.
