@@ -4143,7 +4143,7 @@ adjacency, so it stays a scattered sibling; its zero-gap adjacency instead
 ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800DE76C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -4264,6 +4264,14 @@ the overlay, never GP-relative), and the large-offset writers use the same
   (see the D_80071A00 pool cluster entry); 0xC4, byte-exact clean C, baseline
   flags; zero-gap link order between 0x800D6380 (which calls cluster member
   0x800F2354) and 0x800D6488
+- ovl_11_func_800DE76C (m, matched this session) — flag-bit set/clear leaf:
+  tests the +0x44BA/+0x44BC s16 pair through ovl_11_func_800C1224, then sets
+  or clears bit 0 of the s32 at +0x4450, via the cluster's shared
+  `base = (u8 *)&D_8006C838` idiom; proves the symbol-map names
+  D_80070C88 / D_80070CF2 / D_80070CF4 are aliases of +0x4450 / +0x44BA /
+  +0x44BC (tying the ovl_11 button-check leaves 0x800F1BD0 / 0x800CE5FC /
+  0x800D2E20 / 0x800F581C to the buffer) and shares callee 0x800C1224 with
+  member 0x80107B84
 ## `ovl_11` D_8006C838 +0x7A78 halfword-record table — 0x800DBB94 / 0x800DBF60 / 0x800DBE9C (confidence: low)
 
 Scans and a shift over the same main-binary 5-entry record table — absolute
