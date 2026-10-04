@@ -5839,3 +5839,76 @@ Backing artifacts (not committed):
 - Candidate interpretation: The extent consists of 3 sectors at stride 2336 in stripped-2336 form: 1 data sector, 2 padding sectors, and 0 audio sectors, with no trailing bytes; no XA channel numbers are recorded for this extent. fileNumbers [0, 40] are recorded in node metadata but their meaning is not established by this run's evidence. [evidence-b83cdcd544c5258cc9d9252f]
 - Candidate interpretation: Candidate interpretation: this is a sixth distinct XA detection region. It does not overlap any previously documented extent; documented non-overlapping starts so far are 106593598, 106674896, 106725102, 106936730, 106953122, and now 107052040, plus the overlapping drift cluster at 87488524-87488636. It introduces a previously unseen fileNumbers value 40 (previously seen: 105, 34, 32, 36, 99). Qualified interpretation only. [evidence-b83cdcd544c5258cc9d9252f, evidence-b5180f38e164e591415f2c49, evidence-f0911461cc8ef5bb51de8004, evidence-9be3c7e5fe6995f8d922dcfb, evidence-20155b90fd83fbdcf4301efe, evidence-af227c6a44f67bf036986419, evidence-143e423b787fa9934aff4821, evidence-5b6cd0ca2201a73a72f970b6, evidence-83ebb46ed08ffab4079a0d13, evidence-37e97f73fcec97d84e373f6d, evidence-3d74ee8da4ac7c5f3b507cf7, evidence-01e64b20d81bfb89a61eb2ae, evidence-4a7c7617117f6adb7b17dacb, evidence-1eb1d52c81b7d3bf8f89d759, evidence-69d592ea5e173bb8e176ac62, evidence-f2658dcb483b60a5455c856f]
 - Candidate interpretation: Limitation: structural compatibility only. Not evidence of a historical asset name, game-asset consumer association, disc LBA, or physical-sector coordinates; the run's inputs do not establish disc metadata (recorded as unresolved in the handoff). [evidence-b83cdcd544c5258cc9d9252f]
+
+<!-- resource-asset:node-de21b9a2c0652222a461bf97 -->
+## node-de21b9a2c0652222a461bf97 — XA
+
+- Parser: xa-v1 v3.
+- Raw SHA-256: 69a93fb89d4e7a2c2ba2ef0cefdef3ca4d7f31ffba2912d5f2f7a465ad3ded50; 7008 bytes.
+- Verified manifest: 5b0c02f35c1a04385f6c097fa765b2500c7925e874b2d0fc359799c25b5ab8c2.
+- Stages: {"decoding":"validated","discovery":"validated","extraction":"validated"}.
+- Evidence: evidence-4ea57e19a796549fa51597e4. Structural compatibility is not historical naming evidence.
+
+### Source and extraction
+
+```json
+[
+  {
+    "node": "node-de21b9a2c0652222a461bf97",
+    "blob": "blobs/69a93fb89d4e7a2c2ba2ef0cefdef3ca4d7f31ffba2912d5f2f7a465ad3ded50",
+    "size": 7008,
+    "source": {
+      "coordinate": "file-byte",
+      "length": 7008,
+      "node": "input-5fe7a25fe1c481a46175463f",
+      "offset": 107100964
+    }
+  },
+  {
+    "node": "input-5fe7a25fe1c481a46175463f",
+    "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+    "size": 133935104,
+    "input": {
+      "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "hash": "612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "id": "input-5fe7a25fe1c481a46175463f",
+      "path": "extracted/iso/a_file.bin",
+      "size": 133935104
+    }
+  }
+]
+```
+
+Recreate a run from the original scope, using the registered parser:
+
+```sh
+npx tsx tools/agent/resourceCampaign.ts --input 'extracted' --limits '{"maxAssets":2000,"maxFileBytes":268435456,"maxFiles":4096,"maxFunctions":128,"maxInputBytes":536870912,"maxInstructions":4096,"maxOutputBytes":268435456}'
+
+```
+
+The documented resource ID and source hashes identify the result independently
+of a generated run directory. Replace RUN with the new campaign's run ID.
+Required schemas (if nonempty, save this JSON to the --schemas path above):
+
+```json
+[]
+```
+
+For transformed views, the commands and code-origin hashes above reproduce the
+recorded parameters. Input association is conditional, not an inferred game call.
+
+Browsable files (not committed):
+- `build/assets/data/node-de21b9a2c0652222a461bf97/original.xa`: extraction, SHA-256 69a93fb89d4e7a2c2ba2ef0cefdef3ca4d7f31ffba2912d5f2f7a465ad3ded50
+- `build/assets/data/node-de21b9a2c0652222a461bf97/variant-62c68d5a435c3507-xa-data.bin`: decoding, SHA-256 682b60a4f28d7d9588daaf62afb8fb0aa430ad30a4db16ba1743b45f6fe79f3b
+
+Backing artifacts (not committed):
+- `build/assets/blobs/69a93fb89d4e7a2c2ba2ef0cefdef3ca4d7f31ffba2912d5f2f7a465ad3ded50`: slice-v1, {"basis":"validated-parser","source":{"coordinate":"file-byte","length":7008,"node":"input-5fe7a25fe1c481a46175463f","offset":107100964}}, SHA-256 69a93fb89d4e7a2c2ba2ef0cefdef3ca4d7f31ffba2912d5f2f7a465ad3ded50
+- `build/assets/blobs/682b60a4f28d7d9588daaf62afb8fb0aa430ad30a4db16ba1743b45f6fe79f3b`: xa-v1, {"form":"stripped-2336","interpretation":"Non-audio payload concatenation only; not decoded video or established member/frame semantics","kind":"xa-data","payloadSizes":[2324],"sectors":1,"stride":2336,"variant":{"kind":"data"}}, SHA-256 682b60a4f28d7d9588daaf62afb8fb0aa430ad30a4db16ba1743b45f6fe79f3b
+
+### Qualified observations
+
+- Candidate interpretation: The selected resource is an XA-format extent of 7008 bytes at file-byte offset 107100964 in input-5fe7a25fe1c481a46175463f (source coordinate: file-byte). [evidence-4ea57e19a796549fa51597e4]
+- Candidate interpretation: Parser xa-v1 (version 3) validated the extent's structural constraints; discovery and extraction stages are both validated. [evidence-4ea57e19a796549fa51597e4]
+- Candidate interpretation: The extent consists of 3 sectors at stride 2336 in stripped-2336 form: 1 data sector, 2 padding sectors, and 0 audio sectors, with no trailing bytes; no XA channel numbers are recorded for this extent. fileNumbers [0, 99] are recorded in node metadata but their meaning is not established by this run's evidence. [evidence-4ea57e19a796549fa51597e4]
+- Candidate interpretation: Candidate interpretation: this is a seventh distinct XA detection region. It starts 41,916 bytes after the end of the iteration-16 extent (107052040 + 7008 = 107059048) and does not overlap any previously documented extent. Documented non-overlapping starts so far: 106593598, 106674896, 106725102, 106936730, 106953122, 107052040, and now 107100964, plus the overlapping drift cluster at 87488524-87488636. It carries the fileNumbers value 99 previously seen on the small 2-sector extent at 106725102. Qualified interpretation only. [evidence-4ea57e19a796549fa51597e4, evidence-b83cdcd544c5258cc9d9252f, evidence-b5180f38e164e591415f2c49, evidence-f0911461cc8ef5bb51de8004, evidence-9be3c7e5fe6995f8d922dcfb, evidence-20155b90fd83fbdcf4301efe, evidence-af227c6a44f67bf036986419, evidence-143e423b787fa9934aff4821, evidence-5b6cd0ca2201a73a72f970b6, evidence-83ebb46ed08ffab4079a0d13, evidence-37e97f73fcec97d84e373f6d, evidence-3d74ee8da4ac7c5f3b507cf7, evidence-01e64b20d81bfb89a61eb2ae, evidence-4a7c7617117f6adb7b17dacb, evidence-1eb1d52c81b7d3bf8f89d759, evidence-69d592ea5e173bb8e176ac62, evidence-f2658dcb483b60a5455c856f]
+- Candidate interpretation: Limitation: structural compatibility only. Not evidence of a historical asset name, game-asset consumer association, disc LBA, or physical-sector coordinates; the run's inputs do not establish disc metadata (recorded as unresolved in the handoff). [evidence-4ea57e19a796549fa51597e4]
