@@ -259,7 +259,8 @@ The commands dispatch three skills. The skills are game-agnostic:
 - `psx-project-refinement` — one small batch across files. The gate checks all
   of it.
 
-An interactive workflow never commits and never merges.
+The decompilation commands above never commit or merge. The separately
+user-authorized resource loop below commits only its accepted notes/parser scope.
 
 The skills read the target and toolchain facts from
 `configs/project-profile.md` and from the active configuration. They do not
@@ -746,6 +747,47 @@ The extension registers one Pi tool for each CLI under `tools/agent/`. A test
 fails if a CLI has no tool. Pi bounds the output of each tool before the
 output enters the model context.
 
+## Resource extraction
+
+After `/reload`, start `/extract-resources [--input extracted/path]
+[--max-iterations N]`. It runs directly in the active TUI, streaming normal
+agent/tool output. It does not use the deprecated supervisor, another model
+session, forked workers or worktrees. Type a message or use
+`/extract-resources --cancel` to stop; `--status` reports runs.
+
+**This user-authorized loop commits each accepted iteration:** either verified
+asset extraction instructions in `notes/asset-identification.md`, or a pure
+parser plugin with registration and corresponding passing tests. It refuses
+unrelated staged work and preserves unrelated unstaged changes. Existing-parser
+closure invokes the dedicated `psx-build-resource-parser` skill; failed guesses
+never earn commits. New parser code is loaded on the next deterministic tool
+call without restarting the TUI. `--max-iterations N` limits successful commits;
+without it the loop continues until cancellation, a budget/failure or an
+honestly unsupported builder attempt.
+
+Inputs default to `extracted/`; generated assets, immutable snapshots, provenance
+and reports stay under `build/assets/` and are never committed. Current asset
+format support is **TIM v1**, with indexed/direct-color validation, RGBA, separate
+STP masks and lossy PPM previews. VAG/VAB, SEQ/SEP, TMD, STR/MDEC and game-specific
+formats remain pending. Supplied archive schemas and one checked byte-XOR
+constructor are conditional mechanisms, not general loader/decompressor recovery.
+Total game asset count and historical semantic names remain unknown.
+
+Use deterministic stages without a model or commits:
+
+```bash
+npm run assets -- --input extracted/iso --max-steps 10
+npx tsx tools/agent/resourceVerify.ts --run <run-id>
+```
+
+The extension owns nine `psx_resource_*` tools: campaign, inventory, probe,
+analyze, extract, verify, document, iteration and parser. Extraction,
+documentation and parser-builder skills have distinct permissions. New formats
+extend `tools/agent/resource-extraction/registry.ts` through
+`tools/agent/resource-extraction/parser-plugins.ts` and pure plugins/tests;
+core pipeline rewrites are unnecessary. See `plans/asset-extraction.md` for
+implemented capabilities, parser roadmap and remaining static-analysis work.
+
 ## The autonomous loop
 
 The supervisor is in `.pi/extensions/psx-decomp/autonomous/`. It is
@@ -873,6 +915,11 @@ The main tools under `tools/agent/` are:
 | `contextExport.ts` | Exports the matched signatures |
 | `fileGroupings.ts` | Reads suspected same-translation-unit membership out of the grouping ledger |
 | `sourcePolicy.ts` | Audits the sources for forbidden constructs |
+| `resourceCampaign.ts` / `resourceInventory.ts` | Cold-input resource pipeline, snapshots, resume and budgets |
+| `resourceProbe.ts` / `resourceAnalyze.ts` | Registered structural parsers and bounded original-word CFG/SSA observations |
+| `resourceExtract.ts` / `resourceVerify.ts` | Raw preservation, supported decode/export and provenance replay |
+| `resourceDocument.ts` / `resourceIteration.ts` | Verified handoffs, next asset/parser work item and gated asset-note commit |
+| `resourceParser.ts` | Scoped parser registration/policy/typecheck/test/commit gate |
 
 For the full list, read `notes/tools-directory-structure.md`.
 

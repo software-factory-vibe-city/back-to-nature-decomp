@@ -2,8 +2,9 @@
 
 *Updated 2026-07-25 for the project-local Pi migration and deterministic
 autonomous supervisor. The standalone SDK agent loop and auto-committing
-orchestrator were removed; commands, skills, focused tools, and non-committing
-transactional automation now live in `.pi/`.*
+orchestrator were removed. The subsequently added resource-extraction loop
+runs in the active TUI and makes explicitly user-authorized, narrowly gated
+asset-note or parser commits; it does not use that deprecated supervisor.*
 
 All custom tooling is TypeScript, run via `npx tsx tools/<group>/<name>.ts`.
 
@@ -34,18 +35,28 @@ matching behavior:
 | `.pi/skills/psx-decompile-function/SKILL.md` | Fresh/resumed per-function matching workflow. |
 | `.pi/skills/psx-refine-function/SKILL.md` | Evidence-backed refinement of one already-matching function. |
 | `.pi/skills/psx-project-refinement/SKILL.md` | One conservative cross-file cleanup batch with full verification. |
+| `.pi/extensions/psx-resources/index.ts` | Registers `/extract-resources` and nine resource tools; no startup agent work. |
+| `.pi/extensions/psx-resources/controller.ts` | Same-TUI asset/parser iteration loop, cancellation, role permissions, verified per-iteration commits and tool restoration. |
+| `.pi/extensions/psx-resources/tools/` | Bounded wrappers and fresh deterministic CLI processes, picking up newly committed parsers without another AI session or TUI reload. |
+| `.pi/skills/psx-extract-resources/SKILL.md` | Original-byte discovery and evidence qualification. |
+| `.pi/skills/psx-document-resources/SKILL.md` | Verified extraction instructions and notes-only asset commit gate. |
+| `.pi/skills/psx-build-resource-parser/SKILL.md` | Pure plugin, registration and corresponding tests through the parser acceptance gate. |
 
 The skills derive game and toolchain facts from the active project's
-instructions, generated profile, and configuration. Skills do not commit. The
-autonomous supervisor creates detached disposable worktrees, independently
+instructions, generated profile, and configuration. Decompilation skills do not
+commit. Resource roles finish only through their separately user-authorized,
+scoped commit gates. The legacy autonomous supervisor creates detached disposable
+worktrees, independently
 gates candidate patches, applies accepted patches transactionally without
 committing, and rolls back a failed trunk gate.
 
 ## tools/agent/ — decompilation support tools
 
-Every CLI here is registered as a Pi tool. The one-tool-per-file wrappers live
-in `.pi/extensions/psx-decomp/tools/`; the rest are registered from the
-`TOOL_SPECS` table in that directory's `diagnostics.ts`. One CLI is one tool —
+Eligible CLIs here are registered as Pi tools. Decompilation wrappers live
+in `.pi/extensions/psx-decomp/tools/`; additional tools use its `TOOL_SPECS`
+table in `diagnostics.ts`. The nine resource CLIs are owned instead by
+`.pi/extensions/psx-resources/tools/`. Registration coverage combines both
+registries and explicit exclusions, without duplicate ownership. One CLI is one tool —
 a tool's subcommands stay parameters of that tool. `registration.test.ts`
 fails if any CLI under `tools/agent/` is left unregistered, because a tool
 reachable only as an `npx tsx` line is invisible to anything reading the tool
@@ -92,6 +103,16 @@ They are still runnable by hand as `npx tsx tools/agent/<file>.ts`.
 | `cSourceGuard.ts` | AST answers about a translation unit, for tools that move or rewrite C: does it parse, is it safe to place inside a disabled `#if 0` block (no dangling `#endif`/`#else`, no unterminated conditional, no literal running past its line), and which `INCLUDE_ASM` placeholders it declares and for which symbols. Reads the tree-sitter parse, and walks anonymous tokens too, so a MISSING `#endif` or closing quote is visible. | **Yes** |
 | `getPrompt.ts` | Legacy standalone prompt builder using archived templates under `prompts/legacy/`; active Pi workflows do not invoke it. | Library + CLI |
 | `worktree.ts` | Legacy worktree helper retained for manual experiments; the Pi workflow does not invoke it. | Library only |
+| `resourceCampaign.ts` | Bounded cold-input resource pipeline, checked caches, immutable checkpoint generations, resume/status and verified documentation handoff. | **Yes** |
+| `resourceInventory.ts` | Immutable, hashed snapshots of selected original inputs under `extracted/`; no matched C or compiler prerequisite. | **Yes** |
+| `resourceProbe.ts` | Byte-wise registered format discovery followed by structural validation, including member/checked-transform views. TIM is the current implemented format. | **Yes** |
+| `resourceAnalyze.ts` | Original PS-X EXE entry/direct-call CFG/SSA and field observations; unresolved mappings/operations remain explicit. Not general loader/schema/consumer recovery. | **Yes** |
+| `resourceExtract.ts` | Preserve supplied-schema/parser extents, supported decode/export and one checked original-word byte-XOR constructor. | **Yes** |
+| `resourceVerify.ts` | Replay source extents, parser outputs and checked transformations; input/analyzer/artifact drift refuses acceptance. | **Yes** |
+| `resourceDocument.ts` | Verified immutable evidence handoff, deterministic catalog and evidence-referenced candidate prose proposals. | **Yes** |
+| `resourceIteration.ts` | Select the next asset/parser work item, or gate extraction/replay and a reproducible notes-only asset commit. Only committed asset IDs are skipped. | **Yes** |
+| `resourceParser.ts` | Prepare/restore a parser baseline; enforce pure source/registration scope, fixed-argv typecheck/tests and tested parser-only commit. Uses a bounded request JSON under `build/assets/`. | **Yes** |
+| `resource-extraction/` | Reusable extraction core, versioned parser registry, plugin registration, source/Git admission gates and tests. Generated bytes/evidence stay under `build/assets/`; new formats need plugins and corresponding tests, not pipeline rewrites. | Library/tests |
 
 Data flow:
 `callGraph.ts` → Pi command/skill → `m2cFunc.ts` → `explainDiff.ts` /

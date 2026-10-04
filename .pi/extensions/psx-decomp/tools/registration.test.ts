@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TOOL_SPECS, UNEXPOSED_CLIS } from "./diagnostics.ts";
+import { TOOL_SPECS as RESOURCE_SPECS } from "../../psx-resources/tools/specs.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../../../..");
@@ -36,7 +37,7 @@ function individuallyRegistered(): Set<string> {
 
 test("every tools/agent CLI is registered as a Pi tool", () => {
   const registered = individuallyRegistered();
-  for (const spec of TOOL_SPECS) registered.add(spec.script.replace(/\.ts$/, ""));
+  for (const spec of [...TOOL_SPECS, ...RESOURCE_SPECS]) registered.add(spec.script.replace(/\.ts$/, ""));
 
   const missing = commandLineTools()
     .filter((name) => !registered.has(name))
@@ -60,8 +61,8 @@ test("every deliberately unexposed CLI still exists and says why", () => {
 });
 
 test("tool names and backing scripts are unique", () => {
-  const names = TOOL_SPECS.map((spec) => spec.name);
-  const scripts = TOOL_SPECS.map((spec) => spec.script);
+  const names = [...TOOL_SPECS, ...RESOURCE_SPECS].map((spec) => spec.name);
+  const scripts = [...TOOL_SPECS, ...RESOURCE_SPECS].map((spec) => spec.script);
   assert.equal(new Set(names).size, names.length, `duplicate tool name: ${names.join(", ")}`);
   assert.equal(new Set(scripts).size, scripts.length, `duplicate script: ${scripts.join(", ")}`);
   for (const name of names) assert.match(name, /^psx_[a-z0-9_]+$/, `${name} is not a psx_ tool name`);
