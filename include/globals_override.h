@@ -1170,5 +1170,11 @@ extern Ovl11ItemEntry D_80123758[];
  * lui/addiu addressing. */
 extern u8 D_80128818[];
 
+/* D_800BF700 - ovl_19 FuncC0D4Args descriptor whose address
+ * ovl_19_func_800BB4D4 hands to func_8001C0D4. Only its address is taken, so
+ * an opaque byte object is enough; the overlay build is -G0, giving absolute
+ * lui/addiu addressing. */
+extern u8 D_800BF700[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 

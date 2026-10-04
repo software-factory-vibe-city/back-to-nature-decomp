@@ -6577,8 +6577,9 @@ Members (link order):
 - ovl_19_func_800BB470 (m, byte-exact) — reads the +0x253AC/+0x253AE/+0x253B0/
   +0x253B4/+0x253B6/+0x253B8 halfwords via the same far base and passes them to
   `func_8001B9F8` (sum-of-pairs, 4 args) and `func_8001BA40` (3 args).
-- ovl_19_func_800BB4D4 (s) — gapless successor; same far base and same six
-  halfwords, calls `func_8001C0D4`.
+- ovl_19_func_800BB4D4 (m, byte-exact) — gapless successor; same far base and
+  same six halfwords, calls `func_8001C0D4` with the `D_800BF700`
+  `FuncC0D4Args` descriptor.
 
 ## `ovl_11` D_8006C838 +0x8000 work-area halfword run — 0x801128B4 / 0x80112904 / 0x801129A0 (confidence: medium)
 

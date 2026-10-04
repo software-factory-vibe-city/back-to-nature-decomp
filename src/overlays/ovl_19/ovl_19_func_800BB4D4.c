@@ -1,3 +1,19 @@
 #include "common.h"
+#include "game_types.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
 
-INCLUDE_ASM("build/ovl_19/asm/nonmatchings/ovl_19_func_800BB4D4", ovl_19_func_800BB4D4);
+void ovl_19_func_800BB4D4(void) {
+    char *far_base;
+    VECTOR v0;
+    VECTOR v1;
+
+    far_base = (char *)&D_8007AFF0;
+    v0.vx = *(s16 *)(far_base + 0x253AC) + *(s16 *)(far_base + 0x253B4);
+    v0.vy = *(s16 *)(far_base + 0x253AE);
+    v0.vz = *(s16 *)(far_base + 0x253B0) + *(s16 *)(far_base + 0x253B8);
+    v1.vx = *(s16 *)(far_base + 0x253B4);
+    v1.vy = *(s16 *)(far_base + 0x253B6);
+    v1.vz = *(s16 *)(far_base + 0x253B8);
+    func_8001C0D4((FuncC0D4Args *)&D_800BF700, &v0, &v1);
+}
