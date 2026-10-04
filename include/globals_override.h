@@ -1051,6 +1051,8 @@ extern u8 D_800BB710[];
 
 extern u8 D_800BD848[];
 
+extern u8 D_800BD758[];
+
 extern u8 D_800BDA74[];
 
 extern u8 D_800BD870[];
