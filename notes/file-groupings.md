@@ -5692,6 +5692,11 @@ The original asm of every function in that run plus `800B7F2C`, `800B7F7C` and
 `800B9FF4` touches `D_800C4A14` and/or `D_800C4A1C`.
 
 Members (link order):
+- ovl_27_func_800B7F7C (s, matched this session) — state-block initializer:
+  `D_800C4A1C = 0`, `D_800C4A1A = 1`, zeroes `D_800C4A2C`–`D_800C4A36`, then
+  `D_800C4A38 = -0xA0`, `D_800C4A3A = 0x30`, `D_800C4A3C = 0x140`; the last
+  two are the fields read by handlers `800B8EA0`/`800B8EF8`, confirming the
+  cluster's halfword state lives beside `D_800C4A14`/`D_800C4A1C`
 - ovl_27_func_800B8E28 (s, matched this session) — handler transition:
   hub call, `D_800C4A1C = 0`, `D_800C4A14 = ovl_27_func_800B8E5C`, returns it
 - ovl_27_func_800B8E5C (s, matched this session) — timer stage: hub call, then
