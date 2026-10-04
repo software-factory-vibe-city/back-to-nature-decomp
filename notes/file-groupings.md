@@ -4493,6 +4493,29 @@ Cross-container note: the audio-setup call sequence is a twin of
 at those entries, that twin relation is not TU-membership evidence — here only
 the dispatcher call graph and the gapless link run are.
 
+## `ovl_23` D_8006C838 record-field setter pair — 0x800BB7A0 / 0x800BB800 (confidence: medium)
+
+Evidence: the two functions are gapless in link order (0x3980 and 0x39E0, each
+0x60) and close the ovl_23 code segment — `ovl_23_func_800BB800` ends 0x3A40,
+where the overlay's data begins. Both are leaves with the same `void f(s16)`
+signature and the same record addressing `(char *)&D_8006C838 + arg0 * 0x1D4 +
+0x8000`, and they write adjacent halfword fields of the same record: 0x19EA and
+0x19EC. The call graph agrees — `ovl_23_func_800B87F8` calls `800BB7A0` twelve
+times in one run and then `800BB800` three times, so the pair is one caller's
+adjacent-field accessors. Both are saturating bounded-increment setters (cap
+0xFF / 0xFFFF) with a `slti`/`sltu` guard and the store in the return delay
+slot.
+
+Members (link order):
+- ovl_23_func_800BB7A0 (m) — 0x19EA: `if (field < 0xEB) field += 0x14; else field = 0xFF;`
+- ovl_23_func_800BB800 (m, byte-exact this session) — 0x19EC: `if (field <= 0xFE0A) field += 0x1F4; else field = 0xFFFF;`
+
+Cross-container note: the pair is a twin of the ovl_17 pair
+`ovl_17_func_800BB394` (0x19EA) / `ovl_17_func_800BB3F4` (0x19EC) at 0x3574 /
+0x35D4, byte-identical except for the container's addresses. As with the
+audio-setup twin note above, that relation is not TU-membership evidence; here
+only the gapless link run and the shared caller are.
+
 ## `ovl_23` 2D vector math helper run — 0x800BA1E0–0x800BA368 (confidence: medium)
 
 Evidence: gapless link order in ovl_23 — `ovl_23_func_800BA1E0` (0x98, ends
