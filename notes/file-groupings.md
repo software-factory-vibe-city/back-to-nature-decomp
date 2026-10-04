@@ -7433,8 +7433,14 @@ Members (link order):
 - ovl_11_func_800E0AFC (m) — earlier caller: guard then `u16@+0xB0 < 14` →
   `0x164` / `0x165`.
 - ovl_11_func_800E05A8 (s), 800E06E0 (s), 800E0D3C (s), 800E10C8 (s),
-  800E11C0 (s), 800E1254 (s), 800E1404 (s), 800E15C8 (s) — callers; the common
+  800E11C0 (s), 800E1404 (s), 800E15C8 (s) — callers; the common
   guard is `if (ovl_11_func_800E109C(arg0) == 0) return -1;`.
+- ovl_11_func_800E1254 (m, matched this session, byte-exact) — guard then
+  lazy-init flag `s32@+0x34 & 4` (call `800D049C`, then OR 4 in), then
+  `ovl_11_func_800D12A0(0xB)` when `s16@+0x30 == *(s16 *)(&D_8007AFF0 +
+  0x25476)`; structural twin of ovl_11_func_800DF6A8 on the 800E109C
+  predicate (same body, differs only in the predicate callee and the 9→0xB
+  constant), mirroring the 800E109C/800DF4F0 twin.
 - ovl_11_func_800E1158 (m, matched this session, byte-exact) — guard then
   `u16@+0x16 -= 1` clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8,
   0x1F, 0x2D)`; structural twin of ovl_11_func_800DF5AC on the 800E109C
