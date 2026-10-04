@@ -6542,8 +6542,9 @@ Members (address order):
 - ovl_11_func_80110838 (m, matched this session) — guard/return leaf: calls
   0x801108F8, returns 0 when its result is 0, otherwise returns 1 when the
   u16 at +0x2 is 0x168 or 0x16A and 0 elsewhere.
-- ovl_11_func_80110890 (s) — middle run member; calls the same 0x801108F8
-  helper with its own arg0.
+- ovl_11_func_80110890 (m, matched this session) — middle run member; calls
+  the same 0x801108F8 helper with its own arg0, returning 1 when the u16 at
+  +0x2 is 0x168, 0x169, 0x16A or 0x16B and 0 elsewhere.
 - ovl_11_func_801108F8 (m) — run-tail shared leaf: reads the s16 at +0x0 and
   calls ovl_11_func_800D5868, then returns the XOR-with-0x36 test.
 
