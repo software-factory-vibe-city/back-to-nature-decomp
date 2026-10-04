@@ -5292,7 +5292,7 @@ Members:
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): nine matched functions
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): ten matched functions
 sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
 (`globals_override.h`), each guarded-indexing it with `s16`-scaled slots.
 
@@ -5310,7 +5310,8 @@ Fingerprints:
   writers 800E78E4 (stores the exe `func_80012A34`/`Rand` result into the slot),
   800E8BA0 (stores the `D_8006C838`+0x5DB4 entity's u16@+2 into the
   slot), 800E8D00 (stores `D_8006C838`+0x524C/0x524E state), 800EC490
-  (800E5A1C also increments `D_80129560[(s16)arg1]`);
+  (800E5A1C also increments `D_80129560[(s16)arg1]`), 800E7CCC
+  (conditionally reads `D_80129560[(s16)arg2]` and -1-guard-writes the slot);
 - **contiguous accessor run:** the members 800E6834, 800E686C, 800E6914, 800E69B8,
   800E69F8 form a zero-gap link-order run (0x800E6834 onward, entries at 0x800E6834/686C/
   6914/69B8/69F8), four of them proved load-side users of the table and the fifth
@@ -5386,6 +5387,14 @@ Members:
   args, if `!= -1`, writes `D_80129560[arg] = record.field` (fields +4/+0/+8);
   returns 1. Same guarded multi-slot write idiom and return-1 shape as
   `800EC490`; sits in the same 0x800E5A1C–0x800EExxx accessor band.
+- ovl_11_func_800E7CCC (m, matched 2026-11 — this session, 0x80, byte-exact) —
+  guarded-slot forwarder/writer: `arg3 != 0` resolves `D_80129560[arg2]` (raw
+  `arg2` otherwise), forwards `(selected, (s16)arg0)` to the two-arg accessor
+  `ovl_11_func_800F2354`, truncates the result to s16, and when `arg1 != -1`
+  writes it to `D_80129560[(s16)arg1]`; returns `result == 0`. Same
+  `lui`+`addiu %lo` absolute base, `s16`-fused index and `!= -1` guard-write
+  shape as 800E78E4/800EC490, and the same conditional table-resolve as
+  800E69F8/800EB79C, inside the accessor band.
 
 ## `ovl_11` D_80076280 record-selector pair — 0x800E9778 / 0x800EDEB8 (confidence: low)
 
