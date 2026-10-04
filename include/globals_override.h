@@ -951,6 +951,10 @@ extern s16 D_800BAB0C;
  * here because libgs.h is not self-contained. */
 extern s32 VWD0;
 
+/* HWD0 - PSY-Q libgs horizontal display resolution (libgs.h). Forward-declared
+ * here because libgs.h is not self-contained. */
+extern s32 HWD0;
+
 /* D_800B9630 - 20-record (0xC stride) initialised by ovl_28_func_800B895C:
  * s32@+0 = 0, s16@+4 = 0, s32@+8 = VWD0 << 12. */
 typedef struct {
