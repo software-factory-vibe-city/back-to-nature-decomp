@@ -6356,3 +6356,25 @@ work-area split, same +0x19EA halfword, same `< 0xEB then +0x14 else 0xFF`
 leaf with the store in the `jr $ra` delay slot. That twin relation is not
 TU-membership evidence for either container; only the ovl_17 same-container
 link adjacency above is.
+
+## `ovl_23` D_8006C838+0x8000 work-area 0x1D4-stride record pair — 0x800BB7A0 / 0x800BB800 (confidence: medium)
+
+Evidence: zero-gap link-order adjacency plus the same D_8006C838 large-offset
+fingerprint as the ovl_17 pair above. `ovl_23_func_800BB7A0` (0x60, ends
+exactly 0x800BB800) → `ovl_23_func_800BB800` (0x60). Both sign-extend an s16
+arg0, scale it by 0x1D4 (`sll`/`subu` plus two `sll`+`addu` steps), add
+`(char *)&D_8006C838`, form the work-area base with the `ori 0x8000` + `addu`
+split, and address one u16 halfword at base+0x19EA (800BB7A0) / +0x19EC
+(800BB800) in the same read/compare/increment-or-cap leaf shape with the
+store in the `jr $ra` delay slot. Members (link order):
+- ovl_23_func_800BB7A0 (m, matched this session, byte-exact) — leaf: if the s16
+  at +0x19EA is < 0xEB then add 0x14 (via an unsigned reload) else store 0xFF.
+- ovl_23_func_800BB800 (s) — idiom twin, unmatched: `lhu` at +0x19EC, if
+  0xFE0A < value store -1 else add 0x1F4.
+
+Cross-container note: `ovl_23_func_800BB7A0` is a third byte-identical shape
+twin of `ovl_17_func_800BB394` and `ovl_19_func_800BBD14` (same four-shape
+leaf body and +0x19EA halfword); as with that pair the cross-container
+relation is not itself TU-membership evidence, but the same-container
+zero-gap adjacency above is. The 0x1D4-stride leaf now appears in all three
+containers at the same relative slot before its +0x19EC twin.
