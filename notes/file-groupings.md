@@ -1031,6 +1031,10 @@ Members:
 - ovl_11_func_800E20B8 (m, matched this session) — counts how many of the 10
   `D_800742EC` 0xB4-stride entries have a non-zero u16 at 0x0 (the same field
   the initializer `sh`s), returns the count; leaf, no callers in the overlay
+- ovl_11_func_800E2A30 (m, matched this session) — reads the 0xB4-struct's
+  state u16 at +0 via ovl_11_func_800E2718, mirrors a 0x109/0x10A result back
+  to it, and passes its embedded SpriteSourceData at +0x78 to func_80015704;
+  one 0xB4-byte struct type shared with 0x800E2968 (its caller)
 - ovl_11_func_800D0CD8 (m, matched 2026-09-15) — find-first-free entry over
   the same array: scans up to 5/10 (D_80070D0A-selected) records for
   `u16@+0 == 0 && !(u32@+0x34 & 0x02000000)`, returns the entry pointer or
