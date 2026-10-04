@@ -184,7 +184,7 @@ Members:
 - ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
   trailing args `0x120` / `0xC8`.
 
-## `ovl_11` 0x38/0x3C state-switch run — 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C7270 (confidence: medium)
+## `ovl_11` 0x38/0x3C state-switch run — 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C7270 / 0x800C8334 (confidence: medium)
 
 Evidence: four functions in the same small 0x800C6E0C–0x800C72F4 link-order
 run that read and write the same
@@ -211,6 +211,12 @@ Members:
   conditionally `func_8001589C` on the same `+0x260` object; same `+0x38`/
   `+0x3C` field pair and the same `+0x260` call base, with additional witnessed
   fields `+0x1C` and `+0x265`.
+- ovl_11_func_800C8334 (m, matched this session) — gates on the same a0
+  object's `s16@+0x8A == 0x47`, else-branch calls `func_8002261C`; taken
+  branch calls the run's `ovl_11_func_800C7270` with the group's `u16@+0x38`
+  field as `arg0->unk38 + 0x17` and `arg3 = -2`, then `func_8001FABC(0x13)`;
+  same `+0x38` field pair and a direct call into the run — shared-type plus
+  call-edge evidence.
 
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 

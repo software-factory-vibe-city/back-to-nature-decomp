@@ -289,6 +289,13 @@ typedef struct {
 } Recon_ovl_11_func_800C7270_A0View;
 
 typedef struct {
+    char pad_0[0x38];
+    u16 unk38;
+    char pad_3A[0x50];
+    s16 unk8A;
+} Recon_ovl_11_func_800C8334_A0View;
+
+typedef struct {
     char pad_0[0x1A];
     s16 unk1A;
     char pad_1C[0x50];

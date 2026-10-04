@@ -1,3 +1,13 @@
 #include "common.h"
+#include "game_types.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800C8334", ovl_11_func_800C8334);
+s32 ovl_11_func_800C7270(Recon_ovl_11_func_800C7270_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
+
+void ovl_11_func_800C8334(Recon_ovl_11_func_800C8334_A0View *arg0) {
+    if (arg0->unk8A == 0x47) {
+        ovl_11_func_800C7270((Recon_ovl_11_func_800C7270_A0View *)arg0, 0x5C, arg0->unk38 + 0x17, -2);
+        func_8001FABC(0x13);
+    } else {
+        func_8002261C(2, 0x201);
+    }
+}
