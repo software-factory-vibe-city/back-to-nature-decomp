@@ -4573,6 +4573,14 @@ Members:
   and its second equals the u16 argument. Its apparent `D_800742B0` base is
   this same embedded table; shared data-family evidence, not proof of one TU
   across the separated link regions.
+- ovl_11_func_800F12D0 (m, matched this session, 0x84, byte-exact) — the
+  record-slot *writer* for this table: calls the slot accessor
+  ovl_11_func_800DBC04 (which delegates to ovl_11_func_800DBD78 over the
+  +0x7A78 table) and fills the returned slot's u16@+2 with `arg0 & 0xFFFF`,
+  u16@+6 with arg1 and u16@+4 with the far state halfword `D_8007AFF0+0x25476`
+  — the same far halfword 800DBEF8 reads; returns 0 after filling, else 1 when
+  `D_80070C88 & 1` and the low halfword is < 0x12C, or when the slot is null.
+  Shared caller `ovl_11_func_800F1078` with the 0x800F13D8/0x800F144C pair.
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
