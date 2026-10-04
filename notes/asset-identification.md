@@ -4744,3 +4744,76 @@ Backing artifacts (not committed):
 - Candidate interpretation: Parser xa-v1 (version 3) validated the extent's structural constraints; discovery and extraction stages are both validated. [evidence-af227c6a44f67bf036986419]
 - Candidate interpretation: The extent consists of 3 sectors at stride 2336 in stripped-2336 form: 1 data sector, 2 padding sectors, and 0 audio sectors, with no trailing bytes; no XA channel numbers are recorded for this extent. [evidence-af227c6a44f67bf036986419]
 - Candidate interpretation: Limitation: this identification is structural compatibility only. It is not evidence of a historical asset name, game-asset consumer association, disc LBA, or physical-sector coordinates; the run's inputs do not establish disc metadata (recorded as unresolved in the handoff). [evidence-af227c6a44f67bf036986419]
+
+<!-- resource-asset:node-8e323940c9936cdd79af1291 -->
+## node-8e323940c9936cdd79af1291 — XA
+
+- Parser: xa-v1 v3.
+- Raw SHA-256: f80add8053e4ce302f5f902ce4c39c2b68b3b69a811e1c90a49c22be6247b1fb; 7008 bytes.
+- Verified manifest: 81e73ca86c53fe26f34c386effcd9450fa854b50bba5242143357f4bb1f4c321.
+- Stages: {"decoding":"validated","discovery":"validated","extraction":"validated"}.
+- Evidence: evidence-143e423b787fa9934aff4821. Structural compatibility is not historical naming evidence.
+
+### Source and extraction
+
+```json
+[
+  {
+    "node": "node-8e323940c9936cdd79af1291",
+    "blob": "blobs/f80add8053e4ce302f5f902ce4c39c2b68b3b69a811e1c90a49c22be6247b1fb",
+    "size": 7008,
+    "source": {
+      "coordinate": "file-byte",
+      "length": 7008,
+      "node": "input-5fe7a25fe1c481a46175463f",
+      "offset": 87488526
+    }
+  },
+  {
+    "node": "input-5fe7a25fe1c481a46175463f",
+    "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+    "size": 133935104,
+    "input": {
+      "blob": "blobs/612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "hash": "612f9ac8279a364c2fdd19cb75e63df2e892a6f52b6f1d8081ea8560b18decd4",
+      "id": "input-5fe7a25fe1c481a46175463f",
+      "path": "extracted/iso/a_file.bin",
+      "size": 133935104
+    }
+  }
+]
+```
+
+Recreate a run from the original scope, using the registered parser:
+
+```sh
+npx tsx tools/agent/resourceCampaign.ts --input 'extracted' --limits '{"maxAssets":2000,"maxFileBytes":268435456,"maxFiles":4096,"maxFunctions":128,"maxInputBytes":536870912,"maxInstructions":4096,"maxOutputBytes":268435456}'
+
+```
+
+The documented resource ID and source hashes identify the result independently
+of a generated run directory. Replace RUN with the new campaign's run ID.
+Required schemas (if nonempty, save this JSON to the --schemas path above):
+
+```json
+[]
+```
+
+For transformed views, the commands and code-origin hashes above reproduce the
+recorded parameters. Input association is conditional, not an inferred game call.
+
+Browsable files (not committed):
+- `build/assets/data/node-8e323940c9936cdd79af1291/original.xa`: extraction, SHA-256 f80add8053e4ce302f5f902ce4c39c2b68b3b69a811e1c90a49c22be6247b1fb
+- `build/assets/data/node-8e323940c9936cdd79af1291/variant-62c68d5a435c3507-xa-data.bin`: decoding, SHA-256 0e324b61bb740d7870bc524db9e44344cce93b789e3bb37ecdac2ff94e1019b9
+
+Backing artifacts (not committed):
+- `build/assets/blobs/f80add8053e4ce302f5f902ce4c39c2b68b3b69a811e1c90a49c22be6247b1fb`: slice-v1, {"basis":"validated-parser","source":{"coordinate":"file-byte","length":7008,"node":"input-5fe7a25fe1c481a46175463f","offset":87488526}}, SHA-256 f80add8053e4ce302f5f902ce4c39c2b68b3b69a811e1c90a49c22be6247b1fb
+- `build/assets/blobs/0e324b61bb740d7870bc524db9e44344cce93b789e3bb37ecdac2ff94e1019b9`: xa-v1, {"form":"stripped-2336","interpretation":"Non-audio payload concatenation only; not decoded video or established member/frame semantics","kind":"xa-data","payloadSizes":[2324],"sectors":1,"stride":2336,"variant":{"kind":"data"}}, SHA-256 0e324b61bb740d7870bc524db9e44344cce93b789e3bb37ecdac2ff94e1019b9
+
+### Qualified observations
+
+- Candidate interpretation: The selected resource is an XA-format extent of 7008 bytes at file-byte offset 87488526 in input-5fe7a25fe1c481a46175463f (source coordinate: file-byte). [evidence-143e423b787fa9934aff4821]
+- Candidate interpretation: Parser xa-v1 (version 3) validated the extent's structural constraints; discovery and extraction stages are both validated. [evidence-143e423b787fa9934aff4821]
+- Candidate interpretation: The extent consists of 3 sectors at stride 2336 in stripped-2336 form: 1 data sector, 2 padding sectors, and 0 audio sectors, with no trailing bytes; no XA channel numbers are recorded for this extent. fileNumbers [0, 34] are recorded in node metadata but their meaning (e.g. XA subheader fields) is not established by this run's evidence. [evidence-143e423b787fa9934aff4821]
+- Candidate interpretation: Candidate interpretation: this extent begins 2 bytes after the previously documented iteration-1 XA extent (offset 87488524, same 7008-byte length), so the two extents overlap almost entirely and may represent shifted detections of the same underlying bytes. This overlap observation is qualified interpretation, not established sector alignment or identity. [evidence-143e423b787fa9934aff4821, evidence-af227c6a44f67bf036986419]
+- Candidate interpretation: Limitation: structural compatibility only. Not evidence of a historical asset name, game-asset consumer association, disc LBA, or physical-sector coordinates; the run's inputs do not establish disc metadata (recorded as unresolved in the handoff). [evidence-143e423b787fa9934aff4821]
