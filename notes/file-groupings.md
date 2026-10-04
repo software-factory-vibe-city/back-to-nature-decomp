@@ -4708,6 +4708,13 @@ Members:
   into [D_80128DE8.unk0..unk8] / [unk4..unkC] with four min/max halfword
   clamps (leaf, 0x90, void).
 
+Run boundary: the next gapless link successor is `ovl_11_func_800DB0E4`
+(0x800DB0E4, 0x5C, starts exactly where 800DB054 ends; matched byte-exact in
+this session). It is NOT a member — it touches no D_80128DE8 field, clearing
+0xB4 bytes at `D_800A03AC` and then setting eight halfwords to 0xFFFF at a
+0x16 stride from `D_8007AFF0 + 0x253C0`. So the D_80128DE8 grouping ends at
+0x800DB0E4; continuation of the run past that point is adjacency only.
+
 ## `ovl_11` D_8006C838 table-scan caller + exclusion-set leaf — 0x800F00E4 / 0x800F021C (confidence: low)
 
 - ovl_11_func_800F00E4 (stub) — sole caller (two `jal` sites): nested s16-table
