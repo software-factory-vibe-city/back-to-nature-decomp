@@ -1779,6 +1779,18 @@ the same text-draw path its own gapless successor `ovl_11_func_800FE068`
 (0x800FE068) uses. Membership rests on the zero-gap link order plus the
 shared clamp/lookup idiom; it does not read `D_800719FE`.
 
+Widening (byte-exact match of `ovl_11_func_800FE704`, 2026-11): the
+same text-draw path continues further down the link run as a gapless pair,
+0x800FE704 -> 0x800FE780 (both 0x7C, each ending exactly where the next
+begins). Both call `func_80015EE8(D_8005E3C0->field_D8 + 0x68,
+&D_8012CE88, ...)` and both derive arg3 as `((s16)D_80127212) / 30 &
+0xFF` from the same file-scope u16 `D_80127212` (absolute addressing,
+absent from `globals.h`); they differ only in literal arg2 (1 vs 3) and
+stack arg5 (0x30 vs 0xC8). Membership rests on the shared call path plus
+the `D_8012CE..` byte block shared with 800FDFF4's `D_8012CEB8`, not on
+`D_800719FE`. `ovl_11_func_800FE704` matched 2026-11; gapless follower
+`ovl_11_func_800FE780` is the same idiom and remains a stub.
+
 ---
 
 ## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)
