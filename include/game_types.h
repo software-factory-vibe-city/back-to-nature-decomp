@@ -299,6 +299,20 @@ typedef struct {
     s16 unk0;
 } Recon_ovl_11_func_800D3404_A0View;
 
+/* 0xB0-byte object initialised by ovl_11_func_800D3390: a u16 tag at 0x00
+ * that selects the already-initialised path, an s16 selector at 0x00, a
+ * u16 0xFFFF marker at 0x04, and two s16 at 0xA8/0xAA cleared by
+ * ovl_11_func_80107DD0. Only the witnessed fields are named. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ char pad_02[0x2];
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ char pad_06[0xA2];
+    /* 0xA8 */ s16 unkA8;
+    /* 0xAA */ s16 unkAA;
+    /* 0xAC */ char pad_AC[0x4];
+} Recon_ovl_11_func_800D3390_A0View;
+
 typedef struct {
     s32 unk0;
 } Recon_ovl_11_func_800D6380_A3View;

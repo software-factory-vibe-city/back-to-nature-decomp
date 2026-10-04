@@ -115,6 +115,23 @@ Members:
 The static-first strategy investigation and candidate verification are recorded
 in `plans/static-first-matching-decompilation.md`.
 
+## `ovl_11` 0xB0-object initializer pair — 0x800D3390 / 0x800D3404 (confidence: medium)
+
+Evidence: exact link-order adjacency (0x800D3390 len 0x74 ends where
+0x800D3404 begins) and a shared object: 800D3390 clears a 0xB0-byte
+object and tags its leading halfwords, then calls 800D3404 with that same
+pointer, which sets the object's leading s16. Both members touch only the
+leading halfwords of the 0xB0-byte view, and the call edge agrees with the
+link order.
+
+Members:
+- ovl_11_func_800D3390 (m, matched this session, byte-exact) — guards on
+  `u16@+0`, `memset` 0xB0, stores s16@+0 and 0xFFFF@+4, hands the object
+  to 800D3404, clears 0xA8/0xAA via 80107DD0; returns 0, or -1 if already
+  initialised.
+- ovl_11_func_800D3404 (s) — sets s16@+0 from arg1, then calls
+  ovl_11_func_800D3574; returns 0.
+
 ## `ovl_11` +0x34 flag-to-constant map run — 0x800D3C04–0x800D3CE8 (confidence: high)
 
 Evidence: four link-order-contiguous functions with no gaps (0x800D3C04
