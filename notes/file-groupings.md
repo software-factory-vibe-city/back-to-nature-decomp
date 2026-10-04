@@ -1796,7 +1796,9 @@ Members (address order):
 - ovl_11_func_80111E38 (m, matched 2026-10-03) — reset: zeroes
   D_80070D10/D_80070D12/D_800719FE through one `&D_8006C838` base
   (+0x44D8/+0x44DA/+0x51C6) and returns the base; calls 80111EF0
-- ovl_11_func_80111E68 (s) — role unknown
+- ovl_11_func_80111E68 (m, matched 2026-10-03) — same-base writer: stores
+  arg0 to +0x51C6 (`D_800719FE`) and a range-derived mode (0/2/4) to
+  +0x44DA (`D_80070D12`), then sets flag 0x37 via `func_8001AF70`
 - ovl_11_func_80111EE0 (m) — sets `D_80070D10 = 3` (leaf)
 - ovl_11_func_80111EF0 (s) — trampoline to `ovl_11_func_80111F10`
 - ovl_11_func_80111F10 (s) — role unknown
