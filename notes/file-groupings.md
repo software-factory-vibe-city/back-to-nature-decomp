@@ -5953,6 +5953,33 @@ Members (link order):
   `D_800BCC10[0]`/`[2]` and writes the `D_8007AFF0+0x20000` work-area fields
   +0x5394..+0x53A4 and the +0x53B4/+0x53B8 halfwords
 
+## `ovl_25` s16-struct predicate run — 0x800B9758–0x800B97E4 (confidence: low)
+
+Evidence is gapless link adjacency plus a shared overlay-local data-table
+region; no symbol is shared between the members, so this is the weakest kind of
+tie and is recorded only as a candidate same-TU run.
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800B9758` (0x24, ends 0x800B977C) sits
+  immediately before `ovl_25_func_800B977C` (0x68, ends 0x800B97E4), which is
+  followed directly by `ovl_25_func_800B97E4` — contiguous, no unrelated code
+  between;
+- shared overlay-local table region: `ovl_25_func_800B977C` reads the s16 table
+  `D_800BCCA0` (= 0x800BCCA0, stride-5 halfwords indexed by a struct field),
+  which lies in the same gapless overlay-local data run as the `D_800BCC10` /
+  `D_800BCC70` tables above (`D_800BCC10` + 0x90 = `D_800BCCA0`); the two
+  functions reference different symbols, so this ties the data region, not the
+  symbol;
+- shared a0-struct idiom: both matched members take a pointer to an
+  overlay-local struct whose field is an s16 (`+0x2` for `ovl_25_func_800B9758`,
+  `+0x0` for `ovl_25_func_800B977C`) and return an s32 boolean.
+
+Members (link order):
+- ovl_25_func_800B9758 (m) — returns 0 when the `+0x2` field is 7 or 4, else 1
+- ovl_25_func_800B977C (m, matched this session, byte-exact) — `func_80012A34(0x80)`
+  then returns `result < D_800BCCA0[5*(field-1) + arg1] ^ 1`
+- ovl_25_func_800B97E4 (s) — unclassified
+
 ## `ovl_28` D_8006C838+0x4488 counter run — 0x800B7F30 / 0x800B7F80 / 0x800B7FD4 / 0x800B8124 / 0x800B8304 / 0x800B8344 / 0x800B83C0 (confidence: medium)
 
 Evidence: one gapless link-order run (0x800B7F30 +0x50 -> 0x800B7F80
