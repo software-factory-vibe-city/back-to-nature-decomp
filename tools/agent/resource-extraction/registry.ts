@@ -16,8 +16,8 @@ export interface DecodedOutput {
  * can be added as validated views without pretending they have universal magic. */
 export interface AssetParser {
   id: string; format: string; version: number;
-  /** Browsable output routing; unspecified formats remain in data/. */
-  category?: AssetCategory; rawExtension?: string;
+  /** Route by format or validated resource metadata; unspecified stays in data/. */
+  category?: AssetCategory | ((metadata: Record<string, unknown>) => AssetCategory); rawExtension?: string;
   probe(bytes: Buffer, offset: number): boolean;
   parse(bytes: Buffer, offset: number): ParsedAsset;
   variants(bytes: Buffer): Array<Record<string, unknown>>;
@@ -30,7 +30,7 @@ export class ParserRegistry {
     for (const parser of parsers) {
       if (!/^[a-z][a-z0-9-]+$/.test(parser.id) || names.has(parser.id) || ["slice-v1", "byte-xor-v1"].includes(parser.id)) throw new Error(`Invalid/duplicate parser ID: ${parser.id}`);
       integer(parser.version, "parser version", 1);
-      if (parser.category !== undefined && !ASSET_CATEGORIES.includes(parser.category)) throw new Error("Invalid parser asset category");
+      if (parser.category !== undefined && typeof parser.category !== "function" && !ASSET_CATEGORIES.includes(parser.category)) throw new Error("Invalid parser asset category");
       if (parser.rawExtension !== undefined && !/^[a-zA-Z0-9_-]{1,32}$/.test(parser.rawExtension)) throw new Error("Invalid parser raw extension");
       names.add(parser.id);
     }
@@ -40,6 +40,12 @@ export class ParserRegistry {
     const parser = this.parsers.find(p => p.id === name);
     if (!parser) throw new Error(`Unsupported parser processor: ${name}`);
     return parser;
+  }
+  category(name: string, metadata: Record<string, unknown>): AssetCategory {
+    const declared = this.get(name).category;
+    const category = typeof declared === "function" ? declared(metadata) : declared ?? "data";
+    if (!ASSET_CATEGORIES.includes(category)) throw new Error("Invalid parser asset category");
+    return category;
   }
   parse(name: string, bytes: Buffer, offset: number): ParsedAsset {
     integer(offset, "parser offset", 0, bytes.length);

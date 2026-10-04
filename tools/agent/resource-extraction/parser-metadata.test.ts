@@ -7,6 +7,7 @@ import { executeResource, loadRun, verifyRun } from "./pipeline.ts";
 import { PARSERS } from "./registry.ts";
 import { Store } from "./storage.ts";
 import type { Match } from "./types.ts";
+import { xaEdc } from "./parsers/xa.ts";
 
 // Synthetic form 1 sectors from the published CD-ROM XA layout, not game bytes.
 function sector(stride: number, frame: number): Buffer {
@@ -17,6 +18,7 @@ function sector(stride: number, frame: number): Buffer {
   }
   bytes.set([1, 0, 0x08, 0, 1, 0, 0x08, 0], subheader); // duplicated DATA subheader
   bytes[subheader + 8] = 0x90 + frame;
+  bytes.writeUInt32LE(xaEdc(bytes, subheader, 8 + 2048), subheader + 8 + 2048);
   return bytes;
 }
 

@@ -23,9 +23,9 @@ export const PARAMETERS: TObject = Type.Object({
 const descriptions: Record<Operation, string> = {
   campaign: "Start/resume the deterministic resource pipeline, or check status. Static discovery only; explicit unsupported outcomes.",
   inventory: "Fingerprint and snapshot selected unpacked files from extracted/, or show a run's frozen inputs.",
-  probe: "Run structural TIM validation over byte views. Magic hits without valid lengths/rectangles are rejected.",
+  probe: "Run registered structural format validation over byte views, including TIM and XA sectors. Magic hits without valid format fields/extents are rejected.",
   analyze: "Recover bounded original-word entry/direct-call CFG/SSA slices and field observations; unknown operation semantics remain unresolved.",
-  extract: "Preserve supplied-schema/parser extents, decode TIM palettes and export PPM/RGBA/STP; optionally evaluate a checked byte-xor constructor.",
+  extract: "Preserve supplied-schema/parser extents and run registered decoders/exporters: TIM images and XA PCM WAV where coding metadata survives; optionally evaluate a checked byte-xor constructor.",
   verify: "Replay raw extents, supported transformations, hashes and provenance; refuse input/analyzer drift.",
   document: "Prepare a verified immutable documentation handoff, or save an evidence-referenced CANDIDATE prose proposal.",
   iteration: "Select the next asset/parser work item, or verify, document and commit one asset to notes/asset-identification.md. Generated assets remain ignored.",

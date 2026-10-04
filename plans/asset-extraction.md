@@ -4,17 +4,22 @@
 implemented. Focused tests cover real deterministic tools, scoped iteration
 commits, parser test failures, hot reload and cancellation. Repository-wide
 verification is recorded below. General loader-derived schema recovery,
-consumer semantics and non-TIM asset parsers remain pending.**
+consumer semantics and broader audio/video/model support remain pending.
+XA revision 3 validates sector audio, handles unused interleave sectors and
+exports native-rate PCM WAV. All 32 streams in the four original XA files
+have been exported and matched sample-for-sample against FFmpeg.**
 
 ## Implementation snapshot: asset parsers first
 
-The only implemented asset-format parser is **TIM v1**. The current extraction
-capability must not be described as a general audio/video/model extractor.
+Implemented asset-format parsers are **TIM v1** and **XA revision 3** for sector
+streams with surviving subheaders. This is not a general audio/video/model
+extractor; payload-only ISO extractions do not establish XA playback metadata.
 
 | Capability | Implemented now | Remaining work |
 |---|---|---|
 | Parser/plugin contract and builder gate | Generic bounded probe/parse/variant/decode/replay registry; pure plugin admission; corresponding tests; registration preservation; fixed-argv typecheck/tests and scoped parser commit; fresh tools load new parsers without TUI reload | General dependency resolution and automatic reprobe of plugin-produced container/decoded views; admission policy is not an OS sandbox |
 | TIM textures/images | Strict header/block/extent validation; indexed 4/8-bit and direct 16/24-bit images; all palette banks; RGBA pixels, separate STP mask, and PPM exports | Broader independent fixtures, additional legal-layout compatibility checks, lossless PNG export; mixed-mode TIM remains unsupported |
+| XA sector audio/data | Raw 2352-byte and sync/MSF-stripped 2336-byte sector validation; correct coding fields and sound groups; independent file/channel segments; unused interleave sectors and terminal untyped EOF; retained ADPCM and native-rate 4/8-bit-to-PCM WAV in sound/; non-audio payloads in data/; all 32 real-disc streams verified against FFmpeg | Re-extract payload-only inputs that lost headers/audio bytes; nonstandard channel numbers, EDC/ECC repair, console resampling/de-emphasis and STR/MDEC decoding |
 | VAG audio samples | Not implemented | Header and ADPCM-frame validation, predictor/shift handling, loop/end metadata, PCM decoding and WAV export |
 | VAB sound banks | Not implemented | VH/VB and embedded variants, program/tone/sample tables, sample extents, references and playback metadata; preserve raw bank representation |
 | SEQ/SEP music sequences | Not implemented | Event/timing validation, sequence enumeration, bank/program dependencies and MIDI export; MIDI is not a reconstruction of the game's audio |
@@ -91,8 +96,10 @@ Each parser milestone must provide:
 - Validation of lengths/counts, flags, indices, origins, units and referenced
   ranges before allocation or publication. Overflow and expansion limits are
   checked before producing output.
-- A separate decoder/exporter where needed; preservation of raw bytes and
-  machine-readable metadata even when a presentation export is lossy.
+- A separate decoder/exporter where needed, including a usable native export
+  for supported media (PCM WAV for audio); compressed payload copies alone are
+  preservation, not completed decoding. Preserve raw bytes and machine-readable
+  metadata even when a presentation export is lossy.
 - Deterministic reports and hashes, versioned provenance and replay validation.
 - Synthetic/specification fixtures, independently checked real compatibility
   cases kept local/uncommitted, malformed/truncated inputs, false-positive magic,

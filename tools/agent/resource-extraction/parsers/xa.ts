@@ -1,48 +1,37 @@
 import type { AssetParser, DecodedOutput, ParsedAsset } from "../registry.ts";
+import { decodeXaWav, validateXaAudio, xaCoding } from "./xa-audio.ts";
 
-/** xa-v1: CD-ROM XA mode 2 sector chains (Sony CD-ROM XA specification).
- *
- * Evidence basis: the published CD-ROM XA sector layout — a 12-byte sync
- * (00 FF x10 00), BCD minute/second/frame header with mode byte 2, an
- * 8-byte subheader stored twice, then 2048 (form 1) or 2324 (form 2) user
- * bytes followed by EDC/ECC. The headerless 2336-byte form (sync/header
- * stripped by some extraction tools) is accepted only when at least two
- * consecutive 2336-stride sectors validate, because one duplicated
- * subheader pattern is not structural evidence on its own.
- *
- * Observed input arithmetic (extracted/iso/str/*.xa sizes): each file is
- * N x 2352 + a sub-2352 remainder, consistent with raw-sector dumps padded
- * to a 2048-byte boundary; a pure unstripped 2336 dump is impossible for
- * 01.xa (remainder 2784 > 2336). Both forms are probed so deterministic
- * discovery decides on the actual bytes.
- *
- * Not established by this parser: disc LBAs/sector physics, STR frame
- * semantics inside form 1 payloads, and PCM synthesis from XA ADPCM sound
- * groups (raw ADPCM payloads are preserved losslessly instead).
- */
-
+/** CD-ROM XA mode 2 sector chains, parser revision 3.
+ * https://psx-spx.consoledev.net/ps1/cdr/cdromformat/
+ * Supports raw 2352-byte sectors and 2336-byte sectors with only sync/MSF
+ * removed (subheaders MUST remain). Headerless sound-group payloads, including
+ * ISO extractions missing sector metadata, cannot establish rate, mono/stereo,
+ * bit depth or file/channel interleave and are not guessed from filenames.
+ * Audio exports retain ADPCM and add native-rate 16-bit PCM WAV per witnessed
+ * file/channel segment. Non-audio payloads are data, not decoded STR/MDEC video.
+ * Interleave padding and the terminal untyped EOF sector are preserved but
+ * never decoded as audio/data. EDC is validated (zero EDC is permitted for
+ * form 2); ECC/EDC repair, nonstandard channel numbers, console resampling
+ * and de-emphasis remain unsupported. */
 const SYNC = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00] as const;
-const RAW_STRIDE = 2352;
-const STRIPPED_STRIDE = 2336;
-const FORM1_PAYLOAD = 2048;
-const FORM2_PAYLOAD = 2324;
-/** XA submode bits (CD-ROM XA): EOR 0x01, VIDEO 0x02, AUDIO 0x04,
- * DATA 0x08, TRIGGER 0x10, FORM2 0x20, REALTIME 0x40, EOF 0x80. */
-const SUBMODE_AUDIO = 0x04;
-const SUBMODE_DATA = 0x08;
-const SUBMODE_FORM2 = 0x20;
-/** XA audio codingInfo: bits 4-5 select 37800/18900 Hz and mono/stereo,
- * bit 6 marks emphasis; the remaining bits are reserved zero. */
-const CODING_RATES: Array<{ sampleRateHz: number; stereo: boolean }> = [
-  { sampleRateHz: 37800, stereo: false },
-  { sampleRateHz: 37800, stereo: true },
-  { sampleRateHz: 18900, stereo: false },
-  { sampleRateHz: 18900, stereo: true },
-];
+const RAW_STRIDE = 2352, STRIPPED_STRIDE = 2336;
+const SUBMODE_AUDIO = 0x04, SUBMODE_FORM2 = 0x20;
 
 export interface XaSubheader { file: number; channel: number; submode: number; coding: number }
 interface XaSector extends XaSubheader { payloadOffset: number; payloadSize: number }
 export interface XaLayout { form: "raw-2352" | "stripped-2336"; stride: number; sectors: XaSector[]; consumed: number }
+interface AudioStream { file: number; channel: number; segment: number; coding: number; sectors: XaSector[]; ended: boolean }
+
+/** CD-ROM EDC: reflected polynomial D8018001h, zero init/no final XOR. */
+export function xaEdc(bytes: Buffer, offset: number, length: number): number {
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || offset + length > bytes.length) throw new Error("Invalid XA EDC extent");
+  let crc = 0;
+  for (let at = offset; at < offset + length; at++) {
+    crc ^= bytes[at]!;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xd8018001 : 0);
+  }
+  return crc >>> 0;
+}
 
 function duplicatedSubheader(bytes: Buffer, at: number): XaSubheader | undefined {
   if (at < 0 || at + 8 > bytes.length) return undefined;
@@ -50,22 +39,17 @@ function duplicatedSubheader(bytes: Buffer, at: number): XaSubheader | undefined
   if (bytes[at + 4] !== sub.file || bytes[at + 5] !== sub.channel || bytes[at + 6] !== sub.submode || bytes[at + 7] !== sub.coding) return undefined;
   return sub;
 }
-
 function bcd(value: number): boolean { return (value & 0x0f) <= 9 && (value >>> 4) <= 9; }
-
+function unusedSector(sub: XaSubheader): boolean { return (sub.submode & 0x0e) === 0; }
+function terminalSector(sub: XaSubheader): boolean { return unusedSector(sub) && (sub.submode & 0x80) !== 0; }
 function validSubheader(sub: XaSubheader): boolean {
-  // Some content kind (audio/video/data) must be declared; EOR-only padding
-  // sectors are indistinguishable from zero runs and are not accepted.
-  if ((sub.submode & 0x0e) === 0) return false;
+  if (sub.channel > 31) return false;
   if (sub.submode & SUBMODE_AUDIO) {
-    // XA audio is always form 2, never mixed with the data bit, and its
-    // codingInfo carries only rate/stereo/emphasis bits.
-    return (sub.submode & SUBMODE_FORM2) !== 0 && (sub.submode & SUBMODE_DATA) === 0 &&
-      (sub.coding & 0x8f) === 0;
+    // CI: bit 0 stereo, bit 2 half rate, bit 4 eight-bit, bit 6 emphasis.
+    return (sub.submode & SUBMODE_FORM2) !== 0 && (sub.submode & 0x0a) === 0 && (sub.coding & 0xaa) === 0;
   }
   return sub.coding === 0;
 }
-
 function sectorAt(bytes: Buffer, offset: number, form: XaLayout["form"]): XaSector | undefined {
   const stride = form === "raw-2352" ? RAW_STRIDE : STRIPPED_STRIDE;
   if (offset < 0 || offset + stride > bytes.length) return undefined;
@@ -77,121 +61,114 @@ function sectorAt(bytes: Buffer, offset: number, form: XaLayout["form"]): XaSect
   }
   const sub = duplicatedSubheader(bytes, form === "raw-2352" ? offset + 16 : offset);
   if (!sub || !validSubheader(sub)) return undefined;
-  const form2 = (sub.submode & SUBMODE_FORM2) !== 0;
-  return { ...sub, payloadOffset: offset + (form === "raw-2352" ? 24 : 8), payloadSize: form2 ? FORM2_PAYLOAD : FORM1_PAYLOAD };
+  const sector = { ...sub, payloadOffset: offset + (form === "raw-2352" ? 24 : 8), payloadSize: sub.submode & SUBMODE_FORM2 ? 2324 : 2048 };
+  const edc = bytes.readUInt32LE(sector.payloadOffset + sector.payloadSize);
+  if ((!(sub.submode & SUBMODE_FORM2) || edc !== 0) && edc !== xaEdc(bytes, sector.payloadOffset - 8, 8 + sector.payloadSize)) return undefined;
+  if (sub.submode & SUBMODE_AUDIO) {
+    try { validateXaAudio(bytes, sector, sub.coding); } catch { return undefined; }
+  }
+  return sector;
 }
-
 function detectForm(bytes: Buffer, offset: number): XaLayout["form"] | undefined {
   if (sectorAt(bytes, offset, "raw-2352")) return "raw-2352";
   if (sectorAt(bytes, offset, "stripped-2336")) return "stripped-2336";
   return undefined;
 }
-
 export function walkXa(bytes: Buffer, offset: number): XaLayout {
   const form = detectForm(bytes, offset);
   if (!form) throw new Error("Not a CD-ROM XA mode 2 sector chain");
-  const stride = form === "raw-2352" ? RAW_STRIDE : STRIPPED_STRIDE;
-  const sectors: XaSector[] = [];
+  const stride = form === "raw-2352" ? RAW_STRIDE : STRIPPED_STRIDE, sectors: XaSector[] = [];
   for (let at = offset; at + stride <= bytes.length; at += stride) {
     const sector = sectorAt(bytes, at, form);
     if (!sector) break;
     sectors.push(sector);
+    if (terminalSector(sector)) break;
   }
-  // Headerless 2336 sectors carry no sync/header evidence, so a single
-  // duplicated-subheader pattern is not structural proof of a chain.
-  if (!sectors.length || (form === "stripped-2336" && sectors.length < 2)) {
-    throw new Error("Not a CD-ROM XA sector chain: headerless form requires at least two consecutive sectors");
-  }
+  if (!sectors.length || (form === "stripped-2336" && sectors.length < 2)) throw new Error("Not a CD-ROM XA sector chain: headerless form requires at least two consecutive sectors with subheaders");
+  if (sectors.every(unusedSector)) throw new Error("Not a CD-ROM XA resource: only unused sectors");
   return { form, stride, sectors, consumed: sectors.length * stride };
 }
-
 export function parseXa(bytes: Buffer, offset: number): ParsedAsset {
   if (offset < 0 || offset >= bytes.length) throw new Error("Invalid XA resource offset");
+  const form = detectForm(bytes, offset);
+  if (!form) throw new Error("Not a CD-ROM XA mode 2 sector chain");
+  const stride = form === "raw-2352" ? RAW_STRIDE : STRIPPED_STRIDE;
+  const previous = offset >= stride ? sectorAt(bytes, offset - stride, form) : undefined;
+  // Reject interior starts before walking: byte-wise scanning must not re-read
+  // every remaining sector at each sector boundary (quadratic on real files).
+  if (previous && !terminalSector(previous)) throw new Error("XA chain begins after a valid sector; interior alignment is not a resource start");
   const layout = walkXa(bytes, offset);
-  // Interior alignment is rejected when the bytes immediately before the
-  // chain already form a valid sector of the same form: the resource starts
-  // at the earlier sector, not here. This keeps every standalone stream and
-  // embedded chain to exactly one match at its first sector.
-  if (offset >= layout.stride && sectorAt(bytes, offset - layout.stride, layout.form)) {
-    throw new Error("XA chain begins after a valid sector; interior alignment is not a resource start");
-  }
   const audio = layout.sectors.filter(sector => (sector.submode & SUBMODE_AUDIO) !== 0);
+  const padding = layout.sectors.filter(unusedSector);
   const distinct = (values: number[]): number[] => [...new Set(values)].sort((a, b) => a - b);
-  return { length: layout.consumed, metadata: {
-    form: layout.form,
-    stride: layout.stride,
-    sectors: layout.sectors.length,
-    audioSectors: audio.length,
-    dataSectors: layout.sectors.length - audio.length,
-    channels: distinct(audio.map(sector => sector.channel)),
-    fileNumbers: distinct(layout.sectors.map(sector => sector.file)),
-    trailingBytes: bytes.length - offset - layout.consumed,
-  } };
+  return { length: layout.consumed, metadata: { form: layout.form, stride: layout.stride, sectors: layout.sectors.length,
+    audioSectors: audio.length, dataSectors: layout.sectors.length - audio.length - padding.length, paddingSectors: padding.length,
+    channels: distinct(audio.map(sector => sector.channel)), fileNumbers: distinct(layout.sectors.map(sector => sector.file)),
+    trailingBytes: bytes.length - offset - layout.consumed } };
 }
-
-function xaVariants(bytes: Buffer): Array<Record<string, unknown>> {
-  const layout = walkXa(bytes, 0);
-  const audio = layout.sectors.filter(sector => (sector.submode & SUBMODE_AUDIO) !== 0);
-  const variants: Array<Record<string, unknown>> = [...new Set(audio.map(sector => sector.channel))].sort((a, b) => a - b)
-    .map(channel => ({ kind: "audio", channel }));
-  if (audio.length !== layout.sectors.length) variants.push({ kind: "data" });
-  return variants;
+function audioStreams(layout: XaLayout): AudioStream[] {
+  const active = new Map<string, AudioStream>(), streams: AudioStream[] = [];
+  for (const sector of layout.sectors) {
+    if (!(sector.submode & SUBMODE_AUDIO)) continue;
+    const key = `${sector.file}:${sector.channel}`;
+    let stream = active.get(key);
+    if (!stream || stream.ended || stream.coding !== sector.coding) {
+      stream = { file: sector.file, channel: sector.channel, segment: stream ? stream.segment + 1 : 0, coding: sector.coding, sectors: [], ended: false };
+      active.set(key, stream); streams.push(stream);
+    }
+    stream.sectors.push(sector);
+    stream.ended = (sector.submode & 0x81) !== 0; // EOR/EOF terminate this segment.
+  }
+  return streams;
 }
-
-function xaDecode(bytes: Buffer, variant: Record<string, unknown>, maxBytes: number): DecodedOutput {
+function exactLayout(bytes: Buffer): XaLayout {
   const layout = walkXa(bytes, 0);
   if (layout.consumed !== bytes.length) throw new Error("XA decode requires the exact sector extent");
-  const audio = layout.sectors.filter(sector => (sector.submode & SUBMODE_AUDIO) !== 0);
-  let selected: XaSector[], kind: string, extension: string;
-  if (variant.kind === "audio") {
-    const channel = variant.channel;
-    if (typeof channel !== "number" || !Number.isInteger(channel) || channel < 0 || channel > 255) throw new Error("Invalid XA audio channel variant");
-    selected = audio.filter(sector => sector.channel === channel);
-    if (!selected.length) throw new Error("No XA audio sectors for the requested channel");
-    kind = "xa-audio-adpcm";
-    extension = "adpcm";
-  } else if (variant.kind === "data") {
-    selected = layout.sectors.filter(sector => (sector.submode & SUBMODE_AUDIO) === 0);
-    if (!selected.length) throw new Error("No XA form 1 data sectors");
-    kind = "xa-data";
-    extension = "bin";
-  } else throw new Error("Unknown XA decode variant");
-  const payloadSize = selected[0]!.payloadSize;
-  const total = selected.length * payloadSize;
-  if (total > maxBytes) throw new Error("budget-exhausted: XA decoded bytes");
-  const output = Buffer.alloc(total);
+  return layout;
+}
+function xaVariants(bytes: Buffer): Array<Record<string, unknown>> {
+  const layout = exactLayout(bytes);
+  const variants: Array<Record<string, unknown>> = audioStreams(layout).map(({ file, channel, segment }) => ({ kind: "audio", file, channel, segment }));
+  if (layout.sectors.some(sector => !(sector.submode & SUBMODE_AUDIO) && !unusedSector(sector))) variants.push({ kind: "data" });
+  return variants;
+}
+function payloads(bytes: Buffer, sectors: XaSector[], maximum: number): Buffer {
+  const size = sectors.reduce((sum, sector) => sum + sector.payloadSize, 0);
+  if (size > maximum) throw new Error("budget-exhausted: XA payload bytes");
+  const output = Buffer.alloc(size);
   let at = 0;
-  for (const sector of selected) {
-    bytes.copy(output, at, sector.payloadOffset, sector.payloadOffset + payloadSize);
-    at += payloadSize;
+  for (const sector of sectors) { bytes.copy(output, at, sector.payloadOffset, sector.payloadOffset + sector.payloadSize); at += sector.payloadSize; }
+  return output;
+}
+function xaDecode(bytes: Buffer, variant: Record<string, unknown>, maximum: number): DecodedOutput[] {
+  const layout = exactLayout(bytes);
+  if (variant.kind === "audio") {
+    const stream = audioStreams(layout).find(s => s.file === variant.file && s.channel === variant.channel && s.segment === variant.segment);
+    if (!stream) throw new Error("Invalid XA audio stream variant");
+    const rawSize = stream.sectors.length * 2324;
+    // Account for ALL outputs, including the WAV header, before allocating.
+    const wav = decodeXaWav(bytes, stream.sectors, stream.coding, maximum - rawSize);
+    const metadata = { form: layout.form, stride: layout.stride, sectors: stream.sectors.length, payloadBytes: 2324,
+      file: stream.file, channel: stream.channel, segment: stream.segment, codings: [stream.coding], ...xaCoding(stream.coding) };
+    return [
+      { kind: "xa-audio-adpcm", extension: "adpcm", stage: "decoding", bytes: payloads(bytes, stream.sectors, rawSize), metadata: { ...metadata, adpcm: "Original XA sound groups and sector padding preserved; WAV is the playable derivative" } },
+      { kind: "xa-audio", extension: "wav", stage: "export", bytes: wav.bytes, metadata: { ...metadata, ...wav.metadata } },
+    ];
   }
-  const codings = [...new Set(selected.map(sector => sector.coding))].sort((a, b) => a - b);
-  const metadata: Record<string, unknown> = {
-    form: layout.form, stride: layout.stride, sectors: selected.length, payloadBytes: payloadSize, codings,
-  };
-  if (kind === "xa-audio-adpcm") {
-    metadata.channel = variant.channel;
-    metadata.adpcm = "raw XA sound groups preserved; PCM synthesis is not performed";
-    if (codings.length === 1) {
-      const rate = CODING_RATES[(codings[0]! >> 4) & 3]!;
-      metadata.sampleRateHz = rate.sampleRateHz;
-      metadata.stereo = rate.stereo;
-      metadata.emphasis = (codings[0]! & 0x40) !== 0;
-    }
-  } else metadata.interpretation = "form 1 payload concatenation only; member/frame semantics unresolved";
-  return { kind, extension, stage: "decoding", bytes: output, metadata };
+  if (variant.kind !== "data") throw new Error("Unknown XA decode variant");
+  const selected = layout.sectors.filter(sector => !(sector.submode & SUBMODE_AUDIO) && !unusedSector(sector));
+  if (!selected.length) throw new Error("No XA data sectors");
+  return [{ kind: "xa-data", extension: "bin", stage: "decoding", bytes: payloads(bytes, selected, maximum), metadata: {
+    form: layout.form, stride: layout.stride, sectors: selected.length, payloadSizes: [...new Set(selected.map(sector => sector.payloadSize))].sort((a, b) => a - b),
+    interpretation: "Non-audio payload concatenation only; not decoded video or established member/frame semantics" } }];
 }
 
 export const XA_PARSER: AssetParser = {
-  id: "xa-v1",
-  format: "XA",
-  version: 1,
-  category: "video",
+  id: "xa-v1", format: "XA", version: 3,
+  category: metadata => typeof metadata.audioSectors === "number" && metadata.audioSectors > 0 ? "sound" : "data",
   rawExtension: "xa",
   probe: (bytes, offset) => {
     if (offset < 0 || offset + 24 > bytes.length) return false;
-    // Raw mode 2: the 8-byte subheader duplication is a cheap filter; the
-    // sync/mode check runs only after it hits.
     const rawSub = duplicatedSubheader(bytes, offset + 16);
     if (rawSub) {
       let sync = true;
@@ -199,9 +176,9 @@ export const XA_PARSER: AssetParser = {
       if (sync && bytes[offset + 15] === 2 && validSubheader(rawSub)) return true;
     }
     const stripped = duplicatedSubheader(bytes, offset);
-    return stripped !== undefined && validSubheader(stripped);
+    // A typeless stripped sector is not a discovery signature: otherwise
+    // ordinary zero-filled data would trigger a full sector walk at every byte.
+    return stripped !== undefined && !unusedSector(stripped) && validSubheader(stripped);
   },
-  parse: parseXa,
-  variants: xaVariants,
-  decode: (bytes, variant, maximum) => [xaDecode(bytes, variant, maximum)],
+  parse: parseXa, variants: xaVariants, decode: xaDecode,
 };

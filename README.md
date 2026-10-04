@@ -769,12 +769,24 @@ Inputs default to `extracted/`; generated assets, immutable snapshots, provenanc
 and reports stay under `build/assets/` and are never committed. Browse actual
 files in `build/assets/images/<asset-id>/`: `original.tim`, `bank-0.ppm`, RGBA/STP
 files and `asset.json` provenance. `build/assets/index.json` lists all published
-assets. Parsers route future supported formats to `sound/`, `models/`, `video/`
-or `data/`; folders appear only when assets exist. These are regular copies,
-so editing one cannot corrupt the backing blobs. Current asset
-format support is **TIM v1**, with indexed/direct-color validation, RGBA, separate
-STP masks and lossy PPM previews. VAG/VAB, SEQ/SEP, TMD, STR/MDEC and game-specific
-formats remain pending. Supplied archive schemas and one checked byte-XOR
+assets. Parsers route supported formats to `sound/`, `models/`, `video/`
+or `data/` using format declarations or validated content; folders appear only
+when assets exist. These are regular copies, so editing one cannot corrupt the
+backing blobs. Current asset format support is **TIM v1** (indexed/direct-color
+validation, RGBA, separate STP masks and lossy PPM previews) and **XA revision 3**
+(raw 2352-byte or sync/MSF-stripped 2336-byte sectors with surviving subheaders).
+XA audio resources appear in `sound/<asset-id>/` with the original XA, retained
+ADPCM and playable native-rate 16-bit PCM WAV per file/channel segment. Non-audio
+XA payloads go to `data/`, not `video/`; STR/MDEC decoding is not implemented.
+Unused interleave sectors are preserved but skipped during audio decoding;
+individual channel EOFs do not truncate other channels. The four original XA
+files have been recovered into `extracted/xa-sectors/` from the source disc and
+exported under `build/assets/sound/`: all 32 streams match FFmpeg PCM exactly
+(including six silent streams).
+A 2048-byte-per-sector ISO extraction can discard both XA subheaders and part
+of the compressed audio. Such inputs require sector-preserving re-extraction,
+not guessed playback parameters or zero-filled replacement samples.
+VAG/VAB, SEQ/SEP, TMD, STR/MDEC and game-specific formats remain pending. Supplied archive schemas and one checked byte-XOR
 constructor are conditional mechanisms, not general loader/decompressor recovery.
 Total game asset count and historical semantic names remain unknown.
 
@@ -782,6 +794,7 @@ Use deterministic stages without a model or commits:
 
 ```bash
 npm run assets -- --input extracted/iso --max-steps 10
+npm run assets -- --input extracted/xa-sectors
 npx tsx tools/agent/resourceVerify.ts --run <run-id>
 ```
 

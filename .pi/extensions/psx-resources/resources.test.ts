@@ -193,6 +193,10 @@ test("parser closure dispatches builder; tested commit hot-reloads and discovers
     await h.commands.get("extract-resources").handler("--max-iterations 2", h.ctx);
     assert.equal(h.errors.length, 0, String(h.errors)); assert.equal(h.prompts.length, 2, JSON.stringify(h.messages));
     assert.match(h.prompts[0]!, /psx-build-resource-parser/); assert.match(h.prompts[1]!, /psx-document-resources/);
+    assert.match(h.prompts[0]!, /PCM WAV/); assert.match(h.prompts[0]!, /preservation, not completed audio\/video decoding/);
+    assert.match(h.prompts[0]!, /ISO payload may have lost sector headers/);
+    assert.match(h.prompts[0]!, /Verify complete exports from available real inputs/);
+    assert.match(h.prompts[0]!, /synthetic fixtures alone are not completion/);
     assert.equal(h.messages.filter(m => /Iteration \d+:.*committed/.test(m.content)).length, 2, JSON.stringify(h.messages));
     assert.match(git(root, ["log", "-2", "--format=%s"]), /Identify Fixture asset.*\nImplement resource parser FIXTURE/s);
     assert.equal(readdirSync(join(root, "build/assets/runs")).length, 2, "parser change creates a new fingerprinted run");

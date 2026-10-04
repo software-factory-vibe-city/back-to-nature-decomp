@@ -22,7 +22,7 @@ export function presentationPlan(m: Manifest, manifestHash: string, registry: Pa
   for (const node of m.nodes) {
     if (node.kind !== "resource" || node.stages.discovery !== "validated" || node.stages.extraction !== "validated" || typeof node.metadata.parserId !== "string") continue;
     if (!/^node-[a-f0-9]{24}$/.test(node.id)) throw new Error("Invalid presentation node ID");
-    const parser = registry.get(node.metadata.parserId), category = parser.category ?? "data", extension = parser.rawExtension ?? "bin";
+    const parser = registry.get(node.metadata.parserId), category = registry.category(parser.id, node.metadata), extension = parser.rawExtension ?? "bin";
     const directory = `${category}/${node.id}`;
     const files: PresentedFile[] = [{ path: `${directory}/original.${extension}`, backing: node.blob, hash: node.blob.slice(6), size: node.size, stage: "extraction" }];
     for (const artifact of m.artifacts.filter(a => a.node === node.id && a.processor === parser.id)) {
