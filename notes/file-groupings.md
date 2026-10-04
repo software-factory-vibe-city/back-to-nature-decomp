@@ -5565,10 +5565,16 @@ Members (link order):
 - ovl_27_func_800B8E5C (s, matched this session) — timer stage: hub call, then
   `D_800C4A14 = ovl_27_func_800B8EA0` once `D_800C4A1C >= 0x1E`, confirming the
   slot chains handlers in this run
-- ovl_27_func_800B8EA0 (m) — next `D_800C4A14` handler installed by 800B8E5C
+- ovl_27_func_800B8EA0 (m) — next `D_800C4A14` handler installed by 800B8E5C;
+  its asm installs `ovl_27_func_800B8EF8` once `D_800C4A38 >= 0`
+- ovl_27_func_800B8EF8 (m, matched this session, byte-exact) — next handler in
+  the chain: hub call, `ovl_27_func_800B93B4(0)`, `ovl_27_func_800B9368(D_800C4A3A)`,
+  then advances `D_800C4A14` to `ovl_27_func_800B8F58` once `D_800C4A3A <= 0`
+- ovl_27_func_800B8F58 — next `D_800C4A14` handler installed by 800B8EF8; not yet
+decoded
 - ovl_27_func_800B92E4 (m) — shared driver hub; nine callers in the run
 
-Three members matched; the rest of the cluster is read off original asm
+Five members matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
 Not a member of this cluster: `ovl_27_func_800B8C6C` (0x800B8C6C, matched this
