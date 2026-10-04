@@ -7228,8 +7228,9 @@ Members (link order):
 - ovl_11_func_800DA3AC (s) — dispatch on `D_80070CF2` (0/0x40/0x80), then tag
   range 0x167–0x169 + `func_80012A34` guard sets tag 0x40 and field 0x167.
 - ovl_11_func_800DA454 (m) — tag 0x3F guard → `func_80012A34`, set tag 0x175.
-- ovl_11_func_800DA49C (s) — resets the record: tag 0x168/0x168, fields
-  `+0x4 = +0x5 = 0`, `+0x6 = 0`.
+- ovl_11_func_800DA49C (m, matched this session, byte-exact) — tag != 0x36 +
+  `ovl_11_func_800D5868(tag) == 1` + `func_80012A34` guard resets the record:
+  tag 0x168/0x168, fields `+0x4 = +0x5 = 0`, `+0x6 = 0`.
 - ovl_11_func_800DA518 (m, matched this session, byte-exact) — tag 0x36 +
   nonzero `u8@+0x4` + `func_80012A34` guard → refresh `+0x4` from
   `ovl_11_func_800D5C90(0x36)`, clear `+0x5`, OR `0x8000` into `+0x6`.
