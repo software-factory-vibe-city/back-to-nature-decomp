@@ -5815,9 +5815,11 @@ and touch the same s32 word at +0x4488 (= `D_80070CC0`, 0x8006C838+0x4488),
 the first six with the identical load / `+1` / store increment; the
 run-final `ovl_28_func_800B83C0` shares the base and the +0x4488 word but
 clears it instead of incrementing, and reads the two-stage
-`D_8006C838+0x8000` base. No other
-`ovl_28` function reaching the +0x4488 word was found, so the tie is
-adjacency plus a shared read-modify-write word. Cross-container note: the
+`D_8006C838+0x8000` base. At the time of writing no other
+`ovl_28` function reaching the +0x4488 word was found; the code-segment head
+`ovl_28_func_800B7E24` was later matched and does read it (see the
+code-segment-head dispatch entry below), so the tie is adjacency plus a shared
+read-modify-write/read-once word. Cross-container note: the
 byte-shape of `ovl_28_func_800B8304` matches matched `ovl_27_func_800B8C6C`
 16/16 (same counter idiom over the same +0x4488 word); that twin relation is
 not TU-membership evidence here.
@@ -5846,6 +5848,32 @@ Members (link order):
 
 Only one member is matched; the rest are read off original asm, hence medium
 confidence.
+
+## `ovl_28` code-segment-head dispatch cluster — 0x800B7E24 / 0x800B7E80 (confidence: medium)
+
+Evidence: the ovl_28 code-segment head `ovl_28_func_800B7E24` (0x800B7E24,
+0x5C) dispatches `((void (*)(s32 *))D_800B95F8[D_80070CC0])(&D_800B95F8)` —
+the same `base[index](base)` idiom as the ovl_23 code-segment head, over the
+ovl_28 sibling table `D_800B95F8` (the only `ovl_28` reference to that rodata
+table). It reads the state word `D_80070CC0` (= `D_8006C838+0x4488`) that the
+counter run above read-modify-writes, which ties it to that run; and it is
+gaplessly adjacent in link order to it (0x800B7E24 +0x5C = 0x800B7E80, then
+0x800B7E80 +0xB0 = 0x800B7F30, the counter run's head).
+
+Members (link order):
+- ovl_28_func_800B7E24 (m, byte-exact this session) — code-segment head:
+  `func_80017A64()` saved, `func_80017A48(3)`, then
+  `((void (*)(s32 *))D_800B95F8[D_80070CC0])(&D_800B95F8)`, then
+  `func_80017A48(saved)`.
+- ovl_28_func_800B7E80 (s) — initialiser: stores handler pointers
+  (`ovl_28_func_800B8414` et al.) into the `D_800B9614` table and zeroes the
+  `D_800B961C`/`D_800B9620`/`D_800B9624` state words. Its gapless successor is
+  the counter run head `ovl_28_func_800B7F30`.
+
+Cross-container note: byte-shape twins `ovl_19_func_800B7ED8`,
+`ovl_21_func_800B7E3C`, `ovl_23_func_800B7EA4` carry the same
+`base[index](base)` head idiom; that twin relation is not TU-membership
+evidence — only the shared state word and the link adjacency are.
 
 ## `ovl_15` D_8013759E/A0/A2/A4 adjacent-u16 state run — 0x80133808–0x80134724 (confidence: medium)
 
