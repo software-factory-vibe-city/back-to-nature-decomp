@@ -1898,6 +1898,18 @@ the `D_8012CE..` byte block shared with 800FDFF4's `D_8012CEB8`, not on
 `D_800719FE`. `ovl_11_func_800FE704` matched 2026-11; gapless follower
 `ovl_11_func_800FE780` is the same idiom and remains a stub.
 
+Widening (byte-exact match of `ovl_11_func_800FD194`, 2026-11): the same
+text-draw path also reaches far below the run at 0x800FD194, a 0x88-byte
+two-call leaf that issues `func_80015EE8(D_8005E3C0->field_D8 + 0x68,
+&D_8012CE28, D_80127358[arg0], 0, 0xBA, 0x14)` and then
+`func_80017B3C(D_8005E3C0->field_D8 + 0x54, *D_80054BBC + (s32)&D_80053604,
+0xD2, 0x1A)`. It shares the call path and the `D_8012CE..` file-scope byte
+block with 800FDFF4/800FE704 (D_8012CE28 is 0x60 before 800FE704's
+D_8012CE88), and its indexed `.data` byte table `D_80127358` lies 0x18 before
+800FDFF4's `D_80127370`/`D_8012737C` in the same block. Membership rests on
+the shared call path plus those two shared byte blocks, not on `D_800719FE`;
+there is no link adjacency (it sits 0xD04 above the run start).
+
 ---
 
 ## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)
