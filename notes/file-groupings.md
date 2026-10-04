@@ -6965,12 +6965,21 @@ Fingerprints:
   the `func_80013394()` guard, and is the only site that can store
   `ovl_11_func_80100194` (selected over `ovl_11_func_80103714` by
   `(s16)func_800225B8() == 1`), extending the template below the run's case
-  range.
+  range;
+- a second such remote member, `ovl_11_func_801022E8` (0x801022E8), carries the
+  `func_8002261C(3, case)` + `func_800226A4() == 2` template at case 0x3BF —
+  a third distinct case value after 0x3B6 and the 0x3C0–0x3C4 series — and is
+  the only site that stores `D_801273DC = ovl_11_func_8010289C`, a second
+  symbol written into this global; its other arm writes `D_801273E4 = 3`,
+  bridging the two `D_801273Exx` handler entries.
 
 Members (address order):
 - ovl_11_func_80100128 (m, matched this session) — remote case 0x3B6 handler;
   no `func_80013394()` guard; stores `ovl_11_func_80100194` when
   `(s16)func_800225B8() == 1`, else `ovl_11_func_80103714`
+- ovl_11_func_801022E8 (m, matched this session) — remote case 0x3BF handler;
+  `(s16)func_800225B8() == 1` arm calls `func_800132F0(0xA, 0, 2)` then stores
+  `D_801273DC = ovl_11_func_8010289C`, else arm stores `D_801273E4 = 3`
 - ovl_11_func_801033D4 (m, matched this session) — case 0x3C0 handler; sets
   `D_801273DC = ovl_11_func_80103714`, no helper call
 - ovl_11_func_80103424 (s) — case 0x3C1 handler; same store, calls helper
@@ -6986,7 +6995,11 @@ Members (address order):
 Members tied to the `D_801273Exx` state block by shared globals and to
 `ovl_11`'s event-handler idiom by their call shape rather than by link
 adjacency (0x801014A4 sits immediately before `ovl_11_func_801014F8` at
-0x801014F8, nowhere near 0x80102268 or the 0x801033D4 run).
+0x801014F8, nowhere near 0x801033D4 run).
+
+- **link-order contiguity:** `ovl_11_func_80102268` (0x80, ends 0x801022E8)
+  → `ovl_11_func_801022E8` (0x80, ends 0x80102368) — the two state-block
+  handlers are gaplessly adjacent, unlike 0x801014A4;
 
 - **shared global cluster:** writes `D_801273E4 = 3`, a member of the
   `D_801273Exx` block that `ovl_11_func_800FFDCC` clears (the same reset tie
@@ -7004,6 +7017,11 @@ Members (address order):
   `ovl_11_func_80102844((s8)arg1, (s8)arg0)` to a 3×s16 record, takes its first
   halfword (0xA4 branch adds `ovl_11_func_800D60D4(record) + 0x3E8`), calls
   `func_8002261C(3, value)`, sets `D_801273E4 = 3` when `func_800226A4() == 2`
+- ovl_11_func_801022E8 (m, matched this session) — gapless follower of
+  `ovl_11_func_80102268`; calls `func_8002261C(3, 0x3BF)`, then when
+  `func_800226A4() == 2`: if `(s16)func_800225B8() == 1` calls
+  `func_800132F0(0xA, 0, 2)` and stores `D_801273DC = ovl_11_func_8010289C`,
+  else sets `D_801273E4 = 3`
 
 ---
 
