@@ -5951,6 +5951,10 @@ a single TU:
 - ovl_23_func_800B80CC (m) — `func_80013328(10)`, off 0x448C
 - ovl_25_func_800B81B4 (m) — `ovl_25_func_800B93E4()`, `func_80013328(10)`, off 0x448C
 - ovl_27_func_800B8C6C (m, matched this session) — `func_800132F0(10, 0, 2)`, off 0x4488
+- ovl_27_func_800B8CAC (m, this session) — guarded sibling of 800B8C6C (its
+  immediate link-order successor, same off 0x4488 and same body template): runs
+  the increment only when `func_80013394() == 1` and `func_8001FE6C() == 0`,
+  after `func_8001FBBC(0)`/`func_80020818()`/`func_80020B80(2, 0)`
 Any of the three matched ovl_17/23/25 members is a donor template for the
 offset-0x4488/0x448C variant.
 
