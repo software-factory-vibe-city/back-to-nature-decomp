@@ -5503,6 +5503,10 @@ Members:
 - ovl_17_func_800B9F44 (m) — leaf predicate twin of 800B9F10: returns
   `record[arg0].s16@+0x36 >= 0x51`; same `base = D_800BD848; scaled = arg0 * 0x50;`
   idiom and shape set as 800B9F10 (10 of 13 shapes align in order).
+- ovl_17_func_800B9C48 (m) — leaf getter over the first D_800BD848 record:
+  s16 fields at +0x8/+0xA/+0xC; returns `(u16)field8 + field8 * (arg0 +
+  fieldA) * fieldC / 25500`. Link-adjacent (`+0x64`) to 800B9CAC and the
+  D_800BD848 cluster entry point.
 - ovl_17_func_800B9CAC (m, 2026-10-03) — countdown walk of 6 D_800BD848
   records (0x50 stride): bumps each s16@+0x2A by 5 when it is < 0xFF; same
   `base = D_800BD848` + 0x50-stride record idiom as 800B9F10/800B9F44.
