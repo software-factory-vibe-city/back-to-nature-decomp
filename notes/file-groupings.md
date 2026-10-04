@@ -6097,3 +6097,18 @@ Members (address order):
   helper with its own arg0.
 - ovl_11_func_801108F8 (m) — run-tail shared leaf: reads the s16 at +0x0 and
   calls ovl_11_func_800D5868, then returns the XOR-with-0x36 test.
+
+## `ovl_11` func_8001EF98 flag-reader run — 0x800BF3D0–0x800BF4AC (confidence: medium)
+
+A gapless three-function run, sizes from `configs/splat/ovl_11.yaml`: 0x800BF3D0
+(0x24, ends 0x800BF3F4) → 0x800BF3F4 (0x5C, ends 0x800BF450) → 0x800BF450
+(0x5C, ends 0x800BF4AC), zero gaps. The call graph agrees: all three call the
+same engine pointer-getter `func_8001EF98` and then read a flag word out of the
+returned object, and no other `ovl_11` function calls it. That single shared
+callee plus strict link-order adjacency is source-family evidence; same-TU
+membership remains a prior (the callee is engine API, not proof by itself).
+Members (address order):
+- ovl_11_func_800BF3D0 (m) — gets the object, returns `unk0 >> 7` (one flag).
+- ovl_11_func_800BF3F4 (m) — gets the object, maps flags 4→2, 0x40→3, 2→bool.
+- ovl_11_func_800BF450 (s, parked asm-needs-human-approval) — gets the object,
+  caches it and its low halfword into D_80128808/D_8012880C, tests 0x2000.
