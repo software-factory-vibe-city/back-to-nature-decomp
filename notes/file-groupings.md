@@ -5934,7 +5934,7 @@ Members (link order):
 The audio leaf and ovl_28_func_800B8CE4 are matched; the rest are read off
 original asm, hence medium confidence.
 
-## `ovl_21` D_8007AFF0 far-buffer state writer + GTE reader — 0x800BB0F8 / 0x800BB138 / 0x800BB250 (confidence: medium)
+## `ovl_21` D_8007AFF0 far-buffer state writer + GTE reader — 0x800BB0F8 / 0x800BB138 / 0x800BB250 / 0x800BB2B4 (confidence: medium)
 
 Evidence: gapless link adjacency (0x800BB0F8 is 0x40 and ends exactly at
 0x800BB138) plus a shared far-buffer global cluster: `ovl_21_func_800BB0F8`
@@ -5954,7 +5954,12 @@ run and reads the identical `D_8007AFF0+0x20000` far base (same `lui`+`addu`
 idiom), taking the +0x253AC/+0x253AE/+0x253B0/+0x253B4/+0x253B6/+0x253B8
 halfwords written/cleared by `ovl_21_func_800BB0F8` and forwarding them to the
 GTE helpers `func_8001B9F8`/`func_8001BA40`, so it joins by the shared cluster
-and the run. Cross-container note: `ovl_21_func_800BB0F8` is
+and the run. A fifth `ovl_21` function, `ovl_21_func_800BB2B4` (0x800BB2B4),
+is the gapless link successor of `ovl_21_func_800BB250` (0x3430 + 0x64 =
+0x3494) and repeats the same far-base read of the identical
++0x253AC..+0x253B8 halfword state block, forwarding the same two derived
+vectors to `func_8001C0D4` together with `&D_800C0DD8` (an `ovl_21` data
+descriptor), so it joins by adjacency and the shared cluster. Cross-container note: `ovl_21_func_800BB0F8` is
 byte-identical to matched `ovl_19_func_800BB318` and a near-twin of matched
 `ovl_11_func_800DB7F0` (same far base, same s32 block), so the same reset code
 was copied into several overlays; that twin relation is not TU-membership
@@ -5975,6 +5980,11 @@ Members (link order):
   `D_8007AFF0` +0x253AC/+0x253AE/+0x253B0/+0x253B4/+0x253B6/+0x253B8 halfword
   state block via the same far base and passes it to `func_8001B9F8`
   (sum-of-pairs, 4 args) and `func_8001BA40` (3 args).
+- ovl_21_func_800BB2B4 (m, matched this session, byte-exact) — gapless link
+  successor of 800BB250; reads the `D_8007AFF0` +0x253AC/+0x253AE/+0x253B0/
+  +0x253B4/+0x253B6/+0x253B8 halfword state via the same far base, builds two
+  `VECTOR`s (pair sums for x/z, raw for y) and passes them with
+  `&D_800C0DD8` to `func_8001C0D4`.
 - ovl_21_func_800BBA3C (m, matched this session, byte-exact) — gapless link
   successor of 800BB8B8 (0x184, ends exactly at 0x3C1C) and terminal code
   function; per-overlay setup leaf that calls `func_80020B80(2,0)`,

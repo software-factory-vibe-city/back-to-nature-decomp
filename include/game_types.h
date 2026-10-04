@@ -471,3 +471,12 @@ typedef struct {
     /* 0x14 */ s32 unk14;
     /* 0x18 */ UnkStruct80075BC4 **unk18;
 } Ovl11Func801097F4Arg;
+
+/* FuncC0D4Args - argument descriptor for func_8001C0D4: a primitive batch
+ * pointer and the vector array origin. Shared by src/func_8001C0D4.c (its
+ * local copy predates this header) and ovl_21_func_800BB2B4, which hands
+ * &D_800C0DD8 to the callee. */
+typedef struct {
+    /* 0x00 */ void *batch;
+    /* 0x04 */ s8 *vecs;
+} FuncC0D4Args;

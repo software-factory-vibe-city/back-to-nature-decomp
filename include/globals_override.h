@@ -1120,6 +1120,12 @@ extern s32 D_80127428;
  * the matched pair shares. Absolute-addressed (extern-only, lui + %lo). */
 extern u16 D_800C0448[2];
 
+/* D_800C0DD8 - ovl_21 FuncC0D4Args descriptor whose address
+ * ovl_21_func_800BB2B4 hands to func_8001C0D4. Only its address is taken, so
+ * an opaque byte object is enough; the overlay build is -G0, giving absolute
+ * lui/addiu addressing. Not classified in globals.h. */
+extern u8 D_800C0DD8[];
+
 /* D_80129230 - ovl_11 array of 10 records, stride 0x30. ovl_11_func_800E516C
  * walks it with a 0x30 byte pointer and reads the s32 at +0x14; the same
  * stride appears in ovl_11_func_800E4568. Absolute-addressed (extern-only,
