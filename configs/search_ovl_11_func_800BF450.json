@@ -1,0 +1,5944 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_11_func_800BF450",
+  "baseSourcePath": "src/overlays/ovl_11/ovl_11_func_800BF450.c",
+  "analysisPath": "build/targetSchedule/ovl_11_func_800BF450/analysis.json",
+  "maxVariants": 2000,
+  "assembleUniqueDbr": false,
+  "traceAllPreprocessed": true,
+  "constraints": {
+    "forbidInstructionCountGrowth": false,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "scheduleComparison": {
+    "enabled": true,
+    "analyze": "traced-classes",
+    "maxInterventions": 8
+  },
+  "dimensions": [
+    {
+      "id": "clear-path",
+      "mechanism": "constant-birth-site",
+      "expectedPass": "cse",
+      "invariants": [
+        "returns 0 when flag clear"
+      ],
+      "alternatives": [
+        {
+          "id": "base",
+          "useBase": true,
+          "expectedEffect": "reference",
+          "invariants": []
+        },
+        {
+          "id": "a_w_c8000_ret0",
+          "expectedEffect": "a_w_c8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_retw0",
+          "expectedEffect": "a_w_c8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_retwsub",
+          "expectedEffect": "a_w_c8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_retwxor",
+          "expectedEffect": "a_w_c8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_retw",
+          "expectedEffect": "a_w_c8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_ifw",
+          "expectedEffect": "a_w_c8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_whilew",
+          "expectedEffect": "a_w_c8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_retcomma",
+          "expectedEffect": "a_w_c8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_reteq",
+          "expectedEffect": "a_w_c8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_load",
+          "expectedEffect": "a_w_c8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_storec",
+          "expectedEffect": "a_w_c8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_c8000_storew",
+          "expectedEffect": "a_w_c8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_ret0",
+          "expectedEffect": "a_w_shift_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_retw0",
+          "expectedEffect": "a_w_shift_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_retwsub",
+          "expectedEffect": "a_w_shift_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_retwxor",
+          "expectedEffect": "a_w_shift_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_retw",
+          "expectedEffect": "a_w_shift_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_ifw",
+          "expectedEffect": "a_w_shift_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_whilew",
+          "expectedEffect": "a_w_shift_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_retcomma",
+          "expectedEffect": "a_w_shift_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_reteq",
+          "expectedEffect": "a_w_shift_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_load",
+          "expectedEffect": "a_w_shift_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_storec",
+          "expectedEffect": "a_w_shift_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_shift_storew",
+          "expectedEffect": "a_w_shift_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 1 << 15;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_ret0",
+          "expectedEffect": "a_w_dec_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_retw0",
+          "expectedEffect": "a_w_dec_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_retwsub",
+          "expectedEffect": "a_w_dec_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_retwxor",
+          "expectedEffect": "a_w_dec_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_retw",
+          "expectedEffect": "a_w_dec_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_ifw",
+          "expectedEffect": "a_w_dec_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_whilew",
+          "expectedEffect": "a_w_dec_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_retcomma",
+          "expectedEffect": "a_w_dec_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_reteq",
+          "expectedEffect": "a_w_dec_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_load",
+          "expectedEffect": "a_w_dec_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_storec",
+          "expectedEffect": "a_w_dec_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_dec_storew",
+          "expectedEffect": "a_w_dec_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = 32768;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_ret0",
+          "expectedEffect": "a_w_sym8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_retw0",
+          "expectedEffect": "a_w_sym8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_retwsub",
+          "expectedEffect": "a_w_sym8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_retwxor",
+          "expectedEffect": "a_w_sym8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_retw",
+          "expectedEffect": "a_w_sym8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_ifw",
+          "expectedEffect": "a_w_sym8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_whilew",
+          "expectedEffect": "a_w_sym8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_retcomma",
+          "expectedEffect": "a_w_sym8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_reteq",
+          "expectedEffect": "a_w_sym8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_load",
+          "expectedEffect": "a_w_sym8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_storec",
+          "expectedEffect": "a_w_sym8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym8000_storew",
+          "expectedEffect": "a_w_sym8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_ret0",
+          "expectedEffect": "a_w_sym2_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_retw0",
+          "expectedEffect": "a_w_sym2_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_retwsub",
+          "expectedEffect": "a_w_sym2_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_retwxor",
+          "expectedEffect": "a_w_sym2_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_retw",
+          "expectedEffect": "a_w_sym2_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_ifw",
+          "expectedEffect": "a_w_sym2_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_whilew",
+          "expectedEffect": "a_w_sym2_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_retcomma",
+          "expectedEffect": "a_w_sym2_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_reteq",
+          "expectedEffect": "a_w_sym2_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_load",
+          "expectedEffect": "a_w_sym2_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_storec",
+          "expectedEffect": "a_w_sym2_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_sym2_storew",
+          "expectedEffect": "a_w_sym2_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_ret0",
+          "expectedEffect": "a_w_p0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_retw0",
+          "expectedEffect": "a_w_p0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_retwsub",
+          "expectedEffect": "a_w_p0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_retwxor",
+          "expectedEffect": "a_w_p0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_retw",
+          "expectedEffect": "a_w_p0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_ifw",
+          "expectedEffect": "a_w_p0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_whilew",
+          "expectedEffect": "a_w_p0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_retcomma",
+          "expectedEffect": "a_w_p0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_reteq",
+          "expectedEffect": "a_w_p0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_load",
+          "expectedEffect": "a_w_p0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_storec",
+          "expectedEffect": "a_w_p0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_w_p0_storew",
+          "expectedEffect": "a_w_p0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    w = (s32)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_ret0",
+          "expectedEffect": "a_base_c8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_retw0",
+          "expectedEffect": "a_base_c8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_retwsub",
+          "expectedEffect": "a_base_c8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_retwxor",
+          "expectedEffect": "a_base_c8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_retw",
+          "expectedEffect": "a_base_c8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_ifw",
+          "expectedEffect": "a_base_c8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_whilew",
+          "expectedEffect": "a_base_c8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_retcomma",
+          "expectedEffect": "a_base_c8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_reteq",
+          "expectedEffect": "a_base_c8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_load",
+          "expectedEffect": "a_base_c8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_storec",
+          "expectedEffect": "a_base_c8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_c8000_storew",
+          "expectedEffect": "a_base_c8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_ret0",
+          "expectedEffect": "a_base_shift_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_retw0",
+          "expectedEffect": "a_base_shift_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_retwsub",
+          "expectedEffect": "a_base_shift_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_retwxor",
+          "expectedEffect": "a_base_shift_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_retw",
+          "expectedEffect": "a_base_shift_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_ifw",
+          "expectedEffect": "a_base_shift_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_whilew",
+          "expectedEffect": "a_base_shift_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_retcomma",
+          "expectedEffect": "a_base_shift_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_reteq",
+          "expectedEffect": "a_base_shift_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_load",
+          "expectedEffect": "a_base_shift_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_storec",
+          "expectedEffect": "a_base_shift_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_shift_storew",
+          "expectedEffect": "a_base_shift_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 1 << 15;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_ret0",
+          "expectedEffect": "a_base_dec_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_retw0",
+          "expectedEffect": "a_base_dec_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_retwsub",
+          "expectedEffect": "a_base_dec_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_retwxor",
+          "expectedEffect": "a_base_dec_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_retw",
+          "expectedEffect": "a_base_dec_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_ifw",
+          "expectedEffect": "a_base_dec_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_whilew",
+          "expectedEffect": "a_base_dec_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_retcomma",
+          "expectedEffect": "a_base_dec_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_reteq",
+          "expectedEffect": "a_base_dec_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_load",
+          "expectedEffect": "a_base_dec_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_storec",
+          "expectedEffect": "a_base_dec_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_dec_storew",
+          "expectedEffect": "a_base_dec_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = 32768;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_ret0",
+          "expectedEffect": "a_base_sym8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_retw0",
+          "expectedEffect": "a_base_sym8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_retwsub",
+          "expectedEffect": "a_base_sym8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_retwxor",
+          "expectedEffect": "a_base_sym8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_retw",
+          "expectedEffect": "a_base_sym8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_ifw",
+          "expectedEffect": "a_base_sym8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_whilew",
+          "expectedEffect": "a_base_sym8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_retcomma",
+          "expectedEffect": "a_base_sym8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_reteq",
+          "expectedEffect": "a_base_sym8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_load",
+          "expectedEffect": "a_base_sym8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_storec",
+          "expectedEffect": "a_base_sym8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym8000_storew",
+          "expectedEffect": "a_base_sym8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_ret0",
+          "expectedEffect": "a_base_sym2_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_retw0",
+          "expectedEffect": "a_base_sym2_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_retwsub",
+          "expectedEffect": "a_base_sym2_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_retwxor",
+          "expectedEffect": "a_base_sym2_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_retw",
+          "expectedEffect": "a_base_sym2_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_ifw",
+          "expectedEffect": "a_base_sym2_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_whilew",
+          "expectedEffect": "a_base_sym2_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_retcomma",
+          "expectedEffect": "a_base_sym2_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_reteq",
+          "expectedEffect": "a_base_sym2_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_load",
+          "expectedEffect": "a_base_sym2_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_storec",
+          "expectedEffect": "a_base_sym2_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_sym2_storew",
+          "expectedEffect": "a_base_sym2_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_ret0",
+          "expectedEffect": "a_base_p0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_retw0",
+          "expectedEffect": "a_base_p0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_retwsub",
+          "expectedEffect": "a_base_p0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_retwxor",
+          "expectedEffect": "a_base_p0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_retw",
+          "expectedEffect": "a_base_p0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_ifw",
+          "expectedEffect": "a_base_p0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_whilew",
+          "expectedEffect": "a_base_p0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_retcomma",
+          "expectedEffect": "a_base_p0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_reteq",
+          "expectedEffect": "a_base_p0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_load",
+          "expectedEffect": "a_base_p0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_storec",
+          "expectedEffect": "a_base_p0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_base_p0_storew",
+          "expectedEffect": "a_base_p0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (s32)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_ret0",
+          "expectedEffect": "a_rec_c8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_retw0",
+          "expectedEffect": "a_rec_c8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_retwsub",
+          "expectedEffect": "a_rec_c8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_retwxor",
+          "expectedEffect": "a_rec_c8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_retw",
+          "expectedEffect": "a_rec_c8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_ifw",
+          "expectedEffect": "a_rec_c8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_whilew",
+          "expectedEffect": "a_rec_c8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_retcomma",
+          "expectedEffect": "a_rec_c8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_reteq",
+          "expectedEffect": "a_rec_c8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_load",
+          "expectedEffect": "a_rec_c8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_storec",
+          "expectedEffect": "a_rec_c8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_c8000_storew",
+          "expectedEffect": "a_rec_c8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_ret0",
+          "expectedEffect": "a_rec_shift_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_retw0",
+          "expectedEffect": "a_rec_shift_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_retwsub",
+          "expectedEffect": "a_rec_shift_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_retwxor",
+          "expectedEffect": "a_rec_shift_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_retw",
+          "expectedEffect": "a_rec_shift_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_ifw",
+          "expectedEffect": "a_rec_shift_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_whilew",
+          "expectedEffect": "a_rec_shift_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_retcomma",
+          "expectedEffect": "a_rec_shift_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_reteq",
+          "expectedEffect": "a_rec_shift_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_load",
+          "expectedEffect": "a_rec_shift_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_storec",
+          "expectedEffect": "a_rec_shift_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_shift_storew",
+          "expectedEffect": "a_rec_shift_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 1 << 15;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_ret0",
+          "expectedEffect": "a_rec_dec_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_retw0",
+          "expectedEffect": "a_rec_dec_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_retwsub",
+          "expectedEffect": "a_rec_dec_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_retwxor",
+          "expectedEffect": "a_rec_dec_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_retw",
+          "expectedEffect": "a_rec_dec_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_ifw",
+          "expectedEffect": "a_rec_dec_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_whilew",
+          "expectedEffect": "a_rec_dec_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_retcomma",
+          "expectedEffect": "a_rec_dec_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_reteq",
+          "expectedEffect": "a_rec_dec_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_load",
+          "expectedEffect": "a_rec_dec_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_storec",
+          "expectedEffect": "a_rec_dec_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_dec_storew",
+          "expectedEffect": "a_rec_dec_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = 32768;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_ret0",
+          "expectedEffect": "a_rec_sym8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_retw0",
+          "expectedEffect": "a_rec_sym8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_retwsub",
+          "expectedEffect": "a_rec_sym8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_retwxor",
+          "expectedEffect": "a_rec_sym8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_retw",
+          "expectedEffect": "a_rec_sym8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_ifw",
+          "expectedEffect": "a_rec_sym8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_whilew",
+          "expectedEffect": "a_rec_sym8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_retcomma",
+          "expectedEffect": "a_rec_sym8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_reteq",
+          "expectedEffect": "a_rec_sym8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_load",
+          "expectedEffect": "a_rec_sym8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_storec",
+          "expectedEffect": "a_rec_sym8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym8000_storew",
+          "expectedEffect": "a_rec_sym8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_ret0",
+          "expectedEffect": "a_rec_sym2_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_retw0",
+          "expectedEffect": "a_rec_sym2_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_retwsub",
+          "expectedEffect": "a_rec_sym2_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_retwxor",
+          "expectedEffect": "a_rec_sym2_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_retw",
+          "expectedEffect": "a_rec_sym2_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_ifw",
+          "expectedEffect": "a_rec_sym2_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_whilew",
+          "expectedEffect": "a_rec_sym2_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_retcomma",
+          "expectedEffect": "a_rec_sym2_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_reteq",
+          "expectedEffect": "a_rec_sym2_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_load",
+          "expectedEffect": "a_rec_sym2_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_storec",
+          "expectedEffect": "a_rec_sym2_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_sym2_storew",
+          "expectedEffect": "a_rec_sym2_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_ret0",
+          "expectedEffect": "a_rec_p0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_retw0",
+          "expectedEffect": "a_rec_p0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_retwsub",
+          "expectedEffect": "a_rec_p0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_retwxor",
+          "expectedEffect": "a_rec_p0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_retw",
+          "expectedEffect": "a_rec_p0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_ifw",
+          "expectedEffect": "a_rec_p0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_whilew",
+          "expectedEffect": "a_rec_p0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_retcomma",
+          "expectedEffect": "a_rec_p0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_reteq",
+          "expectedEffect": "a_rec_p0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_load",
+          "expectedEffect": "a_rec_p0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_storec",
+          "expectedEffect": "a_rec_p0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_rec_p0_storew",
+          "expectedEffect": "a_rec_p0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    rec = (s32)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_ret0",
+          "expectedEffect": "a_p_c8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_retw0",
+          "expectedEffect": "a_p_c8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_retwsub",
+          "expectedEffect": "a_p_c8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_retwxor",
+          "expectedEffect": "a_p_c8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_retw",
+          "expectedEffect": "a_p_c8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_ifw",
+          "expectedEffect": "a_p_c8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_whilew",
+          "expectedEffect": "a_p_c8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_retcomma",
+          "expectedEffect": "a_p_c8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_reteq",
+          "expectedEffect": "a_p_c8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_load",
+          "expectedEffect": "a_p_c8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_storec",
+          "expectedEffect": "a_p_c8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_c8000_storew",
+          "expectedEffect": "a_p_c8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_ret0",
+          "expectedEffect": "a_p_shift_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_retw0",
+          "expectedEffect": "a_p_shift_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_retwsub",
+          "expectedEffect": "a_p_shift_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_retwxor",
+          "expectedEffect": "a_p_shift_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_retw",
+          "expectedEffect": "a_p_shift_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_ifw",
+          "expectedEffect": "a_p_shift_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_whilew",
+          "expectedEffect": "a_p_shift_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_retcomma",
+          "expectedEffect": "a_p_shift_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_reteq",
+          "expectedEffect": "a_p_shift_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_load",
+          "expectedEffect": "a_p_shift_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_storec",
+          "expectedEffect": "a_p_shift_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_shift_storew",
+          "expectedEffect": "a_p_shift_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 1 << 15;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_ret0",
+          "expectedEffect": "a_p_dec_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_retw0",
+          "expectedEffect": "a_p_dec_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_retwsub",
+          "expectedEffect": "a_p_dec_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_retwxor",
+          "expectedEffect": "a_p_dec_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_retw",
+          "expectedEffect": "a_p_dec_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_ifw",
+          "expectedEffect": "a_p_dec_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_whilew",
+          "expectedEffect": "a_p_dec_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_retcomma",
+          "expectedEffect": "a_p_dec_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_reteq",
+          "expectedEffect": "a_p_dec_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_load",
+          "expectedEffect": "a_p_dec_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_storec",
+          "expectedEffect": "a_p_dec_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_dec_storew",
+          "expectedEffect": "a_p_dec_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = 32768;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_ret0",
+          "expectedEffect": "a_p_sym8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_retw0",
+          "expectedEffect": "a_p_sym8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_retwsub",
+          "expectedEffect": "a_p_sym8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_retwxor",
+          "expectedEffect": "a_p_sym8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_retw",
+          "expectedEffect": "a_p_sym8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_ifw",
+          "expectedEffect": "a_p_sym8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_whilew",
+          "expectedEffect": "a_p_sym8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_retcomma",
+          "expectedEffect": "a_p_sym8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_reteq",
+          "expectedEffect": "a_p_sym8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_load",
+          "expectedEffect": "a_p_sym8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_storec",
+          "expectedEffect": "a_p_sym8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym8000_storew",
+          "expectedEffect": "a_p_sym8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_ret0",
+          "expectedEffect": "a_p_sym2_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_retw0",
+          "expectedEffect": "a_p_sym2_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_retwsub",
+          "expectedEffect": "a_p_sym2_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_retwxor",
+          "expectedEffect": "a_p_sym2_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_retw",
+          "expectedEffect": "a_p_sym2_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_ifw",
+          "expectedEffect": "a_p_sym2_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_whilew",
+          "expectedEffect": "a_p_sym2_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_retcomma",
+          "expectedEffect": "a_p_sym2_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_reteq",
+          "expectedEffect": "a_p_sym2_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_load",
+          "expectedEffect": "a_p_sym2_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_storec",
+          "expectedEffect": "a_p_sym2_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_sym2_storew",
+          "expectedEffect": "a_p_sym2_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_ret0",
+          "expectedEffect": "a_p_p0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_retw0",
+          "expectedEffect": "a_p_p0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_retwsub",
+          "expectedEffect": "a_p_p0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_retwxor",
+          "expectedEffect": "a_p_p0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_retw",
+          "expectedEffect": "a_p_p0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_ifw",
+          "expectedEffect": "a_p_p0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_whilew",
+          "expectedEffect": "a_p_p0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_retcomma",
+          "expectedEffect": "a_p_p0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_reteq",
+          "expectedEffect": "a_p_p0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_load",
+          "expectedEffect": "a_p_p0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_storec",
+          "expectedEffect": "a_p_p0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_p_p0_storew",
+          "expectedEffect": "a_p_p0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_ret0",
+          "expectedEffect": "a_g0_c8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_retw0",
+          "expectedEffect": "a_g0_c8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_retwsub",
+          "expectedEffect": "a_g0_c8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_retwxor",
+          "expectedEffect": "a_g0_c8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_retw",
+          "expectedEffect": "a_g0_c8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_ifw",
+          "expectedEffect": "a_g0_c8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_whilew",
+          "expectedEffect": "a_g0_c8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_retcomma",
+          "expectedEffect": "a_g0_c8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_reteq",
+          "expectedEffect": "a_g0_c8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_load",
+          "expectedEffect": "a_g0_c8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_storec",
+          "expectedEffect": "a_g0_c8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_c8000_storew",
+          "expectedEffect": "a_g0_c8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_ret0",
+          "expectedEffect": "a_g0_shift_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_retw0",
+          "expectedEffect": "a_g0_shift_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_retwsub",
+          "expectedEffect": "a_g0_shift_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_retwxor",
+          "expectedEffect": "a_g0_shift_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_retw",
+          "expectedEffect": "a_g0_shift_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_ifw",
+          "expectedEffect": "a_g0_shift_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_whilew",
+          "expectedEffect": "a_g0_shift_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_retcomma",
+          "expectedEffect": "a_g0_shift_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_reteq",
+          "expectedEffect": "a_g0_shift_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_load",
+          "expectedEffect": "a_g0_shift_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_storec",
+          "expectedEffect": "a_g0_shift_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_shift_storew",
+          "expectedEffect": "a_g0_shift_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 1 << 15;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_ret0",
+          "expectedEffect": "a_g0_dec_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_retw0",
+          "expectedEffect": "a_g0_dec_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_retwsub",
+          "expectedEffect": "a_g0_dec_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_retwxor",
+          "expectedEffect": "a_g0_dec_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_retw",
+          "expectedEffect": "a_g0_dec_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_ifw",
+          "expectedEffect": "a_g0_dec_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_whilew",
+          "expectedEffect": "a_g0_dec_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_retcomma",
+          "expectedEffect": "a_g0_dec_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_reteq",
+          "expectedEffect": "a_g0_dec_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_load",
+          "expectedEffect": "a_g0_dec_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_storec",
+          "expectedEffect": "a_g0_dec_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_dec_storew",
+          "expectedEffect": "a_g0_dec_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = 32768;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_ret0",
+          "expectedEffect": "a_g0_sym8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_retw0",
+          "expectedEffect": "a_g0_sym8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_retwsub",
+          "expectedEffect": "a_g0_sym8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_retwxor",
+          "expectedEffect": "a_g0_sym8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_retw",
+          "expectedEffect": "a_g0_sym8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_ifw",
+          "expectedEffect": "a_g0_sym8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_whilew",
+          "expectedEffect": "a_g0_sym8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_retcomma",
+          "expectedEffect": "a_g0_sym8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_reteq",
+          "expectedEffect": "a_g0_sym8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_load",
+          "expectedEffect": "a_g0_sym8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_storec",
+          "expectedEffect": "a_g0_sym8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym8000_storew",
+          "expectedEffect": "a_g0_sym8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_ret0",
+          "expectedEffect": "a_g0_sym2_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_retw0",
+          "expectedEffect": "a_g0_sym2_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_retwsub",
+          "expectedEffect": "a_g0_sym2_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_retwxor",
+          "expectedEffect": "a_g0_sym2_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_retw",
+          "expectedEffect": "a_g0_sym2_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_ifw",
+          "expectedEffect": "a_g0_sym2_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_whilew",
+          "expectedEffect": "a_g0_sym2_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_retcomma",
+          "expectedEffect": "a_g0_sym2_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_reteq",
+          "expectedEffect": "a_g0_sym2_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_load",
+          "expectedEffect": "a_g0_sym2_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_storec",
+          "expectedEffect": "a_g0_sym2_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_sym2_storew",
+          "expectedEffect": "a_g0_sym2_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_ret0",
+          "expectedEffect": "a_g0_p0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_retw0",
+          "expectedEffect": "a_g0_p0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_retwsub",
+          "expectedEffect": "a_g0_p0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_retwxor",
+          "expectedEffect": "a_g0_p0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_retw",
+          "expectedEffect": "a_g0_p0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_ifw",
+          "expectedEffect": "a_g0_p0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_whilew",
+          "expectedEffect": "a_g0_p0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_retcomma",
+          "expectedEffect": "a_g0_p0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_reteq",
+          "expectedEffect": "a_g0_p0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_load",
+          "expectedEffect": "a_g0_p0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_storec",
+          "expectedEffect": "a_g0_p0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g0_p0_storew",
+          "expectedEffect": "a_g0_p0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_8012880C = (s32)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_ret0",
+          "expectedEffect": "a_g8_c8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_retw0",
+          "expectedEffect": "a_g8_c8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_retwsub",
+          "expectedEffect": "a_g8_c8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_retwxor",
+          "expectedEffect": "a_g8_c8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_retw",
+          "expectedEffect": "a_g8_c8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_ifw",
+          "expectedEffect": "a_g8_c8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_whilew",
+          "expectedEffect": "a_g8_c8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_retcomma",
+          "expectedEffect": "a_g8_c8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_reteq",
+          "expectedEffect": "a_g8_c8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_load",
+          "expectedEffect": "a_g8_c8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_storec",
+          "expectedEffect": "a_g8_c8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_c8000_storew",
+          "expectedEffect": "a_g8_c8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_ret0",
+          "expectedEffect": "a_g8_shift_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_retw0",
+          "expectedEffect": "a_g8_shift_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_retwsub",
+          "expectedEffect": "a_g8_shift_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_retwxor",
+          "expectedEffect": "a_g8_shift_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_retw",
+          "expectedEffect": "a_g8_shift_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_ifw",
+          "expectedEffect": "a_g8_shift_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_whilew",
+          "expectedEffect": "a_g8_shift_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_retcomma",
+          "expectedEffect": "a_g8_shift_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_reteq",
+          "expectedEffect": "a_g8_shift_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_load",
+          "expectedEffect": "a_g8_shift_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_storec",
+          "expectedEffect": "a_g8_shift_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_shift_storew",
+          "expectedEffect": "a_g8_shift_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 1 << 15;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_ret0",
+          "expectedEffect": "a_g8_dec_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_retw0",
+          "expectedEffect": "a_g8_dec_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_retwsub",
+          "expectedEffect": "a_g8_dec_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_retwxor",
+          "expectedEffect": "a_g8_dec_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_retw",
+          "expectedEffect": "a_g8_dec_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_ifw",
+          "expectedEffect": "a_g8_dec_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_whilew",
+          "expectedEffect": "a_g8_dec_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_retcomma",
+          "expectedEffect": "a_g8_dec_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_reteq",
+          "expectedEffect": "a_g8_dec_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_load",
+          "expectedEffect": "a_g8_dec_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_storec",
+          "expectedEffect": "a_g8_dec_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_dec_storew",
+          "expectedEffect": "a_g8_dec_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = 32768;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_ret0",
+          "expectedEffect": "a_g8_sym8000_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_retw0",
+          "expectedEffect": "a_g8_sym8000_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_retwsub",
+          "expectedEffect": "a_g8_sym8000_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_retwxor",
+          "expectedEffect": "a_g8_sym8000_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_retw",
+          "expectedEffect": "a_g8_sym8000_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_ifw",
+          "expectedEffect": "a_g8_sym8000_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_whilew",
+          "expectedEffect": "a_g8_sym8000_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_retcomma",
+          "expectedEffect": "a_g8_sym8000_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_reteq",
+          "expectedEffect": "a_g8_sym8000_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_load",
+          "expectedEffect": "a_g8_sym8000_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_storec",
+          "expectedEffect": "a_g8_sym8000_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym8000_storew",
+          "expectedEffect": "a_g8_sym8000_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8006C838 + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_ret0",
+          "expectedEffect": "a_g8_sym2_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_retw0",
+          "expectedEffect": "a_g8_sym2_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_retwsub",
+          "expectedEffect": "a_g8_sym2_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_retwxor",
+          "expectedEffect": "a_g8_sym2_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_retw",
+          "expectedEffect": "a_g8_sym2_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_ifw",
+          "expectedEffect": "a_g8_sym2_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_whilew",
+          "expectedEffect": "a_g8_sym2_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_retcomma",
+          "expectedEffect": "a_g8_sym2_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_reteq",
+          "expectedEffect": "a_g8_sym2_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_load",
+          "expectedEffect": "a_g8_sym2_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_storec",
+          "expectedEffect": "a_g8_sym2_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_sym2_storew",
+          "expectedEffect": "a_g8_sym2_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)((char *)&D_8012880C + 0x8000);\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_ret0",
+          "expectedEffect": "a_g8_p0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_retw0",
+          "expectedEffect": "a_g8_p0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_retwsub",
+          "expectedEffect": "a_g8_p0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_retwxor",
+          "expectedEffect": "a_g8_p0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_retw",
+          "expectedEffect": "a_g8_p0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_ifw",
+          "expectedEffect": "a_g8_p0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_whilew",
+          "expectedEffect": "a_g8_p0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_retcomma",
+          "expectedEffect": "a_g8_p0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_reteq",
+          "expectedEffect": "a_g8_p0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_load",
+          "expectedEffect": "a_g8_p0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_storec",
+          "expectedEffect": "a_g8_p0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "a_g8_p0_storew",
+          "expectedEffect": "a_g8_p0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    D_80128808 = (s32)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_ret0",
+          "expectedEffect": "p_base0_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_retw0",
+          "expectedEffect": "p_base0_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_retwsub",
+          "expectedEffect": "p_base0_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_retwxor",
+          "expectedEffect": "p_base0_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_retw",
+          "expectedEffect": "p_base0_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_ifw",
+          "expectedEffect": "p_base0_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_whilew",
+          "expectedEffect": "p_base0_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_retcomma",
+          "expectedEffect": "p_base0_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_reteq",
+          "expectedEffect": "p_base0_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_load",
+          "expectedEffect": "p_base0_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_storec",
+          "expectedEffect": "p_base0_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0_storew",
+          "expectedEffect": "p_base0_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_ret0",
+          "expectedEffect": "p_base0add_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_retw0",
+          "expectedEffect": "p_base0add_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_retwsub",
+          "expectedEffect": "p_base0add_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_retwxor",
+          "expectedEffect": "p_base0add_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_retw",
+          "expectedEffect": "p_base0add_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_ifw",
+          "expectedEffect": "p_base0add_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_whilew",
+          "expectedEffect": "p_base0add_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_retcomma",
+          "expectedEffect": "p_base0add_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_reteq",
+          "expectedEffect": "p_base0add_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_load",
+          "expectedEffect": "p_base0add_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_storec",
+          "expectedEffect": "p_base0add_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_base0add_storew",
+          "expectedEffect": "p_base0add_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)0;\n    base += 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_ret0",
+          "expectedEffect": "p_baseSymAdd_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_retw0",
+          "expectedEffect": "p_baseSymAdd_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_retwsub",
+          "expectedEffect": "p_baseSymAdd_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_retwxor",
+          "expectedEffect": "p_baseSymAdd_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_retw",
+          "expectedEffect": "p_baseSymAdd_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_ifw",
+          "expectedEffect": "p_baseSymAdd_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_whilew",
+          "expectedEffect": "p_baseSymAdd_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_retcomma",
+          "expectedEffect": "p_baseSymAdd_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_reteq",
+          "expectedEffect": "p_baseSymAdd_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_load",
+          "expectedEffect": "p_baseSymAdd_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_storec",
+          "expectedEffect": "p_baseSymAdd_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseSymAdd_storew",
+          "expectedEffect": "p_baseSymAdd_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8006C838;\n    base += 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_ret0",
+          "expectedEffect": "p_baseCAdd_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_retw0",
+          "expectedEffect": "p_baseCAdd_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_retwsub",
+          "expectedEffect": "p_baseCAdd_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_retwxor",
+          "expectedEffect": "p_baseCAdd_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_retw",
+          "expectedEffect": "p_baseCAdd_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_ifw",
+          "expectedEffect": "p_baseCAdd_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_whilew",
+          "expectedEffect": "p_baseCAdd_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_retcomma",
+          "expectedEffect": "p_baseCAdd_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_reteq",
+          "expectedEffect": "p_baseCAdd_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_load",
+          "expectedEffect": "p_baseCAdd_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_storec",
+          "expectedEffect": "p_baseCAdd_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_baseCAdd_storew",
+          "expectedEffect": "p_baseCAdd_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    base = (char *)&D_8012880C;\n    base += 0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_ret0",
+          "expectedEffect": "p_pRe_ret0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_retw0",
+          "expectedEffect": "p_pRe_retw0",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return w & 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_retwsub",
+          "expectedEffect": "p_pRe_retwsub",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return w - 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_retwxor",
+          "expectedEffect": "p_pRe_retwxor",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return w ^ 0x8000; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_retw",
+          "expectedEffect": "p_pRe_retw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return w; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_ifw",
+          "expectedEffect": "p_pRe_ifw",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        if (w) {\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_whilew",
+          "expectedEffect": "p_pRe_whilew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        while (w) {\n        return 0;\n    }\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_retcomma",
+          "expectedEffect": "p_pRe_retcomma",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return (w, 0); /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_reteq",
+          "expectedEffect": "p_pRe_reteq",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        return (w == 0x8000) - 1; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_load",
+          "expectedEffect": "p_pRe_load",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        rec = *(void **)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_storec",
+          "expectedEffect": "p_pRe_storec",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        D_8012880C = (s32)base;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        },
+        {
+          "id": "p_pRe_storew",
+          "expectedEffect": "p_pRe_storew",
+          "invariants": [],
+          "edits": [
+            {
+              "find": "    return 0; /* CLEARPATH */",
+              "occurrences": 1,
+              "replace": "    p = (s32 *)0x8000;\n        D_8012880C = w;\n    return 0; /* CLEARPATH */\n"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
