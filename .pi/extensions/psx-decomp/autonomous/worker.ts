@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { groupingsMessage } from "../autoloop/prompts.ts";
 import type { ModelTierConfig, WorkerResult, WorkerUsage, WorkMode } from "./types.ts";
 
 interface WorkerOptions {
@@ -17,6 +18,7 @@ interface WorkerOptions {
   signal?: AbortSignal;
   handoff?: string;
   mirrorOutput?: boolean;
+  documentation?: boolean;
 }
 
 const EMPTY_USAGE: WorkerUsage = {
@@ -28,7 +30,11 @@ const EMPTY_USAGE: WorkerUsage = {
   costUsd: 0,
 };
 
-function promptFor(options: WorkerOptions): string {
+export function promptFor(options: WorkerOptions): string {
+  if (options.documentation) {
+    if (!options.functionName) throw new Error("Documentation requires a function name");
+    return groupingsMessage(options.functionName) + (options.handoff ? `\n${options.handoff}` : "");
+  }
   if (options.mode === "project-refinement") {
     return "/skill:psx-project-refinement Survey the current tree and execute one coherent, bounded, verified refinement batch. Do not commit.";
   }
@@ -135,6 +141,7 @@ export async function runPiWorker(options: WorkerOptions): Promise<WorkerResult>
     wallTimer.unref();
     resetIdle();
 
+    if (options.signal?.aborted) onAbort();
     const processLine = (line: string) => {
       if (!line.trim()) return;
       try {

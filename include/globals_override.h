@@ -85,6 +85,8 @@ typedef struct {
     /* 0x02 */ s16 field_2;
 } Ovl11D050Entry;
 extern Ovl11D050Entry D_8012D050[3];
+/* The halfword view used by ovl_11_func_801082B0 has no witnessed full extent. */
+extern s16 D_8012D050_halfwords[] __asm__("D_8012D050");
 
 /* D_8006C7B8 - absolute-addressed struct. func_800215EC writes a Vec3 at offsets 0/4/8.
  * func_80021604 reads offset 0 as an index and writes offsets 0xC–0x1C. */
@@ -949,11 +951,11 @@ extern s16 D_800BAB0C;
 
 /* VWD0 - PSY-Q libgs vertical display resolution (libgs.h). Forward-declared
  * here because libgs.h is not self-contained. */
-extern s32 VWD0;
+extern long VWD0;
 
 /* HWD0 - PSY-Q libgs horizontal display resolution (libgs.h). Forward-declared
  * here because libgs.h is not self-contained. */
-extern s32 HWD0;
+extern long HWD0;
 
 /* D_800B9630 - 20-record (0xC stride) initialised by ovl_28_func_800B895C:
  * s32@+0 = 0, s16@+4 = 0, s32@+8 = VWD0 << 12. */

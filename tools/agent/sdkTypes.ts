@@ -17,8 +17,10 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { parseC, walk, children, field, isTrivia, subtreeIsBroken, type Node } from "./residual-source-search/tree-sitter-c.js";
+import { createHash } from "node:crypto";
+import { join, relative } from "node:path";
+import { emptyDeclarationIndex, indexDeclarations, projectDeclarations } from "./declarationContext.js";
+import { parseC, walk, children, namedChildren, field, isTrivia, subtreeIsBroken, type Node } from "./residual-source-search/tree-sitter-c.js";
 
 /**
  * Emitted verbatim at the top of the generated type header. These are the
@@ -72,6 +74,7 @@ export function typeNamesIn(source: string): Set<string> {
     }
     return true;
   });
+  tree.delete();
   return names;
 }
 
@@ -113,6 +116,7 @@ export function collectTypedefs(source: string, into: Map<string, string>): void
     }
     return false;
   });
+  tree.delete();
 }
 
 /** All `.h` files under `dir`, recursively. */
@@ -140,9 +144,9 @@ export function harvestTypedefs(rootDir: string): Map<string, string> {
   const includeDir = join(rootDir, "include");
 
   const inputs: string[] = [];
-  if (existsSync(srcDir)) {
-    inputs.push(...readdirSync(srcDir).sort().filter((f) => f.endsWith(".c")).map((f) => join(srcDir, f)));
-  }
+  const sourcesUnder = (dir: string): string[] => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((entry) => entry.isDirectory() ? sourcesUnder(join(dir, entry.name)) : entry.name.endsWith(".c") ? [join(dir, entry.name)] : []);
+  inputs.push(...sourcesUnder(srcDir));
   if (existsSync(includeDir)) {
     inputs.push(...readdirSync(includeDir).sort()
       .filter((f) => f.endsWith(".h") && !GENERATED_CONTEXT_HEADERS.includes(f))
@@ -199,17 +203,15 @@ function flatten(node: Node): string {
     .trim();
 }
 
-/** Strip the pointer layers off a declarator, returning the count and the core. */
-function unwrapPointers(declarator: Node): { stars: number; core: Node } {
-  let stars = 0;
-  let core = declarator;
-  while (core.type === "pointer_declarator") {
-    stars += 1;
-    const inner = field(core, "declarator");
-    if (!inner) break;
-    core = inner;
+/** Walk only the declared name's chain, not callback parameters. Pointer
+ * variables have no function node directly declaring their identifier. */
+export function declaredFunction(declarator: Node): Node | undefined {
+  let node: Node | null | undefined = declarator;
+  while (node) {
+    if (node.type === "function_declarator" && field(node, "declarator")?.type === "identifier") return node;
+    node = field(node, "declarator") ?? (node.type === "parenthesized_declarator" ? namedChildren(node)[0] : undefined);
   }
-  return { stars, core };
+  return undefined;
 }
 
 /** Build a prototype from a declaration's type and declarator nodes. */
@@ -220,23 +222,21 @@ function signatureFrom(returnType: Node, declarator: Node): ExtractedSignature |
    * determined without ever descending into the body. */
   if (subtreeIsBroken(returnType) || subtreeIsBroken(declarator)) return undefined;
 
-  const { stars, core } = unwrapPointers(declarator);
-  if (core.type !== "function_declarator") return undefined;
+  const core = declaredFunction(declarator);
+  if (!core) return undefined;
 
   const nameNode = field(core, "declarator");
   const params = field(core, "parameters");
   if (!nameNode || !params) return undefined;
-  /* Anything other than a plain identifier here is a function returning a
-   * function pointer, which has no place in this project's signatures. */
   if (nameNode.type !== "identifier") return undefined;
 
-  const inner = flatten(params).replace(/^\(/, "").replace(/\)$/, "").trim();
-  return {
-    name: nameNode.text,
-    signature:
-      `${flatten(returnType)}${stars > 0 ? ` ${"*".repeat(stars)}` : ""} ` +
-      `${nameNode.text}(${inner === "" ? "void" : inner});`,
-  };
+  /* Keep qualifiers and all pointer/array/function-pointer decoration. An
+     unspecified () prototype is not f(void), even when emitted from a definition. */
+  const owner = returnType.parent;
+  const prefix = owner ? children(owner).filter((n) => n.endIndex <= declarator.startIndex &&
+    n.type !== "storage_class_specifier" && !isTrivia(n)).map(flatten).join(" ") : flatten(returnType);
+  const rendered = flatten(declarator).replace(new RegExp(`\\b${nameNode.text}\\s+\\(`), `${nameNode.text}(`);
+  return { name: nameNode.text, signature: `${prefix} ${rendered};` };
 }
 
 /**
@@ -269,6 +269,7 @@ export function extractSignaturesFromSource(source: string): ExtractedSignature[
     return false;
   });
 
+  tree.delete();
   return found;
 }
 
@@ -301,6 +302,7 @@ export function extractPrototypesFromSource(source: string): ExtractedSignature[
     return false;
   });
 
+  tree.delete();
   return found;
 }
 
@@ -372,9 +374,7 @@ export function resolveTypes(referenced: Iterable<string>, defs: Map<string, str
 /**
  * Render the generated type header.
  *
- * `unresolved` names get an opaque placeholder so the context still parses.
- * A placeholder is a fidelity gap — its layout is a guess — and callers are
- * expected to warn about every one.
+ * Missing types remain explicit unknowns. Never invent a concrete layout.
  */
 export function renderSdkTypesHeader(resolution: Resolution, defs: Map<string, string>): string {
   const lines = [
@@ -382,20 +382,17 @@ export function renderSdkTypesHeader(resolution: Resolution, defs: Map<string, s
     "/* m2c context only: type definitions for include/functions.h.",
     " * Must be passed to m2c *before* functions.h; see tools/agent/m2cFunc.ts. */",
     "",
-    ...PREAMBLE_TYPES.values(),
-    "",
   ];
-
-  for (const name of resolution.ordered) {
-    lines.push(defs.get(name)!, "");
-  }
+  const model = emptyDeclarationIndex();
+  indexDeclarations(model, [...PREAMBLE_TYPES.values()].join("\n"), "common.h", "public", "public-header");
+  for (const [name, text] of defs) indexDeclarations(model, text, name, "public", "public-header");
+  const projection = projectDeclarations(model, [...PREAMBLE_TYPES.keys(), ...resolution.ordered], "public");
+  lines.push(projection.text, "");
 
   if (resolution.unresolved.length > 0) {
-    lines.push("/* Unresolved: referenced by a signature, defined nowhere.");
-    lines.push(" * Layout is a guess — these are placeholders, not definitions. */");
-    for (const name of resolution.unresolved) {
-      lines.push(`typedef struct { unsigned long pad[1]; } ${name};`);
-    }
+    lines.push("/* Unresolved types (no fabricated layout):");
+    for (const name of resolution.unresolved) lines.push(` * ${name}`);
+    lines.push(" */");
     lines.push("");
   }
 

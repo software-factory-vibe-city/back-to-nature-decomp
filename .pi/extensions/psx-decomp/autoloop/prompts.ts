@@ -239,7 +239,7 @@ export function findingsReport(findings: PolicyFinding[]): string {
 export function openingMessage(functionName: string): string {
   return [
     `/skill:${DECOMPILE_SKILL} Target: ${functionName}. Mode: fresh decompilation.`,
-    "Create an m2c draft only if the source is still an INCLUDE_ASM stub; never overwrite an existing clean-C attempt.",
+    "Start from the prepared packet below; its measured source is primary. Never replace an existing clean-C attempt with a generated draft.",
     "",
     "Do not stop until the function is byte-exact and psx_finalize_function passes.",
     "Run experiments back to back — one edit and one psx_residual_objective call each,",
@@ -254,7 +254,7 @@ export function openingMessage(functionName: string): string {
     "",
     "Return only when the function is byte-exact, or when something genuinely needs a",
     "human decision (an allowlist entry, a policy exception) — then say which, briefly.",
-    "Do not commit, do not create a worktree, and do not edit files outside src/, include/, and configs/.",
+    "Do not commit or create a worktree. Candidate experiments may live under build/; integration is scoped to this function's src/, include/, and configs/ inputs.",
   ].join(" ");
 }
 
@@ -376,9 +376,11 @@ export function nudgeMessage(lastReport: string): string {
  */
 export function groupingsMessage(functionName: string): string {
   return [
-    `${functionName} is byte-exact and has passed the full finalize gate.`,
+    `/skill:psx-post-decompile-documentation Target: ${functionName}. Documentation role, not solver role.`,
+    `${functionName} is byte-exact and has passed the full finalize gate. Read the verified source and supplied evidence.`,
+    "Do not commit. Notes-only finalization does not authorize a commit.",
     "",
-    "Before it is committed: update `notes/file-groupings.md` if — and only if — this function",
+    "Update `notes/file-groupings.md` if — and only if — this function",
     "produced new evidence about which original translation unit it belongs to. Same-file",
     "evidence is things like a shared static or global cluster, a register-variable quirk",
     "shared with a neighbour, a declaration-order effect, an SDK idiom cluster, or an",
@@ -391,7 +393,7 @@ export function groupingsMessage(functionName: string): string {
     "unfounded ledger entry is worse than no entry.",
     "",
     "Edit nothing outside `notes/` in this turn. The source has already been verified and any",
-    "other edit will be reverted.",
+    "other edit invalidates the gate and requires re-verification; documentation will remain pending.",
   ].join("\n");
 }
 

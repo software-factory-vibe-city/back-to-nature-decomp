@@ -363,7 +363,7 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
   if (!options.patch) return [];
   const findings: PolicyFinding[] = [];
   let file = "";
-  let scope: { name?: string; vram?: string } = {};
+  let scope: ReturnType<typeof patchScope> = {};
   let newLine = 0;
   for (const line of options.patch.split("\n")) {
     const fileMatch = line.match(/^\+\+\+ b\/(.+)$/);

@@ -47,6 +47,9 @@ import {
   type Container,
 } from "../lib/container.js";
 import { requireFunctionLocation } from "../lib/symbolIndex.js";
+import { scopedTypeCatalog, projectScopedSignatures } from "./scopedTypes.js";
+import { emptyDeclarationIndex, indexDeclarations, projectDeclarations } from "./declarationContext.js";
+import { PREAMBLE_TYPES } from "./sdkTypes.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
@@ -122,8 +125,12 @@ function readExistingHeader(headerPath: string): Map<string, string> {
 export function resolveContextTypes(
   rootDir: string,
   signatures: Map<string, string>,
+  catalog = scopedTypeCatalog(rootDir),
 ): { resolution: Resolution; defs: Map<string, string>; referencedBy: Map<string, string[]> } {
-  const defs = harvestTypedefs(rootDir);
+  /* A disabled parked body is not an independently witnessed definition. */
+  for (const name of catalog.excludedFunctions) signatures.delete(name);
+  projectScopedSignatures(signatures, catalog);
+  const defs = catalog.defs;
 
   const referencedBy = new Map<string, string[]>();
   for (const sig of signatures.values()) {
@@ -134,7 +141,13 @@ export function resolveContextTypes(
     }
   }
 
-  return { resolution: resolveTypes(referencedBy.keys(), defs), defs, referencedBy };
+  const model = emptyDeclarationIndex();
+  indexDeclarations(model, [...PREAMBLE_TYPES.values()].join("\n"), "common.h", "public", "public-header");
+  for (const [name, text] of defs) indexDeclarations(model, text, name, "public", "public-header");
+  for (const [name, signature] of signatures) indexDeclarations(model, signature, name, "public", "public-header");
+  const projection = projectDeclarations(model, signatures.keys(), "public");
+  return { resolution: { ordered: projection.selected.filter((d) => d.kind === "type" && !PREAMBLE_TYPES.has(d.name)).map((d) => d.name),
+    unresolved: projection.unknown }, defs, referencedBy };
 }
 
 /** Render include/functions.h: signatures only, sorted by name. */
@@ -216,24 +229,30 @@ export function writeContext(
   signatures: Map<string, string>,
   container: Container = requireContainer(EXE_CONTAINER_ID),
   typeSignatures: Map<string, string> = signatures,
+  catalog = scopedTypeCatalog(rootDir),
 ): void {
+  for (const name of catalog.excludedFunctions) signatures.delete(name);
+  projectScopedSignatures(signatures, catalog);
   const sdkPath = join(rootDir, SDK_TYPES_HEADER);
   const funcsPath = join(rootDir, functionsHeaderFor(container));
 
   /* Types are resolved over every container's signatures, not just this one's:
      one shared type header serves them all, so writing it from a subset would
      drop whatever the other containers name. */
-  const { resolution, defs, referencedBy } = resolveContextTypes(rootDir, typeSignatures);
+  const { resolution, defs, referencedBy } = resolveContextTypes(rootDir, typeSignatures, catalog);
 
   for (const name of resolution.unresolved) {
     const users = referencedBy.get(name) ?? [];
     console.warn(
       `warning: type '${name}' is referenced by a signature but defined nowhere. ` +
-      `Emitting an opaque placeholder — its layout is a guess, so m2c output ` +
-      `touching this type will be wrong.`,
+      `Publication refused: a missing type cannot be given a fabricated layout.`,
     );
     for (const sig of users.slice(0, 3)) console.warn(`         referenced by: ${sig}`);
     if (users.length > 3) console.warn(`         ...and ${users.length - 3} more`);
+  }
+
+  if (resolution.unresolved.length) {
+    throw new Error(`Cannot publish context: unresolved types ${resolution.unresolved.join(", ")}`);
   }
 
   const previous = new Map<string, string | null>([
@@ -347,6 +366,7 @@ function collectAllSignatures(
     const pairs = extractSignaturePairs(join(srcDir, file));
 
     if (pairs.length === 0) {
+      signatures.delete(funcName);
       skipped.push(funcName);
       continue;
     }
@@ -379,13 +399,14 @@ export function exportAll(
 
   const exported: string[] = [];
   const skipped: string[] = [];
+  const catalog = scopedTypeCatalog(rootDir);
   for (const entry of perContainer) {
     exported.push(...entry.exported);
     skipped.push(...entry.skipped);
     /* An overlay with nothing matched yet still gets its header, empty, so the
        m2c context file list is the same shape for every container. */
     if (entry.exported.length > 0 || entry.container.kind === "overlay") {
-      writeContext(rootDir, entry.signatures, entry.container, union);
+      writeContext(rootDir, entry.signatures, entry.container, union, catalog);
     }
   }
 

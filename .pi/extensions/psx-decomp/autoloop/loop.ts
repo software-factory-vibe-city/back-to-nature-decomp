@@ -1,3 +1,4 @@
+import { prepareAttempt, attemptStaticFinalization, buildInputs, documentCompletion, sameInputs, inputIdentity, type Completion } from "../tools/prepared-attempt.ts";
 import { mkdirSync } from "node:fs";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { runFunctionDiff, runResidualObjective } from "../autonomous/gates.ts";
@@ -264,25 +265,22 @@ async function clearContext(deps: LoopDeps): Promise<void> {
  * is allowed to write `notes/` and nothing else, so that proof survives it
  * without a second full build. Returns the file list to commit.
  */
-async function recordGroupingEvidence(
-  deps: LoopDeps,
-  oracle: OracleContext,
-  functionName: string,
-  changedFiles: string[],
-): Promise<string[]> {
-  if (!deps.config.updateFileGroupings) return changedFiles;
-
-  setStatus(deps, `◎ ${functionName} · file-groupings`);
-  const before = snapshotFiles(deps.projectRoot, changedFiles.filter((file) => !isNotesPath(file)));
-  if (!(await turn(deps, groupingsMessage(functionName)))) return changedFiles;
-
-  const after = await loopChangedFiles(oracle);
-  const restored = restoreDrift(deps.projectRoot, before, after.changedFiles);
-  if (restored.length > 0) {
-    notify(deps, `Reverted out-of-scope edits from the file-groupings turn: ${restored.join(", ")}`, "warning");
-    return (await loopChangedFiles(oracle)).changedFiles;
-  }
-  return after.changedFiles;
+async function documentMatch(deps: LoopDeps, state: LoopState, functionName: string, completion: Completion): Promise<LoopState> {
+  let current: LoopState = { ...state, completions: { ...state.completions, [functionName]: completion } };
+  writeState(deps.config, current); /* durable pending state BEFORE dispatch */
+  if (!deps.config.updateFileGroupings) return current;
+  setStatus(deps, `◎ ${functionName} · documentation`);
+  const documented = await documentCompletion(deps.projectRoot, completion, async () => {
+    if (deps.flag.aborted || !deps.ctx.model) return false;
+    if (!(await turn(deps, groupingsMessage(functionName) +
+      `\nVerified source/evidence identity: ${completion.verifiedIdentity}. Origin: ${completion.origin}. Changed files: ${completion.changedFiles.join(", ")}.`))) return false;
+    const last = [...deps.ctx.sessionManager.getBranch()].reverse().find((e) => e.type === "message" && e.message.role === "assistant");
+    return last?.type === "message" && last.message.role === "assistant" && last.message.stopReason === "stop";
+  });
+  current = { ...current, completions: { ...current.completions, [functionName]: documented } };
+  writeState(deps.config, current);
+  if (documented.documentation !== "passed") notify(deps, `${functionName} matched; documentation pending: ${documented.error ?? "disabled"}`, "warning");
+  return current;
 }
 
 /**
@@ -318,7 +316,9 @@ async function adjudicate(
     deps.sink.verdict.awaiting = undefined;
   }
 
-  const verdict = deps.sink.verdict.verdict;
+  /* The review tool writes this cell asynchronously during turn(). Read through
+     the sink's declared type rather than the earlier local undefined assignment. */
+  const verdict = (deps.sink.verdict as LoopDeps["sink"]["verdict"]).verdict;
   deps.sink.verdict.verdict = undefined;
   await applyTier(deps, workingTier);
 
@@ -436,21 +436,58 @@ async function remeasure(deps: LoopDeps, functionName: string): Promise<string |
  * ends the function only when the diff verdict is MATCH *and* the finalize gate
  * — full build included — passes.
  */
-async function runFunction(deps: LoopDeps, state: LoopState, functionName: string): Promise<{ state: LoopState; outcome: FunctionOutcome }> {
+export async function runFunction(deps: LoopDeps, state: LoopState, functionName: string): Promise<{ state: LoopState; outcome: FunctionOutcome }> {
+  const abort = new AbortController();
+  const poll = setInterval(() => { if (deps.flag.aborted) abort.abort(); }, 100);
+  if (deps.flag.aborted) abort.abort();
+  try { return await runFunctionWithSignal(deps, state, functionName, abort.signal); }
+  finally { clearInterval(poll); }
+}
+
+async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionName: string, signal: AbortSignal): Promise<{ state: LoopState; outcome: FunctionOutcome }> {
   const oracle = (current: LoopState): OracleContext => ({
     projectRoot: deps.projectRoot,
     baseline: deps.baseline,
     state: current,
-    signal: undefined,
+    signal,
   });
 
   let current = state;
+  if (deps.flag.aborted || signal.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
   let lastReport = "";
   let lastFindings: PolicyFinding[] = [];
   let handoff: HandoffSummary | undefined;
   let reachedTier = deps.config.ladder[0]?.label ?? "none";
   /* A park rewrites the source; it is only ever the verdict of tiers that ran. */
   let tiersRan = 0;
+
+  const completed = current.completions?.[functionName];
+  if (completed && sameInputs(completed.inputs, buildInputs(deps.projectRoot))) {
+    current = await documentMatch(deps, current, functionName, completed);
+    if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
+      outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
+    return { state: current, outcome: { kind: "matched", functionName, tier: completed.origin,
+      changedFiles: completed.changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
+  }
+  /* No solver-model lookup until a static exact candidate has reached its gate. */
+  let preparedOpening = "";
+  try {
+    const prepared = await prepareAttempt(deps.projectRoot, functionName, signal);
+    const result = await attemptStaticFinalization({ root: deps.projectRoot, attempt: prepared, aborted: () => deps.flag.aborted,
+      finalize: async () => {
+        const gate = await finalize(oracle(current), functionName);
+        return { passed: gate.passed, changedFiles: gate.changedFiles, detail: gateReport(gate.gate) };
+      } });
+    preparedOpening = result.handoff;
+    if (result.completed) {
+      current = await documentMatch(deps, current, functionName, result.completed);
+      if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
+        outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
+      return { state: current, outcome: { kind: "matched", functionName, tier: "static",
+        changedFiles: (await loopChangedFiles(oracle(current))).changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
+    }
+  } catch (error) { preparedOpening = `Preparation could not complete: ${String(error)}. Preserve current source; investigate the named input failure.`; }
+  if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
 
   for (let tierIndex = 0; tierIndex < deps.config.ladder.length; tierIndex++) {
     const tier = deps.config.ladder[tierIndex];
@@ -472,7 +509,7 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
         attempt > 1
           ? nudgeMessage(lastReport)
           : tierIndex === 0
-            ? openingMessage(functionName)
+            ? openingMessage(functionName) + "\n\n" + preparedOpening
             : escalationMessage(functionName, tier.label, lastReport, handoff);
 
       if (!(await turn(deps, message))) return { state: current, outcome: { kind: "aborted", functionName } };
@@ -564,10 +601,14 @@ async function runFunction(deps: LoopDeps, state: LoopState, functionName: strin
       const gate = await finalize(oracle(current), functionName);
       if (gate.passed) {
         notify(deps, `${functionName} matched and finalized on ${tier.label}`, "info");
-        const changedFiles = await recordGroupingEvidence(deps, oracle(current), functionName, gate.changedFiles);
+        const inputs = buildInputs(deps.projectRoot);
+        current = await documentMatch(deps, current, functionName, { origin: "agent", verifiedIdentity: inputIdentity(inputs), verification: "passed", inputs, changedFiles: gate.changedFiles, documentation: "pending" });
+        if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
+          outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
+        const changedFiles = (await loopChangedFiles(oracle(current))).changedFiles;
         return {
           state: current,
-          outcome: { kind: "matched", functionName, tier: tier.label, changedFiles },
+          outcome: { kind: "matched", functionName, tier: tier.label, changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" },
         };
       }
       lastReport = gateReport(gate.gate);
@@ -689,7 +730,7 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
       setStatus(deps, "↻ autoloop · selecting target");
       const target = index === 0 && options.firstTarget
         ? options.firstTarget
-        : await nextTarget(deps.projectRoot, skip, defer);
+        : Object.entries(state.completions ?? {}).find(([name, c]) => c.documentation === "pending" && !skip.has(name))?.[0] ?? await nextTarget(deps.projectRoot, skip, defer);
       if (!target) {
         notify(deps, "No remaining clean-C decompilation targets.", "info");
         break;
@@ -701,7 +742,7 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
       outcomes.push(run.outcome);
       if (run.outcome.kind === "aborted") break;
 
-      if (run.outcome.kind === "matched" && deps.config.commitOnMatch) {
+      if (run.outcome.kind === "matched" && run.outcome.documentation !== "pending" && deps.config.commitOnMatch) {
         setStatus(deps, `◎ ${target} · commit`);
         const commit = await commitMatchedFunction(deps.projectRoot, target, run.outcome.tier, run.outcome.changedFiles);
         if (commit.committed) {

@@ -917,7 +917,7 @@ The main tools under `tools/agent/` are:
 | Tool | Role |
 |---|---|
 | `callGraph.ts` | Builds the worklist and ranks it |
-| `m2cFunc.ts` | Runs m2c on one function |
+| `m2cFunc.ts` | Prepares faithful context, preserves the primary draft and measures it under the destination's real headers |
 | `triage.ts` | Runs the pre-flight detectors |
 | `sdkIdioms.ts` | Recognizes the PSY-Q packets in the target |
 | `flagProbe.ts` | Checks the per-file flag hypothesis |

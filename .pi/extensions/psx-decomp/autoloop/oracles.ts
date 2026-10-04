@@ -1,8 +1,9 @@
+import { finalizeWorkspace } from "../tools/finalization.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadCallGraph, rebuildCallGraph } from "../autonomous/call-graph.ts";
 import { loadConfig } from "../autonomous/config.ts";
-import { runBuildCheck, runFunctionDiff, runGate } from "../autonomous/gates.ts";
+import { runBuildCheck, runFunctionDiff } from "../autonomous/gates.ts";
 import { checkSourcePolicy, isPendingStub, withinAllowedRoots } from "../autonomous/source-policy.ts";
 import type { AutodecompConfig, CallGraphEntry, DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
 import {
@@ -66,12 +67,12 @@ function callGraphEntry(projectRoot: string, functionName: string): CallGraphEnt
 
 export async function loopChangedFiles(ctx: OracleContext): Promise<{ changedFiles: string[]; patch: string }> {
   const config = gateConfig(ctx.projectRoot, ctx.state);
-  const tree = await createTreeFromWorktree(ctx.projectRoot, ctx.projectRoot, config.integration.allowedRoots);
-  const patch = await treePatch(ctx.projectRoot, "HEAD", tree, config.integration.allowedRoots);
+  const tree = await createTreeFromWorktree(ctx.projectRoot, ctx.projectRoot, config.integration.allowedRoots, ctx.signal);
+  const patch = await treePatch(ctx.projectRoot, "HEAD", tree, config.integration.allowedRoots, ctx.signal);
   const all = [
     ...new Set([
-      ...(await changedFilesBetweenTrees(ctx.projectRoot, "HEAD", tree)),
-      ...(await workspaceChangedFiles(ctx.projectRoot)),
+      ...(await changedFilesBetweenTrees(ctx.projectRoot, "HEAD", tree, ctx.signal)),
+      ...(await workspaceChangedFiles(ctx.projectRoot, ctx.signal)),
     ]),
   ].sort();
   return { changedFiles: filterNewChanges(all, ctx.baseline).newFiles, patch };
@@ -99,17 +100,8 @@ export async function scopedLoopChanges(
 export async function finalize(ctx: OracleContext, functionName: string): Promise<FinalizeVerdict> {
   const config = gateConfig(ctx.projectRoot, ctx.state);
   const { changedFiles, patch } = await loopChangedFiles(ctx);
-  const gate = await runGate({
-    projectRoot: ctx.projectRoot,
-    config,
-    mode: "match",
-    functionName,
-    functionVram: callGraphEntry(ctx.projectRoot, functionName)?.vram,
-    changedFiles,
-    patch,
-    signal: ctx.signal,
-  });
-  return { passed: gate.pass, gate, changedFiles };
+  const gate = await finalizeWorkspace({ projectRoot: ctx.projectRoot, config, functionName, changedFiles, patch, signal: ctx.signal });
+  return { passed: gate.pass, gate, changedFiles: (await loopChangedFiles(ctx)).changedFiles };
 }
 
 /**

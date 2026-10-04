@@ -5,7 +5,7 @@
 /* Requires common.h typedefs (s8, s16, s32, u8, u16, u32) */
 #include "globals_override.h"
 
-/* 34 symbol(s) defined in globals_override.h */
+/* 31 symbol(s) supplied by overrides or translation-unit-specific declarations */
 
 /* GP-relative symbols (within $gp ± 0x7FF0) */
 extern u16 D_8005E2BA;
@@ -32,6 +32,7 @@ extern u8 D_8005E5D1;
 extern s32 D_8005E980;
 extern s32 D_8005E9B0;
 extern s32 D_8005EA28;
+extern s32 D_8005F028;
 extern s32 D_80061E0E;
 extern s32 D_80061E14;
 extern s32 D_80061E48;
@@ -60,6 +61,8 @@ extern s32 _D_8005393A[3] __asm__("D_8005393A");
 #define D_8005393A (*((s32*)_D_8005393A))
 extern s32 _D_80053946[3] __asm__("D_80053946");
 #define D_80053946 (*((s32*)_D_80053946))
+extern s32 _D_80061DE8[3] __asm__("D_80061DE8");
+#define D_80061DE8 (*((s32*)_D_80061DE8))
 extern s32 _D_80061E04[3] __asm__("D_80061E04");
 #define D_80061E04 (*((s32*)_D_80061E04))
 extern u16 _D_80061E08[5] __asm__("D_80061E08");
@@ -146,6 +149,8 @@ extern s32 _D_80075AD8[3] __asm__("D_80075AD8");
 #define D_80075AD8 (*((s32*)_D_80075AD8))
 extern s16 _D_8007AD4C[5] __asm__("D_8007AD4C");
 #define D_8007AD4C (*((s16*)_D_8007AD4C))
+extern s32 _D_8007AD4E[3] __asm__("D_8007AD4E");
+#define D_8007AD4E (*((s32*)_D_8007AD4E))
 extern s32 _D_8007AD50[3] __asm__("D_8007AD50");
 #define D_8007AD50 (*((s32*)_D_8007AD50))
 extern s32 _D_8007AD52[3] __asm__("D_8007AD52");

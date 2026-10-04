@@ -47,66 +47,42 @@ about pace.
 
 ## Open the session — once
 
-Run these three, in this order, before touching source.
+The controller supplies a **prepared first-pass packet** before the first solver
+turn. Read its measured source path, live destination, compilation/comparison
+status, complete diagnostic links, input fingerprints and explicit unknowns.
+Fresh equivalent evidence in that packet satisfies the corresponding startup
+checks; do not mechanically regenerate discovery or reconstruction to recover
+material already supplied.
 
-1. `psx_experiment_ledger` — what has already been measured, and what earlier
-   sessions proved about the search space. Directions recorded as closed are
-   closed; sources listed as compiling to the same words are the same
-   experiment however differently they read. Start from this, not from a
-   research note.
-2. `psx_triage` — a `blocker` means the current direction cannot ship whatever
-   the residual says. Two of its findings are the author's own answers rather
-   than symptoms: `idiom-precedent` names the already-matched functions whose
-   *original* code has the same instruction shapes as this target's, and
-   `self-similarity` names a closed block in this very function that has the
-   same shapes as an open one. Both fire on a bare stub, because the query is
-   the target's assembly. Read them before writing anything. Resolve it before anything else. A `callee-truth` blocker
-   is stronger than that: it says a declaration in scope is contradicted by
-   evidence outside this source, so the compiler has been building a different
-   program than the one you think you are measuring. Fix it and discard the
-   readings taken under it.
-3. `psx_reverse_pipeline` — the pass that owns the residual, the per-block
-   breakdown, and the independent decisions behind it.
+If no packet was supplied, call **psx_m2c** first. It prepares faithful target
+context and measurements under `build/preparation/`, without replacing live
+work. Inspect its diagnostics and evidence-backed unknowns before editing.
+Preserve unresolved types and signatures until evidence establishes them.
 
-If the target is a bare `INCLUDE_ASM` stub, run `psx_reconstruct_function`
-before writing anything. It reads only the original bytes, costs a fraction of
-a second when it refuses, and either finishes the function or hands the
-session its first classified fact:
+- **Fresh stub:** the primary is the raw, mechanically wrapped m2c draft. A
+  noncompiling draft stays under `build/`; edit/measure that actual source and
+  integrate only after it compiles and passes AST/policy/scope checks. Never
+  report a build of the untouched assembly stub as verification of the draft.
+- **Resume:** the existing clean-C attempt stays primary. Refresh its context
+  and measurements. A new m2c draft is an explicitly requested alternative,
+  never an automatic replacement, even when the attempt currently fails.
+- **Exact:** safe integration followed by the authoritative full finalization
+  gate is required. A scratch byte match is not completion. The controller can
+  finalize static exact candidates without a solver turn.
+- **Generation failure:** inspect the preserved input/context and full streams.
+  The absence of C is legitimate evidence, not a request for invented C.
 
-- `exact-candidate` — the bundle under `build/matchingReconstruction/<fn>/`
-  is byte-verified C. Integrate it instead of decompiling. First try
-  **`psx_finalize_engine_matches <fn> --write`**: it finalizes the winner into
-  the source file automatically (umbrella include, global declarations
-  reconciled against the generated headers) and re-confirms the byte match
-  before writing — for most matches this is the whole integration, then go
-  straight to Finish. If it reports the function as not auto-finalizable (its
-  globals need a hand-authored type override), fall back to manual integration:
-  put its view typedefs and declarations where the bundle's integration plan
-  says (the shared type header, the override header, tentative definitions in
-  the TU for gp-relative globals — never a redeclaration in the `.c`), write
-  the body into the source file with the umbrella include, regenerate the
-  generated headers, and go to Finish.
-- `domain-exhausted` — the machine relation was recovered and every candidate
-  in the bundle compiles. Start from the bundle's closest candidate
-  (`tools/agent/bestCandidate.ts <fn>` serves the best-effort C with its diff
-  summary) rather than an m2c draft: it is semantically grounded, and its
-  residual is already a classified starting point for the experiment loop.
-- `unsupported-target` / `context-unresolved` — the detail names the blocker
-  (calls, computed addressing, symbolic bounds, missing origin evidence)
-  before any source exists. Keep it as the session's first fact; it scopes
-  which mechanisms the source must express.
+Read `psx_experiment_ledger` for prior measurements and their premises unless
+fresh packet evidence already includes it. Run `psx_triage` and
+`psx_callee_truth` for the actual source being authored when their equivalent
+fresh reports are absent. A blocker must be resolved before allocation or
+scheduling work. Run `psx_reverse_pipeline` once a compiling non-exact source
+has a residual. Never fabricate a residual for a failed compile or relocation.
 
-Only when the engine produced no usable candidate (unsupported-target or
-context-unresolved, with no `best-effort.c` under
-`build/matchingReconstruction/<fn>/`), generate a first source with `psx_m2c`
-and repair it with **`psx_repair_m2c`** — the repair layer fixes undeclared
-globals, `?` unknown types, and call signatures using the engine's analysis.
-
-The seed priority is: **repaired m2c > best-effort C > raw m2c**.
-
-When a best-effort candidate does exist, prefer it over raw m2c — its semantics
-are grounded in the target's actual data flow, and the `psx_residual_objective`
-loop can start immediately.
+Reconstruction, family transfer, idiom retrieval and deeper diagnostics remain
+available **on demand**, not as prerequisites to m2c or as a competing automatic
+seed priority. Preserve declarations requiring publication in the packet and
+integrate them explicitly into the designated headers.
 
 **This is the only classification pass you get.** The residual is now
 classified. From here, every diagnostic you run must be followed by an edit and

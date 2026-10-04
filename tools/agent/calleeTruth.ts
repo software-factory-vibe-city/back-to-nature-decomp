@@ -41,6 +41,8 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import {
   ROOT,
   assembleTarget,
@@ -51,8 +53,10 @@ import {
   sourceDirFor,
   sourcePathFor,
   type DisassembledInstruction,
+  configuredCppFlags,
 } from "./decompToolchain.js";
 import { analyzeFrame, analyzeReturnValue, maximumArity, minimumArity } from "./frameMap.js";
+import { declaredFunction } from "./sdkTypes.js";
 import { children, field, parseC, subtreeIsBroken, walk, type Node } from "./residual-source-search/tree-sitter-c.js";
 
 /* ------------------------------------------------------------------ */
@@ -73,6 +77,11 @@ export interface Prototype {
   parameters: number | null;
   variadic: boolean;
   returnsVoid: boolean;
+  /** Complete source types; absent only in legacy manually constructed witnesses. */
+  returnType?: string;
+  paramTypes?: string[];
+  /** Zero-based incoming ABI positions, including unused earlier slots. */
+  slots?: Array<number | null>;
   /**
    * A definition is authoritative about the function; a declaration is only
    * somebody's claim about it, and a claim is what is under audit here.
@@ -109,18 +118,6 @@ function isTriviaNode(node: Node): boolean {
   return node.type === "comment";
 }
 
-function unwrapPointers(declarator: Node): { stars: number; core: Node } {
-  let stars = 0;
-  let core = declarator;
-  while (core.type === "pointer_declarator") {
-    stars += 1;
-    const inner = field(core, "declarator");
-    if (!inner) break;
-    core = inner;
-  }
-  return { stars, core };
-}
-
 /**
  * Read a parameter list without flattening away what it does not say.
  *
@@ -143,6 +140,20 @@ function readParameters(params: Node): { count: number | null; variadic: boolean
   return { count: declarations.length, variadic };
 }
 
+/** O32 scalar slot positions, without assigning an invented width to typedefs
+ * or by-value records. Later positions become unknown after such a parameter. */
+export function incomingSlots(types: string[]): Array<number | null> {
+  let slot: number | null = 0;
+  return types.map((type) => {
+    const text = type.replace(/\b(?:const|volatile|restrict)\b/g, "").replace(/\s+/g, " ").trim();
+    const wide = /^(?:double|(?:unsigned |signed )?long long(?: int)?)$/.test(text);
+    const scalar = /\*|\[/.test(text) || /^(?:(?:unsigned |signed )?(?:char|short(?: int)?|int|long(?: int)?)|float|[us](?:8|16|32)|u_(?:char|short|int|long))$/.test(text);
+    if (slot === null || (!wide && !scalar)) { slot = null; return null; }
+    if (wide && slot % 2) slot++;
+    const position = slot; slot += wide ? 2 : 1; return position;
+  });
+}
+
 function prototypeFrom(
   returnType: Node,
   declarator: Node,
@@ -152,8 +163,8 @@ function prototypeFrom(
 ): Prototype | undefined {
   if (subtreeIsBroken(returnType) || subtreeIsBroken(declarator)) return undefined;
 
-  const { stars, core } = unwrapPointers(declarator);
-  if (core.type !== "function_declarator") return undefined;
+  const core = declaredFunction(declarator);
+  if (!core) return undefined;
   const nameNode = field(core, "declarator");
   const params = field(core, "parameters");
   if (!nameNode || !params || nameNode.type !== "identifier") return undefined;
@@ -161,15 +172,34 @@ function prototypeFrom(
   const { count, variadic } = readParameters(params);
   const origin = lineOf(returnType.startPosition.row);
   const inner = flatten(params).replace(/^\(/, "").replace(/\)$/, "").trim();
+  const paramTypes = children(params).filter((n) => n.type === "parameter_declaration")
+    .filter((n) => flatten(n) !== "void").map((n) => {
+      const declaringName = (d: Node | null | undefined): Node | null => {
+        if (!d || d.type === "parameter_list") return null;
+        if (d.type === "identifier") return d;
+        const inner = field(d, "declarator");
+        if (inner) return declaringName(inner);
+        return d.namedChildren.map(declaringName).find((x) => x !== null) ?? null;
+      };
+      const d = declaringName(field(n, "declarator"));
+      /* Remove only the parameter's declaring identifier, not callback
+         parameters or a type's identifier. */
+      return d ? (n.text.slice(0, d.startIndex - n.startIndex) + n.text.slice(d.endIndex - n.startIndex)).trim().replace(/\)\s+\(/g, ")(") : flatten(n);
+    });
+  const qualifiers = returnType.parent ? children(returnType.parent).filter((n) => n.type === "type_qualifier" && n.endIndex <= declarator.startIndex).map(flatten) : [];
+  const prefix = [...qualifiers, flatten(returnType)].join(" ");
+  const rendered = flatten(declarator);
+  const fullReturnType = `${prefix} ${rendered.replace(flatten(core), "")}`.trim();
   return {
     name: nameNode.text,
-    signature:
-      `${flatten(returnType)}${stars > 0 ? ` ${"*".repeat(stars)}` : ""} ` +
-      `${nameNode.text}(${inner});`,
+    signature: `${prefix} ${rendered};`,
     parameters: count,
     variadic,
     kind,
-    returnsVoid: stars === 0 && flatten(returnType) === "void",
+    returnType: fullReturnType,
+    paramTypes,
+    slots: incomingSlots(paramTypes),
+    returnsVoid: !rendered.replace(flatten(core), "").includes("*") && flatten(returnType) === "void",
     where: origin.file || where,
     line: origin.line,
   };
@@ -215,6 +245,7 @@ export function prototypesIn(
     return false;
   });
 
+  tree.delete();
   return found;
 }
 
@@ -304,14 +335,24 @@ function headersUnder(dir: string): string[] {
  * statement of an entry point, they predate every decision made in this
  * repository, and nothing here can have contaminated them.
  */
+function effectiveSource(path: string): string {
+  return execFileSync("mips-linux-gnu-cpp", [...configuredCppFlags(), path], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+}
+
+let sdkIndexCache: { identity: string; index: Map<string, Prototype> } | undefined;
 export function sdkPrototypes(): Map<string, Prototype> {
+  const headers = headersUnder(join(ROOT, "include/psyq"));
+  const identity = createHash("sha256").update(JSON.stringify(configuredCppFlags()) + headers.map((p) => readFileSync(p, "utf8")).join("\n")).digest("hex");
+  if (sdkIndexCache?.identity === identity) return sdkIndexCache.index;
   const index = new Map<string, Prototype>();
-  for (const header of headersUnder(join(ROOT, "include/psyq"))) {
+  for (const header of headers) {
     const where = relative(ROOT, header);
-    for (const prototype of prototypesIn(readFileSync(header, "utf-8"), where)) {
+    const scope = scopeFromPreprocessed(effectiveSource(header));
+    for (const prototype of prototypesIn(scope.source, where, scope.lineOf)) {
       if (!index.has(prototype.name)) index.set(prototype.name, prototype);
     }
   }
+  sdkIndexCache = { identity, index };
   return index;
 }
 
@@ -326,18 +367,10 @@ function definesFunction(text: string, callee: string): boolean {
  * A definition is a stronger witness than any declaration of the same
  * function, because it is the thing the declaration is supposed to describe.
  */
-/* One process resolves the same callee once per call site — a function with
- * hundreds of call sites would otherwise sweep and read its whole source
- * directory hundreds of times (seconds per caller). Memoized for the process
- * lifetime; the reconstruction census never mutates source mid-run. `has()`
- * distinguishes a cached "no definition" (undefined) from an uncached miss. */
-const definitionPrototypeCache = new Map<string, Prototype | undefined>();
-
 export function definitionPrototype(callee: string): Prototype | undefined {
-  if (definitionPrototypeCache.has(callee)) return definitionPrototypeCache.get(callee);
-  const result = computeDefinitionPrototype(callee);
-  definitionPrototypeCache.set(callee, result);
-  return result;
+  /* Source can change inside an interactive process. Never cache a prototype
+     solely by symbol name; preparation must observe the defining source now. */
+  return computeDefinitionPrototype(callee);
 }
 
 function computeDefinitionPrototype(callee: string): Prototype | undefined {
@@ -357,9 +390,8 @@ function computeDefinitionPrototype(callee: string): Prototype | undefined {
         .filter((path) => definesFunction(readFileSync(path, "utf-8"), callee));
 
   for (const path of candidates) {
-    const text = readFileSync(path, "utf-8");
-    if (/INCLUDE_ASM/.test(text) && !definesFunction(text, callee)) continue;
-    const found = prototypesIn(text, relative(ROOT, path))
+    const scope = scopeFromPreprocessed(effectiveSource(path));
+    const found = prototypesIn(scope.source, relative(ROOT, path), scope.lineOf)
       .find((item) => item.name === callee && item.kind === "definition");
     if (found) return found;
   }
@@ -480,9 +512,17 @@ export function contradictionsAgainst(
     return found;
   }
 
-  /* The floor is proven: the callee reads that incoming register before
-   * writing it, so a caller that does not set it passes garbage. */
-  if (witness.arity && declared.parameters !== null && declared.parameters < witness.arity.min) {
+  /* Frame evidence counts WORD SLOTS, not C parameters. An unknown by-value
+     layout or a variadic tail prevents a finite source-level upper bound. */
+  let capacity = declared.parameters;
+  if (declared.slots && declared.paramTypes) {
+    if (declared.slots.some((slot) => slot === null)) capacity = null;
+    else {
+      const positions = incomingSlots([...declared.paramTypes, "int"]);
+      capacity = positions[positions.length - 1] ?? null;
+    }
+  }
+  if (witness.arity && !declared.variadic && capacity !== null && capacity < witness.arity.min) {
     found.push({
       witness: witness.kind,
       proven: true,

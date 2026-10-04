@@ -82,10 +82,10 @@ export const UNEXPOSED_CLIS: Record<string, string> = {
     "A convenience CLI for reading the engine's reconstruction result and printing " +
     "the best-effort C. It is a data-retrieval command, not a diagnostic: it reads " +
     "build/matchingReconstruction/<fn>/result.json and prints the winner or " +
-    "best-effort source. The `psx_repair_m2c` tool reads the same artifacts and " +
+    "best-effort source. Prepared m2c drafts are independent alternatives and " +
     "should be the model-facing interface; bestCandidate is the shell-facing one. " +
     "It should evolve into an ordinary module imported by the repair layer and " +
-    "retired as a CLI once repairM2c covers all its consumers.",
+    "available only as a legacy CLI, not an automatic seed priority.",
   diffFunc:
     "Two better tools split its job. `psx_residual_objective` gives the same MATCH " +
     "verdict from the same oracle at the same cost, plus a residual that is a distance " +
@@ -532,29 +532,6 @@ export const TOOL_SPECS: ToolSpec[] = [
     }),
     argv: (p) => (p.topic ? [p.topic as string] : []),
     timeout: 30_000,
-  },
-
-  /* ---- m2c repair (supplement layer, plan §A) ---- */
-  {
-    name: "psx_repair_m2c",
-    label: "PSX Repair m2c",
-    script: "repairM2c.ts",
-    description:
-      "Repair m2c's output for one function using the reconstruction engine's analysis: " +
-      "fix undeclared globals, replace `?` unknown types and `void*` derefs with recovered " +
-      "types, and reconcile call signatures. The repaired draft becomes the agent's seed " +
-      "whenever it compiles. Pass --compile to also compile and compare against the target.",
-    parameters: Type.Object({
-      functionName: FUNCTION("Exact function symbol to repair"),
-      compile: Type.Optional(Type.Boolean({ description: "Compile the repaired source and compare against target" })),
-      write: Type.Optional(Type.Boolean({ description: "Write repaired source back to src/<function>.c" })),
-    }),
-    argv: (p) => [
-      p.functionName as string,
-      ...(p.write ? ["--write"] : []),
-      ...(p.compile ? ["--compile"] : []),
-    ],
-    timeout: 600_000,
   },
 
   /* ---- finalize the engine's byte-exact matches into the tree ---- */

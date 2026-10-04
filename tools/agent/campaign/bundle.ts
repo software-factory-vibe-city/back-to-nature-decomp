@@ -31,7 +31,9 @@
  */
 
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { createHash } from "node:crypto";
+import type { PacketSource, PreparationPacket } from "./packet.js";
 import { ROOT, configuredCc1FlagsForContainer, loadFlagOverrides } from "../decompToolchain.js";
 import { requireFunctionLocation } from "../../lib/symbolIndex.js";
 import { recoverContext, renderContext, type RecoveredContext } from "../matching-reconstruction/context-product.js";
@@ -51,10 +53,14 @@ export interface PreparedBundle {
   vram: number;
   sizeBytes: number;
 
+  /** Common source identity, independent of compilability. */
+  primary?: PacketSource;
+  preparation?: PreparationPacket;
   /** 1. The primary draft, or the reason there is none. */
   draft:
     | { kind: "exact"; source: string; note: string }
     | { kind: "partial"; source: string; note: string }
+    | { kind: "uncompiled"; source: string; note: string }
     | { kind: "none"; reason: string; capability: string };
 
   /** 2. Where the draft's regions correspond to the target, and the oracle's inputs. */
@@ -101,7 +107,7 @@ export interface PreparedBundle {
  * structure and the capability that is missing, which is strictly more than
  * the error string it replaces.
  */
-export function prepareBundle(functionName: string): PreparedBundle {
+export function prepareBundle(functionName: string, preparation?: PreparationPacket): PreparedBundle {
   const location = requireFunctionLocation(functionName);
   const container = location.container;
   const context = recoverContext(functionName);
@@ -112,7 +118,15 @@ export function prepareBundle(functionName: string): PreparedBundle {
   const loaded = loadResult(functionName);
   const bundleResult: (ResultBundle & { provenance?: unknown }) | null = isRefusal(loaded) ? null : (loaded as LoadedResult).bundle;
 
-  const draft = draftOf(loaded, bundleResult, ir, context);
+  const draft: PreparedBundle["draft"] = preparation?.primary ? {
+    kind: preparation.compilation.status !== "succeeded" ? "uncompiled" : preparation.comparison.status === "exact" ? "exact" : "partial",
+    source: preparation.primary.text, note: `measured source ${preparation.primary.path}; compilation ${preparation.compilation.status}; comparison ${preparation.comparison.status}`,
+  } : draftOf(loaded, bundleResult, ir, context);
+  const primary: PacketSource | undefined = preparation?.primary ?? (draft.kind !== "none" && !isRefusal(loaded) ? {
+    origin: "reconstruction", text: draft.source,
+    path: relative(ROOT, join(loaded.directory, draft.kind === "exact" ? "winner.c" : "best-effort.c")),
+    sha256: createHash("sha256").update(draft.source).digest("hex"), declarationsRequired: [],
+  } : undefined);
   const repair = safeRepairReport(functionName);
 
   return {
@@ -122,6 +136,8 @@ export function prepareBundle(functionName: string): PreparedBundle {
     vram: location.span.vram,
     sizeBytes: location.span.size,
     draft,
+    ...(primary ? { primary } : {}),
+    ...(preparation ? { preparation } : {}),
     mapping: {
       structure: renderRegions(ir.regions.root, "  "),
       oracle: {
@@ -370,7 +386,7 @@ export function renderBundle(bundle: PreparedBundle): string[] {
     lines.push("Nothing is emitted in its place. A compilable placeholder in this gap would be a program");
     lines.push("that is not this function, and it would cost more to discover than its absence costs now.");
   } else {
-    lines.push(`${bundle.draft.kind === "exact" ? "Byte-identical" : "Partial"} — ${bundle.draft.note}`);
+    lines.push(`${bundle.draft.kind === "exact" ? "Byte-identical" : bundle.draft.kind === "uncompiled" ? "Uncompiled draft" : "Partial"} — ${bundle.draft.note}`);
     lines.push("");
     lines.push("```c");
     lines.push(bundle.draft.source.trimEnd());

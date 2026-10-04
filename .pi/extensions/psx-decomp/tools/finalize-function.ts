@@ -1,13 +1,14 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { loadConfig } from "../autonomous/config.ts";
-import { runGate } from "../autonomous/gates.ts";
+import { finalizeWorkspace } from "./finalization.ts";
 import { loadCallGraph } from "../autonomous/call-graph.ts";
 import { createTreeFromWorktree, changedFilesBetweenTrees, filterNewChanges, treePatch, workspaceChangedFiles } from "../autonomous/workspace.ts";
 import { getSessionBaseline } from "./session-baseline.ts";
 import { validateFunctionName } from "./shared.ts";
 
-export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
+export function registerFinalizeFunctionTool(pi: ExtensionAPI,
+  onPassed?: (name: string, changedFiles: string[], ctx: ExtensionContext) => void): void {
   pi.registerTool({
     name: "psx_finalize_function",
     label: "Finalize PSX Function",
@@ -34,24 +35,14 @@ export function registerFinalizeFunctionTool(pi: ExtensionAPI): void {
          container and the source path the policy scan looks for an overlay's
          translation unit under `src/`, finds nothing, and reports a clean
          function it never opened. */
-      const graph = loadCallGraph(ctx.cwd);
-      const gate = await runGate({
-        projectRoot: ctx.cwd,
-        config,
-        mode: "match",
-        functionName: params.functionName,
-        ...(entry?.vram ? { functionVram: entry.vram } : {}),
-        ...(entry?.container ? { functionContainer: entry.container } : {}),
-        functionVrams: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.vram])),
-        functionContainers: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.container])),
-        functionSources: Object.fromEntries(graph.functions.map((candidate) => [candidate.name, candidate.source ?? `src/${candidate.name}.c`])),
-        changedFiles,
-        patch,
-        signal,
-      });
+      const gate = await finalizeWorkspace({ projectRoot: ctx.cwd, config, functionName: params.functionName, changedFiles, patch, signal });
       const scopeNote = preExisting.length
         ? `\nScope gate ignored ${preExisting.length} pre-existing workspace change(s): ${preExisting.join(", ")}`
         : "";
+      if (gate.pass) {
+        const after = filterNewChanges(await workspaceChangedFiles(ctx.cwd), baseline).newFiles;
+        onPassed?.(params.functionName, [...new Set([...changedFiles, ...after])].sort(), ctx);
+      }
       const text = gate.pass
         ? `${params.functionName}${containerNote} passed exact diff, full build, scope, and clean-source gates.${scopeNote}`
         : `${params.functionName} failed finalization:\n${gate.failures.map((failure) => `- ${failure}`).join("\n")}${scopeNote}`;

@@ -125,6 +125,7 @@ export function analyzeCSource(source: string): CSourceReport {
     reasons.push(`literal at ${item} is not terminated on its own line`);
   }
 
+  tree.delete();
   return {
     parses,
     embeddable: parses && dangling.length === 0 && spanningLiterals.length === 0,

@@ -46,13 +46,20 @@ export function parseArgs(args: string): ParsedArgs {
  * `waitForIdle` is the turn, and the two oracles are the only things allowed to
  * call a function finished.
  */
-export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string): void {
+export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string): () => boolean {
   const sink = { verdict: createVerdictSink(), handoff: createHandoffSink(), gate: createTurnGate() };
   registerPolicyVerdictTool(pi, sink.verdict);
   registerHandoffTool(pi, sink.handoff);
   registerTurnGate(pi, sink.gate);
 
   let active: AbortFlag | null = null;
+  let running: Promise<unknown> | undefined;
+  pi.on("session_shutdown", async (_event, ctx) => {
+    if (!active) return;
+    active.aborted = true;
+    ctx.abort();
+    await running;
+  });
 
   /* Both are turn-scoped instruments: they stay out of the ordinary active set
    * until the loop opens a policy review or a handoff. */
@@ -126,17 +133,21 @@ export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string):
         "info",
       );
 
+      const task = Promise.resolve().then(async () => runLoop(
+        { pi, ctx, projectRoot, config, sink, flag, baseline: await getSessionBaseline(projectRoot) },
+        { firstTarget: parsed.target, maxFunctions: parsed.maxFunctions },
+      ));
+      running = task.catch(() => {});
       try {
-        const outcomes = await runLoop(
-          { pi, ctx, projectRoot, config, sink, flag, baseline: await getSessionBaseline(projectRoot) },
-          { firstTarget: parsed.target, maxFunctions: parsed.maxFunctions },
-        );
+        const outcomes = await task;
         ctx.ui.notify(summarize(outcomes), "info");
       } catch (error) {
         ctx.ui.notify(`Escalation loop failed: ${error instanceof Error ? error.message : String(error)}`, "error");
       } finally {
         active = null;
+        running = undefined;
       }
     },
   });
+  return () => active !== null;
 }

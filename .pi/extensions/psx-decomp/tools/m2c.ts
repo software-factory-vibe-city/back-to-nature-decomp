@@ -9,9 +9,11 @@ export function registerM2cTool(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "psx_m2c",
     label: "PSX m2c",
-    description: "Generate and write an m2c first-pass source file for one PlayStation function. This overwrites that function's source file — which is its own container's, not necessarily src/<functionName>.c — so inspect the existing source before calling it. Output is limited to 50 KB or 2000 lines.",
+    description: "Prepare faithful context and a measured m2c handoff under build/. Preserve raw output, complete diagnostics and explicit unknowns; an existing clean-C attempt remains primary. Output is limited to 50 KB or 2000 lines.",
     parameters: Type.Object({
       functionName: Type.String({ description: "Exact function symbol to decompile" }),
+      alternative: Type.Optional(Type.Boolean({ description: "Explicitly generate an m2c alternative to an existing attempt" })),
+      stage: Type.Optional(Type.Boolean({ description: "Safely stage a compiling candidate into an unchanged committed target stub" })),
     }),
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       validateFunctionName(params.functionName);
@@ -25,9 +27,9 @@ export function registerM2cTool(pi: ExtensionAPI): void {
           pi,
           ctx.cwd,
           "npx",
-          ["tsx", "tools/agent/m2cFunc.ts", params.functionName, "--write"],
+          ["tsx", "tools/agent/m2cFunc.ts", params.functionName, ...(params.alternative ? ["--alternative"] : []), ...(params.stage ? ["--write"] : [])],
           signal,
-          30_000,
+          600_000,
         ),
       );
     },

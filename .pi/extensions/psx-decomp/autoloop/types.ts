@@ -1,3 +1,4 @@
+import type { Completion } from "../tools/prepared-attempt.ts";
 import type { PolicyFinding } from "../autonomous/types.ts";
 
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -123,10 +124,11 @@ export interface ApprovalRecord {
 export interface LoopState {
   parked: Record<string, ParkRecord>;
   approvals: Record<string, ApprovalRecord>;
+  completions?: Record<string, Completion>;
 }
 
 export type FunctionOutcome =
-  | { kind: "matched"; functionName: string; tier: string; changedFiles: string[]; commit?: string }
+  | { kind: "matched"; functionName: string; tier: string; changedFiles: string[]; documentation?: "pending" | "passed"; commit?: string }
   | { kind: "parked"; functionName: string; record: ParkRecord; commit?: string }
   | { kind: "aborted"; functionName: string }
   | { kind: "environment-broken"; functionName: string; detail: string };

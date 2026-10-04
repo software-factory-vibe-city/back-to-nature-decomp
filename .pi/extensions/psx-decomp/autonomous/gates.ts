@@ -183,6 +183,12 @@ export async function runGate(options: {
   signal?: AbortSignal;
 }): Promise<GateResult> {
   const failures: string[] = [];
+  const cancelled = () => {
+    if (!options.signal?.aborted) return false;
+    if (!failures.includes("Finalization cancelled")) failures.push("Finalization cancelled");
+    return true;
+  };
+  cancelled();
   const scanFunctions = options.mode === "project-refinement"
     ? sourceNames(options.changedFiles)
     : options.functionName ? [options.functionName] : [];
@@ -202,18 +208,20 @@ export async function runGate(options: {
   if (!policy.pass) failures.push(...policy.hardFailures.map((finding) => `${finding.file}: ${finding.message}`));
 
   let diff: DiffResult | undefined;
-  if (options.functionName && options.mode !== "project-refinement") {
+  if (!cancelled() && options.functionName && options.mode !== "project-refinement") {
     diff = await runFunctionDiff(options.projectRoot, options.functionName, 60_000, options.signal, options.functionContainer);
     if (!diff.exact) failures.push(`Function oracle verdict is ${diff.verdict.toUpperCase()}, not MATCH (${diff.matchedInstructions}/${diff.totalInstructions} words)`);
-  } else if (options.mode === "project-refinement") {
+  } else if (!cancelled() && options.mode === "project-refinement") {
     for (const name of scanFunctions) {
+      if (cancelled()) break;
       const touched = await runFunctionDiff(options.projectRoot, name, 60_000, options.signal, options.functionContainers?.[name]);
       if (!touched.exact) failures.push(`${name}: function oracle verdict is ${touched.verdict.toUpperCase()}, not MATCH (${touched.matchedInstructions}/${touched.totalInstructions} words)`);
     }
   }
 
-  const build = options.runBuild === false ? undefined : await runBuildCheck(options.projectRoot, 5 * 60_000, options.signal);
+  const build = options.runBuild === false || cancelled() ? undefined : await runBuildCheck(options.projectRoot, 5 * 60_000, options.signal);
   if (build && build.code !== 0) failures.push(`Full build verification failed with exit code ${build.code}`);
+  cancelled();
 
   return {
     pass: failures.length === 0,

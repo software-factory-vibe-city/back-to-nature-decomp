@@ -1,54 +1,15 @@
-import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { fileScopeDeclarations } from "./classifyGlobals.js";
-
-test("a tentative definition names the global's type, not only an extern", () => {
-  /* The file that owns a global defines it — that is how gp-relative addressing
-     is expressed here — and the type appears nowhere else in tracked source. */
-  const declared = fileScopeDeclarations([
-    "#include \"common.h\"",
-    "extern u16 D_80000001;",
-    "s16 D_80000002;",
-    "void f(void) { D_80000002 = 1; }",
-  ].join("\n"));
-  assert.equal(declared.get("D_80000001"), "u16");
-  assert.equal(declared.get("D_80000002"), "s16");
+import assert from "node:assert/strict";
+import { overrideSymbolsFrom, generateM2cContextFromHeader } from "./classifyGlobals.js";
+test("an address in a comment/string does not suppress a generated declaration", () => {
+  const symbols = overrideSymbolsFrom('/* D_8005E2F0 is related but not declared */\nextern int D_80000000;\nstatic char *description = "D_8005E33A";\n');
+  assert.deepEqual([...symbols], ["D_80000000"]);
 });
-
-test("declarations inside a function body are not file-scope declarations", () => {
-  /* The reason this is parsed rather than matched: a regex sees the same text
-     either way, and the generated header is built from the answer. */
-  const declared = fileScopeDeclarations([
-    "void f(void) {",
-    "    s16 D_80000003;",
-    "    D_80000003 = 1;",
-    "}",
-  ].join("\n"));
-  assert.equal(declared.has("D_80000003"), false);
+test("real macro-backed views and backing declarations suppress only witnessed objects", () => {
+  const symbols = overrideSymbolsFrom('extern unsigned char backing[128] asm("D_80000000");\n#define D_80000000 backing\n#define D_80000004 (*((unsigned short (*)[4])backing))\n/* unrelated D_80000008 */\n');
+  assert.ok(symbols.has("D_80000000")); assert.ok(symbols.has("D_80000004")); assert.equal(symbols.has("D_80000008"), false);
 });
-
-test("text inside a comment or a disabled block is not a declaration", () => {
-  const declared = fileScopeDeclarations([
-    "/* s16 D_80000004; */",
-    "#if 0",
-    "s16 D_80000005;",
-    "#endif",
-    "s16 D_80000006;",
-  ].join("\n"));
-  assert.equal(declared.has("D_80000004"), false);
-  assert.equal(declared.has("D_80000005"), false);
-  assert.equal(declared.get("D_80000006"), "s16");
-});
-
-test("pointers and arrays are left to the other inference passes", () => {
-  /* They are a different declaration than the scalar the generated header
-     emits, so typing them as the scalar they are built from would be wrong. */
-  const declared = fileScopeDeclarations([
-    "s16 *D_80000007;",
-    "s16 D_80000008[4];",
-    "s32 D_80000009;",
-  ].join("\n"));
-  assert.equal(declared.has("D_80000007"), false);
-  assert.equal(declared.has("D_80000008"), false);
-  assert.equal(declared.get("D_80000009"), "s32");
+test("effective macro-array projection retains the array shape, not a scalar guess", () => {
+  const text = generateM2cContextFromHeader('extern unsigned char backing[128];\n#define D_80000004 (*((unsigned short (*)[4])backing))\n', ["D_80000004"]);
+  assert.match(text, /extern unsigned short D_80000004\[4\]/);
 });

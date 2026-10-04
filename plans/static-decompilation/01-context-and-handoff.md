@@ -1,8 +1,12 @@
 # Task 1 — faithful m2c context and a prepared first-pass handoff
 
-Status: **planned**. This task ships without
-[Task 2](02-declaration-integration.md) and removes the current repair path.
-Validation is defined in [the two-session backtest plan](03-session-backtesting.md).
+Status: **implemented and ready for user testing; session backtests deferred**.
+Preparation is the default in interactive commands and both controllers.
+Completed checks and explicit limitations are recorded in
+[the implementation report](../../notes/research/static-preparation-task1.md).
+This task runs without [Task 2](02-declaration-integration.md). The full acceptance
+plan, including [session backtests](03-session-backtesting.md), is not certified
+complete.
 
 ## 1. Contract
 
@@ -291,8 +295,8 @@ Search the repository for both names and the old repaired-m2c seed priority.
 Classify remaining references as historical evidence or executable/live guidance.
 Historical notes can retain what actually happened, and historical baseline
 replay may use a pinned old revision in isolation. No production compatibility
-shim may invoke the old repair algorithm. An obsolete saved tool call should
-report that the tool was retired, not silently recreate it.
+shim may invoke the old repair algorithm. The tool is removed outright; do not add compatibility hooks, replacement
+registrations or agent-facing retirement messages for saved calls.
 
 The similarly named near-miss diagnostic is a different tool; do not delete
 unrelated machinery just because its name contains “repair”.
@@ -337,6 +341,7 @@ unrelated machinery just because its name contains “repair”.
   checks, the full test suite and configured binary verification in a clean
   integration workspace.
 - Complete the Task-1-only backtest arm. Report coverage, regressions, unresolved
-  cases and cost including static preparation. Default enablement depends on
-  the predeclared correctness and harness-improvement criteria, not a higher
-  compile percentage on the repair-selected sample alone.
+  cases and cost including static preparation. Evaluate the predeclared
+  correctness and harness-improvement criteria, not just compile percentage on
+  the repair-selected sample. Preparation is enabled by default as explicitly
+  requested by the user; do not add an opt-in gate.

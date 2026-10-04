@@ -16,7 +16,7 @@ export function readState(config: LoopConfig): LoopState {
   if (!existsSync(path)) return emptyState();
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as Partial<LoopState>;
-    return { parked: raw.parked ?? {}, approvals: raw.approvals ?? {} };
+    return { parked: raw.parked ?? {}, approvals: raw.approvals ?? {}, ...(raw.completions ? { completions: raw.completions } : {}) };
   } catch {
     return emptyState();
   }

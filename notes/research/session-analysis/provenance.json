@@ -1,0 +1,241 @@
+{
+  "scope": "Read-only analysis of historical JSONL and original target bytes. No source rewrite, compiler run, or matching attempt.",
+  "sessions": [
+    {
+      "session": 1,
+      "path": "/home/dave/.pi/agent/sessions/--home-dave-Documents-code-btn-decompilation--/2026-10-03T20-23-15-805Z_01a1036f-6a5d-7202-b5ce-034cef59c181.jsonl",
+      "sha256": "90330cff7b1d1dfbf2ef91ff84963b35a6db3f2fadc88730a7c0aa544ade7563",
+      "bytes": 18497948,
+      "lines": 6861,
+      "start": "2026-10-03T20:23:15.805Z",
+      "end": "2026-10-04T01:04:26.833Z",
+      "targets": 99
+    },
+    {
+      "session": 2,
+      "path": "/home/dave/.pi/agent/sessions/--home-dave-Documents-code-btn-decompilation--/2026-10-04T07-32-28-677Z_01a105d4-1985-7664-8d15-efa4eed70e6f.jsonl",
+      "sha256": "c2a78cd1726f04d8de3c70bfb7b1c844723055ac27b2bb2b602ad6c57b05236c",
+      "bytes": 36155266,
+      "lines": 12356,
+      "start": "2026-10-04T07:32:28.677Z",
+      "end": "2026-10-04T16:37:04.477Z",
+      "targets": 171
+    }
+  ],
+  "analysisCheckout": "40f515cbf252996fe844d08ccf3da88a5ad0d8e6",
+  "structuralReaderFiles": [
+    {
+      "path": "tools/agent/machine-ir/index.ts",
+      "sha256": "7a4093e16d232ad7e22c3673d822d43d06d4057beca2eada3fd36d5162a6ac55"
+    },
+    {
+      "path": "tools/agent/machine-ir/cfg.ts",
+      "sha256": "04cba5228d337d91a2eca8be24b94304bfea59c6007292fe61f0bd13ed276eac"
+    },
+    {
+      "path": "tools/agent/machine-ir/dominance.ts",
+      "sha256": "4602dfa631231bf1320bafc2a73dbfc56d670d4651c780b4a1332a03b0277d4a"
+    },
+    {
+      "path": "tools/agent/machine-ir/regions.ts",
+      "sha256": "34f1b2d15a7a22693406c06de99da4b73588f2c0ad0b3d5ab4fc75cfe32e47e1"
+    },
+    {
+      "path": "tools/agent/matching-reconstruction/decode.ts",
+      "sha256": "04e952e790fd99f308fb62ebd3c7bfe5cd3e13a4979bcb44c1861ee276f04180"
+    },
+    {
+      "path": "tools/agent/matching-reconstruction/exec.ts",
+      "sha256": "1b4ed53be112269c3da98aa10a2904c5938ce0f8ec13bd24293f4f3d51274ca6"
+    },
+    {
+      "path": "tools/lib/symbolIndex.ts",
+      "sha256": "ef18ea0c977c7f128aaaa0618a1fba8088760bcd8e0c2255dc141916f4e966e9"
+    },
+    {
+      "path": "tools/lib/container.ts",
+      "sha256": "894fe8c35c30d16dea237c56b8571ee81606dbeca424a1407fdd2d37fcdb37e0"
+    }
+  ],
+  "loopMembershipNote": "Loop headers/latches from target CFG dominance; reverse predecessor walk stops at header, including self-latches. Nested means strict containment of corrected loop body sets. Raw machine-IR loop depths are not used.",
+  "all": {
+    "n": 269,
+    "workMinutes": 692.0356166666667,
+    "meanMinutes": 2.572623110285006,
+    "medianMinutes": 1.4337833333333334,
+    "p90Minutes": 4.251883333333334,
+    "over5min": 21,
+    "over10min": 10,
+    "medianAssistantMessages": 15,
+    "nativeResidualCalls": 829,
+    "exactObserved": 266,
+    "firstExactMedianMinutes": 1.1228833333333332
+  },
+  "bySession": [
+    {
+      "session": 1,
+      "n": 99,
+      "workMinutes": 231.72930000000002,
+      "meanMinutes": 2.3407000000000004,
+      "medianMinutes": 1.3380666666666667,
+      "p90Minutes": 3.6027,
+      "over5min": 5,
+      "over10min": 2,
+      "medianAssistantMessages": 15,
+      "nativeResidualCalls": 232,
+      "exactObserved": 98,
+      "firstExactMedianMinutes": 1.0488166666666667
+    },
+    {
+      "session": 2,
+      "n": 170,
+      "workMinutes": 460.3063166666671,
+      "meanMinutes": 2.7076842156862773,
+      "medianMinutes": 1.4662083333333333,
+      "p90Minutes": 4.687799999999999,
+      "over5min": 16,
+      "over10min": 8,
+      "medianAssistantMessages": 15,
+      "nativeResidualCalls": 597,
+      "exactObserved": 168,
+      "firstExactMedianMinutes": 1.18195
+    }
+  ],
+  "byShape": [
+    {
+      "shape": "straight_line",
+      "n": 80,
+      "workMinutes": 150.28363333333328,
+      "meanMinutes": 1.878545416666666,
+      "medianMinutes": 1.2341083333333336,
+      "p90Minutes": 3.2630666666666666,
+      "over5min": 3,
+      "over10min": 2,
+      "medianAssistantMessages": 14,
+      "nativeResidualCalls": 149,
+      "exactObserved": 80,
+      "firstExactMedianMinutes": 0.9484999999999999
+    },
+    {
+      "shape": "acyclic_branch",
+      "n": 145,
+      "workMinutes": 353.79996666666705,
+      "meanMinutes": 2.439999770114945,
+      "medianMinutes": 1.4191333333333334,
+      "p90Minutes": 4.213733333333334,
+      "over5min": 10,
+      "over10min": 3,
+      "medianAssistantMessages": 15,
+      "nativeResidualCalls": 417,
+      "exactObserved": 144,
+      "firstExactMedianMinutes": 1.1223583333333333
+    },
+    {
+      "shape": "loop",
+      "n": 44,
+      "workMinutes": 187.95201666666665,
+      "meanMinutes": 4.271636742424242,
+      "medianMinutes": 1.8225416666666665,
+      "p90Minutes": 12.72135,
+      "over5min": 8,
+      "over10min": 5,
+      "medianAssistantMessages": 22.5,
+      "nativeResidualCalls": 263,
+      "exactObserved": 42,
+      "firstExactMedianMinutes": 1.3955
+    }
+  ],
+  "bySubshape": [
+    {
+      "shape": "straight_line",
+      "n": 80,
+      "workMinutes": 150.28363333333328,
+      "meanMinutes": 1.878545416666666,
+      "medianMinutes": 1.2341083333333336,
+      "p90Minutes": 3.2630666666666666,
+      "over5min": 3,
+      "over10min": 2,
+      "medianAssistantMessages": 14,
+      "nativeResidualCalls": 149,
+      "exactObserved": 80,
+      "firstExactMedianMinutes": 0.9484999999999999
+    },
+    {
+      "shape": "acyclic_one_branch",
+      "n": 70,
+      "workMinutes": 138.10948333333326,
+      "meanMinutes": 1.972992619047618,
+      "medianMinutes": 1.2802833333333334,
+      "p90Minutes": 3.6027,
+      "over5min": 5,
+      "over10min": 1,
+      "medianAssistantMessages": 13,
+      "nativeResidualCalls": 159,
+      "exactObserved": 70,
+      "firstExactMedianMinutes": 1.002925
+    },
+    {
+      "shape": "acyclic_multiple_branches",
+      "n": 75,
+      "workMinutes": 215.69048333333325,
+      "meanMinutes": 2.87587311111111,
+      "medianMinutes": 1.5014,
+      "p90Minutes": 4.213733333333334,
+      "over5min": 5,
+      "over10min": 2,
+      "medianAssistantMessages": 16,
+      "nativeResidualCalls": 258,
+      "exactObserved": 74,
+      "firstExactMedianMinutes": 1.2308166666666664
+    },
+    {
+      "shape": "single_level_loop_latch_only",
+      "n": 21,
+      "workMinutes": 43.81505,
+      "meanMinutes": 2.0864309523809523,
+      "medianMinutes": 1.4704166666666665,
+      "p90Minutes": 3.4544833333333336,
+      "over5min": 1,
+      "over10min": 0,
+      "medianAssistantMessages": 18,
+      "nativeResidualCalls": 56,
+      "exactObserved": 21,
+      "firstExactMedianMinutes": 1.1774333333333333
+    },
+    {
+      "shape": "single_level_loop_extra_branches",
+      "n": 20,
+      "workMinutes": 93.26223333333334,
+      "meanMinutes": 4.663111666666667,
+      "medianMinutes": 2.002908333333333,
+      "p90Minutes": 12.72135,
+      "over5min": 5,
+      "over10min": 3,
+      "medianAssistantMessages": 27,
+      "nativeResidualCalls": 144,
+      "exactObserved": 19,
+      "firstExactMedianMinutes": 1.6628333333333332
+    },
+    {
+      "shape": "nested_loops",
+      "n": 3,
+      "workMinutes": 50.87473333333333,
+      "meanMinutes": 16.958244444444443,
+      "medianMinutes": 16.651933333333332,
+      "p90Minutes": 29.743783333333333,
+      "over5min": 2,
+      "over10min": 2,
+      "medianAssistantMessages": 47,
+      "nativeResidualCalls": 63,
+      "exactObserved": 2,
+      "firstExactMedianMinutes": 10.214833333333333
+    }
+  ],
+  "outcomes": {
+    "finalize_pass": 261,
+    "exact_policy_blocked": 3,
+    "no_exact_observed": 3,
+    "exact_scope_blocked": 2,
+    "not_started": 1
+  }
+}

@@ -30,6 +30,8 @@ import type {
   WorkMode,
 } from "./types.ts";
 import { runPiWorker } from "./worker.ts";
+import { prepareAttempt, attemptStaticFinalization, buildInputs, inputIdentity, documentCompletion, sameInputs } from "../tools/prepared-attempt.ts";
+import { finalizeWorkspace } from "../tools/finalization.ts";
 import {
   applyPatch,
   changedFilesBetweenTrees,
@@ -278,6 +280,11 @@ export class AutodecompController {
         updateNeighborHashes(this.state, this.graph, this.config.retry.retryOnNeighborHashChange);
         this.store.save(this.state);
 
+        const pendingDocumentation = Object.values(this.state.functions).find((f) => f.completion?.documentation === "pending");
+        if (pendingDocumentation) {
+          if (!(await this.documentWork(pendingDocumentation))) { this.state.status = "paused"; break; }
+          continue;
+        }
         if (this.targetedBatchRemaining === 0 && this.state.matchesSinceTargeted >= this.config.refinement.targetedEveryMatches) {
           this.targetedBatchRemaining = this.config.refinement.targetedBatchSize;
         }
@@ -536,6 +543,41 @@ export class AutodecompController {
         : join(functionDir(this.config, work.functionKey!), "sessions", groupId);
 
     try {
+      let preparedHandoff = "";
+      if (work.mode === "match" && work.functionName) {
+        try {
+          const prepared = await prepareAttempt(workspace.path, work.functionName, this.abortController.signal);
+          const result = await attemptStaticFinalization({ root: workspace.path, attempt: prepared,
+            aborted: () => this.abortController.signal.aborted,
+            finalize: async () => {
+              const tree = await createTreeFromWorktree(this.projectRoot, workspace.path, this.config.integration.allowedRoots, this.abortController.signal);
+              const patch = await treePatch(this.projectRoot, workspace.baselineTree, tree, this.config.integration.allowedRoots, this.abortController.signal);
+              const files = [...new Set([...await changedFilesBetweenTrees(this.projectRoot, workspace.baselineTree, tree, this.abortController.signal), ...await workspaceChangedFiles(workspace.path, this.abortController.signal)])];
+              lastGate = await finalizeWorkspace({ projectRoot: workspace.path, config: this.config,
+                functionName: work.functionName!, changedFiles: files, patch, signal: this.abortController.signal });
+              return { passed: lastGate.pass, changedFiles: files, detail: lastGate.failures.join("; ") };
+            } });
+          preparedHandoff = result.handoff;
+          if (result.completed && lastGate?.pass) {
+            const tree = await createTreeFromWorktree(this.projectRoot, workspace.path, this.config.integration.allowedRoots, this.abortController.signal);
+            const patch = await treePatch(this.projectRoot, workspace.baselineTree, tree, this.config.integration.allowedRoots, this.abortController.signal);
+            const files = await changedFilesBetweenTrees(this.projectRoot, workspace.baselineTree, tree, this.abortController.signal);
+            const path = join(functionDir(this.config, work.functionKey!), "patches", `${groupId}-static.patch`);
+            mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, patch);
+            success = await this.integrate(work, workspace.baselineTree, tree, patch, path, files, lastGate);
+            if (success && fn) {
+              const inputs = buildInputs(this.projectRoot);
+              fn.completion = { origin: "static", inputs, verifiedIdentity: inputIdentity(inputs), verification: "passed",
+                changedFiles: files, documentation: "pending" };
+              this.acceptMatched(fn, "Static candidate passed the same workspace and trunk finalization gates");
+              await this.documentWork(fn);
+              return fn.completion?.verification !== "invalidated";
+            }
+            preparedHandoff += "\nTrunk integration failed; the candidate is not accepted.";
+          }
+        } catch (error) { preparedHandoff = `Preparation failed: ${String(error)}. Preserve the current source.`; }
+      }
+      this.abortController.signal.throwIfAborted();
       const maxAttempts = work.mode === "match"
         ? Math.min(
           this.config.budgets.maxAttemptsPerFunctionPerEpoch - (fn?.attemptsThisEpoch ?? 0),
@@ -544,6 +586,7 @@ export class AutodecompController {
         : 1;
 
       for (let localAttempt = 0; localAttempt < Math.max(1, maxAttempts); localAttempt++) {
+        this.abortController.signal.throwIfAborted();
         const modelTier = work.mode === "match" ? this.modelTierForCount(fn!.attemptsThisEpoch) : 0;
         if (modelTier === undefined) break;
         const model = this.config.matching.models[modelTier];
@@ -584,9 +627,7 @@ export class AutodecompController {
           turnLimit: this.config.matching.turnLimit,
           signal: this.abortController.signal,
           mirrorOutput: true,
-          handoff: localAttempt === 0 && fn?.parkedReason
-            ? `${fn.parkedReason}${fn.attempts.at(-2) && this.state.attempts[fn.attempts.at(-2)!]?.patchPath ? `; previous candidate patch: ${this.state.attempts[fn.attempts.at(-2)!].patchPath}` : ""}`
-            : undefined,
+          handoff: localAttempt === 0 ? [preparedHandoff, fn?.parkedReason].filter(Boolean).join("\n\n") : undefined,
         });
         attempt.worker = worker;
         addUsage(this.state.totalUsage, worker.usage);
@@ -597,17 +638,17 @@ export class AutodecompController {
           break;
         }
 
-        const exportArgs = work.mode === "project-refinement"
+        const exportArgs = work.mode === "match" ? undefined : work.mode === "project-refinement"
           ? ["tsx", "tools/agent/contextExport.ts", "--all"]
           : work.functionName ? ["tsx", "tools/agent/contextExport.ts", work.functionName] : undefined;
         const exportResult = exportArgs
-          ? await runCommand("npx", exportArgs, { cwd: workspace.path, timeoutMs: 60_000 })
+          ? await runCommand("npx", exportArgs, { cwd: workspace.path, timeoutMs: 60_000, signal: this.abortController.signal })
           : undefined;
 
-        const candidateTree = await createTreeFromWorktree(this.projectRoot, workspace.path, this.config.integration.allowedRoots);
-        const patch = await treePatch(this.projectRoot, workspace.baselineTree, candidateTree, this.config.integration.allowedRoots);
-        const treeChanged = await changedFilesBetweenTrees(this.projectRoot, workspace.baselineTree, candidateTree);
-        const workspaceChanged = await workspaceChangedFiles(workspace.path);
+        const candidateTree = await createTreeFromWorktree(this.projectRoot, workspace.path, this.config.integration.allowedRoots, this.abortController.signal);
+        const patch = await treePatch(this.projectRoot, workspace.baselineTree, candidateTree, this.config.integration.allowedRoots, this.abortController.signal);
+        const treeChanged = await changedFilesBetweenTrees(this.projectRoot, workspace.baselineTree, candidateTree, this.abortController.signal);
+        const workspaceChanged = await workspaceChangedFiles(workspace.path, this.abortController.signal);
         const changedFiles = [...new Set([...treeChanged, ...workspaceChanged])].sort();
         const patchDir = work.mode === "project-refinement"
           ? join(this.config.runtimeDir, "refinements", "project", groupId)
@@ -617,7 +658,10 @@ export class AutodecompController {
         writeFileSync(patchPath, patch);
         attempt.patchPath = patchPath;
 
-        const gate = compactGate(await runGate({
+        const gate = compactGate(await (work.mode === "match" && work.functionName ? finalizeWorkspace({
+          projectRoot: workspace.path, config: this.config, functionName: work.functionName, changedFiles, patch,
+          signal: this.abortController.signal,
+        }) : runGate({
           projectRoot: workspace.path,
           config: this.config,
           mode: work.mode,
@@ -628,7 +672,7 @@ export class AutodecompController {
           changedFiles,
           patch,
           signal: this.abortController.signal,
-        }));
+        })));
         if (exportResult && exportResult.code !== 0) {
           gate.pass = false;
           gate.failures.push(`Context export failed: ${truncate(exportResult.stderr || exportResult.stdout, 4096)}`);
@@ -638,7 +682,18 @@ export class AutodecompController {
         this.store.save(this.state);
 
         if (gate.pass) {
-          success = await this.integrate(work, workspace.baselineTree, candidateTree, patch, patchPath, changedFiles, gate);
+          /* Finalization may have exported context; integrate the tree actually gated. */
+          const finalizedTree = await createTreeFromWorktree(this.projectRoot, workspace.path, this.config.integration.allowedRoots, this.abortController.signal);
+          const finalizedPatch = await treePatch(this.projectRoot, workspace.baselineTree, finalizedTree, this.config.integration.allowedRoots, this.abortController.signal);
+          const finalizedFiles = await changedFilesBetweenTrees(this.projectRoot, workspace.baselineTree, finalizedTree, this.abortController.signal);
+          writeFileSync(patchPath, finalizedPatch);
+          success = await this.integrate(work, workspace.baselineTree, finalizedTree, finalizedPatch, patchPath, finalizedFiles, gate);
+          if (success && fn && work.mode === "match") {
+            const inputs = buildInputs(this.projectRoot);
+            fn.completion = { origin: "agent", inputs, verifiedIdentity: inputIdentity(inputs), verification: "passed",
+              changedFiles: finalizedFiles, documentation: "pending" };
+            this.store.save(this.state);
+          }
           attempt.status = success ? "passed" : "failed";
           attempt.summary = success ? "Candidate passed workspace and trunk gates" : "Trunk integration gate failed";
           this.store.save(this.state);
@@ -659,7 +714,13 @@ export class AutodecompController {
 
     if (work.mode === "match" && fn) {
       fn.lastGate = lastGate;
-      if (success) this.acceptMatched(fn, "Agent candidate passed deterministic workspace and trunk gates");
+      if (success) {
+        this.acceptMatched(fn, "Agent candidate passed deterministic workspace and trunk gates");
+        if (fn.completion) {
+          await this.documentWork(fn);
+          if (fn.completion.verification === "invalidated") success = false;
+        }
+      }
       else {
         const tier = this.modelTierForCount(fn.attemptsThisEpoch);
         fn.status = tier === undefined || fn.attemptsThisEpoch >= this.config.budgets.maxAttemptsPerFunctionPerEpoch ? "parked" : "retry-ready";
@@ -712,7 +773,7 @@ export class AutodecompController {
     changedFiles: string[],
     workspaceGate: GateResult,
   ): Promise<boolean> {
-    const currentTree = await createTreeFromWorktree(this.projectRoot, this.projectRoot, this.config.integration.allowedRoots);
+    const currentTree = await createTreeFromWorktree(this.projectRoot, this.projectRoot, this.config.integration.allowedRoots, this.abortController.signal);
     if (currentTree !== baselineTree || this.state.baselineTree !== baselineTree) {
       this.store.event("integration_stale", { expected: baselineTree, actual: currentTree });
       return false;
@@ -721,10 +782,13 @@ export class AutodecompController {
     let applied = false;
     try {
       if (patch.trim()) {
-        await applyPatch(this.projectRoot, patchPath);
+        await applyPatch(this.projectRoot, patchPath, this.abortController.signal);
         applied = true;
       }
-      const trunkGate = compactGate(await runGate({
+      const trunkGate = compactGate(await (work.mode === "match" && work.functionName ? finalizeWorkspace({
+        projectRoot: this.projectRoot, config: this.config, functionName: work.functionName, changedFiles, patch,
+        signal: this.abortController.signal,
+      }) : runGate({
         projectRoot: this.projectRoot,
         config: this.config,
         mode: work.mode,
@@ -735,7 +799,7 @@ export class AutodecompController {
         changedFiles,
         patch,
         signal: this.abortController.signal,
-      }));
+      })));
       if (!trunkGate.pass) {
         this.store.event("integration_gate_failed", { key: work.functionKey, failures: trunkGate.failures });
         if (applied) await reversePatch(this.projectRoot, patchPath);
@@ -763,6 +827,47 @@ export class AutodecompController {
       this.store.event("integration_error", { error: String(error) });
       return false;
     }
+  }
+
+  private async documentWork(fn: FunctionState): Promise<boolean> {
+    if (!fn.completion) return true;
+    if (this.abortController.signal.aborted) return false;
+    const currentInputs = buildInputs(this.projectRoot);
+    if (!sameInputs(fn.completion.inputs, currentInputs)) {
+      const drift = [...new Set([...Object.keys(fn.completion.inputs), ...Object.keys(currentInputs)])]
+        .filter((p) => fn.completion!.inputs[p] !== currentInputs[p]);
+      const gate = await finalizeWorkspace({ projectRoot: this.projectRoot, config: this.config, functionName: fn.currentName,
+        changedFiles: [...new Set([...fn.completion.changedFiles, ...drift])], patch: "", signal: this.abortController.signal });
+      if (!gate.pass) {
+        fn.completion = { ...fn.completion, verification: "invalidated", documentation: "pending", error: gate.failures.join("; ") };
+        this.store.save(this.state); return false;
+      }
+      const inputs = buildInputs(this.projectRoot);
+      fn.completion = { ...fn.completion, inputs, verifiedIdentity: inputIdentity(inputs), verification: "passed", documentation: "pending", error: undefined };
+      this.state.baselineTree = await createTreeFromWorktree(this.projectRoot, this.projectRoot, this.config.integration.allowedRoots, this.abortController.signal);
+      this.store.save(this.state);
+    }
+    const completed = await documentCompletion(this.projectRoot, fn.completion, async () => {
+      const model = this.config.matching.models[0];
+      if (!model || this.abortController.signal.aborted) return false;
+      const worker = await runPiWorker({ workspace: this.projectRoot,
+        sessionDir: join(functionDir(this.config, keyOf(fn)), "documentation", fn.completion!.verifiedIdentity),
+        mode: "match", functionName: fn.currentName, model, documentation: true, continueSession: false,
+        timeoutMs: this.config.matching.timeoutMinutes * 60_000, idleTimeoutMs: this.config.matching.idleTimeoutMinutes * 60_000,
+        turnLimit: this.config.matching.turnLimit, signal: this.abortController.signal,
+        handoff: `Verified identity: ${fn.completion!.verifiedIdentity}. Changed files: ${fn.completion!.changedFiles.join(", ")}.`,
+      });
+      addUsage(this.state.totalUsage, worker.usage);
+      return worker.code === 0 && !!worker.finalText && !worker.stoppedByController && !worker.timedOut && !worker.idleTimedOut;
+    });
+    fn.completion = completed;
+    if (completed.verification === "invalidated") {
+      fn.status = "retry-ready"; fn.parkedReason = completed.error;
+      this.state.lastError = completed.error;
+    }
+    this.store.save(this.state);
+    this.store.event("documentation", { key: keyOf(fn), status: completed.documentation, error: completed.error });
+    return completed.documentation === "passed";
   }
 
   private acceptMatched(fn: FunctionState, reason: string): void {

@@ -39,7 +39,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Container } from "../../lib/container.js";
 import { ROOT } from "../decompToolchain.js";
-import { definitionPrototype, sdkPrototypes, targetWitness } from "../calleeTruth.js";
+import { definitionPrototype, sdkPrototypes, targetWitness, prototypesIn } from "../calleeTruth.js";
 import {
   children,
   field,
@@ -175,105 +175,19 @@ function parseHeaderSignature(
   return result;
 }
 
-/** The generated function header for a container, or null. */
-function generatedHeaderPath(container: Container): string | null {
-  if (container.id === "exe") {
-    const path = join(ROOT, "include/functions.h");
-    return existsSync(path) ? path : null;
-  }
-  const overlayId = container.id.replace(/^ovl_/, "");
-  const path = join(ROOT, `include/overlays/${overlayId}.h`);
-  return existsSync(path) ? path : null;
-}
-
-/** The exe's generated function header, for cross-container resolution. */
-function exeHeaderPath(): string | null {
-  const path = join(ROOT, "include/functions.h");
-  return existsSync(path) ? path : null;
-}
-
-/* ------------------------------------------------------------------ */
-/* Tier 1 — the callee's own matched definition                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * The callee's matched signature from the generated header for its container.
- *
- * Gated on `definitionPrototype`, which only answers for a genuinely matched
- * callee — a `src/` file that is real C, not an `INCLUDE_ASM` stub. Trusting
- * the generated header for a stub would be reading a guess back; the gate
- * keeps that circularity out.
- *
- * For a callee defined in the exe but called from an overlay, also searches
- * `include/functions.h` as a fallback (cross-container reference).
- */
-/* A generated header is parsed once per run and reused: resolveSignature is
- * called once per call site, and a function with hundreds of call sites would
- * otherwise re-read and tree-sitter-parse the whole header hundreds of times
- * (seconds per function). The headers do not change during a run. */
-const parsedHeaderCache = new Map<string, ReturnType<typeof parseC>>();
-function parsedHeader(path: string): ReturnType<typeof parseC> {
-  const cached = parsedHeaderCache.get(path);
-  if (cached) return cached;
-  const tree = parseC(readFileSync(path, "utf-8"));
-  parsedHeaderCache.set(path, tree);
-  return tree;
-}
-
-function matchedDefinition(callee: string, container: Container): SignatureResult | null {
-  /* Cold mode withholds recovered game C, and a matched definition is exactly
-   * that: somebody already wrote this callee's signature. The lower tiers —
-   * the SDK's own declarations and the callee's machine code — stay, because
-   * neither is recovered material. */
+/** Use the defining source, never a generated signature as a witness.
+ * Full source types survive; unspecified/variadic contracts remain unknown. */
+function matchedDefinition(callee: string, _container: Container): SignatureResult | null {
   if (!warmContextAllowed()) return null;
   const matched = definitionPrototype(callee);
   if (!matched) return null;
-
-  /* Try the container's own header first (functions.h for exe,
-   * overlays/<id>.h for an overlay). */
-  const ownHeader = generatedHeaderPath(container);
-  if (ownHeader) {
-    try {
-      const tree = parsedHeader(ownHeader);
-      const parsed = parseHeaderSignature(callee, tree);
-      if (parsed) {
-        return {
-          arity: parsed.arity,
-          paramTypes: parsed.paramTypes,
-          returnsValue: !parsed.returnsVoid,
-          returnType: parsed.returnsVoid ? "void" : "s32",
-          source: "matched",
-        };
-      }
-    } catch {
-      /* fall through to cross-container check */
-    }
-  }
-
-  /* Cross-container fallback: an overlay function calling an exe function.
-   * The exe's functions.h declares it even if the overlay's header does not. */
-  if (container.id !== "exe") {
-    const exeHeader = exeHeaderPath();
-    if (exeHeader) {
-      try {
-        const tree = parsedHeader(exeHeader);
-        const parsed = parseHeaderSignature(callee, tree);
-        if (parsed) {
-          return {
-            arity: parsed.arity,
-            paramTypes: parsed.paramTypes,
-            returnsValue: !parsed.returnsVoid,
-            returnType: parsed.returnsVoid ? "void" : "s32",
-            source: "matched",
-          };
-        }
-      } catch {
-        return null;
-      }
-    }
-  }
-
-  return null;
+  if (matched.parameters === null || matched.variadic || !matched.returnType || !matched.paramTypes)
+    return { unknown: `incomplete source contract for ${callee}: ${matched.signature}` };
+  const sdk = sdkPrototypes().get(callee);
+  if (sdk && (sdk.parameters !== matched.parameters || sdk.returnType !== matched.returnType))
+    return { unknown: `source/SDK disagreement for ${callee}: ${matched.signature} vs ${sdk.signature}` };
+  return { arity: matched.parameters, paramTypes: matched.paramTypes,
+    returnsValue: !matched.returnsVoid, returnType: matched.returnType, source: "matched" };
 }
 
 /* ------------------------------------------------------------------ */
@@ -308,43 +222,17 @@ function publishedDefinition(callee: string): SignatureResult | null {
     arity: parsed.arity,
     paramTypes: parsed.paramTypes,
     returnsValue: !parsed.returnsVoid,
-    returnType: parsed.returnsVoid ? "void" : "s32",
+    returnType: parsed.returnType,
     source: "recovered",
   };
 }
 
 /** The signature a function *definition* states, as opposed to a declaration. */
-function parseDefinitionSignature(
-  callee: string,
-  tree: ReturnType<typeof parseC>,
-): { arity: number; paramTypes: string[]; returnsVoid: boolean } | null {
-  let result: { arity: number; paramTypes: string[]; returnsVoid: boolean } | null = null;
-  walk(tree.rootNode, (node) => {
-    if (result) return false;
-    if (node.type !== "function_definition") return true;
-    const returnType = field(node, "type");
-    const declarator = field(node, "declarator");
-    if (!returnType || !declarator) return false;
-    let core = declarator;
-    while (core.type === "pointer_declarator") {
-      const inner = field(core, "declarator");
-      if (!inner) break;
-      core = inner;
-    }
-    if (core.type !== "function_declarator") return false;
-    const nameNode = field(core, "declarator");
-    const params = field(core, "parameters");
-    if (!nameNode || !params || nameNode.text !== callee) return false;
-    const paramDecls = children(params).filter((child) => child.type === "parameter_declaration");
-    const voidParam = paramDecls.length === 1 && flatten(paramDecls[0]!) === "void";
-    result = {
-      arity: voidParam ? 0 : paramDecls.length,
-      paramTypes: voidParam ? [] : paramDecls.map(parameterType),
-      returnsVoid: flatten(returnType) === "void",
-    };
-    return false;
-  });
-  return result;
+function parseDefinitionSignature(callee: string, tree: ReturnType<typeof parseC>):
+  { arity: number; paramTypes: string[]; returnsVoid: boolean; returnType: string } | null {
+  const proto = prototypesIn(tree.rootNode.text, "recovered source").find((p) => p.name === callee && p.kind === "definition");
+  if (!proto || proto.parameters === null || proto.variadic || !proto.returnType || !proto.paramTypes) return null;
+  return { arity: proto.parameters, paramTypes: proto.paramTypes, returnsVoid: proto.returnsVoid, returnType: proto.returnType };
 }
 
 /* ------------------------------------------------------------------ */
@@ -363,9 +251,9 @@ function sdkPrototype(callee: string): SignatureResult | null {
   if (!proto || proto.parameters === null || proto.variadic) return null;
   return {
     arity: proto.parameters,
-    paramTypes: [],
+    paramTypes: proto.paramTypes ?? [],
     returnsValue: !proto.returnsVoid,
-    returnType: proto.returnsVoid ? "void" : "s32",
+    returnType: proto.returnType ?? (proto.returnsVoid ? "void" : "s32"),
     source: "sdk",
   };
 }

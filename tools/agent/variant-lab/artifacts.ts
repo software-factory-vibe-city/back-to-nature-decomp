@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { ROOT } from "../decompToolchain.js";
 import { implementationHash, projectPath, sha256, sha256File, stableJson, writeStableJson } from "../provenance.js";

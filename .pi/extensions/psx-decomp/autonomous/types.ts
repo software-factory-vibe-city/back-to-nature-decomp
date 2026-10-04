@@ -186,6 +186,7 @@ export interface FunctionState {
   attempts: string[];
   attemptsThisEpoch: number;
   matchedAt?: string;
+  completion?: import("../tools/prepared-attempt.ts").Completion;
   lastGate?: GateResult;
   lastDiffCategory?: string;
   lastRemainingDiff?: string;

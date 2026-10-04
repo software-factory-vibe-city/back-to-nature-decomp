@@ -133,7 +133,7 @@ test("a comment containing a paren does not swallow the signature", () => {
 
 test("a multi-line parameter list is normalized to one line", () => {
   const sigs = extractSignaturesFromSource("TILE *h(TILE *p,\n    u_long *ot,\n    s16 x) {\n}\n");
-  assert.deepEqual(sigs.map((s) => s.signature), ["TILE * h(TILE *p, u_long *ot, s16 x);"]);
+  assert.deepEqual(sigs.map((s) => s.signature), ["TILE *h(TILE *p, u_long *ot, s16 x);"]);
 });
 
 test("a body the grammar rejects still yields its signature", () => {
@@ -144,8 +144,9 @@ test("a body the grammar rejects still yields its signature", () => {
   assert.deepEqual(sigs.map((s) => s.signature), ["void p(void);"]);
 });
 
-test("an empty parameter list is published as (void)", () => {
-  assert.equal(extractSignaturesFromSource("void m() {\n}\n")[0].signature, "void m(void);");
+test("unspecified parameters are not silently strengthened to (void)", () => {
+  assert.equal(extractSignaturesFromSource("void m() {\n}\n")[0].signature, "void m();");
+  assert.equal(extractSignaturesFromSource("void m(void) {\n}\n")[0].signature, "void m(void);");
 });
 
 test("what the emitter writes, the reader can read back", () => {
@@ -208,13 +209,15 @@ test("resolveTypes does not treat a substring name as a dependency", () => {
   assert.deepEqual(ordered, ["TILE_1"], "TILE must not be pulled in by name overlap alone");
 });
 
-test("an undefined type is reported and backed by a placeholder", () => {
+test("an undefined type remains unknown without a fabricated layout", () => {
   const { ordered, unresolved } = resolveTypes(["NoSuchType"], new Map());
   assert.deepEqual(ordered, []);
   assert.deepEqual(unresolved, ["NoSuchType"]);
 
   const header = renderSdkTypesHeader({ ordered, unresolved }, new Map());
-  assert.match(header, /typedef struct \{ unsigned long pad\[1\]; \} NoSuchType;/);
+  assert.match(header, /Unresolved types/);
+  assert.match(header, /NoSuchType/);
+  assert.doesNotMatch(header, /pad\[1\]|typedef.*NoSuchType/);
 });
 
 /* ------------------------------------------------------------------ */

@@ -1,0 +1,180 @@
+--- a/m2c/translate.py
++++ b/m2c/translate.py
+@@ -985,6 +985,27 @@
+     op: str
+     right: Expression
+     type: Type
++    pointer_units_normalized: bool = False
++
++    def normalize_pointer_units(self) -> Expression:
++        """Machine add/subtract uses bytes, never C pointee-sized units."""
++        if self.pointer_units_normalized or self.op not in ("+", "-"):
++            return self
++        left = late_unwrap(self.left)
++        right = late_unwrap(self.right)
++        if self.op == "+" and not left.type.is_pointer_or_array() and right.type.is_pointer_or_array():
++            return replace(self, left=self.right, right=self.left).normalize_pointer_units()
++        if not left.type.is_pointer_or_array() or right.type.is_pointer_or_array():
++            return self
++        target = left.type.decay().get_pointer_target()
++        size = target.get_size_bytes() if target else None
++        if size == 1:
++            return self
++        if size and isinstance(right, Literal) and right.value % size == 0:
++            return replace(self, right=Literal(right.value // size, right.type), pointer_units_normalized=True)
++        byte_ptr = Type.ptr(Type.u8())
++        byte_sum = replace(self, left=Cast(self.left, byte_ptr, silent=False), type=byte_ptr, pointer_units_normalized=True)
++        return Cast(byte_sum, self.type, silent=False)
+ 
+     @staticmethod
+     def int(left: Expression, op: str, right: Expression) -> BinaryOp:
+@@ -1150,7 +1171,7 @@
+         ):
+             if self.op == "+":
+                 neg = Literal(value=-right_expr.value, type=right_expr.type)
+-                sub = BinaryOp(op="-", left=self.left, right=neg, type=self.type)
++                sub = replace(self, op="-", right=neg)
+                 return sub
+             if self.op in ("&", "|"):
+                 neg = Literal(value=~right_expr.value, type=right_expr.type)
+@@ -1160,6 +1181,9 @@
+         return self
+ 
+     def format(self, fmt: Formatter) -> str:
++        normalized = self.normalize_pointer_units()
++        if normalized is not self:
++            return f"({normalized.format(fmt)})"
+         left_expr = late_unwrap(self.left)
+         right_expr = late_unwrap(self.right)
+ 
+@@ -2793,6 +2817,8 @@
+     else:
+         is_dest = lambda e: var_for_expr(e) == dest
+     source = late_unwrap(source)
++    if isinstance(source, BinaryOp):
++        source = source.normalize_pointer_units()
+     if isinstance(source, BinaryOp) and source.op in COMPOUND_ASSIGNMENT_OPS:
+         source = source.normalize_for_formatting()
+         rhs = None
+@@ -4790,6 +4816,25 @@
+ 
+     # Guess parameters
+     if not fn_sig.params_known:
++        # Home-space offsets are ABI word positions, not a dense parameter
++        # list. Keep preceding unread slots explicitly unknown; do not invent
++        # scalar types to make an incomplete signature compile. A known
++        # prototype already carries its actual alignment and parameter types.
++        if arch.home_space_size:
++            positioned_args = []
++            offset = 0
++            for arg in stack_info.arguments:
++                if arg.loc.offset is not None:
++                    # A witnessed wide parameter supplies its own alignment;
++                    # ABI padding is not an additional source parameter.
++                    size, align = arg.type.get_parameter_size_align_bytes()
++                    while offset < arg.loc.offset and ((offset + align - 1) & -align) < arg.loc.offset:
++                        loc = ArgLoc(offset, offset // 4, None)
++                        positioned_args.append(PassedInArg(loc, stack_info, Type.any()))
++                        offset += 4
++                    offset = arg.loc.offset + ((size + 3) & ~3)
++                positioned_args.append(arg)
++            stack_info.arguments = positioned_args
+         while len(fn_sig.params) < len(stack_info.arguments):
+             fn_sig.params.append(FunctionParam())
+         for param, arg in zip(fn_sig.params, stack_info.arguments):
+--- /dev/null
++++ b/tests/unit/test_machine_units.py
+@@ -0,0 +1,93 @@
++from dataclasses import dataclass
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++
++from m2c.options import Formatter
++from m2c.translate import BinaryOp, Cast, Expression, Literal
++from m2c.types import Type
++
++
++@dataclass(frozen=True, eq=False)
++class Variable(Expression):
++    name: str
++    type: Type
++
++    def dependencies(self):
++        return []
++
++    def format(self, fmt):
++        return self.name
++
++
++class TestMachineUnits(unittest.TestCase):
++    def test_exact_element_units_and_negative_offsets(self):
++        pointer = Variable("p", Type.ptr(Type.u32()))
++        for displacement, spelling in ((12, "(p + 3)"), (-12, "(p - 3)"), (0, "(p + 0)")):
++            with self.subTest(displacement=displacement):
++                expr = BinaryOp(pointer, "+", Literal(displacement, Type.s32()), pointer.type)
++                normalized = expr.normalize_pointer_units()
++                self.assertTrue(normalized.pointer_units_normalized)
++                self.assertIs(normalized.normalize_pointer_units(), normalized)
++                self.assertEqual(normalized.format(Formatter()), spelling)
++
++    def test_nondivisible_variable_subtraction_and_commutation(self):
++        pointer = Variable("p", Type.ptr(Type.u32()))
++        for offset in (Literal(6, Type.s32()), Variable("n", Type.s32())):
++            for op in ("+", "-"):
++                with self.subTest(offset=offset, op=op):
++                    normalized = BinaryOp(pointer, op, offset, pointer.type).normalize_pointer_units()
++                    self.assertIsInstance(normalized, Cast)
++                    self.assertTrue(normalized.expr.pointer_units_normalized)
++                    self.assertEqual(normalized.type.get_size_bytes(), 4)
++                    self.assertEqual(normalized.expr.left.type.get_pointer_target().get_size_bytes(), 1)
++                    self.assertIn("u8 *", normalized.format(Formatter()))
++        normalized = BinaryOp(Literal(12, Type.s32()), "+", pointer, pointer.type).normalize_pointer_units()
++        self.assertEqual(normalized.format(Formatter()), "(p + 3)")
++        byte = Variable("b", Type.ptr(Type.u8()))
++        expr = BinaryOp(byte, "+", Literal(6, Type.s32()), byte.type)
++        self.assertIs(expr.normalize_pointer_units(), expr)
++        integer = Variable("i", Type.s32())
++        expr = BinaryOp(integer, "+", Literal(6, Type.s32()), integer.type)
++        self.assertIs(expr.normalize_pointer_units(), expr)
++
++    def decompile(self, body, context=""):
++        root = Path(__file__).resolve().parents[2]
++        with tempfile.TemporaryDirectory() as temp:
++            asm = Path(temp) / "input.s"
++            asm.write_text(".text\nglabel fixture\n" + body)
++            args = [sys.executable, str(root / "m2c.py"), "--target", "mipsel-gcc-c", "--no-cache", "-f", "fixture"]
++            if context:
++                ctx = Path(temp) / "context.c"
++                ctx.write_text("typedef unsigned int u32; " + context)
++                args += ["--context", str(ctx)]
++            return subprocess.check_output(args + [str(asm)], text=True, cwd=root)
++
++    def test_unknown_register_and_stack_slots_remain_unknown(self):
++        output = self.decompile("jr $ra\naddu $v0, $a2, $zero\n")
++        self.assertIn("(? arg0, ? arg1, s32 arg2)", output)
++        output = self.decompile("lw $v0, 20($sp)\njr $ra\nnop\n")
++        self.assertIn("(? arg0, ? arg1, ? arg2, ? arg3, ? arg4, s32 arg5)", output)
++
++    def test_known_wide_abi_layout_is_not_densified(self):
++        # Existing m2c decomposes a non-leading double into unknown word pieces.
++        # This patch must neither fill alignment padding nor invent their types;
++        # the context retains the double witness for the unresolved handoff.
++        output = self.decompile("lw $v0, 16($sp)\njr $ra\nnop\n", "int fixture(int unused, double wide, int value);")
++        self.assertIn("s32 fixture(s32 unused, ? wide_unk0, ? wide_unk4, s32 value)", output)
++        self.assertNotIn("arg1", output)
++        self.assertIn("return value;", output)
++
++    def test_compound_assignment_preserves_byte_units(self):
++        body = "lui $v1, %hi(pointer)\nlw $v0, %lo(pointer)($v1)\nnop\naddiu $v0, $v0, 6\nsw $v0, %lo(pointer)($v1)\njr $ra\nnop\n"
++        output = self.decompile(body, "extern u32 *pointer; void fixture(void);")
++        self.assertIn("(u8 *) pointer + 6", output)
++        self.assertNotIn("pointer += 6", output)
++        output = self.decompile(body.replace(", 6", ", 12"), "extern u32 *pointer; void fixture(void);")
++        self.assertIn("pointer += 3", output)
++
++
++if __name__ == "__main__":
++    unittest.main()

@@ -17,6 +17,7 @@ import { registerSynthesizeSourceShapesTool } from "./tools/synthesize-source-sh
 import { registerVerifyBuildTool } from "./tools/verify-build.ts";
 import { runProjectCommand } from "./tools/shared.ts";
 import { captureSessionBaseline } from "./tools/session-baseline.ts";
+import { prepareInteractive, interactiveDocumentation, interactivePreparationLifecycle, agentCompletion } from "./tools/interactive-preparation.ts";
 
 interface CallGraphEntry {
   name: string;
@@ -115,13 +116,13 @@ async function ensureCallGraph(
   pi: ExtensionAPI,
   ctx: { ui: { notify(message: string, level: "info" | "warning" | "error"): void } },
   root: string,
-  options: { refresh?: boolean } = {},
+  options: { refresh?: boolean; signal?: AbortSignal } = {},
 ): Promise<boolean> {
   if (loadCallGraph(root) && !(options.refresh && callGraphStale(root))) return true;
 
   ctx.ui.notify("build/callGraph.json is missing or stale; rebuilding it...", "info");
   try {
-    await runProjectCommand(pi, root, "npx", ["tsx", "tools/agent/callGraph.ts"], undefined, 120_000);
+    await runProjectCommand(pi, root, "npx", ["tsx", "tools/agent/callGraph.ts"], options.signal, 120_000);
   } catch (error) {
     ctx.ui.notify(
       `Call graph rebuild failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -171,20 +172,28 @@ function dispatchSkill(
 }
 
 export default function psxDecompExtension(pi: ExtensionAPI) {
+  const root = findProjectRoot(process.cwd());
+  const documentation = interactiveDocumentation(pi, root);
+  const preparation = interactivePreparationLifecycle(pi);
+  const cancelPreparation = async (ctx: Parameters<typeof preparation.run>[0]) => {
+    if (!await preparation.cancel()) ctx.ui.notify("No preparation running.", "info");
+  };
+  let loopActive = () => false;
   registerAnalyzeTargetScheduleTool(pi);
   registerCallGraphTool(pi);
   registerCompilerTraceTool(pi);
   registerDiagnosticTools(pi);
   registerExplainDiffTool(pi);
   registerExportContextTool(pi);
-  registerFinalizeFunctionTool(pi);
+  registerFinalizeFunctionTool(pi, (name, files, ctx) => {
+    if (process.env.AUTODECOMP_WORKER !== "1" && !loopActive()) documentation.start(name, agentCompletion(root, files), ctx);
+  });
   registerFuzzVariantsTool(pi);
   registerM2cTool(pi);
   registerSearchSourceShapesTool(pi);
   registerSynthesizeSourceShapesTool(pi);
   registerVerifyBuildTool(pi);
 
-  const root = findProjectRoot(process.cwd());
   /* Snapshot pre-existing workspace dirt so the finalize scope gate only
    * fails on files this session actually touched. */
   captureSessionBaseline(root);
@@ -203,33 +212,30 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
       return items.length > 0 ? items : null;
     },
     handler: async (args, ctx) => {
-      const explicit = args.trim().length > 0;
-      let name = explicit ? parseFunctionArg(args) : undefined;
-
-      if (!explicit && (await ensureCallGraph(pi, ctx, root, { refresh: true }))) {
-        name = nextDecompilationTarget(root);
-      }
-
-      if (!name) {
-        ctx.ui.notify(
-          explicit
-            ? "Usage: /decompile <function_name>"
-            : "No decompilation target found.",
-          "warning",
-        );
-        return;
-      }
-      if (!targetExists(root, name)) {
-        ctx.ui.notify(`Unknown function: ${name}`, "error");
-        return;
-      }
-
-      dispatchSkill(
-        pi,
-        ctx,
-        "psx-decompile-function",
-        `Target: ${name}. Mode: fresh decompilation. Create an m2c draft only if the source is still an INCLUDE_ASM stub; never overwrite an existing clean-C attempt.`,
-      );
+      if (args.trim() === "--cancel") { await cancelPreparation(ctx); return; }
+      await preparation.run(ctx, async (signal) => {
+        const explicit = args.trim().length > 0;
+        let name = explicit ? parseFunctionArg(args) : undefined;
+        if (!explicit && (await ensureCallGraph(pi, ctx, root, { refresh: true, signal }))) name = nextDecompilationTarget(root);
+        signal.throwIfAborted();
+        if (!name) {
+          ctx.ui.notify(explicit ? "Usage: /decompile <function_name> | --cancel" : "No decompilation target found.", "warning");
+          return;
+        }
+        if (!targetExists(root, name)) { ctx.ui.notify(`Unknown function: ${name}`, "error"); return; }
+        let handoff = "";
+        try {
+          const result = await prepareInteractive(root, name, ctx, signal);
+          signal.throwIfAborted();
+          if (result.completion) { documentation.start(name, result.completion, ctx); return; }
+          handoff = result.handoff;
+        } catch (error) {
+          signal.throwIfAborted();
+          handoff = `Preparation failed: ${String(error)}. Preserve the current source.`;
+        }
+        signal.throwIfAborted();
+        dispatchSkill(pi, ctx, "psx-decompile-function", `Target: ${name}. Mode: fresh decompilation.\n${handoff}`);
+      });
     },
   });
 
@@ -237,22 +243,24 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     description: "Resume and fix an existing clean-C decompilation attempt",
     getArgumentCompletions: allFunctionCompletions,
     handler: async (args, ctx) => {
-      const name = parseFunctionArg(args);
-      if (!name) {
-        ctx.ui.notify("Usage: /fix-decomp <function_name>", "warning");
-        return;
-      }
-      if (!targetExists(root, name)) {
-        ctx.ui.notify(`Unknown function: ${name}`, "error");
-        return;
-      }
-
-      dispatchSkill(
-        pi,
-        ctx,
-        "psx-decompile-function",
-        `Target: ${name}. Mode: resume/fix. Preserve the current clean-C attempt, classify its existing diff, and continue from there.`,
-      );
+      if (args.trim() === "--cancel") { await cancelPreparation(ctx); return; }
+      await preparation.run(ctx, async (signal) => {
+        const name = parseFunctionArg(args);
+        if (!name) { ctx.ui.notify("Usage: /fix-decomp <function_name> | --cancel", "warning"); return; }
+        if (!targetExists(root, name)) { ctx.ui.notify(`Unknown function: ${name}`, "error"); return; }
+        let handoff = "";
+        try {
+          const result = await prepareInteractive(root, name, ctx, signal);
+          signal.throwIfAborted();
+          if (result.completion) { documentation.start(name, result.completion, ctx); return; }
+          handoff = result.handoff;
+        } catch (error) {
+          signal.throwIfAborted();
+          handoff = `Preparation failed: ${String(error)}. Preserve the current source.`;
+        }
+        signal.throwIfAborted();
+        dispatchSkill(pi, ctx, "psx-decompile-function", `Target: ${name}. Mode: resume/fix. Preserve the current clean-C attempt.\n${handoff}`);
+      });
     },
   });
 
@@ -300,7 +308,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   });
 
   registerAutodecompCommands(pi, root);
-  registerAutoloopCommands(pi, root);
+  loopActive = registerAutoloopCommands(pi, root);
 
   pi.registerCommand("decomp-status", {
     description: "Show the current call-graph decompilation worklist summary",

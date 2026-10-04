@@ -5,8 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import type { AutodecompConfig, WorkspaceInfo } from "./types.ts";
 import { runCommand } from "./process.ts";
 
-async function git(projectRoot: string, args: string[], cwd = projectRoot, env?: NodeJS.ProcessEnv, timeoutMs = 120_000) {
-  const result = await runCommand("git", args, { cwd, env, timeoutMs });
+async function git(projectRoot: string, args: string[], cwd = projectRoot, env?: NodeJS.ProcessEnv, timeoutMs = 120_000, signal?: AbortSignal) {
+  const result = await runCommand("git", args, { cwd, env, timeoutMs, signal });
   if (result.code !== 0) throw new Error(`git ${args.join(" ")} failed:\n${result.stderr || result.stdout}`);
   /* trimEnd only: a leading trim would eat the status column of the first
      --porcelain line (" M path" -> "M path"), corrupting slice(3) parsing */
@@ -22,8 +22,8 @@ export async function trackedDirtyFiles(projectRoot: string): Promise<string[]> 
   return output ? output.split("\n").map((line) => line.slice(3).trim()).filter(Boolean) : [];
 }
 
-async function gitDir(projectRoot: string): Promise<string> {
-  const path = await git(projectRoot, ["rev-parse", "--absolute-git-dir"]);
+async function gitDir(projectRoot: string, signal?: AbortSignal): Promise<string> {
+  const path = await git(projectRoot, ["rev-parse", "--absolute-git-dir"], projectRoot, undefined, 120_000, signal);
   return resolve(path);
 }
 
@@ -31,36 +31,38 @@ export async function createTreeFromWorktree(
   projectRoot: string,
   worktree: string,
   roots: string[],
+  signal?: AbortSignal,
 ): Promise<string> {
   const temp = mkdtempSync(join(tmpdir(), "autodecomp-index-"));
   const index = join(temp, "index");
-  const env = { GIT_INDEX_FILE: index, GIT_DIR: await gitDir(projectRoot), GIT_WORK_TREE: resolve(worktree) };
   try {
-    await git(projectRoot, ["read-tree", "HEAD"], worktree, env);
-    await git(projectRoot, ["add", "-A", "--", ...roots], worktree, env);
-    return await git(projectRoot, ["write-tree"], worktree, env);
+    const env = { GIT_INDEX_FILE: index, GIT_DIR: await gitDir(projectRoot, signal), GIT_WORK_TREE: resolve(worktree) };
+    await git(projectRoot, ["read-tree", "HEAD"], worktree, env, 120_000, signal);
+    await git(projectRoot, ["add", "-A", "--", ...roots], worktree, env, 120_000, signal);
+    return await git(projectRoot, ["write-tree"], worktree, env, 120_000, signal);
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
 }
 
-export async function treePatch(projectRoot: string, fromTree: string, toTree: string, roots: string[]): Promise<string> {
+export async function treePatch(projectRoot: string, fromTree: string, toTree: string, roots: string[], signal?: AbortSignal): Promise<string> {
   const result = await runCommand("git", ["diff", "--binary", "--no-ext-diff", fromTree, toTree, "--", ...roots], {
     cwd: projectRoot,
     timeoutMs: 120_000,
     maxCaptureBytes: 32 * 1024 * 1024,
+    signal,
   });
   if (result.code !== 0) throw new Error(`Unable to create integration patch:\n${result.stderr || result.stdout}`);
   return result.stdout;
 }
 
-export async function changedFilesBetweenTrees(projectRoot: string, fromTree: string, toTree: string): Promise<string[]> {
-  const output = await git(projectRoot, ["diff", "--name-only", fromTree, toTree]);
+export async function changedFilesBetweenTrees(projectRoot: string, fromTree: string, toTree: string, signal?: AbortSignal): Promise<string[]> {
+  const output = await git(projectRoot, ["diff", "--name-only", fromTree, toTree], projectRoot, undefined, 120_000, signal);
   return output ? output.split("\n").filter(Boolean) : [];
 }
 
-export async function workspaceChangedFiles(workspace: string): Promise<string[]> {
-  const output = await git(workspace, ["status", "--porcelain=v1", "--untracked-files=all", "--ignore-submodules=all"]);
+export async function workspaceChangedFiles(workspace: string, signal?: AbortSignal): Promise<string[]> {
+  const output = await git(workspace, ["status", "--porcelain=v1", "--untracked-files=all", "--ignore-submodules=all"], workspace, undefined, 120_000, signal);
   if (!output) return [];
   const files: string[] = [];
   for (const line of output.split("\n")) {
@@ -195,9 +197,12 @@ export async function removeWorkspace(projectRoot: string, path: string): Promis
   if (existsSync(path)) rmSync(path, { recursive: true, force: true });
 }
 
-export async function applyPatch(projectRoot: string, patchPath: string): Promise<void> {
-  const check = await runCommand("git", ["apply", "--check", patchPath], { cwd: projectRoot, timeoutMs: 120_000 });
+export async function applyPatch(projectRoot: string, patchPath: string, signal?: AbortSignal): Promise<void> {
+  const check = await runCommand("git", ["apply", "--check", patchPath], { cwd: projectRoot, timeoutMs: 120_000, signal });
   if (check.code !== 0) throw new Error(`Patch no longer applies to trunk:\n${check.stderr || check.stdout}`);
+  signal?.throwIfAborted();
+  /* Finish this short mutation before the caller's gate sees cancellation and
+     rolls it back; killing git mid-write can leave a partially applied patch. */
   const apply = await runCommand("git", ["apply", "--whitespace=nowarn", patchPath], { cwd: projectRoot, timeoutMs: 120_000 });
   if (apply.code !== 0) throw new Error(`Patch application failed:\n${apply.stderr || apply.stdout}`);
 }

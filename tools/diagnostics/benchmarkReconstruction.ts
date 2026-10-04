@@ -202,9 +202,9 @@ function loadManifestFile(): Manifest {
 }
 
 /** Raw-m2c baseline: its draft compiled and byte-compared as-is (plan §5 B2). */
-function m2cBaseline(name: string): { verdict: string; detail: string } {
+async function m2cBaseline(name: string): Promise<{ verdict: string; detail: string }> {
   try {
-    const draft = runM2c(name, ROOT);
+    const draft = await runM2c(name, ROOT);
     const directory = join(ROOT, "build/matchingReconstruction/m2c-baseline", name);
     mkdirSync(directory, { recursive: true });
     const sourcePath = join(directory, `${name}.c`);
@@ -274,7 +274,7 @@ for (const name of names) {
     console.error(`reconstructing ${name} (${results.length + 1}/${names.length})`);
   }
   results.push(reconstructFunction({ functionName: name, notify: () => {} }));
-  if (withM2c) baselines.set(name, m2cBaseline(name));
+  if (withM2c) baselines.set(name, await m2cBaseline(name));
 }
 
 /* Development expectations are the regression gate: a mechanism that stops

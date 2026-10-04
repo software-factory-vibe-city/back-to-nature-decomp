@@ -26,6 +26,9 @@ export async function runCommand(command: string, args: string[], options: RunOp
   if (options.stdoutFile) await mkdir(dirname(options.stdoutFile), { recursive: true });
   if (options.stderrFile) await mkdir(dirname(options.stderrFile), { recursive: true });
 
+  const cancelledResult = (): CommandResult => ({ command: [command, ...args].join(" "), code: 1, signal: "SIGKILL", timedOut: false,
+    stdout: "", stderr: "Command cancelled before launch", durationMs: Date.now() - started });
+  if (options.signal?.aborted) return cancelledResult();
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
@@ -51,17 +54,16 @@ export async function runCommand(command: string, args: string[], options: RunOp
       }
     };
 
-    const abort = () => {
-      killTree("SIGTERM");
-      setTimeout(() => killTree("SIGKILL"), 5_000).unref();
-    };
+    /* Kill the group, not only npx/tsx. Waiting for close then guarantees the
+       compiler's inherited pipes are closed before the caller can continue. */
+    const abort = () => killTree("SIGKILL");
     options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
 
     if (options.timeoutMs && options.timeoutMs > 0) {
       timer = setTimeout(() => {
         timedOut = true;
-        killTree("SIGTERM");
-        setTimeout(() => killTree("SIGKILL"), 5_000).unref();
+        killTree("SIGKILL");
       }, options.timeoutMs);
       timer.unref();
     }
@@ -97,7 +99,7 @@ export async function runCommand(command: string, args: string[], options: RunOp
       }
       resolve({
         command: [command, ...args].join(" "),
-        code: code ?? 1,
+        code: options.signal?.aborted || timedOut ? 1 : code ?? 1,
         signal,
         timedOut,
         stdout,
