@@ -1,99 +1,113 @@
-import { existsSync, readFileSync } from "node:fs";
-import { ASSET_CATEGORIES, PARSERS, type AssetCategory, type ParserRegistry } from "./registry.ts";
-import { canonical, hash, runPath, Store } from "./storage.ts";
-import type { Manifest } from "./types.ts";
+import { existsSync, readFileSync, readdirSync, rmdirSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
+import { PARSERS, type ParserRegistry } from "./registry.ts";
+import { canonical, hash, id, safePath, Store } from "./storage.ts";
+import { renderProvenance } from "./provenance.ts";
+import { PUBLIC_CATEGORIES, type Manifest, type PublishedAsset, type PublishedFile, type PublicCategory } from "./types.ts";
 
-export interface PresentedFile {
-  path: string; backing: string; hash: string; size: number; stage: string; artifact?: string;
+const publicCategory = (category: string): PublicCategory => category === "sound" ? "sounds" : category === "video" ? "videos" : category as PublicCategory;
+function label(variant: Record<string, unknown>): string {
+  if (Object.keys(variant).length === 1 && Number.isSafeInteger(variant.bank) && Number(variant.bank) >= 0) return `bank-${variant.bank}`;
+  if (variant.kind === "audio" && [variant.file, variant.channel, variant.segment].every(n => Number.isSafeInteger(n) && Number(n) >= 0)) return `file-${variant.file}-channel-${variant.channel}-segment-${variant.segment}`;
+  return `variant-${hash(canonical(variant)).slice(0, 16)}`;
 }
-export interface PresentedAsset {
-  node: string; format: string; category: AssetCategory; directory: string;
-  manifest: string; manifestHash: string; files: PresentedFile[];
-}
-interface Index { version: 1; assets: PresentedAsset[] }
-const safeName = (name: string): boolean => /^[a-zA-Z0-9_-]{1,80}$/.test(name);
-
-/** A browsable derivative of verified artifacts, never a new format guess.
- * Paths do not contain resource names or arbitrary plugin/user path fragments.
- * Regular copies protect the authoritative blobs from edits in an image viewer.
- * These are copies of already-budgeted bytes, not additional decoder output. */
-export function presentationPlan(m: Manifest, manifestHash: string, registry: ParserRegistry = PARSERS): PresentedAsset[] {
-  const assets: PresentedAsset[] = [];
-  for (const node of m.nodes) {
+export function presentationPlan(m: Manifest, registry: ParserRegistry = PARSERS): PublishedAsset[] {
+  const assets = new Map<string, PublishedAsset>();
+  for (const node of [...m.nodes].sort((a, b) => a.id.localeCompare(b.id, "en"))) {
     if (node.kind !== "resource" || node.stages.discovery !== "validated" || node.stages.extraction !== "validated" || typeof node.metadata.parserId !== "string") continue;
-    if (!/^node-[a-f0-9]{24}$/.test(node.id)) throw new Error("Invalid presentation node ID");
-    const parser = registry.get(node.metadata.parserId), category = registry.category(parser.id, node.metadata), extension = parser.rawExtension ?? "bin";
-    const directory = `${category}/${node.id}`;
-    const files: PresentedFile[] = [{ path: `${directory}/original.${extension}`, backing: node.blob, hash: node.blob.slice(6), size: node.size, stage: "extraction" }];
-    for (const artifact of m.artifacts.filter(a => a.node === node.id && a.processor === parser.id)) {
-      const kind = artifact.parameters.kind as string;
-      const ext = artifact.extension ?? artifact.path.match(/\.([a-zA-Z0-9_-]+)$/)?.[1];
-      if (!safeName(kind) || !ext || !safeName(ext)) throw new Error("Parser artifact lacks a valid presentation kind/extension");
-      const variant = artifact.parameters.variant as Record<string, unknown>;
-      const bank = variant?.bank;
-      const label = Number.isSafeInteger(bank) && (bank as number) >= 0 && Object.keys(variant).length === 1 ? `bank-${bank}` : `variant-${hash(canonical(variant)).slice(0, 16)}`;
-      const name = kind === ext ? `${label}.${ext}` : `${label}-${kind}.${ext}`;
-      files.push({ path: `${directory}/${name}`, backing: artifact.path, hash: artifact.hash, size: artifact.size, stage: artifact.stage, artifact: artifact.id });
+    const parser = registry.get(node.metadata.parserId), category = publicCategory(registry.category(parser.id, node.metadata));
+    if (!PUBLIC_CATEGORIES.includes(category)) throw new Error("Invalid public asset category");
+    const { parserVersion: _revision, ...context } = node.metadata;
+    const name = id("asset", [node.format, node.blob, context]);
+    let asset = assets.get(name);
+    if (asset) { asset.occurrences.push(node.id); continue; }
+    const files: PublishedFile[] = [];
+    const exports = m.artifacts.filter(a => a.node === node.id && a.processor === parser.id && a.stage === "export");
+    for (const a of exports) {
+      const kind = a.parameters.kind;
+      if (typeof kind !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(kind) || !/^[a-zA-Z0-9_-]{1,80}$/.test(a.extension)) throw new Error("Invalid public export descriptor");
+      // Hash-qualified names never overwrite a different prior export before the
+      // manifest commits. Source paths/run IDs never appear in public filenames.
+      const suffix = kind === a.extension ? "" : `-${kind}`;
+      files.push({ path: `extracted/${category}/${name}-${label(a.parameters.variant as Record<string, unknown>)}${suffix}-${a.hash.slice(0, 16)}.${a.extension}`, backing: a.path, hash: a.hash, size: a.size, artifact: a.id });
     }
-    if (new Set(files.map(file => file.path)).size !== files.length) throw new Error("Colliding presentation filenames");
-    assets.push({ node: node.id, format: parser.format, category, directory, manifest: `${runPath(m.runId)}/manifest.json`, manifestHash, files });
+    // Validated non-media resources can be preserved as native data containers.
+    // Do not pretend raw XA payloads are decoded/playable video or audio.
+    if (!files.length && category === "data") {
+      const raw = m.artifacts.find(a => a.node === node.id && a.processor === "slice-v1");
+      if (raw) files.push({ path: `extracted/data/${name}.${parser.rawExtension ?? "bin"}`, backing: node.blob, hash: raw.hash, size: node.size, artifact: raw.id });
+    }
+    if (!files.length) continue;
+    if (new Set(files.map(f => f.path)).size !== files.length) throw new Error("Colliding public filenames");
+    asset = { id: name, format: parser.format, category, raw: node.blob, occurrences: [node.id], files: files.sort((a, b) => a.path.localeCompare(b.path, "en")) };
+    assets.set(name, asset);
   }
-  return assets;
+  const result = [...assets.values()].sort((a, b) => a.id.localeCompare(b.id, "en"));
+  const paths = result.flatMap(a => a.files.map(f => f.path));
+  if (new Set(paths).size !== paths.length) throw new Error("Colliding public asset identities");
+  return result;
 }
-
-function validateFile(store: Store, file: PresentedFile, source = false): void {
-  const bytes = readFileSync(store.path(source ? file.backing : file.path));
-  if (bytes.length !== file.size || hash(bytes) !== file.hash) throw new Error(`Presented asset hash/size mismatch: ${source ? file.backing : file.path}`);
+const safeExport = (path: string): boolean => /^extracted\/(images|sounds|models|videos|data)\/[a-zA-Z0-9_.-]+$/.test(path);
+function validateFile(store: Store, file: PublishedFile, backing = false): void {
+  if (!safeExport(file.path) || file.backing !== `blobs/${file.hash}`) throw new Error("Invalid public export path/provenance");
+  const bytes = readFileSync(store.path(backing ? file.backing : file.path));
+  if (bytes.length !== file.size || hash(bytes) !== file.hash) throw new Error(`Presented asset hash/size mismatch: ${file.path}`);
 }
-
-/** Caller first verifies original extents and decoder replay. Serialize the
- * shared catalog, merge other scopes, and preserve every authoritative run. */
-export async function presentAssets(store: Store, m: Manifest, manifestHash: string, signal?: AbortSignal, registry: ParserRegistry = PARSERS): Promise<Record<string, unknown>> {
-  const assets = presentationPlan(m, manifestHash, registry);
-  return store.lock("asset-presentation", async () => {
-    // Validate the complete prefix before publishing any browsable file.
-    for (const asset of assets) for (const file of asset.files) { signal?.throwIfAborted(); validateFile(store, file, true); }
-    const indexPath = "index.json";
-    const previous: Index = existsSync(store.path(indexPath)) ? store.read<Index>(indexPath) : { version: 1, assets: [] };
-    if (previous.version !== 1 || !Array.isArray(previous.assets) || previous.assets.some(a => !ASSET_CATEGORIES.includes(a.category) || !/^node-[a-f0-9]{24}$/.test(a.node) || a.directory !== `${a.category}/${a.node}`)) throw new Error("Invalid asset presentation index");
-    const merged = new Map(previous.assets.map(asset => [asset.node, asset]));
-    for (const asset of assets) {
-      signal?.throwIfAborted();
-      for (const file of asset.files) {
-        const bytes = readFileSync(store.path(file.backing));
-        // Idempotent publication. A deliberately edited derivative is repaired
-        // only by extraction/campaign, never silently by verification.
-        if (!existsSync(store.path(file.path)) || hash(readFileSync(store.path(file.path))) !== file.hash) store.atomic(file.path, bytes);
-      }
-      store.json(`${asset.directory}/asset.json`, { ...asset, resource: m.nodes.find(n => n.id === asset.node), note: "Browsable copies; backing blobs and the referenced run manifest remain authoritative. Historical semantic names are unknown." });
-      merged.set(asset.node, asset);
-    }
-    store.json(`${runPath(m.runId)}/presented-assets.json`, { version: 1, assets } satisfies Index);
-    store.json(indexPath, { version: 1, assets: [...merged.values()].sort((a, b) => a.node.localeCompare(b.node)) } satisfies Index);
-    return { outcome: "validated", index: indexPath, assets: assets.length, files: assets.reduce((sum, asset) => sum + asset.files.length, 0), directories: [...new Set(assets.map(a => a.category))].sort() };
-  });
-}
-
-/** Optional view check: old runs need not have been presented. A missing or
- * edited copy in an existing view is reported without touching the backing data. */
-export function verifyPresentation(store: Store, m: Manifest, registry: ParserRegistry = PARSERS): Record<string, unknown> {
-  const path = `${runPath(m.runId)}/presented-assets.json`;
-  if (!existsSync(store.path(path))) return { outcome: "not-presented" };
-  const index = store.read<Index>(path);
-  if (index.version !== 1 || !Array.isArray(index.assets)) throw new Error("Invalid run presentation index");
-  const expected = presentationPlan(m, "", registry);
-  // A previous budgeted prefix can be smaller than the current manifest.
-  for (const asset of index.assets) {
-    const found = expected.find(a => a.node === asset.node);
-    if (!found || asset.category !== found.category || asset.directory !== found.directory || asset.manifest !== found.manifest) throw new Error("Presented asset provenance mismatch");
-    const sidecar = store.read<PresentedAsset & { resource: Record<string, unknown> }>(`${asset.directory}/asset.json`);
-    const node = m.nodes.find(n => n.id === asset.node)!;
-    if (sidecar.node !== asset.node || sidecar.manifest !== asset.manifest || sidecar.manifestHash !== asset.manifestHash || canonical(sidecar.files) !== canonical(asset.files) ||
-        ["id", "blob", "size", "source", "format", "metadata", "evidence"].some(field => canonical(sidecar.resource[field]) !== canonical((node as unknown as Record<string, unknown>)[field]))) throw new Error("Presented asset metadata/provenance mismatch");
-    for (const file of asset.files) {
-      if (!found.files.some(f => canonical(f) === canonical(file))) throw new Error("Presented file provenance mismatch");
-      validateFile(store, file);
-    }
+function index(m: Manifest): object { return { version: 2, manifestHash: hash(canonical(m) + "\n"), assets: m.assets }; }
+/** All backing bytes and target containment are checked before any publication.
+ * The manifest is the commit point; notes are a recoverable hash-linked projection.
+ * Copies (not hard links) protect backing objects from edits in media viewers. */
+export async function presentAssets(store: Store, m: Manifest, signal?: AbortSignal, step?: (stage: string) => void): Promise<void> {
+  const previous = existsSync(store.path("manifest.json")) ? store.read<Manifest>("manifest.json") : undefined;
+  if (previous && previous.version !== 2) throw new Error("Incompatible canonical asset manifest");
+  for (const asset of m.assets) for (const file of asset.files) { signal?.throwIfAborted(); store.path(file.path); validateFile(store, file, true); }
+  // Validate old ownership paths before committing, never accept arbitrary paths
+  // from an edited manifest as permission to remove files elsewhere in build/.
+  const intentPath = "cache/publication.json";
+  const interrupted = existsSync(store.path(intentPath)) ? store.read<{ version: number; files: PublishedFile[] }>(intentPath) : undefined;
+  if (interrupted && (interrupted.version !== 2 || !Array.isArray(interrupted.files))) throw new Error("Invalid publication recovery record");
+  const previousFiles = [...(previous?.assets.flatMap(a => a.files) ?? []), ...(interrupted?.files ?? [])];
+  for (const file of previousFiles) if (!safeExport(file.path)) throw new Error("Invalid previous publication ownership");
+  const notes = safePath(store.project, "notes/asset-provenance.md");
+  const document = renderProvenance(m);
+  if (existsSync(notes) && !readFileSync(notes, "utf8").startsWith("<!-- Generated by extract-assets; do not edit. -->\n")) throw new Error("Refusing to overwrite handwritten provenance notes");
+  const { rememberLegacyPresentation } = await import("./migration.ts");
+  rememberLegacyPresentation(store);
+  // One bounded ownership record covers interrupted copies; it is neither a run
+  // ledger nor acceptance state. Remove it only after the projection is settled.
+  store.json(intentPath, { version: 2, files: [...new Map([...previousFiles, ...m.assets.flatMap(a => a.files)].map(f => [f.path, f])).values()] });
+  for (const asset of m.assets) for (const file of asset.files) {
+    signal?.throwIfAborted(); store.atomic(file.path, store.bytes(file.backing));
   }
-  return { outcome: "validated", index: "index.json", assets: index.assets.length, files: index.assets.reduce((sum, a) => sum + a.files.length, 0) };
+  step?.("exports"); signal?.throwIfAborted();
+  store.json("manifest.json", m); step?.("manifest");
+  store.json("index.json", index(m)); step?.("index");
+  // Store supplies atomic write-if-changed and symlink checks. A second store at
+  // the project root is unnecessary: write through the same primitive explicitly.
+  const { mkdirSync, renameSync, writeFileSync } = await import("node:fs");
+  const { randomBytes } = await import("node:crypto");
+  if (!existsSync(notes) || readFileSync(notes, "utf8") !== document) {
+    mkdirSync(dirname(notes), { recursive: true });
+    const temp = `${notes}.${randomBytes(8).toString("hex")}.tmp`;
+    try { writeFileSync(temp, document, { flag: "wx" }); renameSync(temp, notes); }
+    finally { rmSync(temp, { force: true }); }
+  }
+  step?.("notes");
+  const current = new Set(m.assets.flatMap(a => a.files.map(f => f.path)));
+  const prunedCategories = new Set<string>();
+  for (const file of previousFiles) if (!current.has(file.path)) {
+    rmSync(store.path(file.path), { force: true }); prunedCategories.add(dirname(file.path));
+  }
+  for (const category of prunedCategories) {
+    const path = store.path(category);
+    if (existsSync(path) && readdirSync(path).length === 0) rmdirSync(path);
+  }
+  rmSync(store.path(intentPath), { force: true });
+}
+export function verifyPresentation(store: Store, m: Manifest): void {
+  const expected = index(m);
+  if (canonical(store.read("index.json")) !== canonical(expected)) throw new Error("Presented index/provenance mismatch");
+  for (const asset of m.assets) for (const file of asset.files) validateFile(store, file);
+  const notes = safePath(store.project, "notes/asset-provenance.md");
+  if (!existsSync(notes) || readFileSync(notes, "utf8") !== renderProvenance(m)) throw new Error("Manifest/provenance document mismatch; rerun extract-assets to repair publication");
 }

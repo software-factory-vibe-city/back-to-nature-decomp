@@ -1,17 +1,16 @@
 import ts from "typescript";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { canonical, hash, safePath, Store } from "./storage.ts";
-import { changedFiles, commitScoped, git } from "./git.ts";
 import type { Request } from "./types.ts";
 
 export const PARSER_CONFIG = "tools/agent/resource-extraction/parser-plugins.ts";
 export const PARSER_ROOT = "tools/agent/resource-extraction/parsers/";
 export function parserPath(path: string): boolean { return path === PARSER_CONFIG || new RegExp(`^${PARSER_ROOT}[a-z][a-z0-9-]*(?:\\.test)?\\.ts$`).test(path); }
-interface Baseline { head: string; files: Record<string, string>; dirt: Record<string, string | null>; accepted?: string }
+interface Baseline { files: Record<string, string> }
 function scopedFiles(root: string): string[] {
   const dir = safePath(root, PARSER_ROOT);
   return [PARSER_CONFIG, ...(existsSync(dir) ? readdirSync(dir).map(f => PARSER_ROOT + f).filter(parserPath) : [])].filter(p => existsSync(safePath(root, p))).sort();
@@ -96,54 +95,40 @@ async function command(root: string, args: string[], signal?: AbortSignal): Prom
 export async function parserOperation(root: string, request: Request, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const store = new Store(root);
   if (request.action === "prepare") {
-    const dirty = changedFiles(root);
-    if (dirty.some(parserPath)) throw new Error("Parser scope already dirty; preserve/commit it before a new builder iteration");
     const files = Object.fromEntries(scopedFiles(root).map(p => [p, readFileSync(safePath(root, p), "utf8")]));
-    const baseline: Baseline = { head: git(root, ["rev-parse", "HEAD"]), files, dirt: Object.fromEntries(dirty.map(p => [p, fingerprint(root, p)])) };
+    const baseline: Baseline = { files };
     const token = randomBytes(12).toString("hex");
-    store.json(`loop/parser-baselines/${token}.json`, baseline);
+    store.json(`cache/parser-builder/baselines/${token}.json`, baseline);
     return { baseline: token, outcome: "prepared", allowed: [PARSER_CONFIG, PARSER_ROOT + "*.ts"], previousRegistrations: registrationNames(files[PARSER_CONFIG] ?? "") };
   }
   if (!request.baseline || !/^[a-f0-9]{24}$/.test(request.baseline)) throw new Error("Parser operation requires the prepared iteration baseline");
-  const path = `loop/parser-baselines/${request.baseline}.json`;
+  if (request.action !== "test" && request.action !== "accept") throw new Error("Parser action must be prepare, test or accept; drafts are never automatically restored");
+  const path = `cache/parser-builder/baselines/${request.baseline}.json`;
   const baseline = store.read<Baseline>(path);
-  if (baseline.accepted) return { outcome: "already-accepted", commit: baseline.accepted };
   const candidates = [...new Set([...Object.keys(baseline.files), ...scopedFiles(root)])];
   const changed = candidates.filter(p => fingerprint(root, p) !== (baseline.files[p] === undefined ? null : hash(baseline.files[p]!)));
-  if (git(root, ["rev-parse", "HEAD"]) !== baseline.head) throw new Error("Parser iteration HEAD drift; do not commit or restore another agent's work");
-  if (request.action === "discard") {
-    // Only this parser attempt is restored. No git clean/reset/checkout, and no
-    // uncharged or unrelated file is touched.
-    for (const file of changed) {
-      const target = safePath(root, file);
-      if (existsSync(target)) store.atomic(`loop/failed/${request.baseline}/${file.replaceAll("/", "_")}`, readFileSync(target));
-      if (baseline.files[file] === undefined) rmSync(target, { force: true });
-      else { const { writeFileSync, mkdirSync } = await import("node:fs"); mkdirSync(dirname(target), { recursive: true }); writeFileSync(target, baseline.files[file]!); }
-    }
-    return { outcome: "discarded", changed };
-  }
-  const dirty = changedFiles(root);
-  for (const file of new Set([...dirty.filter(p => !parserPath(p)), ...Object.keys(baseline.dirt)])) if (!(file in baseline.dirt) || fingerprint(root, file) !== baseline.dirt[file]) throw new Error(`Out-of-scope iteration change: ${file}`);
-  if (!changed.length || !changed.includes(PARSER_CONFIG)) throw new Error("Parser iteration must implement and register a capability");
+  // Only parser-source identity matters. Concurrent game-source edits, staged
+  // work and Git HEAD changes are independent; this gate never reads/mutates Git.
+  if (!changed.length) throw new Error("Parser work item must implement or improve a capability");
   for (const file of changed) {
     if (!existsSync(safePath(root, file))) throw new Error("Parser deletion is not an accepted capability");
     parserSourcePolicy(file, readFileSync(safePath(root, file), "utf8"));
   }
   const previousEntries = registrations(baseline.files[PARSER_CONFIG] ?? ""), currentEntries = registrations(readFileSync(safePath(root, PARSER_CONFIG), "utf8"));
   const previous = Object.keys(previousEntries), current = Object.keys(currentEntries);
-  if (!previous.every(p => currentEntries[p] === previousEntries[p]) || current.length <= previous.length) throw new Error("Existing parsers must remain registered; add a new capability");
+  if (!previous.every(p => currentEntries[p] === previousEntries[p])) throw new Error("Existing parsers must remain registered");
   const implementations = changed.filter(p => p !== PARSER_CONFIG && !p.endsWith(".test.ts"));
   if (!implementations.length || implementations.some(p => !changed.includes(p.replace(/\.ts$/, ".test.ts")))) throw new Error("Each new parser needs a changed corresponding test file");
   if (current.filter(p => !previous.includes(p)).some(p => !implementations.includes(currentEntries[p]!))) throw new Error("New registrations must reference a changed parser implementation");
   const here = dirname(fileURLToPath(import.meta.url)), repository = resolve(here, "../../..");
   const tsx = resolve(repository, "node_modules/tsx/dist/cli.mjs"), tsc = resolve(repository, "node_modules/typescript/bin/tsc");
-  const sourceHash = hash(canonical(changed.map(p => [p, fingerprint(root, p)])));
+  const sourceHash = hash(canonical(scopedFiles(root).map(p => [p, fingerprint(root, p)])));
   const typecheck = await command(root, [tsc, "--noEmit", "--allowImportingTsExtensions", "--module", "nodenext", "--target", "esnext", "--typeRoots", resolve(repository, "node_modules/@types"), "--types", "node", "--strict", "--skipLibCheck", ...changed], signal);
   const coreTests = safePath(root, "tools/agent/resource-extraction/resource-extraction.test.ts");
   const results: Array<{ file: string; code: number; stdout: string; stderr: string; executed: number; passed: boolean }> = [];
-  if (typecheck.code === 0) for (const file of [...changed.filter(p => p.endsWith(".test.ts")), existsSync(coreTests) ? coreTests : resolve(here, "resource-extraction.test.ts")]) {
-    // Check each file separately: a passing core suite must not conceal an
-    // empty, entirely skipped or TODO-only new parser suite.
+  if (typecheck.code === 0) for (const file of [...scopedFiles(root).filter(p => p.endsWith(".test.ts")), existsSync(coreTests) ? coreTests : resolve(here, "resource-extraction.test.ts")]) {
+    // Check every parser suite separately: a new capability must not regress
+    // existing decoders, and core success cannot conceal an empty/skipped suite.
     const tested = await command(root, [tsx, "--test", "--test-reporter=tap", file], signal);
     const count = (label: string): number => Number(tested.stdout.match(new RegExp(`^# ${label} (\\d+)$`, "m"))?.[1] ?? 0);
     const executed = count("tests"), passed = tested.code === 0 && executed > 0 && count("pass") === executed && count("fail") === 0 && count("skipped") === 0 && count("cancelled") === 0 && count("todo") === 0;
@@ -151,12 +136,9 @@ export async function parserOperation(root: string, request: Request, signal?: A
   }
   const testsExecuted = results.reduce((sum, result) => sum + result.executed, 0);
   const report = { outcome: typecheck.code === 0 && results.length > 0 && results.every(result => result.passed) ? "tested" : "failed", baseline: request.baseline, changed, testsExecuted, sourceHash, typecheck, tests: results };
-  store.json(`loop/parser-tests/${request.baseline}.json`, report);
-  if (report.outcome !== "tested" || request.action !== "accept") return report;
-  if (!request.commit) throw new Error("Parser commit requires explicit commit permission (the TUI loop supplies it)");
   signal?.throwIfAborted();
-  if (git(root, ["rev-parse", "HEAD"]) !== baseline.head || hash(canonical(changed.map(p => [p, fingerprint(root, p)]))) !== sourceHash) throw new Error("Parser source/HEAD drift after testing; refusing untested commit");
-  const commit = commitScoped(root, changed, `Implement resource parser ${current.filter(p => !previous.includes(p)).join(", ")}`);
-  baseline.accepted = commit; store.json(path, baseline);
-  return { ...report, outcome: "parser-committed", commit };
+  if (hash(canonical(scopedFiles(root).map(p => [p, fingerprint(root, p)]))) !== sourceHash) throw new Error("Parser source drift during testing; refusing untested capability");
+  store.json(`cache/parser-builder/tests/${request.baseline}.json`, report);
+  if (report.outcome !== "tested" || request.action !== "accept") return report;
+  return { ...report, outcome: "parser-tested", note: "Capability tested; source/drafts remain in place. No commit performed. Run extract-assets to exercise registered formats." };
 }

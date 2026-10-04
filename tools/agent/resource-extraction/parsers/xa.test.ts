@@ -90,7 +90,7 @@ test("mixed form 1/form 2 data uses each sector's payload size and is not classi
   assert.deepEqual(out.metadata.payloadSizes, [2048, 2324]);
   assert.equal(PARSERS.category(XA_PARSER.id, XA_PARSER.parse(bytes, 0).metadata), "data");
   assert.equal(PARSERS.category(XA_PARSER.id, XA_PARSER.parse(sector(2352), 0).metadata), "sound");
-  assert.equal(XA_PARSER.version, 3); assert.equal(PARSERS.get("tim-v1").format, "TIM");
+  assert.equal(XA_PARSER.version, 4); assert.equal(PARSERS.get("tim-v1").format, "TIM");
 });
 
 for (const stride of [2352, 2336]) test(`XA ${stride}: real-disc interleave padding is preserved without truncating or decoding junk`, async () => {

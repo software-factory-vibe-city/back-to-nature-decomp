@@ -1,103 +1,90 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
-import { executeResource } from "./pipeline.ts";
-import { presentationPlan, presentAssets } from "./presentation.ts";
-import { ParserRegistry, TIM_PARSER, type AssetParser } from "./registry.ts";
+import { extractAssets, executeResource } from "./pipeline.ts";
+import { fixture, readManifest, tim } from "./test-fixtures.ts";
 import { Store } from "./storage.ts";
-import type { Manifest } from "./types.ts";
 
-function tim(): Buffer {
-  const bytes = Buffer.alloc(22);
-  bytes.writeUInt32LE(16); bytes.writeUInt32LE(2, 4); bytes.writeUInt32LE(14, 8);
-  bytes.writeUInt16LE(1, 16); bytes.writeUInt16LE(1, 18); bytes.writeUInt16LE(31, 20);
-  return bytes;
-}
-function manifest(root: string, run: string): Manifest { return JSON.parse(readFileSync(join(root, "build/assets/runs", run, "manifest.json"), "utf8")); }
-
-test("campaign publishes real TIM/image files in images/ with provenance and stable names", async () => {
-  // Inputs use normal project paths, never an output-boundary escape.
-  const root = mkdtempSync(join(tmpdir(), "resource-presentation-"));
-  const { mkdirSync } = await import("node:fs"); mkdirSync(join(root, "extracted"));
-  writeFileSync(join(root, "extracted/resource"), tim());
+test("archive and extracted-member occurrences share one flat image, all origins retained", async () => {
+  const f = fixture();
   try {
-    const first = await executeResource("campaign", root), run = first.run as string, m = manifest(root, run);
-    const asset = m.nodes.find(n => n.kind === "resource")!, directory = join(root, "build/assets/images", asset.id);
-    assert.deepEqual(readdirSync(directory).sort(), ["asset.json", "bank-0.ppm", "bank-0.rgba", "bank-0.stp", "original.tim"]);
-    assert.deepEqual(readFileSync(join(directory, "original.tim")), tim());
-    assert.match(readFileSync(join(directory, "bank-0.ppm"), "ascii"), /^P6\n1 1\n255\n/);
-    const sidecar = JSON.parse(readFileSync(join(directory, "asset.json"), "utf8"));
-    assert.equal(sidecar.resource.source.node, m.inputs[0]!.id);
-    assert.equal(sidecar.manifestHash, (first.documentation as { manifestHash: string }).manifestHash);
-    assert.equal((first.presented as { assets: number; files: number }).files, 4);
-    assert.equal((await executeResource("verify", root, { run })).outcome, "validated");
-    assert.equal(existsSync(join(root, "build/assets/sound")), false, "no empty folder pretending audio was found");
-    await executeResource("campaign", root, { resume: run });
-    const second = await executeResource("campaign", root);
-    assert.equal((second.presented as { assets: number }).assets, 1);
-    assert.equal(JSON.parse(readFileSync(join(root, "build/assets/index.json"), "utf8")).assets.length, 1);
-    assert.equal(readdirSync(directory).length, 5, "repeated runs do not duplicate visible files");
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    const bytes = tim(); f.put("extracted/archive", Buffer.concat([Buffer.from([1, 2, 3]), bytes])); f.put("extracted/member", bytes);
+    const result = await extractAssets(f.root), m = readManifest(f.root), store = new Store(f.root);
+    assert.equal(result.resourceNodes, 2); assert.equal(result.assets, 1); assert.equal(result.exports, 1);
+    assert.equal((result.statistics as any).decodes, 1);
+    const forced = await extractAssets(f.root, { force: true });
+    assert.equal((forced.statistics as any).decodes, 1); assert.equal((forced.statistics as any).replays, 1);
+    assert.deepEqual(readManifest(f.root), m);
+    assert.equal(m.assets[0]!.occurrences.length, 2);
+    const files = readdirSync(store.path("extracted/images")); assert.equal(files.length, 1); assert.match(files[0]!, /asset-.*-bank-0-.*\.ppm$/);
+    assert.match(readFileSync(store.path(`extracted/images/${files[0]}`), "ascii"), /^P6\n1 1\n255\n/);
+    assert.ok(m.artifacts.some(a => a.extension === "rgba")); assert.ok(m.artifacts.some(a => a.extension === "stp"));
+    assert.deepEqual(store.bytes(m.assets[0]!.raw), bytes);
+    for (const category of ["images", "sound", "models", "video", "data"]) assert.equal(existsSync(store.path(category)), false);
+    assert.equal((await executeResource("verify", f.root)).outcome, "validated");
+  } finally { f.cleanup(); }
 });
-
-test("edits to browsable copies never alter backing blobs; verification detects and extraction repairs them", async () => {
-  const root = mkdtempSync(join(tmpdir(), "resource-presentation-"));
-  const { mkdirSync } = await import("node:fs"); mkdirSync(join(root, "extracted"));
-  writeFileSync(join(root, "extracted/resource"), tim());
+test("equal previews do not erase distinct native TIM metadata/content", async () => {
+  const f = fixture();
   try {
-    const result = await executeResource("campaign", root), run = result.run as string, m = manifest(root, run);
-    const asset = m.nodes.find(n => n.kind === "resource")!, visible = join(root, "build/assets/images", asset.id, "original.tim");
-    writeFileSync(visible, "edited");
-    assert.deepEqual(readFileSync(join(root, "build/assets", asset.blob)), tim());
-    await assert.rejects(executeResource("verify", root, { run }), /Presented asset hash/);
-    await executeResource("extract", root, { run, maxSteps: 0 });
-    assert.deepEqual(readFileSync(visible), tim());
-    assert.equal((await executeResource("verify", root, { run })).outcome, "validated");
-    const metadata = join(root, "build/assets/images", asset.id, "asset.json");
-    const forged = JSON.parse(readFileSync(metadata, "utf8")); forged.resource.metadata.width = 999;
-    writeFileSync(metadata, JSON.stringify(forged));
-    await assert.rejects(executeResource("verify", root, { run }), /metadata\/provenance/);
-    await executeResource("extract", root, { run, maxSteps: 0 });
-    assert.equal((await executeResource("verify", root, { run })).outcome, "validated");
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    const a = tim(), b = tim(); b.writeUInt16LE(1, 12); // VRAM x differs; rendered pixels do not.
+    f.put("extracted/a", a); f.put("extracted/b", b); await extractAssets(f.root);
+    const m = readManifest(f.root); assert.equal(m.assets.length, 2);
+    assert.equal(new Set(m.assets.flatMap(a => a.files.map(f => f.hash))).size, 1);
+    assert.equal(new Set(m.assets.flatMap(a => a.files.map(f => f.path))).size, 2);
+  } finally { f.cleanup(); }
 });
-
-test("publication merges scopes, respects parser categories and refuses ambiguous resources and unsafe descriptors", async () => {
-  const root = mkdtempSync(join(tmpdir(), "resource-presentation-"));
-  const { mkdirSync } = await import("node:fs"); mkdirSync(join(root, "extracted"));
-  writeFileSync(join(root, "extracted/resource"), tim());
+test("edited/missing public exports regenerate without changing backing data or decoding again", async () => {
+  const f = fixture();
   try {
-    const result = await executeResource("campaign", root), m = manifest(root, result.run as string), store = new Store(root);
-    const audio: AssetParser = {
-      id: "sound-fixture-v1", format: "SyntheticSound", version: 1, category: "sound", rawExtension: "sample",
-      probe: (b, o) => b[o] === 0xfa && b[o + 1] === 2,
-      parse: (b, o) => { if (b[o] !== 0xfa || b[o + 1] !== 2) throw new Error("bad fixture"); return { length: 2, metadata: {} }; },
-      variants: () => [{}], decode: () => [],
-    };
-    const registry = new ParserRegistry([TIM_PARSER, audio]), bytes = Buffer.from([0xfa, 2]);
-    assert.equal(registry.parse(audio.id, bytes, 0).length, 2);
-    const node = { id: "node-" + "a".repeat(24), kind: "resource" as const, blob: store.blob(bytes), size: 2, format: audio.format, metadata: { parserId: audio.id }, stages: { discovery: "validated" as const, extraction: "validated" as const }, evidence: [] };
-    const other = { ...m, nodes: [node], artifacts: [] };
-    await presentAssets(store, other, "independent-fixture", undefined, registry);
-    assert.deepEqual(readFileSync(join(root, "build/assets/sound", node.id, "original.sample")), bytes);
-    assert.equal(store.read<{ assets: unknown[] }>("index.json").assets.length, 2);
-    assert.deepEqual(presentationPlan({ ...other, nodes: [{ ...node, stages: { discovery: "ambiguous", extraction: "validated" } }] }, "", registry), []);
-    assert.throws(() => new ParserRegistry([{ ...audio, category: "../escape" as "sound" }]), /category/);
-    assert.throws(() => new ParserRegistry([{ ...audio, rawExtension: "../escape" }]), /extension/);
-    const generic = new ParserRegistry([{ ...audio, category: undefined, rawExtension: undefined }]);
-    assert.match(presentationPlan(other, "", generic)[0]!.files[0]!.path, /^data\/.*\/original\.bin$/);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+    f.put("extracted/resource", tim()); await extractAssets(f.root); const m = readManifest(f.root), store = new Store(f.root), file = m.assets[0]!.files[0]!;
+    const bytes = store.bytes(file.backing); f.put(`build/assets/${file.path}`, "edited");
+    assert.deepEqual(store.bytes(file.backing), bytes); await assert.rejects(executeResource("verify", f.root), /Presented asset hash/);
+    const repaired = await extractAssets(f.root); assert.equal((repaired.statistics as any).decodes, 0); assert.deepEqual(readFileSync(store.path(file.path)), bytes);
+    rmSync(store.path(file.path)); await extractAssets(f.root); assert.deepEqual(readFileSync(store.path(file.path)), bytes);
+  } finally { f.cleanup(); }
 });
-
-test("publication cannot follow a symlink out of its category directory", async () => {
-  const root = mkdtempSync(join(tmpdir(), "resource-presentation-")), outside = mkdtempSync(join(tmpdir(), "resource-outside-"));
-  const { mkdirSync } = await import("node:fs"); mkdirSync(join(root, "extracted"));
-  writeFileSync(join(root, "extracted/resource"), tim());
-  new Store(root); symlinkSync(outside, join(root, "build/assets/images"), "dir");
+test("narrow selection replaces the active catalog and removes only owned stale exports", async () => {
+  const f = fixture();
   try {
-    await assert.rejects(executeResource("campaign", root), /Symlink/);
-    assert.deepEqual(readdirSync(outside), []);
-  } finally { rmSync(root, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true }); }
+    f.put("extracted/a", tim(2)); f.put("extracted/b", tim(3)); await extractAssets(f.root); const store = new Store(f.root);
+    assert.equal(readdirSync(store.path("extracted/images")).length, 2);
+    f.put("build/assets/extracted/images/unrelated.txt", "keep");
+    await extractAssets(f.root, { input: "extracted/a" }); const m = readManifest(f.root);
+    assert.equal(m.inputs.length, 1); assert.equal(m.assets.length, 1); assert.equal(readdirSync(store.path("extracted/images")).length, 2);
+    assert.equal(readFileSync(store.path("extracted/images/unrelated.txt"), "utf8"), "keep");
+    assert.equal(store.read<any>("index.json").assets.length, 1);
+  } finally { f.cleanup(); }
+});
+test("publication crash after manifest is detected; rerun repairs notes/index and prunes interrupted copies", async () => {
+  const f = fixture();
+  try {
+    f.put("extracted/resource", tim(2)); await extractAssets(f.root); const store = new Store(f.root), old = readManifest(f.root).assets[0]!.files[0]!.path;
+    f.put("extracted/resource", tim(3));
+    await assert.rejects(extractAssets(f.root, {}, undefined, undefined, { publicationStep: stage => { if (stage === "manifest") throw new Error("crash"); } }), /crash/);
+    await assert.rejects(executeResource("verify", f.root), /index\/provenance mismatch/);
+    assert.equal(existsSync(store.path(old)), true, "previous public result retained during incomplete publication");
+    await extractAssets(f.root); assert.equal((await executeResource("verify", f.root)).outcome, "validated");
+    assert.equal(existsSync(store.path(old)), false); assert.equal(existsSync(store.path("cache/publication.json")), false);
+  } finally { f.cleanup(); }
+});
+test("publication crash before manifest keeps the old authoritative result and recovers owned orphan copies", async () => {
+  const f = fixture();
+  try {
+    f.put("extracted/a", tim()); await extractAssets(f.root); const old = readManifest(f.root), store = new Store(f.root);
+    f.put("extracted/b", tim(3));
+    await assert.rejects(extractAssets(f.root, {}, undefined, undefined, { publicationStep: stage => { if (stage === "exports") throw new Error("crash"); } }), /crash/);
+    assert.deepEqual(readManifest(f.root), old);
+    await extractAssets(f.root, { input: "extracted/a" });
+    assert.equal(readdirSync(store.path("extracted/images")).length, 1); assert.equal((await executeResource("verify", f.root)).outcome, "validated");
+  } finally { f.cleanup(); }
+});
+test("publication does not follow a symlink out of the flat category directory", async () => {
+  const f = fixture(), outside = fixture();
+  try {
+    f.put("extracted/resource", tim()); const store = new Store(f.root);
+    symlinkSync(outside.root, store.path("extracted"), "dir");
+    await assert.rejects(extractAssets(f.root), /Symlink/); assert.deepEqual(readdirSync(outside.root), ["extracted"]);
+  } finally { f.cleanup(); outside.cleanup(); }
 });

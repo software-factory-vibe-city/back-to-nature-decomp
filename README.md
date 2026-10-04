@@ -259,8 +259,8 @@ The commands dispatch three skills. The skills are game-agnostic:
 - `psx-project-refinement` — one small batch across files. The gate checks all
   of it.
 
-The decompilation commands above never commit or merge. The separately
-user-authorized resource loop below commits only its accepted notes/parser scope.
+The decompilation and resource commands never commit or merge. Commits require
+a separate explicit user request.
 
 The skills read the target and toolchain facts from
 `configs/project-profile.md` and from the active configuration. They do not
@@ -735,7 +735,7 @@ exact diff plus the linked build, the scope check, and the clean-source check.
 A pre-link byte comparison is not a finish line, and a score that rewards a
 lucky register assignment over a fixed cause is not a gradient. The CLI stays,
 and the build, the gates, and the autonomous loop still call it;
-`.pi/extensions/psx-decomp/tools/diagnostics.ts` records the exclusion and the
+`.pi/extensions/psx-decomp/tools/diagnostics.ts` records the exclusion and the <!-- doc-ref-ignore: extension-rooted path -->
 reason, and a test keeps it honest.
 
 `psx_finalize_function` is the last gate. It runs the exact function diff, the
@@ -749,62 +749,74 @@ output enters the model context.
 
 ## Resource extraction
 
-After `/reload`, start `/extract-resources [--input extracted/path]
-[--max-iterations N]`. It runs directly in the active TUI, streaming normal
-agent/tool output. It does not use the deprecated supervisor, another model
-session, forked workers or worktrees. Type a message or use
-`/extract-resources --cancel` to stop; `--status` reports runs.
+Known-format extraction is a deterministic build task: no model calls, agent
+approval turns, run IDs or Git operations. Inputs default to `extracted/`.
 
-**This user-authorized loop commits each accepted iteration:** either verified
-asset extraction instructions in `notes/asset-identification.md`, or a pure
-parser plugin with registration and corresponding passing tests. It refuses
-unrelated staged work and preserves unrelated unstaged changes. Existing-parser
-closure invokes the dedicated `psx-build-resource-parser` skill; failed guesses
-never earn commits. New parser code is loaded on the next deterministic tool
-call without restarting the TUI. `--max-iterations N` limits successful commits;
-without it the loop continues until cancellation, a budget/failure or an
-honestly unsupported builder attempt.
-
-Inputs default to `extracted/`; generated assets, immutable snapshots, provenance
-and reports stay under `build/assets/` and are never committed. Browse actual
-files in `build/assets/images/<asset-id>/`: `original.tim`, `bank-0.ppm`, RGBA/STP
-files and `asset.json` provenance. `build/assets/index.json` lists all published
-assets. Parsers route supported formats to `sound/`, `models/`, `video/`
-or `data/` using format declarations or validated content; folders appear only
-when assets exist. These are regular copies, so editing one cannot corrupt the
-backing blobs. Current asset format support is **TIM v1** (indexed/direct-color
-validation, RGBA, separate STP masks and lossy PPM previews) and **XA revision 3**
-(raw 2352-byte or sync/MSF-stripped 2336-byte sectors with surviving subheaders).
-XA audio resources appear in `sound/<asset-id>/` with the original XA, retained
-ADPCM and playable native-rate 16-bit PCM WAV per file/channel segment. Non-audio
-XA payloads go to `data/`, not `video/`; STR/MDEC decoding is not implemented.
-Unused interleave sectors are preserved but skipped during audio decoding;
-individual channel EOFs do not truncate other channels. The four original XA
-files have been recovered into `extracted/xa-sectors/` from the source disc and
-exported under `build/assets/sound/`: all 32 streams match FFmpeg PCM exactly
-(including six silent streams).
-A 2048-byte-per-sector ISO extraction can discard both XA subheaders and part
-of the compressed audio. Such inputs require sector-preserving re-extraction,
-not guessed playback parameters or zero-filled replacement samples.
-VAG/VAB, SEQ/SEP, TMD, STR/MDEC and game-specific formats remain pending. Supplied archive schemas and one checked byte-XOR
-constructor are conditional mechanisms, not general loader/decompressor recovery.
-Total game asset count and historical semantic names remain unknown.
-
-Use deterministic stages without a model or commits:
-
-```bash
-npm run assets -- --input extracted/iso --max-steps 10
-npm run assets -- --input extracted/xa-sectors
-npx tsx tools/agent/resourceVerify.ts --run <run-id>
+```sh
+npm run extract-assets
+npm run extract-assets -- --input extracted/iso
+npm run extract-assets -- --force            # bypass derivation caches
+npm run extract-assets -- --full-verify      # additionally replay all derivations
+npm run extract-assets -- --verify           # read-only full replay/publication check
+npm run extract-assets -- --migrate-legacy   # explicit, ownership-checked cleanup
 ```
 
-The extension owns nine `psx_resource_*` tools: campaign, inventory, probe,
-analyze, extract, verify, document, iteration and parser. Extraction,
-documentation and parser-builder skills have distinct permissions. New formats
-extend `tools/agent/resource-extraction/registry.ts` through
-`tools/agent/resource-extraction/parser-plugins.ts` and pure plugins/tests;
-core pipeline rewrites are unnecessary. See `plans/asset-extraction.md` for
-implemented capabilities, parser roadmap and remaining static-analysis work.
+`npm run assets` is an alias. `--limits` accepts a JSON budget object;
+`--schemas`/`--transforms` accept project-relative JSON files, with inline
+`--schemas-json`/`--transforms-json` alternatives. `--help` lists the contracts.
+Supplied archive schemas and the checked original-word byte-XOR constructor
+remain conditional mechanisms, not general loader/decompressor recovery.
+
+Browse **flat exported files** in `build/assets/extracted/images/`, `sounds/`,
+`models/`, `videos/` or `data/`. Categories appear only when populated. Stable
+content/interpretation identities deduplicate archive/member copies, retaining
+all source occurrences and exact byte extents in `build/assets/manifest.json`.
+`build/assets/index.json` is its browsable projection. Raw originals, RGBA/STP
+and compressed ADPCM stay in content-addressed `build/assets/blobs/`, separate
+from usable exports. Public files are copies, not hard links to backing objects.
+
+Every successful extraction mechanically regenerates the complete, self-contained
+`notes/asset-provenance.md`. It records original-input and implementation hashes,
+variants, source chains, conditional assumptions and unresolved findings.
+Identical warm/forced computations produce the same manifest, export names/bytes
+and notes; warm cache hits skip scanning/parsing/decoding and do not rewrite
+identical files. Missing/corrupt derivations are regenerated or rejected. Parser
+fingerprints track actual runtime dependencies, not unrelated C edits or Git HEAD.
+The catalog represents the selected scope, not a union of previous runs.
+Failures before publication preserve the previous result; interrupted publication
+is detectable with `--verify` and repaired by rerunning extraction. There is no
+filesystem-wide atomic transaction spanning `build/` and `notes/`.
+
+Supported formats are **TIM v1** (indexed/direct-color validation, RGBA, STP and
+lossy PPM previews) and **XA revision 4** (2352-byte raw or 2336-byte stripped
+sectors with surviving subheaders). XA audio exports native-rate 16-bit PCM WAV
+per file/channel segment, preserving ADPCM separately. Interleave padding and
+channel EOFs retain their correct behavior. All 32 streams in the four original
+sector-preserving XA files match FFmpeg PCM exactly, including six silent streams.
+Non-audio XA is data, not decoded STR/MDEC video. Weak stripped-sector signatures
+with only one typed sector and padding remain candidate observations: no decode
+or public export. Payload-only ISO extractions cannot restore lost coding/audio
+bytes by guessing playback parameters or inserting zeros.
+VAG/VAB, SEQ/SEP, TMD, STR/MDEC and proprietary formats remain unsupported; total
+game asset count and historical semantic names are unknown.
+
+After `/reload`, `/extract-resources` wraps the same command with **zero model
+turns**. `/extract-resources --cancel` stops it. Parser development is separately
+requested with `/build-resource-parser <format, original input/evidence, capability>`.
+The builder skill loads once, writes only pure parser plugins/registrations/tests,
+runs fixed-argv policy/typecheck/all-parser test gates and ordinary integration
+extraction, then finishes at `parser-tested`. Drafts and unrelated work are never
+automatically restored, reset or committed; closure does not summon another agent.
+The extension owns four focused tools: `psx_resource_extract`,
+`psx_resource_verify`, `psx_resource_analyze` and `psx_resource_parser`.
+
+New formats register through `tools/agent/resource-extraction/parser-plugins.ts`;
+core rewrites are unnecessary. `--migrate-legacy` archives recognized old runs,
+requests and approval bookkeeping under `build/assets/cache/legacy/`, removes only
+verified legacy presentation copies, and preserves edited/unknown files.
+`notes/asset-identification.md` remains untouched historical material.
+See `plans/deterministic-resource-extraction.md` for the implemented contract and
+verification, and `plans/asset-extraction.md` for the retained broader format roadmap.
 
 ## The autonomous loop
 
@@ -933,11 +945,10 @@ The main tools under `tools/agent/` are:
 | `contextExport.ts` | Exports the matched signatures |
 | `fileGroupings.ts` | Reads suspected same-translation-unit membership out of the grouping ledger |
 | `sourcePolicy.ts` | Audits the sources for forbidden constructs |
-| `resourceCampaign.ts` / `resourceInventory.ts` | Cold-input resource pipeline, snapshots, resume and budgets |
-| `resourceProbe.ts` / `resourceAnalyze.ts` | Registered structural parsers and bounded original-word CFG/SSA observations |
-| `resourceExtract.ts` / `resourceVerify.ts` | Raw preservation, supported decode/export and provenance replay |
-| `resourceDocument.ts` / `resourceIteration.ts` | Verified handoffs, next asset/parser work item and gated asset-note commit |
-| `resourceParser.ts` | Scoped parser registration/policy/typecheck/test/commit gate |
+| `resourceExtract.ts` | Deterministic inventory/scan/decode, checked caches, flat deduplicated exports and generated provenance |
+| `resourceVerify.ts` | Read-only full provenance/derivation/publication replay |
+| `resourceAnalyze.ts` | Bounded original-word CFG/SSA observations and hex slices |
+| `resourceParser.ts` | Parser-only baseline, pure-source/registration policy, fixed-argv typecheck/test gate; no commits |
 
 For the full list, read `notes/tools-directory-structure.md`.
 

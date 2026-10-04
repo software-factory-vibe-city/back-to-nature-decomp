@@ -1,15 +1,28 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { endianness } from "node:os";
 import { relative } from "node:path";
 import { analyzeOriginal, evaluateByteTransform, transformAt } from "./analysis.ts";
-import { PARSERS, scanFormats } from "./registry.ts";
-import { presentAssets, verifyPresentation } from "./presentation.ts";
+import { engineFingerprints, parserFingerprints } from "./fingerprints.ts";
+import { PARSERS, ParserRegistry, type DecodedOutput } from "./registry.ts";
+import { presentAssets, presentationPlan, verifyPresentation } from "./presentation.ts";
 import { schemaExtents, validateSchema } from "./schema.ts";
-import { analyzerVersion, canonical, hash, id, integer, inventory, runPath, safePath, Store } from "./storage.ts";
-import { DEFAULT_LIMITS, type Artifact, type Evidence, type Job, type Limits, type Manifest, type Node, type Operation, type Request, type State } from "./types.ts";
-import { randomBytes } from "node:crypto";
+import { canonical, hash, id, integer, inventory, safePath, Store } from "./storage.ts";
+import { DEFAULT_LIMITS, type Artifact, type Evidence, type Limits, type Manifest, type Match, type Node, type Operation, type ParserFingerprint, type Request } from "./types.ts";
 
-interface Run { manifest: Manifest; state: State }
-function limitsFrom(input: Partial<Limits> = {}): Limits {
+export interface Statistics { scans: number; parses: number; decodes: number; replays: number; cacheHits: number }
+interface StoredOutput { kind: string; extension: string; stage: "decoding" | "export"; path: string; hash: string; size: number; metadata: Record<string, unknown> }
+interface Variant { parameters: Record<string, unknown>; outputs: StoredOutput[] }
+interface Scan { matches: Array<Match & { bounded: Record<string, unknown> }>; rejected: number; complete: boolean }
+/** Injection is for isolated fixtures; the CLI always derives real implementation
+ * fingerprints. A fixture must explicitly supply its dependency identities. */
+export interface ExtractionOptions {
+  registry?: ParserRegistry; fingerprints?: ParserFingerprint[];
+  beforePublish?: () => void | Promise<void>; publicationStep?: (step: string) => void;
+}
+const execution = () => ({ node: process.versions.node, v8: process.versions.v8, endian: endianness() });
+const stats = (): Statistics => ({ scans: 0, parses: 0, decodes: 0, replays: 0, cacheHits: 0 });
+export function limitsFrom(input: Partial<Limits> = {}): Limits {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Limits must be an object");
   for (const key of Object.keys(input)) if (!(key in DEFAULT_LIMITS)) throw new Error(`Unknown budget: ${key}`);
   const limits = { ...DEFAULT_LIMITS, ...input };
   for (const [key, value] of Object.entries(limits)) integer(value, key, 1);
@@ -23,217 +36,104 @@ function evidence(m: Manifest, subject: string, outcome: Evidence["outcome"], pr
 function unresolved(m: Manifest, subject: string, outcome: Evidence["outcome"], reason: string, reopen: string): void {
   if (!m.unresolved.some(e => e.subject === subject && e.reason === reason)) m.unresolved.push({ subject, outcome, reason, reopen });
 }
-function persist(store: Store, run: Run): void {
-  const path = runPath(run.manifest.runId);
-  run.state.manifestHash = hash(canonical(run.manifest) + "\n");
-  const digest = hash(canonical(run) + "\n");
-  // Immutable generations plus one atomic pointer: a crash never pairs a new
-  // manifest with an old work queue. Convenience views are not authoritative.
-  if (!existsSync(store.path(`${path}/snapshots/${digest}.json`))) store.json(`${path}/snapshots/${digest}.json`, run);
-  store.json(`${path}/current.json`, { snapshot: digest });
-  store.json(`${path}/manifest.json`, run.manifest);
-  store.json(`${path}/state.json`, run.state);
-}
-export function loadRun(store: Store, name: string, checkAnalyzer = true): Run {
-  const path = runPath(name);
-  const current = store.read<{ snapshot: string }>(`${path}/current.json`);
-  if (!/^[a-f0-9]{64}$/.test(current.snapshot)) throw new Error("Invalid checkpoint pointer");
-  const bytes = readFileSync(store.path(`${path}/snapshots/${current.snapshot}.json`));
-  if (hash(bytes) !== current.snapshot) throw new Error("Corrupt checkpoint");
-  const run = JSON.parse(bytes.toString()) as Run;
-  if (run.manifest.version !== 1 || run.state.version !== 1 || run.manifest.runId !== name || run.state.manifestHash !== hash(canonical(run.manifest) + "\n")) throw new Error("Invalid run checkpoint");
-  if (checkAnalyzer && run.manifest.analyzer !== analyzerVersion()) throw new Error("input-drift: analyzer changed; start a new run (settled old snapshots are preserved)");
-  return run;
-}
 function nodeOf(m: Manifest, name: string): Node {
   const node = m.nodes.find(n => n.id === name);
   if (!node) throw new Error(`Unknown resource node: ${name}`);
   return node;
 }
-function addSlice(store: Store, run: Run, parent: Node, offset: number, length: number, kind: Node["kind"], format: string | undefined, metadata: Record<string, unknown>, witness: string): Node {
-  const m = run.manifest;
-  const name = id("node", [parent.id, offset, length, format ?? null, metadata]);
+function usedOutput(m: Manifest): number {
+  const blobs = new Map(m.nodes.filter(n => n.kind !== "input").map(n => [n.blob, n.size]));
+  for (const a of m.artifacts) blobs.set(a.path, a.size);
+  return [...blobs.values()].reduce((sum, size) => sum + size, 0);
+}
+function checkBudget(m: Manifest): void {
+  if (m.nodes.filter(n => n.kind !== "input").length > m.limits.maxAssets || usedOutput(m) > m.limits.maxOutputBytes) throw new Error("budget-exhausted: resource nodes/output bytes; narrow scope or raise limits");
+}
+function addSlice(store: Store, m: Manifest, parent: Node, offset: number, length: number, kind: "member" | "resource", format: string | undefined, metadata: Record<string, unknown>, witness: string): Node {
+  integer(offset, "slice offset"); integer(length, "slice length", 1);
+  if (offset + length > parent.size) throw new Error("Slice outside parent");
+  const name = id("node", [parent.id, offset, length, format ?? null, kind, metadata.parserId ?? metadata.record ?? null, metadata.schema ?? null]);
   const found = m.nodes.find(n => n.id === name);
   if (found) return found;
-  integer(offset, "slice offset"); integer(length, "slice length");
-  if (offset + length > parent.size) throw new Error("Slice outside parent");
-  if (m.nodes.filter(n => n.kind !== "input").length >= m.limits.maxAssets || usedOutput(m) + length > m.limits.maxOutputBytes) throw new Error("budget-exhausted: raw resource nodes/bytes");
   const blob = store.blob(store.bytes(parent.blob).subarray(offset, offset + length));
   const node: Node = { id: name, kind, size: length, blob, source: { node: parent.id, offset, length, coordinate: parent.kind === "input" ? "file-byte" : "member-byte" }, metadata,
     ...(format ? { format } : {}), stages: { discovery: kind === "member" ? "candidate" : "validated", extraction: "validated" }, evidence: [witness] };
-  m.nodes.push(node);
-  m.edges.push({ from: parent.id, to: name, kind: "containment" });
-  const alias = m.nodes.find(n => n.id !== name && n.blob === blob);
+  const alias = m.nodes.find(n => n.blob === blob);
+  m.nodes.push(node); m.edges.push({ from: parent.id, to: name, kind: "containment" });
   if (alias) m.edges.push({ from: alias.id, to: name, kind: "alias" });
+  checkBudget(m);
   return node;
 }
-function usedOutput(m: Manifest): number {
-  // Raw member/resource objects and decoded graph nodes already own their bytes.
-  return m.nodes.filter(n => n.kind !== "input").reduce((sum, n) => sum + n.size, 0) +
-    m.artifacts.filter(a => PARSERS.parsers.some(p => p.id === a.processor)).reduce((sum, a) => sum + a.size, 0);
-}
-async function cached<T>(store: Store, path: string, producer: () => Promise<T>): Promise<T> {
-  if (existsSync(store.path(path))) {
+/** Complete immutable derivations only. A checked cache hit avoids parser work;
+ * missing/corrupt backing objects invalidate just that entry and are regenerated. */
+async function cached<T>(store: Store, key: unknown, force: boolean, counts: Statistics, memory: Map<string, unknown>, validate: (value: T) => void, producer: () => Promise<T>): Promise<T> {
+  const path = `cache/v2/${hash(canonical(key))}.json`;
+  // Force invalidates prior invocations, not equivalent source occurrences in
+  // this one. Each distinct derivation is still computed/replayed only once.
+  if (memory.has(path)) { const value = memory.get(path) as T; validate(value); counts.cacheHits++; return value; }
+  if (!force && existsSync(store.path(path))) {
     try {
-      const entry = store.read<{ key: string; digest: string; value: T }>(path);
-      if (entry.key === path && entry.digest === hash(canonical(entry.value))) return entry.value;
+      const entry = store.read<{ version: number; key: unknown; digest: string; value: T }>(path);
+      if (entry.version !== 2 || canonical(entry.key) !== canonical(key) || entry.digest !== hash(canonical(entry.value))) throw new Error("Invalid derivation cache");
+      validate(entry.value); memory.set(path, entry.value); counts.cacheHits++; return entry.value;
     } catch { /* An incomplete/corrupt cache is never acceptance evidence. */ }
   }
-  const value = await producer();
-  store.json(path, { key: path, digest: hash(canonical(value)), value });
+  const value = await producer(); validate(value);
+  store.json(path, { version: 2, key, digest: hash(canonical(value)), value }); memory.set(path, value);
   return value;
 }
-function enqueue(run: Run, job: Job): void {
-  const key = id("job", job);
-  if (!run.state.completed.includes(key) && !run.state.pending.some(j => id("job", j) === key)) run.state.pending.push(job);
-}
-function artifact(store: Store, m: Manifest, node: Node, stage: Artifact["stage"], bytes: Buffer, processor: string, parameters: Record<string, unknown>, suffix: string, parents = [node.blob]): void {
-  const name = id("artifact", [node.id, stage, processor, parameters, hash(bytes)]);
+function artifact(m: Manifest, node: Node, stage: Artifact["stage"], path: string, size: number, processor: string, parameters: Record<string, unknown>, extension: string, parents = [node.blob]): void {
+  const digest = path.slice(6), name = id("artifact", [node.id, stage, processor, parameters, digest]);
   if (m.artifacts.some(a => a.id === name)) return;
-  const blob = store.blob(bytes);
-  const path = stage === "export" ? `${runPath(m.runId)}/exports/${name}.${suffix}` : blob;
-  if (stage === "export") store.atomic(path, bytes);
-  m.artifacts.push({ id: name, node: node.id, stage, hash: hash(bytes), size: bytes.length, path, extension: suffix, processor, parameters, parents, evidence: [...node.evidence] });
+  m.artifacts.push({ id: name, node: node.id, stage, hash: digest, size, path, extension, processor, parameters, parents, evidence: [...node.evidence] });
+  checkBudget(m);
 }
-
-async function createRun(store: Store, request: Request, signal?: AbortSignal): Promise<Run> {
-  const limits = limitsFrom(request.limits);
-  const selection = relative(store.project, safePath(store.project, request.input ?? "extracted")).replaceAll("\\", "/");
-  const inputs = await inventory(store.project, selection, store, limits, signal);
-  const schemas = request.schemas ?? [];
-  for (const schema of schemas) validateSchema(schema);
-  const analyzer = analyzerVersion();
-  const identity = hash(canonical({ analyzer, selection, inputs, limits, schemas }));
-  const runId = `${identity.slice(0, 16)}-${randomBytes(8).toString("hex")}`;
-  const m: Manifest = { version: 1, runId, identity, analyzer, selection, limits, inputs, schemas, nodes: [], artifacts: [], evidence: [], edges: [], unresolved: [] };
-  const state: State = { version: 1, manifestHash: "", pending: [], completed: [], outcome: "running" };
-  for (const input of inputs) {
-    const witness = evidence(m, input.id, "validated", "inventory-v1", `SHA-256 ${input.hash}; ${input.size} consumed file bytes at ${input.path}; physical disc coordinates and derivative lineage unavailable`);
-    m.nodes.push({ id: input.id, kind: "input", blob: input.blob, size: input.size, metadata: { inputPath: input.path, physicalDiscCoordinates: "unavailable", lineage: "unverified" }, stages: { discovery: "validated" }, evidence: [witness] });
-    const prior = inputs.find(i => i.id !== input.id && i.hash === input.hash && inputs.indexOf(i) < inputs.indexOf(input));
-    if (prior) m.edges.push({ from: prior.id, to: input.id, kind: "alias" });
-    state.pending.push({ node: input.id, stage: "probe" }, { node: input.id, stage: "analyze" });
-  }
-  for (let i = 0; i < schemas.length; i++) {
-    const index = inputs.find(input => input.path === schemas[i]!.index);
-    const data = inputs.find(input => input.path === schemas[i]!.data);
-    if (!index || !data) throw new Error("Schema input paths must identify inventoried files exactly");
-    state.pending.unshift({ node: index.id, stage: "schema", schema: i });
-  }
-  unresolved(m, "scope", "context-unresolved", "Unpacked files do not establish disc LBAs, sector modes, XA subheaders or audio tracks", "Supply independently witnessed disc metadata if an operation needs physical coordinates");
-  const run = { manifest: m, state };
-  store.json(`${runPath(runId)}/inputs.json`, inputs);
-  persist(store, run);
-  return run;
-}
-
-async function perform(store: Store, run: Run, job: Job, signal?: AbortSignal): Promise<boolean> {
-  const m = run.manifest, node = nodeOf(m, job.node), path = runPath(m.runId);
-  const available = m.limits.maxAssets - m.nodes.filter(n => n.kind !== "input").length;
-  const bytes = store.bytes(node.blob);
-  if (job.stage === "schema") {
-    const schema = m.schemas[job.schema!]!;
-    if (schema.count > available) return false;
-    const dataInput = m.inputs.find(i => i.path === schema.data)!;
-    const parent = nodeOf(m, dataInput.id);
-    try {
-      const extents = schemaExtents(schema, bytes, parent.size);
-      const witness = evidence(m, node.id, "candidate", "schema-v1", `Supplied schema ${hash(canonical(schema))}: extents checked, historical boundary/field interpretation NOT established`);
-      store.json(`${path}/schemas/${hash(canonical(schema))}.json`, { schema, extents, evidence: witness });
-      for (const extent of extents) {
-        const member = addSlice(store, run, parent, extent.offset, extent.length, "member", undefined, { record: extent.index, schema: hash(canonical(schema)), indexBlob: node.blob, basis: schema.basis }, witness);
-        for (const stage of ["probe", "analyze", "extract"] as const) enqueue(run, { node: member.id, stage });
-      }
-      unresolved(m, node.id, "candidate", "Supplied archive schema has only extent validation", "Witness its record origin, count and field semantics in the original loader");
-    } catch (error) {
-      unresolved(m, node.id, "domain-exhausted", `Supplied schema rejected: ${String(error)}`, "Revise the schema premise using loader evidence; this closes only the supplied reading");
+function validateOutputs(store: Store, variants: Variant[], maximum: number): void {
+  if (!Array.isArray(variants) || variants.length > 65536 || new Set(variants.map(v => canonical(v.parameters))).size !== variants.length) throw new Error("Invalid cached variants");
+  for (const variant of variants) {
+    if (!variant.parameters || !Array.isArray(variant.outputs)) throw new Error("Invalid cached output list");
+    const kinds = new Set<string>(); let total = 0;
+    for (const output of variant.outputs) {
+      if (!/^[a-zA-Z0-9_-]{1,80}$/.test(output.kind) || !/^[a-zA-Z0-9_-]{1,80}$/.test(output.extension) || kinds.has(output.kind) || !["decoding", "export"].includes(output.stage) || output.path !== `blobs/${output.hash}`) throw new Error("Invalid cached output descriptor");
+      kinds.add(output.kind); const bytes = store.bytes(output.path);
+      if (bytes.length !== output.size) throw new Error("Invalid cached output size");
+      total += output.size;
     }
-  } else if (job.stage === "probe") {
-    const cache = `cache/${id("probe", [m.analyzer, node.blob, m.limits.maxAssets])}.json`;
-    const result = await cached(store, cache, () => scanFormats(bytes, m.limits.maxAssets, signal));
-    for (const match of result.matches) {
-      // On cached results the parser is still the acceptance gate.
-      const parser = PARSERS.get(match.parser);
-      const parsed = PARSERS.parse(parser.id, bytes, match.offset);
-      if (parsed.length !== match.length || parser.format !== match.format) throw new Error("Probe cache failed parser replay");
-      // Resource metadata must replay on its isolated blob, not its container.
-      // Keep container-context observations in the probe report/cache instead.
-      const bounded = PARSERS.parse(parser.id, bytes.subarray(match.offset, match.offset + parsed.length), 0);
-      if (bounded.length !== parsed.length) throw new Error("Bounded resource extent failed parser replay");
-      const witness = evidence(m, node.id, "validated", parser.id, `${parser.format} at byte ${match.offset}, ${match.length} bytes; structural constraints validated by ${parser.id} version ${parser.version}; compatibility is not historical naming evidence`);
-      const metadata = { ...bounded.metadata, parserId: parser.id, parserVersion: parser.version };
-      const resource = addSlice(store, run, node, match.offset, match.length, "resource", parser.format, metadata, witness);
-      const alternative = m.nodes.find(n => n.id !== resource.id && n.source?.node === node.id && n.source.offset === match.offset && n.size === match.length && n.metadata.parserId && n.metadata.parserId !== parser.id);
-      if (alternative) { alternative.stages.discovery = "ambiguous"; resource.stages.discovery = "ambiguous"; }
-      enqueue(run, { node: resource.id, stage: "extract" });
-    }
-    store.json(`${path}/analysis/${node.id}-probe.json`, result);
-    if (!result.complete) {
-      unresolved(m, node.id, "budget-exhausted", "Format scan stopped at maxAssets", "Start a new run with a larger asset budget or narrower input scope");
-      // Accepted prefix is retained; do not keep re-scanning it on every resume.
-    } else if (!result.matches.length) unresolved(m, node.id, "unsupported", `No validated ${PARSERS.parsers.map(p => p.format).join("/")} found in the complete byte-wise supported-format scan`, "Add a tested format parser, or establish a container/transform from loader evidence; this does not mean the bytes are not assets");
-  } else if (job.stage === "analyze") {
-    const cache = `cache/${id("analysis", [m.analyzer, node.blob, m.limits.maxFunctions, m.limits.maxInstructions])}.json`;
-    const report = await cached(store, cache, () => analyzeOriginal(bytes, node.id, m.limits, signal));
-    // A cache shared by identical byte objects carries the current container identity.
-    report.container = node.id;
-    store.json(`${path}/analysis/${node.id}-static.json`, report);
-    const witness = evidence(m, node.id, report.outcome, "static-slices-v1", `${report.functions.length} entry/direct-call function observations; ${report.capability}; consult original-word addresses in the attached static report`);
-    node.evidence.push(witness);
-    if (report.functions.length) node.stages.interpretation = "candidate";
-    unresolved(m, node.id, report.outcome === "budget-exhausted" ? "budget-exhausted" : "context-unresolved", report.blockers.join("; ") || "Resource operation signatures, archive table extent and consumer meaning remain unresolved", "Supply missing address/operation evidence or extend the bounded static analyzer; changing an unrelated C source does not reopen it");
-  } else {
-    if (!node.source) return true;
-    if (!m.artifacts.some(a => a.node === node.id && a.processor === "slice-v1")) {
-      const parents = [nodeOf(m, node.source.node).blob];
-      if (typeof node.metadata.indexBlob === "string") parents.push(node.metadata.indexBlob);
-      artifact(store, m, node, "extraction", bytes, "slice-v1", { source: node.source, basis: node.metadata.basis ?? "validated-parser" }, "bin", parents);
-    }
-    if (typeof node.metadata.parserId === "string") {
-      const parser = PARSERS.get(node.metadata.parserId);
-      for (const variant of PARSERS.variants(parser.id, bytes)) {
-        const complete = m.artifacts.some(a => a.node === node.id && a.processor === parser.id && canonical(a.parameters.variant) === canonical(variant));
-        if (complete) continue;
-        const outputs = PARSERS.decode(parser.id, bytes, variant, m.limits.maxOutputBytes - usedOutput(m));
-        for (const output of outputs) {
-          artifact(store, m, node, output.stage, output.bytes, parser.id, { ...output.metadata, ...variant, variant, kind: output.kind }, output.extension);
-          node.stages[output.stage] = "validated";
-        }
-        // Publish a whole variant at once; a budget stop preserves earlier variants.
-        persist(store, run);
-        signal?.throwIfAborted();
-        await new Promise<void>(r => setImmediate(r));
-      }
-    }
-  }
-  return true;
-}
-
-function validateInputs(store: Store, run: Run): void {
-  for (const input of run.manifest.inputs) {
-    const path = safePath(store.project, input.path);
-    const bytes = readFileSync(path);
-    if (hash(bytes) !== input.hash) throw new Error(`input-drift: ${input.path}; the old input snapshot is preserved`);
+    if (total > maximum) throw new Error("budget-exhausted: cached variant output");
   }
 }
-export function verifyRun(store: Store, run: Run): { outcome: "validated"; nodes: number; artifacts: number; manifestHash: string } {
-  const m = run.manifest;
-  store.clearBytes();
-  validateInputs(store, run);
+function descriptors(outputs: DecodedOutput[]): unknown {
+  return outputs.map(o => ({ ...o, bytes: hash(o.bytes), size: o.bytes.length }));
+}
+function validateInputs(store: Store, m: Manifest): void {
+  for (const input of m.inputs) {
+    const bytes = readFileSync(safePath(store.project, input.path));
+    if (hash(bytes) !== input.hash || bytes.length !== input.size) throw new Error(`input-drift: ${input.path}`);
+  }
+}
+function sortManifest(m: Manifest): void {
+  for (const entries of [m.inputs, m.nodes, m.artifacts, m.evidence, m.assets]) entries.sort((a, b) => a.id.localeCompare(b.id, "en"));
+  m.edges.sort((a, b) => canonical(a).localeCompare(canonical(b), "en"));
+  m.unresolved.sort((a, b) => canonical(a).localeCompare(canonical(b), "en"));
+}
+/** Read-only verification. Full replay groups artifacts by resource/variant and
+ * decodes once for all outputs, never once per output file. */
+export function verifyManifest(store: Store, m: Manifest, full = true, registry: ParserRegistry = PARSERS, counts: Statistics = stats()): void {
+  store.clearBytes(); validateInputs(store, m);
+  if (m.version !== 2 || canonical(m.execution) !== canonical(execution())) throw new Error("Incompatible asset manifest/execution profile");
   const names = new Set(m.nodes.map(n => n.id)), witnesses = new Set(m.evidence.map(e => e.id));
   if (names.size !== m.nodes.length || witnesses.size !== m.evidence.length) throw new Error("Duplicate graph IDs");
   for (const node of m.nodes) {
     const bytes = store.bytes(node.blob);
     if (bytes.length !== node.size || node.evidence.some(e => !witnesses.has(e))) throw new Error("Invalid node size/evidence");
     if (node.source) {
-      const source = node.source;
-      integer(source.offset, "source offset"); integer(source.length, "source length");
-      const parent = store.bytes(nodeOf(m, source.node).blob);
-      if (source.length !== node.size || source.offset + source.length > parent.length || !bytes.equals(parent.subarray(source.offset, source.offset + source.length))) throw new Error("Raw extraction differs from source extent");
+      const s = node.source, parent = store.bytes(nodeOf(m, s.node).blob);
+      integer(s.offset, "source offset"); integer(s.length, "source length", 1);
+      if (s.length !== node.size || s.offset + s.length > parent.length || !bytes.equals(parent.subarray(s.offset, s.offset + s.length))) throw new Error("Raw extraction differs from source extent");
     }
-    if (typeof node.metadata.parserId === "string") {
-      const parser = PARSERS.get(node.metadata.parserId), parsed = PARSERS.parse(parser.id, bytes, 0);
-      if (parsed.length !== bytes.length || node.format !== parser.format || node.metadata.parserVersion !== parser.version || canonical(node.metadata) !== canonical({ ...parsed.metadata, parserId: parser.id, parserVersion: parser.version })) throw new Error("Parser node extent/metadata failed replay");
+    if (full && typeof node.metadata.parserId === "string") {
+      const parser = registry.get(node.metadata.parserId), parsed = registry.parse(parser.id, bytes, 0); counts.parses++;
+      if (parsed.length !== bytes.length || node.format !== parser.format || canonical(node.metadata) !== canonical({ ...parsed.metadata, parserId: parser.id, parserVersion: parser.version }) || (node.stages.discovery !== "ambiguous" && node.stages.discovery !== (parsed.discovery ?? "validated"))) throw new Error("Parser node extent/metadata/discovery failed replay");
     }
   }
   for (const input of m.inputs) {
@@ -241,157 +141,183 @@ export function verifyRun(store: Store, run: Run): { outcome: "validated"; nodes
     if (node.blob !== input.blob || node.size !== input.size || input.blob !== `blobs/${input.hash}`) throw new Error("Input graph provenance mismatch");
   }
   for (const edge of m.edges) if (!names.has(edge.from) || !names.has(edge.to)) throw new Error("Dangling graph edge");
+  const variants = new Map<string, DecodedOutput[]>();
   for (const a of m.artifacts) {
-    const node = nodeOf(m, a.node);
-    if (a.evidence.some(e => !witnesses.has(e))) throw new Error("Missing artifact evidence");
+    const node = nodeOf(m, a.node), actual = store.bytes(a.path);
+    if (a.path !== `blobs/${a.hash}` || actual.length !== a.size || a.evidence.some(e => !witnesses.has(e))) throw new Error("Artifact hash/size/evidence mismatch");
     for (const parent of a.parents) store.bytes(parent);
-    if (a.path !== `blobs/${a.hash}` && !a.path.startsWith(`${runPath(m.runId)}/exports/`)) throw new Error("Artifact outside output scope");
-    const actual = readFileSync(store.path(a.path));
-    if (hash(actual) !== a.hash || actual.length !== a.size) throw new Error("Artifact hash/size mismatch");
-    let expected: Buffer;
-    if (a.processor === "slice-v1") expected = store.bytes(node.blob);
-    else if (PARSERS.parsers.some(p => p.id === a.processor)) {
-      const output = PARSERS.replay(a.processor, store.bytes(node.blob), a.parameters.variant as Record<string, unknown>, a.parameters.kind as string, m.limits.maxOutputBytes);
-      if ((a.extension !== undefined && a.extension !== output.extension) || a.stage !== output.stage || canonical(a.parameters) !== canonical({ ...output.metadata, ...(a.parameters.variant as Record<string, unknown>), variant: a.parameters.variant, kind: output.kind }) || canonical(a.parents) !== canonical([node.blob])) throw new Error("Parser artifact stage/metadata/provenance mismatch");
-      expected = output.bytes;
+    if (a.processor === "slice-v1") {
+      const s = node.source;
+      const expectedParents = s ? [nodeOf(m, s.node).blob, ...(typeof node.metadata.indexBlob === "string" ? [node.metadata.indexBlob] : [])] : [];
+      if (!s || a.stage !== "extraction" || canonical(a.parents) !== canonical(expectedParents) || canonical(a.parameters) !== canonical({ source: s, basis: node.metadata.basis ?? "validated-parser" }) || !actual.equals(store.bytes(node.blob))) throw new Error("Slice artifact provenance mismatch");
+    } else if (registry.parsers.some(p => p.id === a.processor)) {
+      if (node.stages.discovery !== "validated" || a.processor !== node.metadata.parserId || canonical(a.parents) !== canonical([node.blob])) throw new Error("Parser artifact provenance mismatch");
+      if (!full) continue;
+      const key = canonical([a.processor, node.blob, a.parameters.variant]);
+      if (!variants.has(key)) { variants.set(key, registry.decode(a.processor, store.bytes(node.blob), a.parameters.variant as Record<string, unknown>, m.limits.maxOutputBytes)); counts.replays++; }
+      const output = variants.get(key)!.find(o => o.kind === a.parameters.kind);
+      if (!output || a.extension !== output.extension || a.stage !== output.stage || canonical(a.parameters) !== canonical({ ...output.metadata, ...(a.parameters.variant as object), variant: a.parameters.variant, kind: output.kind }) || !actual.equals(output.bytes)) throw new Error("Parser artifact stage/metadata/transformation failed replay");
     } else if (a.processor === "byte-xor-v1") {
-      const code = nodeOf(m, a.parameters.codeNode as string);
-      const original = nodeOf(m, a.parameters.inputNode as string);
-      // Recheck ORIGINAL WORDS, never trust a mutable analysis JSON as proof.
+      const code = nodeOf(m, a.parameters.codeNode as string), original = nodeOf(m, a.parameters.inputNode as string);
       const transform = transformAt(store.bytes(code.blob), a.parameters.address as number);
-      if (transform?.kind !== "byte-xor" || transform.key !== a.parameters.key || a.parameters.count !== original.size) throw new Error("Transform has no validated constructor evidence");
-      expected = evaluateByteTransform(store.bytes(original.blob), transform.key, m.limits.maxOutputBytes);
+      if (!transform || transform.key !== a.parameters.key || a.parameters.count !== original.size || canonical(a.parents) !== canonical([original.blob, code.blob]) || !actual.equals(evaluateByteTransform(store.bytes(original.blob), transform.key, m.limits.maxOutputBytes))) throw new Error("Transform has no validated original-word constructor/provenance");
     } else throw new Error("Unsupported artifact processor");
-    if (!actual.equals(expected)) throw new Error("Transformation replay mismatch");
   }
-  return { outcome: "validated", nodes: m.nodes.length, artifacts: m.artifacts.length, manifestHash: run.state.manifestHash };
+  if (full) for (const node of m.nodes.filter(n => n.kind === "resource" && n.stages.discovery === "validated")) {
+    const parser = registry.get(node.metadata.parserId as string), raw = store.bytes(node.blob);
+    for (const variant of registry.variants(parser.id, raw)) {
+      const key = canonical([parser.id, node.blob, variant]);
+      if (!variants.has(key)) { variants.set(key, registry.decode(parser.id, raw, variant, m.limits.maxOutputBytes)); counts.replays++; }
+      const expected = variants.get(key)!.map(o => o.kind).sort();
+      const actual = m.artifacts.filter(a => a.node === node.id && a.processor === parser.id && canonical(a.parameters.variant) === canonical(variant)).map(a => a.parameters.kind).sort();
+      if (canonical(actual) !== canonical(expected)) throw new Error("Incomplete parser variant artifacts");
+    }
+  }
+  if (canonical(m.assets) !== canonical(presentationPlan(m, registry))) throw new Error("Published asset/source-occurrence provenance mismatch");
+  // Replay conditional member layouts as a whole, including index dependencies.
+  for (const schema of m.schemas) {
+    const index = m.inputs.find(i => i.path === schema.index), data = m.inputs.find(i => i.path === schema.data);
+    if (!index || !data) throw new Error("Missing schema inputs");
+    const extents = schemaExtents(schema, store.bytes(index.blob), data.size);
+    const members = m.nodes.filter(n => n.kind === "member" && n.metadata.schema === hash(canonical(schema)));
+    if (members.length !== extents.length || extents.some(e => !members.some(n => n.metadata.record === e.index && n.source?.node === data.id && n.source.offset === e.offset && n.size === e.length && n.metadata.indexBlob === index.blob))) throw new Error("Schema member provenance mismatch");
+  }
+  checkBudget(m);
 }
 
-function documentBundle(store: Store, run: Run): Record<string, unknown> {
-  const verification = verifyRun(store, run), m = run.manifest;
-  const bundle = { version: 1, runId: m.runId, manifestHash: verification.manifestHash, analyzer: m.analyzer, verification,
-    inputs: m.inputs.map(({ id, path, hash, size }) => ({ id, path, hash, size })),
-    nodes: m.nodes, artifacts: m.artifacts, evidence: m.evidence, unresolved: m.unresolved,
-    coverage: { observedInputFiles: m.inputs.length, observedBytes: m.inputs.reduce((s, i) => s + i.size, 0), supportedFormats: PARSERS.parsers.map(p => ({ id: p.id, format: p.format, version: p.version })), totalGameAssets: "unknown" },
-    reproduction: `npx tsx tools/agent/resourceCampaign.ts --resume ${m.runId}`,
-    browsableAssets: "build/assets/index.json (category folders contain copies; run artifacts remain authoritative)",
-    limitations: ["Schema validation is conditional on supplied layouts", "Static slices do not independently establish loader/consumer semantics", "Exports are derivative; raw/RGBA/STP blobs remain authoritative"] };
-  const bundleHash = hash(canonical(bundle));
-  store.json(`${runPath(m.runId)}/docs/handoff-${bundleHash}.json`, bundle);
-  const table = m.nodes.filter(n => n.kind !== "input").map(n => `| ${n.id} | ${n.format ?? "opaque"} | ${n.size} | ${canonical(n.stages)} | ${n.evidence.join(", ")} |`).join("\n");
-  const report = `# Resource extraction ${m.runId}\n\nVerified manifest: ${verification.manifestHash}\n\n${m.inputs.length} observed input files; total game assets unknown.\nSupported format parsers/exporters: ${PARSERS.parsers.map(p => `${p.format} v${p.version}`).join(", ")}.\n\n| Node | Format | Bytes | Stages | Evidence |\n|---|---|---|---|---|\n${table}\n\n## Limitations and reopening conditions\n\n${m.unresolved.map(u => `- ${u.subject}: **${u.outcome}** — ${u.reason}. Reopen: ${u.reopen}.`).join("\n")}\n\n## Reproduce\n\n\`${bundle.reproduction}\`\n\nRaw and decoded blobs are authoritative. PPM discards transparency/STP.\n`;
-  store.atomic(`${runPath(m.runId)}/report.md`, report);
-  store.atomic(`${runPath(m.runId)}/docs/catalog.md`, report);
-  return { outcome: "validated", handoff: `${runPath(m.runId)}/docs/handoff-${bundleHash}.json`, bundleHash, manifestHash: verification.manifestHash };
-}
-
-async function transform(store: Store, run: Run, request: Request, signal?: AbortSignal): Promise<void> {
-  const m = run.manifest;
-  if (!request.node || !request.transformNode || request.transformAddress === undefined) throw new Error("Transform requires node, transformNode and transformAddress");
-  const input = nodeOf(m, request.node), code = nodeOf(m, request.transformNode);
-  const report = await analyzeOriginal(store.bytes(code.blob), code.id, m.limits, signal);
-  const fn = report.functions.find(f => f.entry === request.transformAddress);
-  const relation = fn?.transform as { kind: string; key: number; outcome: string } | undefined;
-  if (relation?.kind !== "byte-xor" || relation.outcome !== "validated") throw new Error("unsupported: no checked byte-xor constructor at requested code address");
-  const output = evaluateByteTransform(store.bytes(input.blob), relation.key, m.limits.maxOutputBytes - usedOutput(m));
-  const name = id("decoded", [input.id, code.id, request.transformAddress, relation.key]);
-  if (m.nodes.some(n => n.id === name)) return;
-  if (m.nodes.filter(n => n.kind !== "input").length >= m.limits.maxAssets) throw new Error("budget-exhausted: transform node");
-  store.json(`${runPath(m.runId)}/analysis/${code.id}-static.json`, report);
-  const witness = evidence(m, input.id, "validated", "byte-xor-v1", `Complete original-word constructor at ${code.id}:0x${request.transformAddress.toString(16)}; key ${relation.key}; requested count ${input.size}, separate output buffer; association/count supplied by caller, NOT an inferred game call`);
-  const node: Node = { id: name, kind: "decoded", blob: store.blob(output), size: output.length, metadata: { codeNode: code.id, inputNode: input.id }, stages: { decoding: "validated", discovery: "candidate" }, evidence: [witness] };
-  m.nodes.push(node); m.edges.push({ from: input.id, to: name, kind: "transformation" });
-  artifact(store, m, node, "decoding", output, "byte-xor-v1", { key: relation.key, address: request.transformAddress, codeNode: code.id, inputNode: input.id, count: input.size }, "bin", [input.blob, code.blob]);
-  run.state.pending.push({ node: name, stage: "probe" });
-  run.state.outcome = "running";
-  persist(store, run);
+export async function extractAssets(project: string, request: Request = {}, signal?: AbortSignal, progress?: (info: Record<string, unknown>) => void, options: ExtractionOptions = {}): Promise<Record<string, unknown>> {
+  const store = new Store(project), registry = options.registry ?? PARSERS, fingerprints = options.fingerprints ?? parserFingerprints(registry), engine = engineFingerprints(), counts = stats();
+  const contract = engine.find(file => file.path.endsWith("/pipeline.ts"))!.hash, memory = new Map<string, unknown>();
+  if (fingerprints.length !== registry.parsers.length || registry.parsers.some(p => !fingerprints.some(f => f.id === p.id && f.format === p.format && f.version === p.version && /^[a-f0-9]{64}$/.test(f.hash)))) throw new Error("Invalid parser dependency identities");
+  return store.lock("extraction", async () => {
+    signal?.throwIfAborted();
+    const limits = limitsFrom(request.limits), selection = relative(store.project, safePath(store.project, request.input ?? "extracted")).replaceAll("\\", "/");
+    const inputs = await inventory(project, selection, store, limits, signal);
+    const schemas = [...(request.schemas ?? [])].sort((a, b) => canonical(a).localeCompare(canonical(b), "en"));
+    if (schemas.length > 128 || new Set(schemas.map(canonical)).size !== schemas.length) throw new Error("Invalid/duplicate schema domain");
+    for (const schema of schemas) validateSchema(schema);
+    const transforms = [...(request.transforms ?? [])].sort((a, b) => canonical(a).localeCompare(canonical(b), "en"));
+    if (transforms.length > 128 || new Set(transforms.map(canonical)).size !== transforms.length) throw new Error("Invalid/duplicate transform domain");
+    const m: Manifest = { version: 2, selection, limits, schemas, transforms, execution: execution(), engine, parsers: fingerprints, inputs, nodes: [], artifacts: [], evidence: [], edges: [], unresolved: [], assets: [] };
+    for (const input of inputs) {
+      const witness = evidence(m, input.id, "validated", "inventory-v2", `SHA-256 ${input.hash}; ${input.size} file bytes at ${input.path}; physical disc coordinates and derivative lineage unavailable`);
+      const prior = m.nodes.find(n => n.blob === input.blob);
+      m.nodes.push({ id: input.id, kind: "input", blob: input.blob, size: input.size, metadata: { inputPath: input.path, physicalDiscCoordinates: "unavailable", lineage: "unverified" }, stages: { discovery: "validated" }, evidence: [witness] });
+      if (prior) m.edges.push({ from: prior.id, to: input.id, kind: "alias" });
+    }
+    unresolved(m, "scope", "context-unresolved", "Supported-format scans do not establish total game asset count, semantic names, disc LBAs or missing XA subheaders", "Add evidence-backed capabilities or supply independently witnessed original disc metadata");
+    for (const schema of schemas) {
+      const index = inputs.find(i => i.path === schema.index), data = inputs.find(i => i.path === schema.data);
+      if (!index || !data) throw new Error("Schema paths must identify inventoried inputs exactly");
+      const witness = evidence(m, index.id, "candidate", "schema-v1", `Supplied schema ${hash(canonical(schema))}: extents checked, historical boundary/field interpretation NOT established`);
+      for (const extent of schemaExtents(schema, store.bytes(index.blob), data.size)) addSlice(store, m, nodeOf(m, data.id), extent.offset, extent.length, "member", undefined, { record: extent.index, schema: hash(canonical(schema)), indexBlob: index.blob, basis: schema.basis }, witness);
+      unresolved(m, index.id, "candidate", "Supplied archive schema has only extent validation", "Witness record origin, count and field semantics in the original loader");
+    }
+    for (const transform of transforms) {
+      if (transform.kind !== "byte-xor") throw new Error("Unsupported transform constructor");
+      integer(transform.address, "transform address", 0, 0xffffffff);
+      const input = inputs.find(i => i.path === transform.input), code = inputs.find(i => i.path === transform.code);
+      if (!input || !code) throw new Error("Transform paths must identify inventoried inputs exactly");
+      const relation = transformAt(store.bytes(code.blob), transform.address);
+      if (!relation) throw new Error("unsupported: no checked byte-xor constructor at the original code address");
+      const output = evaluateByteTransform(store.bytes(input.blob), relation.key, limits.maxOutputBytes);
+      const name = id("decoded", [input.id, code.id, transform.address, relation.key]);
+      const witness = evidence(m, name, "validated", "byte-xor-v1", `Original-word constructor at ${code.id}:0x${transform.address.toString(16)}; key ${relation.key}; count ${input.size}; input association/count supplied, NOT an inferred game call`);
+      const node: Node = { id: name, kind: "decoded", blob: store.blob(output), size: output.length, metadata: { codeNode: code.id, inputNode: input.id }, stages: { decoding: "validated", discovery: "candidate" }, evidence: [witness] };
+      m.nodes.push(node); m.edges.push({ from: input.id, to: name, kind: "transformation" });
+      artifact(m, node, "decoding", node.blob, node.size, "byte-xor-v1", { key: relation.key, address: transform.address, codeNode: code.id, inputNode: input.id, count: input.size }, "bin", [input.blob, code.blob]);
+    }
+    // Original/member/explicit-transform byte views only. General plugin-produced
+    // view discovery is deliberately not claimed by this orchestration refactor.
+    for (const view of [...m.nodes]) {
+      signal?.throwIfAborted(); let found = 0;
+      const bytes = store.bytes(view.blob);
+      for (const parser of registry.parsers) {
+        progress?.({ stage: "scan", input: view.id, parser: parser.id });
+        const fingerprint = fingerprints.find(p => p.id === parser.id)!;
+        const scanned = await cached<Scan>(store, ["scan-v2", contract, execution(), fingerprint.hash, view.blob, limits.maxAssets], Boolean(request.force), counts, memory, value => {
+          if (!value.complete || !Array.isArray(value.matches)) throw new Error("Incomplete discovery cache");
+          for (const match of value.matches) {
+            integer(match.offset, "cached offset", 0, bytes.length); integer(match.length, "cached length", 1, bytes.length - match.offset);
+            if (match.parser !== parser.id || match.format !== parser.format || !["validated", "candidate"].includes(match.discovery) || !match.bounded || typeof match.bounded !== "object") throw new Error("Invalid cached parser extent");
+          }
+        }, async () => {
+          counts.scans++;
+          const result = await new ParserRegistry([parser]).scan(bytes, limits.maxAssets, signal);
+          counts.parses += result.matches.length + result.rejected;
+          if (!result.complete) throw new Error("budget-exhausted: incomplete format scan");
+          return { ...result, matches: result.matches.map(match => {
+            const parsed = registry.parse(parser.id, bytes.subarray(match.offset, match.offset + match.length), 0); counts.parses++;
+            if (parsed.length !== match.length || (parsed.discovery ?? "validated") !== match.discovery) throw new Error("Bounded parser extent/discovery failed replay");
+            return { ...match, bounded: parsed.metadata };
+          }) };
+        });
+        for (const match of scanned.matches) {
+          const witness = evidence(m, view.id, match.discovery, parser.id, `${parser.format} at byte ${match.offset}, ${match.length} bytes; structurally compatible with ${parser.id} version ${parser.version}; ${match.discovery === "candidate" ? "weak discovery signature, independent sector/format alignment NOT established; no public export" : "historical naming is unknown"}`);
+          const resource = addSlice(store, m, view, match.offset, match.length, "resource", parser.format, { ...match.bounded, parserId: parser.id, parserVersion: parser.version }, witness);
+          resource.stages.discovery = match.discovery;
+          if (match.discovery === "candidate") unresolved(m, resource.id, "candidate", "Weak format signature alone does not establish this extent as an asset; no decode or public export selected", "Witness the format boundary/alignment independently before promoting this candidate");
+          const alternative = m.nodes.find(n => n.id !== resource.id && n.kind === "resource" && n.source?.node === view.id && n.source.offset === match.offset && n.size === match.length && n.metadata.parserId !== parser.id);
+          if (alternative) {
+            alternative.stages.discovery = "ambiguous"; resource.stages.discovery = "ambiguous";
+            unresolved(m, resource.id, "ambiguous", "Multiple parsers validate the same extent; no public export selected", "Establish the correct format using independent context");
+          }
+          found++;
+        }
+      }
+      if (!found) unresolved(m, view.id, "unsupported", `No validated ${registry.parsers.map(p => p.format).join("/")} in the complete supported-format scan`, "Add a tested parser or establish a container/transform; this does not mean the bytes are not assets");
+    }
+    for (const node of m.nodes.filter(n => n.source)) {
+      artifact(m, node, "extraction", node.blob, node.size, "slice-v1", { source: node.source, basis: node.metadata.basis ?? "validated-parser" }, "bin", [nodeOf(m, node.source!.node).blob, ...(typeof node.metadata.indexBlob === "string" ? [node.metadata.indexBlob] : [])]);
+      if (node.stages.discovery !== "validated" || typeof node.metadata.parserId !== "string") continue;
+      const parser = registry.get(node.metadata.parserId), fingerprint = fingerprints.find(p => p.id === parser.id)!;
+      const decoded = await cached<Variant[]>(store, ["decode-v2", contract, execution(), fingerprint.hash, node.blob, limits.maxOutputBytes], Boolean(request.force), counts, memory, value => validateOutputs(store, value, limits.maxOutputBytes), async () => {
+        const variants: Variant[] = [];
+        for (const parameters of registry.variants(parser.id, store.bytes(node.blob))) {
+          signal?.throwIfAborted(); progress?.({ stage: "decode", input: node.id, parser: parser.id, variant: parameters });
+          const outputs = registry.decode(parser.id, store.bytes(node.blob), parameters, limits.maxOutputBytes); counts.decodes++;
+          const replay = registry.decode(parser.id, store.bytes(node.blob), parameters, limits.maxOutputBytes); counts.replays++;
+          if (canonical(descriptors(outputs)) !== canonical(descriptors(replay))) throw new Error("Nondeterministic parser decode/replay");
+          variants.push({ parameters, outputs: outputs.map(o => ({ kind: o.kind, extension: o.extension, stage: o.stage, metadata: o.metadata, path: store.blob(o.bytes), hash: hash(o.bytes), size: o.bytes.length })) });
+          await new Promise<void>(r => setImmediate(r));
+        }
+        return variants;
+      });
+      for (const variant of decoded) for (const output of variant.outputs) {
+        artifact(m, node, output.stage, output.path, output.size, parser.id, { ...output.metadata, ...variant.parameters, variant: variant.parameters, kind: output.kind }, output.extension);
+        node.stages[output.stage] = "validated";
+      }
+    }
+    m.assets = presentationPlan(m, registry); sortManifest(m);
+    verifyManifest(store, m, Boolean(request.fullVerify), registry, counts);
+    await options.beforePublish?.(); signal?.throwIfAborted(); validateInputs(store, m);
+    if (canonical(engineFingerprints()) !== canonical(engine) || (!options.fingerprints && canonical(parserFingerprints(registry)) !== canonical(fingerprints))) throw new Error("Extractor/parser implementation changed during extraction");
+    await presentAssets(store, m, signal, options.publicationStep);
+    let migration: Record<string, unknown> | undefined;
+    if (request.migrateLegacy) { const { migrateLegacy } = await import("./migration.ts"); migration = await migrateLegacy(store, signal); }
+    return { ...(migration ? { migration } : {}), outcome: "validated", manifest: "build/assets/manifest.json", manifestHash: hash(canonical(m) + "\n"), documentation: "notes/asset-provenance.md", inputs: m.inputs.length, resourceNodes: m.nodes.filter(n => n.kind === "resource" && n.stages.discovery === "validated").length, candidateNodes: m.nodes.filter(n => n.kind === "resource" && n.stages.discovery !== "validated").length, assets: m.assets.length, exports: m.assets.reduce((sum, a) => sum + a.files.length, 0), unresolved: m.unresolved.length, statistics: counts };
+  });
 }
 
 export async function executeResource(operation: Operation, project: string, request: Request = {}, signal?: AbortSignal, progress?: (info: Record<string, unknown>) => void): Promise<Record<string, unknown>> {
   signal?.throwIfAborted();
+  if (operation === "extract") return extractAssets(project, request, signal, progress);
+  if (operation === "parser") { const { parserOperation } = await import("./parser-builder.ts"); return parserOperation(project, request, signal); }
   const store = new Store(project);
-  if (operation === "campaign" && request.action === "check" && !request.run && !request.resume) {
-    const path = store.path("runs");
-    const runs = existsSync(path) ? readdirSync(path).filter(name => /^[a-f0-9]{16}-[a-f0-9]{16}$/.test(name)).sort().map(name => {
-      const run = loadRun(store, name, false);
-      return { run: name, state: run.state.outcome, pending: run.state.pending.length, artifacts: run.manifest.artifacts.length, analyzerCompatible: run.manifest.analyzer === analyzerVersion() };
-    }) : [];
-    return { runs };
-  }
-  let run: Run;
-  const name = request.resume ?? request.run;
-  if (name) run = loadRun(store, name);
-  else {
-    if (operation !== "campaign" && operation !== "inventory") throw new Error("This operation requires an existing --run <run-id>");
-    run = await createRun(store, request, signal);
-  }
-  return store.lock(run.manifest.runId, async () => {
-    // Re-read the committed checkpoint after acquiring the exclusive run lock.
-    run = loadRun(store, run.manifest.runId);
-    validateInputs(store, run);
-    const m = run.manifest, path = runPath(m.runId);
-    if (name && (request.input || request.schemas || request.limits)) throw new Error("Resume uses the recorded scope/schema/budgets; start a new run to change those premises");
-    progress?.({ run: m.runId, stage: operation, completed: run.state.completed.length, pending: run.state.pending.length });
-    let detail: Record<string, unknown> = {};
-    if (operation === "campaign" && request.action === "check") detail = { pending: run.state.pending.length, completed: run.state.completed.length };
-    else if (operation === "verify") detail = { ...verifyRun(store, run), presented: verifyPresentation(store, m) };
-    else if (operation === "document") {
-      detail = documentBundle(store, run);
-      const selected = request.node ? [nodeOf(m, request.node)] : m.nodes.slice(0, 50);
-      detail.facts = { nodes: selected, evidence: m.evidence.filter(e => selected.some(n => n.id === e.subject || n.evidence.includes(e.id))), unresolved: m.unresolved.filter(u => u.subject === "scope" || selected.some(n => n.id === u.subject)), truncated: !request.node && m.nodes.length > 50 };
-      if (request.action === "propose") {
-        const claims = request.claims ?? [];
-        if (claims.length > 128 || canonical(claims).length > 65536) throw new Error("Documentation proposal budget exceeded");
-        const known = new Set(m.evidence.map(e => e.id));
-        for (const claim of claims) if (!claim.text?.trim() || !Array.isArray(claim.evidence) || !claim.evidence.length || claim.evidence.some(e => !known.has(e))) throw new Error("Every documentation claim must cite existing evidence IDs");
-        const proposal = { outcome: "candidate", semanticReview: "required; reference checking is not a proof of prose truth", manifestHash: run.state.manifestHash, claims };
-        const target = `${path}/docs/proposal-${hash(canonical(proposal))}.json`;
-        store.json(target, proposal); detail.proposal = target;
-      }
-    } else if (operation === "inventory") detail = { inputs: m.inputs, limits: m.limits };
-    else {
-      if (operation === "extract" && request.transformNode) await transform(store, run, request, signal);
-      const max = integer(request.maxSteps ?? 100000, "maxSteps", 0, 1000000);
-      let steps = 0;
-      while (steps < max) {
-        signal?.throwIfAborted();
-        const index = run.state.pending.findIndex(job => (operation === "campaign" || job.stage === operation || (operation === "extract" && job.stage === "schema")) && (!request.node || job.node === request.node));
-        if (index < 0) break;
-        const job = run.state.pending[index]!;
-        progress?.({ run: m.runId, stage: job.stage, node: job.node, completed: run.state.completed.length, pending: run.state.pending.length });
-        try {
-          if (!(await perform(store, run, job, signal))) { run.state.outcome = "budget-exhausted"; persist(store, run); break; }
-        } catch (error) {
-          if (!String(error).includes("budget-exhausted:")) throw error;
-          unresolved(m, job.node, "budget-exhausted", String(error), "Start a larger-budget run or narrow its selected scope; settled artifacts remain valid");
-          run.state.outcome = "budget-exhausted"; persist(store, run); break;
-        }
-        run.state.pending.splice(index, 1);
-        run.state.completed.push(id("job", job));
-        steps++;
-        persist(store, run);
-      }
-      const budgetFinding = m.unresolved.some(u => u.outcome === "budget-exhausted");
-      run.state.outcome = run.state.pending.length || budgetFinding ? "budget-exhausted" : "supported-fixed-point";
-      persist(store, run);
-      detail = { steps, completed: run.state.completed.length, pending: run.state.pending.length };
-      if (operation === "campaign") detail.documentation = documentBundle(store, run);
-      if (request.node) {
-        detail.node = nodeOf(m, request.node);
-        for (const suffix of ["probe", "static"]) {
-          const target = `${path}/analysis/${request.node}-${suffix}.json`;
-          if (existsSync(store.path(target))) detail[suffix] = store.read(target);
-        }
-      }
-    }
-    if (operation === "extract" || (operation === "campaign" && request.action !== "check")) {
-      const checked = verifyRun(store, run);
-      detail.presented = await presentAssets(store, m, checked.manifestHash, signal);
-    }
-    signal?.throwIfAborted();
-    const fullReport = `${path}/logs/${operation}-${randomBytes(8).toString("hex")}.json`;
-    const result = { run: m.runId, state: run.state.outcome, manifest: `${path}/manifest.json`, fullReport, observedInputs: m.inputs.length, resourceNodes: m.nodes.filter(n => n.kind !== "input").length, artifacts: m.artifacts.length, unresolved: m.unresolved.length, ...detail };
-    store.json(fullReport, { request, result });
-    return result;
+  if (operation === "verify") return store.lock("extraction", async () => {
+    const m = store.read<Manifest>("manifest.json"), counts = stats();
+    if (canonical(m.engine) !== canonical(engineFingerprints()) || canonical(m.parsers) !== canonical(parserFingerprints())) throw new Error("Extractor/parser implementation drift; rerun extract-assets");
+    verifyManifest(store, m, true, PARSERS, counts); verifyPresentation(store, m);
+    return { outcome: "validated", manifestHash: hash(canonical(m) + "\n"), statistics: counts };
   });
+  // Focused investigation works on original bytes alone. It never creates an
+  // extraction run or assumes a matched source/compiler/generated symbol map.
+  if (!request.input) throw new Error("Analysis requires a selected original input file");
+  const inputs = await inventory(project, request.input, store, limitsFrom(request.limits), signal);
+  if (inputs.length !== 1) throw new Error("Analysis requires exactly one original input file");
+  const input = inputs[0]!, bytes = store.bytes(input.blob), offset = integer(request.offset ?? 0, "offset", 0, bytes.length), length = integer(request.length ?? Math.min(256, bytes.length - offset), "length", 0, Math.min(4096, bytes.length - offset));
+  const report = await analyzeOriginal(bytes, input.id, limitsFrom(request.limits), signal);
+  const fullReport = `cache/analysis/${hash(canonical([input.hash, report]))}.json`;
+  store.json(fullReport, { input, report });
+  return { input, offset, length, hex: bytes.subarray(offset, offset + length).toString("hex"), outcome: report.outcome, capability: report.capability, blockers: report.blockers, functions: report.functions, fullReport: `build/assets/${fullReport}` };
 }

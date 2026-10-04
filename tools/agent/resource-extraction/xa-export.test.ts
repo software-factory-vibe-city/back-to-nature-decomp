@@ -3,7 +3,8 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { executeResource, loadRun } from "./pipeline.ts";
+import { executeResource, extractAssets } from "./pipeline.ts";
+import { readManifest } from "./test-fixtures.ts";
 import { ParserRegistry, PARSERS } from "./registry.ts";
 import { Store } from "./storage.ts";
 import { XA_PARSER, xaEdc } from "./parsers/xa.ts";
@@ -27,27 +28,24 @@ for (const stride of [2352, 2336]) test(`XA ${stride}: real browsable WAV and AD
     mkdirSync(join(root, "extracted"));
     const chain = Buffer.concat([sector(stride, true), sector(stride, true)]);
     writeFileSync(join(root, "extracted/audio"), Buffer.concat([Buffer.from([7, 9, 3]), chain, Buffer.alloc(64)]));
-    const result = await executeResource("campaign", root, { maxSteps: 1 }), run = result.run as string;
-    const finished = await executeResource("campaign", root, { resume: run });
-    assert.equal(finished.state, "supported-fixed-point");
-    const store = new Store(root), asset = loadRun(store, run).manifest.nodes.find(node => node.kind === "resource")!;
-    const directory = `sound/${asset.id}`, files = readdirSync(store.path(directory));
+    await extractAssets(root);
+    const store = new Store(root), asset = readManifest(root).nodes.find(node => node.kind === "resource")!;
+    const directory = "extracted/sounds", files = readdirSync(store.path(directory));
     const wavName = files.find(file => file.endsWith(".wav"))!;
     assert.ok(wavName, "the user can open an actual WAV, not a renamed XA");
-    assert.ok(files.some(file => file.endsWith(".adpcm")));
-    assert.deepEqual(readFileSync(store.path(`${directory}/original.xa`)), chain);
+    assert.ok(readManifest(root).artifacts.some(a => a.extension === "adpcm"));
+    assert.deepEqual(store.bytes(asset.blob), chain);
     const wav = readFileSync(store.path(`${directory}/${wavName}`));
     assert.equal(wav.readUInt16LE(22), 2); assert.equal(wav.readUInt32LE(24), 37800);
     assert.equal(wav.length, 44 + 2 * 18 * 8 * 28 * 2);
     for (let at = 44; at < wav.length; at += 4) { assert.equal(wav.readInt16LE(at), 1); assert.equal(wav.readInt16LE(at + 2), -1); }
-    assert.equal((await executeResource("verify", root, { run })).outcome, "validated");
+    assert.equal((await executeResource("verify", root)).outcome, "validated");
     writeFileSync(store.path(`${directory}/${wavName}`), "corrupt");
-    await assert.rejects(executeResource("verify", root, { run }), /Presented asset hash/);
-    await executeResource("extract", root, { run, maxSteps: 0 });
+    await assert.rejects(executeResource("verify", root), /Presented asset hash/);
+    const cached = await extractAssets(root);
     assert.deepEqual(readFileSync(store.path(`${directory}/${wavName}`)), wav);
-    assert.equal((await executeResource("verify", root, { run })).outcome, "validated");
-    const cached = await executeResource("campaign", root);
-    assert.deepEqual(loadRun(store, cached.run as string).manifest.nodes, loadRun(store, run).manifest.nodes);
+    assert.equal((cached.statistics as any).decodes, 0);
+    assert.equal((await executeResource("verify", root)).outcome, "validated");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -73,15 +71,15 @@ test("eight real-disc-shaped channels survive unused sectors, individual EOFs an
     sectors.push(end);
     const chain = Buffer.concat(sectors);
     writeFileSync(join(root, "extracted/interleaved.xa"), chain);
-    const result = await executeResource("campaign", root), store = new Store(root);
-    const manifest = loadRun(store, result.run as string).manifest;
+    const result = await extractAssets(root), store = new Store(root);
+    const manifest = readManifest(root);
     const asset = manifest.nodes.find(n => n.kind === "resource")!;
-    assert.equal(result.resourceNodes, 1); assert.equal(result.state, "supported-fixed-point");
+    assert.equal(result.resourceNodes, 1); assert.equal(result.outcome, "validated");
     assert.equal(asset.size, chain.length); assert.equal(asset.metadata.paddingSectors, 4);
-    const files = readdirSync(store.path(`sound/${asset.id}`));
+    const files = readdirSync(store.path("extracted/sounds"));
     assert.equal(files.filter(f => f.endsWith(".wav")).length, 8);
-    assert.equal(files.filter(f => f.endsWith(".adpcm")).length, 8);
-    assert.deepEqual(readFileSync(store.path(`sound/${asset.id}/original.xa`)), chain);
+    assert.equal(manifest.artifacts.filter(a => a.extension === "adpcm").length, 8);
+    assert.deepEqual(store.bytes(asset.blob), chain);
     for (const artifact of manifest.artifacts.filter(a => a.extension === "wav")) {
       const channel = artifact.parameters.channel as number;
       const wav = readFileSync(store.path(artifact.path));
@@ -91,9 +89,9 @@ test("eight real-disc-shaped channels survive unused sectors, individual EOFs an
         assert.equal(wav.readInt16LE(at), 1); assert.equal(wav.readInt16LE(at + 2), -1);
       }
     }
-    assert.equal((await executeResource("verify", root, { run: result.run as string })).outcome, "validated");
-    const cached = await executeResource("campaign", root);
-    assert.deepEqual(loadRun(store, cached.run as string).manifest.nodes, manifest.nodes);
+    assert.equal((await executeResource("verify", root)).outcome, "validated");
+    await extractAssets(root);
+    assert.deepEqual(readManifest(root).nodes, manifest.nodes);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -101,11 +99,10 @@ test("non-audio XA goes to data, never a video folder; dynamic category output i
   const root = mkdtempSync(join(tmpdir(), "xa-export-"));
   try {
     mkdirSync(join(root, "extracted")); writeFileSync(join(root, "extracted/data"), sector(2352, false));
-    const result = await executeResource("campaign", root), store = new Store(root);
-    const asset = loadRun(store, result.run as string).manifest.nodes.find(node => node.kind === "resource")!;
-    assert.ok(readdirSync(store.path(`data/${asset.id}`)).includes("original.xa"));
+    await extractAssets(root); const store = new Store(root);
+    assert.ok(readdirSync(store.path("extracted/data")).some(f => f.endsWith(".xa")));
     assert.equal(store.read<{ assets: Array<{ category: string }> }>("index.json").assets[0]!.category, "data");
-    assert.equal((await executeResource("verify", root, { run: result.run as string })).outcome, "validated");
+    assert.equal((await executeResource("verify", root)).outcome, "validated");
     const registry = new ParserRegistry([{ ...XA_PARSER, category: () => "../escape" as "sound" }]);
     assert.throws(() => registry.category(XA_PARSER.id, {}), /category/);
     assert.equal(PARSERS.category("tim-v1", {}), "images");

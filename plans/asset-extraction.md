@@ -1,21 +1,25 @@
 # Plan: static-first resource extraction for arbitrary PlayStation games
 
-**Status: the initial TIM/parser-plugin and same-TUI iteration loop is
-implemented. Focused tests cover real deterministic tools, scoped iteration
-commits, parser test failures, hot reload and cancellation. Repository-wide
-verification is recorded below. General loader-derived schema recovery,
-consumer semantics and broader audio/video/model support remain pending.
-XA revision 3 validates sector audio, handles unused interleave sectors and
-exports native-rate PCM WAV. All 32 streams in the four original XA files
-have been exported and matched sample-for-sample against FFmpeg.**
+**Status: historical architecture, superseded by the implemented
+`plans/deterministic-resource-extraction.md`.** The asset/documentation iteration
+loop, automatic commits, run/resume APIs, nine-tool surface and extraction/
+documentation skills described below have been retired. These sections record
+the former implementation, not current commands or authorization to commit.
+Use `npm run extract-assets` or the zero-model `/extract-resources` wrapper;
+explicit parser development uses `/build-resource-parser` and never commits.
+Current exports are flat, content-deduplicated files under
+`build/assets/extracted/{images,sounds,models,videos,data}/`, with generated
+`notes/asset-provenance.md`. The broader format/static-analysis roadmap below
+remains useful and incomplete. TIM is still supported; XA revision 4 retains
+PCM behavior while weak stripped-sector signatures remain unpromoted candidates.
 
-## Implementation snapshot: asset parsers first
+## Historical implementation snapshot: asset parsers first
 
 Implemented asset-format parsers are **TIM v1** and **XA revision 3** for sector
 streams with surviving subheaders. This is not a general audio/video/model
 extractor; payload-only ISO extractions do not establish XA playback metadata.
 
-| Capability | Implemented now | Remaining work |
+| Capability | Former implementation | Remaining work |
 |---|---|---|
 | Parser/plugin contract and builder gate | Generic bounded probe/parse/variant/decode/replay registry; pure plugin admission; corresponding tests; registration preservation; fixed-argv typecheck/tests and scoped parser commit; fresh tools load new parsers without TUI reload | General dependency resolution and automatic reprobe of plugin-produced container/decoded views; admission policy is not an OS sandbox |
 | TIM textures/images | Strict header/block/extent validation; indexed 4/8-bit and direct 16/24-bit images; all palette banks; RGBA pixels, separate STP mask, and PPM exports | Broader independent fixtures, additional legal-layout compatibility checks, lossless PNG export; mixed-mode TIM remains unsupported |
@@ -169,7 +173,7 @@ all resources have been found.
 
 ## 2. Three-layer harness
 
-The initial implementation uses the following paths:
+The retired initial implementation used the following paths (not current entry points):
 
 ```text
 .pi/extensions/psx-resources/
@@ -183,14 +187,14 @@ The initial implementation uses the following paths:
 .pi/skills/psx-build-resource-parser/
     SKILL.md                         scoped pure plugin/test/registration workflow
 tools/agent/
-    resourceCampaign.ts              deterministic pipeline, resume, and status
-    resourceInventory.ts             input inventory and address-space adapters
-    resourceProbe.ts                 validated format/container proposals
+    resourceCampaign.ts              retired campaign/resume API (doc-ref-ignore: historical deletion)
+    resourceInventory.ts             retired stage API (doc-ref-ignore: historical deletion)
+    resourceProbe.ts                 retired stage API (doc-ref-ignore: historical deletion)
     resourceAnalyze.ts               static slices, schemas, transforms, consumers
     resourceExtract.ts               extraction, decoding, and derivative export
     resourceVerify.ts                artifact, provenance, and scope gates
-    resourceDocument.ts              deterministic documentation handoff/checks
-    resourceIteration.ts             next work item or verified asset-note commit
+    resourceDocument.ts              retired documentation API (doc-ref-ignore: historical deletion)
+    resourceIteration.ts             retired acceptance/commit API (doc-ref-ignore: historical deletion)
     resourceParser.ts                prepared parser scope, tests and scoped commit
     resource-extraction/             reusable implementation, registry and tests
         parser-plugins.ts            additional parser registrations

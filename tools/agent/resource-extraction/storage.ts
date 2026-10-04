@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { constants, existsSync, lstatSync, mkdirSync, openSync, closeSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Input, Limits } from "./types.ts";
 
 export const hash = (bytes: string | Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
@@ -44,6 +43,7 @@ export class Store {
   path(path: string): string { return safePath(this.root, path); }
   atomic(path: string, bytes: string | Uint8Array): void {
     const target = this.path(path);
+    if (existsSync(target) && readFileSync(target).equals(Buffer.from(bytes))) return;
     mkdirSync(dirname(target), { recursive: true });
     const temp = `${target}.${randomBytes(8).toString("hex")}.tmp`;
     try { writeFileSync(temp, bytes, { flag: "wx" }); renameSync(temp, target); }
@@ -58,9 +58,9 @@ export class Store {
   blob(bytes: Uint8Array): string {
     const digest = hash(bytes);
     const path = `blobs/${digest}`;
-    if (existsSync(this.path(path))) {
-      if (hash(readFileSync(this.path(path))) !== digest) throw new Error(`Corrupt blob: ${digest}`);
-    } else this.atomic(path, bytes);
+    // Only freshly computed bytes may repair a corrupt content-addressed object.
+    // bytes() and verification remain strictly read-only integrity checks.
+    if (!existsSync(this.path(path)) || hash(readFileSync(this.path(path))) !== digest) this.atomic(path, bytes);
     return path;
   }
   bytes(path: string): Buffer {
@@ -82,27 +82,6 @@ export class Store {
     try { writeFileSync(fd, `${process.pid}\n`); return await fn(); }
     finally { closeSync(fd); rmSync(path, { force: true }); }
   }
-}
-
-export function runPath(run: string): string {
-  if (!/^[a-f0-9]{16}-[a-f0-9]{16}$/.test(run)) throw new Error(`Invalid run ID: ${run}`);
-  return `runs/${run}`;
-}
-export function analyzerVersion(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const source: string[] = [];
-  const collect = (directory: string): void => {
-    for (const name of readdirSync(directory).sort()) {
-      const path = join(directory, name);
-      if (lstatSync(path).isDirectory()) collect(path);
-      else if (name.endsWith(".ts") && !name.endsWith(".test.ts")) source.push(path);
-    }
-  };
-  collect(here);
-  const own = source.map(path => Buffer.concat([Buffer.from(relative(here, path) + "\0"), readFileSync(path)]));
-  // The pure SSA adapter depends on these files, not on target-specific headers.
-  for (const file of ["../machine-ir/cfg.ts", "../machine-ir/ssa.ts", "../machine-ir/ir.ts", "../machine-ir/dominance.ts", "../matching-reconstruction/decode.ts"]) own.push(readFileSync(resolve(here, file)));
-  return hash(Buffer.concat(own));
 }
 
 export async function inventory(project: string, selection: string, store: Store, limits: Limits, signal?: AbortSignal): Promise<Input[]> {

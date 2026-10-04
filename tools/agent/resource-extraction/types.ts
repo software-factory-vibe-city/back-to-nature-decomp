@@ -1,4 +1,4 @@
-/** Extraction stages and analysis outcomes are deliberately independent. */
+/** Structural compatibility, preservation, decoding and interpretation are distinct. */
 export type Outcome = "validated" | "candidate" | "ambiguous" | "unsupported" | "context-unresolved" | "domain-exhausted" | "budget-exhausted" | "input-drift";
 export type Stage = "discovery" | "extraction" | "decoding" | "interpretation" | "export";
 export interface Limits {
@@ -23,39 +23,42 @@ export interface Node {
 export interface Artifact {
   id: string; node: string; stage: Stage; hash: string; size: number; path: string;
   processor: string; parameters: Record<string, unknown>; parents: string[]; evidence: string[];
-  extension?: string;
-}
-export interface Job { node: string; stage: "probe" | "analyze" | "extract" | "schema"; schema?: number }
-export interface Manifest {
-  version: 1; runId: string; identity: string; analyzer: string; selection: string;
-  limits: Limits; inputs: Input[]; nodes: Node[]; artifacts: Artifact[]; evidence: Evidence[];
-  edges: Array<{ from: string; to: string; kind: "containment" | "transformation" | "alias" }>;
-  unresolved: Array<{ subject: string; outcome: Outcome; reason: string; reopen: string }>;
-  /** Imported schemas are assumptions, not automatically recovered facts. */
-  schemas: ArchiveSchema[];
-}
-export interface State {
-  version: 1; manifestHash: string; pending: Job[]; completed: string[];
-  outcome: "running" | "supported-fixed-point" | "budget-exhausted";
+  extension: string;
 }
 export interface Field { offset: number; width: 1 | 2 | 4; endian: "le" | "be"; scale: number; signed: boolean }
 export interface ArchiveSchema {
   index: string; data: string; tableOffset: number; count: number; stride: number;
-  base: number; position: Field; length: Field;
-  basis: "supplied-hypothesis";
+  base: number; position: Field; length: Field; basis: "supplied-hypothesis";
 }
-export interface Match { format: string; parser: string; offset: number; length: number; metadata: Record<string, unknown> }
+export interface ByteTransform { input: string; code: string; address: number; kind: "byte-xor" }
+export interface ParserFingerprint {
+  id: string; format: string; version: number; hash: string;
+  files: Array<{ path: string; hash: string }>; specifications: string[];
+}
+export const PUBLIC_CATEGORIES = ["images", "sounds", "models", "videos", "data"] as const;
+export type PublicCategory = typeof PUBLIC_CATEGORIES[number];
+export interface PublishedFile { path: string; backing: string; hash: string; size: number; artifact: string }
+export interface PublishedAsset {
+  id: string; format: string; category: PublicCategory; raw: string;
+  occurrences: string[]; files: PublishedFile[];
+}
+/** No execution history, clocks, cache hits, random IDs or Git state. */
+export interface Manifest {
+  version: 2; selection: string; limits: Limits; schemas: ArchiveSchema[]; transforms: ByteTransform[];
+  execution: { node: string; v8: string; endian: string }; engine: Array<{ path: string; hash: string }>; parsers: ParserFingerprint[];
+  inputs: Input[]; nodes: Node[]; artifacts: Artifact[]; evidence: Evidence[]; assets: PublishedAsset[];
+  edges: Array<{ from: string; to: string; kind: "containment" | "transformation" | "alias" }>;
+  unresolved: Array<{ subject: string; outcome: Outcome; reason: string; reopen: string }>;
+}
+export interface Match { format: string; parser: string; offset: number; length: number; metadata: Record<string, unknown>; discovery: "validated" | "candidate" }
 export interface Request {
-  input?: string; run?: string; resume?: string; maxSteps?: number; limits?: Partial<Limits>;
-  schemas?: ArchiveSchema[]; node?: string; transformNode?: string; transformAddress?: number;
-  action?: "bundle" | "check" | "propose" | "next" | "asset" | "prepare" | "test" | "accept" | "discard";
-  baseline?: string; commit?: boolean;
-  claims?: Array<{ text: string; evidence: string[] }>;
+  input?: string; limits?: Partial<Limits>; schemas?: ArchiveSchema[]; transforms?: ByteTransform[];
+  force?: boolean; fullVerify?: boolean; migrateLegacy?: boolean;
+  action?: "prepare" | "test" | "accept"; baseline?: string;
+  offset?: number; length?: number;
 }
 export const TOOL_SCRIPTS = [
-  ["campaign", "resourceCampaign.ts"], ["inventory", "resourceInventory.ts"],
-  ["probe", "resourceProbe.ts"], ["analyze", "resourceAnalyze.ts"],
   ["extract", "resourceExtract.ts"], ["verify", "resourceVerify.ts"],
-  ["document", "resourceDocument.ts"], ["iteration", "resourceIteration.ts"], ["parser", "resourceParser.ts"],
+  ["analyze", "resourceAnalyze.ts"], ["parser", "resourceParser.ts"],
 ] as const;
 export type Operation = typeof TOOL_SCRIPTS[number][0];

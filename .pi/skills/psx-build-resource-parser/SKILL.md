@@ -1,14 +1,15 @@
 ---
 name: psx-build-resource-parser
-description: Build and register a pure PlayStation asset parser when the in-TUI extraction loop has exhausted existing parsers. Require original-byte/specification evidence, corresponding tests, a passing parser gate and a scoped per-iteration commit.
+description: Investigate, implement or improve one explicitly requested pure PlayStation asset parser with evidence-backed layouts, usable exports and corresponding passing tests. Known-format extraction and provenance are deterministic; this work item never automatically commits.
 ---
 
 # Build a resource parser
 
-You are the parser-building role in the active TUI extraction loop, not a child
-agent. The user authorized per-iteration commits: this iteration succeeds only
-when a parser capability is implemented, registered, tested and committed by
-`psx_resource_parser`. Unsupported guesses do not earn commits.
+You are working on one explicitly requested parser capability in the active TUI,
+not a child agent or an asset-approval loop. Success is an evidence-backed,
+registered and tested capability. `psx_resource_parser` never commits, resets or
+restores drafts. Known-format extraction and generated provenance need no model
+turns; they run through `npm run extract-assets`.
 
 ## Scope
 
@@ -19,8 +20,9 @@ You may read repository files and original inputs. Write only:
 - `tools/agent/resource-extraction/parser-plugins.ts` (imports and registrations)
 
 Do not edit the pipeline, registry machinery, game sources, headers, build
-configuration, skills or tracked notes. There is no shell tool. Fixed-argv test,
-typecheck and commit commands are performed by the gate. No emulator, gameplay,
+configuration, skills or handwritten notes. There is no shell tool. Fixed-argv
+typechecks/tests are performed by the gate; deterministic integration extraction
+may regenerate only its own provenance document. No emulator, gameplay,
 other agent, worktree, git reset/clean or automatic flag changes.
 
 ## Workflow
@@ -43,8 +45,11 @@ other agent, worktree, git reset/clean or automatic flag changes.
    an extension is preservation, not decoded/playable media. A container-only
    capability is legitimate, but name it as such and state the missing decoder;
    do not claim to have finished audio/video extraction.
-   Set `category` to images/sound/models/video/data and `rawExtension` to the
-   format's extension so actual files appear in browsable top-level folders.
+   Set internal `category` to images/sound/models/video/data and `rawExtension`
+   to the native format's extension. Export-stage files appear flat under
+   `build/assets/extracted/{images,sounds,models,videos,data}/`; raw/intermediate
+   objects and manifests stay separate. Include specification references where
+   available; implementation fingerprints follow actual runtime dependencies.
    For mixed formats, `category` may be a pure function of validated parse
    metadata. Route XA audio to sound; sector/data containers are not videos
    just because their extension is XA/STR. Unspecified categories/extensions
@@ -74,11 +79,15 @@ other agent, worktree, git reset/clean or automatic flag changes.
    registration. No other plumbing change should be needed.
 5. Call `psx_resource_parser` with `action: "test"`. Fix concrete policy,
    typecheck or test errors in this same TUI. A failed gate is not success.
-6. Call it with `action: "accept"`. It reruns checks and commits only the scoped
-   parser/test/registration files. Stop after `parser-committed`; the loop will
-   reload code through fresh deterministic tool processes and resume discovery.
+6. Exercise the registered capability with `psx_resource_extract` on the
+   requested original input scope, when available. It loads new parser modules
+   in a fresh deterministic process and generates the normal manifest/exports;
+   no extra model session, TUI reload or asset-documentation role is needed.
+7. Call `psx_resource_parser` with `action: "accept"`. It reruns checks and
+   returns `parser-tested` only if the source still matches the tested inputs.
+   Stop then. Source remains uncommitted; do not invoke Git or claim a commit.
 
 If evidence is insufficient, say exactly what is missing and stop without
-fabricating a parser. The controller retains the failed attempt under
-`build/assets/` and restores only its parser scope. A lack of supported assets
-is a reason to investigate/build a capability, not an all-assets-found claim.
+fabricating a parser. Failed/cancelled drafts remain in place, with test reports
+under `build/assets/cache/parser-builder/`. There is no automatic restore or
+repeated builder dispatch. Supported-parser closure is not all-assets-found.

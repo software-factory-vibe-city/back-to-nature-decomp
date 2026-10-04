@@ -5,7 +5,7 @@ import type { Match } from "./types.ts";
 
 export const ASSET_CATEGORIES = ["images", "sound", "models", "video", "data"] as const;
 export type AssetCategory = typeof ASSET_CATEGORIES[number];
-export interface ParsedAsset { length: number; metadata: Record<string, unknown> }
+export interface ParsedAsset { length: number; metadata: Record<string, unknown>; discovery?: "validated" | "candidate" }
 export interface DecodedOutput {
   kind: string; extension: string; stage: "decoding" | "export";
   bytes: Buffer; metadata: Record<string, unknown>;
@@ -15,7 +15,7 @@ export interface DecodedOutput {
  * project symbols, or container-wide guesses. Parameterized/headerless formats
  * can be added as validated views without pretending they have universal magic. */
 export interface AssetParser {
-  id: string; format: string; version: number;
+  id: string; format: string; version: number; specifications?: string[];
   /** Route by format or validated resource metadata; unspecified stays in data/. */
   category?: AssetCategory | ((metadata: Record<string, unknown>) => AssetCategory); rawExtension?: string;
   probe(bytes: Buffer, offset: number): boolean;
@@ -52,6 +52,7 @@ export class ParserRegistry {
     const parsed = this.get(name).parse(bytes, offset);
     integer(parsed.length, "parsed extent", 1, bytes.length - offset);
     if (!parsed.metadata || typeof parsed.metadata !== "object" || Array.isArray(parsed.metadata)) throw new Error("Parser metadata must be a structured object");
+    if (parsed.discovery !== undefined && !["validated", "candidate"].includes(parsed.discovery)) throw new Error("Invalid parser discovery outcome");
     return parsed;
   }
   variants(name: string, bytes: Buffer): Array<Record<string, unknown>> {
@@ -88,7 +89,7 @@ export class ParserRegistry {
         let parsed: ParsedAsset;
         try { parsed = this.parse(parser.id, bytes, offset); } catch { rejected++; continue; }
         if (matches.length >= limit) return { matches, rejected, complete: false };
-        matches.push({ format: parser.format, parser: parser.id, offset, length: parsed.length, metadata: parsed.metadata });
+        matches.push({ format: parser.format, parser: parser.id, offset, length: parsed.length, metadata: parsed.metadata, discovery: parsed.discovery ?? "validated" });
       }
     }
     return { matches, rejected, complete: true };
@@ -97,6 +98,7 @@ export class ParserRegistry {
 
 export const TIM_PARSER: AssetParser = {
   id: "tim-v1", format: "TIM", version: 1, category: "images", rawExtension: "tim",
+  specifications: ["https://psx-spx.consoledev.net/ps1/gpu/"],
   probe: (bytes, offset) => offset + 8 <= bytes.length && bytes[offset] === 0x10 && bytes.readUInt32LE(offset) === 0x10,
   parse: (bytes, offset) => {
     const tim = parseTim(bytes, offset);

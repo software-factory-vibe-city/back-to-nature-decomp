@@ -1,7 +1,7 @@
 import type { AssetParser, DecodedOutput, ParsedAsset } from "../registry.ts";
 import { decodeXaWav, validateXaAudio, xaCoding } from "./xa-audio.ts";
 
-/** CD-ROM XA mode 2 sector chains, parser revision 3.
+/** CD-ROM XA mode 2 sector chains, parser revision 4.
  * https://psx-spx.consoledev.net/ps1/cdr/cdromformat/
  * Supports raw 2352-byte sectors and 2336-byte sectors with only sync/MSF
  * removed (subheaders MUST remain). Headerless sound-group payloads, including
@@ -101,7 +101,12 @@ export function parseXa(bytes: Buffer, offset: number): ParsedAsset {
   const audio = layout.sectors.filter(sector => (sector.submode & SUBMODE_AUDIO) !== 0);
   const padding = layout.sectors.filter(unusedSector);
   const distinct = (values: number[]): number[] => [...new Set(values)].sort((a, b) => a - b);
-  return { length: layout.consumed, metadata: { form: layout.form, stride: layout.stride, sectors: layout.sectors.length,
+  // Stripped subheaders have no sync/MSF signature. One typed sector followed
+  // only by zero padding can validate accidentally in ordinary archive bytes.
+  // Retain its structural extent as a candidate, never promote it to an asset.
+  // Direct bounded decoding remains available when independent context exists.
+  const discovery = layout.form === "stripped-2336" && layout.sectors.length - padding.length < 2 ? "candidate" : "validated";
+  return { length: layout.consumed, discovery, metadata: { form: layout.form, stride: layout.stride, sectors: layout.sectors.length,
     audioSectors: audio.length, dataSectors: layout.sectors.length - audio.length - padding.length, paddingSectors: padding.length,
     channels: distinct(audio.map(sector => sector.channel)), fileNumbers: distinct(layout.sectors.map(sector => sector.file)),
     trailingBytes: bytes.length - offset - layout.consumed } };
@@ -164,7 +169,8 @@ function xaDecode(bytes: Buffer, variant: Record<string, unknown>, maximum: numb
 }
 
 export const XA_PARSER: AssetParser = {
-  id: "xa-v1", format: "XA", version: 3,
+  id: "xa-v1", format: "XA", version: 4,
+  specifications: ["https://psx-spx.consoledev.net/ps1/cdr/cdromformat/"],
   category: metadata => typeof metadata.audioSectors === "number" && metadata.audioSectors > 0 ? "sound" : "data",
   rawExtension: "xa",
   probe: (bytes, offset) => {
