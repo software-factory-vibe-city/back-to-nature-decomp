@@ -6723,6 +6723,23 @@ Members (link order):
   `D_800BD048`/`D_800BD080`/`D_800BF570`), so this is an adjacency-and-data
   argument only, not a shared-cluster proof.
 
+## `ovl_19` nested-callee pair — 0x800BB08C / 0x800BB108 (confidence: high)
+
+- ovl_19_func_800BB08C (m, matched this session, byte-exact) — `D_800BF660`
+  ObjectState reset/handoff leaf: `func_80015840`/`func_8001585C` on the object,
+  then `func_80015EE8(D_8005E3C0->field_D8 + 0x14, &D_800BF660, state[0x1A4], state[0x1A5], 0, 0)`.
+- ovl_19_func_800BB108 (s) — parent driver; calls 800BB08C repeatedly with
+  (a0,a1) = (1,0),(4,0),(5,0),(7,0),(1,1),(7,1).
+- Evidence (TU quirk, strong): 800BB08C is an **auto (nested) function** of
+  800BB108 — the parent sets `$v0 = $sp + 0x18` immediately before every call and
+  the child stores incoming `$v0` (this target's `STATIC_CHAIN_REGNUM`) to its
+  frame; same fingerprint as the `func_8001EAE4`/`func_8001E878` pair. Nested
+  functions are defined inside their parent, so both are one original TU.
+- Evidence (adjacency + shared cluster): 800BB08C (0x7C) ends exactly at
+  0x800BB108; both address `D_800BF660` / `D_8005E3C0->field_D8`; 800BB08C is the
+  `+0x14` sibling of `ovl_19_func_800BAD50` and a byte-shape twin of
+  `ovl_17_func_800BAF50` / `ovl_23_func_800BB1B8`.
+
 ## `ovl_19` D_8007AFF0 far-buffer state reader run — 0x800BB358–0x800BB4D4 (confidence: medium)
 
 Evidence: gapless link run — `ovl_19_func_800BB318` (0x40, ends 0x800BB358) →
