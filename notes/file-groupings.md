@@ -6380,7 +6380,11 @@ Members (slot order):
   state cluster (`D_800B93B4 = 0x800`), and installs `ovl_28_func_800B8478`
   into slot `D_800B9614`
 - ovl_28_func_800B8478 (s) — slot 7 successor installed by 800B8414
-- ovl_28_func_800B865C (s) — slot 8 (`D_800B9618`)
+- ovl_28_func_800B865C (m, matched this session, byte-exact) — slot 8
+  setup: installs `ovl_28_func_800B86D8` into `D_800B9618`, resets the
+  `D_800B93C0`/`C4`/`C6`/`C8`/`CA`/`CE` halfword/word cluster, and gates on
+  the same `D_8006C838+0x8000+0x67A0` u16 against 10 that the counter-run
+  terminator `ovl_28_func_800B83C0` reads, storing it (or 10) to `D_800B93CC`
 
 ## `ovl_28` code-segment-head dispatch cluster — 0x800B7E24 / 0x800B7E80 (confidence: medium)
 

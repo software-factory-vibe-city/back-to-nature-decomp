@@ -985,6 +985,20 @@ extern s32 D_800B93BC;
  * the address of ovl_28_func_800B8478. */
 extern void (*D_800B9614)(void);
 
+/* D_800B9618 - ovl_28 callback slot installed by ovl_28_func_800B865C with
+ * the address of ovl_28_func_800B86D8 (same array as D_800B9614). */
+extern void (*D_800B9618)(void);
+
+/* D_800B93C0..D_800B93CE - ovl_28 halfword/word state cleared and seeded by
+ * ovl_28_func_800B865C. Absolute-addressed (declared externally here). */
+extern s32 D_800B93C0;
+extern s16 D_800B93C4;
+extern s16 D_800B93C6;
+extern s16 D_800B93C8;
+extern s16 D_800B93CA;
+extern s16 D_800B93CC;
+extern s16 D_800B93CE;
+
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 
