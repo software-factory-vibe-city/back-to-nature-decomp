@@ -6213,10 +6213,10 @@ D_8005E3C0->field_D8 + 0x14, D_80054BBC[0] + (s32)<updater array>)` — a
 `lui/addiu` of an updater array (undeclared in `globals.h`; undefined sym in
 `build/ovl_15/undefined_syms_auto.txt`) plus the s32 value `D_80054BBC[0]`,
 reading `D_8005E3C0->field_D8` (0xD8) once. The updater array is not one symbol:
-seven members use `D_80053350`, but `ovl_15_func_8012EE84` uses `D_80052FFA`,
-and neither is referenced by any function outside the run, so the tie is the
-shared-global/idiom cluster, not a single symbol or adjacency (the run is not
-gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
+seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`, and
+`ovl_15_func_8012F078` uses `D_8005306A`; none is referenced by any function
+outside the run, so the tie is the shared-global/idiom cluster, not a single
+symbol or adjacency (the run is not gapless: `ovl_15_func_80130D3C`, `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
 `func_80131ED8` are interleaved with non-members).
 
 Members (link order):
@@ -6224,6 +6224,10 @@ Members (link order):
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x16)` and `D_80137588 = 1` (void; the
   `$v0`=1 is the store value, not a returned one — the `s32` caller reads nothing)
+- ovl_15_func_8012F078 (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_8005306A` updater array; then `ret =
+  ovl_15_func_80137228(5, 0)`, `D_80137584 = ret` (s8; the value is returned,
+  unlike the void siblings), and `D_80137584 = 0` when `D_8013759A >= 0x5B`
 - ovl_15_func_801305D4 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x11)` and `D_80137588 = 1`
