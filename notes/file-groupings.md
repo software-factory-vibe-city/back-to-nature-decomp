@@ -5404,6 +5404,18 @@ Members:
 - func_800B8470 (s) — counter reset that walks the same records from
   D_800BD870 with the 0x50 stride (5 records, per-record func_800BAC24 call).
 
+Additional adjacency: the gapless link-order run `ovl_17_func_800BAEF0`
+(0x60) → `ovl_17_func_800BAF50` (0x5C) → matched `ovl_17_func_800BAFAC`
+(0x30); 800BAEF0 and 800BAF50 both address the D_800BD848 work area (at
++0x28C/+0x290 and +0x230/+0x231 via the +0x22C alias `D_800BDA74`) and all
+three call `func_80015840(ObjectState *, s8)`.
+
+- ovl_17_func_800BAF50 (m, 2026-10-03) — D_800BD848 work-area sprite setup:
+  `func_80015840(&D_800BDA74, 4)` then
+  `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800BDA74, work[0x230],
+  work[0x231], 0, 0)`; link-adjacent to 800BAEF0/800BAFAC, same
+  func_80015840 callee.
+
 ## `ovl_17` D_800BB524 display-setup state-handler run — 0x800B9FA8–0x800BA54C (confidence: medium)
 
 Evidence: the dispatcher `ovl_17_func_800B7E78` (s) selects on the state byte
