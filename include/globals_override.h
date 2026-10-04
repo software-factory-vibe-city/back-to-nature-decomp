@@ -351,6 +351,12 @@ typedef struct {
 } struct_8005E3C0;
 extern struct_8005E3C0 *D_8005E3C0;
 
+/* D_800BF660 - ovl_19 bss object state base (0x800BF660). Referenced with
+ * absolute addressing (lui + %lo) from ovl_19_func_800BAD50, which passes
+ * its address as an ObjectState and reads the ObjectState fields at +4/+5
+ * through a base pointer biased by -0x1A0. */
+extern u8 D_800BF660[];
+
 /* D_800A0708 - 32-byte halfword table (u16[0x10]), absolute addressing.
  * func_80023A9C fills it with a walking halfword pointer (16 stores at
  * byte offsets 0..0x1E, stride 2) then writes entry 15 via a base+0x1E

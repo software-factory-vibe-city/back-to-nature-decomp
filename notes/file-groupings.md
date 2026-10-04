@@ -5881,6 +5881,10 @@ Members (link order):
 
 ## `ovl_19` clamp-table lookup run — 0x800BAD50–0x800BADF8 (confidence: low)
 
+- ovl_19_func_800BAD50 (m, matched this session, byte-exact) — resets the ovl_19
+  ObjectState at `D_800BF660` via `func_80015840(obj, 9)`, then dispatches
+  `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800BF660, state[4], state[5], 0, 0)`;
+  same shape as matched `ovl_17_func_800BAF50` (different ObjectState symbol/argument).
 - ovl_19_func_800BADAC (m, matched this session, byte-exact) — leaf; sign-extends
   its s16 argument, clamps it to [0,19] (negative → 0, `>= 20` → 19), and
   returns `D_800BCFF8[idx]` (a 20-entry s32 table in the overlay data segment).
