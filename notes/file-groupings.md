@@ -184,6 +184,24 @@ Members:
 - ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
   trailing args `0x120` / `0xC8`.
 
+## `ovl_11` 0x38/0x3C state-switch pair — 0x800C6E0C / 0x800C6F0C (confidence: medium)
+
+Evidence: two functions in the same small 0x800C6E0C–0x800C6F6C link-order
+run (only `ovl_11_func_800C6E8C` between them) that read and write the same
+recovered field layout and end in the same call idiom. Both take an a0 view
+with `u16@+0x38` and `u16@+0x3C`, switch on `+0x3C`, store an s32 into an a1
+view's 4-byte union at `+0`, then call
+`func_80015840((u8*)arg0 + 0x260, arg1->unk0.unk0_b)`. The view typedefs
+recovered from the already-matched `ovl_11_func_800C6F0C` fit the new function
+unchanged, which is shared-type-cluster plus shared-idiom evidence.
+
+Members:
+- ovl_11_func_800C6E0C (m, matched this session) — switch on `+0x3C` over
+  {1,2,4}: `+0x3C==2` → `+0x38 + 0xF`, `+0x3C==1` → `0x1B`,
+  `+0x3C==4` → `+0x38 + 0x13`; then the shared tail call.
+- ovl_11_func_800C6F0C (m) — switch on `+0x3C` over {2,4}: stores
+  `+0x38 + 0xAC`, rewrites `+0x3C = 2` in the case-4 arm; same tail call.
+
 ## `ovl_31` memory-card service — 0x800B7FCC–0x800B87F0 (confidence: high)
 
 The whole container is one translation unit: six functions, one of which calls
