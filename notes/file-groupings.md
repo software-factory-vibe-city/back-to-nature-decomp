@@ -1874,7 +1874,7 @@ Fingerprints:
   are all numerically byte-identical — `lui %hi(D_8012D52C); sw $zero,
   %lo(D_8012D52C); jr $ra; addiu $v0, $zero, 1` (the classic case-handler
   "reset flag and report handled" stub), arranged as a contiguous zero-gap run
-  0x8011A9CC (0x10) → 0x8011A9DC (0x40) → 0x8011AA44 (0x10) → 0x8011AA54
+  0x8011A9CC (0x10) → 0x8011A9DC (0x68) → 0x8011AA44 (0x10) → 0x8011AA54
   (0x10) → 0x8011AA64 (0x1CC) → 0x8011AC30 (0x1C4) → 0x8011ADF4 (0x1C0) →
   0x8011AFB4 (0x25C) → 0x8011B210 (0xA0) → 0x8011B2B0 (0x404) → 0x8011B6B4
   (0x10), each function starting exactly where the previous one ends;
@@ -1888,6 +1888,7 @@ Members (address order):
   `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`); byte-exact clean C,
   baseline flags; the 0x80114184 member of the reset-stub family
 - ovl_11_func_8011A9CC (m, matched this session) — identical leaf reset stub, run head at 0x8011A9CC; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint against the matched `ovl_11_func_80114184`
+- ovl_11_func_8011A9DC (m, matched this session) — non-leaf flag-writer member of the zero-gap run between 8011A9CC and 8011AA44 (its measured 0x68 size corrects the run list above): initialises the s32/s32/s16/s16 record at `D_8012D538` (pointer fields from `D_80054BC0[0] + (s32)&D_8005182A`, the second at -0x10) via a helper call, then clears the family flag `D_8012D52C = 0; return 1;` — same shared-data-symbol idiom as the recorded `D_8005181A` leaf `ovl_11_func_8011DD48`
 - ovl_11_func_8011AA44 (m, matched this session) — identical leaf reset stub; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint
 - ovl_11_func_8011AA54 (m, matched this session) — identical leaf reset stub; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint
 - ovl_11_func_8011B6B4 (m, matched this session) — identical leaf reset stub, run tail at 0x8011B6B4; byte-exact clean C `D_8012D52C = 0; return 1;` (`lui`/`sw`/`jr`/`addiu`), baseline flags, confirming the family's identical-body fingerprint for the run-tail member
