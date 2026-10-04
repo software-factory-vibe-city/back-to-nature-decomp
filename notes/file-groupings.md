@@ -5608,8 +5608,8 @@ Members (link order):
   `func_80014CBC(0,0x25000,0x5800,D_8005E3B0+0x4290,1,1)`
 - ovl_27_func_800BA620 (s) — `func_80014CBC` + `func_8001719C(D_8005E3B0+0x566C)`
   + record copy from D_8005E3B0+0x4290
-- ovl_27_func_800BA750 (s) — display-setup: DrawSync/ClearOTagR +
-  `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,1)`
+- ovl_27_func_800BA750 (m, matched this session) — display-setup:
+  DrawSync/ClearOTagR + `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,1)`
 - ovl_27_func_800BA7B0 (m, matched this session) — guarded display-setup:
   `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,0)`, on nonzero
   `func_8001719C(D_8005E3B0+0x4290)` and return 1, else return 0
