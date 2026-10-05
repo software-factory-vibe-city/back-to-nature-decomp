@@ -938,6 +938,11 @@ typedef struct {
 } M2C_fa7bbe7fcb28_Ovl11DE8;
 
 typedef struct {
+               u8 pad0[0x2E];
+               s16 unk2E;
+} M2C_fbb2acdf64d3_Ovl11C3F6CArg0;
+
+typedef struct {
     char pad_0[0x24];
     u16 unk24;
     char pad_26[0x4];

@@ -4868,6 +4868,14 @@ the overlay, never GP-relative), and the large-offset writers use the same
   the u8 at +0xE642 (new offset) through the cluster's +0x8000 two-stage split
   (base+0x8000, disp +0x6642) and gates it on `func_8001AF44(0xC9)` and
   `func_8001AF44(0x20)`; byte-exact clean C, baseline flags
+- ovl_11_func_800C3F6C (m, matched this session, byte-exact) — message-dispatch
+  leaf: when arg1->s16@+2 == 0, `func_8001AF44(0xA0) != 1` and the s16 at
+  +0x52C6 (the `D_80071AFE` alias proved by member 0x800E63C8) equals
+  arg0->s16@+0x2E, it calls member 0x800F3D88 — its **sole** caller, which in
+  turn reads and zeroes the s32 at +0x49C0 (via its `p = base + 0x498C` u16
+  pointer, `p + 0x1A`) that this leaf selects on — then
+  `func_8002261C(1, 0x72B/0x72C/0x72D)` by that pre-call value (0 / <0x2710 /
+  else); same `base = (u8 *)&D_8006C838` shared-base idiom
 ## `ovl_11` 0x800E6AB0–0x800E6D2C var/return state run (confidence: low)
 
 Zero-gap link-order run of five ovl_11 functions sitting between the
