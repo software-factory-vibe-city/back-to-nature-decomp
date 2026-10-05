@@ -8169,3 +8169,23 @@ Members (address order):
   `ClearOTagR(D_8005E3C0->field_120, 0x800)`, then polls
   `func_80014CBC(0x10, 0, 0x900, D_80137828, 1, 0)` until non-zero and returns
   it — a CD/streamed-load completion loop.
+
+## `ovl_11` D_8007AF80 interpolation-state pair — 0x800BFF74–0x800C0010 (confidence: medium)
+
+Evidence: one shared absolute-addressed global `D_8007AF80`, declared
+`extern u8 D_8007AF80[]` in both TUs (it is absent from `include/globals.h`),
+and indexed as an `s32` array with the same layout in both: p[0..2] a
+3-vector, p[3..5] its per-tick delta, p[6] an elapsed counter, p[7] the
+count/target limit. Zero-gap link-order contiguity corroborates the tie:
+ovl_11_func_800BFF74 is 0x9C and ends exactly at 0x800C0010 where
+ovl_11_func_800C0010 begins, and the call graph agrees (0x800BFE3C calls
+0x800C0010; 0x800BFEA4 sits 0x58 before the pair in link order).
+
+Members (address order):
+- ovl_11_func_800BFF74 (m, matched this session, byte-exact) — per-tick
+  stepper: if p[0]+p[1]+p[2] != 0 it calls `func_8001316C(p[0], p[1], p[2])`,
+  then while the counter p[6] is below the limit p[7] increments p[6] and
+  adds the delta p[3..5] to the vector p[0..2].
+- ovl_11_func_800C0010 (m, already matched) — initialiser for the same state:
+  sets p[6] = 0, p[7] = arg0 and p[3..5] = (v[i] - p[i]) / arg0 for target
+  vector `v`, returning p[5].
