@@ -5775,10 +5775,11 @@ Members:
   shape as 800E78E4/800EC490, and the same conditional table-resolve as
   800E69F8/800EB79C, inside the accessor band.
 
-## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C (confidence: low)
+## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 
-Data-family tie: `ovl_11_func_800E9778`, `ovl_11_func_800EDEB8` and
-`ovl_11_func_800E7C2C` are the only functions container-wide carrying the same
+Data-family tie: `ovl_11_func_800E9778`, `ovl_11_func_800EDEB8`,
+`ovl_11_func_800E7C2C` and `ovl_11_func_800E4428` are the only functions
+container-wide carrying the same
 record-selector construction — an `arg0 == 0x29` test selecting a special base
 (`D_80071B00` for the first two, `D_80071CCC` here), otherwise the identical
 `(a<<3 - a)<<2 + a)<<2 + a)<<2` multiply chain for the 0x1D4 byte stride
@@ -5799,6 +5800,15 @@ Members:
   guard: same selector, no bounds check; if s16@+0 == -1 calls
   `80107DE0(record, arg1, 0x1E)` and returns 0, else if s16@+2 == 0 calls
   `80107DD0(record)` and returns 1, else returns 0.
+- ovl_11_func_800E4428 (m, matched this session, 0xAC, byte-exact) — delta: no
+  `arg0 == 0x29` special case and no argument at all; the selector is the s16
+  getter `ovl_11_func_800EEBB8()` (called up to three times, rejected when -2
+  or -1), and the guard also gates on `D_8006C844 & 0x400000`; copies
+  halfwords +0/+4/+8 of the selected D_80076280 record to the
+  `D_8007AFF0+0x253B4/+0x253B6/+0x253B8` block. Ties this record table to the
+  D_8007AFF0 +0x253AC halfword-state run above (the first cross-cluster link
+  between those two shared-global clusters; still a shared-global tie, not a
+  TU tie).
 
 A further function shares the record geometry without the selector: `ovl_11_func_800EB79C`
 (m) runs the identical `((v<<3 - v)<<2 + v)<<2 + v)<<2` multiply chain for the
