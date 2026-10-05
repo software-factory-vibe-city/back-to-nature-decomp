@@ -8101,3 +8101,25 @@ Members (address order):
   result is null.
 - ovl_11_func_800EFDA0 (s) / ovl_11_func_800EFE34 (s) / ovl_11_func_800EFF9C (s)
   — link-order neighbours of the run; 0x800EFE34 is called by 0x800EFABC.
+
+## `ovl_15` D_80137828 buffer-pointer cluster — 0x8012E15C / 0x8012FAE0 / 0x80137300 (confidence: medium)
+
+Evidence: one shared absolute global pointer. The overlay initialiser
+`ovl_15_func_8012E15C` stores `D_80137828 = (u8 *)D_8007BFF8` (`lui/addiu`
+of `D_8007BFF8` then `sw $v0,%lo(D_80137828)`), and `ovl_15_func_8012FAE0`
+(three `lw`) and `ovl_15_func_80137300` (one `lw`) read the pointer back as a
+buffer base. The three are not link-adjacent (0x8012E15C, 0x8012FAE0,
+0x80137300), so the tie is the shared global, the same pattern as the
+`D_801376D0`/`D_80137AB0` run above. `D_80137828` sits immediately above the
+short array `D_80137820`, which the same initialiser clears.
+
+Members (address order):
+- ovl_15_func_8012E15C (s) — overlay initialiser: sets
+  `D_80137828 = (u8 *)D_8007BFF8`, clears adjacent `D_80137820` and the
+  `D_80137584`–`D_8013759A` state words, memsets several buffers, then calls
+  `ovl_15_func_8013468C`.
+- ovl_15_func_8012FAE0 (s) — reads `D_80137828` as a buffer base.
+- ovl_15_func_80137300 (m, verified byte-exact this session) — `DrawSync(0)`,
+  `ClearOTagR(D_8005E3C0->field_120, 0x800)`, then polls
+  `func_80014CBC(0x10, 0, 0x900, D_80137828, 1, 0)` until non-zero and returns
+  it — a CD/streamed-load completion loop.
