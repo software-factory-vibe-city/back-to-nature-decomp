@@ -7745,6 +7745,44 @@ Members (address order):
 
 ---
 
+## `ovl_11` `D_8006C838+0xE7A2` per-id byte-cell state-handler run — 0x80117370–0x801176BC (confidence: medium)
+
+A gapless six-function run in `configs/splat/ovl_11.yaml` immediately before
+the documented `D_8012D7A8` run: 0x80117370 (0x48, ends 0x801173B8) →
+0x801173B8 (0x254, ends 0x8011760C) → 0x8011760C (0x40) → 0x8011764C
+(0x28) → 0x80117674 (0x48) → 0x801176BC (0xA0, ends 0x8011775C).
+Fingerprints: the 9-entry byte-cell cluster at `D_8006C838+0xE7A2` (=
+`D_8007AFDA`) is read by matched 0x8011760C and written by matched
+0x801176BC (index 0..8, cell values 1/2/3); run head 0x80117370 sets the
+state global `D_8012D794 = 1` and seeds the companion state word `D_8012D798`
+from 0x8011760C, and 0x801173B8 is a jump-table (`jtbl_800BB198`) dispatcher
+over `D_8012D794` that passes `D_8012D798` as the argument to the matching
+handler (call graph: 0x801173B8 calls 0x8011764C, 0x80117674 and 0x801176BC).
+The run stops at 0x8011775C, which references `D_8012D7A8` and not
+`D_8012D794`/`D_8012D798`.
+Members (address order):
+- ovl_11_func_80117370 (m) — run head: `D_8012D794 = 1`, `D_8012D798 =
+  ovl_11_func_8011760C()`, `D_8012D52C = 0`, `ovl_11_func_80118B84(0,-1,0)`.
+- ovl_11_func_801173B8 (s) — jump-table dispatcher over `D_8012D794`;
+  dispatches to the four members with `D_8012D798`, sets `D_8012D52C`.
+- ovl_11_func_8011760C (m) — scans the `+0xE7A2` 9-cell cluster
+  (`D_8007AFDA`) and returns the first index whose cell is 2, else -1.
+- ovl_11_func_8011764C (m) — resets two engine sub-states via
+  `func_800226D8(0)` / `func_80017B18(0)`.
+- ovl_11_func_80117674 (s) — on `func_800226A4() == 5`, calls
+  `ovl_11_func_80118B84(record+0x28, 0x83, 0x48)`.
+- ovl_11_func_801176BC (m, matched this session) — per-id state handler:
+  maps `D_8012D798` through the 10-entry u16 item-id table `D_8012824C`
+  (0x8012824C; its only user in `ovl_11`) via `ovl_11_func_800D6014`, keeps
+  the id when `D_8006C838+0x5224` allows, writes cell 3 at `+0xE7A2+id`, and
+  sets engine flag `id + 0x67` via `func_8001AF70`.
+
+Extension (shared cluster, no adjacency): parked `ovl_11_func_80108B8C`
+writes value 2 into the same `+0xE7A2` cell family, a third reader/writer of
+the per-id state cells.
+
+---
+
 ## `ovl_11` `D_8012D7A8` s16-table accessor run — 0x8011775C–0x80117F14 (confidence: medium)
 
 A gapless four-function run in `configs/splat/ovl_11.yaml`: 0x8011775C
