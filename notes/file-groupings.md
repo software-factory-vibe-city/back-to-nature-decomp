@@ -7663,8 +7663,9 @@ Fingerprints:
 - zero-gap link-order contiguity (map): `ovl_11_func_800BD1BC` (0x7C, ends
   0x800BD238) → `ovl_11_func_800BD238` → `ovl_11_func_800BD358` →
   `ovl_11_func_800BD368` → `ovl_11_func_800BD374` (0x50, ends 0x800BD3C4) →
-  `ovl_11_func_800BD3C4` (0xC4, ends 0x800BD488), each starting exactly where
-  the previous ends (the run extends back through 0x800BD1BC);
+  `ovl_11_func_800BD3C4` (0xC4, ends 0x800BD488) → `ovl_11_func_800BD488`
+  (0xB0, ends 0x800BD538), each starting exactly where the previous ends (the
+  run extends back through 0x800BD1BC);
 - identical `func_80014BCC`/`func_80014CBC` wrapper shape: both select a
   stride-0x10 record from an absolute main-RAM table (`lw a1,0(v1)`,
   `lw a2,4(v1)`, `subu a2,a2,a1`) and pass that word difference as the third
@@ -7694,6 +7695,12 @@ Members (link order):
 - ovl_11_func_800BD3C4 (s) — same table-difference CD-load wrapper (indexes
   `D_801227B0`, `D_80124FCC`) calling `func_80014BCC`; role not yet
   reconstructed beyond the shared shape.
+- ovl_11_func_800BD488 (m, matched this session, byte-exact) — same
+  table-difference CD-load wrapper as 800BD1BC/800BD3C4 over the `D_8012279C`
+  pair table and the `D_80124FCC` pointer table (shared with 800BD3C4):
+  `func_80014BCC(0, p[0], p[1]-p[0], 0, D_8005E3B0 + 0x4290)`,
+  `memcpy(&D_80098BF8, D_8005E3B0 + 0x4290, n)`, then
+  `func_8001719C(D_8005E3B0 + n + 0x4290)`; between 800BD3C4 and 800BD538.
 - ovl_11_func_800BD538 (m, matched this session, byte-exact) — zero-gap link
   successor of 800BD488 (which follows 800BD3C4) and `D_8005E3B0` twin of
   800BDA20: `func_80014BCC(0, 0x380B000, 0x5000, 0, D_8005E3B0 + 0x4290)`,
