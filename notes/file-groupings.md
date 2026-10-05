@@ -8512,9 +8512,10 @@ Members (link order):
   (`ovl_11_func_80107DE0(this + 0xA8, 0x25, 0x2D)`), then
   `ovl_11_func_800D12A0(0xD)` on the far-state gate; returns -1; structural
   twin of ovl_11_func_800DF6A8 with the 800DF4F0 predicate inlined.
-- ovl_11_func_8010BBA8 (s, 0xAC) — same `u16@+0x0` guard and far-state gate;
+- ovl_11_func_8010BBA8 (m, 0xAC) — same `u16@+0x0` guard and far-state gate;
   dispatches `func_8002261C(2, 0x258)` / `(2, 0x259)` on the `D_80075AEA`
-  threshold, then `ovl_11_func_800D12A0(0xD)`.
+  threshold (s16 < 9 → 0x258, s16 >= 0xC9 → 0x259, else 0x258), then
+  `ovl_11_func_800D12A0(0xD)`. Returns -1 in all paths.
 - ovl_11_func_8010BC54 (s, 0x94) — view consumer over `s32@+0x38/+0x3C/+0x40`
   and `D_8006C838+0x5200`; no far-state gate of its own.
 - ovl_11_func_8010BCE8 (m, byte-exact) — clamps `u16@+0x16 -= 10` at 0, then

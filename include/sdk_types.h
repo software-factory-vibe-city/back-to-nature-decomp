@@ -906,6 +906,12 @@ typedef struct {
 } M2C_e4885161ea76_SwapStruct_B45C;
 
 typedef struct {
+               u16 unk0;
+               char pad_02[0x30 - 0x02];
+               s16 unk30;
+} M2C_e71177b17bd3_Struct_8010BBA8;
+
+typedef struct {
     u16 field_0;
     u16 field_2;
 } M2C_e88a4985b4f4_Cell4;

@@ -1382,5 +1382,9 @@ extern void (*D_800BD07C)(u16 *arg0, s32 arg1);
 extern void D_80015814(u16 *arg0, s32 arg1);
 extern void D_80015828(u16 *arg0, s32 arg1);
 
+/* D_80075AEA - ovl_11 signed halfword state, loaded with lh by
+ * ovl_11_func_8010BBA8 (range-tested against 9 and 0xC9). */
+extern s16 D_80075AEA;
+
 #endif /* GLOBALS_OVERRIDE_H */
 
