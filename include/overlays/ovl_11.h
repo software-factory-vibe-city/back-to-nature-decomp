@@ -257,6 +257,7 @@ s32 ovl_11_func_800E0AFC(Recon_ovl_11_func_800E0AFC_A0View *arg0, s32 arg1, s32 
 void ovl_11_func_800E0D0C(s32 arg0);
 s32 ovl_11_func_800E0F8C(u16 arg0, u16 arg1, u16 *arg2, u16 *arg3);
 s32 ovl_11_func_800E109C(M2C_1023b6857e0a_UnkStruct800E109C *arg0);
+s32 ovl_11_func_800E10C8(M2C_86d5f2be9bd8_Struct_800E10C8 *arg0);
 s32 ovl_11_func_800E1158(M2C_49440c14e0eb_Struct_800E1158 *arg0);
 s32 ovl_11_func_800E1254(M2C_e914724eccba_UnkStruct800E1254 *arg0);
 s32 ovl_11_func_800E1804(void);

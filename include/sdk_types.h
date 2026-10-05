@@ -528,6 +528,15 @@ typedef struct {
 } M2C_8573ba8bfae4_CopyStruct_84D4;
 
 typedef struct {
+               char pad_00[0x16];
+               u16 unk16;
+               char pad_18[0x30 - 0x18];
+               s16 unk30;
+               char pad_32[0xA8 - 0x32];
+               char unkA8[0];
+} M2C_86d5f2be9bd8_Struct_800E10C8;
+
+typedef struct {
     s16 unk0;
     u16 unk2;
 } M2C_8740fcdc649a_Recon80110838A0View;

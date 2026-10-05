@@ -7772,8 +7772,8 @@ Members (link order):
   else `(s32@+0x34 & 0x10000) > 0` (twin of ovl_11_func_800DF4F0).
 - ovl_11_func_800E0AFC (m) — earlier caller: guard then `u16@+0xB0 < 14` →
   `0x164` / `0x165`.
-- ovl_11_func_800E05A8 (s), 800E06E0 (s), 800E0D3C (s), 800E10C8 (s),
-  800E11C0 (s), 800E1404 (s), 800E15C8 (s) — callers; the common
+- ovl_11_func_800E05A8 (s), 800E06E0 (s), 800E0D3C (s), 800E10C8 (m,
+  byte-exact), 800E11C0 (s), 800E1404 (s), 800E15C8 (s) — callers; the common
   guard is `if (ovl_11_func_800E109C(arg0) == 0) return -1;`.
 - ovl_11_func_800E1254 (m, matched this session, byte-exact) — guard then
   lazy-init flag `s32@+0x34 & 4` (call `800D049C`, then OR 4 in), then
@@ -7785,6 +7785,11 @@ Members (link order):
   `u16@+0x16 -= 1` clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8,
   0x1F, 0x2D)`; structural twin of ovl_11_func_800DF5AC on the 800E109C
   predicate.
+- ovl_11_func_800E10C8 (m, byte-exact) — guard then `u16@+0x16 -= 10`
+  clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)`, then
+  `ovl_11_func_800D12A0(0xC)` when `s16@+0x30 == *(s16 *)(&D_8007AFF0 +
+  0x25476)`; structural twin of ovl_11_func_800DF51C on the 800E109C
+  predicate, and a reader of the far state halfword accessor family.
 
 ## `ovl_11` record-tag update run — 0x800DA3AC–0x800DA518 (confidence: medium)
 
