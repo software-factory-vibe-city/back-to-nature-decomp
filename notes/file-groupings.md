@@ -184,7 +184,7 @@ Members:
 - ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
   trailing args `0x120` / `0xC8`.
 
-## `ovl_11` 0x38/0x3C state-switch run — 0x800C4F44 / 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C7270 / 0x800C8334 / 0x800C838C / 0x800C83FC / 0x800C846C (confidence: medium)
+## `ovl_11` 0x38/0x3C state-switch run — 0x800C4F44 / 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C6F6C / 0x800C7270 / 0x800C8334 / 0x800C838C / 0x800C83FC / 0x800C846C (confidence: medium)
 
 Evidence: four functions in the same small 0x800C6E0C–0x800C72F4 link-order
 run that read and write the same
@@ -205,6 +205,11 @@ Members:
   only.
 - ovl_11_func_800C6F0C (m) — switch on `+0x3C` over {2,4}: stores
   `+0x38 + 0xAC`, rewrites `+0x3C = 2` in the case-4 arm; same tail call.
+- ovl_11_func_800C6F6C (m, matched this session, byte-exact) — link-order
+  neighbour sharing the run's exact a0/a1 view typedefs and tail call: switch
+  on `+0x3C` over {1,2,4}: `+0x3C==1` → `0x36`, cases 2/4 → `+0x38 + 0x3B`,
+  and the case-4 arm additionally calls `func_8001B2CC(0, 0)`; constants plus
+  the extra call are all that differ.
 - ovl_11_func_800C7270 (m, matched this session) — stores `+0x3C = arg1`,
   copies old `+0x3C` into `+0x3E`, sets bit 0x20000000 / clears bit 0x04000000
   of `+0x6C`, then calls `func_80015840((u8*)arg0 + 0x260, arg2 & 0xFF)` and
