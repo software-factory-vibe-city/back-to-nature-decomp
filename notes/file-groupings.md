@@ -531,6 +531,47 @@ Members (address order):
 
 ---
 
+## `ovl_11` CD asset-load init run — 0x800BD538–0x800BDA20 (confidence: medium)
+
+Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) sharing the asset-load
+idiom `func_80014BCC(0, <ROM addr>, <size>, 0, D_8005E3B0+0x4290)` — the
+engine CD-read retry driver loading a retail asset into the shared
+`D_8005E3B0+0x4290` scratch buffer — and the adjacent main-RAM destination
+globals `D_8007BFF8` / `D_801287F8` / `D_80128800`. `D_801287F8`
+(globals_override.h) is the overlay pointer slot written by
+`ovl_11_func_800BD938` this session.
+
+Fingerprints:
+- zero-gap link-order contiguity (map): 0x800BD538 (0x68) → 800BD5A0 (0x8)
+  → 800BD5A8 (0xC0) → 800BD668 (0x40) → 800BD6A8 (0x234) → 800BD8DC (0x5C)
+  → 800BD938 (0x9C) → 800BD9D4 (0x4C) → 800BDA20 (0x50), each starting
+  exactly where the previous ends, one unbroken span with no unrelated code
+  between;
+- shared loader idiom: 800BD538/800BD668/800BD938/800BDA20 all call
+  `func_80014BCC(0, <ROM addr>, <size>, 0, D_8005E3B0+0x4290)`;
+- adjacent destination globals: the run writes/reads the consecutive
+  main-RAM slots D_8007BFF8 (800BD8DC/800BD9D4), D_801287F8 (800BD938) and
+  D_80128800 (800BD8DC).
+
+Members (address order):
+- ovl_11_func_800BD538 (s) — reloads 0x0380B000/0x5000 into +0x4290, copies
+  0x540 to D_8009A3F8, then `func_8001719C(D_8005E3B0+0x5790)`
+- ovl_11_func_800BD5A0 (m) — empty body (single return)
+- ovl_11_func_800BD5A8 (s) — per-index loader (see its own entry)
+- ovl_11_func_800BD668 (m) — bare load 0x74800/0xA800 into +0x4290
+- ovl_11_func_800BD6A8 (s) — role unknown
+- ovl_11_func_800BD8DC (m) — stores arg0 to D_80128800 and loads the
+  arg0-derived ROM region 0x3800 into D_8007BFF8
+- ovl_11_func_800BD938 (m, matched this session) — loads 0x03D57800/0x800
+  into +0x4290, stores the pointer to D_801287F8, and expands three 0xC0-word
+  chunks from `D_80070EC2` +0/+0x180/-0x180
+- ovl_11_func_800BD9D4 (m) — loads the arg0-derived ROM region 0x1800 into
+  D_8007BFF8
+- ovl_11_func_800BDA20 (m) — loads 0x03D51000/0x6800 into +0x4290, then
+  `func_8001719C(D_8005E3B0+0x4290)`
+
+---
+
 ## `ovl_11` {u16,u16} local-pair counter run — 0x800BF8B8–0x800BFC20+ (confidence: low)
 
 Candidate same-TU run of three gapless link-order functions sharing one

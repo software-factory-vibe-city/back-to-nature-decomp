@@ -1266,5 +1266,10 @@ extern s32 D_8007F7F8;
 extern u8 D_80137830[];
 extern u8 D_80137A30[];
 
+/* D_801287F8 - ovl_11 pointer slot written by ovl_11_func_800BD938, which
+ * stores D_8005E3B0 + 0x4290 into it (absolute lui + sw %lo). Defined in the
+ * overlay data segment, so only an extern declaration belongs here. */
+extern u16 *D_801287F8;
+
 #endif /* GLOBALS_OVERRIDE_H */
 
