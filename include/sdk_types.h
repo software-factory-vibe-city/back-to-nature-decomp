@@ -487,6 +487,15 @@ typedef struct {
                s32 unk34;
 } M2C_6a900543412a_UnkStruct800DF6A8;
 
+typedef struct {
+               char pad_00[0x16];
+               u16 unk16;
+               char pad_18[0x30 - 0x18];
+               s16 unk30;
+               char pad_32[0xAE - 0x32];
+               u16 unkAE;
+} M2C_6d40c0948b34_Struct_800DF614;
+
 struct M2C_6fc629d778b7_Unk800D3D2C {
                u16 unk0;
                u8 pad[0xAA];
