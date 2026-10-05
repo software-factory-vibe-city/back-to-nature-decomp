@@ -284,7 +284,11 @@ typedef struct {
     /* 0x3E */ u16 unk3E;
     char pad_40[0x2C];
     /* 0x6C */ s32 unk6C;
-    char pad_70[0x1F5];
+    char pad_70[0x14];
+    /* 0x84 */ u16 unk84;
+    char pad_86[0x6A];
+    /* 0xF0 */ u16 unkF0;
+    char pad_F2[0x173];
     /* 0x265 */ u8 unk265;
 } Recon_ovl_11_func_800C7270_A0View;
 
