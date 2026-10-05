@@ -4616,7 +4616,7 @@ adjacency, so it stays a scattered sibling; its zero-gap adjacency instead
 ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800DE76C / 0x800DE46C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -4775,6 +4775,10 @@ the overlay, never GP-relative), and the large-offset writers use the same
   member 0x800BFD04), gates on the +0x44BA s16 (the +0x44BA/+0x44BC pair) and
   on `func_80012A34(0xA)`, then ORs 0x800000 into the s32 at +0x44F8 (new
   offset); byte-exact clean C, baseline flags
+- ovl_11_func_800EFA1C (m, matched this session) — progress-gate leaf: reads
+  the u8 at +0xE642 (new offset) through the cluster's +0x8000 two-stage split
+  (base+0x8000, disp +0x6642) and gates it on `func_8001AF44(0xC9)` and
+  `func_8001AF44(0x20)`; byte-exact clean C, baseline flags
 ## `ovl_11` 0x800E6AB0–0x800E6D2C var/return state run (confidence: low)
 
 Zero-gap link-order run of five ovl_11 functions sitting between the
