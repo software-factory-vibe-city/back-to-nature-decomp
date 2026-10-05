@@ -4074,6 +4074,13 @@ Members (address order):
   excess moved to arg0, same 0x800D5740 callee — and likewise lives in the
   0x800FBxxx region (at 0x800FB404, beside the 0x800FB3E4 predicate and the
   0x800FB45C swap site). Same-TU membership with 0x800F84xx unproven (low).
+- ovl_11_func_800F8188 (m, matched this session, byte-exact; link-adjacent to
+  0x800F8224 in the same 0x800F81xx/0x800F84xx region) — the run's
+  caller/dispatcher: it takes the 0x800F8404 level result, and when that
+  level is 2 (or the 0x800D583C type is 2) re-tests the type and otherwise
+  invokes the run's accumulate helper 0x800F8428 on the same two object
+  pointers, confirming the 0x800F8404→0x800F8428 call pair recorded above.
+  Call-graph + same-region agreement only; TU membership unconfirmed (low).
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 
