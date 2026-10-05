@@ -7740,7 +7740,7 @@ Members (link order):
 - ovl_11_func_800DF4F0 (m) — shared predicate: returns 0 when `u16@+0x0 == 0`,
   else `(s32@+0x34 & 0x10000) < 1`.
 - ovl_11_func_800DE9C8 (s, 0x138), 800DEB00 (s, 0x3E0), 800DEF30 (s, 0xE0),
-  800DF128 (s, 0x100), 800DF51C (s, 0x90), 800DF614 (s, 0x94),
+  800DF128 (s, 0x100), 800DF51C (m, 0x90), 800DF614 (s, 0x94),
   800DF72C (s, 0x120), 800DF84C (s, 0x1A4), 800DF9F0 (s, 0x8C),
   800DFB98 (s, 0xA4) — callers; the common guard is
   `if (ovl_11_func_800DF4F0(arg0) == 0) return -1;`.
@@ -7751,6 +7751,10 @@ Members (link order):
 - ovl_11_func_800DF5AC (m, matched this session, byte-exact) — guard then
   `u16@+0x16 -= 10` clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8,
   0x1F, 0x1E)`; caller-side role of the predicate run.
+- ovl_11_func_800DF51C (m, byte-exact) — guard then `u16@+0x16 -= 10`
+  clamped at 0, then `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)`, then
+  `ovl_11_func_800D12A0(0xA)` when `s16@+0x30 == *(s16 *)(&D_8007AFF0 +
+  0x25476)`; shares the clamp and far-state idioms of 800DF5AC/800DF6A8.
 
 ## `ovl_11` `ovl_11_func_800E109C` predicate-caller run — 0x800E05A8–0x800E15C8 (confidence: medium)
 

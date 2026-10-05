@@ -208,6 +208,15 @@ struct M2C_1e7e93467acd_Unk800D3FEC {
 };
 
 typedef struct {
+               char pad_00[0x16];
+               u16 unk16;
+               char pad_18[0x30 - 0x18];
+               s16 unk30;
+               char pad_32[0xA8 - 0x32];
+               char unkA8[0];
+} M2C_1f564fb8910d_Struct_800DF51C;
+
+typedef struct {
                u8 pad[0x28];
                u16 unk28;
                u8 pad2[0x6];
