@@ -6393,8 +6393,21 @@ Members (link order):
   near-twin of `ovl_21_func_800BA7F0` (same `sel/pos/step` fixed-point
   counter idiom); membership rests on the shared global and idiom, not on
   adjacency.
+- ovl_21_func_800BAF70 (m, matched this session, byte-exact) — ObjectState
+  reset/handoff leaf: `func_80015840(&D_800C0AFC, 0)` then
+  `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800C0AFC, base[0x6B8],
+  base[0x6B9], (s16)(HWD0 / 2), (s16)(VWD0 / 2))` with the base biased by
+  `D_800C0AFC - 0x6B4`; membership rests on the shared `D_800C0448` cluster
+  (the bias lands on `D_800C0448`), not on adjacency. Cross-container note:
+  byte-shape twin of matched `ovl_17_func_800BAF50`, `ovl_19_func_800BAD50`
+  and `ovl_23_func_800BB1B8`; that twin relation is not TU-membership
+  evidence.
 
 Fingerprints:
+- `D_800C0AFC` is a further ovl_21 data base at `D_800C0448 + 0x6B4`; the
+  reset/handoff leaf biases its `D_800C0AFC` base by -0x6B4 (landing on
+  `D_800C0448`) and reads the byte pair at +0x6B8/+0x6B9 of that bias — the
+  same addresses as `D_800C0AFC + 4/+5`.
 - shared global cluster: `D_800C0448` is the base of a record table of
   0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
   above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`), a

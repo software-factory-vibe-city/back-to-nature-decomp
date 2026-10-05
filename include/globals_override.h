@@ -1162,6 +1162,13 @@ extern s32 D_80127428;
  * the matched pair shares. Absolute-addressed (extern-only, lui + %lo). */
 extern u16 D_800C0448[2];
 
+/* D_800C0AFC - ovl_21 object-state base (0x800C0AFC). ovl_21_func_800BAF70
+ * passes its address to func_80015840 and reads the two bytes at +4/+5
+ * through a base register biased to D_800C0AFC - 0x6B4. An opaque byte
+ * object suffices; the overlay build is -G0, giving absolute lui/addiu
+ * addressing. Not classified in globals.h. */
+extern u8 D_800C0AFC[];
+
 /* D_800C0DD8 - ovl_21 FuncC0D4Args descriptor whose address
  * ovl_21_func_800BB2B4 hands to func_8001C0D4. Only its address is taken, so
  * an opaque byte object is enough; the overlay build is -G0, giving absolute
