@@ -6291,6 +6291,17 @@ Members (link order):
 Eight members matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
+Calved in by call graph and shared state, outside the gapless run:
+- ovl_27_func_800BA130 (m, matched this session, byte-exact) — sprite-draw
+  leaf: `func_80022580(field_D8+4, 1, 0x10, 0x10, 0x78, 0x14)` then
+  `func_80017B3C(field_D8, data, 0x14, 0x14)`, where `data` is the s16-indexed
+  table `D_800C4A50` offset by `*D_80054BBC` and `&D_8005175C`. Called four
+  times by the run-opening member `ovl_27_func_800B845C` (0x800B845C), and
+  `D_800C4A50` sits 0x3C past `D_800C4A14`, abutting the cluster's halfword
+  state block. It is not part of the 0x800B845C–0x800B92E4 gapless run (it
+  sits at 0x800BA130, link-adjacent to 800BA0EC/800BA1CC), so membership
+  stays low confidence.
+
 Not a member of this cluster: `ovl_27_func_800B8C6C` (0x800B8C6C, matched this
 session, byte-exact) sits inside the 0x800B845C–0x800B92E4 run but touches
 neither `D_800C4A14`/`D_800C4A1C` nor the hub `ovl_27_func_800B92E4`; it is a

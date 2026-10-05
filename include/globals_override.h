@@ -1110,6 +1110,12 @@ extern u8 D_800BFA90[];
 
 extern s32 D_800C49F8[];
 
+/* D_800C4A50 - s32 table indexed by a signed 16-bit index in
+ * ovl_27_func_800BA130, which sign-extends and scales it (sll 16 / sra 14)
+ * before an s32 load. Plain extern (never defined in this TU), so cc1 emits
+ * the split absolute lui/addiu address the target shows. */
+extern s32 D_800C4A50[];
+
 
 /* D_800711C4 - main-EXE progress-counter record, absolute-addressed from the
  * ovl_11 overlays (-G0). ovl_11_func_800F3BCC increments a u16 entry selected
