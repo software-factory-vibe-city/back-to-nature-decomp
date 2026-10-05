@@ -5136,7 +5136,11 @@ run's 800BA504.
 Members (link order):
 - ovl_23_func_800BB214 (s) — display-setup state: DrawSync/ClearOTagR plus
   func_80014CBC/1719C/15704
-- ovl_23_func_800BB488 (s) — same display-setup idiom
+- ovl_23_func_800BB488 (m, byte-exact this session) — same display-setup
+  idiom confirmed: DrawSync(0) /
+  ClearOTagR(D_8005E3C0->field_120, 0x800), then `func_80014CBC(0, 0, 0x2000,
+  D_8005E3B0 + 0x4290, 1, 1)` followed by the zero-return poll
+  `func_80014CBC(..., 1, 0) == 0`, then `func_8001719C(D_8005E3B0 + 0x4290)`
 - ovl_23_func_800BB534 (s) — same display-setup idiom
 - ovl_23_func_800BB758 (m, matched via automatic reconstruction, byte-exact) —
   audio-setup leaf: `func_80020B80(2,0)`, `func_80020B80(1,0)`,
@@ -6654,7 +6658,8 @@ Members (link order):
   `func_8001FBF0(0x12,1)`
 
 Cross-container note: `ovl_21_func_800BB59C` is the same-slot (0xAC, second)
-twin of `ovl_17_func_800BA21C` and `ovl_23_func_800BB488`; as recorded at the
+twin of the now-matched `ovl_17_func_800BA21C` and `ovl_23_func_800BB488`
+(byte-exact); as recorded at the
 audio-setup twin notes, that relation is not itself TU-membership evidence —
 here only the dispatcher call graph and the gapless link run are.
 

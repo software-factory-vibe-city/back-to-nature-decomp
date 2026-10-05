@@ -20,6 +20,7 @@ void ovl_23_func_800BB0D8(Ovl23Func800BB0C8Arg *arg0, s32 arg1, s32 arg2, s32 ar
 void ovl_23_func_800BB0E8(void);
 void ovl_23_func_800BB150(void);
 void ovl_23_func_800BB1B8(void);
+void ovl_23_func_800BB488(void);
 void ovl_23_func_800BB758(void);
 void ovl_23_func_800BB7A0(s16 arg0);
 void ovl_23_func_800BB800(s16 arg0);
