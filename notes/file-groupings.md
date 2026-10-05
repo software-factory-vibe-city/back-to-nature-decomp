@@ -5062,6 +5062,15 @@ Members:
   twins differing only in constants passed to ovl_11_func_800DBD78 — 800DBC04
   = (arg0,1,0), 800DBC28 = (arg0,0,1) — so the pair is a same-table writer
   couple selecting one of two DBD78 modes.
+- ovl_11_func_800DBD78 (m, matched this session, 0xB8, byte-exact) — the
+  slot allocator over this table: returns NULL early when arg1 == 1 and
+  ovl_11_func_800DBB94(arg0) == arg1 (in-group call edge to 800DBB94);
+  otherwise scans the first 1 record, or 5 when arg2 == 1, for a -1 tag;
+  on a hit clears the tag and the five payload halfwords (countdown bgez
+  loop) and returns the record address, else NULL. Confirms the table
+  semantics byte-exactly; same shared-`%hi` base + dual-pointer 0x7A7A/0x7A78
+  walk + hoisted -1 sentinel idiom as the searchers, in the 0x800DBAB0 band;
+  the 800DBBE0/800DBC04/800DBC28 accessors all delegate to it
 ## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
