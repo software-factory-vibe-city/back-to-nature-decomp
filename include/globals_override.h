@@ -1344,5 +1344,19 @@ extern s16 D_800BF4C0[];
 extern u16 D_800BCEF0[];
 extern s16 D_800BCF0C[];
 
+/* D_8006E910 - base of a 0xCE-entry array of 0x10-byte records (ovl_11).
+ * ovl_11_func_800E9C34 walks it with a +0x10 stride comparing the cursor
+ * returned by ovl_11_func_800E3A94 against each entry and reads the u8 at
+ * +0x2; ovl_11_func_800E499C memcpys into it. Absolute-addressed (outside the
+ * -G8 small-data window); only ever declared extern, never GP. */
+typedef struct {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 unk3[0xD];
+} Ovl11E910Entry;
+extern Ovl11E910Entry _D_8006E910[] __asm__("D_8006E910");
+#define D_8006E910 ((Ovl11E910Entry *)_D_8006E910)
+
 #endif /* GLOBALS_OVERRIDE_H */
 

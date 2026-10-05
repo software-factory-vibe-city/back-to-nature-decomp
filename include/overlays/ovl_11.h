@@ -334,6 +334,7 @@ s32 ovl_11_func_800E953C(s16 arg0, s16 arg1, s32 arg2, s32 arg3);
 s32 ovl_11_func_800E95FC(s16 arg0);
 s32 ovl_11_func_800E9778(s16 arg0, s16 arg1, s32 arg2, s32 arg3);
 s32 ovl_11_func_800E9AFC(s16 arg0, s16 arg1, s32 arg2);
+s32 ovl_11_func_800E9C34(s16 arg0);
 s32 ovl_11_func_800E9CE4(s16 arg0);
 void ovl_11_func_800EADB8(s16 arg0, s16 arg1, s32 arg2, s16 arg3);
 s32 ovl_11_func_800EB79C(s32 arg0, s32 arg1, s32 arg2);

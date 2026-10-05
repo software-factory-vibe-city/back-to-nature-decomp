@@ -5818,8 +5818,19 @@ Members:
   ((u8-stride-4 element *)D_80129560)[(s16)arg0].u8@+0; return 1;`. Same
   `s16`-scaled `lui`+`addiu %lo` base and index*4 idiom as the sibling
   readers, but the slot is consumed one byte wide rather than as an s32;
-  the only family member that writes through the `D_801291B4` value the
-  zero-arg accessor 800E3A94 returns, and it sits inside the band.
+  one of the two family members that consume the `D_801291B4` value the
+  zero-arg accessor 800E3A94 returns (with 800E9C34), and it sits inside the
+  band.
+- ovl_11_func_800E9C34 (m, matched 2026-11 — this session, 0xB0, byte-exact) —
+  guarded-slot producer: takes the 0x10-byte record the `ovl_11_func_800E3A94`
+  cursor (`D_801291B4`, based on the `D_8006E910` 0xCE-record array) points at,
+  uses its `u8@+2` when it is not 0xFF, and otherwise scans that array for the
+  cursor's index (0 on a full scan); both arms write
+  `D_80129560[(s16)arg0] = byte` / `index + 1` through the family's s16-scaled
+  `lui`+`addiu %lo` base and return 1. Zero-gap link-order predecessor of
+  800E9CE4 (0x800E9C34 + 0xB0) and the second family member consuming the
+  `ovl_11_func_800E3A94` cursor, inside the 0x800E5A1C–0x800EExxx band; also
+  the first family tie to the `D_8006E910` record array.
 - ovl_11_func_800E78E4 (m, matched 2026-11 — this session, 0x70, byte-exact) —
   guarded-slot random writer: `temp = func_80012A34(arg0 & 0xFFFF)` (exe
   `Rand`), then if `arg1 != -1` stores `D_80129560[(s16)arg1] = temp` via the
