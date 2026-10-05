@@ -2403,8 +2403,10 @@ Members (address order):
 - ovl_11_func_800FC5F4 (s) — formats `D_80127264+2` into `D_8012A028`
   (`func_8001A970`, 3 digits + `0xFFFF` terminator), draws via
   `ovl_11_func_800FC544`
-- ovl_11_func_800FC6A4 (s) — same shape over the stride-4 `D_80127220` table
-  (2 digits, `0xFFFF` terminator), draws via `ovl_11_func_800FC544`
+- ovl_11_func_800FC6A4 (m, matched this session, byte-exact) — same shape over the stride-4 `D_80127220` table
+  (2 digits, `0xFFFF` terminator), draws via `ovl_11_func_800FC544`; the
+  table's `{u8,u8,s16}` stride-4 record type (`Ovl11D80127220Entry`) is now in
+  `globals_override.h`
 - ovl_11_func_800FCAF4 (m, matched this session) — clamps its s16 argument to
   999, formats 3 digits into `D_8012A028`, writes the `0xFFFF` terminator,
   draws at `D_8005E3C0->field_D8+0x54` via `func_80017B3C`

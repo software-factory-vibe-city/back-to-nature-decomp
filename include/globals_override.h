@@ -1082,6 +1082,22 @@ extern s16 D_80127226;
 
 extern s16 D_8012722A;
 
+/* D_80127220 - 5-entry table of 4-byte records walked by
+ * ovl_11_func_800FC6A4: u8 at +0x00 (lbu), u8 at +0x01 (lbu), s16 at +0x02
+ * (lh). Absolute-addressed from ovl_11 code; the separately labelled
+ * D_80127222/D_80127226/D_8012722A halfwords are the unk2 field of entries
+ * 0/1/2. */
+typedef struct {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ s16 unk2;
+} Ovl11D80127220Entry;
+extern Ovl11D80127220Entry D_80127220[];
+
+/* D_8012A028 - s16 scratch passed by address to func_8001A970 and
+ * ovl_11_func_800FC544 by the ovl_11 countdown-table routines. */
+extern s16 D_8012A028;
+
 extern u8 D_8012737C[];
 
 extern u8 D_8012CE88[];
