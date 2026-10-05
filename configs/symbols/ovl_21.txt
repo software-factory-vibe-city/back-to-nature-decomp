@@ -65,3 +65,4 @@ ovl_21_func_800BB59C = 0x800BB59C; // type:func
 ovl_21_func_800BB648 = 0x800BB648; // type:func
 ovl_21_func_800BB8B8 = 0x800BB8B8; // type:func
 ovl_21_func_800BBA3C = 0x800BBA3C; // type:func
+D_800BCCD4 = 0x800BCCD4; // type:data

@@ -387,3 +387,30 @@ CC1FLAGS_ovl_17_func_800B9158 := -fno-cse-skip-blocks
 # ON. Each src file is its own translation unit, so the override cannot disturb
 # them.
 CC1FLAGS_ovl_11_func_800E4BA4 := -fno-rerun-loop-opt
+
+# ovl_21_func_800B90C4: -fno-schedule-insns (ALLOWLIST DECISION REQUESTED).
+#
+# Target fingerprint (from the original bytes, no source needed): the read
+# block at 0x800B9118 is in its exact expand-time order. The candidate's
+# own .rtl dump (cc1 -da) shows the same order; with sched1 ON the ready-list
+# priority hoists the D_800BCCD4 %hi past the D_800C0448 base chain and the
+# block transposes by one instruction (lui at position 6, target 5). Turning
+# pre-reload scheduling off reproduces every position and opcode and takes the
+# residual from 36/44 with a schedule term to 38/45 with schedule 0.
+#
+# The same mechanism and prime-fact state as the allowlisted
+# ovl_21_func_800B98CC / ovl_11_func_8011FF74 siblings (sched1 drifts an
+# independently-birthed value out of its expand-time position). This src file
+# is its own TU (one function per file), so the override cannot disturb the
+# matched ovl_21 neighbours.
+#
+# Remaining residual under this flag (4 allocation words + 1 operand order) is
+# NOT a flag question: the plus is base-first at expand time
+# (cc1 .rtl: set reg83 = plus(reg83, reg89)) and CSE's simplify_rtx canonicalises
+# it to index-first because the base's value is the constant SYMBOL_REF
+# (cc1 .cse: set reg83 = plus(reg89, reg83)); -fno-cse-skip-blocks restores
+# base-first only when the base equivalence crosses a skipped one-statement
+# block, which the target's block layout does not contain. Needs the allowlist
+# entry under sourcePolicy.allowlist (kind "flag-override") before this can be
+# used as a match.
+CC1FLAGS_ovl_21_func_800B90C4 := -fno-schedule-insns

@@ -1217,6 +1217,12 @@ extern s16 D_8012CF10[7];
 extern s32 D_8012CF20;
 extern s32 D_80127428;
 
+/* D_800BCCD4 - ovl_21 table of s16 selector values (0x25/0x23/0x22/0x24 at
+ * +0), indexed by a signed halfword read from the D_800C0448 state block.
+ * ovl_21_func_800B90C4 loads it with lh, so it is signed. Absolute-addressed
+ * (extern-only, lui + %lo) in the -G0 overlay build. */
+extern s16 D_800BCCD4[];
+
 /* D_800C0448 - two-halfword ovl_21 state. ovl_21_func_800B9538 writes the
  * first halfword, ovl_21_func_800B95EC clears the first and increments the
  * second. Unsigned halfwords: the increment target loads with lhu. All the
