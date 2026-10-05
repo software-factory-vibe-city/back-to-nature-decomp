@@ -1087,7 +1087,8 @@ Fingerprints:
   `ovl_11_func_80103830`; read-and-written at 8 sites by
   `ovl_11_func_80103964` (the run's heavy mutator);
 - adjacent sibling global `D_8012742C` (main RAM 0x8012742C, next `.word`
-  after `D_80127428`) also cleared by `ovl_11_func_801037EC` — the two are
+  after `D_80127428`) also cleared by `ovl_11_func_801037EC` and read by
+  trailer `ovl_11_func_801040A8` — the only two sites — the two are
   adjacent file-scope vars of one TU, same pattern as D_80128B50/5C;
 - zero-gap link-order contiguity: the span 0x801037DC–0x801040A8 is one
   unbroken run (each function starts exactly where the previous ends); the
@@ -1119,7 +1120,10 @@ Members (address order):
   read-modify-write arms on the same field. Matched cluster members
   ovl_11_func_801037EC and ovl_11_func_80104394 remain byte-exact when
   compiled with that flag; no same-group flag contradiction was observed.
-- ovl_11_func_801040A8 (s) — trailer reader of D_80127428
+- ovl_11_func_801040A8 (m) — trailer reader of D_80127428 and D_8012742C
+  (the sibling global's only other site); selects a 0xD6/0x22/0xC4 value from
+  D_80127428 and passes `D_8005E3C0->field_D8 + 0x54` plus a D_8012742C-derived
+  s16 offset to func_800248B0; the run's state-indexed dispatch
 
 Widening (2026-09-14, byte-exact match of `ovl_11_func_80104394`): the run's
 buffer consumer is now matched. `ovl_11_func_80104394` (m, 0x80104394, 0x84,
