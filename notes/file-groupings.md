@@ -8344,6 +8344,11 @@ Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
 - ovl_11_func_801129EC (s) — caller of ovl_11_func_80112C28 (discards $v0).
 - ovl_11_func_80112A84 (m) — same work area read as `s16*`:
   `p[0x73BB]` = `+0xE776` = base+0x8000+0x6776, indexes `D_80127FD4[5]`.
+- ovl_11_func_80112AB4 (m, matched this session, byte-exact) — on
+  `func_8001AF44(0x4F) != 1`, saturating increment of `+0x6774` below
+  `0x1E`, else on `func_8001AF44(0x4E) == 1` increments `+0x6770`, else on
+  `arg0->+0x4 > 0xFDE7` calls `func_8001AF70(0x4E, 1)`. Same
+  `(char *)&D_8006C838 + 0x8000` two-stage base spelling as the run.
 - ovl_11_func_80112C28 (m, matched this session, byte-exact) — on
   `func_8001AF44(0x4B) == 0` increments `+0x677A`, else clears it; then
   `func_8001AF70(0x4B, 0)` and `func_8001AF70(0x4C, 0)`.
