@@ -12,6 +12,7 @@ s32 ovl_25_func_800B977C(M2C_a070b354da22_Recon800B977CA0View *arg0, s16 arg1);
 s32 ovl_25_func_800B9A10(s32 arg0);
 s32 ovl_25_func_800B9A84(s32 arg0);
 s32 ovl_25_func_800B9B00(s16 *arg0, s16 arg1, s16 arg2);
+void ovl_25_func_800BA758(SpriteSourceData *arg0, u16 *arg1);
 void ovl_25_func_800BA818(void);
 void ovl_25_func_800BA9A4(void);
 void ovl_25_func_800BAA5C(void);

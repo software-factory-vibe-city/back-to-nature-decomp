@@ -6582,6 +6582,37 @@ Members (link order):
 - ovl_25_func_800BA5BC (s) — far-buffer/record setup; shares the `D_800C0334`
   base reference with `ovl_25_func_800BA40C`
 
+## `ovl_25` GTE-transform record pair — 0x800BA5BC–0x800BA7F0 (confidence: medium)
+
+Candidate same-TU pair of `ovl_25` around two adjacent 8-byte overlay-local
+records, `D_800BCD58`/`D_800BCDC4` and `D_800BCD60`/`D_800BCDCC`. Evidence is
+gapless link adjacency plus an identical helper sequence: both copy four u16
+halves from their second argument into the output record, call the GTE
+perspective-transform wrapper `func_8001DFD4(record, buffer)`, and pass the
+result through the renderer `func_80015BF0`.
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800BA5BC` (0x19C, ends exactly 0x800BA758)
+  is followed directly by `ovl_25_func_800BA758` (0x98, ends exactly
+  0x800BA7F0), which is followed directly by `ovl_25_func_800BA7F0` —
+  contiguous, no unrelated code between;
+- shared helper sequence: both call `func_8001DFD4(record, buffer)` and then
+  `func_80015BF0(D_8005E3C0->field_120 + offset, arg0, record[0], record[2])`,
+  the offset being the transformed result rounded down to a 4-byte boundary;
+- shared overlay-local record region: `ovl_25_func_800BA5BC` writes
+  `D_800BCDC4` and reads `D_800BCD58`, while `ovl_25_func_800BA758` writes
+  `D_800BCDCC` and reads `D_800BCD60` — two adjacent 8-byte records in the same
+  gapless overlay-local data run (`D_800BCD58` + 8 = `D_800BCD60`;
+  `D_800BCDC4` + 8 = `D_800BCDCC`). The symbols differ, so this ties the data
+  region and the code idiom, not a single symbol.
+
+Members (link order):
+- ovl_25_func_800BA5BC (s) — record setup; pre-biases the copied halves by
+  -0x96/-0x64 before the transform
+- ovl_25_func_800BA758 (m, matched this session, byte-exact) — same transform
+  with no bias; copies the four halves raw and adds 0x400 to the transformed
+  result before the 4-byte round
+
 ## `ovl_25` D_800BCC10 far-buffer consumer extension — 0x800BA9A4–0x800BAA5C (confidence: medium)
 
 Extension of the `D_800BFE44`/`D_800BFE46` state cluster above: the same s16
