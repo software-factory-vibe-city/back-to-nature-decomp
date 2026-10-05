@@ -6365,7 +6365,9 @@ display-setup idiom `DrawSync` → `ClearOTagR` → `func_80014CBC` →
 Members (link order):
 - ovl_17_func_800B9FA8 (s) — display-setup state: DrawSync/ClearOTagR plus
   func_80014CBC/1719C/15704
-- ovl_17_func_800BA21C (s) — same display-setup idiom
+- ovl_17_func_800BA21C (m, matched 2026-06-11) — same display-setup idiom,
+  confirmed: DrawSync(0) / ClearOTagR(D_8005E3C0->field_120,0x800), then
+  func_80014CBC over D_8005E3B0+0x4290 with a zero-return poll, func_8001719C
 - ovl_17_func_800BA2C8 (s) — same display-setup idiom, plus D_800BD74C/
   D_800BD750 stores
 - ovl_17_func_800BA504 (m) — audio-setup leaf: func_80020B80(2,0),
