@@ -184,7 +184,7 @@ Members:
 - ovl_11_func_800FE780 (m, matched this session) — sub-mode argument `3`,
   trailing args `0x120` / `0xC8`.
 
-## `ovl_11` 0x38/0x3C state-switch run — 0x800C4F44 / 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C6F6C / 0x800C7270 / 0x800C8334 / 0x800C838C / 0x800C83FC / 0x800C846C (confidence: medium)
+## `ovl_11` 0x38/0x3C state-switch run — 0x800C4F44 / 0x800C6E0C / 0x800C6E8C / 0x800C6F0C / 0x800C6F6C / 0x800C7270 / 0x800C8334 / 0x800C838C / 0x800C83FC / 0x800C846C / 0x800C8764 (confidence: medium)
 
 Evidence: four functions in the same small 0x800C6E0C–0x800C72F4 link-order
 run that read and write the same
@@ -244,6 +244,15 @@ Members:
   calls `func_8002261C(2, 0x1A3)` — constants and the predicate callee differ,
   everything else including the `Recon_ovl_11_func_800C8334_A0View` type and
   the callee cluster is shared.
+- ovl_11_func_800C8764 (m, matched this session, byte-exact) — fourth member of
+  the `Recon_ovl_11_func_800C8334_A0View` sub-family: same `s16@+0x8A` /
+  `u16@+0x38` view with the `+0x8A == 0` gate and `func_8002261C(2, 0x20A)` in
+  the else-branch, plus the run's `ovl_11_func_800C7270(0x61, +0x38 + 0x17,
+  -2)` and `func_8001FABC(9)` tail; additionally indexes `D_8006C858`
+  (`ItemData`, +0x14 word == -1 or flags 0x9000). Sits in the same
+  0x800C8764 link window ~0x288 above 800C846C, and the shared caller
+  `ovl_11_func_800C7AC0` calls both 800C846C and 800C8764 — shared type plus
+  two call edges.
 - ovl_11_func_800C4F44 (m, matched this session, byte-exact) — same
   `Recon_ovl_11_func_800C7270_A0View` object, and the first member to witness
   its `s16@+0x84` element array and `u16@+0xF0` copy target: selects the
@@ -4631,7 +4640,7 @@ Members (address order):
   0x10000000 / 0x20000000 / 0x40000000 → 0/1/2/3
 
 Scattered siblings sharing D_8006C858 (broader cluster, not confirmed same
-TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800C8764, 800CBD78, 800CC7CC,
+TU): 800BE2C4, 800C580C, 800C69B8, 800C74AC, 800CBD78, 800CC7CC,
 800CCF58, 800D12B8, 800D196C, 800E93CC. 800D736C is now matched (byte-exact
 clean C, baseline flags) and confirmed to use the run's exact accessor idiom
 — exactly two D_8006C858 references (lui/%lo pair), the same
@@ -4639,6 +4648,9 @@ clean C, baseline flags) and confirmed to use the run's exact accessor idiom
 bit-test dispatch — but sits ~0x12DC above the run tail 0x800D6090 with no
 adjacency, so it stays a scattered sibling; its zero-gap adjacency instead
 ties it to the vector-setter run ending at 0x800D7348 (see that entry).
+800C8764 left this scattered list this session: its
+`Recon_ovl_11_func_800C8334_A0View` gate and the run call edge place it in the
+0x38/0x3C state-switch run above.
 
 ---
 ## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
