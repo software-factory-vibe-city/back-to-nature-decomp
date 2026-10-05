@@ -7130,7 +7130,8 @@ byte-shape of `ovl_28_func_800B8304` matches matched `ovl_27_func_800B8C6C`
 not TU-membership evidence here.
 
 Members (link order):
-- ovl_28_func_800B7F30 (s) — calls `func_800132F0`/`func_800226F0` and
+- ovl_28_func_800B7F30 (m, matched this session, byte-exact) — calls
+  `func_800132F0`/`func_800226F0` and
   `ovl_28_func_800B7E80`/`ovl_28_func_800B8B0C`, then increments the counter
   and returns the new value
 - ovl_28_func_800B7F80 (s) — calls `func_80013394`; on its `result == 1`
@@ -7151,7 +7152,7 @@ Members (link order):
   a u16 at `D_8006C838+0x8000+0x67A0` against 10, calling
   `func_80011EF0(0xD)` on `>= 10` and `func_80011EF0(0x14)` otherwise
 
-Only one member is matched; the rest are read off original asm, hence medium
+Two members are matched; the rest are read off original asm, hence medium
 confidence.
 
 ## `ovl_28` D_800B95F8 handler-pointer table run — 0x800B7F30 … 0x800B83C0 / 0x800B8414 / 0x800B8478 / 0x800B865C (confidence: medium)
