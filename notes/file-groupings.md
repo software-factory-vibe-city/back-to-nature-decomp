@@ -2113,6 +2113,21 @@ D_8012CE88), and its indexed `.data` byte table `D_80127358` lies 0x18 before
 the shared call path plus those two shared byte blocks, not on `D_800719FE`;
 there is no link adjacency (it sits 0xD04 above the run start).
 
+Widening (byte-exact match of `ovl_11_func_800FC544`, 2026-11): the same
+text-draw path reaches further up at 0x800FC544 (0xB0 bytes), a two-call leaf
+that issues `func_80015EE8(D_8005E3C0->field_D8 + 0x68, D_8012CDF8 + arg0*0x30,
+arg1 & 0xFF, 0, t, arg4)` and `func_80017B3C(D_8005E3C0->field_D8 + 0x54,
+arg2, (s16)(t + 0x18), (s16)(arg4 + 4))` with `s16 t = arg3` — the identical
+call pair `ovl_11_func_800FD194` uses. It also indexes a second file-scope
+overlay byte block `D_8012CDF8` (stride 0x30, absent from `globals.h`, extern +
+absolute addressing) that it shares with the documented `D_8012A028` cluster
+members `ovl_11_func_800FC358` and `ovl_11_func_800FD3CC` (and with stubs
+`ovl_11_func_800FBE88` / `ovl_11_func_800FC7F0`). Membership rests on the shared
+text-draw call path plus `D_8012CDF8`; it reads neither `D_800719FE` nor the
+`D_8012A028` buffer, so its non-member listing in the `D_8012A028` entry stands —
+that cluster's `ovl_11_func_800FC5F4` / `ovl_11_func_800FC6A4` call it as a draw
+leaf (the buffer set is disjoint, the call set is not).
+
 ---
 
 ## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)
