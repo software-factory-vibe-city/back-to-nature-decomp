@@ -88,6 +88,23 @@ extern Ovl11D050Entry D_8012D050[3];
 /* The halfword view used by ovl_11_func_801082B0 has no witnessed full extent. */
 extern s16 D_8012D050_halfwords[] __asm__("D_8012D050");
 
+/* D_80128DB8 - overlay-private array of three 16-byte flat-light records
+ * (GsF_LIGHT-shaped: s32 vx/vy/vz @0/4/8, u8 r/g/b @0xC/0xD/0xE), written by
+ * ovl_11_func_800DB824 (absolute-addressed lui+lo in the target) and passed to
+ * GsSetFlatLight. GsF_LIGHT itself lives in psyq/libgs.h, which this header
+ * cannot include, so the .c casts the pointer at the call. */
+typedef struct {
+    /* 0x00 */ s32 vx;
+    /* 0x04 */ s32 vy;
+    /* 0x08 */ s32 vz;
+    /* 0x0C */ u8 r;
+    /* 0x0D */ u8 g;
+    /* 0x0E */ u8 b;
+    /* 0x0F */ u8 pad;
+} Ovl11FlatLight;
+extern Ovl11FlatLight _D_80128DB8[3] __asm__("D_80128DB8");
+#define D_80128DB8 (_D_80128DB8)
+
 /* D_8006C7B8 - absolute-addressed struct. func_800215EC writes a Vec3 at offsets 0/4/8.
  * func_80021604 reads offset 0 as an index and writes offsets 0xC–0x1C. */
 typedef struct {

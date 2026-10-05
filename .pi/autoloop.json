@@ -1,6 +1,12 @@
 {
   "ladder": [
     {
+      "provider": "qwen36-llama",
+      "model": "qwen3.8-27b",
+      "thinking": "xhigh",
+      "label": "qwen38-llama"
+    },
+    {
       "provider": "runinfra",
       "model": "deepseek-v4-1-flash",
       "thinking": "xhigh",
