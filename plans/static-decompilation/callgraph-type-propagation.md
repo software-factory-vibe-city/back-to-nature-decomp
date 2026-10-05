@@ -340,6 +340,11 @@ implementation, analysis coverage and successful reproduction as separate claims
 
 ## 10. Implementation and measured delivery
 
+Implementation changeset: `ff57a06961bae85b0e4392cd2e5c97f2a4eee425`
+(`Add bounded callgraph type propagation with explicit acceptance limits`). This
+records the bounded core and its measured failures, not completion of the primary
+acceptance gate. The hash reference is recorded in a separate documentation commit.
+
 Implemented under `tools/agent/type-propagation/`, integrated with static discovery,
 preparation/freshness and compact campaign handoffs. The original-code graph is
 independent of worklist eligibility. It preserves direct/tail/incoming edges,
