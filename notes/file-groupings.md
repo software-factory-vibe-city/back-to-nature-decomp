@@ -627,6 +627,28 @@ Evidence:
 
 ---
 
+## `ovl_11` D_800BAA84 handler run — 0x8010DA04–0x8010DE68 (confidence: medium-low)
+
+Evidence: the three `D_800BAA84` function-pointer table entries named in the
+object-mode dispatch run above (`8010DD38`/`8010DA04`/`8010DDC8`) are gapless in
+link order and the band closes with `8010DE68`: 0x8010DA04 (0x334) → 0x8010DD38
+(0x90) → 0x8010DDC8 (0xA0) → 0x8010DE68 (0x45C), each starting exactly where the
+previous ends. Gapless link order shared by vtable siblings is same-TU evidence.
+`8010DD38` also repeats the `{u16@+0x16, s16@+0x30, s32@+0x34}` object layout and
+the `ovl_11_func_80107DE0(this + 0xA8, ...)` call idiom of the far-state gate
+bands, but sits ~0x1FD0 bytes past them, so the link run — not the shared idiom —
+is the TU signal claimed here.
+Members (link order):
+- ovl_11_func_8010DA04 (s, 0x334) — `D_800BAA84` handler; bytes not yet recovered.
+- ovl_11_func_8010DD38 (m, matched this session, byte-exact) — `D_800BAA84`
+  handler: `u16@+0x16 -= 3` clamped to [0, 0xFF], clears 0x800 of `s32@+0x34`,
+  then `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x1E)`; returns -1 when
+  `s16@+0x30 == 0x28`.
+- ovl_11_func_8010DDC8 (s, 0xA0) — `D_800BAA84` handler; bytes not yet recovered.
+- ovl_11_func_8010DE68 (s, 0x45C) — gapless tail; only marks the band boundary.
+
+---
+
 ## `ovl_11` 0x801075C0 gapless run (button/state guards) — 0x801075C0–0x80107B54 (confidence: medium)
 
 Gapless link-order run 0x801075C0 (0x44) → 0x80107604 (0x158) → 0x8010775C
