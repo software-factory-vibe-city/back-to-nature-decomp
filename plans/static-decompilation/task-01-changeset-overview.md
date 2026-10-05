@@ -321,3 +321,17 @@ These corrections made no live C/header/configuration edits, broad backtests or
 further controller/process-lifecycle redesigns. The accompanying new plan makes
 known byte-matched functions with real dependencies the primary acceptance
 cohort; the old leaf/stub smoke sample is only a secondary collateral check.
+
+## Correction and planning changeset reference
+
+Changeset SHA: `5eaffdf4d25d7a335a1bf8683b60378f28c918ec`.
+
+This single changeset packages the partial m2c/handoff corrections, their
+regressions, housekeeping in this directory and the new callgraph/type-propagation
+plan with its known-dependency acceptance cohort. The superseded local correction
+checklist was removed. Recursive graph propagation is still planned, and the
+reported raw callback draft is not claimed to compile.
+
+Generated/extracted artifacts and the existing editor swap file were excluded.
+This SHA reference is added in a separate documentation-only commit, after the
+referenced changeset was created.
