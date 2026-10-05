@@ -400,6 +400,15 @@ typedef struct {
 } M2C_49440c14e0eb_Struct_800E1158;
 
 typedef struct {
+    char pad_00[0x34];
+    s32 field_34;
+    char pad_38[0x58 - 0x38];
+    s32 field_58;
+    s32 field_5C;
+    s32 field_60;
+} M2C_499805aa6798_Ov11SetFields;
+
+typedef struct {
     u16 field_0;
     u16 field_2;
 } M2C_4ba4ff9ac5c7_Cell4;

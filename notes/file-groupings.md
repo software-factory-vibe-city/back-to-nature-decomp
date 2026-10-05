@@ -8089,9 +8089,14 @@ Members (link order):
   else `(s32@+0x34 & 0x10000) < 1`.
 - ovl_11_func_800DE9C8 (s, 0x138), 800DEB00 (s, 0x3E0), 800DEF30 (s, 0xE0),
   800DF128 (s, 0x100), 800DF51C (m, 0x90), 800DF614 (m, 0x94),
-  800DF72C (s, 0x120), 800DF84C (s, 0x1A4), 800DF9F0 (s, 0x8C),
-  800DFB98 (s, 0xA4) — callers; the common guard is
+  800DF72C (s, 0x120), 800DF84C (s, 0x1A4), 800DF9F0 (s, 0x8C) —
+  callers; the common guard is
   `if (ovl_11_func_800DF4F0(arg0) == 0) return -1;`.
+- ovl_11_func_800DFB98 (m, 0xA4, matched this session, byte-exact) — caller;
+  guard then the `ovl_11_func_800D05D0` view consumer: adds
+  `s32@+0x38/+0x3C/+0x40` into a 4-word vector seeded by
+  `ovl_11_func_800D0408(*(u16 *)(D_8006C838+0x5200), ..., 0x320)`, then
+  stores `D_8006C838+0x5200` into `u16@+0x22`; same body idiom as 8010BC54.
 - ovl_11_func_800DF6A8 (m, matched this session, byte-exact) — caller;
   guard then lazy-init flag `s32@+0x34 & 4` (call `800D049C`, then OR 4 in),
   then `ovl_11_func_800D12A0(9)` when `s16@+0x30 == *(s16 *)(&D_8007AFF0 +
