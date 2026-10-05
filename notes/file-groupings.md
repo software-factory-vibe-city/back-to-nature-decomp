@@ -5725,26 +5725,32 @@ Members:
   shape as 800E78E4/800EC490, and the same conditional table-resolve as
   800E69F8/800EB79C, inside the accessor band.
 
-## `ovl_11` D_80076280 record-selector pair — 0x800E9778 / 0x800EDEB8 (confidence: low)
+## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C (confidence: low)
 
-Data-family tie: `ovl_11_func_800E9778` and `ovl_11_func_800EDEB8` are the only
-two functions container-wide touching the `D_80076280` record table, and their
-original instruction streams share the same record-selector construction —
-`0x29` test selecting base `D_80071B00`, otherwise the identical
-`(a<<3 - a)<<2 + a)<<2 + a)<<2` multiply chain for the 0x1D4 byte stride —
-with complementary effects on the selected record (copy fields out to
-`D_80129560` slots vs add `2*arg` deltas into the fields). No link-order
-adjacency (~0x2740 apart), so per ledger convention this is a shared-global
-tie, not a TU tie. Both members also belong to the D_80129560 accessor family
-above.
+Data-family tie: `ovl_11_func_800E9778`, `ovl_11_func_800EDEB8` and
+`ovl_11_func_800E7C2C` are the only functions container-wide carrying the same
+record-selector construction — an `arg0 == 0x29` test selecting a special base
+(`D_80071B00` for the first two, `D_80071CCC` here), otherwise the identical
+`(a<<3 - a)<<2 + a)<<2 + a)<<2` multiply chain for the 0x1D4 byte stride
+against a `D_80076280`-family base (`D_80076300` = `D_80076280` + 0x80 for
+800E7C2C) — with distinct effects on the selected record. No link-order
+adjacency (~0x2740/0x3000 apart), so per ledger convention this is a
+shared-global tie, not a TU tie. The first two members also belong to the
+D_80129560 accessor family above; 800E7C2C is the member whose record
+inspection instead drives the `ovl_11_func_80107DD0`/`DE0` initializer pair
+(see the 0x1D4-stride initializer run).
 
 Members:
 - ovl_11_func_800E9778 (m) — snapshot: record selector + three -1-guarded
   `D_80129560[arg] = record.field` writes, bounds-checked, returns 1/0.
 - ovl_11_func_800EDEB8 (m) — delta: same record selector, no bounds check,
   adds `arg*2` into record fields +4/+0/+8, returns 1.
+- ovl_11_func_800E7C2C (m, matched 2026-11 — this session, 0xA0, byte-exact) —
+  guard: same selector, no bounds check; if s16@+0 == -1 calls
+  `80107DE0(record, arg1, 0x1E)` and returns 0, else if s16@+2 == 0 calls
+  `80107DD0(record)` and returns 1, else returns 0.
 
-A third function shares the record geometry without the selector: `ovl_11_func_800EB79C`
+A further function shares the record geometry without the selector: `ovl_11_func_800EB79C`
 (m) runs the identical `((v<<3 - v)<<2 + v)<<2 + v)<<2` multiply chain for the
 0x1D4 byte stride against base `D_8006C838 + 0x9A08` (= `D_80076280` − 0x40),
 read-modify-writing the u16 flag halfword there (0x3FFF payload, 0x8000/0x4000
