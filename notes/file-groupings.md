@@ -8196,16 +8196,16 @@ Members (link order):
 ## `ovl_11` record-tag update run — 0x800DA3AC–0x800DA518 (confidence: medium)
 
 Four functions in an unbroken link-order run that all mutate the same 8-byte
-record (`u16@+0x0`, `u16@+0x2`, `u8@+0x4`, `u8@+0x5`, `u16@+0x6`) behind a
-`if (arg1 != 0)` guard and an `ovl_11` tag test, and all call
-`func_80012A34(arg1 & 0xFFFF)`. The shared record layout is the strongest
-fingerprint: `800DA49C` writes the exact `+0x4`/`+0x5`/`+0x6` byte/halfword
-fields that `800DA518` reads and writes, and no function sits between them.
-`800DA588` starts at the end of the run but uses the unrelated `D_80125528`
-record, so the span ends at `800DA518`.
+record (`u16@+0x0`, `u16@+0x2`, `u8@+0x4`, `u8@+0x5`, `u16@+0x6`) behind an
+`ovl_11` tag test and a `func_80012A34` guard. The shared record layout is the
+strongest fingerprint: `800DA49C` writes the exact `+0x4`/`+0x5`/`+0x6`
+byte/halfword fields that `800DA518` reads and writes, and no function sits
+between them. `800DA588` starts at the end of the run but uses the unrelated
+`D_80125528` record, so the span ends at `800DA518`.
 Members (link order):
-- ovl_11_func_800DA3AC (s) — dispatch on `D_80070CF2` (0/0x40/0x80), then tag
-  range 0x167–0x169 + `func_80012A34` guard sets tag 0x40 and field 0x167.
+- ovl_11_func_800DA3AC (m, byte-exact) — `D_80070CF2` selects a 0x40/0x80 mask
+  (0 otherwise); tag range 0x167–0x169 + `func_80012A34(mask)` guard sets tag
+  0x40 and field 0x167 on an `Ovl11D124Entry` view.
 - ovl_11_func_800DA454 (m) — tag 0x3F guard → `func_80012A34`, set tag 0x175.
 - ovl_11_func_800DA49C (m, matched this session, byte-exact) — tag != 0x36 +
   `ovl_11_func_800D5868(tag) == 1` + `func_80012A34` guard resets the record:
