@@ -7272,7 +7272,11 @@ Members (link order):
   it back (`lhu`/`sh`), calling `func_80022580`/`func_80017B3C`
 - ovl_15_func_80133B28 (s) — reads and rewrites `D_801375A2`; calls
   `func_8001AC10`, `ovl_15_func_801344E8`, `func_8001FABC`
-- ovl_15_func_80133F4C (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
+- ovl_15_func_80133F4C (m, matched this session, byte-exact) — leaf free-slot
+  allocator: `lh` of `D_8013759E` into a local before the scan and `sh` of it plus
+  `lhu`/`sh` of `D_801375A4`; scans and fills a row of the shared 2x5 record table
+  `D_80140F90` (same table `ovl_15_func_8013468C` fills and `ovl_15_func_801340B8`
+  reads), corroborating the shared-global tie
 - ovl_15_func_80134000 (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
 - ovl_15_func_801340B8 (m, matched this session, byte-exact) — leaf; `lh` of
   `D_8013759E` plus a read of the 0x28-stride table `D_80140F90`, which sits
