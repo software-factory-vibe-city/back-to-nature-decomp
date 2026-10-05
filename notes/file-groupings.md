@@ -866,6 +866,13 @@ Members (address order, matched so far):
   D_8012D068/D_8012D06C pair alongside ovl_11_func_80108930 and the run's
   second D_8012D040-indexed D_8012D050 reader alongside ovl_11_func_80108828;
   called by the run's shared caller ovl_11_func_80107F58; byte-exact clean C
+- ovl_11_func_80108930 (m, this session) — leaf state-probe/sequencer: derives a
+  block index from the D_8012D068 counter (signed `>>4` minus `(D_8012D068/48)*3`),
+  stores it to D_8012D06C when it differs, then calls func_80017200 with
+  `D_8007BFF8 + (index << 0xB)` and the four s16 fields of D_8012D060, and
+  increments D_8012D068; the D_8012D068/D_8012D06C pair's second site alongside
+  writer/resetter ovl_11_func_801088E4 and the D_8012D060 reader alongside
+  ovl_11_func_80108864/ovl_11_func_801089DC; byte-exact clean C, baseline flags
 - ovl_11_func_80109E04 (m, this session) — guard/probe leaf: returns -1 unless
   the u16 at arg0+0 is nonzero and the cluster pointer D_8012D080 is set,
   otherwise forwards arg0 plus D_8012D080's +0x38/+0x3C/+0x40/+0x44 words to
