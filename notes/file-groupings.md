@@ -6486,6 +6486,36 @@ Members (link order):
 - ovl_25_func_800BA858 (s) — far-buffer/field updater; on its `... == 2` probe
   path sets `D_800BFE46` to 3 and writes `D_800BCD21`/`D_800BCD48`
 
+## `ovl_25` D_800C024C object-state base run — 0x800BA40C–0x800BA5BC (confidence: medium)
+
+Candidate same-TU run of `ovl_25` around the extern object-state base
+`D_800C024C`. Evidence is gapless link adjacency plus a shared absolute base
+built with `lui/addiu %hi/%lo(D_800C024C)` and passed as the first argument to
+the `func_80015828`/`func_80015840` helper pair; `D_800C024C` is
+`extern`/absolute, so it is not TU-owned (no gp-rel cluster observed).
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800BA40C` (0x124, ends 0x800BA530) sits
+  immediately before `ovl_25_func_800BA530` (0x8C, ends 0x800BA5BC), which is
+  followed directly by `ovl_25_func_800BA5BC` (0x19C) — contiguous, no
+  unrelated code between;
+- shared absolute base: `ovl_25_func_800BA40C` and `ovl_25_func_800BA530` both
+  build `%hi/%lo(D_800C024C)` into `$s0` and pass `&D_800C024C` as arg0 to the
+  adjacent helpers `func_80015828`/`func_80015840`;
+- cross-reference: `ovl_25_func_800BA40C` and `ovl_25_func_800BA5BC` also build
+  the same `%hi/%lo(D_800C0334)` base, so the run terminator is retained.
+
+Members (link order):
+- ovl_25_func_800BA40C (s) — record/state initialiser; clears a series of
+  `D_800C024C` (+0x00/+0x30/+0x60/+0x90) and `D_800C013C`/`D_800C0334` records
+  via repeated `func_80015828(base, 4)` calls
+- ovl_25_func_800BA530 (m, matched this session, byte-exact) — resets
+  `D_800C024C` via `func_80015840(&D_800C024C, 0)`, then reads its
+  `ObjectState` fields +4/+5 and the `HWD0`/`VWD0` halfwords and passes them to
+  `func_80015EE8`
+- ovl_25_func_800BA5BC (s) — far-buffer/record setup; shares the `D_800C0334`
+  base reference with `ovl_25_func_800BA40C`
+
 ## `ovl_25` D_800BCC10 far-buffer consumer extension — 0x800BA9A4–0x800BAA5C (confidence: medium)
 
 Extension of the `D_800BFE44`/`D_800BFE46` state cluster above: the same s16
