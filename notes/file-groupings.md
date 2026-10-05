@@ -6044,6 +6044,11 @@ Members:
 - ovl_17_func_800B9CAC (m, 2026-10-03) — countdown walk of 6 D_800BD848
   records (0x50 stride): bumps each s16@+0x2A by 5 when it is < 0xFF; same
   `base = D_800BD848` + 0x50-stride record idiom as 800B9F10/800B9F44.
+- ovl_17_func_800B9594 (m, 2026-10-05) — countdown walk of 6 D_800BD848
+  records (0x50 stride): decays each s16@+0x2E toward s16@+0x2C by
+  `(rec[0x2E] - rec[0x2C]) * 0xFF / ((rec[0x2A] + 1) * work.s16@+0x14)` and
+  clamps to s16@+0x2C; same `base = D_800BD848` + 0x50-stride countdown idiom
+  as 800B9CAC.
 - ovl_17_func_800BAFDC (m, 2026-11-01) — countdown walk of 6 D_800BD870
   records (0x50 stride): calls ovl_17_func_800BAFAC(base); same
   `base = D_800BD870` + 0x50-stride countdown idiom as 800B9CAC and the
