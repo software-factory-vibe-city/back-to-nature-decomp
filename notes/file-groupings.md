@@ -4151,6 +4151,15 @@ Members (address order):
   head 0x8011D400 (s) is link-order predecessor only. Call-graph agreement
   (caller contiguous after callee) + register-capture quirk; TU ownership
   unconfirmed (parent stubs).
+- ovl_11 nested static-chain pair — 0x800F5108 / 0x800F5160, zero-gap
+  link run (0x800F5108 0x58 ends exactly at 0x800F5160). ovl_11_func_800F5160
+  (m, matched this session, 0xB0, byte-exact) declares ovl_11_func_800F5108
+  block-locally (`auto ... __asm__`) and materializes `$v0 = $sp + 16`
+  before its single `jal` — the same nested-function static-chain seam as
+  the EAE4/E878/E9F8 and 0x8011D438/0x8011D474 families — while the
+  callee 0x800F5108 carries the matching CAPTURE_PREV_RET incoming-`$v0`
+  capture. Zero-gap link order + call edge + static-chain seam agree, so
+  the pair shares one original nested-function TU (medium).
 - ovl_11 6-byte struct-copy helper run — 0x800F7E38 / 0x800F8404 /
   0x800F8480 / 0x800F84D4 (confidence: low): the orchestrator
   ovl_11_func_800F7E38 (stub) calls three link-adjacent leaf helpers that
