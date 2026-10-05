@@ -7229,6 +7229,43 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_801273DC state-block init/installer pair — 0x800FFDCC / 0x800FFE64 (confidence: medium)
+
+Candidate same-TU pair tied to the `D_801273Exx` main-RAM state block and the
+`D_801273DC` handler pointer already documented by the D_801273DC handler-table
+run (this file). Evidence is gapless link-order adjacency plus complementary
+roles on that shared state block, with the case number corroborating the
+dispatch tie.
+
+Fingerprints:
+- **gapless link adjacency:** `ovl_11_func_800FFDCC` (0x98 bytes at
+  0x800FFDCC) ends exactly at `ovl_11_func_800FFE64` (0x8C bytes at
+  0x800FFE64);
+- **shared `D_801273Exx` state block, complementary roles:** 800FFDCC is the
+  block's reset leaf — it zeroes `D_801273DC` along with the whole
+  `D_801273Exx` block; its gapless follower 800FFE64 re-seeds two members of
+  that same block (`D_801273E4 = 1`, `D_801273E5 = 0`);
+- **handler install:** 800FFE64 is the only site that stores
+  `D_801273DC = ovl_11_func_80100128`; 80100128 is the case-0x3B6 handler of
+  the D_801273DC handler-table run, and 800FFE64's own event call is
+  `func_8002261C(3, 0x3B5)`, the case immediately below 0x3B6 — an
+  adjacent-case dispatch tie, not just a coincident store;
+- **shared call cluster:** 800FFE64 also calls the run's reset leaf
+  `ovl_11_func_800FFDCC` at entry and closes with the event tail
+  `func_8001FABC(3)` / `func_800226D8(0)` / `func_80017B18(0)` / the case
+  call, and ORs bit 0x20000 into `D_8006C838.field_0C` (the work-area bit seen
+  in the 0x800F66F0 state-set run).
+
+Members (link order):
+- ovl_11_func_800FFDCC (m) — reset leaf for the `D_801273Exx` state block:
+  zeroes `D_801273DC`, `D_801273E4`/`D_801273E5` and the rest of the block
+- ovl_11_func_800FFE64 (m, matched this session, byte-exact) — case-0x3B5
+  installer: calls 800FFDCC, sets `D_801273E4 = 1` / `D_801273E5 = 0`,
+  stores handler `ovl_11_func_80100128` into `D_801273DC`, then the shared
+  event tail ending `func_8002261C(3, 0x3B5)`
+
+---
+
 ## `ovl_11` D_8005E3B0+0x4290 CD-load wrapper pair — 0x800F71DC / 0x800F7230 (confidence: medium)
 
 Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`). Evidence is zero-gap
