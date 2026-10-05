@@ -6152,6 +6152,17 @@ Members (link order):
   0x20; the 0x20 state calls `func_800226D8(0)` / `func_80017B18(0)` /
   `func_8002261C(3, 0x3B3)`) — role tied to the pair by gapless link band and
   the shared `D_801273xx` handler idiom, not by `D_801273D8`/`D_801273DA`
+- ovl_11_func_800FF27C (m, matched this session, byte-exact) — second
+  `D_801273B0` state handler sharing 800FF8C8's event tail: 0x11 branch queues
+  `func_8002261C(3, arg1 + (arg0 * 5 + 0x367))`, then on
+  `func_800226A4() == 2` calls `func_80022738()` and advances `D_801273B0` to
+  0x10; the 0x10 state calls `func_800226D8(0)` / `func_80017B18(0)` /
+  `func_8002261C(3, 0x3B2)`. Same handler idiom as 800FF8C8 with adjacent state
+  constants (0x11↔0x10 against 0x21↔0x20), the same callee cluster
+  (`func_8002261C`/`func_800226A4`/`func_80022738`/`func_800226D8`/
+  `func_80017B18`) and the same `D_801273B0` base-reuse codegen; membership
+  rests on the shared handler/idiom fingerprint and the shared state-word
+  cluster, not on link adjacency
 - ovl_11_func_800FFA28 (m) — void init leaf: `D_801273D8 = 0`,
   `D_801273DA = 0xFF`
 - ovl_11_func_800FFA40 (m) — void reset: calls 800FFA28, then
