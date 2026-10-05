@@ -3,3 +3,4 @@
  * passed to m2c before this file. */
 
 s32 ovl_31_func_800B82E8(void);
+s32 ovl_31_func_800B8348(void);

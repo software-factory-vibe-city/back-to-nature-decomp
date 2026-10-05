@@ -3,6 +3,17 @@
  * passed to m2c before this file. */
 
 void ovl_27_func_800B7EEC(void);
+void ovl_27_func_800B7F2C(void);
+void ovl_27_func_800B7F7C(void);
+s32 ovl_27_func_800B8C6C(void);
+s32 ovl_27_func_800B8CAC(void);
+s32 ovl_27_func_800B8E28(void);
+void ovl_27_func_800B8E5C(void);
+void ovl_27_func_800B8EA0(void);
+void ovl_27_func_800B8EF8(void);
+void ovl_27_func_800B8F58(void);
+void ovl_27_func_800B9064(void);
+s32 ovl_27_func_800B90DC(void);
 void ovl_27_func_800B9224(void);
 void ovl_27_func_800B928C(void);
 void ovl_27_func_800B92E4(void);
@@ -13,4 +24,13 @@ void ovl_27_func_800B9400(s16 arg0);
 void ovl_27_func_800B9C84(void);
 void ovl_27_func_800BA0A8(void);
 void ovl_27_func_800BA0EC(void);
+void ovl_27_func_800BA1CC(void);
+void ovl_27_func_800BA4C4(void);
+void ovl_27_func_800BA514(void);
+s32 ovl_27_func_800BA578(void);
+void ovl_27_func_800BA5BC(void);
+void ovl_27_func_800BA750(void);
+s32 ovl_27_func_800BA7B0(void);
 void ovl_27_func_800BA80C(void);
+void ovl_27_func_800BABD4(void);
+void ovl_27_func_800BAC14(void);

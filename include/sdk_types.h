@@ -2,30 +2,22 @@
 /* m2c context only: type definitions for include/functions.h.
  * Must be passed to m2c *before* functions.h; see tools/agent/m2cFunc.ts. */
 
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef signed char s8;
-typedef signed short s16;
-typedef signed int s32;
+struct M2C_1e7e93467acd_Unk800D3FEC;
 
-typedef struct {
-    u8 filler[0x18];
-    s32 flag;
-} Cell8001E340;
+typedef struct M2C_1e7e93467acd_Unk800D3FEC M2C_1e7e93467acd_Unk800D3FEC;
 
-typedef struct {
-    s16 field_0;
-    s16 field_2;
-    s16 field_4;
-} CoordTri;
+struct M2C_6fc629d778b7_Unk800D3D2C;
+
+typedef struct M2C_6fc629d778b7_Unk800D3D2C M2C_6fc629d778b7_Unk800D3D2C;
 
 typedef unsigned long u_long;
 
 typedef struct {
-	u_long	tag;
-	u_long	code[2];
+ u_long tag;
+ u_long code[2];
 } DR_MODE;
+
+typedef signed int s32;
 
 typedef struct {
     s32 field_0;
@@ -35,6 +27,516 @@ typedef struct {
     s32 field_10;
     s32 field_14;
 } EAE4Query;
+
+typedef signed short s16;
+
+typedef unsigned short u16;
+
+typedef struct {
+               s32 field_0;
+               s16 field_4;
+               u16 field_6;
+               s16 field_8;
+               s16 field_A;
+               u16 field_C;
+               u16 field_E;
+               u16 field_10;
+               u16 field_12;
+} GradientCmd;
+
+typedef unsigned char u_char;
+
+typedef struct {
+ u_long tag;
+ u_char r0, g0, b0, code;
+ short x0, y0;
+ short x1, y1;
+} LINE_F2;
+
+typedef unsigned char u8;
+
+typedef struct {
+               u8 unk0[4];
+               s16 unk4;
+} M2C_029d3dcb50b2_UnkStruct800D72E8;
+
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+} M2C_057dca34f681_Struct_800D03B4;
+
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+} M2C_067e28fd8ac0_Struct_8001F39C;
+
+typedef struct {
+               char pad_00[0x34];
+               s32 field_34;
+               char pad_38[0x58 - 0x38];
+               s32 field_58;
+               s32 field_5C;
+               s32 field_60;
+} M2C_0ac2dae062dd_Ov11SetFields;
+
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+} M2C_0ac2dae062dd_Ov11SetVec;
+
+typedef struct {
+               u16 unk0;
+               u16 unk2;
+               u8 unk4;
+               u8 unk5;
+               u16 unk6;
+} M2C_0b6d0a5b0166_UnkStruct800DA518;
+
+typedef struct {
+               u16 unk0;
+               char pad_02[0xAC];
+               u16 unkAE;
+} M2C_0c7219b076a9_Struct_800E2E4C;
+
+typedef struct {
+               u16 field_0;
+               char pad_02[0x34 - 0x02];
+               s32 field_34;
+} M2C_0ced4ee09ea5_Ov11FlagSet;
+
+typedef struct {
+               char pad_00[0x4];
+               u16 unk04;
+} M2C_0f04956ab9af_UnkStruct80112C98;
+
+typedef struct {
+               u16 unk0;
+} M2C_1023b6857e0a_UnkStruct800E109C;
+
+typedef struct {
+    char pad_0[0x38];
+    u16 unk38;
+    char pad_3A[0x2];
+    u16 unk3C;
+    char pad_3E[0x2E];
+    s32 unk6C;
+    char pad_70[0xA0];
+    s32 unk110;
+    char pad_114[0x4];
+    s32 unk118;
+} M2C_1052de249052_Ovl119938View;
+
+typedef struct {
+               char pad_00[0x16];
+               u16 unk16;
+               char pad_18[0xA8 - 0x18];
+               char unkA8[0];
+} M2C_10d75516ede6_Struct_800DF5AC;
+
+typedef struct {
+               char pad[0x22];
+               u16 unk22;
+               char pad2[0x30 - 0x24];
+               u16 unk30;
+               char pad3[0x38 - 0x32];
+               s32 unk38;
+               s32 unk3C;
+               s32 unk40;
+} M2C_155fb954c77f_Unk8029B0;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
+               s16 unk8;
+               char pad0A[0x0C - 0x0A];
+               s32 unkC;
+               s32 unk10;
+               s32 unk14;
+               s32 unk18;
+               s32 unk1C;
+               char pad20[0x24 - 0x20];
+               s32 unk24;
+               s32 unk28;
+               s32 unk2C;
+} M2C_1729124c6ef2_UnkStruct800CBF40;
+
+typedef struct {
+    char pad_0[0x10];
+    s16 unk10;
+    char pad_12[0x2];
+    s16 unk14;
+} M2C_190b52b5a3be_ReconA0View;
+
+typedef struct {
+    char pad_0[0x10];
+    s16 unk10;
+    char pad_12[0x2];
+    s16 unk14;
+} M2C_190b52b5a3be_ReconA1View;
+
+typedef struct {
+    char pad0[0x8];
+    s16 unk8;
+    s16 unkA;
+    s16 unkC;
+    char padE[0x2];
+    s16 unk10;
+    s16 unk12;
+    s16 unk14;
+    char pad16[0xA];
+    s16 unk20;
+    s16 unk22;
+    s16 unk24;
+    char pad26[0x2];
+    u16 unk28;
+} M2C_19c3a40395ce_ovl_11_func_800DCA10_t;
+
+typedef struct {
+               char pad0[0x8];
+               s16 unk8;
+               s16 unkA;
+} M2C_1e5992b45e4e_UnkStruct80115C60;
+
+struct M2C_1e7e93467acd_Unk800D3FEC {
+               u8 pad[0xAC];
+               u16 unkAC;
+};
+
+typedef struct {
+               u8 pad[0x28];
+               u16 unk28;
+               u8 pad2[0x6];
+} M2C_1fdb90a61b2c_Ovl11FuncC9D4Entry;
+
+typedef struct {
+               u16 field_0;
+               u16 field_2;
+               u16 field_4;
+               char pad_06[0x12];
+} M2C_246e28f7bc90_Entry_800F53BC;
+
+typedef struct {
+               u16 field_0;
+               char pad_02[0x34 - 0x02];
+               s32 field_34;
+} M2C_24e7ca662cda_Ov11FlagSet;
+
+typedef struct {
+    s16 unk0;
+} M2C_25616469e147_ReconA0View;
+
+typedef struct {
+               char pad[0x22];
+               u16 unk22;
+               char pad2[0x30 - 0x24];
+               u16 unk30;
+               char pad3[0x38 - 0x32];
+               s32 unk38;
+               s32 unk3C;
+               s32 unk40;
+               char pad4[0xAC - 0x44];
+               u16 unkAC;
+} M2C_269c1560d5f5_Unk80110E34;
+
+typedef struct {
+    char pad_0[0x10];
+    s16 unk10;
+    char pad_12[0x2];
+    s16 unk14;
+} M2C_2b0e4444e645_ReconA0View;
+
+typedef struct {
+    char pad_0[0x10];
+    s16 unk10;
+    char pad_12[0x2];
+    s16 unk14;
+} M2C_2b0e4444e645_ReconA1View;
+
+typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} M2C_2bc7a43223fd_CoordTri;
+
+typedef struct {
+               u16 field_0;
+               char pad_02[0x34 - 0x02];
+               s32 field_34;
+} M2C_2f6fe1f25e7b_Ov11Flag8010B830;
+
+typedef struct {
+    s16 field_00;
+    u16 field_02;
+} M2C_326f4e635d1e_Group;
+
+typedef struct {
+    u16 field_00;
+    u16 field_02;
+    s16 field_04;
+    s16 field_06;
+} M2C_326f4e635d1e_Vertex;
+
+typedef unsigned int u32;
+
+typedef struct {
+    u16 field_00;
+    u16 field_02;
+    u16 field_04;
+    u16 field_06;
+    u16 field_08;
+    u16 field_0A;
+    u16 field_0C;
+    u16 field_0E;
+    s16 field_10;
+    u16 field_12;
+    u32 padding_14;
+    u32 padding_18;
+    M2C_326f4e635d1e_Vertex *field_1C;
+    M2C_326f4e635d1e_Group *field_20;
+    u8 *field_24;
+    M2C_326f4e635d1e_Group *field_28;
+    u8 *field_2C;
+    s32 field_30;
+} M2C_326f4e635d1e_SourceData;
+
+typedef struct {
+    char pad_0[0x2];
+    s16 unk2;
+} M2C_32ba532776b0_ReconA0View;
+
+typedef struct {
+    s16 unk0;
+    u16 unk2;
+} M2C_33501d1b78e1_Recon80110838A0View;
+
+typedef struct {
+    char pad_0[0x4];
+    s16 unk4;
+    char pad_6[0xA];
+    s16 unk10;
+    char pad_12[0x2];
+    s16 unk14;
+} M2C_3ad8e07a3b9c_ReconA0View;
+
+typedef struct {
+    char pad_0[0x10];
+    s16 unk10;
+    char pad_12[0x2];
+    s16 unk14;
+} M2C_3ad8e07a3b9c_ReconA1View;
+
+typedef struct {
+               s32 field_0;
+               s32 field_4;
+               s16 field_8;
+               s16 field_A;
+} M2C_3bf33f64765e_ovl_11_DD48_arg0;
+
+typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} M2C_3f22cd297a83_CopyStruct_8480;
+
+typedef struct {
+               s16 field_0;
+               s16 field_2;
+} M2C_42071334137b_Ov11Timer;
+
+typedef struct {
+               u16 field_0;
+               char pad_02[0x2C - 0x02];
+               u16 field_2C;
+               char pad_2E[0x34 - 0x2E];
+               s32 field_34;
+} M2C_4224e215b714_Ov11FlagSet8010B218;
+
+typedef struct {
+               u16 unk0;
+               u16 unk2;
+               u8 unk4;
+               u8 unk5;
+               u16 unk6;
+} M2C_45b11bab5057_UnkStruct800DA49C;
+
+typedef struct {
+               char pad_00[0x16];
+               u16 unk16;
+               char pad_18[0x30 - 0x18];
+               s16 unk30;
+               char pad_32[0xA8 - 0x32];
+               char unkA8[0];
+} M2C_478bc32a9b2b_Struct_8010BCE8;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 pad6;
+               s16 unk8;
+               s16 unkA;
+               s16 unkC;
+} M2C_47a72bcd7f17_Ovl11DE8;
+
+typedef struct {
+               char pad_00[0x16];
+               u16 unk16;
+               char pad_18[0xA8 - 0x18];
+               char unkA8[0];
+} M2C_49440c14e0eb_Struct_800E1158;
+
+typedef struct {
+    char pad0[2];
+    s16 unk2;
+    u16 unk4;
+} M2C_4c1a205b3b09_ReconA0View;
+
+typedef struct {
+               s32 field_00;
+               s32 field_04;
+               s32 field_08;
+} M2C_4df042861e66_BoundsArgs4994;
+
+typedef struct {
+               s16 field_00;
+               char pad_02[0x08 - 0x02];
+               s32 field_08;
+               s32 field_0C;
+               s32 field_10;
+} M2C_4df042861e66_BoundsEntry4994;
+
+typedef struct {
+               u8 pad0[2];
+               u16 unk2;
+               u16 unk4;
+               u8 pad6[0x18 - 0x06];
+} M2C_54cb810e3946_Ovl11Func5700Entry;
+
+typedef struct {
+               char pad0[0x36];
+               u16 flags;
+               char pad38[0x40 - 0x38];
+               u16 vals[(0x84 - 0x40) / 2];
+               s16 value;
+} M2C_583b0b68ff5a_UnkStruct800CD5BC;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               u16 unk4;
+               s16 pad6;
+               s32 unk8;
+               s32 unkC;
+               s32 unk10;
+               s32 unk14;
+} M2C_5b7450153aff_Ov11_4390struct;
+
+typedef struct {
+    char pad_0[0x100];
+    s32 unk100;
+    s32 unk104;
+    s32 unk108;
+    s32 unk10C;
+} M2C_6201b6a06ca1_ReconA0View;
+
+typedef struct {
+    u_char b[4];
+} M2C_634e145b9b21_ReadFlag;
+
+typedef struct {
+    u8 filler[0x18];
+    s32 flag;
+} M2C_64b5d3016a4e_Cell8001E340;
+
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 count;
+    M2C_64b5d3016a4e_Cell8001E340 cells[1];
+} M2C_64b5d3016a4e_Grid8001E340;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+} M2C_6953bb039881_UnkStruct800BFADC;
+
+typedef struct {
+               u16 unk0;
+               char pad_2[0x2E];
+               s16 unk30;
+               char pad_32[0x2];
+               s32 unk34;
+} M2C_6a900543412a_UnkStruct800DF6A8;
+
+struct M2C_6fc629d778b7_Unk800D3D2C {
+               u16 unk0;
+               u8 pad[0xAA];
+               s16 unkAC;
+};
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               u16 unk4;
+               s16 pad6;
+               s32 unk8;
+               s32 unkC;
+               s32 unk10;
+} M2C_701317280b4c_Ov11_4360struct;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
+               s32 unk8;
+               s16 unkC;
+               s16 unkE;
+               s16 unk10;
+               s16 unk12;
+               s32 unk14;
+} M2C_7147e7f955dc_UnkStruct80106DC0;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+} M2C_729a6ccf4038_UnkStruct80107DE0;
+
+typedef struct {
+               char pad00[0x16];
+               s16 unk16;
+} M2C_7d34f504fd33_UnkStruct800CD4E4;
+
+typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} M2C_8573ba8bfae4_CopyStruct_84D4;
+
+typedef struct {
+    s16 unk0;
+    u16 unk2;
+} M2C_8740fcdc649a_Recon80110838A0View;
+
+typedef struct {
+               u16 field_0;
+               char pad_02[0x2C - 0x02];
+               u16 field_2C;
+               char pad_2E[0x34 - 0x2E];
+               s32 field_34;
+} M2C_884f54480578_Ov11FlagSet80108D38;
+
+typedef struct {
+    char _00[0x28];
+    u16 field_28;
+    char _2A[0x2];
+    void *ptr;
+} M2C_891425437069_BufView;
 
 typedef struct {
     s32 unk0;
@@ -46,70 +548,331 @@ typedef struct {
     s16 unkE;
     s16 unk10;
     s16 unk12;
-} Func8001F664_Data;
+} M2C_8c6b5beb4326_Func8001F664_Data;
+
+typedef signed char s8;
 
 typedef struct {
-    /* 0x00 */ u8 data[0x1C];
-} PrimPrim;
+               s8 field_0;
+               s8 field_1;
+               s8 field_2;
+               s8 field_3;
+               s8 field_4;
+               s8 field_5;
+               s8 field_6;
+               s8 field_7;
+               s16 field_8;
+               s16 field_A;
+               s8 field_C;
+               s8 field_D;
+               s8 field_E;
+               char pad_F;
+               s16 field_10;
+               s16 field_12;
+               s8 field_14;
+               s8 field_15;
+               s8 field_16;
+               char pad_17;
+               s16 field_18;
+               s16 field_1A;
+               s8 field_1C;
+               s8 field_1D;
+               s8 field_1E;
+               char pad_1F;
+               s16 field_20;
+               s16 field_22;
+} M2C_8ffcafc4ec70_Struct_800153BC;
 
 typedef struct {
-    /* 0x00 */ u8 pad[8];
-    /* 0x08 */ s32 count;
-    /* 0x0C */ PrimPrim prims[1];
-} PrimBatch;
+               u16 field_0;
+               char pad_02[0x34 - 0x02];
+               s32 field_34;
+} M2C_9aeb3db9b1f9_Ovl11FuncCFAD0Flag;
 
 typedef struct {
-    /* 0x00 */ PrimBatch *batch; /* +0x0: primitive batch descriptor */
-    /* 0x04 */ s8 *vecs;         /* +0x4: vector array origin */
-} FuncC0D4Args;
+               u8 pad0[2];
+               u16 unk2;
+               u16 unk4;
+               u8 pad6[0x18 - 0x06];
+} M2C_9fae74c412a7_Ovl11Func5700Entry;
 
 typedef struct {
-    /* 0x00 */ s32 field_0;     /* source u16 array */
-    /* 0x04 */ s16 field_4;
-    /* 0x06 */ u16 field_6;
-    /* 0x08 */ s16 field_8;     /* gradient step count */
-    /* 0x0A */ s16 field_A;
-    /* 0x0C */ u16 field_C;     /* RECT x */
-    /* 0x0E */ u16 field_E;     /* RECT y */
-    /* 0x10 */ u16 field_10;    /* RECT w */
-    /* 0x12 */ u16 field_12;    /* RECT h */
-} GradientCmd;
+               u16 field_0;
+               u16 field_2;
+               u8 field_4;
+               u8 field_5;
+               u16 field_6;
+               s32 field_8;
+               u16 field_C;
+               u16 field_E;
+               u16 field_10;
+               u16 field_12;
+               s32 field_14;
+               s32 field_18;
+               s32 field_1C;
+               s32 field_20;
+               s32 field_24;
+               s32 field_28;
+               s32 field_2C;
+} SpriteSourceData;
+
+typedef void (*M2C_a048f66bc407_SpriteCallback)(s32, SpriteSourceData *, s16, s32, s32);
 
 typedef struct {
-    s32 field_0;
-    s32 field_4;
-    s32 count;             /* 0x8 */
-    Cell8001E340 cells[1]; /* 0xC */
-} Grid8001E340;
+    s16 unk0;
+} M2C_a070b354da22_Recon800B977CA0View;
+
+typedef struct {
+               char pad_00[0x8];
+               u16 unk8;
+} M2C_a146efbf8f1a_Ovl11Func80106E38Arg;
+
+typedef struct {
+               u16 unk0;
+} M2C_a5df3a0a31de_UnkStruct800DF4F0;
+
+typedef struct {
+    u16 field_0;
+    u16 field_2;
+} M2C_a77afff7ba68_Cell5A0;
 
 typedef struct {
     s16 field_00;
     u16 field_02;
-} Group;
-
-typedef unsigned char u_char;
+} M2C_ab2039654fca_Group;
 
 typedef struct {
-	u_long	tag;
-	u_char	r0, g0, b0, code;
-	short	x0, 	y0;
-	short	x1,	y1;
-} LINE_F2;
+    s16 field_00;
+    s16 field_02;
+    s16 field_04;
+    s16 field_06;
+} M2C_ab2039654fca_Vertex;
 
 typedef struct {
-    /* 0x00 */ char pad_00[0x02];
-    /* 0x02 */ u16 field_2;     /* flags/status word */
-    /* 0x04 */ s8 field_4;      /* state identifier */
-    /* 0x05 */ s8 field_5;      /* sub-state or animation index */
-    /* 0x06 */ s16 field_6;     /* timer or counter */
+    u16 field_00;
+    u16 field_02;
+    u16 field_04;
+    u16 field_06;
+    u16 field_08;
+    u16 field_0A;
+    s16 field_0C;
+    s16 field_0E;
+    s16 field_10;
+    s16 field_12;
+    u32 pad_14;
+    u32 pad_18;
+    M2C_ab2039654fca_Vertex *field_1C;
+    M2C_ab2039654fca_Group *field_20;
+    u8 *field_24;
+    M2C_ab2039654fca_Group *field_28;
+    u8 *field_2C;
+    s32 field_30;
+} M2C_ab2039654fca_SourceData;
+
+typedef struct {
+               u16 unk0;
+               u16 unk2;
+               u8 unk4;
+               u8 unk5;
+               u16 unk6;
+} M2C_abf795ba7347_UnkStruct800DA390;
+
+typedef struct {
+               char pad0[0x38];
+               u16 unk38;
+               char pad3A[0x100 - 0x3A];
+                s32 unk100;
+                s32 unk104;
+                s32 unk108;
+} M2C_ad72053e5aa9_StructOvl11CE034A;
+
+typedef struct {
+               s32 unk0;
+               s32 unk4;
+               s32 unk8;
+} M2C_ad72053e5aa9_StructOvl11CE034B;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+} M2C_b289ac4b613d_UnkStruct80107DE0;
+
+typedef struct {
+               char pad_00[0x16];
+               s16 unk16;
+               char pad_18[0xA8 - 0x18];
+               M2C_b289ac4b613d_UnkStruct80107DE0 unkA8;
+} M2C_b289ac4b613d_Struct_800D049C;
+
+typedef struct {
+               u16 unk0;
+               u16 unk2;
+} M2C_b6c4596908ca_Ovl11CF314Arg1;
+
+typedef struct {
+               s32 unk0;
+               s32 unk4;
+               s32 unk8;
+} M2C_b6c4596908ca_Ovl11CF314Arg2;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+} M2C_bed1260e6722_UnkStruct800D0DB0;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+} M2C_c7ce1f7a06c1_UnkStruct800D5FA8;
+
+typedef struct {
+    char pad_0[0x2];
+    u16 unk2;
+    char pad_4[0x2];
+    s16 unk6;
+} M2C_d030f1db9199_Recon800BA750A0View;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+} M2C_d453384c461b_UnkStruct800D0DBC;
+
+typedef struct {
+               s16 unk0;
+               u16 unk2;
+} M2C_d4baf9e5b2ba_SpriteRef;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
+} M2C_d4baf9e5b2ba_SpriteTex;
+
+typedef struct {
+               u16 unk0;
+               u16 unk2;
+               u8 unk4;
+               u8 unk5;
+               u16 unk6;
+               u8 pad8[0x14];
+               M2C_d4baf9e5b2ba_SpriteTex *unk1C;
+               M2C_d4baf9e5b2ba_SpriteRef *unk20;
+               u8 *unk24;
+               M2C_d4baf9e5b2ba_SpriteRef *unk28;
+               u8 *unk2C;
+} M2C_d4baf9e5b2ba_SpriteSourceData;
+
+typedef struct {
+               u8 data[0x1C];
+} M2C_e0bb1011384a_PrimPrim;
+
+typedef struct {
+               u8 pad[8];
+               s32 count;
+               M2C_e0bb1011384a_PrimPrim prims[1];
+} M2C_e0bb1011384a_PrimBatch;
+
+typedef struct {
+               M2C_e0bb1011384a_PrimBatch *batch;
+               s8 *vecs;
+} M2C_e0bb1011384a_FuncC0D4Args;
+
+typedef struct {
+    char pad_000[0x100];
+    s32 field_100;
+    s32 field_104;
+    s32 field_108;
+    s32 field_10C;
+} M2C_e0cc0fd11b6c_StructC1C0;
+
+typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} M2C_e4885161ea76_SwapStruct_B45C;
+
+typedef struct {
+    u16 field_0;
+    u16 field_2;
+} M2C_e88a4985b4f4_Cell4;
+
+typedef struct {
+               u16 unk0;
+               char pad_2[0x2E];
+               s16 unk30;
+               char pad_32[0x2];
+               s32 unk34;
+} M2C_e914724eccba_UnkStruct800E1254;
+
+typedef struct {
+               u8 unk0[0x14];
+               s16 unk14;
+               u16 unk16;
+               u8 unk18[0x1E - 0x18];
+               u16 unk1E;
+               u8 unk20[0x22 - 0x20];
+               u16 unk22;
+} M2C_ed53708abf36_Struct800C2A98;
+
+typedef struct {
+               char pad0[0x8];
+               s16 unk8;
+               s16 unkA;
+} M2C_f8096ae641a3_UnkStruct801152BC;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 pad6;
+               s16 unk8;
+               s16 unkA;
+               s16 unkC;
+} M2C_fa7bbe7fcb28_Ovl11DE8;
+
+typedef struct {
+    char pad_0[0x24];
+    u16 unk24;
+    char pad_26[0x4];
+    s16 unk2A;
+    char pad_2C[0x4];
+    s16 unk30;
+    char pad_32[0x48];
+    u16 unk7A;
+} M2C_fcf67812ccd0_Ovl11Func80110494View;
+
+typedef struct {
+               u16 unk0;
+               char pad_2[0x32];
+               s32 unk34;
+} M2C_fe2fb85508b9_UnkStruct80109E64;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
+               s16 unk8;
+               s16 unkA;
+               u16 unkC;
+} M2C_ffca89de536c_UnkStruct800BFF50;
+
+typedef struct {
+               char pad_00[0x02];
+               u16 field_2;
+               s8 field_4;
+               s8 field_5;
+               s16 field_6;
 } ObjectState;
 
 typedef struct {
-    /* 0x00 */ s16 unk0;
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ u8 unk4;
-    /* 0x05 */ u8 unk5;
-    /* 0x06 */ s16 unk6;
+               s16 unk0;
+               s16 unk2;
+               u8 unk4;
+               u8 unk5;
+               s16 unk6;
 } Ovl11D124Entry;
 
 typedef struct {
@@ -119,62 +882,62 @@ typedef struct {
 } Ovl11Func800CADBCArg0;
 
 typedef struct {
-    /* 0x00 */ u16 unk0;
-    /* 0x02 */ char pad_02[0x2E];
-    /* 0x30 */ s16 unk30;
-    /* 0x32 */ char pad_32[6];
-    /* 0x38 */ s32 unk38;
-    /* 0x3C */ char pad_3C[4];
-    /* 0x40 */ s32 unk40;
-    /* 0x44 */ char pad_44[0x6C];
+               u16 unk0;
+               char pad_02[0x2E];
+               s16 unk30;
+               char pad_32[6];
+               s32 unk38;
+               char pad_3C[4];
+               s32 unk40;
+               char pad_44[0x6C];
 } UnkStruct80075BC4;
 
 typedef struct {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ char pad_04[4];
-    /* 0x08 */ s32 unk8;
-    /* 0x0C */ char pad_0C[4];
-    /* 0x10 */ s16 unk10;
-    /* 0x14 */ s32 unk14;
-    /* 0x18 */ UnkStruct80075BC4 **unk18;
+               s32 unk0;
+               char pad_04[4];
+               s32 unk8;
+               char pad_0C[4];
+               s16 unk10;
+               s32 unk14;
+               UnkStruct80075BC4 **unk18;
 } Ovl11Func801097F4Arg;
 
 typedef struct {
-    /* 0x00 */ s16 unk0;
+               s16 unk0;
 } Ovl15Func80134444Arg;
 
 typedef struct {
-    /* 0x00 */ char pad_0[0x2];
-    /* 0x02 */ u16 unk2;
+               char pad_0[0x2];
+               u16 unk2;
 } Ovl19Func800BA73CArg;
 
 typedef struct {
-    /* 0x00 */ char pad_0[0x2];
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
+               char pad_0[0x2];
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
 } Ovl19Func800BAC40Arg;
 
 typedef struct {
-    /* 0x00 */ char pad_0[0x4];
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
+               char pad_0[0x4];
+               s16 unk4;
+               s16 unk6;
+               s16 unk8;
 } Ovl23Func800BB0C8Arg;
 
 typedef unsigned short u_short;
 
 typedef struct {
-	u_long	tag;
-	u_char	r0, g0, b0, code;
-	short	x0, 	y0;
-	u_char	u0, v0;	u_short	clut;
-	short	x1,	y1;
-	u_char	u1, v1;	u_short	tpage;
-	short	x2,	y2;
-	u_char	u2, v2;	u_short	pad1;
-	short	x3,	y3;
-	u_char	u3, v3;	u_short	pad2;
+ u_long tag;
+ u_char r0, g0, b0, code;
+ short x0, y0;
+ u_char u0, v0; u_short clut;
+ short x1, y1;
+ u_char u1, v1; u_short tpage;
+ short x2, y2;
+ u_char u2, v2; u_short pad1;
+ short x3, y3;
+ u_char u3, v3; u_short pad2;
 } POLY_FT4;
 
 typedef struct {
@@ -183,14 +946,45 @@ typedef struct {
 } PairS32;
 
 typedef struct {
-    u_char b[4];
-} ReadFlag;
-
-typedef struct {
     s32 unk0;
     s32 unk4;
     s32 unk8;
 } Recon800D0408A1View;
+
+typedef struct {
+    char pad_0[0x38];
+    u16 unk38;
+    char pad_3A[0x2];
+    u16 unk3C;
+} Recon_ovl_11_func_800C6F0C_A0View;
+
+typedef struct {
+    union {
+        u8 unk0_b;
+        s32 unk0_w;
+    } unk0;
+} Recon_ovl_11_func_800C6F0C_A1View;
+
+typedef struct {
+    char pad_0[0x1C];
+               u16 unk1C;
+    char pad_1E[0x1A];
+               u8 unk38;
+    char pad_39[0x3];
+               u16 unk3C;
+               u16 unk3E;
+    char pad_40[0x2C];
+               s32 unk6C;
+    char pad_70[0x1F5];
+                u8 unk265;
+} Recon_ovl_11_func_800C7270_A0View;
+
+typedef struct {
+    char pad_0[0x38];
+    u16 unk38;
+    char pad_3A[0x50];
+    s16 unk8A;
+} Recon_ovl_11_func_800C8334_A0View;
 
 typedef struct {
     char pad_0[0x1A];
@@ -203,6 +997,25 @@ typedef struct {
     char pad_0[0x6C];
     s32 unk6C;
 } Recon_ovl_11_func_800CD08C_A0View;
+
+typedef struct {
+    char pad_0[0x34];
+    s32 unk34;
+    char pad_38[0x4];
+    s32 unk3C;
+    char pad_40[0xC];
+    s32 unk4C;
+} Recon_ovl_11_func_800D2594_A0View;
+
+typedef struct {
+               u16 unk0;
+               char pad_02[0x2];
+               u16 unk4;
+               char pad_06[0xA2];
+               s16 unkA8;
+               s16 unkAA;
+               char pad_AC[0x4];
+} Recon_ovl_11_func_800D3390_A0View;
 
 typedef struct {
     s16 unk0;
@@ -251,6 +1064,18 @@ typedef struct {
 } Recon_ovl_11_func_8010BF8C_A0View;
 
 typedef struct {
+    char pad_0[0x26];
+    s16 unk26;
+    s16 unk28;
+    s16 unk2A;
+    s16 unk2C;
+    char pad_2E[0x34 - 0x2E];
+    s32 unk34;
+    char pad_38[0xB8 - 0x38];
+    u16 unkB8;
+} Recon_ovl_11_func_8010CE80_A0View;
+
+typedef struct {
     char pad_0[0x24];
     u8 unk24;
 } Recon_ovl_17_func_800BAFAC_A0View;
@@ -280,203 +1105,102 @@ typedef struct {
 } Recon_ovl_19_func_800BA054_A0View;
 
 typedef struct {
-	u_long	tag;
-	u_char	r0, g0, b0, code;
-	short	x0, 	y0;
-	u_char	u0, v0;	u_short	clut;
-	short	w,	h;
+ u_long tag;
+ u_char r0, g0, b0, code;
+ short x0, y0;
+ u_char u0, v0; u_short clut;
+ short w, h;
 } SPRT;
 
-typedef struct {		/* short word type 3D vector */	
-	short	vx, vy;
-	short	vz, pad;
+typedef struct {
+ short vx, vy;
+ short vz, pad;
 } SVECTOR;
 
 typedef struct {
-    /* 0x00 */ s32 field_0x0;
-    /* 0x04 */ s32 field_0x4;
-    /* 0x08 */ s32 field_0x8;
-    /* 0x0C */ s32 field_0xC;
-    /* 0x10 */ s32 field_0x10;
-    /* 0x14 */ s32 field_0x14;
-    /* 0x18 */ s32 field_0x18;
-    /* 0x1C */ s32 field_0x1C;
+               s32 field_0x0;
+               s32 field_0x4;
+               s32 field_0x8;
+               s32 field_0xC;
+               s32 field_0x10;
+               s32 field_0x14;
+               s32 field_0x18;
+               s32 field_0x1C;
 } SomeStruct;
 
 typedef struct {
-    u16 field_00;
-    u16 field_02;
-    s16 field_04;
-    s16 field_06;
-} Vertex;
-
-typedef struct {
-    u16 field_00;
-    u16 field_02;
-    u16 field_04;
-    u16 field_06;
-    u16 field_08;
-    u16 field_0A;
-    u16 field_0C;
-    u16 field_0E;
-    s16 field_10;
-    u16 field_12;
-    u32 padding_14;
-    u32 padding_18;
-    Vertex *field_1C;
-    Group *field_20;
-    u8 *field_24;
-    Group *field_28;
-    u8 *field_2C;
-    s32 field_30;
-} SourceData;
-
-typedef struct {
-    /* 0x00 */ s16 unk0;
-    /* 0x02 */ u16 unk2;
-} SpriteRef;
-
-typedef struct {
-    /* 0x00 */ s16 unk0;
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-} SpriteTex;
-
-typedef struct {
-    /* 0x00 */ u16 unk0;
-    /* 0x02 */ u16 unk2;
-    /* 0x04 */ u8  unk4;
-    /* 0x05 */ u8  unk5;
-    /* 0x06 */ u16 unk6;
-    /* 0x08 */ u8  pad8[0x14];
-    /* 0x1C */ SpriteTex *unk1C;
-    /* 0x20 */ SpriteRef *unk20;
-    /* 0x24 */ u8 *unk24;
-    /* 0x28 */ SpriteRef *unk28;
-    /* 0x2C */ u8 *unk2C;
-} SpriteSourceData;
-
-typedef void (*SpriteCallback)(s32, SpriteSourceData *, s16, s32, s32);
-
-typedef struct {
-    /* 0x00 */ s32 tag;          /* magic value 0xE */
-    /* 0x04 */ s32 field_4;
-    /* 0x08 */ s32 field_8;
-    /* 0x0C */ s32 field_C;
-    /* 0x10 */ s32 offset_tex;   /* -> SpriteTex[] (cel/texture rectangles) */
-    /* 0x14 */ s32 offset_ref;   /* -> SpriteRef[] (sprite entry indices) */
-    /* 0x18 */ s32 offset_18;    /* -> entry data (SpriteEntry[]) */
-    /* 0x1C */ s32 offset_anim;  /* -> SpriteRef[] (animation frame index table) */
-    /* 0x20 */ s32 offset_frame; /* -> frame data (SpriteFrame[] / control bytes) */
+               s32 tag;
+               s32 field_4;
+               s32 field_8;
+               s32 field_C;
+               s32 offset_tex;
+               s32 offset_ref;
+               s32 offset_18;
+               s32 offset_anim;
+               s32 offset_frame;
 } SpriteDataHeader;
 
 typedef struct {
-    /* 0x00 */ s32 field_0x00;
-    /* 0x04 */ s32 field_0x04;
-    /* 0x08 */ s32 field_0x08;
-    /* 0x0C */ s32 field_0x0C;
-    /* 0x10 */ s32 field_0x10;
-    /* 0x14 */ s32 field_0x14;
-    /* 0x18 */ s32 field_0x18;
-    /* 0x1C */ s32 field_0x1C;
-    /* 0x20 */ s32 field_0x20;
-    /* 0x24 */ s32 field_0x24;
-    /* 0x28 */ s32 field_0x28;
-    /* 0x2C */ s32 field_0x2C;
-    /* 0x30 */ s32 field_0x30;
-    /* 0x34 */ s16 field_0x34;
-    /* 0x36 */ u8 field_0x36;
-    /* 0x37 */ u8 field_0x37;
+               s32 field_0x00;
+               s32 field_0x04;
+               s32 field_0x08;
+               s32 field_0x0C;
+               s32 field_0x10;
+               s32 field_0x14;
+               s32 field_0x18;
+               s32 field_0x1C;
+               s32 field_0x20;
+               s32 field_0x24;
+               s32 field_0x28;
+               s32 field_0x2C;
+               s32 field_0x30;
+               s16 field_0x34;
+               u8 field_0x36;
+               u8 field_0x37;
 } Struct80013F90;
 
 typedef struct {
-    /* 0x00 */ char pad_00[0x28];
-    /* 0x28 */ s16 data[26];
-    /* 0x5C */ s16 index;
-    /* 0x5E */ char pad_5E[0x60 - 0x5E];
+               char pad_00[0x28];
+               s16 data[26];
+               s16 index;
+               char pad_5E[0x60 - 0x5E];
 } StructD548;
 
 typedef struct {
-    /* 0x00 */ s8 field_0;
-    /* 0x01 */ s8 field_1;
-    /* 0x02 */ s8 field_2;
-    /* 0x03 */ s8 field_3;
-    /* 0x04 */ s8 field_4;
-    /* 0x05 */ s8 field_5;
-    /* 0x06 */ s8 field_6;
-    /* 0x07 */ s8 field_7;
-    /* 0x08 */ s16 field_8;
-    /* 0x0A */ s16 field_A;
-    /* 0x0C */ s8 field_C;
-    /* 0x0D */ s8 field_D;
-    /* 0x0E */ s8 field_E;
-    /* 0x0F */ char pad_F;
-    /* 0x10 */ s16 field_10;
-    /* 0x12 */ s16 field_12;
-    /* 0x14 */ s8 field_14;
-    /* 0x15 */ s8 field_15;
-    /* 0x16 */ s8 field_16;
-    /* 0x17 */ char pad_17;
-    /* 0x18 */ s16 field_18;
-    /* 0x1A */ s16 field_1A;
-    /* 0x1C */ s8 field_1C;
-    /* 0x1D */ s8 field_1D;
-    /* 0x1E */ s8 field_1E;
-    /* 0x1F */ char pad_1F;
-    /* 0x20 */ s16 field_20;
-    /* 0x22 */ s16 field_22;
-} Struct_800153BC;
-
-typedef struct {
-    /* 0x00 */ s8  field_0;
-    /* 0x01 */ s8  field_1;
-    /* 0x02 */ s8  field_2;
-    /* 0x03 */ s8  field_3;
-    /* 0x04 */ s8  field_4;
-    /* 0x05 */ s8  field_5;
-    /* 0x06 */ s8  field_6;
-    /* 0x07 */ s8  field_7;
-    /* 0x08 */ s16 field_8;
-    /* 0x0A */ s16 field_A;
-    /* 0x0C */ s16 field_C;
-    /* 0x0E */ s16 field_E;
-    /* 0x10 */ s16 field_10;
-    /* 0x12 */ s16 field_12;
-    /* 0x14 */ s16 field_14;
-    /* 0x16 */ s16 field_16;
+               s8 field_0;
+               s8 field_1;
+               s8 field_2;
+               s8 field_3;
+               s8 field_4;
+               s8 field_5;
+               s8 field_6;
+               s8 field_7;
+               s16 field_8;
+               s16 field_A;
+               s16 field_C;
+               s16 field_E;
+               s16 field_10;
+               s16 field_12;
+               s16 field_14;
+               s16 field_16;
 } Struct_800154CC;
 
 typedef struct {
-    s32 field_0;
-    s32 field_4;
-    s32 field_8;
-} Struct_8001F39C;
-
-typedef struct {
-	u_long	tag;
-	u_char	r0, g0, b0, code;
-	short	x0, 	y0;
-	short	w,	h;
+ u_long tag;
+ u_char r0, g0, b0, code;
+ short x0, y0;
+ short w, h;
 } TILE;
 
 typedef struct {
-	u_long	tag;
-	u_char	r0, g0, b0, code;
-	short	x0, 	y0;
+ u_long tag;
+ u_char r0, g0, b0, code;
+ short x0, y0;
 } TILE_1;
 
 typedef struct {
-    u8 b[4];
-} TextFlag;
-
-typedef struct { u16 unk0; } UnkStruct800DF4F0;
-
-typedef struct { u16 unk0; } UnkStruct800E109C;
-
-typedef struct {		/* long word type 3D vector */
-	long	vx, vy;
-	long	vz, pad;
+ long vx, vy;
+ long vz, pad;
 } VECTOR;
 
 typedef struct {
@@ -485,52 +1209,3 @@ typedef struct {
     s32 z;
 } Vec3;
 
-/* Unresolved: referenced by a signature, defined nowhere.
- * Layout is a guess — these are placeholders, not definitions. */
-typedef struct { unsigned long pad[1]; } BoundsArgs4994;
-typedef struct { unsigned long pad[1]; } BoundsEntry4994;
-typedef struct { unsigned long pad[1]; } BufView;
-typedef struct { unsigned long pad[1]; } Cell4;
-typedef struct { unsigned long pad[1]; } Cell5A0;
-typedef struct { unsigned long pad[1]; } CopyStruct_8480;
-typedef struct { unsigned long pad[1]; } CopyStruct_84D4;
-typedef struct { unsigned long pad[1]; } Entry_800F53BC;
-typedef struct { unsigned long pad[1]; } Ov11Flag8010B830;
-typedef struct { unsigned long pad[1]; } Ov11FlagSet;
-typedef struct { unsigned long pad[1]; } Ov11FlagSet80108D38;
-typedef struct { unsigned long pad[1]; } Ov11FlagSet8010B218;
-typedef struct { unsigned long pad[1]; } Ov11SetFields;
-typedef struct { unsigned long pad[1]; } Ov11SetVec;
-typedef struct { unsigned long pad[1]; } Ov11Timer;
-typedef struct { unsigned long pad[1]; } Ov11_4360struct;
-typedef struct { unsigned long pad[1]; } Ov11_4390struct;
-typedef struct { unsigned long pad[1]; } Ovl119938View;
-typedef struct { unsigned long pad[1]; } Ovl11DE8;
-typedef struct { unsigned long pad[1]; } Ovl11Func5700Entry;
-typedef struct { unsigned long pad[1]; } Ovl11Func80110494View;
-typedef struct { unsigned long pad[1]; } Ovl11FuncC9D4Entry;
-typedef struct { unsigned long pad[1]; } Ovl11FuncCFAD0Flag;
-typedef struct { unsigned long pad[1]; } ReconA0View;
-typedef struct { unsigned long pad[1]; } ReconA1View;
-typedef struct { unsigned long pad[1]; } Struct800C2A98;
-typedef struct { unsigned long pad[1]; } StructC1C0;
-typedef struct { unsigned long pad[1]; } StructOvl11CE034A;
-typedef struct { unsigned long pad[1]; } StructOvl11CE034B;
-typedef struct { unsigned long pad[1]; } Struct_800D03B4;
-typedef struct { unsigned long pad[1]; } SwapStruct_B45C;
-typedef struct { unsigned long pad[1]; } Unk800D3D2C;
-typedef struct { unsigned long pad[1]; } Unk800D3FEC;
-typedef struct { unsigned long pad[1]; } Unk80110E34;
-typedef struct { unsigned long pad[1]; } UnkStruct800BFADC;
-typedef struct { unsigned long pad[1]; } UnkStruct800BFF50;
-typedef struct { unsigned long pad[1]; } UnkStruct800CBF40;
-typedef struct { unsigned long pad[1]; } UnkStruct800CD4E4;
-typedef struct { unsigned long pad[1]; } UnkStruct800CD5BC;
-typedef struct { unsigned long pad[1]; } UnkStruct800D0DB0;
-typedef struct { unsigned long pad[1]; } UnkStruct800D0DBC;
-typedef struct { unsigned long pad[1]; } UnkStruct800D5FA8;
-typedef struct { unsigned long pad[1]; } UnkStruct800D72E8;
-typedef struct { unsigned long pad[1]; } UnkStruct800DA390;
-typedef struct { unsigned long pad[1]; } UnkStruct80106DC0;
-typedef struct { unsigned long pad[1]; } UnkStruct80107DE0;
-typedef struct { unsigned long pad[1]; } ovl_11_DD48_arg0;

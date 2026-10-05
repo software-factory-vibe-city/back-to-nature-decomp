@@ -2,8 +2,22 @@
 /* m2c context only. Types live in include/sdk_types.h, which must be
  * passed to m2c before this file. */
 
+void ovl_23_func_800B7EA4(void);
+void ovl_23_func_800B8084(void);
+s32 ovl_23_func_800B80CC(void);
 void ovl_23_func_800B92E8(void);
+void ovl_23_func_800B9454(s32 arg0, s16 arg1, s16 arg2);
+void ovl_23_func_800B94D0(s32 arg0, s16 arg1, s16 arg2);
 s32 ovl_23_func_800BA278(s32 arg0);
 s32 ovl_23_func_800BA30C(s16 arg0, s16 arg1, s16 arg2, s16 arg3);
+s32 ovl_23_func_800BA368(s32 arg0, s32 arg1);
+s32 ovl_23_func_800BAFFC(s32 arg0);
+s32 ovl_23_func_800BB040(s32 arg0);
 void ovl_23_func_800BB0C8(Ovl23Func800BB0C8Arg *arg0, s32 arg1, s32 arg2, s32 arg3);
 void ovl_23_func_800BB0D8(Ovl23Func800BB0C8Arg *arg0, s32 arg1, s32 arg2, s32 arg3);
+void ovl_23_func_800BB0E8(void);
+void ovl_23_func_800BB150(void);
+void ovl_23_func_800BB1B8(void);
+void ovl_23_func_800BB758(void);
+void ovl_23_func_800BB7A0(s16 arg0);
+void ovl_23_func_800BB800(s16 arg0);

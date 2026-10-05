@@ -2,8 +2,43 @@
 /* m2c context only. Types live in include/sdk_types.h, which must be
  * passed to m2c before this file. */
 
+void ovl_15_func_8012EE84(void);
+s32 ovl_15_func_8012F078(void);
+s32 ovl_15_func_8012F0E8(void);
+s32 ovl_15_func_8012F86C(void);
+s32 ovl_15_func_8012F990(void);
+s32 ovl_15_func_8012FA00(void);
+s32 ovl_15_func_8012FA70(void);
+s32 ovl_15_func_8012FFD8(void);
+void ovl_15_func_801305D4(void);
+s32 ovl_15_func_801307D8(void);
+s32 ovl_15_func_80130848(void);
+s32 ovl_15_func_80130A94(void);
+s32 ovl_15_func_80130BBC(void);
+void ovl_15_func_80130C2C(void);
+s32 ovl_15_func_80130DDC(void);
+s32 ovl_15_func_80130E4C(void);
+s32 ovl_15_func_80130EBC(void);
+void ovl_15_func_801315B0(void);
+s32 ovl_15_func_80131778(void);
+s32 ovl_15_func_801317E8(void);
+s32 ovl_15_func_80131A34(void);
+s32 ovl_15_func_80131B5C(void);
+void ovl_15_func_80131BCC(void);
+s32 ovl_15_func_80131D88(void);
+s32 ovl_15_func_80131DF8(void);
+s32 ovl_15_func_80131E68(void);
+s32 ovl_15_func_80131F5C(void);
+s32 ovl_15_func_801328C4(void);
+s32 ovl_15_func_801340B8(s32 arg0, s16 arg1);
 s32 ovl_15_func_80134444(Ovl15Func80134444Arg *arg0);
+void ovl_15_func_80134724(void);
+void ovl_15_func_801349C8(s16 arg0, char *arg1);
+void ovl_15_func_801359FC(void);
+void ovl_15_func_80135A78(void);
+void ovl_15_func_8013703C(s16 arg0, s16 *arg1, s32 arg2);
 s32 ovl_15_func_80137228(s16 arg0, s16 arg1, s32 arg2, s32 arg3);
 void ovl_15_func_801372F0(void);
 void ovl_15_func_801372F8(void);
 void ovl_15_func_80137398(void);
+void ovl_15_func_80137544(char *arg0, s32 arg1);

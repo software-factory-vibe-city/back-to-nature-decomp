@@ -6340,6 +6340,43 @@ Fingerprints:
   0x318 stride). The trio's declaration only witnessed the leading
   halfwords.
 
+## `ovl_25` D_800BCBD8 dispatch-table cluster — 0x800B7EB4–0x800B81F4 (confidence: medium)
+
+Candidate same-TU cluster around the callback table `D_800BCBD8` (ovl_25 data
+asm, 5× function pointers). Evidence is address adjacency, a shared dispatch
+counter at `D_8006C838`+0x448C, and the shared base-pointer idiom `(s32 *)&D_8006C838`.
+
+The sibling pattern in `ovl_21` (`ovl_21_func_800B7E3C` dispatching through
+`D_800BCB58` via `D_80070CC4`) supports this as a recurring overlay structure.
+
+Fingerprints:
+- address adjacency: `ovl_25_func_800B7EB4` (0x88, ends 0x800B7F3C) sits
+  immediately before `ovl_25_func_800B7F3C`, and the five callbacks listed in
+  `D_800BCBD8` form a contiguous address run through `ovl_25_func_800B81F4`;
+- shared dispatch counter: `ovl_25_func_800B7EB4` reads the dispatch index
+  at `D_8006C838`+0x448C, which `ovl_25_func_800B81B4` increments and stores
+  back — the counter controls which callback is selected;
+- shared base-pointer idiom: both `ovl_25_func_800B7EB4` and
+  `ovl_25_func_800B81B4` use `(s32 *)&D_8006C838` as a local pointer to
+  access the dispatch-counter field.
+- sibling pattern: `ovl_21_func_800B7E3C` compiles to the same dispatch
+  shape (save `$s0`, emit `func_80017A48(3)`, load index, load table,
+  swap in delay slot, `func_80017A48($s0)`); `ovl_21`'s index comes from the
+  global `D_80070CC4` rather than from `D_8006C838`.
+
+Members (link order):
+- ovl_25_func_800B7EB4 (m, matched this session, byte-exact) — state
+  dispatcher; reads dispatch counter from `(s32 *)&D_8006C838[0x448C >> 2]`,
+  looks up `D_800BCBD8[idx]`, and calls the selected handler with the table
+  base as its argument.
+- ovl_25_func_800B7F3C (s) — callback; contract: one of five table entries.
+- ovl_25_func_800B80A4 (s) — callback; contract: one of five table entries.
+- ovl_25_func_800B813C (s) — callback; contract: one of five table entries.
+- ovl_25_func_800B81B4 (m, matched this session, byte-exact) — callback;
+  calls `ovl_25_func_800B93E4`, then increments and stores the dispatch
+  counter `base[0x448C >> 2]` and returns the new value.
+- ovl_25_func_800B81F4 (s) — callback; contract: one of five table entries.
+
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 
 Candidate same-TU run of `ovl_25` around the s16 flag at `D_800BFE46`

@@ -3,10 +3,26 @@
  * passed to m2c before this file. */
 
 void ovl_17_func_800B7E38(void);
+s32 ovl_17_func_800B8078(void);
+s16 ovl_17_func_800B9C48(s16 arg0);
+void ovl_17_func_800B9CAC(void);
 void ovl_17_func_800B9DB8(s16 arg0);
 void ovl_17_func_800B9DE0(s16 arg0);
 void ovl_17_func_800B9E0C(s16 arg0);
+s32 ovl_17_func_800B9E34(s32 arg0);
+s32 ovl_17_func_800B9E94(s16 arg0);
+s32 ovl_17_func_800B9F10(s16 arg0, s16 arg1);
+s32 ovl_17_func_800B9F44(s16 arg0);
 s32 ovl_17_func_800B9F78(s16 arg0);
+void ovl_17_func_800BA504(void);
+void ovl_17_func_800BA630(void);
+void ovl_17_func_800BA698(void);
+void ovl_17_func_800BAEF0(void);
+void ovl_17_func_800BAF50(void);
 s32 ovl_17_func_800BAFAC(Recon_ovl_17_func_800BAFAC_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
+void ovl_17_func_800BAFDC(void);
 s32 ovl_17_func_800BB020(Recon_ovl_17_func_800BB020_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
+void ovl_17_func_800BB050(void);
 s32 ovl_17_func_800BB094(Recon_ovl_17_func_800BB094_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
+void ovl_17_func_800BB394(s16 arg0);
+void ovl_17_func_800BB3F4(s16 arg0);
