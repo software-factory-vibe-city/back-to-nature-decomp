@@ -8302,6 +8302,14 @@ Members (link order):
   `ovl_19_func_800B847C` initialises the `D_800BF4C0` records.
 - ovl_19_func_800B89C8 (s, 0x2AC) — cluster hub; also reads `D_800BF4C0` and
   calls `800B95D4`/`800B998C`/`800BA25C`/`800BA770`/`800BAC5C`/`800BAC7C`.
+- ovl_19_func_800B8E88 (m, matched this session, byte-exact) — same overlay-local
+  s16 state array via the `D_800BF560` label (`D_800BF4C0` + 0xA0, inside the same
+  `3F54.data.s` blob): `func_8002261C(4, 9)` then, when `func_800226A4() == 2`,
+  fills the `+0xA0`/`+0xE0` records through `800BAC50` and the `+0x10`/`+0x58`
+  records through `800BAC40`, writing `s16@+0x202` (the captured prior-call `$v0`)
+  and `s16@+0x6`; shares the `func_8002261C(4, …)` / `func_800226A4() == 2`
+  state-handler shape with `800B93B0` and the `Ovl19Func800BAC40Arg` command
+  setters with `800BA25C`.
 - ovl_19_func_800B93B0 (m, matched this session, byte-exact) — `D_800BF4C0`
   state writer: `func_8002261C(4, 0xE)` then, when `func_800226A4() == 2`,
   clears `s16@+0x6` and, per `func_800225B8()` result 1/2, clears `s16@+0x200`
