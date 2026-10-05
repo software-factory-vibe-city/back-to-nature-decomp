@@ -6797,6 +6797,10 @@ Members (link order):
 - ovl_15_func_801342A0 (s) — `lh` of `D_8013759E`; calls `ovl_15_func_80134134`,
   `func_8001A970`, `ovl_15_func_80134444`
 - ovl_15_func_801344E8 (s) — `lh` of `D_8013759E`, called from `ovl_15_func_80133B28`
+- ovl_15_func_8013468C (m, matched this session, byte-exact) — gapless link
+  predecessor of `ovl_15_func_80134724` and calls it; fills the 2x5 record table
+  `D_80140F90` (0x50 bytes) that `ovl_15_func_801340B8` reads, then memsets the
+  0x398-byte `D_80142550` buffer
 - ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
   `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
 
