@@ -884,7 +884,9 @@ extern struct_800759E4 _D_800759E4[1] __asm__("D_800759E4");
  * (read by ovl_11_func_800EFABC). Absolute-addressed from the overlays
  * (only ever declared extern, never GP). */
 typedef struct {
-    /* 0x00 */ u8 pad_00[0x8];
+    /* 0x00 */ u8 *field_0;   /* lw read by ovl_11_func_800EFF04 */
+    /* 0x04 */ u8 field_4;     /* lbu read by ovl_11_func_800EFF04 */
+    /* 0x06 */ s16 field_6;    /* lh read by ovl_11_func_800EFF04 */
     /* 0x08 */ s16 field_8;
     /* 0x0A */ u8 pad_0A[0x2];
     /* 0x0C */ s32 field_C;

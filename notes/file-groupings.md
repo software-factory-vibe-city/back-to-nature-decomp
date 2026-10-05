@@ -8023,3 +8023,33 @@ Members (address order):
 - ovl_11_func_800F7010 (m, already matched) — reset
   `func_80015840(&D_800A0728, 11)` / `func_8001585C(&D_800A0728, 2)`, then
   `func_80015EE8(arg0, &D_800A0728, u8@+4, u8@+5, arg1, arg2)`.
+
+## `ovl_11` D_80124A18 range-entry accessor band — 0x800EFABC–0x800EFF9C (confidence: medium)
+
+Shared-global cluster plus zero-gap link-order contiguity in `ovl_11`
+(`Obj\GF_FARM.bin`). Every member dereferences the same absolute-addressed
+`D_80124A18` table of 0x14-byte records (`Ovl11RangeEntry`,
+`include/globals_override.h`), whose type was completed this session with the
+low fields: `u8 *field_0` (data), `u8 field_4` (tag), `s16 field_6` (stride
+count) at +0x00/+0x04/+0x06, alongside the already-recorded s16@+0x08,
+s32@+0x0C and s32@+0x10. The run is link-order contiguous with no unrelated
+code between members: `ovl_11_func_800EFABC` (0x1AC) ends exactly at
+0x800EFC68, which (0xEC) ends exactly at 0x800EFD54, and the chain continues
+through 0x800EFDA0 (0x94), 0x800EFE34 (0xD0), 0x800EFF04 (0x98) and
+0x800EFF9C (0x90). Call graph agrees: `ovl_11_func_800EFABC` calls both
+0x800EFF04 and 0x800EFD54; `ovl_11_func_800EFC68` calls 0x800EFF04.
+
+Members (address order):
+- ovl_11_func_800EFABC (s) — resolves a record via 0x800EFF04, then combines
+  its value with `s32@+0x10` (OR when arg1 set, clear otherwise), or falls
+  back to 0x800EFE34 then clamps with 0x800EFD54.
+- ovl_11_func_800EFC68 (s) — resolves a record via 0x800EFF04 and switches on
+  the returned tag (0..5, `jtbl_800B9EE8`), gated by `s32@+0x10`.
+- ovl_11_func_800EFD54 (m) — clamps an s32 into `[s16@+0x08, s32@+0x0C]` of
+  the record.
+- ovl_11_func_800EFF04 (m, matched this session, byte-exact) — returns
+  `field_0` advanced by `field_6 * arg1` (or plain `field_0` when the count is
+  zero), writes `field_4` to `*arg2`, and spins on `func_800129E8` while the
+  result is null.
+- ovl_11_func_800EFDA0 (s) / ovl_11_func_800EFE34 (s) / ovl_11_func_800EFF9C (s)
+  — link-order neighbours of the run; 0x800EFE34 is called by 0x800EFABC.
