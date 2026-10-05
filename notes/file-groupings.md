@@ -845,6 +845,28 @@ Members (address order, matched so far):
 
 ---
 
+## `ovl_11` far-state gate run — 0x80109A70–0x80109C24 (confidence: medium)
+
+Gapless link-order run 0x80109A70 (0x118) → 0x80109B88 (0x9C) →
+0x80109C24 (0xE4), each starting exactly where the previous ends, and
+corroborated by a shared call/data fingerprint (link order and call graph
+agree): every member reads the far-state halfword
+`*(s16 *)((char *)&D_8007AFF0 + 0x25476)` and calls `func_8001FABC`. The run
+head also calls `ovl_11_func_800D05D0`, the callee the D_8012D0xx state-probe
+run's members 0x80109D08/0x80109E04 share, so the gapless chain bridges into
+that documented cluster. Members (address order):
+- ovl_11_func_80109A70 (s) — run head; two far-state reads; calls
+  func_80012A34/ovl_11_func_800C1224/ovl_11_func_80109188
+- ovl_11_func_80109B88 (m, matched this session) — far-state gate: returns -1
+  when u16@+0==0, calls func_8001FABC(0x1A) when `D_8007AFF0+0x25476` equals
+  s16@+0x30, decrements u16@+0x16 by 10 clamped at 0, then
+  ovl_11_func_80107DE0(this+0xA8, 0x1F, 0x1E); byte-exact clean C, baseline
+  flags
+- ovl_11_func_80109C24 (s) — run tail; one far-state read; calls
+  ovl_11_func_80109974 and func_8001FABC
+
+---
+
 ## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C0688–0x800C0EFC (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing two adjacent
