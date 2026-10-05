@@ -1358,5 +1358,23 @@ typedef struct {
 extern Ovl11E910Entry _D_8006E910[] __asm__("D_8006E910");
 #define D_8006E910 ((Ovl11E910Entry *)_D_8006E910)
 
+/* ovl_19_func_800BAC9C slot-programming globals. The function installs a
+ * set/clear callback into D_800BD07C and walks two ovl_19 data arrays
+ * (D_800BF570 with stride 0x40, D_800BF4E8 with stride 0x48), applying the
+ * callback to the u16 at each slot. All three live in overlay RAM and are
+ * absolute-addressed (overlay build is -G0), so only extern declarations
+ * belong here. */
+extern u8 D_800BF570[];
+extern u8 D_800BF4E8[];
+extern void (*D_800BD07C)(u16 *arg0, s32 arg1);
+
+/* D_80015814 / D_80015828 - the main-EXE bit set/clear helpers under the
+ * names the ovl_19 overlay actually references (undefined_syms_auto.txt lines
+ * 1-2 map D_80015814/D_80015828). ovl_19 cannot name the main binary's
+ * func_80015814 symbol, so the source references the D_ names and takes their
+ * addresses as callback values. Both take a u16 slot and a bit mask. */
+extern void D_80015814(u16 *arg0, s32 arg1);
+extern void D_80015828(u16 *arg0, s32 arg1);
+
 #endif /* GLOBALS_OVERRIDE_H */
 

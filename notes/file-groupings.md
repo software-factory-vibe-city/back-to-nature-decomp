@@ -5066,14 +5066,25 @@ Members (address order):
 - Evidence: adjacent addresses (0x14 apart, gapless), identical structure over
   adjacent data, shared small-data cluster — classic same-TU setter pair.
 
-## `ovl_19` shared arg-record setters — 0x800BAC40 / 0x800BAC50 (confidence: medium)
+## `ovl_19` shared arg-record setters and slot-programmer run — 0x800BAC40–0x800BAC9C (confidence: medium)
 
 - ovl_19_func_800BAC40 (m, matched via automatic reconstruction, byte-exact) —
   stores three s32 args into s16 fields +2/+4/+6 of its pointer argument.
 - ovl_19_func_800BAC50 (m, matched via automatic reconstruction, byte-exact) —
   same record shape, fields +2/+4 only; gapless with the previous function.
+- ovl_19_func_800BAC5C (m) — thin wrapper: `ovl_19_func_800BAC9C(0)`.
+- ovl_19_func_800BAC7C (m) — thin wrapper: `ovl_19_func_800BAC9C(1)`.
+- ovl_19_func_800BAC9C (m, matched this session, byte-exact) — installs the
+  arg0-selected set/clear callback into the overlay-local D_800BD07C slot, then
+  applies it to the u16 slots of D_800BF570 (3 steps, stride 0x40) and
+  D_800BF4E8 (2 steps, stride 0x48); shared callee of the two wrappers.
 - Evidence: identical argument-record layout (shared Ovl19Func800BAC40Arg view
-  in include/game_types.h), adjacent gapless addresses.
+  in include/game_types.h) for the first pair, and a gapless link run —
+  0x800BAC40 (0x10) → 0x800BAC50 (0xC) → 0x800BAC5C (0x20) → 0x800BAC7C (0x20)
+  → 0x800BAC9C (0xB4) → 0x800BAD50 — whose last two wrappers both sit in the
+  documented hub 800B89C8's callee set and whose worker touches the same
+  overlay-local 3F54.data.s state region (D_800BF570 is already witnessed in the
+  clamp-table run's 800BADF8).
 
 ## `ovl_23` shared arg-record setters — 0x800BB0C8 / 0x800BB0D8 (confidence: medium)
 
