@@ -706,7 +706,10 @@ Members (link order):
   handler: `u16@+0x16 -= 3` clamped to [0, 0xFF], clears 0x800 of `s32@+0x34`,
   then `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x1E)`; returns -1 when
   `s16@+0x30 == 0x28`.
-- ovl_11_func_8010DDC8 (s, 0xA0) — `D_800BAA84` handler; bytes not yet recovered.
+- ovl_11_func_8010DDC8 (m, matched this session, byte-exact) — `D_800BAA84`
+  handler: bobs the `D_8006C838+0x5200` u16 by ±2 into `u16@+0x22`, queues
+  `func_8002261C(0, D_80127D04[u16@+0xAC])`, clears bit 0x400 of the
+  `D_8006C838+0x5234` flag word, returns -1.
 - ovl_11_func_8010DE68 (s, 0x45C) — gapless tail; only marks the band boundary.
 
 ---
