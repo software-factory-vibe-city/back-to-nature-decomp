@@ -6567,6 +6567,12 @@ Nine members matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
 Calved in by call graph and shared state, outside the gapless run:
+- ovl_27_func_800B9FF4 (m, matched this session, byte-exact) — 0x800B9FF4,
+  between the run and the 0x800BA4C4 display-setup run: selects the
+  `func_80015F80` argument pair `D_800C4A1C % 30 < 0xF` → 0x64/0x68 and
+  `D_800C4A1A == 0` → 0x9B/0xB3, then draws `field_D8+0x88` with `&D_800C4BD0`.
+  Shares the cluster's `D_800C4A1C`/`D_800C4A1A` halfword state block and the
+  exact `D_800C4A1C % 30 < 0xF` predicate already recorded for 800B8FC8.
 - ovl_27_func_800BA130 (m, matched this session, byte-exact) — sprite-draw
   leaf: `func_80022580(field_D8+4, 1, 0x10, 0x10, 0x78, 0x14)` then
   `func_80017B3C(field_D8, data, 0x14, 0x14)`, where `data` is the s16-indexed
