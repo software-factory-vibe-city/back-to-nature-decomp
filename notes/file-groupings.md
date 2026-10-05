@@ -7797,6 +7797,11 @@ shared-RAM noise. The call graph agrees inside the cluster:
 return value.
 
 Members (link order):
+- ovl_19_func_800B85F4 (m, matched this session, byte-exact) — reads the
+  `D_800BF4C8` s16 (`D_800BF4C0` + 0x8, same overlay-local array) and an
+  overlay-data u16 table, passes the entry through `func_80012A34` (shared
+  callee with `800BA2D4`); its link-order neighbour and caller
+  `ovl_19_func_800B847C` initialises the `D_800BF4C0` records.
 - ovl_19_func_800B89C8 (s, 0x2AC) — cluster hub; also reads `D_800BF4C0` and
   calls `800B95D4`/`800B998C`/`800BA25C`/`800BA770`/`800BAC5C`/`800BAC7C`.
 - ovl_19_func_800B93B0 (m, matched this session, byte-exact) — `D_800BF4C0`
