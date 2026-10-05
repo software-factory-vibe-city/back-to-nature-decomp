@@ -904,6 +904,40 @@ that documented cluster. Members (address order):
 
 ---
 
+## `ovl_11` 0x8010B64C gapless run (0xF0 far-state initializer band) — 0x8010B64C–0x8010B898 (confidence: medium-low)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
+- zero-gap link-order contiguity (original ovl_11 functions.csv): 0x8010B64C
+  (0x30) → 0x8010B67C (0xFC) → 0x8010B778 (0xB8) → 0x8010B830 (0x68) →
+  0x8010B898 (0x44), each starting exactly where the previous ends; the
+  gapless region continues through 0x8010B8DC/0x8010B994;
+- caller/callee adjacency: 0x8010B778 calls `ovl_11_func_8010B830`, its
+  immediate zero-gap successor (link order and the call graph agree); 0x8010B830
+  is also called by 0x8010B264 outside the band;
+- shared idiom cluster: 0x8010B64C is a 0xF0 memset-clear constructor (member
+  of the memset-clear idiom family above) and 0x8010B778 repeats the far-state
+  object layout {u16@+0x00, u16@+0x16, s16@+0x30} with the 0xFFFF@+0x4 fill
+  and the `ovl_11_func_80107DD0(this+0xA8)` call idiom of the far-state gate
+  run above and the object-mode dispatch run.
+Members (link order):
+- ovl_11_func_8010B64C (m) — 0xF0 memset-clear constructor (see the
+  memset-clear idiom family entry; sole caller 0x800E8760)
+- ovl_11_func_8010B67C (s, 0xFC) — calls 0x800BD238 / func_80015704 /
+  func_80015868; no witnessed shared data with the band, listed only to mark
+  the gapless chain
+- ovl_11_func_8010B778 (m, matched this session, byte-exact) — guarded 0xF0
+  far-state object initializer: returns -1 when u16@+0x00 != 0, else memsets
+  0xF0, fills u16@+0x00 = arg1, u16@+0x04 = 0xFFFF, s16@+0x16 = 0xA,
+  s16@+0x30 = 3, s32@+0x38 = 0x1CC, s32@+0x3C = 0, s32@+0x40 = 0x258, copies
+  the packed 8 bytes at D_8006C838+0x44B8 to +0x1A, then
+  ovl_11_func_8010B830(this) and ovl_11_func_80107DD0(this+0xA8), returns 0
+- ovl_11_func_8010B830 (s, 0x68) — immediate zero-gap successor of 0x8010B778
+  and its callee; also called by 0x8010B264 outside the band
+- ovl_11_func_8010B898 (s, 0x44) — gapless tail; no witnessed shared data
+  (marks the band boundary)
+
+---
+
 ## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C0688–0x800C0EFC (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing two adjacent
