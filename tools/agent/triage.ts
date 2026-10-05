@@ -50,7 +50,9 @@
  */
 
 import { existsSync, readFileSync, readdirSync, rmSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
+import { packetIsFresh } from "./prepareFunction.js";
+import type { PreparationPacket } from "./campaign/packet.js";
 import {
   ROOT,
   type DisassembledInstruction,
@@ -192,10 +194,20 @@ interface CompiledFacts {
   implicitCallees: string[];
 }
 
-function readCompiled(name: string, source: string, scratch: string): CompiledFacts | null {
+function readCompiled(name: string, source: string, scratch: string, prepared?: string): CompiledFacts | null {
   let artifacts;
   try {
-    artifacts = compileSource(source, scratch, name, { assemble: true });
+    if (prepared) {
+      try {
+        const packet = JSON.parse(readFileSync(join(ROOT, prepared), "utf8")) as PreparationPacket;
+        if (packet.identity.functionName === name && packet.primary && resolve(ROOT, packet.primary.path) === resolve(source) &&
+          packetIsFresh(packet) && packet.compilation.status === "succeeded" && packet.compilation.assembly && packet.compilation.preprocessed && packet.compilation.object) {
+          artifacts = { assembly: join(ROOT, packet.compilation.assembly.path), preprocessed: join(ROOT, packet.compilation.preprocessed.path), object: join(ROOT, packet.compilation.object.path) };
+          console.error("triage compilation: cache hit (fresh preparation input/output bundle)");
+        }
+      } catch { /* no usable receipt: perform the ordinary compile */ }
+    }
+    artifacts ??= compileSource(source, scratch, name, { assemble: true });
   } catch {
     return null;
   }
@@ -2315,8 +2327,10 @@ function main(): void {
   const json = args.includes("--json");
   const srcFlag = args.indexOf("--src");
   const srcOverride = srcFlag >= 0 ? args[srcFlag + 1] : undefined;
+  const preparedFlag = args.indexOf("--prepared");
+  const prepared = preparedFlag >= 0 ? args[preparedFlag + 1] : undefined;
   const positional = args.filter(
-    (a, i) => !a.startsWith("--") && !(srcFlag >= 0 && i === srcFlag + 1)
+    (a, i) => !a.startsWith("--") && !(srcFlag >= 0 && i === srcFlag + 1) && !(preparedFlag >= 0 && i === preparedFlag + 1)
   );
   if (positional.length !== 1 || (srcFlag >= 0 && !srcOverride)) {
     console.error("Usage: npx tsx tools/agent/triage.ts <func_name> [--src <path.c>] [--json]");
@@ -2357,7 +2371,7 @@ function main(): void {
   if (sourceState === "c" && srcText !== undefined) {
     findings.push(...detectAsmPolicy(name, srcText));
     findings.push(...detectCalleeTruth(name, resolveSource(name, srcOverride), scratch));
-    const compiled = readCompiled(name, resolveSource(name, srcOverride), scratch);
+    const compiled = readCompiled(name, resolveSource(name, srcOverride), scratch, prepared);
     if (compiled) {
       findings.push(...detectUndeclaredCallee(compiled));
       const arity = detectArityFrame(target, compiled);

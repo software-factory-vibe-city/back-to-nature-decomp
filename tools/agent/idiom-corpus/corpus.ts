@@ -30,16 +30,17 @@
  * evidence about what a different flag column does.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ROOT } from "../decompToolchain.js";
-import { loadContainers } from "../../lib/container.js";
+import { loadContainers, containerTargetPath } from "../../lib/container.js";
+import { requireFunctionLocation, withSymbolMetadata } from "../../lib/symbolIndex.js";
+import { digest, snapshot, readCache, writeCache } from "../../lib/contentCache.js";
 import { loadCallGraph } from "../../../.pi/extensions/psx-decomp/autonomous/call-graph.ts";
 import type { MirInsn, MirProgram } from "../pipeline-reversal/types.js";
 import { align, ngrams } from "./align.js";
 import { tokensAt, type Tier } from "./normalize.js";
 import { compatibility, fingerprintOf, type ToolchainFingerprint } from "./fingerprint.js";
-import { ensureArtifact, stamped } from "../provenance.js";
 
 /** Why a function is not in the corpus. Reported, never silent. */
 export type Exclusion =
@@ -315,55 +316,54 @@ export function corpusCandidates(): Array<{ functionName: string; sourcePath: st
  * this tree", and a cache that answers the first question while being asked the
  * second is the exact failure this repository has been bitten by before.
  *
- * The inputs are the ones that can change a region: every candidate's source
- * text, because it decides inclusion; every container's splat config, because
- * it decides where a function starts and ends; and this module plus the
- * normalizer, because a change to either changes every token.
+ * Original regions have independent per-function identities. Source eligibility
+ * and fingerprints are refreshed on every request; C edits do not relift original
+ * bytes. Original/configuration/lifter edits invalidate the affected entries.
  */
 export function loadCorpus(
   lift: (functionName: string) => MirProgram | undefined,
   options: BuildOptions = {},
 ): Corpus {
-  const tier = options.tier ?? 0;
-  const skip = new Set(options.exclude ?? []);
-  const candidates = corpusCandidates();
-  const artifactPath = join(ROOT, "build/idiomCorpus", `tier${tier}.json`);
-
-  const ensured = ensureArtifact<Corpus>({
-    artifactPath,
-    label: `idiom corpus (tier ${tier})`,
-    functionName: "*",
-    costHint: `${candidates.length} functions to lift`,
-    inputs: {
-      files: [
-        ...candidates.map((candidate) => candidate.sourcePath),
-        ...loadContainers().map((container) => join(ROOT, container.paths.splat)),
-      ],
-      values: { tier },
-      implementation: [
-        "tools/agent/idiom-corpus/corpus.ts",
-        "tools/agent/idiom-corpus/normalize.ts",
-        "tools/agent/idiom-corpus/fingerprint.ts",
-      ],
-    },
-    /* Built over every candidate and cached whole, then filtered — so one
-       excluded function does not poison the artifact for the next query. */
-    produce: (provenance) => {
-      const corpus = buildCorpus(lift, { ...options, exclude: [] });
-      mkdirSync(dirname(artifactPath), { recursive: true });
-      writeFileSync(artifactPath, JSON.stringify(stamped(corpus as unknown as Record<string, unknown>, provenance)));
-      return corpus;
-    },
-    read: (stored) => stored as Corpus,
+  return withSymbolMetadata(() => {
+    const tier = options.tier ?? 0;
+    const skip = new Set(options.exclude ?? []);
+    const implementation = digest(JSON.stringify(snapshot(ROOT, ["tools/agent/idiom-corpus", "tools/agent/idiomSearch.ts",
+      "tools/agent/pipeline-reversal", "tools/agent/webAnalysis.ts", "tools/lib", "tools/agent/decompToolchain.ts", "package-lock.json"],
+      (p) => !p.endsWith(".test.ts"))));
+    const identities = new Map(loadContainers().map((c) => [c.id, digest(JSON.stringify(snapshot(ROOT, [
+      containerTargetPath(c), c.paths.splat, c.paths.symbolAddrs, c.paths.undefinedFuncs, c.paths.undefinedSyms,
+      c.paths.asmDir, c.paths.ldScript, "build/engine_syms.txt", "build/dep_syms.txt", "build/lib_bss_syms.txt",
+    ], (p) => p.endsWith(".s"))))]));
+    const corpus: Corpus = { tier, fingerprints: {}, regions: [], included: [], excluded: [] };
+    let hits = 0, misses = 0;
+    const candidates = corpusCandidates();
+    candidates.forEach((candidate, index) => {
+      options.onProgress?.(index, candidates.length, candidate.functionName);
+      if (skip.has(candidate.functionName)) return;
+      /* Eligibility is cheap and always current. A C edit never invalidates the
+         original-code lift, and an excluded query never poisons other queries. */
+      const reason = excludedReason(readFileSync(candidate.sourcePath, "utf8"));
+      if (reason) { corpus.excluded.push({ functionName: candidate.functionName, reason }); return; }
+      const location = requireFunctionLocation(candidate.functionName);
+      const key = digest(JSON.stringify([tier, implementation, identities.get(location.container.id), location.span]));
+      const path = join(ROOT, "build/idiomCorpus/regions", location.container.id, `tier${tier}`, `${candidate.functionName}.json`);
+      let regions = readCache<Region[]>(path, key);
+      if (regions) hits++;
+      else {
+        misses++;
+        const program = lift(candidate.functionName);
+        if (!program) { corpus.excluded.push({ functionName: candidate.functionName, reason: "unliftable" }); return; }
+        regions = regionsOf(candidate.functionName, program, tier, "");
+        writeCache(path, key, regions);
+      }
+      const fingerprint = fingerprintOf(candidate.functionName);
+      corpus.fingerprints[fingerprint.id] = fingerprint;
+      corpus.regions.push(...regions.map((r) => ({ ...r, fingerprint: fingerprint.id })));
+      corpus.included.push(candidate.functionName);
+    });
+    console.error(`  idiom corpus tier ${tier}: ${hits} original-region cache hits, ${misses} misses (absent, corrupt or changed original/lifting inputs)`);
+    return corpus;
   });
-
-  const corpus = ensured.value;
-  if (skip.size === 0) return corpus;
-  return {
-    ...corpus,
-    regions: corpus.regions.filter((region) => !skip.has(region.functionName)),
-    included: corpus.included.filter((name) => !skip.has(name)),
-  };
 }
 
 export function buildCorpus(

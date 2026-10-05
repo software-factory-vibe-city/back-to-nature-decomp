@@ -5,15 +5,17 @@ import { validateVariantSource } from "./variant-lab/manifest.js";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { recordedCommand, commandText, type CommandRecord } from "../lib/recordedCommand.js";
-import { requireFunctionLocation, loadSymbolIndex } from "../lib/symbolIndex.js";
-import { containerTargetPath, loadContainers } from "../lib/container.js";
+import { requireFunctionLocation, loadSymbolIndex, withSymbolMetadata } from "../lib/symbolIndex.js";
+import { Timings, digest, snapshot, readCache, writeCache } from "../lib/contentCache.js";
+import { cachedPreprocess, withPreprocessorMetadata } from "./preprocessedCache.js";
+import { containerTargetPath, loadContainers, type Container } from "../lib/container.js";
 import { compareFunction } from "../lib/functionOracle.js";
-import { ROOT, configuredCppFlags, configuredCc1FlagsForContainer, configuredCompilerPath,
-  configuredAsFlagsForContainer, configuredMaspsxFlags, configuredToolchainIdentity, loadFlagOverrides,
-  resolveAsmSource, rejectionFromDiagnostics, sourceDependencyFiles } from "./decompToolchain.js";
+import { ROOT, configuredCppFlags, configuredCompilerPath, configuredMaspsxFlags, configuredAsFlagsForContainer,
+  configuredCc1FlagsForContainer, configuredToolchainIdentity, loadFlagOverrides,
+  resolveAsmSource, sourceDependencyFiles, rejectionFromDiagnostics } from "./decompToolchain.js";
 import { analyzeCSource } from "./cSourceGuard.js";
 import { extractSignaturesFromSource } from "./sdkTypes.js";
-import { sdkPrototypes, definitionPrototype, scopeFromPreprocessed, targetWitness, contradictionsAgainst, prototypesIn } from "./calleeTruth.js";
+import { sdkPrototypes, scopeFromPreprocessed, targetWitness, contradictionsAgainst, prototypesIn } from "./calleeTruth.js";
 import { emptyDeclarationIndex, indexDeclarations, globalViews, projectDeclarations, type Declaration } from "./declarationContext.js";
 import { namedChildren, parseC } from "./residual-source-search/tree-sitter-c.js";
 import { renameTypeTokens } from "./scopedTypes.js";
@@ -29,11 +31,16 @@ import { unspecifiedParameters, layoutFields } from "./type-propagation/c-types.
 export const hashText = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
 export const hashFile = (path: string) => existsSync(path) ? hashText(readFileSync(path)) : "absent";
 export function packetIsFresh(packet: PreparationPacket, root = ROOT): boolean {
-  return Object.entries(packet.identity.inputs).every(([path, hash]) => hashFile(join(root, path)) === hash) &&
-    (!packet.primary || hashFile(join(root, packet.primary.path)) === packet.primary.sha256) &&
-    JSON.stringify(packet.identity.tools) === JSON.stringify(configuredToolchainIdentity()) &&
-    [packet.compilation.preprocessed, packet.compilation.object].every((a) => !a || hashFile(join(root, a.path)) === a.sha256) &&
-    (!packet.generation.raw || !packet.generation.rawHash || hashFile(join(root, packet.generation.raw)) === packet.generation.rawHash);
+  try {
+    if (packet.schemaVersion !== 1) return false;
+    return Object.entries(packet.identity.memberships ?? {}).every(([path, members]) =>
+      JSON.stringify(allFiles(join(root, path)).map((p) => relative(root, p)).sort()) === JSON.stringify(members)) &&
+      Object.entries(packet.identity.inputs).every(([path, hash]) => hashFile(join(root, path)) === hash) &&
+      (!packet.primary || hashFile(join(root, packet.primary.path)) === packet.primary.sha256) &&
+      JSON.stringify(packet.identity.tools) === JSON.stringify(configuredToolchainIdentity()) &&
+      [packet.compilation.preprocessed, packet.compilation.assembly, packet.compilation.object].every((a) => !a || hashFile(join(root, a.path)) === a.sha256) &&
+      (!packet.generation.raw || !packet.generation.rawHash || hashFile(join(root, packet.generation.raw)) === packet.generation.rawHash);
+  } catch { return false; } /* malformed/interrupted packets are never fresh */
 }
 function savePacket(root: string, directory: string, packet: PreparationPacket): void {
   const path = join(directory, "packet.json");
@@ -56,9 +63,16 @@ function unknown(subject: string, missing: string, evidence: string[], strength:
 /** Safe staging only: never publish declarations, guess a type, or repair a body.
  * This is the library used by the CLI, interactive command, and both controllers.
  */
-export async function prepareFunction(functionName: string, options: { root?: string; signal?: AbortSignal; alternative?: boolean; contextFile?: string;
-  inferenceView?: { withhold?: string[]; disableSeeds?: string[]; permittedSeeds?: string[]; disableTransfers?: boolean } } = {}): Promise<{ packet: PreparationPacket; path: string }> {
+interface PreparationOptions { root?: string; signal?: AbortSignal; alternative?: boolean; contextFile?: string;
+  inferenceView?: { withhold?: string[]; disableSeeds?: string[]; permittedSeeds?: string[]; disableTransfers?: boolean } }
+export function prepareFunction(functionName: string, options: PreparationOptions = {}): Promise<{ packet: PreparationPacket; path: string }> {
+  return withSymbolMetadata(() => withPreprocessorMetadata(() => prepareFunctionInView(functionName, options)));
+}
+async function prepareFunctionInView(functionName: string, options: PreparationOptions): Promise<{ packet: PreparationPacket; path: string }> {
+  const timings = new Timings();
+  options.signal?.throwIfAborted();
   const root = options.root ?? ROOT;
+  const discoveryStart = performance.now();
   const location = requireFunctionLocation(functionName);
   const container = location.container;
   const destination = join(container.paths.srcDir, `${functionName}.c`);
@@ -89,8 +103,8 @@ export async function prepareFunction(functionName: string, options: { root?: st
     ...allFiles(join(root, "tools/vendor/tree-sitter-c")),
     join(root, "tools/build/prepareM2c.ts"), join(root, "package-lock.json"),
     ...["web-tree-sitter.js", "web-tree-sitter.wasm"].map((p) => join(root, "node_modules/web-tree-sitter", p)),
-    join(root, "tools/vendor/m2c/m2c.py"), ...allFiles(join(root, "tools/agent")).filter((p) => p.endsWith(".ts") && !p.endsWith(".test.ts")),
-    ...data, ledger, ...[container.paths.splat, container.paths.symbolAddrs, container.paths.undefinedFuncs, container.paths.undefinedSyms,
+    join(root, "tools/vendor/m2c/m2c.py"), ...["tools/agent", "tools/lib"].flatMap((p) => allFiles(join(root, p))).filter((p) => p.endsWith(".ts") && !p.endsWith(".test.ts")),
+    ...data, ...[container.paths.splat, container.paths.symbolAddrs, container.paths.undefinedFuncs, container.paths.undefinedSyms,
       container.paths.ldScript, container.paths.functionsCsv, container.paths.sectionLayout, "build/engine_syms.txt", "build/callGraph.json"].map((p) => join(root, p))]) input(path);
   for (const path of sourceDependencyFiles(join(root, destination))) input(path);
   const m2c = prepareM2c(root);
@@ -103,24 +117,69 @@ export async function prepareFunction(functionName: string, options: { root?: st
   input(process.execPath);
   const flags = [...configuredCc1FlagsForContainer(container.kind), ...(loadFlagOverrides().get(functionName) ?? [])];
   if (options.contextFile) input(join(root, options.contextFile));
-  const fingerprint = hashText(JSON.stringify({ inputs, tools, flags, alternative: options.alternative ?? false, inferenceView: options.inferenceView ?? {} }));
+  const memberships = Object.fromEntries(["src", "include", "configs", ...loadContainers().map((c) => c.paths.asmDir)]
+    .map((p) => [p, allFiles(join(root, p)).map((f) => relative(root, f)).sort()]));
+  const fingerprint = hashText(JSON.stringify({ inputs, memberships, tools, flags, alternative: options.alternative ?? false, inferenceView: options.inferenceView ?? {} }));
+  timings.phases.push({ phase: "discovery-fingerprinting", durationMs: performance.now() - discoveryStart });
   const baseDirectory = join(root, "build/preparation", functionName, fingerprint);
   let directory = baseDirectory;
   let packetPath = join(directory, "packet.json");
-  let resumedDraft: PreparationPacket | undefined;
+  type DraftContinuation = Pick<PreparationPacket, "primary" | "generation">;
+  type Latest = { packet: string; continuation?: DraftContinuation };
+  let resumedDraft: DraftContinuation | undefined;
+  const latestPath = join(root, "build/preparation", functionName, `latest-${hashText(JSON.stringify(options.inferenceView ?? {}))}.json`);
+  if (!existing && !options.alternative && existsSync(latestPath)) {
+    try {
+      const latest = readCache<Latest>(latestPath, "latest");
+      if (!latest) throw new Error("interrupted latest index");
+      let prior = latest.continuation;
+      try { prior = JSON.parse(readFileSync(join(root, latest.packet), "utf8")) as PreparationPacket; }
+      catch { /* the checksummed continuation preserves edits through a broken packet */ }
+      if (!prior) throw new Error("no surviving draft metadata");
+      if (prior.primary?.origin === "m2c" && hashFile(join(root, prior.primary.path)) !== (prior.generation.draftHash ?? prior.primary.sha256) && existsSync(join(root, prior.primary.path))) {
+        const text = readFileSync(join(root, prior.primary.path), "utf8");
+        resumedDraft = { ...prior, generation: { ...prior.generation, draftHash: prior.generation.draftHash ?? prior.primary.sha256 },
+          primary: { ...prior.primary, text, sha256: hashText(text) } };
+      }
+    } catch { /* interrupted indexes are misses; original drafts are untouched */ }
+  }
   mkdirSync(dirname(baseDirectory), { recursive: true });
   for (let retry = 1; ; retry++) {
     if (!existsSync(directory)) {
       try { mkdirSync(directory); break; } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
     }
-    const packet = existsSync(packetPath) ? JSON.parse(readFileSync(packetPath, "utf8")) as PreparationPacket : undefined;
+    let packet: PreparationPacket | undefined;
+    try { if (existsSync(packetPath)) packet = JSON.parse(readFileSync(packetPath, "utf8")) as PreparationPacket; }
+    catch { /* interrupted publication owns this directory; retry elsewhere */ }
     if (packet && !packetIsFresh(packet, root)) {
-      /* An edited draft is user work. Never regenerate it over an existing path. */
-      throw new Error(`Preparation artifacts changed: ${relative(root, directory)}; preserve/edit that draft or request a new alternative.`);
+      /* Cache repair uses a new directory. Preserve user edits as the primary
+         candidate, rather than replacing them with regenerated m2c output. */
+      if (packet.primary?.origin === "m2c" && existsSync(join(root, packet.primary.path))) {
+        const text = readFileSync(join(root, packet.primary.path), "utf8");
+        resumedDraft = { ...packet, generation: { ...packet.generation, draftHash: packet.generation.draftHash ?? packet.primary.sha256 },
+          primary: { ...packet.primary, text, sha256: hashText(text) } };
+      }
+      directory = join(baseDirectory, `retry-${retry}`); packetPath = join(directory, "packet.json");
+      continue;
     }
     if (packet) {
-      const commands = [...packet.compilation.commands, ...(packet.generation.command ? [packet.generation.command] : [])];
-      if (packet.preparationState !== "running" && !commands.some((c) => c.cancelled || c.timedOut)) return { packet, path: relative(root, packetPath) };
+      const commands = [...packet.compilation.commands, ...packet.discovery.preflight, ...(packet.generation.command ? [packet.generation.command] : [])];
+      if (packet.preparationState !== "running" && !commands.some((c) => c.cancelled || c.timedOut)) {
+        if (packet.diagnosticsIdentity !== hashFile(ledger)) {
+          const refresh = await recordedCommand("npx", ["tsx", "tools/agent/triage.ts", functionName, "--src", packet.primary?.path ?? destination, "--prepared", relative(root, packetPath), "--json"],
+            root, directory, `refresh-${Date.now()}-triage`, options.signal, 120_000, false);
+          packet.discovery.preflight.push(refresh);
+          if (refresh.status !== 0) packet.integration.blockers.push("refreshed mandatory preflight failed");
+          else {
+            const report = JSON.parse(readFileSync(refresh.stdout, "utf8")) as { findings?: Array<{ severity: string; summary?: string }> };
+            for (const f of report.findings ?? []) if (f.severity === "blocker") packet.integration.blockers.push(f.summary ?? JSON.stringify(f));
+          }
+          packet.diagnosticsIdentity = hashFile(ledger);
+        }
+        packet.performance = { phases: timings.phases, totalMs: timings.totalMs, cache: "hit", reason: "generation/analysis inputs unchanged; ledger diagnostics checked separately" };
+        savePacket(root, directory, packet);
+        return { packet, path: relative(root, packetPath) };
+      }
       if (packet.primary?.origin === "m2c") resumedDraft = packet;
     }
     /* A crashed/concurrent attempt owns its files, even without a final packet. */
@@ -128,7 +187,7 @@ export async function prepareFunction(functionName: string, options: { root?: st
   }
   const packet: PreparationPacket = {
     schemaVersion: 1, preparationState: "running", identity: { functionName, container: container.id, destination, assembly: relative(root, assembly),
-      data: data.map((p) => relative(root, p)), inputs, fingerprint, tools, flags }, primary: existing && !options.alternative ? {
+      data: data.map((p) => relative(root, p)), inputs, memberships, fingerprint, tools, flags }, primary: existing && !options.alternative ? {
       origin: "existing-attempt", path: destination, sha256: hashText(source), text: source, declarationsRequired: [],
     } : null,
     context: { index: emptyDeclarationIndex(), projection: "", excluded: [], unknown: [], headers: ["common.h"] },
@@ -140,12 +199,9 @@ export async function prepareFunction(functionName: string, options: { root?: st
   const command = (exe: string, args: string[], label: string, cwd = root, timeout = 120_000) =>
     /* The outer preparation command owns the group; nested commands must
        stay in it so cancellation also stops a currently running compiler. */
-    recordedCommand(exe, args, cwd, directory, `${sequence++}-${label}`, options.signal, timeout, false);
-  const preprocess = async (path: string, scope: string) => {
-    const result = await command("mips-linux-gnu-cpp", [...configuredCppFlags(), path], "context-cpp");
-    packet.compilation.commands.push(result);
-    if (result.status !== 0) { packet.integration.blockers.push(`Context preprocessing failed: ${path}`); return; }
-    const preprocessed = scopeFromPreprocessed(readFileSync(result.stdout, "utf8"));
+    timings.measure(label, () => recordedCommand(exe, args, cwd, directory, `${sequence++}-${label}`, options.signal, timeout, false));
+  const indexPreprocessed = (text: string, scope: string) => {
+    const preprocessed = scopeFromPreprocessed(text);
     const tree = parseC(preprocessed.source);
     try {
       for (const node of namedChildren(tree.rootNode)) {
@@ -155,15 +211,56 @@ export async function prepareFunction(functionName: string, options: { root?: st
       }
     } finally { tree.delete(); }
   };
+  const preprocess = async (path: string, scope: string) => {
+    options.signal?.throwIfAborted();
+    try {
+      const bundle = timings.measureSync("context-cpp", () => cachedPreprocess(path, root));
+      for (const dep of bundle.dependencies) input(dep);
+      timings.phases.push({ phase: "context-cpp-cache", durationMs: 0, cache: bundle.cache, reason: "source, include and search identity" });
+      indexPreprocessed(bundle.text, scope);
+    } catch (error) { packet.integration.blockers.push(`Context preprocessing failed: ${path}: ${String(error)}`); }
+  };
   savePacket(root, directory, packet);
   try {
     if (options.signal?.aborted) throw new Error("Preparation cancelled");
+    if (packet.primary) await timings.measure("existing-source-measurement", () => measurePreparation(packet, root, directory, container, command));
     const heldOut = [...new Set([functionName, ...(options.inferenceView?.withhold ?? []), ...(options.inferenceView?.disableSeeds ?? [])])];
     const seeds = seedOracle(join(directory, "seeds"), heldOut, options.inferenceView?.permittedSeeds);
-    const evidenceGraph = buildEvidenceGraph(functionName, { seed: seeds.get, ...(options.signal ? { signal: options.signal } : {}) });
+    const analysisKey = hashText(JSON.stringify({ functionName, heldOut, view: options.inferenceView ?? {}, inputs: Object.fromEntries(Object.entries(inputs)
+      .filter(([p]) => !p.startsWith("src/"))),
+      sourceMembership: allFiles(join(root, "src")).map((p) => relative(root, p)).sort(),
+      asmMembership: loadContainers().map((c) => allFiles(join(root, c.paths.asmDir)).filter((p) => p.endsWith(".s")).sort()) }));
+    type Analysis = { graph: ReturnType<typeof buildEvidenceGraph>; propagation: ReturnType<typeof propagate>;
+      observed: Record<string, string>; seeds: typeof seeds.records };
+    const analysisPath = join(root, "build/cache/preparation-analysis", functionName, `${hashText(JSON.stringify(options.inferenceView ?? {}))}.json`);
+    const cachedAnalysis = readCache<Analysis>(analysisPath, analysisKey);
+    let analysisHit = !!cachedAnalysis && Object.entries(cachedAnalysis.observed).every(([p, hash]) => hashFile(join(root, p)) === hash);
+    if (analysisHit) {
+      for (const record of cachedAnalysis!.seeds) seeds.get(record.name);
+      const contracts = (records: typeof seeds.records) => records.map(({ name, status, prototype }) => ({ name, status, prototype }));
+      analysisHit = JSON.stringify(contracts(seeds.records)) === JSON.stringify(contracts(cachedAnalysis!.seeds));
+    }
+    const evidenceGraph = analysisHit ? cachedAnalysis!.graph : timings.measureSync("dependency-graph", () =>
+      buildEvidenceGraph(functionName, { seed: seeds.get, ...(options.signal ? { signal: options.signal } : {}) }));
     for (const path of evidenceGraph.inputs) input(path);
     if (options.inferenceView?.disableTransfers) evidenceGraph.relations = [];
-    const propagation = propagate(evidenceGraph, seeds.get);
+    const propagation = analysisHit ? cachedAnalysis!.propagation : timings.measureSync("type-propagation", () => propagate(evidenceGraph, seeds.get));
+    if (!analysisHit && !options.signal?.aborted) {
+      const observed: Record<string, string> = {};
+      for (const record of seeds.records) {
+        let source: string;
+        try { const loc = requireFunctionLocation(record.name); source = join(root, loc.container.paths.srcDir, `${record.name}.c`); }
+        catch { continue; }
+        observed[relative(root, source)] = hashFile(source);
+        if (!existsSync(source)) for (const p of allFiles(dirname(source)).filter((p) => p.endsWith(".c"))) observed[relative(root, p)] = hashFile(p);
+        const bundle = seeds.bundle(record.name);
+        if (bundle) Object.assign(observed, bundle.inputs);
+      }
+      for (const p of evidenceGraph.inputs) observed[relative(root, p)] = hashFile(p);
+      writeCache(analysisPath, analysisKey, { graph: evidenceGraph, propagation, observed, seeds: structuredClone(seeds.records) } satisfies Analysis);
+    }
+    timings.phases.push(...seeds.timings, { phase: "analysis-cache", durationMs: 0, cache: analysisHit ? "hit" : "miss",
+      reason: analysisHit ? "original analysis and observed declaration inputs unchanged" : "absent, corrupt, discovery membership or relevant declaration change" });
     const inference = inferenceInput(evidenceGraph, propagation);
     const graphPath = join(directory, "type-graph.json"), propagationPath = join(directory, "propagation.json"), constraintsPath = join(directory, "inference.json");
     writeFileSync(graphPath, JSON.stringify(evidenceGraph, null, 2));
@@ -226,7 +323,9 @@ export async function prepareFunction(functionName: string, options: { root?: st
       if (definition) {
         const path = join(root, definition.where); input(path);
         for (const dep of sourceDependencyFiles(path)) input(dep);
-        await preprocess(path, definition.where);
+        const bundle = seeds.bundle(callee);
+        if (bundle) indexPreprocessed(bundle.preprocessed, definition.where);
+        else await preprocess(path, definition.where);
         const projected = projectDeclarations(packet.context.index, [callee], definition.where);
         const privateTypes = projected.selected.filter((d) => d.visibility === "source-local" && d.kind === "type");
         requiredDeclarations.push(...privateTypes);
@@ -341,25 +440,44 @@ export async function prepareFunction(functionName: string, options: { root?: st
       packet.primary = resumedDraft.primary;
       packet.generation = resumedDraft.generation;
     } else {
-      const generation = await command("python3", [relative(root, m2c.script), "--target", "mipsel-gcc-c", "--no-cache", "-f", functionName,
-        "--context", packet.context.projection, relative(root, assembly), ...(dataSections.length ? [selectedData] : []),
-        ...relatedAssembly.map((p) => relative(root, p.path)), "--infer-related", "--passes", "4", "--graph-constraints", relative(root, constraintsPath)], "m2c");
-      packet.generation.command = generation;
-      packet.generation.raw = relative(root, generation.stdout);
-      packet.generation.rawHash = hashFile(generation.stdout);
-      const raw = readFileSync(generation.stdout, "utf8");
-      packet.generation.status = generation.status === 0 && !raw.includes("Decompilation failure:") ? "generated" : "failed";
-      if (packet.generation.status === "generated") {
-        /* Mechanical wrapper only: suppressed callee contracts and their
-           independently verified private type dependencies must be visible.
-           Never transplant object declarations, aliases or inferred layouts. */
-        const callDeclarations = declarations.filter((p) => calls.includes(p.name)).map((p) => p.signature);
-        const wrapped = packet.context.headers.map((h) => `#include "${h}"`).join("\n") + "\n\n" +
-          [...new Set(wrapperTypes)].join("\n") + "\n" + callDeclarations.join("\n") + "\n\n" + raw.trim() + "\n";
-        const path = relative(root, join(directory, "draft.c")); writeFileSync(join(root, path), wrapped);
-        packet.primary = { origin: "m2c", path, sha256: hashText(wrapped), text: wrapped,
-          declarationsRequired: requiredDeclarations };
-      } else packet.compilation.diagnostics = commandText(generation);
+      const generationKey = digest(JSON.stringify({ functionName, context: hashFile(join(root, packet.context.projection)), data: dataSections,
+        assembly: hashFile(assembly), related: relatedAssembly.map((p) => hashFile(p.path)), inference: inference.input,
+        m2c: m2c.identity, sources: m2c.sources.map(hashFile), headers: packet.context.headers, wrapperTypes, declarations: declarations.map((p) => p.signature),
+        requiredDeclarations, tools, python: inputs[relative(root, execFileSync("which", ["python3"], { encoding: "utf8" }).trim())],
+        implementation: snapshot(root, ["tools/agent/prepareFunction.ts", "tools/lib/recordedCommand.ts", "tools/lib/contentCache.ts"]) }));
+      type Generated = { generation: PreparationPacket["generation"]; primary: PreparationPacket["primary"] };
+      const generationPath = join(root, "build/cache/preparation-generation", functionName, `${generationKey}.json`);
+      const cachedGeneration = readCache<Generated>(generationPath, generationKey);
+      const generationHit = cachedGeneration?.primary && cachedGeneration.generation.raw && cachedGeneration.generation.rawHash &&
+        hashFile(join(root, cachedGeneration.primary.path)) === cachedGeneration.primary.sha256 &&
+        hashFile(join(root, cachedGeneration.generation.raw)) === cachedGeneration.generation.rawHash;
+      if (generationHit) {
+        packet.primary = cachedGeneration.primary; packet.generation = cachedGeneration.generation;
+        timings.phases.push({ phase: "generation-cache", durationMs: 0, cache: "hit", reason: "projected declarations, constraints and original code unchanged" });
+      } else {
+        const generation = await command("python3", [relative(root, m2c.script), "--target", "mipsel-gcc-c", "--no-cache", "-f", functionName,
+          "--context", packet.context.projection, relative(root, assembly), ...(dataSections.length ? [selectedData] : []),
+          ...relatedAssembly.map((p) => relative(root, p.path)), "--infer-related", "--passes", "4", "--graph-constraints", relative(root, constraintsPath)], "m2c");
+        packet.generation.command = generation;
+        packet.generation.raw = relative(root, generation.stdout);
+        packet.generation.rawHash = hashFile(generation.stdout);
+        const raw = readFileSync(generation.stdout, "utf8");
+        packet.generation.status = generation.status === 0 && !raw.includes("Decompilation failure:") ? "generated" : "failed";
+        if (packet.generation.status === "generated") {
+          /* Mechanical wrapper only: suppressed callee contracts and their
+             independently verified private type dependencies must be visible.
+             Never transplant object declarations, aliases or inferred layouts. */
+          const callDeclarations = declarations.filter((p) => calls.includes(p.name)).map((p) => p.signature);
+          const wrapped = packet.context.headers.map((h) => `#include "${h}"`).join("\n") + "\n\n" +
+            [...new Set(wrapperTypes)].join("\n") + "\n" + callDeclarations.join("\n") + "\n\n" + raw.trim() + "\n";
+          const path = relative(root, join(directory, "draft.c")); writeFileSync(join(root, path), wrapped);
+          packet.generation.draftHash = hashText(wrapped);
+          packet.primary = { origin: "m2c", path, sha256: packet.generation.draftHash, text: wrapped,
+            declarationsRequired: requiredDeclarations };
+        } else packet.compilation.diagnostics = commandText(generation);
+        if (packet.primary && !generation.cancelled && !generation.timedOut) writeCache(generationPath, generationKey, { generation: packet.generation, primary: packet.primary } satisfies Generated);
+        timings.phases.push({ phase: "generation-cache", durationMs: 0, cache: "miss", reason: "absent, interrupted or changed generation inputs" });
+      }
     }
     savePacket(root, directory, packet); /* retain source identity before measurement */
     if (packet.primary) {
@@ -386,42 +504,12 @@ export async function prepareFunction(functionName: string, options: { root?: st
       if (!candidateGuard.parses) packet.integration.blockers.push(...candidateGuard.reasons);
       if (packet.primary.origin === "m2c") packet.integration.blockers.push(...validateVariantSource(packet.primary.text).map((f) => f.message));
       if (!extractSignaturesFromSource(packet.primary.text).some((s) => s.name === functionName) || candidateGuard.includeAsm.length) packet.integration.blockers.push("no clean-C target definition");
-      const preprocessed = join(directory, `${functionName}.i`);
-      const compiledAssembly = join(directory, `${functionName}.s`);
-      const object = join(directory, `${functionName}.o`);
-      const cpp = await command("mips-linux-gnu-cpp", [...configuredCppFlags(), candidate, "-o", preprocessed], "cpp");
-      packet.compilation.commands.push(cpp);
-      let front: CommandRecord | undefined;
-      let assembler: CommandRecord | undefined;
-      if (cpp.status === 0) {
-        packet.compilation.preprocessed = { path: relative(root, preprocessed), sha256: hashFile(preprocessed) };
-        front = await command(configuredCompilerPath(), [...flags, preprocessed, "-o", compiledAssembly], "cc1"); packet.compilation.commands.push(front);
-        if (front.status === 0) {
-          assembler = await command("python3", ["tools/vendor/maspsx/maspsx.py", ...configuredMaspsxFlags(), "--gnu-as-path", "mips-linux-gnu-as", "-o", object,
-            ...configuredAsFlagsForContainer(container.kind), compiledAssembly], "assembler"); packet.compilation.commands.push(assembler);
-        }
-      }
-      packet.compilation.diagnostics = [cpp, front, assembler].filter((c): c is CommandRecord => !!c).map(commandText).join("\n");
-      packet.compilation.status = assembler?.status === 0 ? "succeeded" : "failed";
-      const rejection = rejectionFromDiagnostics(packet.compilation.diagnostics);
-      if (rejection) packet.integration.blockers.push(rejection);
-      if (packet.compilation.status === "succeeded") {
-        packet.compilation.object = { path: relative(root, object), sha256: hashFile(object) };
-        const comparison = compareFunction(functionName, { objectPath: object, container });
-        const report = relative(root, join(directory, "comparison.json")); writeFileSync(join(root, report), JSON.stringify(comparison, null, 2));
-        packet.comparison = { status: comparison.verdict === "match" ? "exact" : comparison.verdict === "mismatch" ? "mismatching" : "undetermined", report };
-        if (comparison.verdict === "mismatch") {
-          const residual = await command("npx", ["tsx", "tools/agent/residualObjective.ts", functionName, "--source", packet.primary.path, "--json"], "residual");
-          if (residual.status === 0) { try { packet.comparison.residual = JSON.parse(readFileSync(residual.stdout, "utf8")); } catch { /* report preserved; unavailable is honest */ } }
-          /* The residual appends its own measurement. Keep freshness pinned to
-             that resulting ledger, not its pre-measurement hash. */
-          input(ledger);
-        }
-      }
+      if (packet.compilation.status === "not-attempted") await timings.measure("draft-measurement", () => measurePreparation(packet, root, directory, container, command));
     }
     /* Target-side frame/SDK/flag evidence remains applicable when generation
        or compilation fails. Triage itself separates unavailable compiled facts. */
-    const preflight = await command("npx", ["tsx", "tools/agent/triage.ts", functionName, "--src", packet.primary?.path ?? destination, "--json"], "triage");
+    savePacket(root, directory, packet);
+    const preflight = await command("npx", ["tsx", "tools/agent/triage.ts", functionName, "--src", packet.primary?.path ?? destination, "--prepared", relative(root, packetPath), "--json"], "triage");
     packet.discovery.preflight.push(preflight);
     if (preflight.status !== 0) packet.integration.blockers.push("mandatory preflight failed; inspect preserved triage streams");
     else {
@@ -441,7 +529,11 @@ export async function prepareFunction(functionName: string, options: { root?: st
   /* Dependencies discovered from defining-source preprocessing join the manifest
      without changing the artifact directory or its original generation identity. */
   packet.preparationState = "complete";
+  packet.diagnosticsIdentity = hashFile(ledger);
+  packet.performance = { phases: timings.phases, totalMs: timings.totalMs, cache: "miss", reason: "absent packet, interrupted attempt or changed generation/analysis inputs" };
   savePacket(root, directory, packet);
+  if (!options.alternative) writeCache(latestPath, "latest", { packet: relative(root, packetPath),
+    continuation: { primary: packet.primary, generation: packet.generation } } satisfies Latest);
   return { packet, path: relative(root, packetPath) };
 }
 
@@ -462,5 +554,42 @@ export function stagePrepared(packet: PreparationPacket, root = ROOT): { staged:
   writeFileSync(path, packet.primary.text);
   packet.integration.state = "live"; packet.integration.stagedHash = packet.primary.sha256;
   return { staged: true };
+}
+
+/** Measurement is independent of inference. Preserved C is measured first;
+ * the same artifacts remain the baseline for its mandatory diagnostics. */
+async function measurePreparation(packet: PreparationPacket, root: string, directory: string, container: Container,
+  command: (exe: string, args: string[], label: string) => Promise<CommandRecord>): Promise<void> {
+  if (!packet.primary) return;
+  const name = packet.identity.functionName;
+  const preprocessed = join(directory, `${name}.i`), assembly = join(directory, `${name}.s`), object = join(directory, `${name}.o`);
+  const cpp = await command("mips-linux-gnu-cpp", [...configuredCppFlags(), join(root, packet.primary.path), "-o", preprocessed], "cpp");
+  packet.compilation.commands.push(cpp);
+  let front: CommandRecord | undefined, assembler: CommandRecord | undefined;
+  if (cpp.status === 0) {
+    packet.compilation.preprocessed = { path: relative(root, preprocessed), sha256: hashFile(preprocessed) };
+    front = await command(configuredCompilerPath(), [...packet.identity.flags, preprocessed, "-o", assembly], "cc1");
+    packet.compilation.commands.push(front);
+    if (front.status === 0) {
+      assembler = await command("python3", ["tools/vendor/maspsx/maspsx.py", ...configuredMaspsxFlags(), "--gnu-as-path", "mips-linux-gnu-as", "-o", object,
+        ...configuredAsFlagsForContainer(container.kind), assembly], "assembler");
+      packet.compilation.commands.push(assembler);
+    }
+  }
+  packet.compilation.diagnostics = [cpp, front, assembler].filter((c): c is CommandRecord => !!c).map(commandText).join("\n");
+  packet.compilation.status = assembler?.status === 0 ? "succeeded" : "failed";
+  const rejection = rejectionFromDiagnostics(packet.compilation.diagnostics);
+  if (rejection) packet.integration.blockers.push(rejection);
+  if (packet.compilation.status !== "succeeded") return;
+  packet.compilation.assembly = { path: relative(root, assembly), sha256: hashFile(assembly) };
+  packet.compilation.object = { path: relative(root, object), sha256: hashFile(object) };
+  const comparison = compareFunction(name, { objectPath: object, container });
+  const report = relative(root, join(directory, "comparison.json"));
+  writeFileSync(join(root, report), JSON.stringify(comparison, null, 2));
+  packet.comparison = { status: comparison.verdict === "match" ? "exact" : comparison.verdict === "mismatch" ? "mismatching" : "undetermined", report };
+  if (comparison.verdict === "mismatch") {
+    const residual = await command("npx", ["tsx", "tools/agent/residualObjective.ts", name, "--source", packet.primary.path, "--json"], "residual");
+    if (residual.status === 0) { try { packet.comparison.residual = JSON.parse(readFileSync(residual.stdout, "utf8")); } catch { /* original streams remain explicit */ } }
+  }
 }
 

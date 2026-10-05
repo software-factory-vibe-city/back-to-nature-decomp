@@ -24,11 +24,12 @@
  *   npx tsx tools/build/genProjectProfile.ts --write   # write configs/project-profile.md
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
+import { digest, snapshot, readCache, writeCache, writeIfChanged } from "../lib/contentCache.js";
 
 const INFO_PATH = join(ROOT, "configs/project-info.json");
 const OUT_PATH = join(ROOT, "configs/project-profile.md");
@@ -120,6 +121,14 @@ function verifyByteIdentity(
  *  Formats raw dir names: 470 → "4.7", 3610 → "3.6.10". */
 function detectSdkVersion(): { version: string; detail: string } | null {
   try {
+    const key = digest(JSON.stringify(snapshot(ROOT, [loadPsxExeInfo().binaryPath, "build/sectionLayout.json", "configs/splat/exe.yaml",
+      "tools/vendor/psx_psyq_signatures", "tools/diagnostics/matchSignatures.ts", "tools/lib/psxExeInfo.ts",
+      "tools/lib/container.ts", "tools/lib/overlayManifest.ts", "tools/lib/contentCache.ts", "tools/build/genProjectProfile.ts", "package-lock.json"],
+      (p) => !p.includes("/.git/") && (p.endsWith(".json") || p.endsWith(".ts") || p.endsWith(".yaml")))));
+    const cache = join(ROOT, "build/cache/sdk-detection.json");
+    const hit = readCache<{ version: string; detail: string }>(cache, key);
+    if (hit) { console.error("SDK detection: cache hit (inputs unchanged)"); return hit; }
+    console.error("SDK detection: cache miss (absent, corrupt or changed inputs)");
     const out = execSync("npx tsx tools/diagnostics/matchSignatures.ts", {
       cwd: ROOT,
       encoding: "utf-8",
@@ -131,7 +140,9 @@ function detectSdkVersion(): { version: string; detail: string } | null {
     const digits = m[1];
     let version = `${digits[0]}.${digits[1]}`;
     if (digits.length > 2 && digits.slice(2) !== "0") version += `.${digits.slice(2)}`;
-    return { version, detail: `${m[2]} signatures matched` };
+    const result = { version, detail: `${m[2]} signatures matched` };
+    writeCache(cache, key, result);
+    return result;
   } catch {
     return null;
   }
@@ -254,7 +265,7 @@ ${headersSection(info.headers)}
     return;
   }
 
-  writeFileSync(OUT_PATH, out);
+  writeIfChanged(OUT_PATH, out);
   console.log(`Wrote ${OUT_PATH}`);
   console.log(`  compiler: GCC ${mk.gccVersion}-psx, -G threshold: ${mk.gThreshold ?? "?"}, aspsx: ${mk.aspsxVersion ?? "?"}`);
   console.log(`  byte-identity: ${check.verified ? "VERIFIED" : "NOT VERIFIED"} (${check.detail})`);

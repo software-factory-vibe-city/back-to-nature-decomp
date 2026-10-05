@@ -56,6 +56,8 @@ import {
   configuredCppFlags,
 } from "./decompToolchain.js";
 import { analyzeFrame, analyzeReturnValue, maximumArity, minimumArity } from "./frameMap.js";
+import { cachedPreprocess, withPreprocessorMetadata, preprocessingTools } from "./preprocessedCache.js";
+import { digest, snapshot, readCache, writeCache } from "../lib/contentCache.js";
 import { declaredFunction } from "./sdkTypes.js";
 import { inspectType } from "./type-propagation/c-types.js";
 import { children, field, parseC, subtreeIsBroken, walk, type Node } from "./residual-source-search/tree-sitter-c.js";
@@ -266,6 +268,7 @@ export function prototypesIn(
  */
 export function scopeFromPreprocessed(text: string): {
   source: string;
+  identity: string;
   lineOf: (row: number) => { file: string; line: number };
 } {
   const lines = text.split("\n");
@@ -291,6 +294,7 @@ export function scopeFromPreprocessed(text: string): {
   });
   return {
     source: cleaned.join("\n"),
+    identity: digest(text),
     lineOf: (row) => origins[row] ?? { file, line: row + 1 },
   };
 }
@@ -339,24 +343,38 @@ function headersUnder(dir: string): string[] {
  * repository, and nothing here can have contaminated them.
  */
 function effectiveSource(path: string): string {
-  return execFileSync("mips-linux-gnu-cpp", [...configuredCppFlags(), path], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+  return cachedPreprocess(path).text;
 }
 
-let sdkIndexCache: { identity: string; index: Map<string, Prototype> } | undefined;
+let sdkIndexCache: { identity: string; index: Map<string, Prototype>; observed: Record<string, string> } | undefined;
 export function sdkPrototypes(): Map<string, Prototype> {
+  return withPreprocessorMetadata(buildSdkPrototypes);
+}
+function buildSdkPrototypes(): Map<string, Prototype> {
   const headers = headersUnder(join(ROOT, "include/psyq"));
-  const identity = createHash("sha256").update(JSON.stringify(configuredCppFlags()) + headers.map((p) => readFileSync(p, "utf8")).join("\n")).digest("hex");
-  if (sdkIndexCache?.identity === identity) return sdkIndexCache.index;
+  const identity = digest(JSON.stringify([configuredCppFlags(), preprocessingTools(), snapshot(ROOT, ["include", "tools/agent/calleeTruth.ts", "tools/agent/sdkTypes.ts",
+    "tools/agent/preprocessedCache.ts", "tools/agent/residual-source-search/tree-sitter-c.ts", "tools/vendor/tree-sitter-c", "package-lock.json",
+    execFileSync("which", ["mips-linux-gnu-cpp"], { encoding: "utf8" }).trim()], (p) => !/include\/(?:functions\.h|sdk_types\.h|overlays\/)/.test(p))]));
+  const fresh = (observed: Record<string, string>) => JSON.stringify(observed) === JSON.stringify(snapshot(ROOT, Object.keys(observed)));
+  if (sdkIndexCache?.identity === identity && fresh(sdkIndexCache.observed)) return structuredClone(sdkIndexCache.index);
+  const cache = join(ROOT, "build/cache/sdk-prototypes.json");
+  const hit = readCache<{ index: Array<[string, Prototype]>; observed: Record<string, string> }>(cache, identity);
+  if (hit && fresh(hit.observed)) { sdkIndexCache = { identity, index: new Map(hit.index), observed: hit.observed }; return structuredClone(sdkIndexCache.index); }
   const index = new Map<string, Prototype>();
+  const dependencies = new Set<string>();
   for (const header of headers) {
     const where = relative(ROOT, header);
-    const scope = scopeFromPreprocessed(effectiveSource(header));
+    const processed = cachedPreprocess(header);
+    for (const path of processed.dependencies) dependencies.add(path);
+    const scope = scopeFromPreprocessed(processed.text);
     for (const prototype of prototypesIn(scope.source, where, scope.lineOf)) {
       if (!index.has(prototype.name)) index.set(prototype.name, prototype);
     }
   }
-  sdkIndexCache = { identity, index };
-  return index;
+  const observed = snapshot(ROOT, [...dependencies]);
+  sdkIndexCache = { identity, index, observed };
+  writeCache(cache, identity, { index: [...index], observed });
+  return structuredClone(index);
 }
 
 /** AST inventory, never a name-shaped match in comments or string literals. */

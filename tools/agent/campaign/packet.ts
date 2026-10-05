@@ -24,15 +24,18 @@ export interface UnknownFact {
 export interface PreparationPacket {
   schemaVersion: 1;
   preparationState?: "running" | "complete";
+  performance?: { phases: import("../../lib/contentCache.js").PhaseTiming[]; totalMs: number; cache: "hit" | "miss"; reason: string };
+  diagnosticsIdentity?: string;
   identity: {
     functionName: string; container: string; destination: string; assembly: string; data: string[];
     inputs: Record<string, string>; fingerprint: string; tools: unknown; flags: string[];
+    memberships?: Record<string, string[]>;
   };
   primary: PacketSource | null;
   context: { index: DeclarationIndex; projection: string; excluded: string[]; unknown: string[]; headers: string[] };
-  generation: { status: "not-attempted" | "generated" | "failed" | "unsupported"; raw?: string; rawHash?: string; command?: CommandRecord };
+  generation: { status: "not-attempted" | "generated" | "failed" | "unsupported"; raw?: string; rawHash?: string; draftHash?: string; command?: CommandRecord };
   compilation: { status: "not-attempted" | "failed" | "succeeded"; commands: CommandRecord[];
-    preprocessed?: { path: string; sha256: string }; object?: { path: string; sha256: string }; diagnostics: string };
+    preprocessed?: { path: string; sha256: string }; assembly?: { path: string; sha256: string }; object?: { path: string; sha256: string }; diagnostics: string };
   comparison: { status: "not-available" | "mismatching" | "exact" | "undetermined"; report?: string; residual?: unknown; reason?: string };
   integration: { state: "staged" | "live"; changes: string[]; blockers: string[]; destinationHash: string; stagedHash?: string };
   discovery: { unknowns: UnknownFact[]; report: unknown; priorExperiments: string[]; preflight: CommandRecord[];

@@ -1,0 +1,34 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ROOT } from "../lib/psxExeInfo.js";
+
+test("production Make C rule tracks actual headers, flags, tools and new search members", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "make-dependencies-")); t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const dir of ["src", "include", "bin", "configs"]) mkdirSync(join(root, dir));
+  symlinkSync(join(ROOT, "tools"), join(root, "tools")); symlinkSync(join(ROOT, "node_modules"), join(root, "node_modules"));
+  writeFileSync(join(root, "package.json"), '{"type":"module"}');
+  const tool = join(root, "bin/compiler.mjs");
+  writeFileSync(tool, `import fs from 'node:fs';const args=process.argv.slice(2),out=args[args.indexOf('-o')+1];fs.appendFileSync('events','compile\\n');fs.writeFileSync(out,fs.readFileSync(args[args.indexOf('-o')-1]));\n`);
+  const assembler = join(root, "bin/assembler.mjs");
+  writeFileSync(assembler, `import fs from 'node:fs';const args=process.argv.slice(2),out=args[args.indexOf('-o')+1];fs.writeFileSync(out,fs.readFileSync(args.at(-1)));\n`);
+  const original = readFileSync(join(ROOT, "Makefile"), "utf8");
+  const rules = original.slice(original.indexOf(".SECONDEXPANSION:"), original.indexOf("# Link. The game-rodata"));
+  const mk = `GCC_VERSION := 2.95.2\nBUILD_DIR := build\nCPP := mips-linux-gnu-cpp\nCPPFLAGS := -Iinclude -undef\nCC := ${process.execPath} ${tool}\nMASPSX := ${process.execPath} ${assembler}\nAS := mips-linux-gnu-as\nLD := mips-linux-gnu-ld\nOBJCOPY := mips-linux-gnu-objcopy\n${rules}\n.PHONY: FORCE_BUILD_INPUTS\nFORCE_BUILD_INPUTS:\n`;
+  writeFileSync(join(root, "Makefile"), mk); writeFileSync(join(root, "configs/flag_overrides.mk"), "");
+  writeFileSync(join(root, "include/value.h"), "#define VALUE 1\n");
+  writeFileSync(join(root, "src/f.c"), '#include "value.h"\nint f(void) {return VALUE;}\n');
+  const run = () => execFileSync("make", ["build/src/f.c.o"], { cwd: root, encoding: "utf8", stdio: "pipe" });
+  const count = () => readFileSync(join(root, "events"), "utf8").trim().split("\n").length;
+  run(); assert.equal(count(), 1); assert.match(readFileSync(join(root, "build/src/f.c.o.d"), "utf8"), /include\/value.h/);
+  const stampTime = statSync(join(root, "build/toolchain-inputs.stamp")).mtimeMs;
+  run(); assert.equal(count(), 1); assert.equal(statSync(join(root, "build/toolchain-inputs.stamp")).mtimeMs, stampTime);
+  writeFileSync(join(root, "include/value.h"), "#define VALUE 2\n"); run(); assert.equal(count(), 2);
+  assert.match(readFileSync(join(root, "build/src/f.c.o"), "utf8"), /return 2/);
+  writeFileSync(join(root, "configs/flag_overrides.mk"), "/* changed flags input */\n"); run(); assert.equal(count(), 3);
+  writeFileSync(tool, readFileSync(tool, "utf8") + "/* compiler changed */\n"); run(); assert.equal(count(), 4);
+  writeFileSync(join(root, "include/new.h"), "/* new search member */\n"); run(); assert.equal(count(), 5);
+});

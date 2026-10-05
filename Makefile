@@ -148,16 +148,25 @@ split:
 # basename; the wildcard covers every container's assembly tree.
 .SECONDEXPANSION:
 
+# A content stamp also detects compiler, assembler and command-line flag changes.
+# The recipe preserves its timestamp on an unchanged request. Depfiles are emitted
+# by the real cpp pass (including system headers), not inferred from C text.
+$(BUILD_DIR)/toolchain-inputs.stamp: FORCE_BUILD_INPUTS
+	@npx tsx tools/build/buildInputs.ts "$(CPPFLAGS)" "$(CC1FLAGS)" "$(ASFLAGS)" "$(OVERLAY_G)" "$(OVERLAY_ASFLAGS)" "$(CC)" "$(MASPSX)" "$(CPP)" "$(AS)" "$(LD)" "$(OBJCOPY)"
+
+ASM_INCLUDE_DEPS := $(shell find include -name '*.inc' 2>/dev/null)
+-include $(shell find $(BUILD_DIR)/src -name '*.d' 2>/dev/null)
+
 # Compile C: cpp -> cc1 -> maspsx -> .o
-$(BUILD_DIR)/src/%.c.o: src/%.c $$(wildcard $(BUILD_DIR)/asm/nonmatchings/$$(notdir $$*)/*.s $(BUILD_DIR)/*/asm/nonmatchings/$$(notdir $$*)/*.s)
+$(BUILD_DIR)/src/%.c.o: src/%.c $(BUILD_DIR)/toolchain-inputs.stamp $(ASM_INCLUDE_DEPS) $$(wildcard $(BUILD_DIR)/asm/nonmatchings/$$(notdir $$*)/*.s $(BUILD_DIR)/*/asm/nonmatchings/$$(notdir $$*)/*.s)
 	@mkdir -p $(dir $@)
 	$(eval $(call FlagsSwitch,$<))
-	$(CPP) $(CPPFLAGS) $< -o $(BUILD_DIR)/src/$*.i
+	$(CPP) $(CPPFLAGS) -MD -MP -MF $@.d -MT $@ $< -o $(BUILD_DIR)/src/$*.i
 	$(CC) $(CC1_EFFECTIVE) $(BUILD_DIR)/src/$*.i -o $(BUILD_DIR)/src/$*.s
 	$(MASPSX) $(MASPSX_FLAGS) --gnu-as-path $(AS) -o $@ $(SRC_ASFLAGS) $(BUILD_DIR)/src/$*.s
 
 # Assemble .s files (splat outputs to build/asm/)
-$(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s
+$(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s $(BUILD_DIR)/toolchain-inputs.stamp $(ASM_INCLUDE_DEPS)
 	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) $< -o $@
 
@@ -166,7 +175,7 @@ $(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s
 # = the owner's .o .rodata size. Objects exist here, so this is the earliest
 # point the derivation can run; on drift (a jump-table function flipped
 # stub<->C) it rederives, re-splits, and rebuilds once.
-$(BUILT_ELF): $(ALL_OBJS) $(LD_SCRIPT)
+$(BUILT_ELF): $(ALL_OBJS) $(LD_SCRIPT) $(BUILD_DIR)/toolchain-inputs.stamp $(wildcard $(BUILD_DIR)/dep_syms.txt $(BUILD_DIR)/lib_bss_syms.txt $(BUILD_DIR)/undefined_funcs_auto.txt $(BUILD_DIR)/undefined_syms_auto.txt)
 	@if npx tsx tools/build/deriveRodataSplits.ts; then \
 		$(LD) -EL -T $(LD_SCRIPT) -Map $(BUILD_DIR)/$(BASENAME).map -o $@; \
 	elif [ -z "$$DERIVE_RODATA_RETRY" ]; then \
@@ -191,7 +200,7 @@ $(BUILT_BIN): $(BUILT_ELF)
 check-exe: check
 
 check: $(BUILT_BIN)
-	@npx tsx tools/build/deriveRodataSplits.ts
+	@if [ "$(SKIP_RODATA_CHECK)" != 1 ]; then npx tsx tools/build/deriveRodataSplits.ts; fi
 	@dd if=$(TARGET) bs=1 skip=$(PAYLOAD_OFF) count=$(PAYLOAD_SZ) 2>/dev/null | \
 		sha256sum | awk '{print $$1}' > $(BUILD_DIR)/original.sha256
 	@dd if=$(BUILT_BIN) bs=1 skip=$(PAYLOAD_OFF) count=$(PAYLOAD_SZ) 2>/dev/null | \
@@ -238,7 +247,7 @@ $(1)_ASM_SRCS := $$(shell find $(BUILD_DIR)/$(1)/asm -name '*.s' -not -path '*/n
 $(1)_OBJS := $$(patsubst src/%.c,$(BUILD_DIR)/src/%.c.o,$$($(1)_C_SRCS)) \
              $$(patsubst $(BUILD_DIR)/$(1)/asm/%.s,$(BUILD_DIR)/$(1)/asm/%.s.o,$$($(1)_ASM_SRCS))
 
-$(BUILD_DIR)/$(1)/asm/%.s.o: $(BUILD_DIR)/$(1)/asm/%.s
+$(BUILD_DIR)/$(1)/asm/%.s.o: $(BUILD_DIR)/$(1)/asm/%.s $(BUILD_DIR)/toolchain-inputs.stamp $$(ASM_INCLUDE_DEPS)
 	@mkdir -p $$(dir $$@)
 	$$(AS) $$(OVERLAY_ASFLAGS) $$< -o $$@
 
@@ -249,7 +258,7 @@ $(BUILD_DIR)/$(1)/asm/%.s.o: $(BUILD_DIR)/$(1)/asm/%.s
 # referencing the function's internal labels from an asm object that no longer
 # defines them. Objects exist here, so this is the earliest point the
 # derivation can run; on drift it rederives, re-splits and rebuilds once.
-$(BUILD_DIR)/$(1)/$(1).elf: $$($(1)_OBJS) $(BUILD_DIR)/$(1)/$(1).ld $(ENGINE_SYMS)
+$(BUILD_DIR)/$(1)/$(1).elf: $$($(1)_OBJS) $(BUILD_DIR)/$(1)/$(1).ld $(ENGINE_SYMS) $(BUILD_DIR)/toolchain-inputs.stamp $$(wildcard $(BUILD_DIR)/$(1)/undefined_funcs_auto.txt $(BUILD_DIR)/$(1)/undefined_syms_auto.txt $(BUILD_DIR)/$(1)/ld_includes.txt)
 	@npx tsx tools/build/exportEngineSymbols.ts --check
 	@if npx tsx tools/build/deriveRodataSplits.ts --container $(1); then \
 		$$(LD) -EL -T $(BUILD_DIR)/$(1)/$(1).ld -Map $(BUILD_DIR)/$(1)/$(1).map -o $$@; \
@@ -269,7 +278,7 @@ $(BUILD_DIR)/$(1)/$(1).bin: $(BUILD_DIR)/$(1)/$(1).elf
 # An overlay's check compares against its extracted member bytes, which is why
 # the archive extraction has to be reproducible.
 check-$(1): $(BUILD_DIR)/$(1)/$(1).bin
-	@npx tsx tools/build/deriveRodataSplits.ts --container $(1)
+	@if [ "$$(SKIP_RODATA_CHECK)" != 1 ]; then npx tsx tools/build/deriveRodataSplits.ts --container $(1); fi
 	@sha256sum < extracted/overlays/$(1).bin | awk '{print $$$$1}' > $(BUILD_DIR)/$(1)/original.sha256
 	@sha256sum < $(BUILD_DIR)/$(1)/$(1).bin  | awk '{print $$$$1}' > $(BUILD_DIR)/$(1)/built.sha256
 	@if diff -q $(BUILD_DIR)/$(1)/original.sha256 $(BUILD_DIR)/$(1)/built.sha256 > /dev/null 2>&1; then \
@@ -304,7 +313,9 @@ endef
 $(foreach overlay,$(OVERLAYS),$(eval $(call OverlayRules,$(overlay))))
 
 # Everything: the PS-X EXE plus every overlay container.
+check-all: SKIP_RODATA_CHECK = 1
 check-all: check $(addprefix check-,$(OVERLAYS))
+	@npx tsx tools/build/deriveRodataSplits.ts --all
 	@echo "All $(words $(OVERLAYS)) overlay container(s) and the PS-X EXE match."
 
 split-all: split $(addprefix split-,$(OVERLAYS))
@@ -359,4 +370,4 @@ open('configs/splat/exe.yaml','w').writelines(lines[:idx+1])"
 	rm -rf $(BUILD_DIR)
 	@echo "Configs wiped. Run 'make split && make && make check' to rebuild from scratch."
 
-.PHONY: all disassemble split check check-exe check-all split-all setup progress clean wipe
+.PHONY: all disassemble split check check-exe check-all split-all setup progress clean wipe FORCE_BUILD_INPUTS

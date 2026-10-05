@@ -35,7 +35,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
-import { execFileSync } from "child_process";
+import { elf32SectionSizes } from "../lib/elfSections.js";
 import { ROOT } from "../lib/psxExeInfo.ts";
 import {
   EXE_CONTAINER_ID,
@@ -46,8 +46,6 @@ import {
   vramToRom,
   type Container,
 } from "../lib/container.ts";
-
-const OBJDUMP = "mips-linux-gnu-objdump";
 
 interface FuncExtent {
   name: string;
@@ -164,9 +162,7 @@ export function existingRodataBlock(container: Container): string[] | null {
 function objRodataSize(container: Container, fn: string): number | null {
   const obj = join(ROOT, container.paths.objDir, `${fn}.c.o`);
   if (!existsSync(obj)) return null;
-  const out = execFileSync(OBJDUMP, ["-h", obj], { encoding: "utf-8" });
-  const m = out.match(/\.rodata\s+([0-9a-f]{8})/);
-  return m ? parseInt(m[1], 16) : 0;
+  return elf32SectionSizes(readFileSync(obj)).get(".rodata") ?? 0;
 }
 
 function isCompiledC(container: Container, fn: string): boolean {

@@ -1,10 +1,10 @@
 /** Original-code evidence graph, independent of worklist eligibility and C bodies. */
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadContainers, containerTargetPath, vramToRom, type Container } from "../../lib/container.js";
 import { loadFunctionSpans, loadSymbolIndex, requireFunctionLocation, type FunctionSpan } from "../../lib/symbolIndex.js";
 import { ROOT } from "../decompToolchain.js";
+import { digest, filesUnder, snapshot } from "../../lib/contentCache.js";
 import { decodeBytes } from "../matching-reconstruction/exec.js";
 import { buildMachineIr, type MachineIrReport } from "../machine-ir/index.js";
 import { callbackTablesFromData, type CallbackTable } from "./data.js";
@@ -20,13 +20,18 @@ interface OriginalIndex {
   resolve: (container: string, address: number) => string | undefined;
 }
 let cached: OriginalIndex | undefined;
+function copyIndex(index: OriginalIndex): OriginalIndex {
+  return { ...index, nodes: structuredClone(index.nodes), incoming: structuredClone(index.incoming), inputs: [...index.inputs] };
+}
 /** In-process immutable index. No persistent cache, worklist graph or candidate C. */
 export function originalIndex(limit = DEFAULT_BOUNDS.indexInstructions): OriginalIndex {
   const containers = loadContainers();
   const inputs = containers.flatMap((c) => [containerTargetPath(c), join(ROOT, c.paths.splat), join(ROOT, c.paths.symbolAddrs),
-    join(ROOT, c.paths.undefinedFuncs), join(ROOT, c.paths.undefinedSyms), join(ROOT, c.paths.sectionLayout)]).concat(join(ROOT, "build/engine_syms.txt"));
-  const identity = createHash("sha256").update(String(limit) + inputs.map((p) => p + (existsSync(p) ? createHash("sha256").update(readFileSync(p)).digest("hex") : "absent")).join("\n")).digest("hex");
-  if (cached?.identity === identity) return cached;
+    join(ROOT, c.paths.undefinedFuncs), join(ROOT, c.paths.undefinedSyms), join(ROOT, c.paths.sectionLayout), join(ROOT, c.paths.ldScript),
+    ...filesUnder(join(ROOT, c.paths.asmDir)).filter((p) => p.endsWith(".s"))])
+    .concat(["build/engine_syms.txt", "build/dep_syms.txt", "build/lib_bss_syms.txt", "configs/overlays.json"].map((p) => join(ROOT, p)));
+  const identity = digest(JSON.stringify([limit, snapshot(ROOT, inputs), containers]));
+  if (cached?.identity === identity) return copyIndex(cached);
   const nodes = new Map<string, IndexedFunction>();
   const addresses = new Map<string, Map<number, string>>();
   for (const container of containers) {
@@ -87,7 +92,7 @@ export function originalIndex(limit = DEFAULT_BOUNDS.indexInstructions): Origina
     node.calls = [...new Set(node.calls)].sort(); node.references = [...new Set(node.references)].sort((a, b) => a - b);
     for (const target of node.calls) incoming.set(target, [...(incoming.get(target) ?? []), node.id]);
   }
-  cached = { identity, nodes, incoming, instructions, complete, inputs, resolve }; return cached;
+  cached = { identity, nodes, incoming, instructions, complete, inputs, resolve }; return copyIndex(cached);
 }
 
 export interface GraphOptions { bounds?: Partial<Bounds>; seed?: (name: string) => Prototype | undefined; signal?: AbortSignal }

@@ -527,6 +527,8 @@ export function compileSource(
     useOverrides?: boolean;
     extraCc1Flags?: string[];
     emissionAttribution?: boolean;
+    /** Exact target-cpp output already verified by the caller's input bundle. */
+    preprocessedText?: string;
     /**
      * Which container's flag set to compile under. Derived from `stem` when
      * omitted, which is what keeps every existing call site correct without
@@ -544,7 +546,8 @@ export function compileSource(
   const assembly = join(absoluteOutput, `${stem}.s`);
   const object = join(absoluteOutput, `${stem}.c.o`);
 
-  runTool(CPP, [...CPP_FLAGS, absoluteSource, "-o", preprocessed]);
+  if (options.preprocessedText !== undefined) writeFileSync(preprocessed, options.preprocessedText);
+  else runTool(CPP, [...CPP_FLAGS, absoluteSource, "-o", preprocessed]);
 
   const overrides = options.useOverrides === false
     ? []

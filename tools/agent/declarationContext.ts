@@ -36,13 +36,22 @@ function nameOf(node: Node | null | undefined): string | undefined {
   if (["identifier", "type_identifier"].includes(node.type)) return node.text;
   return nameOf(field(node, "declarator")) ?? namedChildren(node).map(nameOf).find(Boolean);
 }
+const normalized = new Map<string, string>();
+const indexed = new WeakMap<DeclarationIndex, { seen: Set<string>; declarations: Declaration[]; length: number }>();
 const normal = (source: string): string => {
+  const cached = normalized.get(source);
+  if (cached !== undefined) return cached;
   const tree = parseC(source);
   const tokens = (node: Node): string[] => {
     if (node.type === "comment" || (node.type === "storage_class_specifier" && node.text === "extern")) return [];
     const kids = children(node); return kids.length ? kids.flatMap(tokens) : [node.text];
   };
-  try { return JSON.stringify(tokens(tree.rootNode)); } finally { tree.delete(); }
+  try {
+    const value = JSON.stringify(tokens(tree.rootNode));
+    if (normalized.size >= 4096) normalized.clear();
+    normalized.set(source, value);
+    return value;
+  } finally { tree.delete(); }
 };
 function forwardTag(source: string): boolean {
   const tree = parseC(source);
@@ -56,8 +65,19 @@ function forwardTag(source: string): boolean {
 /** Input is already preprocessed; callers supply the actual declaration scope. */
 export function indexDeclarations(index: DeclarationIndex, source: string, origin: string, scope: string,
   visibility: Declaration["visibility"]): void {
+  let state = indexed.get(index);
+  /* Projection callers may explicitly remove held-out declarations. Such an
+     edit is a new index state, not permission to suppress their next input. */
+  if (!state || state.declarations !== index.declarations || state.length !== index.declarations.length) {
+    state = { seen: new Set(), declarations: index.declarations, length: index.declarations.length }; indexed.set(index, state);
+  }
+  const identity = JSON.stringify([origin, scope, visibility, source]);
+  if (state.seen.has(identity)) return;
   const tree = parseC(source);
   const root = tree.rootNode;
+  /* Scope and preprocessing output are both identity fields. Same text from a
+     different TU is NOT the same declaration. Broken input remains explicit. */
+  if (!root.hasError) state.seen.add(identity);
   const add = (name: string, kind: Declaration["kind"], text: string, ownership?: Declaration["ownership"]) => {
     const declaration: Declaration = { name, kind, text, origin, scope, visibility,
       dependencies: [...typeNamesIn(text)].filter((dep) => dep !== name).sort(), ...(ownership ? { ownership } : {}) };
@@ -118,6 +138,7 @@ export function indexDeclarations(index: DeclarationIndex, source: string, origi
     }
   }
   tree.delete();
+  state.declarations = index.declarations; state.length = index.declarations.length;
 }
 
 /** Interpret the existing alias idiom from its cast and backing declaration.

@@ -1,4 +1,4 @@
-import { finalizeWorkspace } from "../tools/finalization.ts";
+import { finalizeWorkspace, finalizedDiff } from "../tools/finalization.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadCallGraph, rebuildCallGraph } from "../autonomous/call-graph.ts";
@@ -53,7 +53,9 @@ export function gateConfig(projectRoot: string, state: LoopState): AutodecompCon
 }
 
 export async function isMatched(ctx: OracleContext, functionName: string): Promise<MatchVerdict> {
-  const diff = await runFunctionDiff(ctx.projectRoot, functionName, 120_000, ctx.signal);
+  ctx.signal?.throwIfAborted();
+  const diff = finalizedDiff(ctx.projectRoot, functionName, gateConfig(ctx.projectRoot, ctx.state)) ??
+    await runFunctionDiff(ctx.projectRoot, functionName, 120_000, ctx.signal);
   return { matched: diff.exact, diff };
 }
 

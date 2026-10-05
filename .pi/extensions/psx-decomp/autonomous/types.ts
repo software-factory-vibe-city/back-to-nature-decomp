@@ -123,6 +123,10 @@ export interface GateResult {
   policy: SourcePolicyResult;
   failures: string[];
   checkedAt: string;
+  timings?: { phases: Array<{ phase: string; durationMs: number; cache?: "hit" | "miss"; reason?: string }>; totalMs: number };
+  cache?: { hit: boolean; reason: string };
+  receipt?: import("../tools/verification-receipt.ts").VerificationReceipt;
+  finalizationGates?: GateResult[];
 }
 
 export interface WorkerUsage {

@@ -11,6 +11,21 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+/** Request-scoped metadata, not a process-global stale symbol cache. Each
+ * preparation gets a fresh view; maps/arrays returned to consumers are copies. */
+const metadata = new AsyncLocalStorage<Map<string, unknown>>();
+export function withSymbolMetadata<T>(task: () => T): T {
+  return metadata.getStore() ? task() : metadata.run(new Map(), task);
+}
+function shared<T>(kind: string, container: Container, compute: () => T): T {
+  const store = metadata.getStore();
+  if (!store) return compute();
+  const key = `${kind}:${JSON.stringify(container)}`;
+  if (!store.has(key)) store.set(key, compute());
+  return structuredClone(store.get(key) as T);
+}
 import { join } from "path";
 import { ROOT } from "./psxExeInfo.js";
 import {
@@ -64,6 +79,9 @@ export interface SplatSubsegment {
  */
 export function loadSubsegments(container?: Container | string): SplatSubsegment[] {
   const target = resolveContainer(container);
+  return shared("subsegments", target, () => computeSubsegments(target));
+}
+function computeSubsegments(target: Container): SplatSubsegment[] {
   const splatPath = containerPath(target, "splat");
   if (!existsSync(splatPath)) return [];
   const yaml = readFileSync(splatPath, "utf-8");
@@ -111,6 +129,10 @@ export function loadSubsegments(container?: Container | string): SplatSubsegment
 
 /** Function extents from the container's splat config. */
 export function loadFunctionSpans(container?: Container | string): FunctionSpan[] {
+  const target = resolveContainer(container);
+  return shared("spans", target, () => computeFunctionSpans(target));
+}
+function computeFunctionSpans(container: Container): FunctionSpan[] {
   const spans: FunctionSpan[] = [];
   for (const entry of loadSubsegments(container)) {
     if (entry.type !== "c" && entry.type !== "asm") continue;
@@ -201,6 +223,9 @@ export interface SymbolIndex {
  */
 export function loadSymbolIndex(container?: Container | string): SymbolIndex {
   const target = resolveContainer(container);
+  return shared("by-address", target, () => computeSymbolIndex(target));
+}
+function computeSymbolIndex(target: Container): SymbolIndex {
   const byAddress = new Map<number, string>();
 
   for (const relative of assignmentFiles(target)) {
@@ -301,6 +326,9 @@ function loadLinkerScriptSymbols(container: Container): Map<string, number> {
  */
 export function loadSymbolAddresses(container?: Container | string): Map<string, number> {
   const target = resolveContainer(container);
+  return shared("by-name", target, () => computeSymbolAddresses(target));
+}
+function computeSymbolAddresses(target: Container): Map<string, number> {
   const byName = new Map<string, number>(loadLinkerScriptSymbols(target));
 
   for (const relative of assignmentFiles(target)) {

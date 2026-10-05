@@ -8,6 +8,7 @@ build/
 !tools/build/
 tools/build/*
 !tools/build/genProjectProfile.ts
+!tools/build/buildInputs.ts
 !tools/build/prepareM2c.ts
 !tools/build/deriveTuOwnedGlobals.ts
 !tools/build/deriveRodataSplits.ts

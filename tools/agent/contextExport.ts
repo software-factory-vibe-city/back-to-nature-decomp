@@ -48,6 +48,7 @@ import {
 } from "../lib/container.js";
 import { requireFunctionLocation } from "../lib/symbolIndex.js";
 import { scopedTypeCatalog, projectScopedSignatures } from "./scopedTypes.js";
+import { writeIfChanged } from "../lib/contentCache.js";
 import { emptyDeclarationIndex, indexDeclarations, projectDeclarations } from "./declarationContext.js";
 import { PREAMBLE_TYPES } from "./sdkTypes.js";
 
@@ -261,8 +262,8 @@ export function writeContext(
   ]);
 
   mkdirSync(dirname(funcsPath), { recursive: true });
-  writeFileSync(sdkPath, renderSdkTypesHeader(resolution, defs));
-  writeFileSync(funcsPath, renderFunctionsHeader(signatures));
+  writeIfChanged(sdkPath, renderSdkTypesHeader(resolution, defs));
+  writeIfChanged(funcsPath, renderFunctionsHeader(signatures));
 
   const check = verifyContextParses(rootDir, container);
   if (check.skipped) {
@@ -272,7 +273,7 @@ export function writeContext(
   if (!check.ok) {
     for (const [path, content] of previous) {
       if (content === null) rmSync(path, { force: true });
-      else writeFileSync(path, content);
+      else writeIfChanged(path, content);
     }
     throw new Error(
       `Generated m2c context does not parse; previous context restored.\n\n${check.diagnostic}`,

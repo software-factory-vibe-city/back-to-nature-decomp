@@ -2,6 +2,7 @@ import { basename, extname } from "node:path";
 import type { AutodecompConfig, DiffResult, GateResult, WorkMode } from "./types.ts";
 import { runCommand } from "./process.ts";
 import { checkSourcePolicy } from "./source-policy.ts";
+import { Timings } from "../../../../tools/lib/contentCache.js";
 
 /**
  * The oracle's summary lines.
@@ -145,12 +146,9 @@ export interface ResidualReading {
 /**
  * The byte-identity gate: every container the project builds.
  *
- * Measured on this project, warm: `make check-all` is 7.9s against `make
- * check`'s 7.7s — the thirteen overlay comparisons add about two tenths of a
- * second, because an untouched container relinks nothing. That settles the
- * question the plan left open. The full gate stays the gate; the per-container
- * targets (`make check-<id>`, 0.45s after a one-file edit) are the iteration
- * loop inside a turn, not a substitute for it.
+ * All-container verification remains mandatory. Its cost grows with the source
+ * population; old warm timings are not a performance contract. Per-container
+ * checks are iteration aids, never a substitute for this boundary.
  *
  * Narrowing it would be wrong as well as unnecessary. Overlays link against the
  * engine symbol export, so a rename in the executable's sources relinks every
@@ -180,8 +178,12 @@ export async function runGate(options: {
   changedFiles: string[];
   patch: string;
   runBuild?: boolean;
+  /** Only supplied by the finalizer after validating its own receipt/snapshot. */
+  machineVerification?: Pick<GateResult, "diff" | "build">;
+  comprehensiveDiagnostics?: boolean;
   signal?: AbortSignal;
 }): Promise<GateResult> {
+  const timings = new Timings();
   const failures: string[] = [];
   const cancelled = () => {
     if (!options.signal?.aborted) return false;
@@ -192,7 +194,7 @@ export async function runGate(options: {
   const scanFunctions = options.mode === "project-refinement"
     ? sourceNames(options.changedFiles)
     : options.functionName ? [options.functionName] : [];
-  const policy = checkSourcePolicy({
+  const policy = timings.measureSync("policy", () => checkSourcePolicy({
     projectRoot: options.projectRoot,
     config: options.config,
     ...(options.functionName ? { functionName: options.functionName } : {}),
@@ -204,22 +206,24 @@ export async function runGate(options: {
     scanFunctions,
     changedFiles: options.changedFiles,
     patch: options.patch,
-  });
+  }));
   if (!policy.pass) failures.push(...policy.hardFailures.map((finding) => `${finding.file}: ${finding.message}`));
 
-  let diff: DiffResult | undefined;
-  if (!cancelled() && options.functionName && options.mode !== "project-refinement") {
-    diff = await runFunctionDiff(options.projectRoot, options.functionName, 60_000, options.signal, options.functionContainer);
+  const proceed = () => !cancelled() && (!failures.length || options.comprehensiveDiagnostics);
+  let diff: DiffResult | undefined = options.machineVerification?.diff;
+  if (proceed() && !options.machineVerification && options.functionName && options.mode !== "project-refinement") {
+    diff = await timings.measure("function-diff", () => runFunctionDiff(options.projectRoot, options.functionName!, 60_000, options.signal, options.functionContainer));
     if (!diff.exact) failures.push(`Function oracle verdict is ${diff.verdict.toUpperCase()}, not MATCH (${diff.matchedInstructions}/${diff.totalInstructions} words)`);
-  } else if (!cancelled() && options.mode === "project-refinement") {
+  } else if (proceed() && options.mode === "project-refinement") {
     for (const name of scanFunctions) {
-      if (cancelled()) break;
+      if (!proceed()) break;
       const touched = await runFunctionDiff(options.projectRoot, name, 60_000, options.signal, options.functionContainers?.[name]);
       if (!touched.exact) failures.push(`${name}: function oracle verdict is ${touched.verdict.toUpperCase()}, not MATCH (${touched.matchedInstructions}/${touched.totalInstructions} words)`);
     }
   }
 
-  const build = options.runBuild === false || cancelled() ? undefined : await runBuildCheck(options.projectRoot, 5 * 60_000, options.signal);
+  const build = options.machineVerification?.build ?? (options.runBuild === false || !proceed() ? undefined :
+    await timings.measure("linked-images", () => runBuildCheck(options.projectRoot, 5 * 60_000, options.signal)));
   if (build && build.code !== 0) failures.push(`Full build verification failed with exit code ${build.code}`);
   cancelled();
 
@@ -232,5 +236,7 @@ export async function runGate(options: {
     policy,
     failures,
     checkedAt: new Date().toISOString(),
+    timings: { phases: timings.phases, totalMs: timings.totalMs },
+    ...(options.machineVerification ? { cache: { hit: true, reason: "validated machine verification; scope and policy rechecked" } } : {}),
   };
 }

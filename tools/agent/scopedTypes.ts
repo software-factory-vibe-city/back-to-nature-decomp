@@ -1,13 +1,14 @@
 /** Scope-aware context-only names; compiler headers are never populated here. */
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { collectTypedefs, extractSignaturesFromSource } from "./sdkTypes.js";
-import { parseC, walk, namedChildren, field } from "./residual-source-search/tree-sitter-c.js";
+import { parseC, walk, namedChildren, field, C_FRONTEND_IDENTITY } from "./residual-source-search/tree-sitter-c.js";
 import { configuredCppFlags, ROOT } from "./decompToolchain.js";
 import { analyzeCSource } from "./cSourceGuard.js";
 import { scopeFromPreprocessed } from "./calleeTruth.js";
+import { cachedPreprocess, withPreprocessorMetadata } from "./preprocessedCache.js";
+import { digest, fileDigest, readCache, writeCache } from "../lib/contentCache.js";
 
 export function filesUnder(dir: string, extension: string): string[] {
   if (!existsSync(dir)) return [];
@@ -26,7 +27,36 @@ export function renameTypeTokens(source: string, names: Map<string, string>): st
   for (const e of edits.sort((a, b) => b.start - a.start)) result = result.slice(0, e.start) + e.text + result.slice(e.end);
   return result;
 }
-export function scopedTypeCatalog(root: string): {
+interface TypeFact { name: string; text: string; origin: string; kind: "typedef" | "tag" | "standalone" }
+function cachedTypeFacts(root: string, path: string, processed: ReturnType<typeof scopeFromPreprocessed>, sourceLocal: boolean): TypeFact[] {
+  const implementation = ["scopedTypes.ts", "sdkTypes.ts", "calleeTruth.ts", "residual-source-search/tree-sitter-c.ts"].map((p) => fileDigest(join(ROOT, "tools/agent", p)));
+  implementation.push(fileDigest(join(ROOT, "tools/vendor/tree-sitter-c/tree-sitter-c.wasm")), fileDigest(join(ROOT, "package-lock.json")));
+  const key = digest(JSON.stringify([processed.identity, sourceLocal, implementation, C_FRONTEND_IDENTITY]));
+  const cache = join(root, "build/cache/scoped-types", `${digest(path + sourceLocal)}.json`);
+  const hit = readCache<TypeFact[]>(cache, key);
+  if (hit) return hit;
+  const result: TypeFact[] = [];
+  const tree = parseC(processed.source);
+  try {
+    for (const node of namedChildren(tree.rootNode)) {
+      const origin = processed.lineOf(node.startPosition.row).file;
+      if (sourceLocal ? (!origin.endsWith(".c") || node.type === "function_definition") :
+        /(?:^|\/)(?:functions|sdk_types)\.h$/.test(origin) || origin.includes("/overlays/")) continue;
+      const local = new Map<string, string>(); collectTypedefs(node.text, local);
+      for (const [name, text] of local) result.push({ name, text, origin: sourceLocal ? origin : isAbsolute(origin) ? relative(root, origin) : origin, kind: "typedef" });
+      const type = ["struct_specifier", "union_specifier", "enum_specifier"].includes(node.type) ? node : field(node, "type");
+      const tag = type ? field(type, "name") : undefined;
+      if (type && tag && (sourceLocal || field(type, "body"))) result.push({ name: `${type.type.split("_")[0]} ${tag.text}`, text: `${type.text};`, origin,
+        kind: sourceLocal && node.type === "type_definition" ? "tag" : "standalone" });
+    }
+  } finally { tree.delete(); }
+  writeCache(cache, key, result);
+  return result;
+}
+export function scopedTypeCatalog(root: string): ReturnType<typeof buildScopedTypeCatalog> {
+  return withPreprocessorMetadata(() => buildScopedTypeCatalog(root));
+}
+function buildScopedTypeCatalog(root: string): {
   defs: Map<string, string>; byFunction: Map<string, Map<string, string>>;
   conflicts: Array<{ name: string; origins: string[] }>;
   excludedFunctions: Set<string>;
@@ -39,8 +69,7 @@ export function scopedTypeCatalog(root: string): {
   const normalize = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "");
   const flags = configuredCppFlags().map((f) => f.startsWith(`-I${ROOT}/`) ? `-I${join(root, relative(ROOT, f.slice(2)))}` : f);
   const preprocess = (path: string) => {
-    const output = execFileSync("mips-linux-gnu-cpp", [...flags, path], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
-    return scopeFromPreprocessed(output);
+    return scopeFromPreprocessed(cachedPreprocess(path, root, flags).text);
   };
   const publicType = (name: string, text: string, origin: string) => {
     if (defs.has(name) && normalize(defs.get(name)!) !== normalize(text)) {
@@ -52,17 +81,7 @@ export function scopedTypeCatalog(root: string): {
   for (const path of filesUnder(join(root, "include"), ".h")) {
     if (excluded(path)) continue;
     const processed = preprocess(path);
-    const tree = parseC(processed.source);
-    for (const node of namedChildren(tree.rootNode)) {
-      const origin = processed.lineOf(node.startPosition.row).file;
-      if (excluded(origin)) continue;
-      const local = new Map<string, string>(); collectTypedefs(node.text, local);
-      for (const [name, text] of local) publicType(name, text, isAbsolute(origin) ? relative(root, origin) : origin);
-      const type = ["struct_specifier", "union_specifier", "enum_specifier"].includes(node.type) ? node : field(node, "type");
-      const tag = type ? field(type, "name") : undefined;
-      if (type && tag && field(type, "body")) publicType(`${type.type.split("_")[0]} ${tag.text}`, `${type.text};`, origin);
-    }
-    tree.delete();
+    for (const entry of cachedTypeFacts(root, path, processed, false)) publicType(entry.name, entry.text, entry.origin);
   }
   for (const path of filesUnder(join(root, "src"), ".c")) {
     const source = readFileSync(path, "utf8");
@@ -78,19 +97,13 @@ export function scopedTypeCatalog(root: string): {
     const standalone = new Map<string, string>();
     if (rawLocal.size || source.includes("struct ") || source.includes("union ") || source.includes("enum ")) {
       const processed = preprocess(path);
-      const tree = parseC(processed.source);
-      for (const node of namedChildren(tree.rootNode)) {
-        const origin = processed.lineOf(node.startPosition.row).file;
-        if (!origin.endsWith(".c") || node.type === "function_definition") continue;
-        collectTypedefs(node.text, local);
-        const type = ["struct_specifier", "union_specifier", "enum_specifier"].includes(node.type) ? node : field(node, "type");
-        const tag = type ? field(type, "name") : undefined;
-        if (type && tag) {
-          localTags.add(tag.text);
-          if (node.type !== "type_definition") standalone.set(`${type.type.split("_")[0]} ${tag.text}`, `${type.text};`);
+      for (const entry of cachedTypeFacts(root, path, processed, true)) {
+        if (entry.kind === "typedef") local.set(entry.name, entry.text);
+        else {
+          localTags.add(entry.name.split(" ")[1]!);
+          if (entry.kind === "standalone") standalone.set(entry.name, entry.text);
         }
       }
-      tree.delete();
     }
     const scope = createHash("sha256").update(relative(root, path)).digest("hex").slice(0, 12);
     const names = new Map([...new Set([...local.keys(), ...localTags])].map((name) => [name, `M2C_${scope}_${name}`]));
