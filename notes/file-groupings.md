@@ -6115,6 +6115,17 @@ Members (link order):
 - **gapless link adjacency:** `ovl_11_func_800FFA28` (0x18 bytes at 0x47C08)
   ends exactly at `ovl_11_func_800FFA40` (0x24 bytes at 0x47C20) — one
   unbroken link run, both members matched byte-exact;
+- **adjacent-band predecessor chain (new evidence):** the pair head sits at
+  the end of one unbroken 0x800FF8C8–0x800FFA40 link band —
+  `ovl_11_func_800FF8C8` (0xA4, ends exactly at 0x800FF96C) →
+  `ovl_11_func_800FF96C` (0xBC, stub, ends exactly at 0x800FFA28) → the pair.
+  800FF8C8 is a `D_801273B0` handler (0x21 → advances to 0x20 on
+  `func_800226A4() == 2`) whose sibling state word `D_801273B0` is the
+  init/trigger word of matched `ovl_11_func_800FEBF8`/`ovl_11_func_800FEC2C`,
+  and whose event tail (`func_800226D8(0)` / `func_80017B18(0)` /
+  `func_8002261C(3, 0x3B3)`) is the `D_801273Exx` run's handler idiom; it does
+  not itself touch `D_801273D8`/`D_801273DA`, so the tie to the pair is link
+  adjacency plus the shared `D_801273xx` state region and handler idiom;
 - **shared globals with complementary roles:** 800FFA28 is the init leaf —
   zeroes `D_801273D8` and sets `D_801273DA = 0xFF`; 800FFA40 calls 800FFA28
   then clears `D_801273DA` back to 0 (init + reset of the same flag pair);
@@ -6123,6 +6134,13 @@ Members (link order):
   caller (`ovl_11_func_800C7AC0` state machine) ignores the return value.
 
 Members (link order):
+- ovl_11_func_800FF8C8 (m, matched this session, byte-exact) — adjacent-band
+  predecessor: `D_801273B0` state machine (0x21 branch queues
+  `func_8002261C(3, arg1 + 0x37E)` or `(3, arg0 + 0x37B)`, then on
+  `func_800226A4() == 2` calls `func_80022738()` and advances `D_801273B0` to
+  0x20; the 0x20 state calls `func_800226D8(0)` / `func_80017B18(0)` /
+  `func_8002261C(3, 0x3B3)`) — role tied to the pair by gapless link band and
+  the shared `D_801273xx` handler idiom, not by `D_801273D8`/`D_801273DA`
 - ovl_11_func_800FFA28 (m) — void init leaf: `D_801273D8 = 0`,
   `D_801273DA = 0xFF`
 - ovl_11_func_800FFA40 (m) — void reset: calls 800FFA28, then
