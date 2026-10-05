@@ -1276,5 +1276,11 @@ extern u8 D_80137A30[];
  * overlay data segment, so only an extern declaration belongs here. */
 extern u16 *D_801287F8;
 
+/* D_801291A8 - pair of pointers to 0x30-byte overlay entries. Set by
+ * ovl_11_func_800DDC64, whose loop indexes the pair by bit 0 of an entry's
+ * 0x28 halfword; ovl_11_func_800DDD18 clears/sets bit 0x1000 of the two
+ * chosen entries' 0x28 halfwords. Absolute-addressed in ovl_11 code. */
+extern u32 D_801291A8[2];
+
 #endif /* GLOBALS_OVERRIDE_H */
 

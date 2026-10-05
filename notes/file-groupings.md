@@ -1018,6 +1018,36 @@ Members:
 
 ---
 
+## `ovl_11` D_801291A8 pointer-pair run — 0x800DDC64 / 0x800DDD18 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): two gapless
+neighbours operating on the same two-pointer file-scope global.
+
+Fingerprints:
+- **shared global `D_801291A8`** (main RAM 0x801291A8, two 4-byte pointer
+  slots at +0/+4 viewed as `u32[2]`, absolute `lui`+`%lo`, `-G0` no gp-rel):
+  written by `ovl_11_func_800DDC64` (clears both slots, then fills them from
+  the shared 0x30-stride `D_80128E08` table indexed by bit 0 of an entry's
+  0x28 halfword) and read/bit-modified by `ovl_11_func_800DDD18` (clears bit
+  0x1000 on one slot's entry +0x28, sets it on the other).
+- **zero-gap link adjacency**: 0x800DDC64 (0xB4) ends exactly at 0x800DDD18
+  (0x9C) — the map places them back to back with no unrelated code between.
+- **data adjacency**: `D_801291A8` immediately follows `D_801291A0`, the high
+  member of the D_80129194–D_801291A0 mirror-pair run above, so the pair is
+  the next file-scope data object after that run's globals.
+
+Members:
+- ovl_11_func_800DDC64 (s) — pointer-pair setter: clears `D_801291A8` then
+  stores up to two `D_80128E08` entries into the slot selected by entry bit
+  0; itself walks the shared `D_80128E08` table (see the 0x30-stride walk
+  section above)
+- ovl_11_func_800DDD18 (m, matched this session) — pointer-pair modifier: if
+  `D_801291A8[0]` is nonzero, calls `func_8001AF44(0x72)` and, on `== 1`,
+  clears bit 0x1000 on `D_801291A8[1]`'s 0x28 halfword and sets it on
+  `D_801291A8[0]`'s (reversed when not 1); byte-exact clean C, baseline flags
+
+---
+
 ## `ovl_11` D_80127428 shared-state cluster — 0x801037DC–0x801040A8 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) threaded through a
