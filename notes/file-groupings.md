@@ -7332,6 +7332,18 @@ Members (link order):
 - ovl_11_func_800BFD04 (m) — paired writer: stores its s16 argument into the
   same work halfword at `+0x64C8`.
 
+Extension (shared object, no link adjacency): `ovl_11_func_800C056C`
+(m, matched this session, byte-exact) reads the same `base + 0x64C8` work
+halfword through the identical `base += 0x8000` two-stage spelling and, on the
+same `D_8006C838` object, also gates on the `+0xC & 0x08000000` and `+0x8 & 7`
+fields. Its second halfword field, `D_8007AFF0 + 0x253B8`, is the far-buffer
+slot of the `+0x253xx` region documented for `ovl_11_func_800DB904` /
+`ovl_11_func_800DB978`; the shared-object offsets, not a contiguous run, are the
+tie, so membership is weaker than the adjacent pair above.
+- ovl_11_func_800C056C (m, matched this session, byte-exact) — guarded
+  read-modify-write: when `+0x64C8` is 3 or 4 and `(+0x8 & 7) == 3`, subtracts
+  `func_80012A34(0x64) - 0x32` from the `D_8007AFF0 + 0x253B8` halfword.
+
 ---
 
 ## `ovl_17` D_8006C838+0x8000 work-area 0x1D4-stride record pair — 0x800BB394 / 0x800BB3F4 (confidence: medium)
