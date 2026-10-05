@@ -4758,9 +4758,9 @@ referencers in the binary.
 - ovl_11_func_80112318 (m, matched this session, 0x94, byte-exact) — reads
   slice D_80127F88 as an s16 table base in a 4-entry loop, clears bit 0x8 of
   s32 global D_800719F8
-- ovl_11_func_801123AC (s) — byte-twin of 0x80112318 (same 0x94 shape; link-
-  contiguous, 0x80112318 ends exactly at it), reads slice D_80127F90, masks
-  D_800719F8 by ~0x11
+- ovl_11_func_801123AC (m, matched this session, 0x94, byte-exact) — byte-twin
+  of 0x80112318 (same 0x94 shape; link-contiguous, 0x80112318 ends exactly at
+  it), reads slice D_80127F90, masks D_800719F8 by ~0x11
 - ovl_11_func_80112A84 (m, matched this session) — reads the 5-entry pointer
   table D_80127FD4 (middle slice) indexed by the s16 at D_8006C838+0xE776 via
   the +0x8000 two-stage split (the D_8006C838 reader idiom of cluster member
@@ -4779,7 +4779,8 @@ on the single s32 flag, and all sit inside the unbroken link run
   ovl_11_func_800F3E00 (the same callee 0x80112440/0x80112494 use)
 - ovl_11_func_80112318 (m, matched this session) — 4-entry loop over
   D_80127F88, clears bit 0x8 via the shared &D_800719F8 base register
-- ovl_11_func_801123AC (s) — byte-twin over D_80127F90, clears ~0x11
+- ovl_11_func_801123AC (m, matched this session, 0x94, byte-exact) — reads
+  slice D_80127F90 via the shared `base = &D_800719F8` spelling, clears ~0x11
 - ovl_11_func_8011256C (m, matched this session, 0x70, byte-exact) — clears
   bit 0x100 of D_800719F8, then unless flag at D_80070D30 (reached as
   `&D_800719F8 - 0xCC8`, one shared base register — a declaration-order tie
