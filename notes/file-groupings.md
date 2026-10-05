@@ -6105,18 +6105,28 @@ Members:
   returns (no tail call). The two differ only in the per-entry leaf and the
   arg0 pass-through.
 
-## `ovl_11` D_80075AD4 0xF0-byte record access cluster — 0x800CF314 / 0x800C580C / 0x8010C1FC (confidence: low)
+## `ovl_11` D_80075AD4 0xF0-byte record access cluster — 0x800CF314 / 0x800C580C / 0x8010C1FC / 0x8010B1C4 (confidence: medium)
 
 - shared-global fingerprint: D_80075AD4 is the record base reached absolutely
-  by 0x800C580C (passed as arg0) and by 0x8010C1FC (fields +0x22, +0x78);
+  by 0x800C580C (passed as arg0), by 0x8010C1FC (fields +0x22, +0x78) and by
+  0x8010B1C4 (u16@+0x0 zero-test, passed as arg0 to the initializer);
   0x800CF314 writes the same record through its interior view anchors
   D_80075AEA (+0x18/+0x1A) and D_80075B0C (+0/+4/+8, base minus 0xA/−8).
 - record extent: D_80075BC4 follows D_80075AD4 by exactly 0xF0, the same 0xF0
   struct size the memset-clear family records for 0x8010B64C / 0x801092E0 — so
   this is the 0xF0-byte record that precedes the D_80075BC4 0xB0-stride table
-  (see the D_80075BC4 entry below; ownership still unconfirmed).
+  (see the D_80075BC4 entry below; ownership still unconfirmed). The 0xF0 size
+  is now independently witnessed from the writer side: 0x8010B1C4's callee
+  0x8010B778 memsets exactly 0xF0 bytes at this record base.
+- initializer tie (call graph): 0x8010B1C4 is the cluster's gate entry — it
+  calls ovl_11_func_8010B778 (&D_80075AD4, arg0), the 0xF0 far-state
+  initializer of the 0x8010B64C gapless band, and returns the record base,
+  tying this record cluster to that band through the call graph.
 - link adjacency (weak): 0x800CF308 sits immediately before 0x800CF314 in the
-  0x800CFxxx run; callers/siblings are container-local, so no cross-container tie.
+  0x800CFxxx run; 0x8010B1C4 is the zero-gap tail of the 0x8010B0E8 (0xB0) →
+  0x8010B198 (0x2C) → 0x8010B1C4 (0x54) chain, which ends at 0x8010B218
+  (0x42C gap before the 0x8010B64C band); callers/siblings are container-local,
+  so no cross-container tie.
 
 Members:
 - ovl_11_func_800CF314 (m, matched this session, byte-exact) — record fill:
@@ -6125,6 +6135,11 @@ Members:
 - ovl_11_func_800C580C (s) — caller: passes &D_80075AD4 as arg0 (arg1/arg2 are
   s1+0xFC / s1+0x100).
 - ovl_11_func_8010C1FC (s) — same record base D_80075AD4, fields +0x22 and +0x78.
+- ovl_11_func_8010B1C4 (m, matched this session, 0x54, byte-exact) — gate
+  entry: when arg0 is 0x15E/0x15F and u16@+0x0 == 0, calls
+  ovl_11_func_8010B778(&D_80075AD4, arg0) (the band's 0xF0 record
+  initializer) and returns &D_80075AD4, else returns NULL; sole witnessed
+  caller 0x800CE744.
 
 ## `ovl_11` D_80123758 0x18-byte item-record table cluster — 0x800CF258 / 0x800CF428 (confidence: medium)
 

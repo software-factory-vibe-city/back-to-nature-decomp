@@ -1403,5 +1403,10 @@ extern void D_80015828(u16 *arg0, s32 arg1);
  * ovl_11_func_8010BBA8 (range-tested against 9 and 0xC9). */
 extern s16 D_80075AEA;
 
+/* D_80075AD4 - ovl_11 u16 flag, loaded with lhu (absolute access) by
+ * ovl_11_func_8010B1C4, which tests it for zero and passes its address
+ * to ovl_11_func_8010B778. */
+extern u16 D_80075AD4;
+
 #endif /* GLOBALS_OVERRIDE_H */
 
