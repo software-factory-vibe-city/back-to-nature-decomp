@@ -35,7 +35,8 @@ export interface PreparationPacket {
     preprocessed?: { path: string; sha256: string }; object?: { path: string; sha256: string }; diagnostics: string };
   comparison: { status: "not-available" | "mismatching" | "exact" | "undetermined"; report?: string; residual?: unknown; reason?: string };
   integration: { state: "staged" | "live"; changes: string[]; blockers: string[]; destinationHash: string; stagedHash?: string };
-  discovery: { unknowns: UnknownFact[]; report: unknown; priorExperiments: string[]; preflight: CommandRecord[] };
+  discovery: { unknowns: UnknownFact[]; report: unknown; priorExperiments: string[]; preflight: CommandRecord[];
+    propagation?: { graph: string; report: string; input: string; graphComplete: boolean; convergence: string; visited: number; facts: number; steps: number } };
   finalization: { status: "not-attempted" | "failed" | "passed"; gate?: string; verifiedIdentity?: string; changedFiles?: string[] };
 }
 
@@ -50,6 +51,7 @@ export function packetOpening(packet: PreparationPacket, packetPath: string): st
     `Measured source: ${source?.path ?? "none — generation failed"}. Live destination: ${packet.identity.destination} (${packet.integration.state}).`,
     `Generation: ${packet.generation.status}; compilation: ${packet.compilation.status}; comparison: ${packet.comparison.status}; finalization: ${packet.finalization.status}.`,
     links,
+    ...(packet.discovery.propagation ? [`Type propagation: ${packet.discovery.propagation.convergence}, ${packet.discovery.propagation.visited} original functions; graph ${packet.discovery.propagation.graphComplete ? "closed" : "coverage incomplete"}. Constraints/provenance: ${packet.discovery.propagation.report}; actual m2c input: ${packet.discovery.propagation.input}.`] : []),
     ...(packet.comparison.report ? [`Relocated-byte report: ${packet.comparison.report}. Compilation, exactness and finalization are separate claims.`] : []),
     `Blockers: ${packet.integration.blockers.length}; unresolved facts: ${packet.discovery.unknowns.filter((u) => u.strength !== "witnessed").length}. See evidence.md for constraints, examined inputs and next evidence paths.`,
     ...packet.discovery.unknowns.filter((u) => u.strength !== "witnessed" && /contract|signature|conflict/.test(u.missing)).slice(0, 4)
@@ -70,6 +72,7 @@ export function packetEvidence(packet: PreparationPacket): string {
   return [
     `# Evidence for ${packet.identity.functionName}`,
     `Selected context: ${packet.context.projection}\nOriginal assembly: ${packet.identity.assembly}\nOriginal data: ${packet.identity.data.join(", ") || "none"}`,
+    ...(packet.discovery.propagation ? [`Graph: ${packet.discovery.propagation.graph}\nPropagation: ${packet.discovery.propagation.report}\nPartial m2c inputs: ${packet.discovery.propagation.input}\nConvergence and graph completeness are separate: ${packet.discovery.propagation.convergence}, complete=${packet.discovery.propagation.graphComplete}.`] : []),
     ...packet.integration.blockers.map((b) => `- Blocker: ${b}`),
     ...packet.discovery.unknowns.map((u) => [
       `## ${u.subject} (${u.strength})`, u.missing,

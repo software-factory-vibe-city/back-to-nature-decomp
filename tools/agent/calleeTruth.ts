@@ -57,6 +57,7 @@ import {
 } from "./decompToolchain.js";
 import { analyzeFrame, analyzeReturnValue, maximumArity, minimumArity } from "./frameMap.js";
 import { declaredFunction } from "./sdkTypes.js";
+import { inspectType } from "./type-propagation/c-types.js";
 import { children, field, parseC, subtreeIsBroken, walk, type Node } from "./residual-source-search/tree-sitter-c.js";
 
 /* ------------------------------------------------------------------ */
@@ -82,6 +83,10 @@ export interface Prototype {
   paramTypes?: string[];
   /** Zero-based incoming ABI positions, including unused earlier slots. */
   slots?: Array<number | null>;
+  /** Seed admission only: reads of defining C parameters, resolved by AST. */
+  usedParameters?: boolean[];
+  /** Declaration identities of named type dependencies, not the caller TU. */
+  typeScopes?: { parameters: string[]; result: string };
   /**
    * A definition is authoritative about the function; a declaration is only
    * somebody's claim about it, and a claim is what is under audit here.
@@ -145,12 +150,10 @@ function readParameters(params: Node): { count: number | null; variadic: boolean
 export function incomingSlots(types: string[]): Array<number | null> {
   let slot: number | null = 0;
   return types.map((type) => {
-    const text = type.replace(/\b(?:const|volatile|restrict)\b/g, "").replace(/\s+/g, " ").trim();
-    const wide = /^(?:double|(?:unsigned |signed )?long long(?: int)?)$/.test(text);
-    const scalar = /\*|\[/.test(text) || /^(?:(?:unsigned |signed )?(?:char|short(?: int)?|int|long(?: int)?)|float|[us](?:8|16|32)|u_(?:char|short|int|long))$/.test(text);
-    if (slot === null || (!wide && !scalar)) { slot = null; return null; }
-    if (wide && slot % 2) slot++;
-    const position = slot; slot += wide ? 2 : 1; return position;
+    const width = inspectType(type).abiWords;
+    if (slot === null || width === null) { slot = null; return null; }
+    if (width === 2 && slot % 2) slot++;
+    const position = slot; slot += width; return position;
   });
 }
 
@@ -356,9 +359,9 @@ export function sdkPrototypes(): Map<string, Prototype> {
   return index;
 }
 
-/** Line-leading `name(` — cheap enough to run over every source file. */
+/** AST inventory, never a name-shaped match in comments or string literals. */
 function definesFunction(text: string, callee: string): boolean {
-  return new RegExp(`^[A-Za-z_][\\w \\t*]*\\b${callee}\\s*\\(`, "m").test(text);
+  return prototypesIn(text, "source-inventory").some((p) => p.name === callee && p.kind === "definition");
 }
 
 /**
@@ -515,7 +518,7 @@ export function contradictionsAgainst(
   /* Frame evidence counts WORD SLOTS, not C parameters. An unknown by-value
      layout or a variadic tail prevents a finite source-level upper bound. */
   let capacity = declared.parameters;
-  if (declared.slots && declared.paramTypes) {
+  if (capacity !== null && declared.slots && declared.paramTypes) {
     if (declared.slots.some((slot) => slot === null)) capacity = null;
     else {
       const positions = incomingSlots([...declared.paramTypes, "int"]);

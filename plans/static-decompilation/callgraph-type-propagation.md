@@ -1,7 +1,8 @@
 # Callgraph-driven type propagation for static m2c preparation
 
-Status: **planned; active Task 1 follow-up**. This document specifies the next
-implementation, not an implemented capability or permission to commit.
+Status: **bounded core implemented; acceptance incomplete; active Task 1 follow-up**.
+The delivery record below distinguishes implemented mechanisms from the failed
+primary acceptance gate. Nothing here grants permission to commit.
 
 Related: [plan index](README.md), [Task 1 contract](01-context-and-handoff.md),
 [current evidence](task-01-changeset-overview.md). Optional declaration publication
@@ -335,3 +336,132 @@ coverage/bounds, concrete seed-to-target chains, actual m2c input/output effect,
 per-function results for the known dependency cohort and secondary smoke sample,
 raw compile/byte verdicts, unresolved outcomes and verification commands. Keep
 implementation, analysis coverage and successful reproduction as separate claims.
+
+
+## 10. Implementation and measured delivery
+
+Implemented under `tools/agent/type-propagation/`, integrated with static discovery,
+preparation/freshness and compact campaign handoffs. The original-code graph is
+independent of worklist eligibility. It preserves direct/tail/incoming edges,
+resolved per-target callbacks, original table entries, cycles, dependency-selected
+storage users, frontier and opaque effects. Local summaries recover actual ABI
+word/value/memory relationships, including the pre-transfer delay slot and the
+pre-delay-slot indirect target. The finite SCC/worklist solver transports
+argument/result requirements both ways, backward phi requirements and exact-width
+store/load facts; conflicts and open-target conditions retain their witnesses.
+Public/private type identity and seed parameter reads use the pinned C AST.
+Preparation's fixed-field layout and declaration/alias inspection also use ASTs,
+not bare regex C analysis. Assembly/data/diagnostic syntax remains separate.
+
+SDK or relocated-byte-verified clean defining C supplies independent seeds.
+Unused source parameters do not establish an observable arity. Held-out roots
+and intermediates are excluded from every projected signature scope. Shared
+storage selection does not claim inter-function lifetime equality. Wide/hidden
+ABI forms and tail result/stack forwarding are explicitly outside the word domain.
+Default limits are 96 functions, 65,536 original instructions, 32 targets,
+256 storage dependencies, 200,000 propagation steps and 1,000,000 indexed words.
+A fixed point on an open or budget-truncated graph is not complete coverage.
+
+Pinned m2c patch 0004 supplies related-function inference while emitting only the
+selected function, dependency-rooted emission, partial ABI slots/type carriers
+and open-dispatch boundaries. Constraints change actual raw calls/returns; the
+forwarding fixture compiles to exact relocated original words. A regression
+shows why an open callback must not inherit one member's narrow signature:
+otherwise native inference manufactures caller-side sign extensions. The graph
+boundary also prevents cosmetic cast unification from undoing that isolation.
+
+### Frozen known-dependency cohort
+
+All four checked-in reference functions byte-matched before freezing the seed,
+source, original-target and expected-fact manifests. No cohort member was replaced.
+Every requested expected fact and missing-leaf/restored-seed control succeeds.
+Fresh alternatives—not measurement of existing C—produce these results:
+
+| Root | Original graph / facts | Raw compile | Relocated bytes / acceptance |
+|---|---|---|---|
+| `func_8002238C` | 8 functions, 175 facts; leaf `func_80015EE8` through `func_800224F0` and held-out `func_800223D4` reaches the root scalar argument, condition retained | **fails** | unavailable; gate fails |
+| `func_800223D4` | 8 functions, 188 facts; `func_80015704` supplies independently witnessed `SpriteSourceData *` / `SpriteDataHeader *`; indirect call retains slot 4 | **fails** | unavailable; gate fails |
+| `ovl_25_func_800BAC28` | 2 functions, 45 facts; cross-container `func_8001C0D4` supplies `FuncC0D4Args *` and two `VECTOR *` requirements | succeeds | **mismatch**; inference checks pass, not finalized |
+| `ovl_25_func_800B81B4` | 4 functions, 21 facts; original calls to `ovl_25_func_800B93E4`, `func_80013328`, `func_8001FE34` and controlled deeper constraints | succeeds | **mismatch**; inference checks pass, not finalized |
+
+The first two have an open callback at **0x80022498**. Isolation removes the
+erroneous narrow argument-3 and stack argument-4 representations, but the callable's
+ignored result remains unresolved in this domain. A member-specific whole contract
+would compile by leaking a conditional interpretation; it is not promoted to a
+uniform fact. Earlier compiling/exact root drafts used that leakage and are not
+the final acceptance result. No default scalar or `void` result was invented.
+The next capability is justified partial callable/result representations, or a
+proof of original target-set closure—not a target-specific raw-body repair.
+
+The two compiling mismatches were inspected, not labelled scheduler-only:
+`BAC28` has scalar stack pieces cast to aggregate pointers, lost original stores
+and an unobservable source-result interpretation (staged key **0/25/5/0**).
+`B81B4` has a return/storage representation residual (**0/5/0/0**), including
+native omission of the checked-in returned increment. These are source-level
+residuals; raw signatures are not exported. Private `FuncC0D4Args` dependencies
+are mechanically carried into scratch compilation, with integration still blocked.
+
+### Reported reproduction and collateral smoke
+
+Original `D_800BCBD8` is validated against its five original entries. The
+reproduction visits all five and recursively follows their real call sites,
+including `B80A4`/`B813C` → `BAC28` → `func_8001C0D4`, and
+`B81B4` → `B93E4` / `func_80013328` / `func_8001FE34`.
+Argument/result SSA IDs, stack words, seed evidence and unsupported instructions
+are preserved in the graph/report, not replaced with uniform table signatures.
+
+The final reproduction examines **96 functions / 5,425 facts**, reaches a
+propagation fixed point with **52 frontier records** and **201 unsupported effects**,
+and still **does not compile**. Bounds exclude, among others, `func_80013B04`,
+`func_80013CD0`, `func_80017F88`, `func_8001A018`, `func_8001B2CC`,
+`func_80021FD0`, `func_80022964` and `func_800229F4`. The original table's
+index range and immutability remain unproved. Opaque unaligned effects in
+`func_8001B5DC` and other selected originals block affected proofs. Four entry
+result contracts remain budget/input incomplete; none is called genuinely
+ambiguous. **The failing reproduction is not fixed.**
+
+| Secondary sample | Generation | Compilation | Bytes | Graph |
+|---|---|---|---|---|
+| `func_80017A64` | fresh alternative | succeeds | mismatch | 1 function, 1 fact |
+| `ovl_25_func_800B81B4` | reused identical cohort inputs | succeeds | mismatch | 4 functions, 21 facts |
+| `func_8001202C` | fresh alternative | succeeds | mismatch | 1 function, 3 facts |
+| `ovl_25_func_800B7EB4` | scratch generation | fails | unavailable | bounded/open, as above |
+
+Seven live-source hashes are unchanged. Normal resume keeps
+`existing-attempt` primary and generation `not-attempted`. Handoffs remain
+under 5 KB. No live source/header/flag edit, signature publication, integration,
+finalization or generated tracked-file edit was performed. Version-control commits
+are separately authorized by the user's explicit request.
+
+### Verification and evidence
+
+- Graph/inference/preparation/declaration/machine-IR regressions: **51 tests pass**,
+  including the exact production-compiled forwarding fixture and open-callback
+  negative control.
+- Patched m2c complete vendor suite: **355 pass, 21 fail**, identical failure set
+  to the pre-change three-patch baseline; **zero new failures**. Its six mechanism
+  unit tests pass. The baseline failures are not hidden or called a green suite.
+- Strict repository TypeScript invocation: **1,200 existing diagnostics**; **zero
+  diagnostics in the changed modules**. This is a scoped check, not a claim of a
+  passing repository-wide typecheck.
+- `make check-all`: the executable and **all 13 overlays byte-match**.
+- The global `sourcePolicy.ts` gate **exits 1** on unchanged existing source/stub,
+  register-assembly and flag-override findings. No live source/header/flag file is
+  changed by this implementation; this audit is not reported as a passing gate.
+- `typePropagationAcceptance.ts --run`: **exits 1**, preserving both failed
+  primary members and the failed reproduction, rather than weakening the gate.
+- `checkDocReferences.ts` is run over the changed documentation; no stale links.
+
+Reproduction commands and bounds are in `tools/agent/type-propagation/README.md`.
+The expected-fact manifest is
+`configs/static-decompilation/type-propagation-acceptance.json`.
+Full frozen inputs, baselines, raw drafts, controls, coverage, ABI checks, provenance,
+residuals and source hashes are linked from
+`build/type-propagation/acceptance/report.json`; logs are under
+`build/type-propagation/`. A version-1 historical implicit-int ABI metadata digest
+is accepted only on exact unchanged signature/file identity and explicitly recorded
+for three unrelated SDK declarations; expected facts and frozen files are unchanged.
+
+**Completion boundary:** the bounded propagation and actual m2c integration are
+implemented and collateral-safe. The plan's positive-cohort acceptance requirement
+is **not satisfied**, and Task 1 must not be marked fully complete on this evidence.

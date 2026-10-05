@@ -95,6 +95,8 @@ export type EffectOp =
       through?: ValueId;
       /** Argument registers a0..a3, then any outgoing-area slots written. */
       args: Array<ValueId | null>;
+      /** Memory immediately before the transfer, after its delay slot. */
+      memory?: MemoryId;
     }
   | { kind: "opaque"; source: OpaqueSource; operands: ValueId[] };
 

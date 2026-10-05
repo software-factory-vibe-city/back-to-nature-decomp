@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { dirname, join, relative } from "node:path";
 import { recordedCommand, commandText, type CommandRecord } from "../lib/recordedCommand.js";
 import { requireFunctionLocation, loadSymbolIndex } from "../lib/symbolIndex.js";
-import { containerTargetPath } from "../lib/container.js";
+import { containerTargetPath, loadContainers } from "../lib/container.js";
 import { compareFunction } from "../lib/functionOracle.js";
 import { ROOT, configuredCppFlags, configuredCc1FlagsForContainer, configuredCompilerPath,
   configuredAsFlagsForContainer, configuredMaspsxFlags, configuredToolchainIdentity, loadFlagOverrides,
@@ -18,9 +18,13 @@ import { emptyDeclarationIndex, indexDeclarations, globalViews, projectDeclarati
 import { namedChildren, parseC } from "./residual-source-search/tree-sitter-c.js";
 import { renameTypeTokens } from "./scopedTypes.js";
 import { auditM2cArithmetic } from "./m2cLimits.js";
-import { layoutStruct } from "./sdkIdioms.js";
 import { discoverStatic, selectDataDefinitions } from "./staticDiscovery.js";
 import { packetOpening, packetEvidence, type PreparationPacket, type UnknownFact } from "./campaign/packet.js";
+import { buildEvidenceGraph } from "./type-propagation/graph.js";
+import { seedOracle } from "./type-propagation/seeds.js";
+import { propagate, inferenceInput } from "./type-propagation/solve.js";
+import { originalAssembly } from "./type-propagation/assembly.js";
+import { unspecifiedParameters, layoutFields } from "./type-propagation/c-types.js";
 
 export const hashText = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
 export const hashFile = (path: string) => existsSync(path) ? hashText(readFileSync(path)) : "absent";
@@ -52,13 +56,16 @@ function unknown(subject: string, missing: string, evidence: string[], strength:
 /** Safe staging only: never publish declarations, guess a type, or repair a body.
  * This is the library used by the CLI, interactive command, and both controllers.
  */
-export async function prepareFunction(functionName: string, options: { root?: string; signal?: AbortSignal; alternative?: boolean; contextFile?: string } = {}): Promise<{ packet: PreparationPacket; path: string }> {
+export async function prepareFunction(functionName: string, options: { root?: string; signal?: AbortSignal; alternative?: boolean; contextFile?: string;
+  inferenceView?: { withhold?: string[]; disableSeeds?: string[]; permittedSeeds?: string[]; disableTransfers?: boolean } } = {}): Promise<{ packet: PreparationPacket; path: string }> {
   const root = options.root ?? ROOT;
   const location = requireFunctionLocation(functionName);
   const container = location.container;
   const destination = join(container.paths.srcDir, `${functionName}.c`);
-  const assembly = resolveAsmSource(functionName);
-  if (!assembly) throw new Error(`Original assembly unavailable for ${functionName}`);
+  const originalDirectory = join(root, "build/preparation/originals", functionName, hashFile(containerTargetPath(container)));
+  mkdirSync(originalDirectory, { recursive: true });
+  const original = originalAssembly(functionName, originalDirectory);
+  const assembly = original.path;
   const source = readFileSync(join(root, destination), "utf8");
   const guard = analyzeCSource(source);
   const definitions = extractSignaturesFromSource(source);
@@ -74,6 +81,7 @@ export async function prepareFunction(functionName: string, options: { root?: st
   /* Complete declaration/config/decompiler sources, plus actual transitive compile inputs.
      Deliberately content hashes: timestamp and Git HEAD are not input identities. */
   for (const path of [assembly, join(root, destination), containerTargetPath(container), join(root, "Makefile"),
+    ...loadContainers().map(containerTargetPath), ...original.inputs,
     ...allFiles(join(root, "configs")), ...allFiles(join(root, "include")), ...allFiles(join(root, "src")),
     ...allFiles(join(root, "tools/vendor/m2c/m2c")).filter((p) => p.endsWith(".py")),
     ...allFiles(join(root, "tools/vendor/m2c/m2c_pycparser")).filter((p) => p.endsWith(".py")),
@@ -95,7 +103,7 @@ export async function prepareFunction(functionName: string, options: { root?: st
   input(process.execPath);
   const flags = [...configuredCc1FlagsForContainer(container.kind), ...(loadFlagOverrides().get(functionName) ?? [])];
   if (options.contextFile) input(join(root, options.contextFile));
-  const fingerprint = hashText(JSON.stringify({ inputs, tools, flags, alternative: options.alternative ?? false }));
+  const fingerprint = hashText(JSON.stringify({ inputs, tools, flags, alternative: options.alternative ?? false, inferenceView: options.inferenceView ?? {} }));
   const baseDirectory = join(root, "build/preparation", functionName, fingerprint);
   let directory = baseDirectory;
   let packetPath = join(directory, "packet.json");
@@ -150,7 +158,28 @@ export async function prepareFunction(functionName: string, options: { root?: st
   savePacket(root, directory, packet);
   try {
     if (options.signal?.aborted) throw new Error("Preparation cancelled");
-    packet.discovery.report = discoverStatic(functionName, root);
+    const heldOut = [...new Set([functionName, ...(options.inferenceView?.withhold ?? []), ...(options.inferenceView?.disableSeeds ?? [])])];
+    const seeds = seedOracle(join(directory, "seeds"), heldOut, options.inferenceView?.permittedSeeds);
+    const evidenceGraph = buildEvidenceGraph(functionName, { seed: seeds.get, ...(options.signal ? { signal: options.signal } : {}) });
+    for (const path of evidenceGraph.inputs) input(path);
+    if (options.inferenceView?.disableTransfers) evidenceGraph.relations = [];
+    const propagation = propagate(evidenceGraph, seeds.get);
+    const inference = inferenceInput(evidenceGraph, propagation);
+    const graphPath = join(directory, "type-graph.json"), propagationPath = join(directory, "propagation.json"), constraintsPath = join(directory, "inference.json");
+    writeFileSync(graphPath, JSON.stringify(evidenceGraph, null, 2));
+    writeFileSync(propagationPath, JSON.stringify({ ...propagation, seeds: seeds.records, inferenceView: options.inferenceView ?? {}, heldOut }, null, 2));
+    packet.discovery.propagation = { graph: relative(root, graphPath), report: relative(root, propagationPath), input: relative(root, constraintsPath),
+      graphComplete: evidenceGraph.indexComplete && !evidenceGraph.frontier.length, convergence: propagation.status,
+      visited: evidenceGraph.nodes.length, facts: propagation.facts.length, steps: propagation.steps };
+    for (const conflict of propagation.conflicts) packet.discovery.unknowns.push(unknown(conflict.endpoint,
+      "incompatible uncast type-use representations; a conversion or separate storage view is required, not a blanket source-type equality", [relative(root, propagationPath), ...conflict.facts], "conditional"));
+    for (const unresolved of propagation.unresolved.filter((u) => u.node === evidenceGraph.root)) {
+      const item = unknown(`${unresolved.node}:ABI ${unresolved.slot}`, unresolved.reason, [relative(root, propagationPath), relative(root, graphPath)], unresolved.outcome === "unsupported" ? "unsupported" : "unknown");
+      item.bound = `${evidenceGraph.nodes.length}/${evidenceGraph.bounds.functions} original functions; ${propagation.steps}/${evidenceGraph.bounds.propagationSteps} propagation steps; graph coverage and convergence are separate`;
+      item.stoppedBecause = unresolved.outcome;
+      packet.discovery.unknowns.push(item);
+    }
+    packet.discovery.report = discoverStatic(functionName, root, evidenceGraph);
     packet.discovery.unknowns.push(...(packet.discovery.report as ReturnType<typeof discoverStatic>).unknowns);
     const symbolIndex = loadSymbolIndex(container);
     const discovery = packet.discovery.report as ReturnType<typeof discoverStatic>;
@@ -160,10 +189,11 @@ export async function prepareFunction(functionName: string, options: { root?: st
       packet.discovery.unknowns.push(item);
     }
     const callbacks = [...new Set(discovery.callbackTables.flatMap((t) => t.entries.map((e) => e.functionName)))];
-    const calls = [...new Set([...asmText.matchAll(/\bjal\s+([A-Za-z_]\w*)/g)].map((m) => m[1]!).concat(callbacks))];
+    const calls = [...new Set([...asmText.matchAll(/\bjal\s+([A-Za-z_]\w*)/g)].map((m) => m[1]!).concat(callbacks,
+      evidenceGraph.nodes.flatMap((n) => n.calls.flatMap((c) => c.targets.map((t) => t.split(":").slice(1).join(":"))))))];
     const sdk = sdkPrototypes();
     const baseContext = join(directory, "headers.c");
-    const headers = ["common.h", "game_types.h", ...calls.flatMap((c) => sdk.has(c) ? [sdk.get(c)!.where.replace(/^include\//, "")] : [])]
+    const headers = ["common.h", "game_types.h", "psyq/stddef.h", "psyq/libgte.h", ...calls.flatMap((c) => sdk.has(c) ? [sdk.get(c)!.where.replace(/^include\//, "")] : [])]
       .filter((h) => existsSync(join(root, "include", h)));
     packet.context.headers = [...new Set(headers)];
     writeFileSync(baseContext, packet.context.headers.map((h) => `#include "${h}"`).join("\n") + "\n");
@@ -179,10 +209,13 @@ export async function prepareFunction(functionName: string, options: { root?: st
     const projectionNames = [...referenced.filter((r) => !discovery.callbackTables.some((t) => t.symbol === r)), ...calls.filter((c) => sdk.has(c)),
       ...discovery.accesses.filter((a) => a.functionName === functionName && a.base.startsWith("storage:")).map((a) => a.base.split(":").at(-1)!)];
     const projections: string[] = [];
+    const wrapperTypes: string[] = [];
     const requiredDeclarations: Declaration[] = [];
-    for (const callee of [...new Set([...(existing ? [functionName] : []), ...calls])]) {
-      const definition = definitionPrototype(callee);
-      const witness = targetWitness(callee, join(directory, "witnesses"));
+    const scopeRenames = new Map<string, Map<string, string>>();
+    for (const callee of [...new Set([...(existing && !options.alternative ? [functionName] : []), ...calls])]) {
+      const contract = heldOut.includes(callee) ? undefined : seeds.get(callee);
+      const definition = contract?.kind === "definition" ? contract : undefined;
+      const witness = callbacks.includes(callee) ? targetWitness(callee, join(directory, "witnesses")) : undefined;
       for (const table of discovery.callbackTables) for (const entry of table.entries.filter((e) => e.functionName === callee)) {
         const prototype = definition ?? sdk.get(callee);
         if (prototype) entry.prototype = prototype;
@@ -199,7 +232,13 @@ export async function prepareFunction(functionName: string, options: { root?: st
         requiredDeclarations.push(...privateTypes);
         const scopeId = hashText(definition.where).slice(0, 12);
         const renames = new Map(privateTypes.map((d) => [d.name.replace(/^(struct|union) /, ""), `M2C_${scopeId}_${d.name.replace(/^(struct|union) /, "")}`]));
-        projections.push(renameTypeTokens(projected.text, renames)); packet.context.unknown.push(...projected.unknown);
+        scopeRenames.set(definition.where, renames);
+        const projection = definition.usedParameters?.some((used) => !used) ? unspecifiedParameters(projected.text, callee) : projected.text;
+        projections.push(renameTypeTokens(projection, renames)); packet.context.unknown.push(...projected.unknown);
+        if (privateTypes.length) {
+          const privateProjection = projectDeclarations(packet.context.index, privateTypes.map((d) => d.name), definition.where, { omitPublicTypes: true });
+          wrapperTypes.push(renameTypeTokens(privateProjection.text, renames));
+        }
         if (sdk.has(callee)) {
           const disagreements = contradictionsAgainst(definition, { kind: "sdk", where: sdk.get(callee)!.where, prototype: sdk.get(callee)! }, true);
           for (const d of disagreements) packet.discovery.unknowns.push(unknown(callee, d.message, [definition.where, sdk.get(callee)!.where], "conflict"));
@@ -235,7 +274,7 @@ export async function prepareFunction(functionName: string, options: { root?: st
             text = text.slice(0, start) + value + text.slice(start + literal.text.length);
           }
         }
-        const layout = layoutStruct(text);
+        const layout = layoutFields(text);
         tree.delete();
         if (layout?.fields.some((f) => !/^(?:pad|unk)/.test(f.name) && accesses.some((a) => a.originalStorage!.offset === f.offset && a.width === f.size)))
           projectionNames.push(declaration.name);
@@ -252,12 +291,24 @@ export async function prepareFunction(functionName: string, options: { root?: st
       if ((!existing || options.alternative) && (conflicting || signatures.includes("unresolved")))
         packet.integration.blockers.push(`Callback table ${table.symbol}: ${conflicting ? "differing declared contracts" : `contracts unavailable for ${table.entries.filter((e) => !e.prototype).map((e) => e.functionName).join(", ")}`}; no uniform prototype justified`);
     }
-    const projected = projectDeclarations(packet.context.index, projectionNames, existing ? destination : "preparation");
+    /* Held-out function declarations are removed from EVERY scope, including
+       generated headers and caller-local copies. Bodies never reach inference. */
+    packet.context.index.declarations = packet.context.index.declarations.filter((d) => d.kind !== "function" || !heldOut.includes(d.name));
+    const carrierDeclarations: string[] = [];
+    for (const carrier of inference.carriers) {
+      /* A carrier holds one known type only. It is not a prototype for ANY
+         original function; inference.json names exactly where it is consumed. */
+      indexDeclarations(packet.context.index, `void ${carrier.name}(${carrier.type});`, relative(root, propagationPath), carrier.scope, "source-local");
+      const projectedTypes = projectDeclarations(packet.context.index, [carrier.name], carrier.scope);
+      carrierDeclarations.push(renameTypeTokens(projectedTypes.text, scopeRenames.get(carrier.scope) ?? new Map()));
+      packet.context.unknown.push(...projectedTypes.unknown);
+    }
+    const projected = projectDeclarations(packet.context.index, projectionNames.filter((n) => !heldOut.includes(n)), existing && !options.alternative ? destination : "preparation");
     packet.context.unknown.push(...projected.unknown);
     packet.context.excluded = projected.excluded;
     packet.context.projection = relative(root, join(directory, "context.c"));
     const tableNotes = discovery.callbackTables.map((t) => `/* Original callback table ${t.symbol}: ${t.entries.map((e) => `${e.functionName}: ${e.prototype?.signature ?? "contract unresolved"}`).join("; ")} */`);
-    writeFileSync(join(root, packet.context.projection), [...new Set([...projected.text.split(/\n\n/), ...projections.flatMap((p) => p.split(/\n\n/)), ...tableNotes])].join("\n\n"));
+    writeFileSync(join(root, packet.context.projection), [...new Set([...projected.text.split(/\n\n/), ...projections.flatMap((p) => p.split(/\n\n/)), ...carrierDeclarations, ...tableNotes])].join("\n\n"));
     /* Give m2c only the selected original data definitions, not every unrelated
        declaration in the section. Callback code establishes function identities;
        -f still decompiles just the requested target. */
@@ -265,8 +316,11 @@ export async function prepareFunction(functionName: string, options: { root?: st
     const dataSections = data.flatMap((p) => selectDataDefinitions(readFileSync(p, "utf8"), [...jtables, ...discovery.callbackTables.map((t) => t.symbol)]));
     writeFileSync(join(root, selectedData), dataSections.join("\n"));
     input(join(root, packet.context.projection)); input(join(root, selectedData));
-    const callbackAssembly = callbacks.map(resolveAsmSource).filter((p): p is string => !!p);
-    for (const path of callbackAssembly) input(path);
+    const relatedAssembly = evidenceGraph.nodes.filter((n) => n.name !== functionName && (!n.seed || n.calls.some((c) =>
+      c.targets.some((target) => evidenceGraph.nodes.some((callee) => callee.id === target && !callee.seed))))).map((n) => originalAssembly(n.name, directory));
+    for (const original of relatedAssembly) for (const path of original.inputs) input(path);
+    writeFileSync(constraintsPath, JSON.stringify(inference.input, null, 2));
+    input(constraintsPath); input(graphPath); input(propagationPath);
     const declarations = prototypesIn(readFileSync(join(root, packet.context.projection), "utf8"), packet.context.projection);
     for (const use of (packet.discovery.report as ReturnType<typeof discoverStatic>).returnUses) {
       const declaration = declarations.find((d) => d.name === use.callee && d.returnsVoid);
@@ -289,19 +343,19 @@ export async function prepareFunction(functionName: string, options: { root?: st
     } else {
       const generation = await command("python3", [relative(root, m2c.script), "--target", "mipsel-gcc-c", "--no-cache", "-f", functionName,
         "--context", packet.context.projection, relative(root, assembly), ...(dataSections.length ? [selectedData] : []),
-        ...callbackAssembly.map((p) => relative(root, p))], "m2c");
+        ...relatedAssembly.map((p) => relative(root, p.path)), "--infer-related", "--passes", "4", "--graph-constraints", relative(root, constraintsPath)], "m2c");
       packet.generation.command = generation;
       packet.generation.raw = relative(root, generation.stdout);
       packet.generation.rawHash = hashFile(generation.stdout);
       const raw = readFileSync(generation.stdout, "utf8");
       packet.generation.status = generation.status === 0 && !raw.includes("Decompilation failure:") ? "generated" : "failed";
       if (packet.generation.status === "generated") {
-        /* Mechanical wrapper only: public callee contracts suppressed by m2c
-           must still be visible to the actual compiler. Do not transplant the
-           context's object declarations, aliases, or context-only record types. */
+        /* Mechanical wrapper only: suppressed callee contracts and their
+           independently verified private type dependencies must be visible.
+           Never transplant object declarations, aliases or inferred layouts. */
         const callDeclarations = declarations.filter((p) => calls.includes(p.name)).map((p) => p.signature);
         const wrapped = packet.context.headers.map((h) => `#include "${h}"`).join("\n") + "\n\n" +
-          callDeclarations.join("\n") + "\n\n" + raw.trim() + "\n";
+          [...new Set(wrapperTypes)].join("\n") + "\n" + callDeclarations.join("\n") + "\n\n" + raw.trim() + "\n";
         const path = relative(root, join(directory, "draft.c")); writeFileSync(join(root, path), wrapped);
         packet.primary = { origin: "m2c", path, sha256: hashText(wrapped), text: wrapped,
           declarationsRequired: requiredDeclarations };

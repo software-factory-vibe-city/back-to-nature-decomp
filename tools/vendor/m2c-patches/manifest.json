@@ -4,6 +4,7 @@
   "patches": [
     "0001-preserve-byte-arithmetic-and-abi-slots.patch",
     "0002-machine-units-expected-output.patch",
-    "0003-callback-data-and-known-storage.patch"
+    "0003-callback-data-and-known-storage.patch",
+    "0004-related-inference-and-partial-slots.patch"
   ]
 }

@@ -6,42 +6,11 @@ import { resolveAsmSource } from "./decompToolchain.js";
 import type { ValueId, Effect } from "./machine-ir/ir.js";
 import { requireFunctionLocation, loadSymbolIndex, resolveAddress } from "../lib/symbolIndex.js";
 import type { UnknownFact } from "./campaign/packet.js";
-import type { Prototype, Witness } from "./calleeTruth.js";
+import { buildEvidenceGraph } from "./type-propagation/graph.js";
+import type { EvidenceGraph } from "./type-propagation/model.js";
 
-/** Selected original data, preserving section and labelled extent. No C repair. */
-export function selectDataDefinitions(source: string, names: string[]): string[] {
-  const lines = source.split("\n");
-  const definitions: string[] = [];
-  let section = ".data";
-  for (let i = 0; i < lines.length; i++) {
-    if (/^\s*\.(?:section|data|rodata|rdata)\b/.test(lines[i]!)) section = lines[i]!;
-    const label = /^\s*(?:dlabel|glabel)\s+(\w+)/.exec(lines[i]!);
-    if (!label || !names.includes(label[1]!)) continue;
-    const start = i++;
-    while (i < lines.length && !/^\s*(?:enddlabel|dlabel|glabel|nonmatching)\b/.test(lines[i]!)) i++;
-    if (/^\s*enddlabel\b/.test(lines[i] ?? "")) i++;
-    definitions.push([section, ...lines.slice(start, i)].join("\n") + "\n");
-    i--;
-  }
-  return definitions;
-}
-export interface CallbackTable {
-  symbol: string; evidence: string;
-  entries: Array<{ offset: number; functionName: string; evidence: string[]; prototype?: Prototype; witness?: Witness }>;
-}
-export function callbackTablesFromData(source: string, names: string[], origin: string,
-  isFunction: (name: string) => boolean): CallbackTable[] {
-  return names.flatMap((symbol) => selectDataDefinitions(source, [symbol]).flatMap((definition) => {
-    const words = [...definition.matchAll(/\.word\s+([^\n]+)/g)];
-    /* Require a pure, contiguous address table, not numeric data which merely
-       contains one function address or symbolic expressions with addends. */
-    const entries = words.flatMap((m) => m[1]!.trim().split(/\s*,\s*/));
-    if (!entries.length || /\.(?:byte|short|half|float|double|space|ascii)\b/.test(definition) ||
-      entries.some((e) => !/^[A-Za-z_]\w*$/.test(e) || !isFunction(e))) return [];
-    const line = source.slice(0, source.search(new RegExp(`\\b(?:dlabel|glabel)\\s+${symbol}\\b`))).split("\n").length;
-    return [{ symbol, evidence: `${origin}:${line}`, entries: entries.map((functionName, i) => ({ offset: i * 4, functionName, evidence: [`${origin}:${line + i + 1}`] })) }];
-  }));
-}
+import { callbackTablesFromData, type CallbackTable } from "./type-propagation/data.js";
+export { callbackTablesFromData, selectDataDefinitions, type CallbackTable } from "./type-propagation/data.js";
 
 export interface AccessFact {
   functionName: string; at?: number; base: string; offset: number; width: 1 | 2 | 4;
@@ -57,8 +26,9 @@ export interface DiscoveryReport {
   records: Array<{ base: string; minimumExtent: number; strides: number[]; conflicts: string[] }>;
   unknowns: UnknownFact[];
   callbackTables: CallbackTable[];
+  graph: EvidenceGraph;
 }
-const BOUNDS = { functions: 8, instructions: 8192, expressionDepth: 32, storageScans: 256 };
+const BOUNDS = { functions: 96, instructions: 65536, expressionDepth: 32, storageScans: 256 };
 
 export function addressProvenance(report: MachineIrReport, id: ValueId): { base: string; offset: number; strides: number[] } | null {
   const ir = report.ir;
@@ -127,11 +97,7 @@ export function callAccessConstraints(caller: MachineIrReport, callee: MachineIr
   });
 }
 
-export function discoverStatic(functionName: string, root: string): DiscoveryReport {
-  const graphPath = join(root, "build/callGraph.json");
-  const graph = existsSync(graphPath) ? JSON.parse(readFileSync(graphPath, "utf8")) as {
-    functions: Array<{ name: string; calls: string[]; calledBy: string[] }> } : { functions: [] };
-  const target = graph.functions.find((f) => f.name === functionName);
+export function discoverStatic(functionName: string, root: string, graph = buildEvidenceGraph(functionName)): DiscoveryReport {
   const assembly = resolveAsmSource(functionName);
   const storage = assembly ? [...new Set(readFileSync(assembly, "utf8").match(/\b(?:D_[A-Fa-f0-9]{8}|ovl_\d+_D_[A-Fa-f0-9]{8})\b/g) ?? [])] : [];
   const location = requireFunctionLocation(functionName);
@@ -139,25 +105,15 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
   const callbackTables = existsSync(dataDirectory) ? readdirSync(dataDirectory).filter((p) => p.endsWith(".s")).flatMap((p) =>
     callbackTablesFromData(readFileSync(join(dataDirectory, p), "utf8"), storage, relative(root, join(dataDirectory, p)),
       (name) => { try { return requireFunctionLocation(name).container.id === location.container.id || name.startsWith("func_"); } catch { return false; } })) : [];
-  const related = [...new Set([functionName, ...callbackTables.flatMap((t) => t.entries.map((e) => e.functionName)),
-    ...(target?.calls ?? []), ...(target?.calledBy ?? [])])];
-  /* The index is selected from original assembly, never present-day C types. */
-  let scans = 0;
-  for (const entry of graph.functions) {
-    if (scans >= BOUNDS.storageScans || !storage.length) break;
-    if (related.includes(entry.name)) continue;
-    scans++;
-    const path = resolveAsmSource(entry.name);
-    if (path && storage.some((s) => new RegExp(`\\b${s}\\b`).test(readFileSync(path, "utf8")))) related.push(entry.name);
-  }
+  const related = [...new Set([functionName, ...graph.nodes.map((n) => n.name)])];
   const result: DiscoveryReport = { status: "complete-with-unknowns", bounds: BOUNDS, visited: [], excluded: [],
-    accesses: [], pointerFlows: [], returnUses: [], records: [], unknowns: [], callbackTables };
-  if (storage.length && scans === BOUNDS.storageScans) {
+    accesses: [], pointerFlows: [], returnUses: [], records: [], unknowns: [], callbackTables, graph };
+  if (graph.frontier.length || !graph.indexComplete) {
     result.status = "budget-exhausted";
-    result.unknowns.push({ subject: "shared-storage users", strength: "unknown", constraints: storage,
-      evidence: assembly ? [assembly] : [], missing: "the full original-assembly storage-user index was not exhausted",
-      attempted: "bounded shared-storage index scan", bound: String(BOUNDS.storageScans), stoppedBecause: "storage scan budget",
-      inspectNext: storage });
+    for (const item of graph.frontier) result.unknowns.push({ subject: item.node, strength: "unknown", constraints: [],
+      evidence: item.at === undefined ? [item.node] : [`original word 0x${item.at.toString(16)}`], missing: item.reason,
+      attempted: "recursive original-code dependency graph", bound: JSON.stringify(graph.bounds), stoppedBecause: item.reason,
+      inspectNext: [item.node] });
   }
   let used = 0;
   const reports = new Map<string, MachineIrReport>();
@@ -167,7 +123,7 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
       const location = requireFunctionLocation(name);
       if (used + location.span.size / 4 > BOUNDS.instructions) { result.excluded.push(name); result.status = "budget-exhausted"; continue; }
       used += location.span.size / 4;
-      const report = buildMachineIr(name);
+      const report = graph.nodes.find((n) => n.name === name)?.report ?? buildMachineIr(name);
       reports.set(name, report); result.visited.push(name);
       const index = loadSymbolIndex(location.container);
       const facts = accessesFromIr(report);

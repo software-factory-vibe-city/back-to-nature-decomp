@@ -1,0 +1,402 @@
+diff -ruN a/m2c/arch_mips.py b/m2c/arch_mips.py
+--- a/m2c/arch_mips.py	2026-03-07 06:30:16.000000000 -0800
++++ b/m2c/arch_mips.py	2026-10-04 17:45:25.777800723 -0700
+@@ -1809,7 +1809,17 @@
+                     )
+ 
+         else:
+-            candidate_slots = self.default_function_abi_candidate_slots()
++            # A graph constraint proves a live ABI slot, not source arity.
++            # Preserve unread earlier words as unknowns and keep params_known
++            # false. Wide/hidden ABI forms never enter this word-slot domain.
++            floor = max(fn_sig.partial_slots, default=-1) + 1
++            for i in range(floor):
++                known_slots.append(AbiArgSlot(
++                    ArgLoc(i * 4, i, Register(f"a{i}") if i < 4 else None),
++                    fn_sig.partial_slots.get(i, Type.any()),
++                ))
++            candidate_slots = [slot for slot in self.default_function_abi_candidate_slots()
++                               if slot.loc.offset is None or slot.loc.offset >= floor * 4]
+ 
+         valid_extra_regs: Set[Register] = {
+             slot.loc.reg for slot in known_slots if slot.loc.reg is not None
+diff -ruN a/m2c/main.py b/m2c/main.py
+--- a/m2c/main.py	2026-03-07 06:30:16.000000000 -0800
++++ b/m2c/main.py	2026-10-04 19:06:22.016004418 -0700
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ import argparse
+ import gc
++import json
+ import sys
+ import traceback
+ from pathlib import Path
+@@ -21,7 +22,7 @@
+     narrow_func_call_outputs,
+     visualize_flowgraph,
+ )
+-from .types import TypePool
++from .types import TypePool, Type
+ from .arch_arm import ArmArch, ArmGbaArch
+ from .arch_mips import MipsArch, MipseeArch
+ from .arch_ppc import PpcArch
+@@ -150,8 +151,45 @@
+         stack_spill_detection=options.stack_spill_detection,
+     )
+ 
++    if options.graph_constraints is not None:
++        with open(options.graph_constraints, encoding="utf-8") as f:
++            constraints = json.load(f)
++        if constraints.get("version") != 1:
++            raise DecompFailure("Unsupported graph-constraint version")
++        global_info.open_callback_tables = constraints.get("openTables", {})
++        for name, partial in sorted(constraints["functions"].items()):
++            symbol = global_info.address_of_gsym(name).expr
++            symbol.type.unify(Type.function())
++            signature = Type.ptr(symbol.type).get_function_pointer_signature()
++            assert signature is not None
++
++            def constraint_type(item: dict) -> Type:
++                if "type" in item:
++                    carrier = typemap.functions.get(item["type"])
++                    if carrier is None:
++                        raise DecompFailure(f"Missing graph type carrier {item['type']}")
++                    sig = Type.ptr(Type.ctype(carrier.type, typemap, typepool)).get_function_pointer_signature()
++                    if sig is None or len(sig.params) != 1:
++                        raise DecompFailure("Invalid graph type carrier")
++                    return sig.params[0].type
++                return Type.ptr() if item.get("pointer") else Type.any()
++
++            for slot, item in sorted(partial.get("slots", {}).items(), key=lambda x: int(x[0])):
++                index = int(slot)
++                if not 0 <= index < 32:
++                    raise DecompFailure("Graph ABI slot outside bound")
++                signature.partial_slots[index] = constraint_type(item)
++            signature.open_target_slots.update(partial.get("openTargetSlots", []))
++            if any(not isinstance(i, int) or not 0 <= i < 32 for i in signature.open_target_slots):
++                raise DecompFailure("Open graph target slot outside word bound")
++            if "result" in partial:
++                if not signature.return_type.unify(constraint_type(partial["result"])):
++                    raise DecompFailure(f"Conflicting graph result constraint for {name}")
++                global_info.graph_result_functions.add(name)
++
++    analysis_functions = list(all_functions.values()) if options.infer_related else functions
+     flow_graphs: List[Union[FlowGraph, Exception]] = []
+-    for function in functions:
++    for function in analysis_functions:
+         try:
+             narrow_func_call_outputs(function, global_info)
+             graph = build_flowgraph(
+@@ -170,7 +208,7 @@
+     # Perform the preliminary passes to improve type resolution, but discard the results/exceptions
+     for i in range(options.passes - 1):
+         preliminary_infos = []
+-        for function, flow_graph in zip(functions, flow_graphs):
++        for function, flow_graph in zip(analysis_functions, flow_graphs):
+             try:
+                 if isinstance(flow_graph, Exception):
+                     raise flow_graph
+@@ -193,8 +231,13 @@
+         # after discarding all of the translated Expressions.
+         typepool.prune_structs()
+ 
++    if options.infer_related:
++        global_info.emission_symbols = global_info.symbols_for_functions(functions)
++
+     function_infos: List[Union[FunctionInfo, Exception]] = []
+-    for function, flow_graph in zip(functions, flow_graphs):
++    graph_by_name = dict(zip((fn.name for fn in analysis_functions), flow_graphs))
++    for function in functions:
++        flow_graph = graph_by_name[function.name]
+         try:
+             if isinstance(flow_graph, Exception):
+                 raise flow_graph
+@@ -214,8 +257,18 @@
+             print(visualize_flowgraph(fn_info.flow_graph, options.visualize_flowgraph))
+             return 0
+ 
++        type_roots = None
++        if options.infer_related:
++            type_roots = [sym.type for name, sym in global_info.global_symbol_map.items()
++                          if name in (global_info.emission_symbols or set())]
++            for info in function_infos:
++                if isinstance(info, FunctionInfo):
++                    type_roots += [info.return_type, info.symbol.type]
++                    type_roots += [var.type for var in info.stack_info.local_vars]
++                    type_roots += [var.type for var in info.stack_info.temp_vars]
++                    type_roots += [arg.type for arg in info.stack_info.arguments]
+         type_decls = typepool.format_type_declarations(
+-            fmt, stack_structs=options.print_stack_structs
++            fmt, stack_structs=options.print_stack_structs, roots=type_roots
+         )
+         if type_decls:
+             print(type_decls)
+@@ -512,6 +565,8 @@
+         "Supported languages: [c, c++]. "
+         "Default is mips-ido-c, `ppc` is an alias for ppc-mwcc-c++, and `arm` for arm-gcc-c.",
+     )
++    group.add_argument("--infer-related", action="store_true", help="Infer over all supplied original functions, but emit only -f selections")
++    group.add_argument("--graph-constraints", type=Path, help="Versioned partial ABI word-slot constraints; not complete prototypes")
+     group.add_argument(
+         "--passes",
+         "-P",
+@@ -704,6 +759,8 @@
+         unk_inference=args.unk_inference,
+         stack_spill_detection=args.stack_spill_detection,
+         passes=args.passes,
++        infer_related=args.infer_related,
++        graph_constraints=args.graph_constraints,
+         incbin_dirs=args.incbin_dirs,
+         deterministic_vars=args.deterministic_vars,
+         descending_regs=args.descending_regs,
+diff -ruN a/m2c/options.py b/m2c/options.py
+--- a/m2c/options.py	2026-03-07 06:30:16.000000000 -0800
++++ b/m2c/options.py	2026-10-04 17:45:25.776800674 -0700
+@@ -184,6 +184,8 @@
+     backwards_bss: bool
+     disable_gc: bool
+     union_field_overrides: Dict[str, str]
++    infer_related: bool = False
++    graph_constraints: Optional[Path] = None
+ 
+     def formatter(self) -> Formatter:
+         return Formatter(
+diff -ruN a/m2c/translate.py b/m2c/translate.py
+--- a/m2c/translate.py	2026-10-04 16:56:53.952585182 -0700
++++ b/m2c/translate.py	2026-10-04 19:25:55.919937335 -0700
+@@ -136,7 +136,7 @@
+ 
+ 
+ def as_type(
+-    expr: Expression, type: Type, silent: bool, *, unify: bool = True
++    expr: Expression, type: Type, silent: bool, *, unify: bool = True, preserve_boundary: bool = False
+ ) -> Expression:
+     type = type.weaken_void_ptr()
+     if isinstance(expr, Literal):
+@@ -152,7 +152,7 @@
+     if unify and expr.type.unify(type):
+         if silent or isinstance(expr, Literal):
+             return expr
+-    elif ptr_target_type is not None:
++    elif ptr_target_type is not None and not preserve_boundary:
+         ptr_target_type_size = ptr_target_type.get_size_bytes()
+         field_path, field_type, _ = expr.type.get_deref_field(
+             0, target_size=ptr_target_type_size
+@@ -171,7 +171,7 @@
+             )
+             if silent:
+                 return expr
+-    return Cast(expr=expr, reinterpret=True, silent=False, type=type)
++    return Cast(expr=expr, reinterpret=True, silent=False, type=type, unify_types=not preserve_boundary)
+ 
+ 
+ def as_f32(expr: Expression) -> Expression:
+@@ -1322,27 +1322,31 @@
+     type: Type = field(compare=False)
+     reinterpret: bool = False
+     silent: bool = True
++    # Explicit representation boundary for an open graph target set.
++    unify_types: bool = True
+ 
+     def dependencies(self) -> List[Expression]:
+         return [self.expr]
+ 
+     def use(self) -> None:
+-        # Try to unify, to make stringification output better.
+-        self.expr.type.unify(self.type)
++        # Cosmetic unification must not undo an explicit graph boundary.
++        if self.unify_types:
++            self.expr.type.unify(self.type)
+         super().use()
+ 
+     def needed_for_store(self) -> bool:
+         if not self.reinterpret:
+             # int <-> float casts should be emitted even for stores.
+             return True
+-        if not self.expr.type.unify(self.type):
+-            # Emit casts when types fail to unify.
++        if not self.unify_types or not self.expr.type.unify(self.type):
++            # Emit casts when types fail to unify, or the edge is open.
+             return True
+         return False
+ 
+     def should_wrap_transparently(self) -> bool:
+         return (
+             self.reinterpret
++            and self.unify_types
+             and self.expr.type.is_float() == self.type.is_float()
+             and should_wrap_transparently(self.expr)
+         )
+@@ -1353,7 +1357,7 @@
+             if fmt.valid_syntax:
+                 return f"M2C_BITWISE({self.type.format(fmt)}, {self.expr.format(fmt)})"
+             return f"(bitwise {self.type.format(fmt)}) {self.expr.format(fmt)}"
+-        if self.reinterpret and (
++        if self.reinterpret and self.unify_types and (
+             self.silent
+             or (is_type_obvious(self.expr) and self.expr.type.unify(self.type))
+         ):
+@@ -3820,8 +3824,12 @@
+                     expr = self.subroutine_args.pop(offset)
+                 else:
+                     expr = ErrorExpr(f"Unable to find stack arg {offset:#x} in block")
++            # Open callback targets carry per-target evidence, not signature
++            # equality. Convert the call representation without unifying the
++            # supplied callback with every other possible target of this slot.
++            open_target = slot.loc.offset is not None and slot.loc.offset // 4 in fn_sig.open_target_slots
+             func_args.append(
+-                CommentExpr.wrap(as_type(expr, slot.type, True), prefix=slot.comment)
++                CommentExpr.wrap(as_type(expr, slot.type, True, unify=not open_target, preserve_boundary=open_target), prefix=slot.comment)
+             )
+ 
+         for slot in abi.possible_slots:
+@@ -3845,7 +3853,7 @@
+             # match the actual function signature, but it's the best we can do.
+             # Without that assumption, the logic from `function_abi` would be needed here.
+             for i, (arg_expr, param) in enumerate(zip(func_args, fn_sig.params)):
+-                func_args[i] = as_type(arg_expr, param.type.decay(), True)
++                func_args[i] = as_type(arg_expr, param.type.decay(), True, unify=i not in fn_sig.open_target_slots, preserve_boundary=i in fn_sig.open_target_slots)
+ 
+         # Reset subroutine_args, for the next potential function call.
+         self.subroutine_args.clear()
+@@ -4211,6 +4219,9 @@
+     typepool: TypePool
+     deterministic_vars: bool
+     stack_spill_detection: bool
++    graph_result_functions: Set[str] = field(default_factory=set)
++    emission_symbols: Optional[Set[str]] = None
++    open_callback_tables: Dict[str, List[str]] = field(default_factory=dict)
+     global_symbol_map: Dict[str, GlobalSymbol] = field(default_factory=dict)
+     persistent_function_state: Dict[str, PersistentFunctionState] = field(
+         default_factory=lambda: defaultdict(PersistentFunctionState)
+@@ -4316,9 +4327,11 @@
+                 signatures.append(pointer if signature is not None and signature.params_known else None)
+         complete = [p for p in signatures if p is not None]
+         shapes = {p.format(Formatter()) for p in complete}
+-        if len(complete) == len(names) and len(shapes) == 1:
++        if len(complete) == len(names) and len(shapes) == 1 and sym.symbol_name not in self.open_callback_tables:
+             return Type.array(complete[0], len(names))
+         reason = "incompatible signatures" if len(shapes) > 1 else "incomplete contracts"
++        if sym.symbol_name in self.open_callback_tables:
++            reason += "; open original target set: " + "; ".join(self.open_callback_tables[sym.symbol_name])
+         self.typepool.warnings.append(
+             f"Warning: callback table {sym.symbol_name}: {reason}; examined " + ", ".join(names)
+         )
+@@ -4474,6 +4487,29 @@
+         else:
+             return for_type(sym.type)
+ 
++    def symbols_for_functions(self, functions: List[Function]) -> Set[str]:
++        names = set(self.asm_data.mentioned_labels)
++
++        def visit(arg: Argument) -> None:
++            if isinstance(arg, Macro):
++                visit(arg.argument)
++            elif isinstance(arg, AsmAddressMode):
++                visit(arg.addend)
++            elif isinstance(arg, BinOp):
++                visit(arg.lhs)
++                visit(arg.rhs)
++            elif isinstance(arg, AsmGlobalSymbol):
++                names.add(arg.symbol_name)
++
++        for function in functions:
++            names.add(function.name)
++            for instr in function.body:
++                if not isinstance(instr, Instruction):
++                    continue
++                for arg in instr.args:
++                    visit(arg)
++        return names
++
+     def find_forward_declares_needed(self, functions: List[FunctionInfo]) -> Set[str]:
+         funcs_seen = set()
+         forward_declares_needed = self.asm_data.mentioned_labels
+@@ -4521,6 +4557,8 @@
+                     if not ent.is_text:
+                         names.add(name)
+             names -= processed_names
++            if self.emission_symbols is not None and decls != Options.GlobalDeclsEnum.ALL:
++                names &= self.emission_symbols
+             if not names:
+                 break
+             for name in sorted(names):
+@@ -4852,7 +4890,7 @@
+ 
+     if not options.void and not return_type.is_void():
+         return_reg = determine_return_register(
+-            return_blocks, fn_sym.type_provided, arch
++            return_blocks, fn_sym.type_provided or function.name in global_info.graph_result_functions, arch
+         )
+ 
+     if return_reg is not None:
+diff -ruN a/m2c/types.py b/m2c/types.py
+--- a/m2c/types.py	2026-10-04 16:56:53.952988627 -0700
++++ b/m2c/types.py	2026-10-04 19:08:08.266240674 -0700
+@@ -114,11 +114,35 @@
+             ), f"Duplicate tag: {tag_name}"
+             self.structs_by_tag_name[tag_name] = struct
+ 
+-    def format_type_declarations(self, fmt: Formatter, stack_structs: bool) -> str:
++    def format_type_declarations(self, fmt: Formatter, stack_structs: bool, roots: Optional[List[Type]] = None) -> str:
++        reachable: Optional[Set[StructDeclaration]] = None
++        if roots is not None:
++            reachable = set()
++            seen: Set[TypeData] = set()
++
++            def visit(type: Type) -> None:
++                data = type.data()
++                if data in seen:
++                    return
++                seen.add(data)
++                if data.ptr_to is not None:
++                    visit(data.ptr_to)
++                if data.fn_sig is not None:
++                    visit(data.fn_sig.return_type)
++                    for param in data.fn_sig.params:
++                        visit(param.type)
++                if data.struct is not None:
++                    reachable.add(data.struct)
++                    for field in data.struct.fields:
++                        visit(field.type)
++            for type in roots:
++                visit(type)
+         decls = []
+         for struct in sorted(
+             self.structs, key=lambda s: s.tag_name or s.typedef_name or ""
+         ):
++            if reachable is not None and struct not in reachable:
++                continue
+             # Only output stack structs if `stack_structs` is enabled
+             if not stack_structs and struct.is_stack:
+                 continue
+@@ -1229,6 +1253,10 @@
+     params: List[FunctionParam] = field(default_factory=list)
+     params_known: bool = False
+     is_variadic: bool = False
++    # Word-slot use constraints, NOT a complete C parameter list.
++    partial_slots: Dict[int, Type] = field(default_factory=dict)
++    # An open dispatcher cannot inherit one supplied callback's whole contract.
++    open_target_slots: Set[int] = field(default_factory=set)
+ 
+     def unify(self, other: FunctionSignature, *, seen: Set[TypeData]) -> bool:
+         if self.params_known and other.params_known:
+@@ -1244,6 +1272,18 @@
+             can_unify &= x.type.unify(y.type, seen=seen)
+         if not can_unify:
+             return False
++        # Signature representatives can change during native inference. Keep
++        # graph metadata on both representatives, just like inferred params.
++        for slot in self.partial_slots.keys() | other.partial_slots.keys():
++            left = self.partial_slots.get(slot)
++            right = other.partial_slots.get(slot)
++            if left is not None and right is not None and not left.unify(right, seen=seen):
++                return False
++            value = left if left is not None else right
++            assert value is not None
++            self.partial_slots[slot] = other.partial_slots[slot] = value
++        self.open_target_slots |= other.open_target_slots
++        other.open_target_slots |= self.open_target_slots
+ 
+         # If one side has fewer params (and params_known is not True), then
+         # extend its param list to match the other side

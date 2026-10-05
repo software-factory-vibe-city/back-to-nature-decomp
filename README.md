@@ -266,6 +266,20 @@ The skills read the target and toolchain facts from
 `configs/project-profile.md` and from the active configuration. They do not
 hold the values of one project.
 
+### Static preparation: original-code type propagation
+
+Preparation recursively examines original callees, callbacks and relevant incoming
+callers, with independently audited seeds and finite SCC/SSA constraint propagation.
+Partial ABI-slot facts reach actual m2c inference; open dispatch targets never inherit
+one member's whole callable signature. C/type inspection uses the pinned AST parser.
+Raw output remains unchanged, and existing C stays primary on normal resume.
+
+See `tools/agent/type-propagation/README.md` for bounds and limitations, and
+`plans/static-decompilation/callgraph-type-propagation.md` for delivery evidence.
+The bounded mechanism is implemented; the known-dependency acceptance gate is still
+incomplete, including two noncompiling open-callback drafts. This is not a claim
+that the reported reproduction is fixed.
+
 ### Step 1: triage before you write source
 
 `triage.ts` and `sdkIdioms.ts` answer a cheap question first. Does the target
@@ -917,7 +931,7 @@ The main tools under `tools/agent/` are:
 | Tool | Role |
 |---|---|
 | `callGraph.ts` | Builds the worklist and ranks it |
-| `m2cFunc.ts` | Prepares faithful context, preserves the primary draft and measures it under the destination's real headers |
+| `m2cFunc.ts` | Prepares faithful context and original-code graph constraints, preserves the primary draft and measures it under the destination's real headers |
 | `triage.ts` | Runs the pre-flight detectors |
 | `sdkIdioms.ts` | Recognizes the PSY-Q packets in the target |
 | `flagProbe.ts` | Checks the per-file flag hypothesis |

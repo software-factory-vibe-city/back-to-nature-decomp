@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "seedPolicy": "Only independently preprocessed SDK contracts and production-compiled, relocated-byte-verified defining clean C. Root and listed intermediates are withheld in every scope, never replaced in live sources.",
+  "cohort": [
+    { "name": "func_8002238C", "withhold": ["func_800223D4"], "controlSeed": "func_80015EE8", "expected": [
+      { "kind": "call", "at": "0x80022398", "target": "exe:func_800223D4" },
+      { "kind": "type-chain", "node": "exe:func_8002238C", "slot": 0, "type": "s32", "seed": "func_80015EE8", "via": "exe:func_800224F0" }
+    ] },
+    { "name": "func_800223D4", "withhold": [], "controlSeed": "func_80015704", "expected": [
+      { "kind": "call", "at": "0x80022414", "target": "exe:func_80015704" },
+      { "kind": "type-at-call", "at": "0x80022414", "slot": 0, "type": "SpriteSourceData *", "seed": "func_80015704" },
+      { "kind": "type-at-call", "at": "0x80022414", "slot": 1, "type": "SpriteDataHeader *", "seed": "func_80015704" },
+      { "kind": "indirect-stack", "at": "0x80022498", "slot": 4 }
+    ] },
+    { "name": "ovl_25_func_800BAC28", "withhold": [], "controlSeed": "func_8001C0D4", "expected": [
+      { "kind": "call", "at": "0x800BAC84", "target": "exe:func_8001C0D4" },
+      { "kind": "type-at-call", "at": "0x800BAC84", "slot": 0, "type": "FuncC0D4Args *", "seed": "func_8001C0D4" },
+      { "kind": "type-at-call", "at": "0x800BAC84", "slot": 1, "type": "VECTOR *", "seed": "func_8001C0D4" },
+      { "kind": "type-at-call", "at": "0x800BAC84", "slot": 2, "type": "VECTOR *", "seed": "func_8001C0D4" }
+    ] },
+    { "name": "ovl_25_func_800B81B4", "withhold": [], "controlSeed": "func_80013328", "expected": [
+      { "kind": "call", "at": "0x800B81BC", "target": "ovl_25:ovl_25_func_800B93E4" },
+      { "kind": "call", "at": "0x800B81C4", "target": "exe:func_80013328" },
+      { "kind": "call", "at": "0x800B81CC", "target": "exe:func_8001FE34" },
+      { "kind": "type-at-call", "at": "0x800B81C4", "slot": 0, "type": "s16", "seed": "func_80013328" }
+    ] }
+  ],
+  "smoke": ["func_80017A64", "ovl_25_func_800B81B4", "func_8001202C", "ovl_25_func_800B7EB4"],
+  "required": { "cohortCompiles": true, "noAvoidableUnknowns": true, "fixtureRelocatedExact": true, "liveSourcesUnchanged": true, "normalResumePrimary": "existing-attempt" }
+}

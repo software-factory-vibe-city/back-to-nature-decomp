@@ -54,6 +54,7 @@ export function assemble(lines: AsmLine[], baseVram: number): Array<{ raw: numbe
       case "mfhi": word = (reg(operands[0]!) << 11) | 0x10; break;
       case "mflo": word = (reg(operands[0]!) << 11) | 0x12; break;
       case "jr": word = (reg(operands[0]!) << 21) | 0x08; break;
+      case "jalr": word = (reg(operands[0]!) << 21) | (31 << 11) | 0x09; break;
       case "break": word = ((Number(operands[0] ?? 0) & 0xfffff) << 6) | 0x0d; break;
       case "lwl": word = (0x22 << 26) | (reg(operands[2]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[1]!); break;
       case "lwr": word = (0x26 << 26) | (reg(operands[2]!) << 21) | (reg(operands[0]!) << 16) | imm16(operands[1]!); break;

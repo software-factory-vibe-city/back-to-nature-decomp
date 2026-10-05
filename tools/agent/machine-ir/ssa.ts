@@ -299,6 +299,8 @@ export function liftToSsa(functionName: string, cfg: Cfg, options: LiftOptions =
         }
         continue; /* the transfer itself defines nothing */
       }
+      /* jalr reads its destination before executing the delay slot. */
+      const callThrough = insn.op === "jalr" ? registers[insn.rs]! : undefined;
       if (insn.op === "jal" || insn.op === "jalr") {
         const slot = index + 1;
         if (block.instructions.includes(slot) && slot !== terminatorIndex) {
@@ -306,7 +308,7 @@ export function liftToSsa(functionName: string, cfg: Cfg, options: LiftOptions =
           memory = applyInstruction(builder, cfg.insns[slot]!, registers, memory, blockIndex, () => effectOrder++).memory;
         }
       }
-      const result = applyInstruction(builder, insn, registers, memory, blockIndex, () => effectOrder++);
+      const result = applyInstruction(builder, insn, registers, memory, blockIndex, () => effectOrder++, callThrough);
       memory = result.memory;
     }
 
@@ -458,6 +460,7 @@ function applyInstruction(
   memory: MemoryId,
   block: number,
   nextOrder: () => number,
+  callThrough?: ValueId,
 ): { memory: MemoryId } {
   const set = (register: number, value: ValueId): void => {
     if (register !== 0) registers[register] = value;
@@ -539,8 +542,8 @@ function applyInstruction(
        * the addresses it would read rather than resolving them here, so the
        * call effect stays a pure description of the transfer. */
       const op: Effect["op"] = insn.op === "jal" && insn.target !== undefined
-        ? { kind: "call", target: insn.target >>> 0, args }
-        : { kind: "call", through: registers[insn.rs]!, args };
+        ? { kind: "call", target: insn.target >>> 0, args, memory }
+        : { kind: "call", through: callThrough ?? registers[insn.rs]!, args, memory };
       const effect = pushEffect(builder, op, block, insn.vram, nextOrder());
       for (const register of CALL_CLOBBERED) {
         registers[register] = intern(builder, { kind: "call-result", effect, register: NAME_OF[register] ?? String(register) }, block, insn.vram);
