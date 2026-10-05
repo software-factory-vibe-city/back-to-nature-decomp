@@ -653,7 +653,10 @@ Evidence:
   reads both tables (`D_800BAA84[arg1]` handler call, `D_800BAABC[arg1]`
   presence test); `ovl_11_func_8010CD80` reads `D_800BAABC` (functions.csv).
 - zero-gap link-order contiguity (map): 0x8010CB6C (0x214) → 0x8010CD80
-  (0x100) → 0x8010CE80 (0xD8) → 0x8010CF58.
+  (0x100) → 0x8010CE80 (0xD8) → 0x8010CF58 (0xF4) → 0x8010D04C (0xA0) →
+  0x8010D0EC; 8010D04C is a new gapless member (its initializer role and the
+  shared func_80012A34 / ovl_11_func_80110E34 callee thread corroborate the
+  link run).
 - call graph: 8010CB6C and 8010CD80 both call 8010CE80; the `D_800BAABC`
   handler entries (8010EB24, 8010ECC0, 8010EEE4, 8010F324, 8010F4CC) call
   8010CE80 back — a dispatcher/handler coupling. The handlers are
@@ -674,6 +677,15 @@ Evidence:
   byte-exact spelling
 - ovl_11_func_8010CF58 (s) — adjacent tail, no shared data with the run
   (listed only to mark the link-order boundary)
+- ovl_11_func_8010D04C (m, matched this session, byte-exact) — object
+  initializer: memsets 0xF8, packs u16@+0x16=0x32 / s16@+0x30=1 / flag
+  `s32@+0x34 |= 0x3C000000`, stores `func_80012A34(0x12C)` at s16@+0x2C and
+  0xFFFF at u16@+0x4/+0xBA, copies the packed 8-byte word at
+  `D_8006C838+0x44B8` to +0x1A (same smem idiom as ovl_11_func_80112904 /
+  ovl_11_func_800E2968), then `ovl_11_func_80107DD0(this+0xA8)`; repeats the
+  `{u16@+0x16, s16@+0x30, s32@+0x34}` far-state object layout and the
+  `80107DD0/DE0(this+0xA8)` call idiom of the far-state gate bands, and its
+  caller ovl_11_func_8010C6A0 also calls ovl_11_func_80110E34.
 
 ---
 
