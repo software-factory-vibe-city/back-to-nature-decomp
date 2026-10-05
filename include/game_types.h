@@ -542,3 +542,27 @@ typedef struct {
     Ovl23D87CEntry unk5CC[12];  /* 0x5CC */
     s16 unk62C;                 /* 0x62C */
 } Ovl23D87CView;
+
+/* One 0x44-byte entry of the D_800BF87C record array read by
+ * ovl_23_func_800BA1E0; the value the function reads is the leading s32,
+ * selected by the record's s16 index. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ char pad_04[0x40];
+} Ovl23D87CEntry0;
+
+/* D_800BF87C view for ovl_23_func_800BA1E0: a 0x44-stride record array at
+ * offset 0x210. */
+typedef struct {
+    u8 pad_000[0x210];
+    Ovl23D87CEntry0 unk210[32]; /* 0x210 */
+} Ovl23D87CView210;
+
+/* ovl_23_func_800BA1E0 argument record: s16 selector at 0x00, s32 at 0x14
+ * and s32 at 0x18. Only the fields the function reads are named. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ char pad_02[0x12];
+    /* 0x14 */ s32 unk14;
+    /* 0x18 */ s32 unk18;
+} Ovl23Func800BA1E0Arg;

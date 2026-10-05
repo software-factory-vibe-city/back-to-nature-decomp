@@ -4988,8 +4988,10 @@ Evidence: gapless link order in ovl_23 — `ovl_23_func_800BA1E0` (0x98, ends
 takes `ratan2` and scales to degrees.
 
 Members (link order):
-- ovl_23_func_800BA1E0 (s) — reads s16 fields from a pointer record, computes two
-  `>>12` differences, calls this function then passes the result to 800BA278
+- ovl_23_func_800BA1E0 (m, byte-exact this session) — reads the s16
+  selector from a pointer record and indexes the `D_800BF87C` 0x44-stride
+  record array at +0x210, computes two `>>12` differences, calls this
+  function then passes the result to 800BA278
 - ovl_23_func_800BA278 (s) — 0x2D-wide threshold chain mapping an angle to
   small indices 0–7
 - ovl_23_func_800BA30C (s) — distance helper: sum of squared s16 deltas through

@@ -989,6 +989,13 @@ typedef struct {
 } Ovl19Func800BAC40Arg;
 
 typedef struct {
+               s16 unk0;
+               char pad_02[0x12];
+               s32 unk14;
+               s32 unk18;
+} Ovl23Func800BA1E0Arg;
+
+typedef struct {
                char pad_0[0x4];
                s16 unk4;
                s16 unk6;
