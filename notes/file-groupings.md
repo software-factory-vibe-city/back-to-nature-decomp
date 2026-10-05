@@ -6621,6 +6621,43 @@ Members (link order):
 The audio leaf and ovl_28_func_800B8CE4 are matched; the rest are read off
 original asm, hence medium confidence.
 
+## `ovl_21` display-setup state-handler run — 0x800BB328–0x800BBA3C (confidence: medium)
+
+Evidence: the dispatcher `ovl_21_func_800B7E98` (s) selects on the state byte
+`D_800BCBB8` through `jtbl_800B7E24` and, from consecutive jump-table branches,
+calls `ovl_21_func_800BB328`, `ovl_21_func_800BB59C`, `ovl_21_func_800BB648`,
+`ovl_21_func_800BB8B8` and `ovl_21_func_800BBA3C`. Those five are one gapless
+link-order run (0xBB328 + 0x274 = 0xBB59C, + 0xAC = 0xBB648, + 0x270 = 0xBB8B8,
++ 0x184 = 0xBBA3C, ending exactly where the ovl_21 data section begins), so the
+call graph and the link order agree — the same fingerprint as the documented
+`ovl_17` (0x800B9FA8–0x800BA54C) and `ovl_23` (0x800BB214–0x800BB758)
+display-setup runs. The leading handlers share the display-setup idiom
+`DrawSync` → `ClearOTagR` → `func_80014CBC` → `func_8001719C` (800BB328/
+800BB648 additionally `func_80015704`) and the run closes with the per-overlay
+audio-setup leaf, mirroring the ovl_17 run's 800BA504.
+
+Members (link order):
+- ovl_21_func_800BB328 (s) — display-setup state: DrawSync/ClearOTagR plus
+  func_80014CBC/1719C/15704
+- ovl_21_func_800BB59C (m, matched this session, byte-exact) — second state
+  handler, same idiom confirmed: DrawSync(0) /
+  ClearOTagR(D_8005E3C0->field_120, 0x800), then `func_80014CBC(0, 0, 0x2000,
+  D_8005E3B0 + 0x4290, 1, 1)` followed by the zero-return poll
+  `func_80014CBC(..., 1, 0) == 0`, then `func_8001719C(D_8005E3B0 + 0x4290)`.
+- ovl_21_func_800BB648 (s) — same display-setup idiom with the repeated
+  `func_80015704` tail
+- ovl_21_func_800BB8B8 (s) — same run's non-display handler: reads the
+  `D_8007AFF0` far base, block-copies 0xBD0 bytes to `D_8009F78C` and calls
+  func_80014BCC/1719C (also a member of the D_8007AFF0 entry above)
+- ovl_21_func_800BBA3C (m, matched, byte-exact) — audio-setup leaf:
+  `func_80020B80(2,0)`, `func_80020B80(1,0)`, `func_8001FBF0(0x3E7,0)`,
+  `func_8001FBF0(0x12,1)`
+
+Cross-container note: `ovl_21_func_800BB59C` is the same-slot (0xAC, second)
+twin of `ovl_17_func_800BA21C` and `ovl_23_func_800BB488`; as recorded at the
+audio-setup twin notes, that relation is not itself TU-membership evidence —
+here only the dispatcher call graph and the gapless link run are.
+
 ## `ovl_21` D_8007AFF0 far-buffer state writer + GTE reader — 0x800BB0F8 / 0x800BB138 / 0x800BB250 / 0x800BB2B4 (confidence: medium)
 
 Evidence: gapless link adjacency (0x800BB0F8 is 0x40 and ends exactly at
