@@ -8012,6 +8012,25 @@ Members (link order):
   nonzero `u8@+0x4` + `func_80012A34` guard → refresh `+0x4` from
   `ovl_11_func_800D5C90(0x36)`, clear `+0x5`, OR `0x8000` into `+0x6`.
 
+## `ovl_11` Ovl11D124Entry 8-byte table cluster — D_80071DFC 25x45 / D_80074124 7x7 (confidence: low)
+
+Evidence: one shared 8-byte record type (`s16@0`, `s16@0x2`, `u8@0x4`,
+`u8@0x5`, `s16@0x6`) reached absolutely by three container functions, and the
+two tables' rows are exactly the record stride (`D_80071DFC` 25x45, row
+0x168 = 45*8; `D_80074124` 7x7, row 0x38 = 7*8). The type now lives in
+`globals_override.h` as `Ovl11D124Entry`. The three members are address-apart
+in link order, so the shared table type is the clustering evidence and TU
+membership is not confirmed by adjacency. `ovl_11_func_800D8FC8` also calls
+`ovl_11_func_800DA454`, a member of the record-tag update run above.
+Members:
+- ovl_11_func_800D8FC8 (m, matched this session, byte-exact) — walks all 25x45
+  `D_80071DFC` entries and calls `ovl_11_func_800DA454(entry, arg0 == 0 ?
+  0x20 : 0x10)` on each.
+- ovl_11_func_800DAF60 (m, byte-exact) — bounds-checked pointer into
+  `D_80071DFC` (or the `D_80074124` 7x7 table when arg0 != 0).
+- ovl_11_func_800D7B24 (m, byte-exact) — initializes every `D_80074124` entry
+  (two 0x167 halfwords, two zero bytes, one zero halfword).
+
 ## `ovl_11` D_8006C838+0x5488 state-trio run — 0x800FA31C–0x800FA410 (confidence: medium)
 
 Evidence: zero-gap link-order adjacency (`ovl_11_func_800FA31C` len 0x84 ends

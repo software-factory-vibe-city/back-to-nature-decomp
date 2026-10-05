@@ -190,6 +190,7 @@ s32 ovl_11_func_800D753C(s16 arg0);
 s32 ovl_11_func_800D756C(s16 arg0);
 void ovl_11_func_800D7B24(void);
 s32 ovl_11_func_800D7B84(void);
+void ovl_11_func_800D8FC8(s32 arg0);
 void ovl_11_func_800D92FC(s32 *arg0);
 s32 ovl_11_func_800D9EFC(s32 arg0, s32 arg1, s32 arg2, s32 *arg3, s32 *arg4);
 void ovl_11_func_800DA390(M2C_abf795ba7347_UnkStruct800DA390 *arg0);

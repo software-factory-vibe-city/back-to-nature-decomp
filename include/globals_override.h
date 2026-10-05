@@ -916,6 +916,11 @@ typedef struct {
 } Ovl11D124Entry;
 extern Ovl11D124Entry D_80074124[7][7];
 
+/* D_80071DFC - 25x45 table of 8-byte entries (ovl_11); row stride 0x168.
+ * ovl_11_func_800D8FC8 walks all 25 rows x 45 entries and ovl_11_func_800DAF60
+ * indexes it; absolute-addressed from the overlay. */
+extern Ovl11D124Entry D_80071DFC[25][45];
+
 /* D_800491C8 - six words written in two-argument triples by func_8001D648. */
 struct struct_800491C8 {
     /* 0x00 */ s32 unk0;
