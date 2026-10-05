@@ -4500,6 +4500,16 @@ the overlay, never GP-relative), and the large-offset writers use the same
   and it fixes `&D_8006C838` in a shared `base` pointer with per-arm pointer
   variables that cc1 splices `%lo` into — the same shared-base idiom as
   0x800F00AC/0x800F2508
+- ovl_11_func_800F2724 (m, matched this session) — dialog/record-advance leaf:
+  reads the s8 sentinel at +0x49E6; when it is not -1, calls 0x80022738 then
+  func_8002261C(s8@+0x49E6, s16@+0x49E4), and on a 0 result sets the ovl_11 data
+  global D_80126C94 = 1 if s16@+0x49E4 == 0x19B, memmoves 0x4C bytes from
+  +0x49E4 to +0x49E8, and stores -1 at +0x4A32, returning 1 (0 otherwise); 0x8C,
+  byte-exact clean C, baseline flags; fixes `&D_8006C838` in the cluster's
+  shared `base = (char *)&D_8006C838` pointer (one `lui` + `addiu %lo`, all
+  accesses constant-displacement), and its +0x49E6 byte sentinel / +0x4A32 byte
+  store sit in the same buffer region as sibling 0x800F2508's +0x49E6/+0x4A36
+  fields, in the same 0x800F2xxx link band as 0x800F2354/0x800F2508
 - ovl_11_func_800F45A4 (m, matched this session, byte-exact) — loads the +0x8000+0x5DB4 entity slot and
   calls ovl_11_func_800F5700 to find a matching entry, then OR/AND flips bit 0
   of the result's u16 at +0x4; one of the two readers of the same slot
