@@ -449,6 +449,12 @@ typedef struct {
 } M2C_583b0b68ff5a_UnkStruct800CD5BC;
 
 typedef struct {
+    u16 unk0;
+    char pad_02[2];
+    u8 unk4;
+} M2C_59ee2b8b632a_ReconA0View;
+
+typedef struct {
                s16 unk0;
                s16 unk2;
                u16 unk4;

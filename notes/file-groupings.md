@@ -7778,16 +7778,23 @@ Members:
 
 ---
 
-## `ovl_11` 0x80110838 shared-helper leaf run — 0x80110838–0x80110944 (confidence: medium)
+## `ovl_11` 0x80110790 shared-helper leaf run — 0x80110790–0x80110944 (confidence: medium)
 
-A gapless three-function run whose members all call the same leaf at the tail:
-0x80110838 (size 0x58, ends 0x80110890) → 0x80110890 (0x68, ends 0x801108F8)
-→ 0x801108F8 (0x4C, ends 0x80110944), zero gaps. The call graph agrees: both
-predecessors call 0x801108F8, and 0x801108F8 is the only callee 0x80110838
-and 0x80110890 share. 0x80110838 and the leaf 0x801108F8 also read one object
-through a shared view: the leaf reads an s16 at +0x0, the caller a u16 at
-+0x2, and the caller forwards its own arg0 straight to the leaf.
+A gapless four-function run whose members all call the same leaf at the tail:
+0x80110790 (size 0xA8, ends 0x80110838) → 0x80110838 (0x58, ends 0x80110890)
+→ 0x80110890 (0x68, ends 0x801108F8) → 0x801108F8 (0x4C, ends 0x80110944),
+zero gaps (splat order 0x58970/0x58A18/0x58A70/0x58AD8). The call graph agrees:
+0x80110790, 0x80110838 and 0x80110890 all call 0x801108F8, and 0x801108F8 is
+the only callee they share. 0x80110790, 0x80110838 and the leaf also read one
+object through a shared view: the leaf reads an s16 at +0x0, 0x80110790 reads a
+u16 at +0x0, 0x80110838 a u16 at +0x2, and each forwards its own arg0 straight
+to the leaf.
 Members (address order):
+- ovl_11_func_80110790 (m, matched this session) — run head: calls 0x801108F8,
+  returns 0 when the helper returns 0, otherwise 1 only when the u16 at +0x0
+  is outside both [0x31,0x36) and [0x178,0x17A) and the u8 at +0x4 equals the
+  s16-at-+0x3 type map reached through the D_8006C838 +0x20/+0x2C pointer
+  slots (the D_8006C858/D_8006C860 aliases); 0 otherwise.
 - ovl_11_func_80110838 (m, matched this session) — guard/return leaf: calls
   0x801108F8, returns 0 when its result is 0, otherwise returns 1 when the
   u16 at +0x2 is 0x168 or 0x16A and 0 elsewhere.
