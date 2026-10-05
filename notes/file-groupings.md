@@ -1228,6 +1228,12 @@ Members (address order):
   unsigned); shares the `Cell4` type, sole caller 0x8010C3F8 (which
   increments the cell's u16@2 then calls it), sibling 0x8010C5DC called
   right after
+- ovl_11_func_8010C5DC (m, matched this session) — leaf tick/retry helper on
+  a cell: when u16@2 >= 0x1E, computes `(func_80012A34(0x64) −
+  0x8010C668()) / 25`, unconditionally resets u16@2 to 0x14, then calls
+  0x8010C330(0xA3) that many times; shares the private `Cell4` type, is the
+  gapless link predecessor of 0x8010C668 (0x8010C5DC+0x8C = 0x8010C668) and
+  the gapless successor of 0x8010C5A0 (0x8010C5A0+0x3C = 0x8010C5DC)
 - ovl_11_func_8010C668 (m, matched this session) — read-and-count iterator:
   lhu u16@0 of each cell, same hand-written 0x62→0 countdown (99 cells),
   counts nonzero cells, returns the count; shares the private `Cell4`
