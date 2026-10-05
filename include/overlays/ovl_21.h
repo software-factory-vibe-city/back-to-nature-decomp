@@ -16,6 +16,7 @@ void ovl_21_func_800BA670(void);
 s32 ovl_21_func_800BA7F0(s16 arg0);
 void ovl_21_func_800BA9F8(void);
 void ovl_21_func_800BAA18(void);
+s16 ovl_21_func_800BABF8(s16 arg0);
 s32 ovl_21_func_800BACB0(s16 arg0);
 void ovl_21_func_800BB0F8(void);
 void ovl_21_func_800BB250(void);
