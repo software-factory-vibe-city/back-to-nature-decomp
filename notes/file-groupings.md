@@ -7517,6 +7517,33 @@ Members (link order):
   same six halfwords, calls `func_8001C0D4` with the `D_800BF700`
   `FuncC0D4Args` descriptor.
 
+## `ovl_19` D_800BCEE4 display-setup state-handler run — 0x800BB5D4–0x800BBD14 (confidence: medium)
+
+Evidence: the dispatcher `ovl_19_func_800B7F34` (s) selects on the state byte
+`D_800BCEE4` via `jtbl_800B7E24` and, from consecutive jump-table branches, calls
+`ovl_19_func_800BB5D4`, `ovl_19_func_800BB848`, `ovl_19_func_800BB8F4`,
+`ovl_19_func_800BBB48` and `ovl_19_func_800BBCCC`. Those five members are one
+gapless link-order run (BB5D4 + 0x274 = BB848, + 0xAC = BB8F4, + 0x254 = BBB48,
++ 0x184 = BBCCC, + 0x48 = BBD14), so the call graph and the link order agree —
+the same fingerprint recorded for the ovl_17/ovl_23/ovl_27 display-setup runs.
+The leading handlers share the display-setup idiom `DrawSync` → `ClearOTagR` →
+`func_80014CBC` over `D_8005E3B0 + 0x4290` → `func_8001719C`, and the run closes
+with the per-overlay audio-setup leaf, mirroring ovl_17_func_800BA504.
+
+Members (link order):
+- ovl_19_func_800BB5D4 (s) — display-setup state: DrawSync/ClearOTagR plus
+  func_80014CBC/1719C/15704
+- ovl_19_func_800BB848 (m, matched this session, byte-exact) — same idiom,
+  confirmed: DrawSync(0) / ClearOTagR(D_8005E3C0->field_120,0x800), then
+  func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,1) followed by the zero-return
+  poll, then func_8001719C(D_8005E3B0+0x4290)
+- ovl_19_func_800BB8F4 (s) — same display-setup idiom, plus four func_80015704
+  calls
+- ovl_19_func_800BBB48 (s) — same idiom via func_80014BCC / func_8001719C,
+  plus record copies
+- ovl_19_func_800BBCCC (m) — audio-setup leaf: func_80020B80(2,0),
+  func_80020B80(1,0), func_8001FBF0 x2
+
 ## `ovl_11` D_8006C838 +0x8000 work-area halfword run — 0x801128B4 / 0x80112904 / 0x801129A0 (confidence: medium)
 
 - **gapless link adjacency:** `ovl_11_func_801128B4` (0x50 bytes at 0x801128B4)
