@@ -1206,8 +1206,12 @@ offset `D_8006C838 + 0x99E4` store uses the same `base+0x8000` ori/addu
 split as matched sibling `ovl_11_func_800D12A0` (0x99E6, previous section).
 
 Members (address order):
-- ovl_11_func_8010C330 (s) — read-iterator over the array: lhu + addiu +4
-  stride, count 0x63, guards on `D_80070D3C`
+- ovl_11_func_8010C330 (m, matched this session) — claim iterator: scans
+  cells 0..98 (bound 0x63) for the first free low u16, writes the id there,
+  calls 0x8010C550 with it, then stores the 0x8010C668 occupancy count into
+  `D_80070D3C`; returns 1 on claim, 0 when the table is full. Verified source
+  is a natural `for (i=0; i<0x63; i++)` over `Cell4 *` with the shared local
+  `Cell4`/`D_80075854[]` declarations, confirming the private cell-array tie
 - ovl_11_func_8010C3C4 (m) — leaf countdown clear of every cell's u16@0
   (0x62→0 inclusive, 99 cells), then zeroes s16 at `D_8006C838`+0x99E4
 - ovl_11_func_8010C3F8 (s) — sibling clear/set writing u16@+2 per cell
