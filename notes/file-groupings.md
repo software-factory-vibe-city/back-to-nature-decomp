@@ -1673,8 +1673,10 @@ Members (address order, matched in bold):
   800E4AEC: scans the s16 array at `base+4` for the first entry whose 0x4000
   bit is set and returns `index-2`; on no match calls `SystemError(0x4E,
   D_8006C868->unk2)` — the same `D_8006C868->unk2` read as `ovl_11_func_800E3D88`
-- ovl_11_func_800E4D08 (s) — loop calling 800E4B58, storing results into
-  `D_801291C0[i]`, guarded by a 0x3C00 bit in an s16 word
+- **ovl_11_func_800E4D08 (m)** — loop calling 800E4B58, storing results into
+  the `D_801291C0` s32 array, guarded by a 0x3C00 bit in an s16 word; shares
+  that global cluster with its tail neighbour `ovl_11_func_800E4DAC`, which
+  also reads `&D_801291C0`
 - ovl_11_func_800E4DAC (s) — run tail (0x2CC)
 
 ---
