@@ -5242,16 +5242,23 @@ Members (link order):
   starts exactly where its only caller ends (gapless link pair; call graph and
   link order agree — same-TU hint only).
 
-## `ovl_11` gapless link run head at 0x800F002C — 0x800F002C / 0x800F00AC / 0x800F00E4 / 0x800F021C (confidence: low)
+## `ovl_11` gapless link run head at 0x800EFF9C — 0x800EFF9C / 0x800F002C / 0x800F00AC / 0x800F00E4 / 0x800F021C (confidence: low)
 
 One unbroken ovl_11 link-order run: 0x800EFF9C (0x90, ends exactly at
 0x800F002C) → 0x800F002C (0x80, ends exactly at 0x800F00AC) → 0x800F00AC
 (0x38, ends exactly at 0x800F00E4) → 0x800F00E4 (0x138) → 0x800F021C (0xAC).
 The trailing pair is the documented exclusion-set entry above; 0x800F00AC is
 the `D_8006C838` +0x498C u16-sum leaf. 0x800F002C was the missing zero-gap
-predecessor linking 0x800EFF9C to 0x800F00AC. No shared global ties these
-members (0x800F002C touches none), so this is link-order adjacency only.
+predecessor linking 0x800EFF9C to 0x800F00AC, so the matched head now closes
+the run at both ends. 0x800EFF9C reads the struct_80076220 record (shared
+`D_8006C838` + 0x8000 + 0x19EA split), the other run members touch none, so
+the run itself remains link-order adjacency only.
 
+- ovl_11_func_800EFF9C (m, matched this session, 0x90, byte-exact) — run head:
+  max scan over indices 1..0x24 of the 0x1D4-stride struct_80076220 record,
+  reads s16@+0x2 (`p + 0x8000 + 0x19EA`), skips entries where
+  `ovl_11_func_800C3548(i) == 1`, returns the largest value; zero-gap
+  predecessor of 0x800F002C.
 - ovl_11_func_800F002C (m, matched this session, 0x80, byte-exact) — engine
   flag-guard leaf: early `func_8001AF44(0x1B) == 1` returns -1, else a 0..4
   `for` loop tests `func_8001AF44((u32)(i + 0x1C) << 16 >> 16) == 1` and
