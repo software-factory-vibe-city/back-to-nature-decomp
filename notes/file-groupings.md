@@ -1900,10 +1900,15 @@ extern): the u16 counter array plus its s32 accumulator at `+0x34`. The
 dominant idiom is `ovl_11_func_800F3C9C(arg0 & 0xFFFF)` used as an array index,
 and each member reads or writes the same `+0x34` accumulator. Members form a
 near-gapless link run 0x800F3BCC → 0x800F3C9C → (0x800F3D40) → 0x800F3D88 →
-0x800F3E00 → 0x800F3EF0, and the run's internal call graph agrees: both
-0x800F3BCC and 0x800F3E00 call the index mapper 0x800F3C9C, their link
-predecessor. (0x800F3D40 sits inside the run but belongs to the separate
-D_8006C838 flag-byte group.)
+0x800F3E00 → 0x800F3E44 → 0x800F3EF0, and the run's internal call graph agrees:
+0x800F3BCC, 0x800F3E00 and 0x800F3E44 all call the index mapper 0x800F3C9C,
+their link predecessor. (0x800F3D40 sits inside the run but belongs to the
+separate D_8006C838 flag-byte group.)
+ovl_11_func_800F3E44 reaches the same record from its pending-half base
+`D_800712C0` (= `D_800711C4 + 0xFC`): the u16 at `D_800712C0+0x00` and the
+array at `+0x02` are the record's pending counter and entries at 0x7E/0x7F, and
+`D_800712C0+0x34` is the pending s32 accumulator at 0x130 that
+ovl_11_func_800F3EF0 folds into the main `+0x34`.
 
 Members (address order):
 - ovl_11_func_800F3BCC (s) — register-one-counter: increments the clamped u16
@@ -1918,6 +1923,11 @@ Members (address order):
 - ovl_11_func_800F3E00 (m, matched this session, 0x44 byte-exact) — record
   lookup: `idx = ovl_11_func_800F3C9C(arg0 & 0xFFFF); return idx == -1 ? -1 :
   D_800711C4[idx];` (u16 element); clean C, baseline flags
+- ovl_11_func_800F3E44 (m, matched this session, 0xAC byte-exact) — pending-half
+  fold: while `D_800712C0[0] < 0x1E`, folds `ovl_11_func_800D603C(arg0 & 0xFFFF)`
+  into the s32 at `D_800712C0+0x34`, bumps the counter, then increments the
+  pending entry selected by `ovl_11_func_800F3C9C(arg0 & 0xFFFF)`; returns 1
+  when the counter is full
 - ovl_11_func_800F3EF0 (s) — fold-update: when entry 0x7E is non-zero, adds the
   25 pending entries (0x7F..0x97) into the counters (0..0x18) with a 999 clamp,
   clears the pending entries, and folds the s32 at `+0x130` into `+0x34`
