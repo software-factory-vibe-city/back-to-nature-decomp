@@ -6862,6 +6862,18 @@ Members (link order):
   reads the 32-bit word at record offset 0x14 of three consecutive
   `D_800C0448` records starting at index `arg0*3` and returns how many equal
   1; membership rests on the shared global, not on adjacency.
+- Blocker note (ovl_21_func_800BA944, unmatched): the best clean-C attempt
+  (`base[i].unk14` giv plus a plain `n` counter) reproduces the target's
+  opcode/population/allocation exactly and differs only in the sched1 order
+  of the two `lui ...,0x10000` (pos/step) preheader movables — candidate
+  emits `pos, step, bound-copy, base, idx, p, bp`; target emits
+  `bound-copy, base, idx, p, pos, bp, step`. Both are target-LUID-forceable
+  but no clean-C spelling found places pos/step last in the pre-sched block
+  without giving up the exact `sel`/`bound` allocation; exhaustive
+  semantics-preserving source searches (15840 + 21600 candidates) and the
+  family/reconstruction engines found no exact object, and no flag column
+  dominates. Needs a human decision on whether to accept a non-byte-exact
+  near-match or authorize deeper compiler-state work.
 - ovl_21_func_800B9844 (m, matched this session, byte-exact) — leaf; outer
   loop over six `D_800C0448` records (stride 0x108), inner loop bounded by
   the halfword at `D_800C0448 + 0x64A` over a 0x4C sub-stride, reading a
@@ -6869,6 +6881,16 @@ Members (link order):
   near-twin of `ovl_21_func_800BA7F0` (same `sel/pos/step` fixed-point
   counter idiom); membership rests on the shared global and idiom, not on
   adjacency.
+- ovl_21_func_800BA868 / ovl_21_func_800BA944 (s, unmatched) — gapless
+  link neighbours (0x800BA868 ends at 0x800BA944) that are near-twins of
+  `ovl_21_func_800BA7F0`: both fill a 3-entry `s16 buf[4]` with the indices
+  of `D_800C0448[arg0*3 + k].unk14` entries equal to 0 using the same
+  `sel/pos/step` 16.16 fixed-point match counter (pos initial 0x10000, step
+  0x10000), then return `buf[func_80012A34(sel & 0xFFFF)]` or -1. 800BA944
+  is the simple form; 800BA868 adds an `arg0 & 1` record offset and a
+  per-iteration anomaly guard. The preheader of 800BA868 shows the original
+  emission order `bound-copy, base, index, p, pos, bp, step` that 800BA944's
+  target also has; membership rests on the shared global + idiom + adjacency.
 - ovl_21_func_800BAF70 (m, matched this session, byte-exact) — ObjectState
   reset/handoff leaf: `func_80015840(&D_800C0AFC, 0)` then
   `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800C0AFC, base[0x6B8],
