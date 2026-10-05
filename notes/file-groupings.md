@@ -5536,7 +5536,12 @@ Members (address order):
   `memset(arg0, 0, 0x1D4)` then s16@0 = −1; also a member of the
   memset-clear struct-constructor idiom family above
 - ovl_11_func_800C1C90 (m) — clears bit 0x10 of u16 unk1E in all 37 entries
-- ovl_11_func_800C1CBC (s) — calls 800C1C5C, 80107DD0, 800C3548
+- ovl_11_func_800C1CBC (m, matched this session) — free-slot allocator:
+  walks the 37 entries by 0x1D4, and at the first s16@0 == −1 calls
+  800C1C5C, writes arg0 to s16@0, sets unk1E bit 0x8000, calls
+  80107DD0(&record+0xE0), then branches on 800C3548(index) to store 0 or
+  0x32 into unk2; confirms the run's shared record type and the 800C1C5C →
+  80107DD0 callee pair (same s16 call-cast idiom as the run members)
 - ovl_11_func_800C1D68 (s) — calls 800C3548, func_80012A34, func_8001AF70
 
 ---
