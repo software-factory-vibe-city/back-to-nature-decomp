@@ -4755,8 +4755,9 @@ referencers in the binary.
   advancing-pointer loop shape as 0x80112318/0x801123AC, calling
   ovl_11_func_800F3E00 on each entry; establishes the run's start as a table
   reader tied to the same rodata region
-- ovl_11_func_80112318 (s) — reads slice D_80127F88 as an s16 table base in a
-  4-entry loop, AND-masks s32 global D_800719F8 by ~0x9
+- ovl_11_func_80112318 (m, matched this session, 0x94, byte-exact) — reads
+  slice D_80127F88 as an s16 table base in a 4-entry loop, clears bit 0x8 of
+  s32 global D_800719F8
 - ovl_11_func_801123AC (s) — byte-twin of 0x80112318 (same 0x94 shape; link-
   contiguous, 0x80112318 ends exactly at it), reads slice D_80127F90, masks
   D_800719F8 by ~0x11
@@ -4776,7 +4777,8 @@ on the single s32 flag, and all sit inside the unbroken link run
 - ovl_11_func_80112284 (m, matched this session) — clears bit 0x4, then
   re-sets it only when all four D_80127F80 entries map >= 0x65 through
   ovl_11_func_800F3E00 (the same callee 0x80112440/0x80112494 use)
-- ovl_11_func_80112318 (s) — 4-entry loop over D_80127F88, clears ~0x9
+- ovl_11_func_80112318 (m, matched this session) — 4-entry loop over
+  D_80127F88, clears bit 0x8 via the shared &D_800719F8 base register
 - ovl_11_func_801123AC (s) — byte-twin over D_80127F90, clears ~0x11
 - ovl_11_func_8011256C (m, matched this session, 0x70, byte-exact) — clears
   bit 0x100 of D_800719F8, then unless flag at D_80070D30 (reached as

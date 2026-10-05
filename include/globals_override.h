@@ -1133,6 +1133,12 @@ extern s32 D_800719F8;
  * Accessed with absolute addressing from ovl_11 code. */
 extern s16 D_80127F80;
 
+/* D_80127F88 - second ovl_11 table of four halfwords, scanned by
+ * ovl_11_func_80112318 through an advancing s16 pointer. Sits just past
+ * the D_80127F80 table. Accessed with absolute addressing from ovl_11
+ * code. */
+extern s16 D_80127F88;
+
 /* D_80074838 - large ovl_11 work-area base. Referenced with absolute
  * addressing from ovl_11 code; the card-table region this overlay clears
  * sits at +0x6520 (three rows of six 14-byte card records, also reached
