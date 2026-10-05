@@ -1404,9 +1404,13 @@ Members (address order):
   `Cell4`/`D_80075854[]` declarations, confirming the private cell-array tie
 - ovl_11_func_8010C3C4 (m) — leaf countdown clear of every cell's u16@0
   (0x62→0 inclusive, 99 cells), then zeroes s16 at `D_8006C838`+0x99E4
-- ovl_11_func_8010C3F8 (s) — sibling clear/set writing u16@+2 per cell
-  (same 0x62 count), calls `ovl_11_func_8010C5A0`, also touches
-  `D_8006C838`; link-immediate successor of 0x8010C3C4
+- ovl_11_func_8010C3F8 (m) — sibling clear/set: gates on bit 0 of the
+  u16 at `D_8006C838`+0x91A8, walks all 99 cells (0x62→0) incrementing each
+  live cell's u16@2 then calling `ovl_11_func_8010C5A0` /
+  `ovl_11_func_8010C5DC`, clears the flag bit, and stores `ovl_11_func_8010C668()`
+  into s16 `D_8006C838`+0x99E4; shares the private `Cell4` array,
+  link-immediate successor of 0x8010C3C4 and link-immediate predecessor of
+  0x8010C4B0 (same +0x91A8 flag halfword)
 - ovl_11_func_8010C550 (m, matched this session) — leaf switch writing a
   cell's u16@2 from the id (0xA1→0x14, 0xA2→0xA, 0xA3→0), the exact
   inverse of grader 0x8010C5A0's (u16@2→u16@0: <10→0xA3, <20→0xA2,
@@ -4800,7 +4804,9 @@ the overlay, never GP-relative), and the large-offset writers use the same
   +0x12D4..+0x12E0); leaf, byte-exact clean C, baseline flags; link-immediate
   predecessor of stub 0x8010C1FC, two stubs before the D_80075854 run head
   0x8010C330
-- ovl_11_func_8010C4B0 (m) — sets bit 0 of the u16 at +0x91A8
+- ovl_11_func_8010C4B0 (m) — sets bit 0 of the u16 at +0x91A8; link-immediate
+  successor of matching 0x8010C3F8, which tests/clears the same bit through
+  the shared `u16 *p = (u16 *)D_8006C838; p[0x48D4]` access form
 - ovl_11_func_800C9D38 (m, matched 2026 — this session) — clears bit 30 of the
   s32 word at +0x5234 and zeroes the three s32 counters at +0x52D8/+0x52DC/+0x52E0;
   leaf, byte-exact clean C, baseline flags; offsets sit ~0x36 past sibling
