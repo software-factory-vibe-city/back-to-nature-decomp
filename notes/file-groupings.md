@@ -6001,6 +6001,30 @@ Members:
   decrements `D_80129634`.
 - ovl_11_func_800F4FC8 (m) — pool advance: on a flag in the view's +0x44F8
   word, steps the pool entry pointer forward and clears the entry's low flag.
+
+## `ovl_11` D_8006C838 +0xDD8C pool-walk pair — 0x800F40A4 / 0x800F508C (confidence: medium)
+
+Fingerprints:
+- shared parallel-array cluster: both walk the pointer array at
+  `D_8006C838 + 0xDD8C` (0x8007A5C4) and the s16 array at `D_8006C838 + 0xDDD8`
+  (0x8007A610) in lockstep over 19 (0x12+1) entries, loading one s16 and one
+  pointer per cell;
+- shared address idiom: both form the two cursors through the
+  `base = (char *)&D_8006C838` local (unfolded `lui`+`%lo` base, then an
+  `ori`+`addu` large-offset add for +0xDD8C/+0xDDD8 — the offsets exceed the
+  16-bit `addiu` range) — the same absolute-addressed D_8006C838 view the
+  0x800F4994 pool run and 0x8010780C state guard use;
+- what the tie is not: link adjacency is absent (0x800F4E84 sits between the
+  two), so membership rests on the shared private array cluster + idiom alone.
+
+Members:
+- ovl_11_func_800F40A4 (m) — walk head: walks the 19 cells and calls
+  `ovl_11_func_800F53BC(*p2, *p1)`, then tails `ovl_11_func_800F4AC0(0)`;
+- ovl_11_func_800F508C (m, matched this session, 0x7C, byte-exact) — same walk
+  threading its s16 arg0: calls `ovl_11_func_800F5160(arg0, *p2, *p1)` and
+  returns (no tail call). The two differ only in the per-entry leaf and the
+  arg0 pass-through.
+
 ## `ovl_11` D_80075AD4 0xF0-byte record access cluster — 0x800CF314 / 0x800C580C / 0x8010C1FC (confidence: low)
 
 - shared-global fingerprint: D_80075AD4 is the record base reached absolutely
