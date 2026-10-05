@@ -8312,6 +8312,32 @@ Members (link order):
 
 ---
 
+## `ovl_15` D_80137830/D_80137A30 checksum writer/verifier pair — 0x80135AE0 / 0x80135B68 (confidence: medium)
+
+A gapless two-function run in `configs/splat/ovl_15.yaml`: `ovl_15_func_80135AE0`
+at 0x7CF8 (0x88 bytes, ends exactly at 0x80135B68) is immediately followed by
+`ovl_15_func_80135B68` at 0x7D80 (0xB8 bytes, ends exactly at 0x80135C20). Both
+reference exactly the same absolute global pair — `D_80137830` (3 references
+each) and `D_80137A30` (2 references each) — and no other member of the
+preceding D_801376D0 run does; the run boundary at 0x80135AE0 is where that
+shared pair changes. The two are the write and verify halves of one checksum:
+80135AE0 stores the per-0x80-byte-block XOR at `D_80137830[off+0x7F]`, the
+block-sum at `D_80137A30[0x38]`, and the `D_80137A30` checksum at
+`D_80137830[0x27F]`; 80135B68 recomputes the same three values and compares them
+(returning -1/0). They also share one inner-loop XOR idiom — both emit
+`xor $dst, $byte, $acc` — which in this toolchain is produced only by a `u8`
+accumulator, a quirk the sibling's own preserved source attempt independently
+rediscovered. `ovl_15_func_80135C20` (next in link order) is not a member: it
+references `D_80137598`, not this pair.
+
+Members (link order):
+- ovl_15_func_80135AE0 (s) — checksum writer: fills each block's 0x7F-byte
+  checksum slot and the two summary bytes in `D_80137A30`/`D_80137830`.
+- ovl_15_func_80135B68 (m, matched this session, byte-exact) — checksum
+  verifier: returns 0 when all three stored checksums match, else -1.
+
+---
+
 ## `ovl_11` 0x800F5700 entry-lookup callers — 0x800F5698 / 0x800F5700 / 0x800F45A4 (confidence: medium)
 
 The `Ovl11Func5700Entry` lookup `ovl_11_func_800F5700` (segment `[0x3D8E0]`)
