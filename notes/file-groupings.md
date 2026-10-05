@@ -7005,7 +7005,10 @@ Members (link order):
   duplicate of `ovl_15_func_8012FFD8` (same updater array, immediate `0x15`→`0x1E`),
   contiguous in link order after `ovl_15_func_80131DF8` and immediately before
   `func_80131ED8` (0x70 bytes)
-- func_80131ED8 (s) — shared prologue; also `sb` to `D_80137584`
+- ovl_15_func_80131ED8 (m, matched this session, byte-exact) — shared
+  text-draw prologue with the `D_80053350` updater array; then a
+  `bcmp(D_801376D0 + 0x225C, D_8006C838, 8)` guard sets `D_80137584` to 0x11,
+  else calls `ovl_15_func_8013468C()` and sets 0x12
 - ovl_15_func_80131F5C (m, matched this session, byte-exact) — shared
   text-draw prologue with the `D_8005204A` updater array; then `ret =
   ovl_15_func_80137228(0x11, 9)`, `D_80137584 = ret` (s8; the value is
