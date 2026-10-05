@@ -1523,7 +1523,7 @@ Members (address order, all matched, baseline flags):
   twin of 0x800CE514 with constant 0x7D, `(u32)(arg0 - 0x7D) < 6U`
   (`sll`/`sra`/`addiu`/`jr`/`sltiu` delay slot)
 
-## `ovl_11` func_80015704 two-argument caller set — 0x800BD168 / 0x800CCFF8 / 0x800CE5FC (confidence: low)
+## `ovl_11` func_80015704 two-argument caller set — 0x800BD168 / 0x800CCFF8 / 0x800CDE3C / 0x800CE5FC (confidence: low)
 
 Candidate same-TU callers of the sprite-source loader `func_80015704`.
 Membership rests on a shared caller-side idiom: each TU declares the engine
@@ -1544,6 +1544,13 @@ Members:
   then `func_80015840(obj + 0x260, 0)`; reuses the `+0x3C` u16 a0 view and
   `+0x260` call base of the 0x800C6E0C switch run and the same
   `func_80015704` → `func_80015894` two-argument pair as 800BD168.
+- ovl_11_func_800CDE3C (m, matched this session, byte-exact) — copies 3 words
+  from `arg0+0x100..0x108` into 10 stride-0x10 records at `arg0+0x120..`, then
+  calls `func_80015704(arg0 + 0x2D4 + 0x34*i, D_80124FCC+0x18->unk4 + &D_8009A3F8)`
+  for i in 0..4. Its `$a1` is the same `D_80124FE4[1] + (s32)&D_8009A3F8`
+  expression as the already-documented sibling ovl_11_func_800E2A30, and the
+  two also share the D_8009A3F8 base, witnessing a shared sprite-data base
+  cluster in addition to the two-argument loader idiom.
 - ovl_11_func_800CE5FC (m, matched this session) — guard leaf: zeroes the
   D_80123154 flag, and when D_80070CF2 == 3 calls `ovl_11_func_800D688C(0x187)`
   and, if non-NULL, sets the flag and calls `func_80015704(&D_80128D00, r)`
