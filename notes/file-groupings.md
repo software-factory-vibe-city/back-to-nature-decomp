@@ -4750,6 +4750,11 @@ each slice read by a distinct function inside the unbroken link run
 0x80112284–0x80113A20 — a shared-data-cluster tie, not a call edge. All four
 slices are currently NON_MATCHING data; the readers below are their only
 referencers in the binary.
+- ovl_11_func_80112284 (m, matched this session, 0x94, byte-exact) — reads the
+  contiguous preceding slice D_80127F80 as a 4-entry s16 table in the same
+  advancing-pointer loop shape as 0x80112318/0x801123AC, calling
+  ovl_11_func_800F3E00 on each entry; establishes the run's start as a table
+  reader tied to the same rodata region
 - ovl_11_func_80112318 (s) — reads slice D_80127F88 as an s16 table base in a
   4-entry loop, AND-masks s32 global D_800719F8 by ~0x9
 - ovl_11_func_801123AC (s) — byte-twin of 0x80112318 (same 0x94 shape; link-
@@ -4762,12 +4767,15 @@ referencers in the binary.
 - ovl_11_func_80113A20 (s) — reads slice D_80127FE8 as a 0x10-stride table base
   (`lh D_8012D110`, `sll ,4`, `addu`) and also touches D_80128128 / D_80128088
 
-## `ovl_11` D_800719F8 bit-flag family — 0x80112318 / 0x801123AC / 0x8011256C (confidence: medium)
+## `ovl_11` D_800719F8 bit-flag family — 0x80112284 / 0x80112318 / 0x801123AC / 0x8011256C (confidence: medium)
 
 Members share the absolute `lui %hi(D_800719F8)` + retained `addiu %lo` base
 register and the same bit-clear (mask and) / bit-set (ori via `0x0($base)`) idiom
 on the single s32 flag, and all sit inside the unbroken link run
 0x80112284–0x80113A20 already recorded for the D_80127F88 table cluster.
+- ovl_11_func_80112284 (m, matched this session) — clears bit 0x4, then
+  re-sets it only when all four D_80127F80 entries map >= 0x65 through
+  ovl_11_func_800F3E00 (the same callee 0x80112440/0x80112494 use)
 - ovl_11_func_80112318 (s) — 4-entry loop over D_80127F88, clears ~0x9
 - ovl_11_func_801123AC (s) — byte-twin over D_80127F90, clears ~0x11
 - ovl_11_func_8011256C (m, matched this session, 0x70, byte-exact) — clears
@@ -5126,9 +5134,11 @@ Members (link order):
   clear; otherwise gates on `D_80070D08` and the `D_80070D30` 0x100000 bit
   and sets 0x8000/0x20000 from the `D_80070D30` 0x100/0x200 bits
 
-The stubs before the proven run (`ovl_11_func_801123AC`, 80112318, 80112284,
-80112160) and the `ovl_11_func_8011266C` stub inside the run may extend it;
-membership is not yet evidenced.
+The stubs before the proven run (`ovl_11_func_801123AC`, 80112318, 80112160)
+and the `ovl_11_func_8011266C` stub inside the run may extend it; membership is
+not yet evidenced. 80112284 is now matched and evidenced into the D_800719F8
+bit-flag family above (it uses the direct `base = &D_800719F8` spelling rather
+than this group's far anchor arithmetic, so it is not placed here).
 
 ## `ovl_11` record-halfword match sibling pair — 0x800F13D8 / 0x800F144C (confidence: low)
 
