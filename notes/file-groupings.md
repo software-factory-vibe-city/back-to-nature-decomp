@@ -4888,10 +4888,10 @@ the overlay, never GP-relative), and the large-offset writers use the same
   pointer, `p + 0x1A`) that this leaf selects on — then
   `func_8002261C(1, 0x72B/0x72C/0x72D)` by that pre-call value (0 / <0x2710 /
   else); same `base = (u8 *)&D_8006C838` shared-base idiom
-## `ovl_11` 0x800E6AB0–0x800E6D2C var/return state run (confidence: low)
+## `ovl_11` 0x800E6AB0–0x800E6DFC var/return state run (confidence: low)
 
-Zero-gap link-order run of five ovl_11 functions sitting between the
-+0x5234/+0x51FE flag-byte accessor band and the D_8006C838 accessor band. Two
+Zero-gap link-order run of six ovl_11 functions sitting between the
++0x5234/+0x51FE flag-byte accessor band and the D_8006C838 accessor band. Three
 members share the same register-variable return idiom — `s32 var = 0;` then an
 if/else-if chain, then `return var;` — and each sign-extends a small-integer
 argument. The link-preceding 0x800E6B18's sole callee is the run's own
@@ -4904,6 +4904,10 @@ argument. The link-preceding 0x800E6B18's sole callee is the run's own
   → `func_8001FE34(arg0 ? arg0 : 10)`; else `func_8001FE6C() == 0 || arg1 == 2`
   → `func_8001FBBC(0)` and return 1; otherwise return 0.
 - ovl_11_func_800E6D2C (s) — D_8006C838 accessor-band caller.
+- ovl_11_func_800E6DFC (m, matched this session, byte-exact) — `D_8006C904`
+  flag check → `func_8001AF70(3, 1)` / `func_8001AF70(3, 0)` then state call
+  `ovl_11_func_800EAF5C(var_s0)`; same `var = 0; if/else-if; return var`
+  idiom and s16-argument sign-extension as the run.
 
 ## `ovl_11` D_8006C838 +0x7A78 halfword-record table — 0x800DBB94 / 0x800DBF60 / 0x800DBE9C (confidence: low)
 
