@@ -1437,8 +1437,12 @@ Members (address order):
 - ovl_11_func_800D1960 (m, matched this session) — leaf setter:
   `D_80123754 = arg0` (single `sh`, delay-slot scheduled); byte-exact clean C,
   baseline flags; confirmed member of the shared-global cluster
-- ovl_11_func_800D196C (s) — sandwiched, does not touch the global
-- ovl_11_func_800D1C18 (s) — does not touch the global
+- ovl_11_func_800D196C (s) — sandwiched, does not touch the global; calls
+  the adjacent ovl_11_func_800D1C18 (0x800D1A30)
+- ovl_11_func_800D1C18 (m, matched this session, byte-exact) — does not touch
+  the global; scans a u16 table at D_801232D4 with index
+  `(arg2 + arg1*9)*8 + arg0*288` against a `func_80012A34(0x65)` threshold;
+  called by the adjacent ovl_11_func_800D196C
 - ovl_11_func_800D1CD0 (m, matched this session) — v0-channel rank-compare
   leaf; byte-identical to the parked ovl_11_func_800D0600; does not touch the
   global (CAPTURE_PREV_RET clean C)
