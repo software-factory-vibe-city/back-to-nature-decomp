@@ -2149,6 +2149,56 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_8012A028 formatted-number text-buffer cluster — 0x800FC358–0x800FE558 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the overlay
+s16 scratch buffer `D_8012A028` as the number/string staging area for text
+rows. Evidence is a shared-global cluster plus a shared format/draw idiom; the
+buffer is overlay data (0x8012A028, 16 halfwords) and is declared locally as
+`extern s16 D_8012A028;` (not in `globals.h`), absolute-addressed (`lui`+`%lo`,
+no gp-rel in this container). The nine sites below are the only references to
+`D_8012A028` outside the data segment.
+
+Fingerprints:
+- shared buffer `D_8012A028` (0x8012A028): every member passes it as the
+destination to exe helper `func_8001A970` (the number formatter), writes the
+`0xFFFF` halfword terminator at the returned cursor (`ori $v1,$zero,0xFFFF;
+sh $v1,0($v0)`), then draws the buffer with `func_80017B3C` at
+`D_8005E3C0->field_D8 + 0x54`; some members also seed `0xFFD`/`0x90`/`0x71`
+marker halfwords directly;
+- link-order spread 0x800FC358–0x800FE558, non-gapless (interleaved
+non-members 0x800FC320, 0x800FC544, 0x800FD33C, 0x800FE54C), so the tie is the
+shared-global/idiom cluster, not adjacency.
+
+Members (address order):
+- ovl_11_func_800FC358 (s) — multi-row display builder; calls
+  `func_80015EE8` / `ovl_11_func_800FE7FC` / `func_80017B3C`, formats
+  `D_8012CDE6` into `D_8012A028` via `func_8001A970`
+- ovl_11_func_800FC5F4 (s) — formats `D_80127264+2` into `D_8012A028`
+  (`func_8001A970`, 3 digits + `0xFFFF` terminator), draws via
+  `ovl_11_func_800FC544`
+- ovl_11_func_800FC6A4 (s) — same shape over the stride-4 `D_80127220` table
+  (2 digits, `0xFFFF` terminator), draws via `ovl_11_func_800FC544`
+- ovl_11_func_800FCAF4 (m, matched this session) — clamps its s16 argument to
+  999, formats 3 digits into `D_8012A028`, writes the `0xFFFF` terminator,
+  draws at `D_8005E3C0->field_D8+0x54` via `func_80017B3C`
+- ovl_11_func_800FD21C (s) — seeds `D_8012A028` halfwords (0x90@0, 0xFFD@2,
+  0x71@8, 0@0x10, 0x26@0x12, 0x24@0x14, `0xFFD` fill at +0x1C) and runs two
+  `func_8001A970` transports
+- ovl_11_func_800FD3CC (s) — row builder: formats object field `+0xB4` into
+  `D_8012A028` via `func_8001A970`, calls `ovl_11_func_800FC7F0` /
+  `ovl_11_func_800FE558`
+- ovl_11_func_800FD5E8 (s) — string/table draw over `D_80054BBC` /
+  `D_80053636`; writes `0xFFD` into `D_8012A028+2` and draws via
+  `func_80017B3C`
+- ovl_11_func_800FE3A0 (s) — reads the `D_80127214` halfword table and
+  transports a computed s16 into `D_8012A028` via `func_8001A970`
+- ovl_11_func_800FE558 (s) — formats 0xE digits into `D_8012A028`, writes the
+  `0xFFFF` terminator, scans the buffer for `0xFFD`, draws at
+  `D_8005E3C0->field_D8+0x54` via `func_80017B3C`
+
+---
+
 ## `ovl_11` D_8012DB10 / D_8012DB14 s32-pair run — 0x8011F0C4–0x8011F1D0 (confidence: medium)
 
 Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) whose head resets a

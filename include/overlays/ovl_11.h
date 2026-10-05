@@ -434,6 +434,7 @@ void ovl_11_func_800FB608(void);
 void ovl_11_func_800FB628(void);
 s32 ovl_11_func_800FBE4C(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 void ovl_11_func_800FC320(void);
+void ovl_11_func_800FCAF4(s16 arg0, s16 arg1, s16 arg2);
 void ovl_11_func_800FCB80(void);
 void ovl_11_func_800FCD0C(void);
 void ovl_11_func_800FCEA0(void);
