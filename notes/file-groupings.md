@@ -742,8 +742,9 @@ ovl_11_func_8010780C is its zero-gap successor ovl_11_func_80107888. Both
 Members (address order):
 - ovl_11_func_801075C0 (s) — shared caller's first callee, gapless run head
 - ovl_11_func_80107604 (s) — second gapless member
-- ovl_11_func_8010775C (s) — third gapless member; calls the 0x80107B54
-  lookup leaf
+- ovl_11_func_8010775C (m, matched this session) — third gapless member;
+  9-case jump-table dispatch on arg0 (0–8) selecting an (a0, a1) pair, then
+  tail-calls the 0x80107B54 lookup leaf; default returns 0
 - ovl_11_func_8010780C (m, matched this session) — state guard leaf: reads the
   +0x44BA/+0x44BC s16 pair (D_80070CF2 == 3 && D_80070CF4 == 0x17) through
   the shared `base = (char *)&D_8006C838` idiom, then gates two
