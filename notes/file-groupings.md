@@ -2114,7 +2114,11 @@ Fingerprints:
   and returns that base), extending that shared-caller family.
 
 Members (address order):
-- ovl_11_func_80111D94 (s) — gapless run predecessor, role unknown
+- ovl_11_func_80111D94 (m, matched this session) — run head: on
+  `func_8001AF44(8) == 1`, interpolates the `D_80127F68`/`D_80127F74` pair
+  via `func_8001F278` into a 3-s32 buffer, truncates it to 3 halfwords and
+  feeds `ovl_11_func_800DCBDC`, then bumps file-scope s32 `D_8012D0EC` (or
+  deactivates flag 8 via `func_8001AF70`); byte-exact clean C, baseline flags
 - ovl_11_func_80111E38 (m, matched 2026-10-03) — reset: zeroes
   D_80070D10/D_80070D12/D_800719FE through one `&D_8006C838` base
   (+0x44D8/+0x44DA/+0x51C6) and returns the base; calls 80111EF0
@@ -2150,7 +2154,14 @@ Members (address order):
   s32 `D_8012D0EC` (absolute addressing), and calls `ovl_11_func_800DCBDC(0,
   local)`; byte-exact clean C, baseline flags. The successorship binds the
   `D_80127F68` table and 80111D28 into this one TU cluster, and `D_8012D0EC`
-  is the same file-scope flag referenced by predecessor stub 80111D94.
+  is the same file-scope flag referenced by predecessor 80111D94 (matched
+  below).
+- ovl_11_func_80111D94 (m, matched this session) — link-adjacent successor
+  of 80111D48 (0x4C bytes, ends exactly at 0x80111D94): reuses the same
+  `D_80127F68` table (read at 4-byte stride by `func_8001F278`) and the same
+  file-scope s32 `D_8012D0EC`, and calls the same `ovl_11_func_800DCBDC(0,
+  local)`, confirming the shared `D_80127F68`/`D_8012D0EC` cluster
+  fingerprint; byte-exact clean C, baseline flags.
 
 ---
 
