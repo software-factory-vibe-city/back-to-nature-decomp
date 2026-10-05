@@ -1381,7 +1381,7 @@ Members (address order, all matched, baseline flags):
   twin of 0x800CE514 with constant 0x7D, `(u32)(arg0 - 0x7D) < 6U`
   (`sll`/`sra`/`addiu`/`jr`/`sltiu` delay slot)
 
-## `ovl_11` func_80015704 two-argument caller pair — 0x800BD168 / 0x800CE5FC (confidence: low)
+## `ovl_11` func_80015704 two-argument caller set — 0x800BD168 / 0x800CCFF8 / 0x800CE5FC (confidence: low)
 
 Candidate same-TU callers of the sprite-source loader `func_80015704`.
 Membership rests on a shared caller-side idiom: each TU declares the engine
@@ -1390,12 +1390,18 @@ SpriteDataHeader *header`) rather than using the generated four-argument
 declaration, and materialises exactly `$a0`/`$a1`, `$a1` being a live value
 from the preceding record-table lookup. `ovl_11_func_800CE5FC` also reads the
 D_80070CF2 state s16 (the mask-switch run's switch global). Link order does
-not bind the two (different regions), so this witnesses a shared loader
+not bind the members (different regions), so this witnesses a shared loader
 idiom, not proven TU membership.
 
 Members:
 - ovl_11_func_800BD168 (m) — sprite-source init: `func_80015704(D_80071C60,
   header[1])` then `func_80015894(D_80071C60, header[1] + 0xBE08)`
+- ovl_11_func_800CCFF8 (m, matched this session, byte-exact) — sprite-source
+  init on the `+0x260` object: `func_80015704(obj + 0x260, &D_8007BFF8)` then
+  `func_80015894(obj + 0x260, D_801231FC[obj->unk3C - 0x3B] + &D_8007BFF8)`,
+  then `func_80015840(obj + 0x260, 0)`; reuses the `+0x3C` u16 a0 view and
+  `+0x260` call base of the 0x800C6E0C switch run and the same
+  `func_80015704` → `func_80015894` two-argument pair as 800BD168.
 - ovl_11_func_800CE5FC (m, matched this session) — guard leaf: zeroes the
   D_80123154 flag, and when D_80070CF2 == 3 calls `ovl_11_func_800D688C(0x187)`
   and, if non-NULL, sets the flag and calls `func_80015704(&D_80128D00, r)`
