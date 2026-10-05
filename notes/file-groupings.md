@@ -7791,6 +7791,35 @@ Members (link order):
   0x25476)`; structural twin of ovl_11_func_800DF51C on the 800E109C
   predicate, and a reader of the far state halfword accessor family.
 
+## `ovl_11` third far-state gate run — 0x8010BB18–0x8010BCE8 (confidence: medium)
+
+A third link-order band carrying the far-state gate idiom recorded for the
+0x800DE9C8–0x800DFB98 and 0x800E05A8–0x800E15C8 runs. The band is one zero-gap
+four-function run (0x8010BB18 + 0x90 = 0x8010BBA8 + 0xAC = 0x8010BC54 + 0x94 =
+0x8010BCE8 + 0x84 = 0x8010BD6C), and three of the four independently repeat
+`s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)`. Two continue the lazy-init flag
+`s32@+0x34 & 4` / `ovl_11_func_80107DE0(this + 0xA8, ...)` idiom with the
+consecutive `ovl_11_func_800D12A0` constants `0xD` / `0xE` (the 800DF4F0 run
+uses 9 / 0xA, the 800E109C run 0xB / 0xC), and three share the
+`{u16@0, s16@0x30, s32@0x34}` object layout, so the band is the same source
+pattern rather than one coincidental accessor.
+
+Members (link order):
+- ovl_11_func_8010BB18 (m, matched this session, byte-exact, baseline flags) —
+  inlined predicate `u16@+0x0 == 0`, lazy-init flag `s32@+0x34 & 4`
+  (`ovl_11_func_80107DE0(this + 0xA8, 0x25, 0x2D)`), then
+  `ovl_11_func_800D12A0(0xD)` on the far-state gate; returns -1; structural
+  twin of ovl_11_func_800DF6A8 with the 800DF4F0 predicate inlined.
+- ovl_11_func_8010BBA8 (s, 0xAC) — same `u16@+0x0` guard and far-state gate;
+  dispatches `func_8002261C(2, 0x258)` / `(2, 0x259)` on the `D_80075AEA`
+  threshold, then `ovl_11_func_800D12A0(0xD)`.
+- ovl_11_func_8010BC54 (s, 0x94) — view consumer over `s32@+0x38/+0x3C/+0x40`
+  and `D_8006C838+0x5200`; no far-state gate of its own.
+- ovl_11_func_8010BCE8 (m, byte-exact) — clamps `u16@+0x16 -= 10` at 0, then
+  `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)` and
+  `ovl_11_func_800D12A0(0xE)` on the far-state gate; twin of
+  ovl_11_func_800DF5AC.
+
 ## `ovl_11` record-tag update run — 0x800DA3AC–0x800DA518 (confidence: medium)
 
 Four functions in an unbroken link-order run that all mutate the same 8-byte
