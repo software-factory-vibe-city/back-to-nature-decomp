@@ -472,7 +472,7 @@ Fingerprints:
   immediate link-order followers — `ovl_11_func_801170D8` (on the object
   struct's 2-byte field at +0x1A, result fed to `func_8001A970` as the
   text/string source) and `ovl_11_func_801170E4` (a per-cell draw loop
-  stepping a coordinate by -0x800, calling `func_800245F4` per step);
+  stepping a coordinate by -8, calling `func_800245F4` per step);
 - shared idiom: both leaves read/handle 2-byte object fields; the parent
   builds a 24-entry D_8012D608 halfword array with two `func_8001A970`
   field-read sites and a `func_80017B3C` / `func_80024A10` string call each.
@@ -486,9 +486,10 @@ Members (address order):
 - ovl_11_func_801170D8 (m, matched 2026-11 — this session) — leaf s16
   reader: returns `*ptr` (`lh` at +0); byte-exact clean C, baseline flags
   (no override); parent passes object + 0x1A to read that 2-byte field
-- ovl_11_func_801170E4 (s) — rows/cells draw loop: for count from arg0,
-  calls func_800245F4 per cell while stepping a coordinate by -0x800;
-  called by the head right after the func_801170D8 field read
+- ovl_11_func_801170E4 (m, matched 2026-11 — this session) — rows/cells
+  draw loop: for count from arg0, calls func_800245F4 per cell while
+  stepping a coordinate by -8; called by the head right after the
+  func_801170D8 field read; byte-exact clean C, baseline flags
 
 ---
 
