@@ -7364,7 +7364,11 @@ Members (link order):
   `lhu`/`sh` of `D_801375A4`; scans and fills a row of the shared 2x5 record table
   `D_80140F90` (same table `ovl_15_func_8013468C` fills and `ovl_15_func_801340B8`
   reads), corroborating the shared-global tie
-- ovl_15_func_80134000 (s) — `lh` of `D_8013759E` and `lhu`/`sh` of `D_801375A4`
+- ovl_15_func_80134000 (m, matched this session, byte-exact) — free-slot
+  deallocator: scans the same shared 2x5 table `D_80140F90` row selected by
+  `idx = (arg0 != (s32)&D_800742EC)` as `ovl_15_func_80133F4C`/`801340B8`,
+  invalidates the found `D_8013759E`/arg1 record (`-1`/`-1`/0) and `lhu`/`sh`
+  decrements `D_801375A4` — the inverse of `ovl_15_func_80133F4C`'s fill/`+= 1`
 - ovl_15_func_801340B8 (m, matched this session, byte-exact) — leaf; `lh` of
   `D_8013759E` plus a read of the 0x28-stride table `D_80140F90`, which sits
   0x50 bytes below this run's terminating memset buffer `D_80140FE0`
