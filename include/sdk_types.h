@@ -843,6 +843,13 @@ typedef struct {
 } M2C_d4baf9e5b2ba_SpriteSourceData;
 
 typedef struct {
+    char pad_00[0x26];
+    s16 field_26;
+    char pad_28[0x34 - 0x28];
+    s32 field_34;
+} M2C_d59586abe320_Ov11D266CFields;
+
+typedef struct {
                u8 data[0x1C];
 } M2C_e0bb1011384a_PrimPrim;
 
