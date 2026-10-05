@@ -7229,9 +7229,9 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_801273DC state-block init/installer pair — 0x800FFDCC / 0x800FFE64 (confidence: medium)
+## `ovl_11` D_801273DC state-block init/installer run — 0x800FFDCC / 0x800FFE64 / 0x800FFEF0 (confidence: high)
 
-Candidate same-TU pair tied to the `D_801273Exx` main-RAM state block and the
+Candidate same-TU run tied to the `D_801273Exx` main-RAM state block and the
 `D_801273DC` handler pointer already documented by the D_801273DC handler-table
 run (this file). Evidence is gapless link-order adjacency plus complementary
 roles on that shared state block, with the case number corroborating the
@@ -7240,21 +7240,28 @@ dispatch tie.
 Fingerprints:
 - **gapless link adjacency:** `ovl_11_func_800FFDCC` (0x98 bytes at
   0x800FFDCC) ends exactly at `ovl_11_func_800FFE64` (0x8C bytes at
-  0x800FFE64);
+  0x800FFE64), which in turn ends exactly at `ovl_11_func_800FFEF0` (0x8C
+  bytes at 0x800FFEF0) — a zero-gap three-function run;
 - **shared `D_801273Exx` state block, complementary roles:** 800FFDCC is the
   block's reset leaf — it zeroes `D_801273DC` along with the whole
-  `D_801273Exx` block; its gapless follower 800FFE64 re-seeds two members of
-  that same block (`D_801273E4 = 1`, `D_801273E5 = 0`);
+  `D_801273Exx` block; its gapless followers 800FFE64 and 800FFEF0 re-seed
+  members of that same block (`D_801273E4 = 1`, `D_801273E5 = 0` in 800FFE64;
+  `D_801273E4 = 1`, `D_801273E5 = 1` in 800FFEF0);
 - **handler install:** 800FFE64 is the only site that stores
   `D_801273DC = ovl_11_func_80100128`; 80100128 is the case-0x3B6 handler of
   the D_801273DC handler-table run, and 800FFE64's own event call is
   `func_8002261C(3, 0x3B5)`, the case immediately below 0x3B6 — an
-  adjacent-case dispatch tie, not just a coincident store;
-- **shared call cluster:** 800FFE64 also calls the run's reset leaf
-  `ovl_11_func_800FFDCC` at entry and closes with the event tail
-  `func_8001FABC(3)` / `func_800226D8(0)` / `func_80017B18(0)` / the case
-  call, and ORs bit 0x20000 into `D_8006C838.field_0C` (the work-area bit seen
-  in the 0x800F66F0 state-set run).
+  adjacent-case dispatch tie, not just a coincident store. 800FFEF0 stores
+  `D_801273DC = ovl_11_func_8010021C`, the three-way handler that the case-0x3B7
+  entry `ovl_11_func_80100194` installs — the same install template one link
+  slot later;
+- **shared call cluster:** 800FFE64 and 800FFEF0 are byte-template twins —
+  both OR bit 0x20000 into `D_8006C838.field_0C` (the work-area bit seen in the
+  0x800F66F0 state-set run), call the run's reset leaf `ovl_11_func_800FFDCC`
+  at entry, call `ovl_11_func_800F69D0`, and close with the identical event tail
+  `func_8001FABC(3)` / `ovl_11_func_800F77A8(-1)` / `func_800226D8(0)` /
+  `func_80017B18(0)` / `func_8002261C(3, 0x3B5)`; they differ only in the two
+  `D_801273Exx` stores and the installed handler pointer.
 
 Members (link order):
 - ovl_11_func_800FFDCC (m) — reset leaf for the `D_801273Exx` state block:
@@ -7263,6 +7270,10 @@ Members (link order):
   installer: calls 800FFDCC, sets `D_801273E4 = 1` / `D_801273E5 = 0`,
   stores handler `ovl_11_func_80100128` into `D_801273DC`, then the shared
   event tail ending `func_8002261C(3, 0x3B5)`
+- ovl_11_func_800FFEF0 (m, matched this session, byte-exact) — twin installer
+  one link slot later: same entry calls and shared event tail, sets
+  `D_801273E4 = 1` / `D_801273E5 = 1`, stores handler
+  `ovl_11_func_8010021C` into `D_801273DC`
 
 ---
 
