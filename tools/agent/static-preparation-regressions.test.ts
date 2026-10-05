@@ -1,18 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { prepareM2c } from "../build/prepareM2c.js";
-import { ROOT, compileSource, disassembleObject } from "./decompToolchain.js";
+import { ROOT, compileSource, disassembleObject, preprocessOnly } from "./decompToolchain.js";
 import { extractSignaturesFromSource } from "./sdkTypes.js";
-import { incomingSlots, prototypesIn, contradictionsAgainst } from "./calleeTruth.js";
+import { incomingSlots, prototypesIn, contradictionsAgainst, scopeFromPreprocessed } from "./calleeTruth.js";
 import { auditM2cArithmetic } from "./m2cLimits.js";
 import { buildMachineIrFrom } from "./machine-ir/index.js";
 import { decodeFunction } from "./matching-reconstruction/decode.js";
 import { assemble, type AsmLine } from "./matching-reconstruction/fixture-asm.js";
-import { accessesFromIr, callAccessConstraints } from "./staticDiscovery.js";
+import { accessesFromIr, callAccessConstraints, callbackTablesFromData, selectDataDefinitions } from "./staticDiscovery.js";
 
 const fixtures = "tools/agent/fixtures/static-preparation/";
 const m2c = (file: string, args: string[] = []) => execFileSync("python3", ["tools/vendor/m2c/m2c.py", "--target", "mipsel-gcc-c", "--no-cache", ...args, fixtures + file], { cwd: ROOT, encoding: "utf8" });
@@ -93,6 +93,50 @@ test("original direct-call pointer constraints propagate without inferring a com
   const carried = callAccessConstraints(caller, callee, effect);
   assert.equal(carried[0]!.base, "entry:a1"); assert.equal(carried[0]!.offset, 2); assert.equal(carried[0]!.width, 2);
   assert.equal(carried[0]!.signed, false); assert.equal(carried[0]!.evidence.length, 2);
+});
+test("original callback data reaches m2c; incomplete and heterogeneous contracts are not made uniform", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "callback-context-")); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const asm = join(dir, "fixture.s"), context = join(dir, "context.c"), candidate = join(dir, "candidate.c");
+  const data = ".data\ndlabel callbacks\n.word one, two\nenddlabel callbacks\ndlabel unrelated\n.word 123\nenddlabel unrelated\n";
+  const table = callbackTablesFromData(data, ["callbacks"], "data.s", (name) => ["one", "two"].includes(name))[0]!;
+  assert.deepEqual(table.entries.map((e) => [e.offset, e.functionName]), [[0, "one"], [4, "two"]]);
+  assert.ok(table.evidence && table.entries.every((e) => e.evidence.length));
+  assert.doesNotMatch(selectDataDefinitions(data, ["callbacks"]).join("\n"), /unrelated|123/);
+  const code = `.text\nglabel dispatch\naddiu $sp, $sp, -24\nsw $ra, 16($sp)\nlui $v0, %hi(callbacks)\naddiu $v0, $v0, %lo(callbacks)\nsll $a0, $a0, 2\naddu $v0, $v0, $a0\nlw $v0, 0($v0)\nnop\njalr $v0\nnop\nlw $ra, 16($sp)\nnop\njr $ra\naddiu $sp, $sp, 24\nglabel one\njr $ra\nnop\nglabel two\njr $ra\nnop\n`;
+  writeFileSync(asm, code + selectDataDefinitions(data, ["callbacks"]).join("\n"));
+  const generate = (declarations: string) => {
+    writeFileSync(context, "void dispatch(int index);\n" + declarations);
+    return execFileSync("python3", [prepareM2c(ROOT).script, "--target", "mipsel-gcc-c", "--no-cache", "-f", "dispatch", "--context", context, asm], { cwd: ROOT, encoding: "utf8" });
+  };
+  const output = generate("void one(void); void two(void);\n");
+  assert.match(output, /callbacks\[index\]\(\)/); assert.doesNotMatch(output, /\?|unk/);
+  /* These are the fixture's destination declarations, not invented fixes to
+     the draft. m2c deliberately suppresses prototypes already in its context. */
+  writeFileSync(candidate, '#include "common.h"\nvoid one(void); void two(void);\n' + output);
+  compileSource(candidate, join(dir, "object"), "dispatch", { assemble: true, containerKind: "exe" });
+  const hetero = generate("void one(void); int two(void);\n");
+  assert.match(hetero, /incompatible signatures; examined one, two/); assert.match(hetero, /\?/);
+  const partial = generate("int one(void);\n");
+  assert.match(partial, /incomplete contracts; examined one, two/); assert.match(partial, /\?/);
+  assert.doesNotMatch(partial, /static s32 \(\*callbacks/);
+});
+test("known storage cannot acquire fictitious members; raw byte accesses compile under real headers", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "known-storage-")); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const asm = join(dir, "fixture.s"), headerInput = join(dir, "headers.c"), context = join(dir, "context.c");
+  writeFileSync(headerInput, '#include "common.h"\n');
+  const processed = preprocessOnly(headerInput, dir, "headers");
+  writeFileSync(context, scopeFromPreprocessed(readFileSync(processed, "utf8")).source);
+  writeFileSync(asm, `.text\nglabel storage\nlui $v1, %hi(D_8006C838)\naddiu $v1, $v1, %lo(D_8006C838)\nlw $v0, 0x448C($v1)\nsw $v0, 0xC($v1)\njr $ra\nnop\n`);
+  const output = execFileSync("python3", [prepareM2c(ROOT).script, "--target", "mipsel-gcc-c", "--no-cache", "-f", "storage", "--context", context, asm], { cwd: ROOT, encoding: "utf8" });
+  assert.doesNotMatch(output, /unkC|unk448C|\?/); assert.match(output, /D_8006C838 \+ 0x448C/); assert.match(output, /D_8006C838 \+ 0xC/);
+  const candidate = join(dir, "candidate.c"); writeFileSync(candidate, '#include "common.h"\n' + output);
+  const object = compileSource(candidate, join(dir, "object"), "storage", { assemble: true, containerKind: "overlay" });
+  const instructions = disassembleObject(object.object!);
+  /* GCC shares the +12 base: 17536 + 12 == 0x448C. Check the
+     actual addressing relation rather than demanding one displacement form. */
+  assert.ok(instructions.some((i) => i.mnemonic === "addiu" && i.operands.join(",") === "v1,v0,12"));
+  assert.ok(instructions.some((i) => i.mnemonic === "lw" && i.operands[1] === "17536(v1)"));
+  assert.ok(instructions.some((i) => i.mnemonic === "sw" && i.operands[1] === "12(v0)" && i.relocation?.symbol === "D_8006C838"));
 });
 const lift = (lines: AsmLine[]) => buildMachineIrFrom("frozen", decodeFunction(assemble(lines, 0x80010000)));
 test("opaque address expressions break access proofs without discarding known surrounding accesses", () => {

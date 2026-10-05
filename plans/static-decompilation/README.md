@@ -1,6 +1,12 @@
 # Static decompilation: implementation and validation plans
 
-Status: **planned; no pipeline changes implemented or backtest improvements claimed**.
+Status: **Task 1 partially implemented; callgraph-driven type propagation is the
+active follow-up.** The reported callback draft still fails compilation. Historical
+backtests and end-to-end savings have not been demonstrated.
+
+Next: [Callgraph-driven type propagation](callgraph-type-propagation.md).
+The [changeset overview](task-01-changeset-overview.md) separates the original
+implementation checkpoint from the subsequent corrections and their smoke results.
 
 ## Outcome
 
@@ -13,17 +19,18 @@ If the draft already matches, the controller performs the full finalization gate
 and hands the result directly to the documentation agent. No decompilation-model
 turn is needed for that function.
 
-**Remove the current m2c repair implementation entirely as part of Task 1.**
-Do not keep it as a fallback, rename its substitutions, or make removal depend
-on the optional second task.
+The old m2c repair implementation was removed by Task 1. Keep it removed: no
+fallback, renamed substitutions or dependency on the optional second task.
 
-## The two workstreams
+## Plan index
 
-| Plan | Deliverable | Dependency |
-|---|---|---|
-| [1. Context and first-pass handoff](01-context-and-handoff.md) | Faithful context, bounded static inference, measured m2c draft, explicit discovery packet, exact-match fast path, repair removal | Independently shippable |
-| [2. Declaration integration](02-declaration-integration.md) | Optional structural post-processing that performs justified declaration work and coalesces compatible partial object views | Enriches Task 1; never required by it |
-| [Validation: both historical sessions](03-session-backtesting.md) | Historical artifact comparison and controlled agent experiments, with leakage controls | Cross-cutting validation, not a third runtime component |
+| Plan | Status and purpose |
+|---|---|
+| [Callgraph-driven type propagation](callgraph-type-propagation.md) | **Active next implementation plan:** follow dependencies recursively and feed justified type constraints into m2c |
+| [1. Context and first-pass handoff](01-context-and-handoff.md) | Original contract; partially implemented, not an acceptance certificate |
+| [2. Declaration integration](02-declaration-integration.md) | Deferred optional enrichment; not a prerequisite for the core inference correction |
+| [Validation: both historical sessions](03-session-backtesting.md) | Deferred historical replay and controlled evaluation; no savings claim yet |
+| [Task 01 changeset overview](task-01-changeset-overview.md) | Historical checkpoint and subsequent correction evidence |
 
 The division is operational:
 
@@ -50,14 +57,15 @@ compilation reported compiler errors; the two compiling repairs still mismatched
 Historical preprocessed inputs reproduce those outcomes without today's headers.
 The repair-selected sample is not the full session's m2c failure rate.
 
-The established problems include:
+The historical investigation identified these failures; this list is not a
+current implementation-status report:
 
 - Global context loses existing aggregate views; type/prototype context given
   to m2c is not necessarily available to the emitted source's compiler.
 - Type harvesting loses nested-overlay/source-local definitions and substitutes
   fictitious concrete layouts for missing types.
 - Signature handling can lose pointer/return types or incoming argument slots.
-- The current repair layer introduces declaration conflicts and overlapping
+- The historical repair layer introduced declaration conflicts and overlapping
   text edits, while leaving fundamental field-access problems unresolved.
 - Some compiling output has incorrect pointer scaling. Context improvements
   alone cannot fix every general decompiler/emitter defect.
@@ -69,16 +77,26 @@ must cover functions that never used m2c as well.
 
 ## Delivery order
 
-1. Freeze session inputs and baseline evidence before tuning the new pipeline.
-2. Implement Task 1 in vertical slices: faithful context; measured draft packet;
-   controller handoff/fast path; retire repair and update active instructions.
-3. Validate Task 1 by itself against both sessions and paired agent runs.
-4. Implement and evaluate Task 2 as a separately switchable enrichment.
-5. Enable each stage by default only after its own acceptance gates pass.
+1. Implement the target-rooted callgraph and bidirectional type-constraint
+   propagation in [the active plan](callgraph-type-propagation.md), using the
+   reported callback table as a reproduction, not a special case.
+2. Feed the resulting facts into m2c and test fresh drafts of known, byte-matched
+   functions with real dependencies, including a multi-hop callback chain. Use
+   independently audited expected facts and held-out root/intermediate signatures
+   to demonstrate propagation. Then run the reported reproduction and secondary
+   real-header smoke check. Keep compact handoffs and existing-attempt preservation.
+3. Review the already-expanded orchestration separately after the core path works;
+   do not add controller or process-lifecycle redesigns to this correction.
+4. Undertake historical backtests only as a separately requested validation task,
+   with frozen attempt-start inputs and preregistered comparison criteria.
+5. Implement/evaluate Task 2 separately if requested. Preparation is already
+   enabled by default; this plan does not introduce a new opt-in switch.
 
-General static inference is part of Task 1, but solving every unknown statically
-is not its release condition. Unsupported or ambiguous cases must produce useful
-agent-discovery material rather than hold the whole rollout hostage.
+General static inference is part of Task 1, but recovering every source type
+uniquely is not promised. An unexamined dependency is an incomplete analysis,
+not evidence of genuine ambiguity. After graph propagation reaches its explicit
+boundary, unsupported effects, conflicts and remaining alternatives must produce
+useful discovery material rather than fabricated prototypes.
 
 ## Invariants
 

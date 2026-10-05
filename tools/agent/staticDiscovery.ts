@@ -1,15 +1,52 @@
 /** Bounded original-word access/pointer evidence. No inferred type is published. */
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import { buildMachineIr, type MachineIrReport } from "./machine-ir/index.js";
 import { resolveAsmSource } from "./decompToolchain.js";
 import type { ValueId, Effect } from "./machine-ir/ir.js";
 import { requireFunctionLocation, loadSymbolIndex, resolveAddress } from "../lib/symbolIndex.js";
 import type { UnknownFact } from "./campaign/packet.js";
+import type { Prototype, Witness } from "./calleeTruth.js";
+
+/** Selected original data, preserving section and labelled extent. No C repair. */
+export function selectDataDefinitions(source: string, names: string[]): string[] {
+  const lines = source.split("\n");
+  const definitions: string[] = [];
+  let section = ".data";
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*\.(?:section|data|rodata|rdata)\b/.test(lines[i]!)) section = lines[i]!;
+    const label = /^\s*(?:dlabel|glabel)\s+(\w+)/.exec(lines[i]!);
+    if (!label || !names.includes(label[1]!)) continue;
+    const start = i++;
+    while (i < lines.length && !/^\s*(?:enddlabel|dlabel|glabel|nonmatching)\b/.test(lines[i]!)) i++;
+    if (/^\s*enddlabel\b/.test(lines[i] ?? "")) i++;
+    definitions.push([section, ...lines.slice(start, i)].join("\n") + "\n");
+    i--;
+  }
+  return definitions;
+}
+export interface CallbackTable {
+  symbol: string; evidence: string;
+  entries: Array<{ offset: number; functionName: string; evidence: string[]; prototype?: Prototype; witness?: Witness }>;
+}
+export function callbackTablesFromData(source: string, names: string[], origin: string,
+  isFunction: (name: string) => boolean): CallbackTable[] {
+  return names.flatMap((symbol) => selectDataDefinitions(source, [symbol]).flatMap((definition) => {
+    const words = [...definition.matchAll(/\.word\s+([^\n]+)/g)];
+    /* Require a pure, contiguous address table, not numeric data which merely
+       contains one function address or symbolic expressions with addends. */
+    const entries = words.flatMap((m) => m[1]!.trim().split(/\s*,\s*/));
+    if (!entries.length || /\.(?:byte|short|half|float|double|space|ascii)\b/.test(definition) ||
+      entries.some((e) => !/^[A-Za-z_]\w*$/.test(e) || !isFunction(e))) return [];
+    const line = source.slice(0, source.search(new RegExp(`\\b(?:dlabel|glabel)\\s+${symbol}\\b`))).split("\n").length;
+    return [{ symbol, evidence: `${origin}:${line}`, entries: entries.map((functionName, i) => ({ offset: i * 4, functionName, evidence: [`${origin}:${line + i + 1}`] })) }];
+  }));
+}
 
 export interface AccessFact {
   functionName: string; at?: number; base: string; offset: number; width: 1 | 2 | 4;
   signed: boolean | null; access: "load" | "store"; strides: number[]; evidence: string[];
+  originalStorage?: { symbol: string; offset: number; alias: string; aliasOffset: number };
 }
 export interface DiscoveryReport {
   status: "complete-with-unknowns" | "budget-exhausted" | "unsupported";
@@ -19,6 +56,7 @@ export interface DiscoveryReport {
   returnUses: Array<{ caller: string; callee: string; callAt: number; accessAt?: number; offset: number; width: number; evidence: string[] }>;
   records: Array<{ base: string; minimumExtent: number; strides: number[]; conflicts: string[] }>;
   unknowns: UnknownFact[];
+  callbackTables: CallbackTable[];
 }
 const BOUNDS = { functions: 8, instructions: 8192, expressionDepth: 32, storageScans: 256 };
 
@@ -94,9 +132,15 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
   const graph = existsSync(graphPath) ? JSON.parse(readFileSync(graphPath, "utf8")) as {
     functions: Array<{ name: string; calls: string[]; calledBy: string[] }> } : { functions: [] };
   const target = graph.functions.find((f) => f.name === functionName);
-  const related = [...new Set([functionName, ...(target?.calls ?? []), ...(target?.calledBy ?? [])])];
   const assembly = resolveAsmSource(functionName);
   const storage = assembly ? [...new Set(readFileSync(assembly, "utf8").match(/\b(?:D_[A-Fa-f0-9]{8}|ovl_\d+_D_[A-Fa-f0-9]{8})\b/g) ?? [])] : [];
+  const location = requireFunctionLocation(functionName);
+  const dataDirectory = join(root, location.container.paths.asmDir, "data");
+  const callbackTables = existsSync(dataDirectory) ? readdirSync(dataDirectory).filter((p) => p.endsWith(".s")).flatMap((p) =>
+    callbackTablesFromData(readFileSync(join(dataDirectory, p), "utf8"), storage, relative(root, join(dataDirectory, p)),
+      (name) => { try { return requireFunctionLocation(name).container.id === location.container.id || name.startsWith("func_"); } catch { return false; } })) : [];
+  const related = [...new Set([functionName, ...callbackTables.flatMap((t) => t.entries.map((e) => e.functionName)),
+    ...(target?.calls ?? []), ...(target?.calledBy ?? [])])];
   /* The index is selected from original assembly, never present-day C types. */
   let scans = 0;
   for (const entry of graph.functions) {
@@ -107,7 +151,7 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
     if (path && storage.some((s) => new RegExp(`\\b${s}\\b`).test(readFileSync(path, "utf8")))) related.push(entry.name);
   }
   const result: DiscoveryReport = { status: "complete-with-unknowns", bounds: BOUNDS, visited: [], excluded: [],
-    accesses: [], pointerFlows: [], returnUses: [], records: [], unknowns: [] };
+    accesses: [], pointerFlows: [], returnUses: [], records: [], unknowns: [], callbackTables };
   if (storage.length && scans === BOUNDS.storageScans) {
     result.status = "budget-exhausted";
     result.unknowns.push({ subject: "shared-storage users", strength: "unknown", constraints: storage,
@@ -127,6 +171,9 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
       reports.set(name, report); result.visited.push(name);
       const index = loadSymbolIndex(location.container);
       const facts = accessesFromIr(report);
+      const original = resolveAsmSource(name);
+      const displacements = new Map(original ? [...readFileSync(original, "utf8").matchAll(/\/\*\s*\w+\s+([A-Fa-f0-9]{8})\s+[A-Fa-f0-9]{8}\s*\*\/\s+\w+\s+\$\w+,\s*(-?(?:0x[A-Fa-f0-9]+|\d+))\(\$\w+\)/g)]
+        .map((m) => [parseInt(m[1]!, 16), m[2]!.startsWith("-") ? -Number(m[2]!.slice(1)) : Number(m[2])]) : []);
       for (const fact of facts) {
         const returned = /^return:.*:e(\d+)$/.exec(fact.base);
         const effect = returned ? report.ir.effects.find((e) => e.id === Number(returned[1])) : undefined;
@@ -139,7 +186,18 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
         if (fact.base.startsWith("absolute:")) {
           const address = Number(fact.base.slice("absolute:".length)) + fact.offset;
           const symbol = resolveAddress(index, address >>> 0);
-          if (symbol) { fact.base = `storage:${location.container.id}:${symbol.symbol}`; fact.offset = symbol.offset; }
+          if (symbol) {
+            /* SSA constant folding can collapse (base + displacement) into an
+               alias. The original memory operand still witnesses the base web. */
+            const displacement = fact.at === undefined ? undefined : displacements.get(fact.at);
+            const base = resolveAddress(index, (displacement === undefined ? Number(fact.base.slice("absolute:".length)) : address - displacement) >>> 0);
+            if (base) {
+              const offset = base.offset + (displacement ?? fact.offset);
+              fact.originalStorage = { symbol: base.symbol, offset, alias: symbol.symbol, aliasOffset: symbol.offset };
+              fact.evidence.push(`${base.symbol} + 0x${offset.toString(16)} == ${symbol.symbol} + 0x${symbol.offset.toString(16)}`);
+            }
+            fact.base = `storage:${location.container.id}:${symbol.symbol}`; fact.offset = symbol.offset;
+          }
         } else fact.base = `${name}:${fact.base}`;
       }
       result.accesses.push(...facts);
@@ -147,7 +205,7 @@ export function discoverStatic(functionName: string, root: string): DiscoveryRep
         constraints: [], evidence: [`original word 0x${opaque.vram.toString(16)}`], missing: opaque.note,
         attempted: "CFG/SSA lifting", bound: JSON.stringify(BOUNDS), stoppedBecause: `opaque ${opaque.op} breaks proofs through its effects`, inspectNext: [name] });
     } catch (error) {
-      result.unknowns.push({ subject: name, strength: "unknown", constraints: [], evidence: [], missing: String(error),
+      result.unknowns.push({ subject: name, strength: "unknown", constraints: [], evidence: [resolveAsmSource(name) ?? name], missing: String(error),
         attempted: "resolve original CFG/SSA", bound: JSON.stringify(BOUNDS), stoppedBecause: "original input unavailable", inspectNext: [name] });
     }
   }

@@ -1,9 +1,13 @@
 # Validation — backtest both sessions and measure harness improvement
 
-Status: **planned**. Existing artifact replays establish defects in the old path;
-they do not establish savings from an implementation that does not yet exist.
+Status: **planned and deferred**. Task 1 is partially implemented and a
+branch-aware session extractor exists, but the historical replay and controlled
+agent comparisons below have not been completed. Old artifact replays and the
+small current-context smoke sample do not establish end-to-end savings.
 
-This validates [Task 1](01-context-and-handoff.md) independently, then measures
+Complete [the core callgraph/type-propagation work](callgraph-type-propagation.md)
+first. This separately requested validation then evaluates
+[Task 1](01-context-and-handoff.md) independently and
 [Task 2](02-declaration-integration.md) as an optional incremental addition.
 
 ## 1. Questions and experiment arms
@@ -90,7 +94,11 @@ Reusable starting points:
 - `ast-evidence.ts`, `probe-repairs.ts`, `context-probe.ts`: focused reproductions <!-- doc-ref-ignore: local ignored investigation scripts -->
   of declaration, repair and context failures.
 
-Promote reusable logic into tested TypeScript under the existing diagnostics/
+`tools/diagnostics/sessionBacktest.ts` and
+`tools/diagnostics/session-backtest.test.ts` now provide an initial branch-aware
+extractor. Audit that implementation against the requirements below before
+extending it; its existence is not a completed replay/backtest system. Promote
+remaining reusable logic into tested TypeScript under the existing diagnostics/
 library structure. Do not check in private full sessions, generated binaries or
 hardcoded home-directory paths. Store immutable runs and large artifacts under
 `build/`; check in only redacted fixtures, schemas and concise reports.
@@ -311,10 +319,12 @@ first source edit is an observation, not an “avoidable time” total.
 
 ### Predeclared release decision
 
-Before implementation tuning, freeze numeric practical-improvement thresholds,
-repetition count, confidence/non-inferiority rules and permitted preparation
-latency in a versioned evaluation manifest, using the reproduced baseline to
-choose meaningful values. Do not choose a threshold after seeing the new arm.
+Before running new validation comparisons, freeze numeric practical-improvement
+thresholds, repetition count, confidence/non-inferiority rules and permitted
+preparation latency in a versioned evaluation manifest, using the reproduced
+baseline to choose meaningful values. Record which implementation development
+and smoke results were already observed; this is not a retrospective claim of
+preregistration. Do not choose a threshold after seeing the evaluated new arm.
 
 Hard gates are unconditional:
 

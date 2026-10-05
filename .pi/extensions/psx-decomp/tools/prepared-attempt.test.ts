@@ -49,6 +49,21 @@ test("noncompiling output and failed generation have useful handoffs, never resi
   packet.primary = null; packet.generation.status = "failed";
   assert.match(packetOpening(packet, attempt.path), /none — generation failed/);
 });
+test("startup links selected context and evidence, never the internal provenance catalogue", (t) => {
+  const { packet, attempt } = fixture(t);
+  packet.identity.inputs = Object.fromEntries(Array.from({ length: 3405 }, (_, i) => [`unrelated/${i}.c`, "a".repeat(64)]));
+  packet.context.excluded = Array.from({ length: 593 }, (_, i) => `unrelated-declaration-${i}`);
+  packet.discovery.unknowns.push({ subject: "callbacks", strength: "unknown", constraints: [], evidence: ["original/table.s:10"],
+    missing: "callback contracts unresolved", attempted: "entry contracts", bound: "five entries", stoppedBecause: "no definition", inspectNext: ["src/entry.c"] });
+  const handoff = packetOpening(packet, attempt.path);
+  assert.ok(Buffer.byteLength(handoff) < 8192);
+  assert.match(handoff, /Context \(selected declarations and dependencies\): build\/context.c/);
+  assert.match(handoff, /build\/draft\/evidence.md/); assert.match(handoff, /callback contracts unresolved/);
+  assert.doesNotMatch(handoff, /unrelated\//); assert.doesNotMatch(handoff, /unrelated-declaration/);
+  packet.primary!.text = "/* large draft marker */" + "x".repeat(12000);
+  const large = packetOpening(packet, attempt.path);
+  assert.match(large, /Measured source: build\/draft\/f.c/); assert.doesNotMatch(large, /large draft marker/);
+});
 test("failed finalization restores only the preparer's own staging", async (t) => {
   const { root, stub, packet, attempt } = fixture(t);
   const result = await attemptStaticFinalization({ root, attempt, aborted: () => false, finalize: async () => ({ passed: false, changedFiles: [], detail: "full build failed" }) });

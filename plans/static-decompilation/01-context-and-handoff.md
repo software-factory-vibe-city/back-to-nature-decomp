@@ -1,12 +1,18 @@
 # Task 1 — faithful m2c context and a prepared first-pass handoff
 
-Status: **implemented and ready for user testing; session backtests deferred**.
-Preparation is the default in interactive commands and both controllers.
-Completed checks and explicit limitations are recorded in
-[the implementation report](../../notes/research/static-preparation-task1.md).
-This task runs without [Task 2](02-declaration-integration.md). The full acceptance
-plan, including [session backtests](03-session-backtesting.md), is not certified
-complete.
+Status: **partially implemented; core inference correction remains open**.
+Preparation is the default in interactive commands and both controllers, but the
+reported callback draft still fails compilation. Its entries have been inspected;
+recursive dependency/type propagation has not been exhausted. The earlier
+readiness claim is withdrawn.
+
+Next implementation work is specified in
+[Callgraph-driven type propagation](callgraph-type-propagation.md). The
+[implementation report](../../notes/research/static-preparation-task1.md) and
+[changeset overview](task-01-changeset-overview.md) record checkpoints, not complete
+acceptance of the contract below. This task runs without
+[Task 2](02-declaration-integration.md).
+[Session backtests](03-session-backtesting.md) remain deferred.
 
 ## 1. Contract
 
@@ -33,9 +39,13 @@ emission are fixed at that layer. Remaining unknowns go to the agent, with evide
 The controller must not replace `?` with a scalar, inject casts until a compiler
 accepts the program, or silently choose a signature to eliminate an error.
 
-## 2. Existing implementation to change
+## 2. Original implementation map
 
-| Area | Current implementation | Planned change |
+This table preserves the original component boundaries and intended changes.
+Several are now implemented; it is not a current remaining-work checklist. Use
+[the active callgraph plan](callgraph-type-propagation.md) for that checklist.
+
+| Area | Implementation location | Intended change |
 |---|---|---|
 | Invocation | `tools/agent/m2cFunc.ts` | Structured preparation result; explicit context/input manifest; raw output and diagnostics preserved; safe staging rather than unconditional live writes |
 | Global context | `tools/build/classifyGlobals.ts` | Stop scalarizing the typed/aliased views already present in override declarations; use one effective declaration model for compiler and decompiler views |
@@ -157,8 +167,11 @@ Each unresolved item should include:
 ### Static inference slice
 
 Implement a bounded, general evidence pass over the target and relevant original
-callers/callees/shared-storage users. Reuse original-word CFG/SSA and access
-analysis where possible. It should propagate:
+callers/callees/shared-storage users. Follow dependencies recursively, including
+callback-table and tail-call relationships, instead of stopping at the target's
+immediate neighbours. Reuse original-word CFG/SSA and access analysis, and
+propagate constraints in both directions to an SCC/worklist fixed point as
+specified in [the callgraph plan](callgraph-type-propagation.md). It should propagate:
 
 1. Access width, signedness, offset, base provenance and observed strides.
 2. Pointer flow through loads, copies, call arguments and independently witnessed
@@ -167,11 +180,13 @@ analysis where possible. It should propagate:
    into invented complete source signatures.
 4. Compatible partial record views where storage identity is established.
 
-Assess m2c's existing multi-function inference with small frozen fixtures and
-bounded related assembly inputs; the current wrapper passes one function. Adopt
-it where it demonstrably propagates justified constraints. Do not feed future
-matched C into this experiment, and do not introduce a specialized constructor
-for each failed function.
+The wrapper now supplies selected original callback data and callback assembly,
+but this alone does not recursively solve their contracts. Assess m2c's existing
+multi-function inference with small frozen fixtures and the graph's bounded
+related inputs. Adopt or extend it where it demonstrably propagates justified
+constraints into the emitted draft, not merely a discovery report. Do not feed
+future matched C into historical experiments, or introduce a specialized
+constructor for each failed function.
 
 Separate witnessed facts, conditional hypotheses, conflicts and unsupported
 operations. Unknown instruction effects break proofs through those effects.
@@ -181,8 +196,11 @@ views may remain unresolved. Conditional hypotheses can inform a draft but must
 retain their assumptions and cannot be exported as settled shared context.
 
 Use fixed work/graph bounds and explicit budget outcomes. Static discovery must
-terminate with a useful packet when it cannot decide. Improving its reach can
-continue after Task 1 ships; complete static type recovery is not a dependency.
+terminate with a useful packet when it cannot decide. Distinguish unvisited
+frontiers, unsupported effects, conflicts and alternatives remaining at a fixed
+point. A missing immediate declaration does not prove a genuinely ambiguous
+contract. Complete static type recovery is not a dependency, but available graph
+evidence must be consumed before claiming the reported omission is addressed.
 
 ### General m2c defects
 
@@ -285,9 +303,10 @@ edited draft or repeatedly finalize/document the same unchanged candidate.
 
 ## 7. Remove repair, not merely its default invocation
 
-Delete `tools/agent/repairM2c.ts` and its active exports/imports, CLI/tool
-registration, schemas and execution paths. Remove `psx_repair_m2c` from active
-prompts, skills, descriptions and startup fallback logic. Move useful regression
+Completed retirement requirement: `tools/agent/repairM2c.ts` was deleted. <!-- doc-ref-ignore: deletion record -->
+Keep its active exports/imports, CLI/tool registration, schemas and execution
+paths removed. Keep `psx_repair_m2c` out of active prompts, skills, descriptions
+and startup fallback logic. Move useful regression
 fixtures to the component that owns the defect; do not preserve the repair
 implementation to satisfy old tests.
 
@@ -318,6 +337,10 @@ unrelated machinery just because its name contains “repair”.
 
 - Original-byte fixtures exercise partial layouts, ambiguous pointer/scalar uses,
   unsupported effects and bounded cross-function propagation.
+- Primary inference acceptance also tests known byte-matched functions with real
+  dependencies, as listed in the callgraph plan. Fresh alternatives, held-out
+  root/intermediate signatures and independently audited expected facts must
+  demonstrate multi-hop propagation; leaves or stub-only tests are insufficient.
 - Byte displacement is preserved under typed-pointer arithmetic.
 - A function using later incoming argument slots retains earlier unused slots.
 - Conflicting call signatures are exposed before they manufacture unset-register
@@ -340,8 +363,10 @@ unrelated machinery just because its name contains “repair”.
 - Run relevant context/tool-registration/controller tests, project TypeScript
   checks, the full test suite and configured binary verification in a clean
   integration workspace.
-- Complete the Task-1-only backtest arm. Report coverage, regressions, unresolved
-  cases and cost including static preparation. Evaluate the predeclared
-  correctness and harness-improvement criteria, not just compile percentage on
-  the repair-selected sample. Preparation is enabled by default as explicitly
-  requested by the user; do not add an opt-in gate.
+- Historical release validation remains deferred under the separate backtest
+  plan; it is not the next implementation step. When requested, complete the
+  Task-1-only arm and report coverage, regressions, unresolved cases and cost
+  including static preparation. Evaluate predeclared correctness and harness-
+  improvement criteria, not compile percentage on the repair-selected sample.
+  Preparation is enabled by default as explicitly requested by the user; do not
+  add an opt-in gate.

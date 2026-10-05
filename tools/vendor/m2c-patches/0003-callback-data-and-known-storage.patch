@@ -1,0 +1,129 @@
+--- a/m2c/translate.py
++++ b/m2c/translate.py
+@@ -1586,9 +1586,23 @@
+             has_nonzero_access = self.stack_info.has_nonzero_access(var)
+ 
+         field_path = self.late_field_path()
++        pointer_target = var.type.get_pointer_target()
+ 
+         if field_path is not None and field_path != [0]:
+             has_nonzero_access = True
++        elif (
++            field_path is None
++            and pointer_target is not None
++            and pointer_target.get_size_bytes() is not None
++        ):
++            # A context type is not permission to invent members in it. Keep the
++            # original byte displacement and the load/store type, also when the
++            # access lies outside the declared record or inside byte storage.
++            base = var.format(fmt)
++            offset_str = fmt.format_int(self.offset)
++            byte_type = Type.u8().format(fmt)
++            pointer_type = Type.ptr(self.type).format(fmt)
++            return f"(*({pointer_type}) (({byte_type} *) {base} + {offset_str}))"
+         elif fmt.valid_syntax and (self.offset != 0 or has_nonzero_access):
+             offset_str = fmt.format_int(self.offset)
+             return f"M2C_FIELD({var.format(fmt)}, {Type.ptr(self.type).format(fmt)}, {offset_str})"
+@@ -1642,6 +1656,7 @@
+     symbol_in_context: bool = False
+     type_provided: bool = False
+     initializer_in_typemap: bool = False
++    callback_table_unresolved: bool = False
+     demangled_str: Optional[str] = None
+ 
+     def dependencies(self) -> List[Expression]:
+@@ -4261,6 +4276,10 @@
+                     sym.type_provided = True
+             elif sym_name in self.local_functions:
+                 sym.type.unify(Type.function())
++            elif sym.asm_data_entry is not None:
++                table_type = self.callback_table_type(sym)
++                if table_type is not None:
++                    sym.type.unify(table_type)
+ 
+             # Do this after unifying the type in the typemap, so that it has lower precedence
+             if demangled_symbol is not None:
+@@ -4270,6 +4289,42 @@
+ 
+         return AddressOf(sym, type=sym.type.reference())
+ 
++    def callback_table_type(self, sym: GlobalSymbol) -> Optional[Type]:
++        """Original .word function addresses establish callable storage, not a
++        uniform contract. Admit a concrete signature only if EVERY named entry
++        has that same complete context signature. Do not union-find conflicting
++        entry types: unify can partially mutate even on failure.
++        """
++        entry = sym.asm_data_entry
++        assert entry is not None
++        names = []
++        for word in entry.data:
++            name = word.as_symbol_without_addend() if isinstance(word, AsmSymbolicData) else None
++            if name is None or (name not in self.local_functions and name not in self.typemap.functions):
++                return None
++            names.append(name)
++        if not names:
++            return None
++        signatures = []
++        for name in names:
++            fn = self.typemap.functions.get(name)
++            if fn is None:
++                signatures.append(None)
++            else:
++                pointer = Type.ptr(Type.ctype(fn.type, self.typemap, self.typepool))
++                signature = pointer.get_function_pointer_signature()
++                signatures.append(pointer if signature is not None and signature.params_known else None)
++        complete = [p for p in signatures if p is not None]
++        shapes = {p.format(Formatter()) for p in complete}
++        if len(complete) == len(names) and len(shapes) == 1:
++            return Type.array(complete[0], len(names))
++        reason = "incompatible signatures" if len(shapes) > 1 else "incomplete contracts"
++        self.typepool.warnings.append(
++            f"Warning: callback table {sym.symbol_name}: {reason}; examined " + ", ".join(names)
++        )
++        sym.callback_table_unresolved = True
++        return Type.array(Type.ptr(Type.function()), len(names))
++
+     def vtable_type(self, sym_name: str, asm_data_entry: AsmDataEntry) -> Type:
+         """
+         Parse MWCC vtable data to create a custom struct to represent it.
+@@ -4326,6 +4381,10 @@
+ 
+     def initializer_for_symbol(self, sym: GlobalSymbol, fmt: Formatter) -> str:
+         assert sym.asm_data_entry is not None
++        if sym.callback_table_unresolved:
++            # Formatting an initializer through as_type() would otherwise unify
++            # a lone known entry backwards into every unknown table member.
++            raise FailedToGenerateInitializer("callback contracts unresolved; see named entry evidence")
+         data = sym.asm_data_entry.data[:]
+ 
+         def read_uint(n: int) -> int:
+--- a/m2c/types.py
++++ b/m2c/types.py
+@@ -539,8 +539,9 @@
+                 # Try returning the first field which was at the correct offset,
+                 # but has the wrong size
+                 return zero_offset_results[0]
+-            elif exact:
+-                # Try to insert a new field into the struct at the given offset
++            elif exact and not data.struct.is_context:
++                # Try to insert a new field into an inferred struct only. Known
++                # layouts belong to real headers, not to this inference pass.
+                 field_type = Type.any_field(new_within=data.struct)
+                 field_name = f"{data.struct.new_field_prefix}{offset:X}"
+                 new_field = data.struct.try_add_field(
+@@ -1313,6 +1314,7 @@
+     has_bitfields: bool = False
+     is_union: bool = False
+     is_stack: bool = False
++    is_context: bool = False
+     preferred_union_field: Optional[str] = None
+ 
+     def min_size(self) -> int:
+@@ -1640,6 +1642,7 @@
+             bitfields=[],
+             has_bitfields=struct_has_bitfields,
+             is_union=isinstance(ctype, ca.Union),
++            is_context=True,
+             new_field_prefix=typepool.unknown_field_prefix,
+             preferred_union_field=preferred_field,
+         )

@@ -1,9 +1,11 @@
 # Task 2 — optional declaration integration and partial-view merging
 
-Status: **planned; optional enrichment** of
-[Task 1](01-context-and-handoff.md). Task 1 must ship and remain usable with this
-pass disabled. The current repair implementation is already retired by Task 1;
-this is not its replacement under another name.
+Status: **planned and deferred; optional enrichment** of
+[Task 1](01-context-and-handoff.md). The active next work is
+[callgraph-driven type propagation](callgraph-type-propagation.md), not declaration
+publication. Task 1 must remain usable with this pass absent or disabled. The old
+repair implementation is already retired; this is not its replacement under
+another name.
 
 ## 1. Objective and boundary
 
@@ -103,8 +105,10 @@ not copied as a route to introduce new assembly workarounds.
 
 SDK objects reuse SDK definitions and operation boundaries; this pass does not
 invent a competing struct for a known SDK type. Function declaration handling
-uses Task 1's witnessed contracts, including full types and ABI slots, rather
-than shortening prototypes to suit one caller.
+uses Task 1's witnessed contracts and graph-propagated constraints, retaining
+provenance, full types and ABI slots rather than shortening prototypes to suit
+one caller. Partial constraints are not complete publishable signatures, and
+callback-table members do not acquire a uniform prototype by being co-located.
 
 ## 5. Conservative partial-struct merging
 

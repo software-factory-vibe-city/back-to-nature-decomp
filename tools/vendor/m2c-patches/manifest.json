@@ -3,6 +3,7 @@
   "upstream": "cd96c559d54ea8644177e89cee07e4f0b0ac4825",
   "patches": [
     "0001-preserve-byte-arithmetic-and-abi-slots.patch",
-    "0002-machine-units-expected-output.patch"
+    "0002-machine-units-expected-output.patch",
+    "0003-callback-data-and-known-storage.patch"
   ]
 }

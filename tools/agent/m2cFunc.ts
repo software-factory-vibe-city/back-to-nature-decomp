@@ -26,5 +26,8 @@ if (process.argv[1]?.endsWith("m2cFunc.ts")) {
   const result = await prepareFunction(fn, { alternative: args.includes("--alternative"), ...(contextFile ? { contextFile } : {}) });
   /* Legacy --write now refuses an existing attempt and dirty/concurrent work. */
   if (args.includes("--write")) stagePrepared(result.packet);
-  console.log(args.includes("--json") ? JSON.stringify(result) : packetOpening(result.packet, result.path));
+  const handoff = packetOpening(result.packet, result.path);
+  /* Even JSON is a small handoff reference. Controllers load the machine
+     packet from disk; it must never become an agent-facing stdout dump. */
+  console.log(args.includes("--json") ? JSON.stringify({ path: result.path, handoff }) : handoff);
 }

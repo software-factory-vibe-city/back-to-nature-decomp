@@ -47,14 +47,15 @@ about pace.
 
 ## Open the session — once
 
-The controller supplies a **prepared first-pass packet** before the first solver
-turn. Read its measured source path, live destination, compilation/comparison
-status, complete diagnostic links, input fingerprints and explicit unknowns.
-Fresh equivalent evidence in that packet satisfies the corresponding startup
-checks; do not mechanically regenerate discovery or reconstruction to recover
-material already supplied.
+The controller supplies a compact **prepared first-pass handoff** before the
+first solver turn. Read its measured source and selected `context.c`, then the
+relevant facts in `evidence.md` and diagnostic links. `packet.json` is an internal
+freshness manifest, not an ordinary startup reading task: do not load its complete
+provenance or declaration catalogue. Fresh equivalent evidence in the handoff
+satisfies the corresponding startup checks; do not regenerate material already
+supplied.
 
-If no packet was supplied, call **psx_m2c** first. It prepares faithful target
+If no handoff was supplied, call **psx_m2c** first. It prepares faithful target
 context and measurements under `build/preparation/`, without replacing live
 work. Inspect its diagnostics and evidence-backed unknowns before editing.
 Preserve unresolved types and signatures until evidence establishes them.
@@ -73,7 +74,7 @@ Preserve unresolved types and signatures until evidence establishes them.
   The absence of C is legitimate evidence, not a request for invented C.
 
 Read `psx_experiment_ledger` for prior measurements and their premises unless
-fresh packet evidence already includes it. Run `psx_triage` and
+fresh handoff evidence already includes it. Run `psx_triage` and
 `psx_callee_truth` for the actual source being authored when their equivalent
 fresh reports are absent. A blocker must be resolved before allocation or
 scheduling work. Run `psx_reverse_pipeline` once a compiling non-exact source
@@ -81,7 +82,7 @@ has a residual. Never fabricate a residual for a failed compile or relocation.
 
 Reconstruction, family transfer, idiom retrieval and deeper diagnostics remain
 available **on demand**, not as prerequisites to m2c or as a competing automatic
-seed priority. Preserve declarations requiring publication in the packet and
+seed priority. Preserve declarations requiring publication in the evidence and
 integrate them explicitly into the designated headers.
 
 **This is the only classification pass you get.** The residual is now

@@ -5,18 +5,21 @@ import { recordedCommand, commandText } from "../../../../tools/lib/recordedComm
 import { hashFile, hashText, packetIsFresh, stagePrepared } from "../../../../tools/agent/prepareFunction.ts";
 import { loadContainers } from "../../../../tools/lib/container.ts";
 import { configuredToolchainIdentity } from "../../../../tools/agent/decompToolchain.ts";
-import { packetOpening, type PreparationPacket } from "../../../../tools/agent/campaign/packet.ts";
+import { packetOpening, packetEvidence, type PreparationPacket } from "../../../../tools/agent/campaign/packet.ts";
 
 export interface PreparedAttempt { packet: PreparationPacket; path: string }
 export async function prepareAttempt(root: string, name: string, signal?: AbortSignal): Promise<PreparedAttempt> {
   const result = await recordedCommand("npx", ["tsx", "tools/agent/m2cFunc.ts", name, "--json"], root,
     join(root, "build/preparation/commands", name, `${Date.now()}-${process.pid}`), "prepare", signal, 600_000);
   if (result.status !== 0) throw new Error(`Preparation failed; full diagnostics: ${result.stderr}\n${commandText(result)}`);
-  return JSON.parse(readFileSync(result.stdout, "utf8")) as PreparedAttempt;
+  const { path } = JSON.parse(readFileSync(result.stdout, "utf8")) as { path: string };
+  return { path, packet: JSON.parse(readFileSync(join(root, path), "utf8")) as PreparationPacket };
 }
 export function persistAttempt(root: string, attempt: PreparedAttempt): void {
   writeFileSync(join(root, attempt.path), JSON.stringify(attempt.packet, null, 2) + "\n");
   writeFileSync(join(root, dirname(attempt.path), "handoff.md"), packetOpening(attempt.packet, attempt.path) + "\n");
+  writeFileSync(join(root, dirname(attempt.path), "evidence.md"), packetEvidence(attempt.packet) + "\n");
+  writeFileSync(join(root, dirname(attempt.path), "diagnostics.txt"), attempt.packet.compilation.diagnostics + "\n");
 }
 
 export function buildInputs(root: string): Record<string, string> {

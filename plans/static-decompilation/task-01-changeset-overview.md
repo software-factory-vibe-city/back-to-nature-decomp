@@ -1,9 +1,14 @@
 # Task 01 changeset overview
 
+Status: **historical implementation checkpoint, followed by partial corrections**.
+The original sections below describe changeset
+`0608df5207a1b3d14818c9ba8c9f769d0a30f4a6`, not the current remaining-work list.
+Next work: [Callgraph-driven type propagation](callgraph-type-propagation.md).
+
 Baseline SHA: `40f515cbf252996fe844d08ccf3da88a5ad0d8e6`.
 
-This overview records the working-tree diff against that baseline before the
-packaging commit. No code edits were made during the changeset review.
+The original review recorded the working-tree diff against that baseline before
+the packaging commit. No code edits were made during that changeset review.
 
 **Task scope: 66 files — 37 modified, 1 deleted, 28 new. Only one game-source
 function changed.** This count excludes the concurrent
@@ -11,9 +16,9 @@ function changed.** This count excludes the concurrent
 
 ## 1. Repair removal — original task
 
-- Deleted `tools/agent/repairM2c.ts`.
+- Deleted `tools/agent/repairM2c.ts`. <!-- doc-ref-ignore: deletion record -->
 - Removed `psx_repair_m2c` registration, parameters and execution path from
-  `.pi/extensions/psx-decomp/tools/diagnostics.ts`.
+  `.pi/extensions/psx-decomp/tools/diagnostics.ts`. <!-- doc-ref-ignore: extension-rooted path -->
 - Removed repair-first seed instructions from the decompilation skill.
 - No compatibility shim or replacement repair registration remains.
 
@@ -87,9 +92,9 @@ This is substantially more than replacing the repair step.
 ## 6. CLI and interactive commands
 
 **Files:** `tools/agent/m2cFunc.ts`,
-`.pi/extensions/psx-decomp/tools/m2c.ts`,
+`.pi/extensions/psx-decomp/tools/m2c.ts`, <!-- doc-ref-ignore: extension-rooted path -->
 `.pi/extensions/psx-decomp/index.ts`,
-`.pi/extensions/psx-decomp/tools/interactive-preparation.ts`,
+`.pi/extensions/psx-decomp/tools/interactive-preparation.ts`, <!-- doc-ref-ignore: extension-rooted path -->
 `tools/diagnostics/benchmarkReconstruction.ts`.
 
 - `m2cFunc.ts` now produces a measured handoff rather than simply printing
@@ -105,7 +110,7 @@ This is substantially more than replacing the repair step.
 
 **Files:** `.pi/extensions/psx-decomp/autoloop/{commands,loop,oracles,prompts,state,types}.ts`,
 `.pi/extensions/psx-decomp/autonomous/{controller,types,worker}.ts`,
-`.pi/extensions/psx-decomp/tools/prepared-attempt.ts`.
+`.pi/extensions/psx-decomp/tools/prepared-attempt.ts`. <!-- doc-ref-ignore: extension-rooted path -->
 
 - Preparation runs before solver-tier/model selection.
 - Eligible exact candidates can finalize without a solver turn.
@@ -121,8 +126,8 @@ both loops.**
 
 ## 8. Finalization and documentation — expanded scope
 
-**Files:** `.pi/extensions/psx-decomp/tools/finalization.ts`,
-`.pi/extensions/psx-decomp/tools/finalize-function.ts`, loop/controller call
+**Files:** `.pi/extensions/psx-decomp/tools/finalization.ts`, <!-- doc-ref-ignore: extension-rooted path -->
+`.pi/extensions/psx-decomp/tools/finalize-function.ts`, loop/controller call <!-- doc-ref-ignore: extension-rooted path -->
 sites and documentation skill.
 
 - Introduced the shared **gate → context export → gate** sequence.
@@ -177,10 +182,10 @@ lifecycle code.
 
 New TypeScript test files:
 
-- `.pi/extensions/psx-decomp/tools/finalization.test.ts`
-- `.pi/extensions/psx-decomp/tools/interactive-preparation.test.ts`
-- `.pi/extensions/psx-decomp/tools/interactive-routes.test.ts`
-- `.pi/extensions/psx-decomp/tools/prepared-attempt.test.ts`
+- `.pi/extensions/psx-decomp/tools/finalization.test.ts` <!-- doc-ref-ignore: extension-rooted path -->
+- `.pi/extensions/psx-decomp/tools/interactive-preparation.test.ts` <!-- doc-ref-ignore: extension-rooted path -->
+- `.pi/extensions/psx-decomp/tools/interactive-routes.test.ts` <!-- doc-ref-ignore: extension-rooted path -->
+- `.pi/extensions/psx-decomp/tools/prepared-attempt.test.ts` <!-- doc-ref-ignore: extension-rooted path -->
 - `tools/agent/declaration-context.test.ts`
 - `tools/agent/static-preparation-regressions.test.ts`
 - `tools/diagnostics/session-backtest.test.ts`
@@ -197,7 +202,9 @@ Changed the decompilation/documentation skills, README, Task 1 plan status and
 `notes/research/static-preparation-task1.md` to describe the new behavior and
 remaining limitations.
 
-## Verification boundary
+## Verification boundary at the original checkpoint
+
+These checks do not certify the later reported raw-m2c callback reproduction.
 
 - Fresh executable and all 13 overlays: byte-identical.
 - Relevant rerun: **65/65 passed**.
@@ -238,5 +245,79 @@ a commit cannot contain its own SHA without changing that SHA.
 
 Changeset SHA: `0608df5207a1b3d14818c9ba8c9f769d0a30f4a6`.
 
-This SHA annotation is the only post-commit working-tree change. The commit
-contains the overview and all other changes listed above.
+That commit contains the original overview and the other changes listed above.
+Its SHA annotation was added afterward; subsequent correction work is separate.
+
+## Subsequent partial corrections
+
+The superseded next-step checklist has been removed. These results preserve its
+useful evidence without retaining its premature claim of genuine ambiguity.
+
+Implemented after the original checkpoint:
+
+- Compact `handoff.md` is the startup surface; CLI JSON returns an artifact path
+  and compact handoff, not the internal provenance/declaration catalogue.
+- Selected original callback-table data and all five callback assemblies reach
+  m2c. Each entry has independent declaration/code witnesses. Complete, identical
+  known contracts can type a uniform table; unknown or differing entries are not
+  made uniform by copying one member's signature.
+- Existing storage views/aliases are retained. Known structs cannot acquire
+  invented members: faithful typed byte-offset accesses replace nonexistent
+  `unkC` / `unk448C` fields without changing shared layouts or repairing the body.
+- Mechanical wrappers carry selected callee declarations into the real compiler
+  context; preparation freshness includes the post-measurement ledger.
+
+### Current smoke evidence
+
+Every row uses fresh raw m2c generation, with explicit alternatives for already-
+decompiled functions and compilation against real destination headers. All live
+source hashes stayed unchanged. Byte mismatch is not a compilation failure or
+an exact/finalized result.
+
+| Function | Starting state/container | Generation | Compile | Relocated bytes | Remaining issue | Handoff bytes |
+|---|---|---|---|---|---|---:|
+| `func_80017A64` | decompiled/executable | generated | succeeded | MISMATCH | No unknown types/fields; `T_8005E450` alias/addressing residual | 1,806 |
+| `ovl_25_func_800B81B4` | decompiled/overlay | generated | succeeded | MISMATCH | Shared-storage scan budget; no unknown types/invalid fields | 2,206 |
+| `func_8001202C` | stub/executable | generated | succeeded | MISMATCH | Shared-storage scan budget; no unknown types/invalid fields | 1,861 |
+| `ovl_25_func_800B7EB4` | stub/overlay | generated | **failed** | unavailable | Four callback contracts unknown; opaque unaligned-word effects in one callback | 3,462 |
+
+The reported table `D_800BCBD8` is defined in original data at
+`build/ovl_25/asm/data/3D20.data.s:1092`. Only `ovl_25_func_800B81B4` currently
+has a defining-source contract, `s32 (void)`. The entries
+`ovl_25_func_800B7F3C`, `ovl_25_func_800B80A4`, `ovl_25_func_800B813C` and
+`ovl_25_func_800B81F4` remain assembly stubs. Immediate witnesses supply incoming
+ABI-slot bounds, not full source signatures. Writes to `$v0` and an ignored
+result do not settle return types.
+
+**This is incomplete analysis, not proven genuine ambiguity:** recursive callee,
+caller and storage-flow constraints have not reached a fixed point. The active
+plan addresses that missing propagation. No readiness claim is made for the
+noncompiling reproduction.
+
+Local artifacts (ignored, not committed):
+
+- `build/task01/smoke-report.json`: commands, per-function measurements, evidence,
+  handoff sizes, fresh packets and identical before/after live-source hashes.
+- `build/task01/command-handoff.md`: actual `/decompile` handler dispatch captured
+  without a model call; 3,548 bytes, no truncation or catalogue dump.
+- Normal resume of `ovl_25_func_800B81B4` retained the identical live
+  `existing-attempt` as primary; generation was `not-attempted`.
+- `build/task01/regressions.log`: 32 relevant TypeScript tests and six vendored
+  unit regressions passed, including callback-data and real-header storage cases.
+- `build/task01/typecheck.log`: repository-wide `npx tsc --noEmit` remains nonzero,
+  including TS5097 on extension imports. No diagnostics name the changed
+  preparation/discovery/packet/regression modules; this is not a passing gate.
+- `build/task01/make-check-all.log`: executable and all 13 overlays match the
+  unchanged live build. This is not validation/finalization of the failing draft.
+
+Before packaging these corrections and the new plan, the same relevant tests
+were rerun: 32/32 TypeScript tests and six vendored unit regressions passed
+(`build/task01/precommit-regressions.log`). `make check-all` again passed for the
+executable and all 13 overlays (`build/task01/precommit-make-check-all.log`).
+Documentation-reference checks and all 28 Markdown links in this directory also
+passed. These reruns do not implement or test the new graph-propagation plan.
+
+These corrections made no live C/header/configuration edits, broad backtests or
+further controller/process-lifecycle redesigns. The accompanying new plan makes
+known byte-matched functions with real dependencies the primary acceptance
+cohort; the old leaf/stub smoke sample is only a secondary collateral check.
