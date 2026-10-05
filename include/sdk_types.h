@@ -2,6 +2,8 @@
 /* m2c context only: type definitions for include/functions.h.
  * Must be passed to m2c *before* functions.h; see tools/agent/m2cFunc.ts. */
 
+struct M2C_9e3562919d92_ovl_15_80132A8C_data;
+
 struct M2C_1e7e93467acd_Unk800D3FEC;
 
 typedef struct M2C_1e7e93467acd_Unk800D3FEC M2C_1e7e93467acd_Unk800D3FEC;
@@ -1347,4 +1349,15 @@ typedef struct {
     s32 y;
     s32 z;
 } Vec3;
+
+struct M2C_9e3562919d92_ovl_15_80132A8C_data {
+    s16 pad0[17];
+    s16 field_22;
+    s16 pad1[6];
+    s16 field_30;
+    s16 pad2[3];
+    s32 field_38;
+    s32 field_3C;
+    s32 field_40;
+};
 
