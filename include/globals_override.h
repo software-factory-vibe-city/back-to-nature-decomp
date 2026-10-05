@@ -1090,6 +1090,15 @@ extern u8 D_8012CEB8[];
 
 extern u8 D_8012D548[];
 
+/* D_80051AA8 - base of a table in the D_80051xxx region; the s32 read from
+ * D_80054BC0[0] is added to its address to form two pointers stored into the
+ * ovl_11 D_8012D548 record (ovl_11_func_8011B210). Address taken only. */
+extern u8 D_80051AA8[];
+
+/* D_8012D52C - container-wide s32 busy/finished state flag of ovl_11, reset
+ * by the 0x80114184 reset-stub family (see notes/file-groupings.md). */
+extern s32 D_8012D52C;
+
 extern s16 D_80128420;
 
 extern u8 D_800C4BD0[];
