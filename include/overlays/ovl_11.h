@@ -539,6 +539,7 @@ s32 ovl_11_func_8010B49C(M2C_24e7ca662cda_Ov11FlagSet *arg0);
 void ovl_11_func_8010B64C(s32 arg0);
 s32 ovl_11_func_8010B830(M2C_2f6fe1f25e7b_Ov11Flag8010B830 *arg0);
 s32 ovl_11_func_8010B898(u16 arg0, u16 arg1, u16 *arg2, u16 *arg3);
+s32 ovl_11_func_8010BA84(M2C_c74fd8c34b59_Struct_8010BA84 *arg0);
 s32 ovl_11_func_8010BB18(M2C_70aec20fd137_UnkStruct8010BB18 *arg0);
 s32 ovl_11_func_8010BCE8(M2C_478bc32a9b2b_Struct_8010BCE8 *arg0);
 s32 ovl_11_func_8010BF8C(Recon_ovl_11_func_8010BF8C_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);

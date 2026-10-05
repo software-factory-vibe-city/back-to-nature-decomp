@@ -7848,20 +7848,27 @@ Members (link order):
   0x25476)`; structural twin of ovl_11_func_800DF51C on the 800E109C
   predicate, and a reader of the far state halfword accessor family.
 
-## `ovl_11` third far-state gate run — 0x8010BB18–0x8010BCE8 (confidence: medium)
+## `ovl_11` third far-state gate run — 0x8010BA84–0x8010BCE8 (confidence: medium)
 
 A third link-order band carrying the far-state gate idiom recorded for the
 0x800DE9C8–0x800DFB98 and 0x800E05A8–0x800E15C8 runs. The band is one zero-gap
-four-function run (0x8010BB18 + 0x90 = 0x8010BBA8 + 0xAC = 0x8010BC54 + 0x94 =
-0x8010BCE8 + 0x84 = 0x8010BD6C), and three of the four independently repeat
-`s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)`. Two continue the lazy-init flag
-`s32@+0x34 & 4` / `ovl_11_func_80107DE0(this + 0xA8, ...)` idiom with the
-consecutive `ovl_11_func_800D12A0` constants `0xD` / `0xE` (the 800DF4F0 run
-uses 9 / 0xA, the 800E109C run 0xB / 0xC), and three share the
+five-function run (0x8010BA84 + 0x94 = 0x8010BB18 + 0x90 = 0x8010BBA8 + 0xAC =
+0x8010BC54 + 0x94 = 0x8010BCE8 + 0x84 = 0x8010BD6C), and four of the five
+independently repeat `s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)`. Two
+continue the lazy-init flag `s32@+0x34 & 4` /
+`ovl_11_func_80107DE0(this + 0xA8, ...)` idiom with the consecutive
+`ovl_11_func_800D12A0` constants `0xD` / `0xE` (the 800DF4F0 run uses 9 / 0xA,
+the 800E109C run 0xB / 0xC), and the run shares the
 `{u16@0, s16@0x30, s32@0x34}` object layout, so the band is the same source
 pattern rather than one coincidental accessor.
 
 Members (link order):
+- ovl_11_func_8010BA84 (m, matched this session, byte-exact) — inlined predicate
+  `u16@+0x0 == 0`, clamp `u16@+0x16 -= 10` at 0, then
+  `ovl_11_func_80107DE0(this + 0xA8, 0x1F, 0x1E)` and
+  `ovl_11_func_800D12A0(0xE)` on the far-state gate; the run's first member,
+  zero-gap to 0x8010BB18, and the `0x1F, 0x1E` clamp sibling of
+  ovl_11_func_800DF5AC.
 - ovl_11_func_8010BB18 (m, matched this session, byte-exact, baseline flags) —
   inlined predicate `u16@+0x0 == 0`, lazy-init flag `s32@+0x34 & 4`
   (`ovl_11_func_80107DE0(this + 0xA8, 0x25, 0x2D)`), then

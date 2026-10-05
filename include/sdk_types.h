@@ -781,6 +781,16 @@ typedef struct {
 } M2C_bfa40a22ddcd_Struct_8010DD38;
 
 typedef struct {
+               u16 unk0;
+               char pad_02[0x16 - 0x02];
+               u16 unk16;
+               char pad_18[0x30 - 0x18];
+               s16 unk30;
+               char pad_32[0xA8 - 0x32];
+               char unkA8[0];
+} M2C_c74fd8c34b59_Struct_8010BA84;
+
+typedef struct {
                s16 unk0;
                s16 unk2;
                s16 unk4;
