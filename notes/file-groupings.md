@@ -6960,6 +6960,36 @@ Members (link order):
   `D_800BCC10[0]`/`[2]` and writes the `D_8007AFF0+0x20000` work-area fields
   +0x5394..+0x53A4 and the +0x53B4/+0x53B8 halfwords
 
+## `ovl_25` display-setup state-handler run — 0x800BAC9C–0x800BAFCC (confidence: medium)
+
+Evidence: the state dispatcher `ovl_25_func_800B7F3C` selects on the byte
+`D_800BCD20` via `jtbl_800B7E24` and calls, from consecutive jump-table
+branches, `ovl_25_func_800BAC9C`, `ovl_25_func_800BAF20` and
+`ovl_25_func_800BAFCC`; those three are also one gapless link-order run
+(0x284 + 0xAC + 0x2EC, 0x800BAC9C..0x800BAFCC), so the call graph and the link
+order agree — the same fingerprint recorded for the ovl_17/ovl_23/ovl_27
+display-setup runs. All three share the display-setup idiom `DrawSync` →
+`ClearOTagR(D_8005E3C0->field_120, 0x800)` → `func_80014CBC` poll →
+`func_8001719C`, and the `D_8005E3B0 + 0x4290` / `D_8005E3C0` address
+cluster; each streams a different sector count into the same buffer. The run
+continues gapless one more dispatched function, `ovl_25_func_800BB2B8`,
+which shares the `D_8005E3B0 + 0x4290` buffer and `func_8001719C` but not
+`ClearOTagR`, and the same dispatcher also calls the later
+`ovl_25_func_800BB46C`/`800BB4B4`/`800BB510` handlers.
+
+Members (link order):
+- ovl_25_func_800BAC9C (s) — display-setup: `DrawSync`/`ClearOTagR` +
+  `func_80014CBC(0, 0, 0x5800, D_8005E3B0+0x4290, 1, 1)` poll; copies the
+  streamed region into `D_800BCDD4`/`D_800977F8`/`D_800C021C`, then
+  `func_80015704`/`func_80015840`
+- ovl_25_func_800BAF20 (m, matched this session, byte-exact) — display-setup:
+  `func_80014CBC(0, 0, 0x2000, D_8005E3B0+0x4290, 1, 1)` followed by the
+  zero-return poll `func_80014CBC(..., 1, 0) == 0`, then
+  `func_8001719C(D_8005E3B0 + 0x4290)`
+- ovl_25_func_800BAFCC (s) — display-setup:
+  `func_80014CBC(0x1A, 0, 0x124D0, D_8005E3B0+0x4290, 1, 1)` poll and
+  `func_8001719C(D_8005E3B0 + 0x5F18)`, then copies into `D_800BE1B4`
+
 ## `ovl_25` s16-struct predicate run — 0x800B9758–0x800B97E4 (confidence: low)
 
 Evidence is gapless link adjacency plus a shared overlay-local data-table
