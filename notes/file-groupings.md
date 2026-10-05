@@ -7200,10 +7200,12 @@ Members (link order):
   `func_80017A64()` saved, `func_80017A48(3)`, then
   `((void (*)(s32 *))D_800B95F8[D_80070CC0])(&D_800B95F8)`, then
   `func_80017A48(saved)`.
-- ovl_28_func_800B7E80 (s) — initialiser: stores handler pointers
-  (`ovl_28_func_800B8414` et al.) into the `D_800B9614` table and zeroes the
-  `D_800B961C`/`D_800B9620`/`D_800B9624` state words. Its gapless successor is
-  the counter run head `ovl_28_func_800B7F30`.
+- ovl_28_func_800B7E80 (m, matched this session, byte-exact) — initialiser:
+  installs `ovl_28_func_800B8414` into `D_800B9614` and
+  `ovl_28_func_800B865C` into `D_800B9618`, and zeroes the
+  `D_800B961C`/`D_800B9620`/`D_800B9624` state words plus the
+  `D_800B93AE`/`B0`/`B2`/`B8`/`BC` and `D_800B93C0`/`C4`/`C6`/`C8`/`CA`/`CC`/`CE`
+  clusters. Its gapless successor is the counter run head `ovl_28_func_800B7F30`.
 
 Cross-container note: byte-shape twins `ovl_19_func_800B7ED8`,
 `ovl_21_func_800B7E3C`, `ovl_23_func_800B7EA4` carry the same

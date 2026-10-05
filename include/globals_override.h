@@ -1003,6 +1003,13 @@ extern void (*D_800B9614)(void);
  * the address of ovl_28_func_800B86D8 (same array as D_800B9614). */
 extern void (*D_800B9618)(void);
 
+/* D_800B961C/D_800B9620/D_800B9624 - ovl_28 halfword/word state seeded by
+ * ovl_28_func_800B7E80 (halfword, word, halfword). Absolute-addressed (the
+ * TU only declares them). */
+extern s16 D_800B961C;
+extern s32 D_800B9620;
+extern s16 D_800B9624;
+
 /* D_800B93C0..D_800B93CE - ovl_28 halfword/word state cleared and seeded by
  * ovl_28_func_800B865C. Absolute-addressed (declared externally here). */
 extern s32 D_800B93C0;
