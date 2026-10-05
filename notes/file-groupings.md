@@ -8186,12 +8186,16 @@ two tables' rows are exactly the record stride (`D_80071DFC` 25x45, row
 0x168 = 45*8; `D_80074124` 7x7, row 0x38 = 7*8). The type now lives in
 `globals_override.h` as `Ovl11D124Entry`. The three members are address-apart
 in link order, so the shared table type is the clustering evidence and TU
-membership is not confirmed by adjacency. `ovl_11_func_800D8FC8` also calls
-`ovl_11_func_800DA454`, a member of the record-tag update run above.
+membership is not confirmed by adjacency. The table cluster is tied to the
+record-tag update run above: `ovl_11_func_800D8FC8` calls `800DA454`, and
+`ovl_11_func_800D9064` walks the same 25x45 table applying all three run
+members (`800DA49C`, `800DA518`, `800DA454`) to every entry.
 Members:
 - ovl_11_func_800D8FC8 (m, matched this session, byte-exact) — walks all 25x45
   `D_80071DFC` entries and calls `ovl_11_func_800DA454(entry, arg0 == 0 ?
   0x20 : 0x10)` on each.
+- ovl_11_func_800D9064 (m, byte-exact) — walks all 25x45 `D_80071DFC` entries
+  and applies the `800DA49C`/`800DA518`/`800DA454` tag-update trio to each.
 - ovl_11_func_800DAF60 (m, byte-exact) — bounds-checked pointer into
   `D_80071DFC` (or the `D_80074124` 7x7 table when arg0 != 0).
 - ovl_11_func_800D7B24 (m, byte-exact) — initializes every `D_80074124` entry
