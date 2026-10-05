@@ -1328,5 +1328,14 @@ extern u32 D_801291A8[2];
  * object lives in overlay RAM, so only an extern declaration belongs here. */
 extern s16 D_800BFC90;
 
+/* ovl_19 initialiser tables. Absolute-addressed (lui + %lo) from ovl_19 code;
+ * they live in the overlay data segment, so only extern declarations belong
+ * here. D_800BCEF0 is a u16 table of 0..5 at 0x800BCEF0; D_800BCF0C is a table
+ * of 8-byte {s16 x4} records; D_800BF4C0 is the flat s16 display/state array
+ * that the ovl_19 initialiser walks. */
+extern s16 D_800BF4C0[];
+extern u16 D_800BCEF0[];
+extern s16 D_800BCF0C[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 
