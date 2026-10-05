@@ -1305,5 +1305,12 @@ extern u16 *D_801287F8;
  * chosen entries' 0x28 halfwords. Absolute-addressed in ovl_11 code. */
 extern u32 D_801291A8[2];
 
+/* D_800BFC90 - ovl_23 sound/state block. Absolute-addressed (lui + %lo) from
+ * ovl_23 code; ovl_23_func_800B8104 reads a signed halfword at +0 and compares
+ * it against -1, while ovl_23_func_800B9454 stores a word at +0 and halfwords
+ * at +4/+8/+0xA (+0x1B4). Declared as the halfword this TU observes; the
+ * object lives in overlay RAM, so only an extern declaration belongs here. */
+extern s16 D_800BFC90;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

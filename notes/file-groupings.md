@@ -5070,6 +5070,22 @@ Members (link order):
 - ovl_23_func_800B87F8 (s) — larger state routine; loads the address of
   `D_800BF87C`.
 
+## `ovl_23` D_8006C838+0x448C counter pair — 0x800B80CC / 0x800B8104 (confidence: medium)
+
+Evidence: gapless link order — `ovl_23_func_800B80CC` is 0x38 bytes and ends
+at 0x800B8104, the start of `ovl_23_func_800B8104`. Both take a local
+`s32 *base = (s32 *)&D_8006C838;` and touch the same word at +0x448C, and both
+belong to the state block read/written by the 0x800B9454/0x800B94D0 pair
+(`800B8104` reads the s16 `D_800BFC90`). The cluster sits inside the
+D_800BF87C dispatch-index span but neither member touches D_800BF87C.
+
+Members (link order):
+- ovl_23_func_800B80CC (m, byte-exact) — calls `func_80013328(10)` and
+  `func_8001FE34(10)`, then `base[0x448C>>2] += 1`, returns it.
+- ovl_23_func_800B8104 (m, byte-exact this session) — `func_80013394`/
+  `func_8001FE6C` state guard, then `base[0x448C>>2] = 0xFF` and
+  `base[0xC>>2] |= 0x80000` around `func_80011EF0(6)`.
+
 ## `ovl_23` D_800BF87C record-append pair — 0x800B9454 / 0x800B94D0 (confidence: medium)
 
 Evidence: gapless link order — 0x800B9454 + 0x7C = 0x800B94D0 (the two are
