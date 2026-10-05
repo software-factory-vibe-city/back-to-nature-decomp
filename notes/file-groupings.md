@@ -6933,8 +6933,9 @@ Members (link order):
 - ovl_25_func_800BA818 (m, matched this session, byte-exact) — issues the
   `func_8002261C(4, 0x31)` state request, reads `func_800226A4()`, and stores
   the value 2 to `D_800BFE46` only when the read equals 2
-- ovl_25_func_800BA858 (s) — far-buffer/field updater; on its `... == 2` probe
-  path sets `D_800BFE46` to 3 and writes `D_800BCD21`/`D_800BCD48`
+- ovl_25_func_800BA858 (m, matched this session, byte-exact) — far-buffer/field
+  updater; on its `... == 2` probe path sets `D_800BFE46` to 3 and writes
+  `D_800BCD21`/`D_800BCD48`
 - ovl_25_func_800BA908 (m, matched this session, byte-exact) — run terminator;
   far-buffer `+0x253B4` halfword updater; on its `func_800226A4() == 2` probe
   path selects `D_800BFE46` = 4/0 by `func_800225B8() == 1`, otherwise clamps
