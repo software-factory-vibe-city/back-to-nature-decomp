@@ -1146,8 +1146,12 @@ Members (address order):
   D_8012742C to 0 plus the `D_8012CF10`/`D_8012CF1C`/`D_8012CF24` data group
   (s16[0..5] clear loop + two singleton zeroes; first matched reference to the
   `0x8012CFxx` region below the `D_8012CF48` table); the run's reset
-- ovl_11_func_80103830 (s) — calls ovl_11_func_801037EC, then sets
-  `D_80127428 = 1` and calls func_8001FABC(3); the run's setter
+- ovl_11_func_80103830 (m, matched this session) — calls
+  ovl_11_func_801037EC, then sets `D_80127428 = 1` and calls func_8001FABC(3).
+  Consumes the cluster's 0x8012CFxx data as the buffer producer: reads the
+  +0xE514 select, copies six halfwords from the +0xE522 rows table into
+  `D_8012CF10` (the inverse of 80103B24's copy), and loads `D_8012CF20` from
+  +0x5224; the run's setter
 - ovl_11_func_801038E4 (s) — leaf reader of D_80127428
 - ovl_11_func_80103964 (s) — reads/writes D_80127428 at 8 sites; the run's
   mutator
@@ -1178,6 +1182,15 @@ s16 at +0xE stride — summing (returns sum == 0) where 80104394 compares
 (returns all-equal). Its non-matching C and the byte-exact 80104394 spelling
 are the two witnesses for how this author forms that large-offset table
 address (indexed member access, not precomputed pointer arithmetic).
+
+Widening (2026-10-05, byte-exact match of `ovl_11_func_80103830`): the run's
+setter is now matched, and it is a third, cleaner witness to the same
+table-address idiom. It reads the +0xE514 select and copies six halfwords from
+the +0xE522 rows table into `D_8012CF10` — the exact inverse of 80103B24's
+D_8012CF10→rows copy — and reads `D_8012CF20` from +0x5224. Byte-exact only
+when the large-offset address is spelled as indexed member access
+(`v->rows[sel][cnt][0]`); a precomputed `char *` base plus pointer arithmetic
+compiles the same semantics but emits the wrong `addu` grouping and order.
 
 Widening (2026-09-15, byte-exact match of `ovl_11_func_801047FC`): the record
 region's initializer is now matched. `ovl_11_func_801047FC` (m, 0x801047FC,
