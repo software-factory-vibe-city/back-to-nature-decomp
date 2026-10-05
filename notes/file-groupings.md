@@ -1474,7 +1474,8 @@ Fingerprints:
 - shared idiom: `ovl_11_func_800E4AEC` and `ovl_11_func_800E4D08` both scan an
   array of s16 words testing the 0x3C00 bit, an idiom local to this run;
   `ovl_11_func_800E4C84` is the same scan over the same `base+4` array with the
-  predicate inverted to the 0x4000 bit.
+  predicate inverted to the 0x4000 bit, and `ovl_11_func_800E4BA4` scans the
+  same `base+4` s16 array on the 0x8000 bit — three predicates over one array.
 
 Members (address order, matched in bold):
 - ovl_11_func_800E48CC (s) — run head
@@ -1489,7 +1490,10 @@ Members (address order, matched in bold):
   sites and `subu`-of-two-calls pattern consume it)
 - ovl_11_func_800E4B6C (s) — feeds the getter `base + (s16)a0[2]*4 + 0x38`
   in `$a0`, passes its own incoming index through untouched in `$a1`
-- ovl_11_func_800E4BA4 (s)
+- **ovl_11_func_800E4BA4 (m, matched this session)** — scans the same `base+4`
+  s16 array for the 0x8000 bit and, for each set entry, calls
+  `func_80017240` with `ovl_11_func_800E4B6C(base, i)` and the pair of adjacent
+  s16 globals D_80129410/D_80129412
 - ovl_11_func_800E4C30 (s) — `getter(base, i+1) - getter(base, i)`;
   also calls 800E4C84
 - **ovl_11_func_800E4C84 (m, matched this session)** — the 0x4000-bit twin of

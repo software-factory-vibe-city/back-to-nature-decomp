@@ -355,3 +355,35 @@ CC1FLAGS_ovl_11_func_8011F574 := -fno-schedule-insns
 #
 # Needs the matching sourcePolicy.allowlist entry for ovl_17_func_800B9158.
 CC1FLAGS_ovl_17_func_800B9158 := -fno-cse-skip-blocks
+
+# ovl_11_func_800E4BA4: -fno-rerun-loop-opt.
+#
+# Target fingerprint: the function has two loop-invariant global address
+# computations (lui %hi(D_80129410) used at 0x800E4BF0 and lui
+# %hi(D_80129412) used at 0x800E4BF4) but only the first is hoisted into a
+# callee-saved register ($s3, saved in the prologue); the second stays in the
+# loop as `lui $v0,0x8013` immediately before `lh $a2,-27630($v0)`. psx_loop_trace
+# (candidate-side) shows why the first loop_optimize call leaves it: it moves
+# insn 42 (reg 91, D_80129410) and reports insn 50 (reg 96, D_80129412) "not
+# desirable" because move_movables compares threshold*savings*lifetime against
+# insn_count and the threshold has already lost 3 to the first move (26*1*1 <
+# 29). The second loop_optimize call (toplev.c:3952, gated by
+# flag_rerun_loop_opt) re-runs on the smaller loop (28 real insns) and hoists
+# reg 96 unconditionally (29*1*1 >= 28), producing the extra $s4 save/restore
+# the target does not have. flag_rerun_loop_opt is on under -O2 (toplev.c), so
+# the second pass is baseline state and the one-hoist shape is unreachable at
+# baseline: pass 2 hoists any invariant `high` movable at this loop size.
+#
+# Flag column: -fno-rerun-loop-opt produces exactly the target's 35 words from
+# the natural source (build/exp/ovl_11_func_800E4BA4/fl/final.norl.o) with the
+# target's register choice ($s3 for D_80129410, $v0 re-materialised in-loop for
+# D_80129412); baseline emits 37 (extra `sw/lui` for the second hoist and a
+# shifted $ra slot).
+#
+# No contrary regional witness: the five matched members of the contiguous
+# 0x800E48CC-0x800E5078 pointer-getter run (ovl_11_func_800E4AEC, 800E4B58,
+# 800E4C30, 800E4C84, 800E4D08) are byte-identical under -fno-rerun-loop-opt
+# (only the cc1 option comment line differs), so none witnesses rerun-loop-opt
+# ON. Each src file is its own translation unit, so the override cannot disturb
+# them.
+CC1FLAGS_ovl_11_func_800E4BA4 := -fno-rerun-loop-opt
