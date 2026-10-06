@@ -516,3 +516,34 @@ Grouping evidence: both exact callers and both matched width/render wrappers
 now corroborate the existing gapless module family. Evidence: familyTransfer
 substitutions/candidate, original jal sites, matched allocator definition,
 staged ledger and receipt.
+
+## ovl_21_func_800BA944 — natural short counter and indexed record access
+
+**Outcome:** clean C, 45/45 byte-exact words; full finalization passed
+(build/parked-recovery/800BA944-finalize.json).
+
+What was tried:
+1. The preserved best manually simulated selection position, buffer pointer
+   and fixed-point step. Historical exhaustive searches froze those origins
+   and left allocation 3. Read matched BA7F0 and B9798 in the existing group.
+2. Used a signed-short count and ordinary three-record for-loop, accessing
+   UnkStruct800C0448[i].unk14 directly and indexing buf[count]. The first
+   natural probe was EXACT: the compiler creates the required induction
+   variables without hand-simulating their optimized representation.
+3. Audited the random helper against matched Rand and its original address
+   80012A34. Renaming the call to Rand failed overlay relocation because the
+   overlay imports its legacy func_80012A34 name. Kept that import, corrected
+   the declaration to the independently witnessed u32(s32) interface and
+   remeasured: still EXACT. No symbol configuration change was needed.
+4. Integrated, reran triage and completed the full binary/policy/scope gate.
+
+**Reusable technique:** optimized fixed-point induction instructions need not
+come from fixed-point source variables. Restore the natural narrow counter
+and member-array accesses before solving their allocation. A matched executable
+callee can have a different imported name in an overlay; verify the address
+and signature without changing a valid import for cosmetic naming.
+
+Grouping evidence: existing B9798/BA7F0 record access and the paired BA868
+selection helper; updated the existing cluster's matched status. Evidence:
+original words, matched Rand definition/address, three measured candidates,
+staged ledger and finalization receipt.

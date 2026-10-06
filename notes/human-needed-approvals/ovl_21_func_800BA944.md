@@ -1,4 +1,10 @@
-# ovl_21_func_800BA944 — human decision needed
+# ovl_21_func_800BA944 — resolved
+
+The natural signed-short selection counter and independently indexed existing
+record type produce 45/45 byte-exact words. Full finalization passed; no policy
+exception or flag change was needed. See
+`notes/techniques-for-solving-parked-functions.md` for the measured probes.
+The historical escalation report below is retained as an archive.
 
 - **Parked:** 2026-10-05T15:51:07.759Z
 - **Reason:** escalation-exhausted

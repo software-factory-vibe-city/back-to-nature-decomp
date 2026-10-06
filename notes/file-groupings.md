@@ -7410,18 +7410,14 @@ Members (link order):
   reads the 32-bit word at record offset 0x14 of three consecutive
   `D_800C0448` records starting at index `arg0*3` and returns how many equal
   1; membership rests on the shared global, not on adjacency.
-- Blocker note (ovl_21_func_800BA944, unmatched): the best clean-C attempt
-  (`base[i].unk14` giv plus a plain `n` counter) reproduces the target's
-  opcode/population/allocation exactly and differs only in the sched1 order
-  of the two `lui ...,0x10000` (pos/step) preheader movables — candidate
-  emits `pos, step, bound-copy, base, idx, p, bp`; target emits
-  `bound-copy, base, idx, p, pos, bp, step`. Both are target-LUID-forceable
-  but no clean-C spelling found places pos/step last in the pre-sched block
-  without giving up the exact `sel`/`bound` allocation; exhaustive
-  semantics-preserving source searches (15840 + 21600 candidates) and the
-  family/reconstruction engines found no exact object, and no flag column
-  dominates. Needs a human decision on whether to accept a non-byte-exact
-  near-match or authorize deeper compiler-state work.
+- ovl_21_func_800BA944 (m, 0xB4, byte-exact, finalized) — chooses a random
+  index from the three records whose +0x14 word is zero, or returns -1.
+  A signed-halfword count and direct `base[i].unk14` access let the compiler
+  create the fixed-point-looking counter naturally (45/45 words), with no
+  simulated pos/step locals or flag override. This resolves the historical
+  preheader blocker: the exhaustive searches were conditioned on source
+  forms with the wrong counter/constant origins, not on every clean-C form.
+  The legacy imported call at 0x80012A34 is matched Rand, returning u32.
 - ovl_21_func_800B9844 (m, matched this session, byte-exact) — leaf; outer
   loop over six `D_800C0448` records (stride 0x108), inner loop bounded by
   the halfword at `D_800C0448 + 0x64A` over a 0x4C sub-stride, reading a
@@ -7438,7 +7434,7 @@ Members (link order):
   -fno-schedule-insns override; the adjacent matched 800B9844's assembled
   text is unchanged under that flag. Neither fact establishes a TU boundary
   or licenses applying the flag to the whole cluster.
-- ovl_21_func_800BA868 / ovl_21_func_800BA944 (s, unmatched) — gapless
+- ovl_21_func_800BA868 (s) / ovl_21_func_800BA944 (m) — gapless
   link neighbours (0x800BA868 ends at 0x800BA944) that are near-twins of
   `ovl_21_func_800BA7F0`: both fill a 3-entry `s16 buf[4]` with the indices
   of `D_800C0448[arg0*3 + k].unk14` entries equal to 0 using the same
