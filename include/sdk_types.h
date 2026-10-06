@@ -1248,6 +1248,20 @@ typedef struct {
 } Recon_ovl_11_func_8010CE80_A0View;
 
 typedef struct {
+    char pad_0[0x26];
+    s16 unk26;
+    s16 unk28;
+    s16 unk2A;
+    s16 unk2C;
+    char pad_2E[0x30 - 0x2E];
+    s16 unk30;
+    char pad_32[0xBE - 0x32];
+    s16 unkBE;
+    s16 unkC0;
+    s16 unkC2;
+} Recon_ovl_11_func_8010D250_A0View;
+
+typedef struct {
     char pad_0[0x24];
     u8 unk24;
 } Recon_ovl_17_func_800BAFAC_A0View;
