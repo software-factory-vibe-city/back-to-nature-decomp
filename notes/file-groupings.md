@@ -2194,6 +2194,18 @@ the `D_8012CE..` byte block shared with 800FDFF4's `D_8012CEB8`, not on
 `D_800719FE`. `ovl_11_func_800FE704` matched 2026-11; gapless follower
 `ovl_11_func_800FE780` is the same idiom and remains a stub.
 
+Widening (byte-exact match of `ovl_11_func_800FE86C`, 2026-11): the gapless
+link run above continues through `ovl_11_func_800FE7FC` (0x800FE7FC, 0x70
+bytes, a one-line wrapper forwarding `(arg0, 5, arg1, arg2)`) into
+`ovl_11_func_800FE86C` (0x800FE86C, 0xBC bytes), so 0x800FE704 -> 0x800FE780
+-> 0x800FE7FC -> 0x800FE86C is four consecutive entries with no gap.
+`ovl_11_func_800FE86C` is a count-up loop over `arg0` iterations that issues
+`func_80015EE8(D_8005E3C0->field_D8 + 0x68, ((s32)&D_8012CE88), (u8)arg1, 0,
+arg2, arg3)` and steps `arg2` by -8 each pass; it shares the call path,
+`D_8005E3C0` and `D_8012CE88` with 800FE704/800FE780 but not the
+`D_80127212` /30 argument. Membership rests on the shared call path plus the
+gapless link order.
+
 Widening (byte-exact match of `ovl_11_func_800FD194`, 2026-11): the same
 text-draw path also reaches far below the run at 0x800FD194, a 0x88-byte
 two-call leaf that issues `func_80015EE8(D_8005E3C0->field_D8 + 0x68,
