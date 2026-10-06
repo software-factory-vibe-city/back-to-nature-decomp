@@ -29,3 +29,4 @@ void ovl_25_func_800BB4B4(void);
 void ovl_25_func_800BB970(s16 arg0);
 void ovl_25_func_800BB9D0(s16 arg0);
 void ovl_25_func_800BBA30(s16 arg0, s16 arg1, s16 arg2);
+void ovl_25_func_800BBA7C(void);
