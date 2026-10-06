@@ -1369,8 +1369,11 @@ Members:
 - ovl_11_func_800E2934 (m, matched this session) — array index lookup: returns
   the 0-based index of `arg0` within the `D_800742EC` 0xB4-stride array, or
   -1 after 10 entries
-- ovl_11_func_800E2968 (s) — initializes one 0xB4-byte entry (memset 0xB4,
-  `sh` at 0x0/0x16/0xB0, bits at 0x1A–0x21, calls 0x800E2A30 / 0x80107DD0)
+- ovl_11_func_800E2968 (m, matched this session) — initializes one 0xB4-byte
+  entry (memset 0xB4, `sh` at 0x0/0x16/0xB0, packed 8-byte copy of
+  `D_8006C838+0x44B8` to 0x1A then a zeroing `sh` at 0x1A, calls 0x800E2A30 /
+  0x80107DD0); the packed-word copy and the 0x80107DD0(this+0xA8) callee are
+  the same idiom as the 0x8010D04C / 0x8010B778 / 0x80112904 cluster
 - ovl_11_func_800E20B8 (m, matched this session) — counts how many of the 10
   `D_800742EC` 0xB4-stride entries have a non-zero u16 at 0x0 (the same field
   the initializer `sh`s), returns the count; leaf, no callers in the overlay

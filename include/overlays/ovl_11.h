@@ -294,6 +294,7 @@ s32 ovl_11_func_800E2654(M2C_ac15726e4209_E2654 *src, M2C_ac15726e4209_E2654 *ds
 s32 ovl_11_func_800E2718(void *arg0);
 void ovl_11_func_800E2904(s32 arg0);
 s32 ovl_11_func_800E2934(void *arg0);
+s32 ovl_11_func_800E2968(s16 *arg0, s32 arg1);
 s32 ovl_11_func_800E2A30(s16 *arg0);
 s32 ovl_11_func_800E2AAC(u16 arg0, u16 arg1, u16 *arg2, u16 *arg3);
 void ovl_11_func_800E2BE8(s32 arg0);
