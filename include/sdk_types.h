@@ -770,6 +770,12 @@ typedef struct {
 } M2C_abf795ba7347_UnkStruct800DA390;
 
 typedef struct {
+    s32 unk0;
+    s32 unk4;
+    s32 unk8;
+} M2C_ac15726e4209_E2654;
+
+typedef struct {
                char pad0[0x38];
                u16 unk38;
                char pad3A[0x100 - 0x3A];

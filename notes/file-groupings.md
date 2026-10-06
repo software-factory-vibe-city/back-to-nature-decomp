@@ -1373,6 +1373,15 @@ Members:
   `u16@+0 == 0 && !(u32@+0x34 & 0x02000000)`, returns the entry pointer or
   NULL; same accessor role for D_800742EC that 0x800D0C34 plays for
   D_800749F4
+- ovl_11_func_800E21E4 (s) — state machine over one 0xB4-byte entry: calls
+  0x800E2934 (index lookup), 0x800E2A30 and 0x800E2BE8 (state update) on the
+  same struct; zero-gap link predecessor of 0x800E2654 (ends exactly at
+  0x2A834)
+- ovl_11_func_800E2654 (m, matched this session) — clamps/randomizes the
+  three-word sub-record embedded at +0x38 of the same 0xB4 struct (copies
+  field +4 through; re-rolls fields +0/+8 into their sign-dependent ranges via
+  func_80012A34, returns whether either changed); sole caller 0x800E21E4
+  passes `s0+0x38`, and it is zero-gap link-adjacent to 0x800E2718
 
 ---
 
