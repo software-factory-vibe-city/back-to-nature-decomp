@@ -1350,3 +1350,36 @@ What was tried:
 **Reusable technique:** keep a real address operation boundary intact.
 An opaque constant alone may move the wrong web; bundling its real consumer
 can preserve the needed birth and delay slot without replacing control flow.
+
+
+## ovl_11_func_800E74AC — separate limit conversion from distance birth
+
+**Outcome:** 22/22 words; full controller finalization passed all images,
+scope, context and scoped exceptions
+(build/parked-recovery/800E74AC-finalize.json). Triage reports no blockers.
+Both absolute-value guards, field reads and the return remain C.
+
+What was tried:
+1. Resumed the bound result/base/delta/y source. Opaque common final SLT
+   prevented comparison duplication across the second absolute-value guard,
+   clearing the CFG residual but leaving [0,2,2,0].
+2. Kept wide register inputs and explicitly performed the actual low-halfword
+   conversions: first limit SLL/SRA and second-limit SLL in a three-instruction
+   entry fragment. Put the second SRA inside the first-distance guard.
+   This fixed the entry order and first absolute-value delay slot; [0,2,0,0]
+   remained because second-distance SUBU filled the preceding BEQ slot and
+   SRA filled the second BGEZ slot instead of the original positions.
+3. Replaced only the second-distance subtraction with one real SUBU
+   arithmetic fragment. The compiler put C SRA in the BEQ delay slot,
+   retained the second BGEZ nop and common SLT: EXACT.
+4. Integrated six local bindings (five distinct register roles) and five
+   arithmetic instructions, with no branch or return assembly. Callee audit
+   found no direct calls; finalization verified every image and exported the
+   actual wide-register signature with explicit narrowing in the body.
+5. Documented only the supported shared-field producer/predicate relation
+   to 80113B80, not a same-TU claim or original register-variable fingerprint.
+
+**Reusable technique:** make the actual conversion birth explicit when a
+formal narrow parameter's extension is scheduled into the wrong guard. A
+small opaque arithmetic result can preserve a C delay-slot candidate without
+replacing the surrounding control flow.

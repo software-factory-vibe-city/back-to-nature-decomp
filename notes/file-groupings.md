@@ -6266,6 +6266,23 @@ Members:
   `D_800A00E8`/`D_800A00EC` (the latter doubled as the function's residual
   `$v0`), and copies +0x8/+0xA back into +0x4/+0x6.
 
+## `ovl_11` work-area +0x52C8/+0x52D0 producer/predicate family (confidence: low)
+
+A data-only relation, not original-TU evidence: both matched functions use
+`D_8006C838`'s absolute base and touch the same two work-area offsets, but
+with different widths and far-apart addresses.
+
+- ovl_11_func_80113B80 (m) — the producer documented above writes full
+  words at +0x52C8 and +0x52D0 from the D_8012D110 halfword pair, using
+  `400*x - 1800` and `2000 - 400*(y+2)` respectively.
+- ovl_11_func_800E74AC (m, parked recovery) — rectangular-distance predicate
+  over signed low halfwords at those offsets: returns 1 only when
+  `abs(field_C8 - arg2) < (s16)arg0` and
+  `abs(field_D0 - arg3) < (s16)arg1`. The original words preserve two
+  separate absolute-value guards and a common final comparison. The
+  recovery's explicit register roles and arithmetic fragments are not
+  evidence that the original author used bindings or assembly.
+
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): eighteen matched
