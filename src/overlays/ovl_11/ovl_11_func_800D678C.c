@@ -1,13 +1,5 @@
 #include "common.h"
 
-typedef struct {
-    char unk[0x18];
-    s16 unk18;
-    char pad[4];
-} Ovl11A04B8Entry;
-
-extern Ovl11A04B8Entry D_800A04B8[1][9];
-
 s32 ovl_11_func_800D678C(s16 arg0) {
     Ovl11A04B8Entry *p;
     s32 result;

@@ -187,6 +187,7 @@ s32 ovl_11_func_800D61D8(s16 arg0);
 s32 ovl_11_func_800D6380(s8 arg0, s8 arg1, s32 arg2, Recon_ovl_11_func_800D6380_A3View *arg3);
 s32 ovl_11_func_800D63C4(s8 arg0, s8 arg1);
 void ovl_11_func_800D6628(void);
+void ovl_11_func_800D666C(s16 arg0);
 s32 ovl_11_func_800D6730(s16 value, s16 row);
 s32 ovl_11_func_800D678C(s16 arg0);
 s32 ovl_11_func_800D688C(s16 arg0);

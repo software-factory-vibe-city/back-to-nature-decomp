@@ -1433,5 +1433,17 @@ extern u16 D_8012862C[6];
  * ovl_11_func_80120358 (lh load). Absolute-addressed. */
 extern s16 D_80070D02;
 
+/* D_800A04B8 - ovl_11 record table, one row of 9 entries of 0x1E bytes.
+ * D_800A0494 is the 9-s16-per-row grid ending 0x24 below it; D_800A04B8 is
+ * the row-relative view the record scan walks (ovl_11_func_800D678C indexes
+ * D_800A04B8[arg0], ovl_11_func_800D666C walks 9 entries stepping +0x1E).
+ * Absolute-addressed from the overlay. */
+typedef struct {
+    /* 0x00 */ char unk[0x18];
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ char pad[4];
+} Ovl11A04B8Entry;
+extern Ovl11A04B8Entry D_800A04B8[][9];
+
 #endif /* GLOBALS_OVERRIDE_H */
 
