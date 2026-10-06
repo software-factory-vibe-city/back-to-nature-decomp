@@ -5889,8 +5889,8 @@ Members:
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: medium)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): seventeen matched
-functions (plus one stub) sharing the one ovl_11-private 0x50-byte s32 table
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): eighteen matched
+functions sharing the one ovl_11-private 0x50-byte s32 table
 `D_80129560` (`globals_override.h`), each guarded-indexing it with
 `s16`-scaled slots.
 
@@ -5929,8 +5929,8 @@ Fingerprints:
   cluster rather than a scattered data-only tie;
 - **what the tie is not:** beyond the head run the members are scattered over
   ~0x6E4C of text; member-to-member call edges were a single stub edge
-  (800E8DC8 calls 800E5C60) until 800E5ADC was matched this session
-  (800E5ADC calls 800E5C60), making two edges one of which is now
+  (800E8DC8 calls 800E5C60) until 800E5ADC was matched (800E5ADC calls
+  800E5C60); with 800E8DC8 now also matched, both edges are
   matched-to-matched; 800EC490 has no callers anywhere in the link (an exported
   entry).
 
@@ -6023,8 +6023,8 @@ Members:
   `D_80129560[arg0]` (raw `(s16)arg0` when `arg2 == 0`) and calls
   `ovl_11_func_800EFF04(0x25, resolved, NULL)`, setting bit `0x800` of the
   resolved record's first halfword when `arg1 == 0` and clearing it otherwise;
-  the `arg0 == 0x2C` arm calls `ovl_11_func_800CF36C(0)`; returns 1. One caller
-  is now matched (800E5ADC) and one is still a stub (800E8DC8); both call it as
+  the `arg0 == 0x2C` arm calls `ovl_11_func_800CF36C(0)`; returns 1. Both callers
+  are now matched (800E5ADC, 800E8DC8); both call it as
   `800E5C60((s16)arg0, 0, 0)` and then store three s32s at the
   0x22 record's +0/+4/+8 (800E5ADC's values from its own args, record base
   `D_80077600 + arg0*0xF8` for `arg0 < 0x32`; 800E8DC8's read through the
@@ -6039,12 +6039,14 @@ Members:
   family member 800E5A1C and predecessor of stub 800E5B84; the caller that
   supplies the matched member-to-member edge into 800E5C60 and a second
   recovered variant of the shared caller shape (it passes a cleared 4th
-  argument to 800E5C60, where the stub 800E8DC8 passes 3).
-- ovl_11_func_800E8DC8 (s) — three-slot snapshot writer: after
-  `ovl_11_func_800E5C60((s16)arg0, 0, 0)`, resolves the 0x22 record via
-  `ovl_11_func_800EFF04` and stores `D_80129560[arg2]`/
+  argument to 800E5C60, where 800E8DC8 passes 3).
+- ovl_11_func_800E8DC8 (m, matched this session, 0xB0, byte-exact) — three-slot
+  snapshot writer: after `ovl_11_func_800E5C60((s16)arg0, 0, 0, 0)`, resolves
+  the 0x22 record via `ovl_11_func_800EFF04` and stores `D_80129560[arg2]`/
   `D_80129560[(s16)arg1]`/`D_80129560[arg3]` at its +0/+4/+8; returns 1. Same
-  snapshot-write idiom as 800E9778, inside the accessor band.
+  snapshot-write idiom as 800E9778 and the same 0x22-record caller shape as
+  800E5ADC (both call 800E5C60 with a cleared 4th argument), inside the
+  accessor band.
 
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 
