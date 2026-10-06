@@ -1,37 +1,30 @@
+/* User-authorized address/register workaround: retain the genuine high
+ * in V0 until its LOW16 consumer builds the loop-invariant base in T1.
+ * Both nested scans and every store remain C; this does not establish the
+ * original source used register declarations or embedded assembly. */
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_8010476C", ovl_11_func_8010476C);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-09-15T10:56:14.474Z.
- * Reason: escalation-exhausted.
- * Escalation reached: glm-5-3-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_8010476C.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
-/* Clear the card table: three rows of six 14-byte card records. Each record's
- * value halfword is marked empty (-1) and the remaining six halfwords are
- * zeroed, matching the deal layout used by func_8002206C. */
+/* Clear three rows of six 14-byte records: first halfword is -1 and the
+ * remaining six are zero. The two bases reach the same record array, with
+ * pX addressing its last halfword. */
 void ovl_11_func_8010476C(void) {
     s16 *pW;
     s16 *pX;
-    s16 *pBase;
-    s16 *base2;
+    register s16 *pBase asm("$9");
+    register u32 high asm("$2");
+    register s16 *base2 asm("$3");
     u32 rows;
     u32 n;
     u32 next;
     u32 rb;
 
     rows = 0;
-    pBase = (s16 *)&D_80074838;
+    asm volatile("lui %0,%%hi(D_80074838)" : "=r"(high));
+    asm volatile("addiu %0,%1,%%lo(D_80074838)" : "=r"(pBase) : "r"(high));
     base2 = (s16 *)&D_8006C838;
     base2 += 0x7291;
     do {
+        n = 0;
         next = rows + 1;
         pX = (s16 *)(rows * 0x54 + (u32)base2);
         rb = rows * 0x54 + 0x6520;
@@ -45,11 +38,9 @@ void ovl_11_func_8010476C(void) {
             pW[0] = 0;
             *pX = 0;
             pX += 7;
-            pW += 7;
             n++;
+            pW += 7;
         } while (n < 6U);
         rows = next;
-        n = 0;
     } while (rows < 3U);
 }
-#endif

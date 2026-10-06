@@ -1170,3 +1170,35 @@ What was tried:
 an allowlist entry. Pin only the physical roles that differ, preserve the one
 required birth, and keep memory effects in C so epilogue scheduling remains
 visible to the compiler. UNDETERMINED is never byte-exact verification.
+
+
+## ovl_11_func_8010476C — stage the actual high/full base and initialize each inner scan
+
+**Outcome:** 36/36 words, byte-exact; full controller finalization passed
+all images, scope, published context and the scoped user-authorized source
+exceptions (build/parked-recovery/8010476C-finalize.json).
+
+What was tried:
+1. Read the original and preserved alternatives. The earliest preserved
+   source used the inner counter before definition; the initialized
+   step-order variant was the semantic starting point.
+2. Staged the first global's high and low formation as two real-output
+   instructions, binding the full base to T1 and work-area base to V1.
+   Allocation still coalesced the unbound high into T1; an early source
+   counter zero also preceded these stages ([0,0,1,3]).
+3. One combined experiment bound the high to V0 and moved counter zero to
+   the start of every outer iteration (removing the trailing zero). That
+   combination immediately produced EXACT, including first-iteration zero
+   and subsequent branch-delay resets. Neither individual intervention is
+   claimed as independently measured. Three local bindings and two actual
+   address instructions remain; both loops and every store remain C.
+4. Triage falsely labeled the high dead. Original 80104770 LUI V0 is read
+   by 80104774 ADDIU T1,V0,lo before 80104780 redefines V0; the source's
+   second asm explicitly consumes the first real output. Recorded the
+   counterproof with its exact-source premise rather than adding a fake use.
+5. Integrated, finalized and corrected the grouping's parked label. The
+   two store bases alias one seven-halfword record, not parallel arrays.
+
+**Reusable technique:** an apparent missing instruction can be a coalesced
+HI16/full-address web. Restore its real lifetime, and ensure a nested loop's
+initialization is valid on its first iteration as well as its latch paths.

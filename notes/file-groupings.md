@@ -1340,7 +1340,7 @@ compiles the same semantics but emits the wrong `addu` grouping and order.
 
 Widening (2026-09-15, byte-exact match of `ovl_11_func_801047FC`): the record
 region's initializer is now matched. `ovl_11_func_801047FC` (m, 0x801047FC,
-0x9C, void leaf) zero-gaps after parked stub `ovl_11_func_8010476C` and is
+0x9C, void leaf) zero-gaps after finalized `ovl_11_func_8010476C` and is
 called only by `ovl_11_func_801044E4` (s, immediately link-preceding). Same
 D_8006C838 shared-global-cluster fingerprint: absolute-addressed
 `(View *)&D_8006C838` view with the identical `ori 0x8000 + addu` large-offset
@@ -1351,6 +1351,15 @@ to -1) — the table ends exactly at +0xE514, the select halfword 80104394 reads
 and 80103770 walks — an initializer/consumer tie on one data region, so it
 extends this TU family past the 0xE514 boundary; membership in the
 D_80127428 run itself remains unproven (touches none of D_80127428/2C).
+
+Widening (finalized `ovl_11_func_8010476C`, 0x90): original 801044E4
+also calls this immediately preceding initializer at 8010464C. It clears
+three rows of six 14-byte records beginning at work-area +0xE516, directly
+after the +0xE514 selector. Each first halfword becomes -1 and six others
+become zero. Its second base, +0xE522, aliases the same record's final
+halfword (+0xC); it is not a separate parallel table. The shared caller,
+gapless 8010476C→801047FC link order and adjacent data boundary support
+the existing initializer/consumer family, without proving its original TU.
 
 Widening (byte-exact match of `ovl_11_func_800EF870`): the address-apart
 single-record resetter (m, 0x4C, void leaf) independently indexes the same
