@@ -483,3 +483,36 @@ Grouping evidence: the call-target-only twin 80019AD0 and gapless 800197FC
 wrapper provide an existing module-family link. Evidence: original words,
 scheduler UID63 report, staged ledger, matched 80011F5C definition, shared
 aggregate type and receipt.
+
+## func_80019AD0 — verified family transfer closes the second text wrapper
+
+**Outcome:** clean C, 123/123 byte-exact words; complete finalization passed
+(build/parked-recovery/80019AD0-finalize.json). Callee 800199F8 remains 54/54.
+
+What was tried:
+1. The disabled hand-peeled scan still measured population 76 after the bulk
+   audit. Once 80019610 matched, queried familyTransfer with that donor.
+   Original-word anti-unification found 74 already-agreeing holes and one
+   required substitution: 800197FC to 800199F8. The first candidate was EXACT.
+2. Corrected the corresponding matched wrapper's void result to its scalar
+   final func_80011F5C(0) result. This independently witnessed return is
+   consumed in the original caller; the callee's 54 words remain unchanged.
+3. Investigated triage's contrary proven-void assertion instead of changing
+   the matching program to satisfy it. The original wrapper contains six jal
+   instructions, including the scalar allocator call at 0x80019AA0, after
+   which the epilogue preserves v0. Its 'control never leaves' premise is
+   concretely false. Recorded this narrow transitive-call-effect resolution
+   in the closed-experiment ledger; it licenses no arbitrary return change.
+4. Integrated the family candidate using the existing shared TextCopyBlock,
+   remeasured the live source and passed full binary/policy/scope finalization.
+
+**Reusable technique:** settle one representative, then requeue its original-
+word family immediately. Byte verification, not visual similarity, decides a
+transfer. Declaration scanners are diagnostic models: when a tail call defines
+an observed result, the absence of a direct v0 write is not a proof of void;
+check the original calls and the callee's independently matched return.
+
+Grouping evidence: both exact callers and both matched width/render wrappers
+now corroborate the existing gapless module family. Evidence: familyTransfer
+substitutions/candidate, original jal sites, matched allocator definition,
+staged ledger and receipt.

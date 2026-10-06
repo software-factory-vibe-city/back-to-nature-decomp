@@ -4749,8 +4749,13 @@ Fingerprints:
   as the D_8005F0C8 family and the u16-text wrapper trio.
 - sole width source is func_800198E0 (D_8005F0C8 family member).
 
-Member: func_800199F8 (m).
-Member: func_80019AD0 (s) — caller of func_800199F8; ends the same contiguous no-gap run.
+Member: func_800199F8 (m) — right-aligned width/render wrapper; its final
+  80011F5C work-base result is consumed by 80019AD0. Restoring that scalar
+  return leaves all 54 original words unchanged.
+Member: func_80019AD0 (m, 0x1EC, byte-exact, finalized) — caller of
+  func_800199F8; ends the same contiguous no-gap run. The exact family transfer
+  from 80019610 changes only that call target, including the natural aggregate
+  copy, marker scan and incoming signed-halfword y update.
   func_80019AD0 is byte-identical to func_80019610 (each a 0xA0-frame 9-arg text-width/
   sentinel-scan body; the only difference is the callee: func_800199F8 vs func_800197FC),
   and siblings func_800199F8/func_800197FC are the twin width-measuring wrappers — so the
