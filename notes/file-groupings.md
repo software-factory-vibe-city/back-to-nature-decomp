@@ -6207,7 +6207,11 @@ Members:
   initializer of the 0x8010B64C gapless band, and returns the record base,
   tying this record cluster to that band through the call graph.
 - link adjacency (weak): 0x800CF308 sits immediately before 0x800CF314 in the
-  0x800CFxxx run; 0x8010B1C4 is the zero-gap tail of the 0x8010B0E8 (0xB0) →
+  0x800CFxxx run, whose joins are exact at splat offsets — 0x800CF314 (0x58)
+  ends at 0x800CF36C and 0x800CF36C (0xBC) ends at 0x800CF428, bridging this
+  cluster to the D_80123758 item-table cluster through the matched 800CF36C
+  (which references D_80075BC4, neither cluster's global); 0x8010B1C4 is the
+  zero-gap tail of the 0x8010B0E8 (0xB0) →
   0x8010B198 (0x2C) → 0x8010B1C4 (0x54) chain, which ends at 0x8010B218
   (0x42C gap before the 0x8010B64C band); callers/siblings are container-local,
   so no cross-container tie.
@@ -6244,7 +6248,7 @@ Members:
   s16 @0x2 (compared against D_8009AFF0+0x5476) and s32 @0x8/0xC (copied to
   a new object), so it shares the same record type.
 
-## `ovl_11` D_80075BC4 record-table scan caller/callee pair — 0x801097F4 / 0x801098B0 (confidence: low)
+## `ovl_11` D_80075BC4 record-table consumers — 0x801097F4 / 0x801098B0 / 0x800CF36C (confidence: low)
 
 - call-graph adjacency for the pair: `ovl_11_func_801097F4` (0xBC) ends at
   0x801098B0 and its sole caller `ovl_11_func_801098B0` starts exactly there
@@ -6258,8 +6262,10 @@ Members:
   as the 0x8011D934 by-value run, but a different record type.
 - shared-global fingerprint: D_80075BC4 is referenced by eight container
   functions (0x800BEB28, 0x800CE96C, 0x800CEBC8, 0x800CF044, 0x800CF36C,
-  0x800D2240, 0x800D2F48, 0x801097F4); only the last is matched, so data TU
-  ownership is unconfirmed.
+  0x800D2240, 0x800D2F48, 0x801097F4); 801097F4 and 800CF36C are now both
+  matched, and 800CF36C sits in the 0x800CF044–0x800D506C caller run of the
+  0xB0 memset-clearer 800D3200 (whose head 800CF044 is also a consumer), so
+  data TU ownership is unconfirmed with that run the leading candidate.
 
 Members:
 - ovl_11_func_801097F4 (m, matched this session, byte-exact) — leaf: scans
@@ -6270,6 +6276,13 @@ Members:
 - ovl_11_func_801098B0 (s) — run tail: sole caller, builds the by-value
   record (selector from a source record's s16@+0x30, radius from +0x38, out
   pointer = &D_8012D080) and dispatches on the scan result.
+- ovl_11_func_800CF36C (m, matched this session, byte-exact) — conditional
+  batch clearer: for each of the six 0xB0 records, calls
+  ovl_11_func_800D3200 (the 0xB0 memset-clearer of the idiom family) when
+  (s32@+0x34 & 0x20000 == 0 or arg0) and (u16 tag@+0x0 & 0x15B == 0 or the
+  global D_8006C838+0x44F8 bit 0x01000000 is set); the tag test covers the
+  same +0x00 field the scan above equality-matches, and callers pass arg0
+  0/1 (800BC3E0, 800C0A4C, 800E499C, 800E5C60).
 
 ## `ovl_11` D_8007AFF0 +0x253B4/+0x253B8 pair-consumer pair — 0x800D92FC–0x800D93C8 (confidence: low)
 
