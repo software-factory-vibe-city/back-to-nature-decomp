@@ -1540,5 +1540,9 @@ extern u32 D_8012880C;
 extern s16 D_80128540;
 extern s16 D_8012855A;
 
+/* ovl_11 state buffer: 80112D10 clears its +C ten-byte flags, +16
+ * 10x10x10 byte grid, initial halfword and word at +400. */
+extern u8 D_8012D110[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 

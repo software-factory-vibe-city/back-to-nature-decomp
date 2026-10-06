@@ -202,6 +202,10 @@
       "ovl_11_func_8010476c": [
         "register-asm",
         "embedded-asm"
+      ],
+      "ovl_11_func_80112d10": [
+        "register-asm",
+        "embedded-asm"
       ]
     }
   }

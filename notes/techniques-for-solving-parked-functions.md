@@ -1202,3 +1202,38 @@ What was tried:
 **Reusable technique:** an apparent missing instruction can be a coalesced
 HI16/full-address web. Restore its real lifetime, and ensure a nested loop's
 initialization is valid on its first iteration as well as its latch paths.
+
+
+## ovl_11_func_80112D10 — preserve the high web without pinning the GIV base
+
+**Outcome:** 38/38 words, byte-exact; full controller finalization passed
+all images, scope, context and scoped source exceptions
+(build/parked-recovery/80112D10-finalize.json).
+
+What was tried:
+1. Staged the real high/full address pair before the loops and a second low
+   formation for the final word store. Bound high to T1, base to T0 and
+   final full address to V0. The tail matched, but the hard-bound base
+   prevented the inner address GIV from becoming a stepped pointer
+   ([0,4,0,5]); it instead recomputed index plus base every iteration.
+2. Removed only the base binding. The compiler again reduced the inner
+   address, assigned it the target registers and preserved the three loops;
+   all staged terms became zero. Two commutative outer-byte address copies
+   still differed (36/38 words).
+3. Wrote that byte store through explicit integer index-first addition,
+   rather than p[i]. It fixed both the initial address and latch delay-slot
+   copy immediately: EXACT. Unlike the F227C additions, this integer spelling
+   genuinely changed the emitted operands.
+4. Integrated with two local bindings and three real address instructions,
+   keeping all loops, stores and conditions in C. The final signed low
+   0xD110 reaches the same fixed-layout object through the retained high;
+   inventory's symbolic-zero versus literal-negative offset signal is not
+   a missing store, as original-word and full-image verification establish.
+5. Published the existing byte-storage declaration in globals_override.h,
+   removed the source-local redeclaration, and documented actual matched
+   initializer/consumer dependencies without asserting original TU membership.
+
+**Reusable technique:** pinning an invariant base can suppress strength
+reduction. Retain the required high lifetime and tail output while leaving
+the GIV-bearing base automatic; then inspect any zero-key byte residual
+for commutative operand order before changing a loop.

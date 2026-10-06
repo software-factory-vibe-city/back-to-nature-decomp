@@ -9683,3 +9683,25 @@ boundary or a common TU across the intervening link addresses.
 - ovl_11_func_800F8B4C (m, 0xD0) — finalized numeric/separator row helper;
   four inline address/setup instructions and scoped register bindings are
   explicitly user-authorized matching workarounds, not original-TU evidence.
+
+
+## ovl_11 D_8012D110 state-buffer initializer/consumer family (confidence: low)
+
+Storage/dependency evidence, not an original-TU claim: the initializer and
+two independently matched readers use the same absolute state buffer.
+
+- ovl_11_func_80112D10 (m, finalized, 0x98) — clears ten bytes at +0xC,
+  the 10x10x10 byte grid at +0x16, the initial halfword and word at +0x400.
+  Original callers: 800BCD28 at 800BCEA8, 801044E4 at 8010468C, and
+  80113818 at 80113954. The shared 801044E4 caller also runs the nearby
+  8010476C/801047FC resetters, but this distant address is not in their
+  gapless link-order pair.
+- ovl_11_func_80113B80 (m) — reads +8/+A coordinates, updates work-area
+  positions when func_8001AF44(0x44) succeeds, and conditionally calls
+  80113C3C.
+- ovl_11_func_80113C3C (m) — guarded by the buffer's initial halfword;
+  transforms the same +8/+A coordinates into far work-area fields and
+  copies them into buffer +4/+6.
+
+The first-halfword initializer/guard tie and common coordinate consumers
+support one state family; they do not prove shared translation-unit ownership.
