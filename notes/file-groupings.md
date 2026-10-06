@@ -5887,9 +5887,9 @@ Members:
   `D_800A00E8`/`D_800A00EC` (the latter doubled as the function's residual
   `$v0`), and copies +0x8/+0xA back into +0x4/+0x6.
 
-## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: low)
+## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: medium)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): sixteen matched
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): seventeen matched
 functions (plus one stub) sharing the one ovl_11-private 0x50-byte s32 table
 `D_80129560` (`globals_override.h`), each guarded-indexing it with
 `s16`-scaled slots.
@@ -5919,11 +5919,20 @@ Fingerprints:
   (800E686C) recorded as the same by `globals_override.h` — positive adjacency
   evidence among family members, which the scattered 0x800E5A1C/800EB79C/
   800EC490/800ED760 sites do not supply;
-- **what the tie is not:** the members are scattered over ~0x6E4C of text and
-  have a single member-to-member call edge so far (stub 800E8DC8 calls
-  matched 800E5C60 with `(arg0, 0, 0)`); 800EC490 has no callers anywhere in
-  the link (an exported entry), so per the ledger convention the global alone
-  is still a data-family tie, not a TU tie.
+- **head-of-band zero-gap run:** the three lowest-address members confirmed
+  from this family are link-order contiguous with no unrelated code between
+  them: `ovl_11_func_800E5A1C` (0xC0) ends exactly at `ovl_11_func_800E5ADC`
+  (0xA8), which ends exactly at `ovl_11_func_800E5B84` (0xDC, stub), which ends
+  exactly at `ovl_11_func_800E5C60` (0xA0). The run contains one interposed
+  unmatched function (800E5B84), so the adjacency is positive among the
+  matched members and unverifiable for the stub, but it is a real link-order
+  cluster rather than a scattered data-only tie;
+- **what the tie is not:** beyond the head run the members are scattered over
+  ~0x6E4C of text; member-to-member call edges were a single stub edge
+  (800E8DC8 calls 800E5C60) until 800E5ADC was matched this session
+  (800E5ADC calls 800E5C60), making two edges one of which is now
+  matched-to-matched; 800EC490 has no callers anywhere in the link (an exported
+  entry).
 
 Members:
 - ovl_11_func_800E6834 (m, matched 2026-11 — this session, 0x38, byte-exact) —
@@ -5938,7 +5947,8 @@ Members:
   (arg2 == 0) with `limit = D_80129560[(s16)arg1]`, then increments
   `D_80129560[(s16)arg1]` unless `arg3 != 0 && (D_8006C844 & 0x8000000)`;
   lowest-address member of the family, at the head of the recorded
-  0x800E5A1C–0x800EExxx accessor band, same absolute `lui`+`addiu %lo` base
+  0x800E5A1C–0x800EExxx accessor band and immediate link-order predecessor of
+  800E5ADC (zero gap), same absolute `lui`+`addiu %lo` base
   and s16-fused index idiom as the sibling accessors.
 - ovl_11_func_800E6914 (m) — three-slot compare leaf: `D_80129560[arg1]` vs
   bit-selected `D_80129560[arg2]`/`[arg3]`, returns the in-range test.
@@ -6013,12 +6023,23 @@ Members:
   `D_80129560[arg0]` (raw `(s16)arg0` when `arg2 == 0`) and calls
   `ovl_11_func_800EFF04(0x25, resolved, NULL)`, setting bit `0x800` of the
   resolved record's first halfword when `arg1 == 0` and clearing it otherwise;
-  the `arg0 == 0x2C` arm calls `ovl_11_func_800CF36C(0)`; returns 1. Its two
-  callers are still stubs: `ovl_11_func_800E5ADC` and `ovl_11_func_800E8DC8`
-  both call it as `800E5C60((s16)arg0, 0, 0)` and then store three s32s at the
+  the `arg0 == 0x2C` arm calls `ovl_11_func_800CF36C(0)`; returns 1. One caller
+  is now matched (800E5ADC) and one is still a stub (800E8DC8); both call it as
+  `800E5C60((s16)arg0, 0, 0)` and then store three s32s at the
   0x22 record's +0/+4/+8 (800E5ADC's values from its own args, record base
   `D_80077600 + arg0*0xF8` for `arg0 < 0x32`; 800E8DC8's read through the
-  table).
+  table). It sits at the far end of the head-of-band zero-gap run
+  (800E5A1C → 800E5ADC → 800E5B84 → 800E5C60).
+- ovl_11_func_800E5ADC (m, matched this session, 0xA8, byte-exact) —
+  conditional 0x22-record field writer: when `arg0 < 0x32` calls
+  `ovl_11_func_800E5C60((s16)arg0, 0, 0)` and resolves the record base through
+  `ovl_11_func_800EFF04(0x22, (s16)arg0, NULL)`, otherwise uses the static
+  `D_80077600 + arg0*0xF8`; writes the three incoming s32s to record +0/+4/+8
+  (in source order +0, +8, +4) and returns 1. Zero-gap link-order successor of
+  family member 800E5A1C and predecessor of stub 800E5B84; the caller that
+  supplies the matched member-to-member edge into 800E5C60 and a second
+  recovered variant of the shared caller shape (it passes a cleared 4th
+  argument to 800E5C60, where the stub 800E8DC8 passes 3).
 - ovl_11_func_800E8DC8 (s) — three-slot snapshot writer: after
   `ovl_11_func_800E5C60((s16)arg0, 0, 0)`, resolves the 0x22 record via
   `ovl_11_func_800EFF04` and stores `D_80129560[arg2]`/
