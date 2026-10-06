@@ -9119,3 +9119,28 @@ Members (address order):
   0xE-stride min/max range scan at `D_801285F4`: on a hit stores
   `func_80012A34(D_8012862C[obj->+8]) + 5` and returns the entry's s16 value,
   else 0.
+
+---
+
+## `ovl_11` 0x800CCC5C–0x800CCFF8 gapless caller run — 0x800CCC5C / 0x800CCCC0 / 0x800CCF14 / 0x800CCF58 / 0x800CCFF8 (confidence: low)
+
+Unbroken link-order run in `ovl_11` (`Obj\GF_FARM.bin`): 0x800CCC5C (0x64) →
+0x800CCCC0 (0x254) → 0x800CCF14 (0x44) → 0x800CCF58 (0xA0) → 0x800CCFF8
+(0x74) → 0x800CD08C, each starting exactly where the previous ends
+(`configs/splat/ovl_11.yaml`). The three middle functions are already
+documented members of unrelated candidate clusters (the D_80071A00 pool, the
+`/60` clamp-pair caller set, the scattered D_8006C858 siblings), so this
+adjacency is the only tie among them and stays low confidence; a matched
+member filling the run is new.
+
+Members (address order):
+- ovl_11_func_800CCC5C (m) — D_80071A00 pool leaf copy/mirror (see that entry)
+- ovl_11_func_800CCCC0 (s) — caller of the `/60` clamp-scaled leaf pair
+- ovl_11_func_800CCF14 (m, verified byte-exact this session) — clamp-guarded
+  clear: `ovl_11_func_800D72E8(arg0, -1)` on the 3-halfword vector at +0; when
+  it reports zero, clears the matching D_800A0494 row record via
+  `ovl_11_func_800D666C` and zeroes the vector via `ovl_11_func_800D7328` —
+  a single call site coupling the 3-halfword vector family (0x800D72E8 run)
+  to the D_800A0494 row-table clear
+- ovl_11_func_800CCF58 (s) — scattered D_8006C858 sibling
+- ovl_11_func_800CCFF8 (m) — func_80015704 two-argument caller set

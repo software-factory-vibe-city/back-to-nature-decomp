@@ -568,6 +568,11 @@ typedef struct {
 } M2C_7d34f504fd33_UnkStruct800CD4E4;
 
 typedef struct {
+               u8 unk0[4];
+               s16 unk4;
+} M2C_7f0a9cc905ed_UnkStruct800D72E8;
+
+typedef struct {
                u16 unk0;
                char pad_02[0x16 - 0x02];
                u16 unk16;
