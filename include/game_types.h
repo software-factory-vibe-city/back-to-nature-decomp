@@ -676,3 +676,9 @@ typedef struct {
     u16 unk28;
     u8 pad2[6];
 } Ovl11FuncDDC64Entry;
+
+/* Signed halfword lookup at D_8006C838+99DA; full extent is unknown. */
+typedef struct {
+    u8 pad[0x99DA];
+    s16 values[1];
+} Ovl11Value99DAView;

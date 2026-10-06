@@ -607,3 +607,30 @@ has both members matched, and shared byte storage accommodates independently
 witnessed partial layouts without changing their code. Evidence: original
 words, scheduler plain-birth report, three measured probes, six client exact
 checks and full finalization receipt.
+
+## ovl_11_func_80111030 — consume the quotient as a member-array index
+
+**Outcome:** clean C, 39/39 byte-exact words; full finalization passed
+(build/parked-recovery/80111030-finalize.json).
+
+What was tried:
+1. Refreshed the preserved best: schedule 2/allocation 3. Earlier local solver
+   and 12-candidate exhaustion were conditioned on reassigning arg0 to the
+   scaled quotient, followed by two-stage byte-pointer address formation.
+2. Kept the switch and incoming value reuse, but consumed arg0 / 52 directly
+   as the index of the global view's signed-halfword member array at 99DA.
+   The first probe was EXACT, including base formation in the mult/mfhi gap.
+3. Published the view, integrated and remeasured: still EXACT. Traced the old
+   impossibility back to its frozen origin rather than repeating the solver;
+   recorded the new counterexample with that premise in the closed ledger.
+   Triaged and passed the full linked-build/source-policy/scope gate.
+
+**Reusable technique:** assigning a quotient back to its input and manually
+scaling a byte offset creates a different web from using a fresh quotient
+as an indexed member expression. An allocation UNSAT over that former web
+cannot establish that native division plus address scheduling is unreachable.
+
+Grouping evidence: original 8010E644 calls this helper, but remains a stub;
+this establishes a caller link, not a TU boundary. No new grouping confidence
+is inferred from the clean member-view reconstruction. Evidence: original
+words, first exact candidate, conditional closed ledger and finalization receipt.

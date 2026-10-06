@@ -9529,3 +9529,16 @@ The shared typed field and nearby addresses support a data-access link, not a
 proved translation-unit boundary. Original calls from D0F20 and F4618 to D0BC8
 establish clients only. D0BC8 is now byte-exact using independent global member
 expressions; no per-file flag inference follows from this reconstruction.
+
+
+## ovl_11 8010E644 / 80111030 lookup caller link (confidence: low)
+
+- ovl_11_func_8010E644 (s): original jal at 8010E650 calls 80111030.
+- ovl_11_func_80111030 (m): selectors 8/9/10 choose u16 fields AE/B0/B2,
+  then a signed /52 quotient indexes the s16 lookup at D_8006C838+99DA;
+  returns twice that value, or 24 for another selector.
+
+The explicit call is a dependency, not evidence of shared TU membership.
+80111030 is now byte-exact with a directly indexed global member; this also
+refutes the older unqualified scheduling-impossibility claim while preserving
+its actual frozen-byte-pointer search bounds. No flag change was required.
