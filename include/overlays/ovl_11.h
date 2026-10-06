@@ -758,6 +758,7 @@ s32 ovl_11_func_8011F4F4(void);
 void ovl_11_func_8011F52C(void);
 char *ovl_11_func_8011F574(void);
 void ovl_11_func_8011FD7C(s32 arg0);
+void ovl_11_func_8011FEA0(s16 arg0, s16 arg1);
 void ovl_11_func_8011FF0C(s16 arg0, s16 arg1);
 s16 ovl_11_func_80120358(M2C_93d07a715929_Ovl11SelectArg *arg0);
 void ovl_11_func_801209A8(void);

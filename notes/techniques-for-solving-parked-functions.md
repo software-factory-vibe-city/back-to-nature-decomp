@@ -1268,3 +1268,34 @@ What was tried:
 **Reusable technique:** constrain the competing invariant rather than the
 base whose split address must stay independently allocated. Minimize every
 working workaround: a successful probe's extra opacity may not be causal.
+
+
+## ovl_11_func_8011FEA0 — keep the signed and unsigned reads in birth order
+
+**Outcome:** 27/27 words, byte-exact; full controller finalization passed
+all images, scope, context and scoped source exceptions
+(build/parked-recovery/8011FEA0-finalize.json). All operations remain C;
+five real local register roles are bound under the user's authorization.
+
+What was tried:
+1. Bound delta to A3 and cap to A2 in the preserved base/limit source.
+   This fixed argument widening but left [0,2,3,7]; the final address
+   and sum still occupied the wrong webs.
+2. Bound only the final split field pointer to A0, not the original base.
+   Address formation matched; residual fell to [0,2,2,1].
+3. Gave the sum a fresh V0-bound result. Its conditional unsigned load
+   no longer speculated, introducing two nops ([0,2,1,1]).
+4. Loaded an A1-bound unsigned value before the condition. CSE reused it
+   for the signed comparison via shift/shift rather than LH: [0,3,1,0].
+5. Read the signed halfword first into an automatic local, then the
+   unsigned halfword, then test. This preserved LH followed by LHU,
+   the limit birth and branch-delay sum: EXACT.
+6. Tested removing the unsigned-load binding; [0,0,2,1] returned. Kept
+   the measured exact form, integrated its scoped scanner exceptions,
+   and finalized before updating the original adjacency/call evidence.
+
+**Reusable technique:** a load-width residual can be CSE caused by source
+read order, not a wrong field type. Signed-first and unsigned-first reads
+of the same cell are different experiments on this compiler. Hard-binding
+a conditional result can inhibit speculative loads; separate the actual
+loads without manufacturing volatile storage or fake uses.

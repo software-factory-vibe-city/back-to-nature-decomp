@@ -6164,8 +6164,18 @@ Members:
   `ovl_11_func_8011FF0C((s16)i, v)` for i in 0..0x24.
 - ovl_11_func_8011FF0C (m) — per-entry writer of the u16@+4 field (recorded
   under the struct_80076220 cluster above).
-- ovl_11_func_8011FD2C / 8011FDCC / 8011FEA0 (s) — link-order neighbours in
-  the same run; roles unknown.
+- ovl_11_func_8011FEA0 (m, parked recovery) — per-entry +0x2 halfword
+  increment/limit writer: indexes `D_8006C838+0x99EA` (= `D_80076220+2`)
+  by the same 0x1D4 stride, compares a signed read with `255 - arg1`, then
+  stores the unsigned read plus arg1 or 255. Its 0x6C extent ends exactly
+  at sibling 8011FF0C, which writes +0x4 through the same split base.
+  Original caller 8011FD2C at 8011FD50 applies it to all 37 entries, mirroring
+  the documented FD7C/FF0C driver/writer edge. These are original-word
+  adjacency and data/call ties; the recovery's local register bindings are
+  not evidence that the original used register variables.
+- ovl_11_func_8011FD2C / 8011FDCC (s) — other link-order neighbours;
+  FD2C is the 37-entry driver of FEA0, established by its original call
+  at 8011FD50. FDCC's role remains unknown.
 
 ---
 
