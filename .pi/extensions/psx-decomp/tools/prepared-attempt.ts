@@ -41,6 +41,10 @@ export const inputIdentity = (inputs: Record<string, string>) => hashText(JSON.s
 export const sameInputs = (a: Record<string, string>, b: Record<string, string>) => inputIdentity(a) === inputIdentity(b);
 export interface Completion {
   origin: "static" | "agent";
+  /** Matching rung that produced the source; absent for static/legacy records. */
+  tier?: string;
+  /** Actual model that completed the notes-only turn, not the source author. */
+  documentationModel?: string;
   verifiedIdentity: string;
   inputs: Record<string, string>;
   changedFiles: string[];

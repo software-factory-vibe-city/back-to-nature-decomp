@@ -44,6 +44,34 @@ test("the park subject names the park, and the body carries the reason and the n
   assert.match(commitMessage("func_80012345", "gpt-5.6-sol").split("\n")[0], /^match func_80012345$/);
 });
 
+test("match messages distinguish the matching tier from the documentation model", () => {
+  const message = commitMessage("fn", "agent", { origin: "agent", tier: "matching-model", documentationModel: "docs-model" });
+  assert.match(message, /finalized by \/auto_decompilation_loop on matching-model\./);
+  assert.match(message, /Documentation completed on docs-model\./);
+  assert.doesNotMatch(message, /on agent\./);
+
+  const legacy = commitMessage("fn", "agent", { origin: "agent", documentationModel: "docs-model" });
+  assert.match(legacy, /Matching tier not recorded\./);
+  assert.doesNotMatch(legacy, /finalized by .* on docs-model/);
+});
+
+test("static match commits name the documentation model without inventing a matching tier", async () => {
+  const { dir, cleanup } = await repo();
+  try {
+    write(dir, "notes/groupings.md", "# grouping evidence\n");
+    const result = await commitMatchedFunction(dir, "fn", "static", ["notes/groupings.md"], {
+      origin: "static", documentationModel: "deepseek/deepseek-v4-flash",
+    });
+    assert.equal(result.committed, true);
+    const message = await git(dir, ["log", "-1", "--format=%B"]);
+    assert.match(message, /via static verification\./);
+    assert.match(message, /Documentation completed on deepseek\/deepseek-v4-flash\./);
+    assert.doesNotMatch(message, /on static\./);
+  } finally {
+    cleanup();
+  }
+});
+
 test("committing a park takes the park's files and leaves the rest of the tree dirty", async () => {
   const { dir, cleanup } = await repo();
   try {

@@ -1,5 +1,8 @@
 import { runCommand } from "../../shared/process.ts";
 import type { ParkReason } from "./types.ts";
+import type { Completion } from "../tools/prepared-attempt.ts";
+
+type MatchAttribution = Pick<Completion, "origin" | "tier" | "documentationModel">;
 
 export interface CommitResult {
   committed: boolean;
@@ -8,14 +11,20 @@ export interface CommitResult {
 
 /**
  * The subject line matches the project's history: `match <function>`, with the
- * escalation tier recorded in the body so a later reader can tell which rung
- * of the ladder produced the source. No attribution trailers.
+ * matching tier recorded separately from the documentation model. Static
+ * verification is an origin, not a model. No attribution trailers.
  */
-export function commitMessage(functionName: string, tierLabel: string): string {
+export function commitMessage(functionName: string, tierLabel: string, attribution?: MatchAttribution): string {
+  const finalized = attribution?.origin === "static"
+    ? "Byte-exact and finalized by /auto_decompilation_loop via static verification."
+    : attribution && !attribution.tier
+      ? "Byte-exact and finalized by /auto_decompilation_loop. Matching tier not recorded."
+      : `Byte-exact and finalized by /auto_decompilation_loop on ${attribution?.tier ?? tierLabel}.`;
   return [
     `match ${functionName}`,
     "",
-    `Byte-exact and finalized by /auto_decompilation_loop on ${tierLabel}.`,
+    finalized,
+    ...(attribution?.documentationModel ? [`Documentation completed on ${attribution.documentationModel}.`] : []),
   ].join("\n");
 }
 
@@ -75,8 +84,9 @@ export async function commitMatchedFunction(
   functionName: string,
   tierLabel: string,
   files: string[],
+  attribution?: MatchAttribution,
 ): Promise<CommitResult> {
-  return commitFiles(projectRoot, files, commitMessage(functionName, tierLabel));
+  return commitFiles(projectRoot, files, commitMessage(functionName, tierLabel, attribution));
 }
 
 /**

@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { DEFAULT_LOOP_CONFIG } from "./config.ts";
-import { runLoop, type LoopDeps } from "./loop.ts";
+import { runFunction, runLoop, type LoopDeps } from "./loop.ts";
 import { createTurnGate } from "./turn-gate.ts";
-import { buildInputs, inputIdentity } from "../tools/prepared-attempt.ts";
+import { buildInputs, inputIdentity, type Completion } from "../tools/prepared-attempt.ts";
 import { configuredToolchainIdentity, ROOT } from "../../../../tools/agent/decompToolchain.ts";
 
 /* Exercise the controller's first dispatch, not just a prompt builder. The
@@ -95,4 +95,50 @@ console.log(JSON.stringify({ path: 'build/packet.json' }));
   await runLoop(deps);
   assert.match(messages[0]!, /psx-post-decompile-documentation/);
   assert.match(messages[0]!, new RegExp(`Target: ${pending}`));
+});
+
+test("documentation resumes preserve the matching tier and record only the actual successful documentation model", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "autoloop-attribution-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, "src"));
+  const name = "func_80012345";
+  writeFileSync(join(root, "src", `${name}.c`), `void ${name}(void) {}\n`);
+  const inputs = buildInputs(root);
+  const gate = createTurnGate();
+  let succeeded = true;
+  let turns = 0;
+  const deps = {
+    projectRoot: root, baseline: new Set<string>(), flag: { aborted: false },
+    config: { ...DEFAULT_LOOP_CONFIG, runtimeDir: join(root, "run_output"),
+      ladder: [{ provider: "fixture", model: "configured-model", label: "configured-model", thinking: "off" }] },
+    sink: { verdict: {}, handoff: {}, prep: {}, gate },
+    pi: { sendUserMessage: () => { turns++; gate.settled++; } },
+    ctx: { model: { id: "actual-docs-model" }, isIdle: () => true, waitForIdle: async () => {},
+      getContextUsage: () => undefined,
+      sessionManager: { getBranch: () => [{ type: "message", message: { role: "assistant", stopReason: succeeded ? "stop" : "error" } }] },
+      ui: { notify: () => {}, setStatus: () => {}, theme: { fg: (_color: string, text: string) => text } } },
+  } as unknown as LoopDeps;
+  const completion: Completion = { origin: "agent", tier: "original-matching-model", inputs,
+    verifiedIdentity: inputIdentity(inputs), verification: "passed", documentation: "pending", changedFiles: [] };
+  const state = { parked: {}, approvals: {}, completions: { [name]: completion } };
+
+  const resumed = await runFunction(deps, state, name);
+  assert.equal(resumed.outcome.kind, "matched");
+  if (resumed.outcome.kind === "matched") assert.equal(resumed.outcome.tier, "original-matching-model");
+  assert.equal(resumed.state.completions![name]!.tier, "original-matching-model");
+  assert.equal(resumed.state.completions![name]!.documentationModel, "actual-docs-model");
+  assert.equal(JSON.parse(readFileSync(join(root, "run_output/state.json"), "utf8")).completions[name].documentationModel, "actual-docs-model");
+
+  await runFunction(deps, resumed.state, name);
+  assert.equal(turns, 1, "already-passed documentation must not be re-attributed");
+
+  const staticCompletion = { ...completion, origin: "static" as const, tier: undefined };
+  const staticResult = await runFunction(deps, { ...state, completions: { [name]: staticCompletion } }, name);
+  assert.equal(staticResult.state.completions![name]!.tier, undefined);
+  assert.equal(staticResult.state.completions![name]!.documentationModel, "actual-docs-model");
+
+  succeeded = false;
+  const failed = await runFunction(deps, state, name);
+  assert.equal(failed.state.completions![name]!.documentation, "pending");
+  assert.equal(failed.state.completions![name]!.documentationModel, undefined);
 });

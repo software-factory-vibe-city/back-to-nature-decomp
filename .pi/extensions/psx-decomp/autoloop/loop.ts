@@ -298,13 +298,18 @@ async function documentMatch(deps: LoopDeps, state: LoopState, functionName: str
   writeState(deps.config, current); /* durable pending state BEFORE dispatch */
   if (!deps.config.updateFileGroupings) return current;
   setStatus(deps, `◎ ${functionName} · documentation`);
+  let documentationModel: string | undefined;
   const documented = await documentCompletion(deps.projectRoot, completion, async () => {
     if (deps.flag.aborted || !deps.ctx.model) return false;
+    const modelId = deps.ctx.model.id;
     if (!(await turn(deps, groupingsMessage(functionName) +
       `\nVerified source/evidence identity: ${completion.verifiedIdentity}. Origin: ${completion.origin}. Changed files: ${completion.changedFiles.join(", ")}.`))) return false;
     const last = [...deps.ctx.sessionManager.getBranch()].reverse().find((e) => e.type === "message" && e.message.role === "assistant");
-    return last?.type === "message" && last.message.role === "assistant" && last.message.stopReason === "stop";
+    const succeeded = last?.type === "message" && last.message.role === "assistant" && last.message.stopReason === "stop";
+    if (succeeded) documentationModel = modelId;
+    return succeeded;
   });
+  if (documented.documentation === "passed" && documentationModel) documented.documentationModel = documentationModel;
   current = { ...current, completions: { ...current.completions, [functionName]: documented } };
   writeState(deps.config, current);
   if (documented.documentation !== "passed") notify(deps, `${functionName} matched; documentation pending: ${documented.error ?? "disabled"}`, "warning");
@@ -496,7 +501,7 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
     current = await documentMatch(deps, current, functionName, completed);
     if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
       outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
-    return { state: current, outcome: { kind: "matched", functionName, tier: completed.origin,
+    return { state: current, outcome: { kind: "matched", functionName, tier: completed.tier ?? completed.origin,
       changedFiles: completed.changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
   }
   /* Prepare the packet before dispatch. A prep-led run must enter its declared
@@ -673,7 +678,7 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
       if (gate.passed) {
         notify(deps, `${functionName} matched and finalized on ${tier.label}`, "info");
         const inputs = buildInputs(deps.projectRoot);
-        current = await documentMatch(deps, current, functionName, { origin: "agent", verifiedIdentity: inputIdentity(inputs), verification: "passed", inputs, changedFiles: gate.changedFiles, documentation: "pending" });
+        current = await documentMatch(deps, current, functionName, { origin: "agent", tier: tier.label, verifiedIdentity: inputIdentity(inputs), verification: "passed", inputs, changedFiles: gate.changedFiles, documentation: "pending" });
         if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
           outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
         const changedFiles = (await loopChangedFiles(oracle(current))).changedFiles;
@@ -822,7 +827,7 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
 
       if (run.outcome.kind === "matched" && run.outcome.documentation !== "pending" && deps.config.commitOnMatch) {
         setStatus(deps, `◎ ${target} · commit`);
-        const commit = await commitMatchedFunction(deps.projectRoot, target, run.outcome.tier, run.outcome.changedFiles);
+        const commit = await commitMatchedFunction(deps.projectRoot, target, run.outcome.tier, run.outcome.changedFiles, state.completions?.[target]);
         if (commit.committed) {
           run.outcome.commit = commit.detail;
           notify(deps, `Committed ${target} as ${commit.detail}`, "info");
