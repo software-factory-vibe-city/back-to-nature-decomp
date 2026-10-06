@@ -7366,6 +7366,12 @@ Fingerprints:
   `D_800BFE44`-based stride-0x78 records; `D_800BCC10` is the data symbol
   immediately following the `D_800BCBF8` function-pointer table whose last
   entry is `ovl_25_func_800BA9F4`;
+- shared two-loop streaming quirk: `ovl_25_func_800B8478` and
+  `ovl_25_func_800B83A0` both stream `D_800BCC10` then `D_800BCC70` into the
+  stride-0x78 `D_800BFE44` records with the constant 0x32000 held in `$a1` and
+  a separate source pointer per loop (`$a2`, then `$a1`); the two originals
+  agree instruction-for-instruction on that preheader allocation, a shared
+  register-variable/idiom quirk on top of the shared data symbol;
 - shared far-buffer field region: both `ovl_25_func_800BAA5C` and
   `ovl_25_func_800BA9F4` write the `D_8007AFF0+0x20000` work-area halfword at
   +0x53B4 (= +0x253B4 absolute).
@@ -7379,6 +7385,10 @@ Members (link order):
 - ovl_25_func_800BAA5C (m, matched this session, byte-exact) — leaf; reads u16
   `D_800BCC10[0]`/`[2]` and writes the `D_8007AFF0+0x20000` work-area fields
   +0x5394..+0x53A4 and the +0x53B4/+0x53B8 halfwords
+- ovl_25_func_800B8478 (m, matched, byte-exact) — 6+2 record initialiser;
+  streams `D_800BCC10` (6×8 bytes) and `D_800BCC70` (2×8 bytes) into the
+  stride-0x78 `D_800BFE44` records, setting index +0x10, flag +0x12, and the
+  0x32000 word at +0x1C; sibling idiom of `ovl_25_func_800B83A0`
 
 ## `ovl_25` display-setup state-handler run — 0x800BAC9C–0x800BAFCC (confidence: medium)
 
