@@ -9035,8 +9035,8 @@ Members (link order):
 
 Evidence: link-order adjacency across an unbroken run plus a shared global
 cluster. Every member addresses the same work area as `(char *)&D_8006C838
-+ 0x8000` and reads/writes halfwords in the narrow window `+0x676C`–`+0x677A`;
-three of the members are byte-exact clean C, so the spellings are the
++ 0x8000` and reads/writes halfwords in the narrow window `+0x676C`–`+0x677C`;
+four of the members are byte-exact clean C, so the spellings are the
 author's, not inferred. The caller edge `ovl_11_func_801129EC ->
 ovl_11_func_80112C28` and `ovl_11_func_801129EC -> ovl_11_func_80112C98`
 tie the interval together (801129EC issues both `jal`s).
@@ -9056,6 +9056,12 @@ Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
   `0x1E`, else on `func_8001AF44(0x4E) == 1` increments `+0x6770`, else on
   `arg0->+0x4 > 0xFDE7` calls `func_8001AF70(0x4E, 1)`. Same
   `(char *)&D_8006C838 + 0x8000` two-stage base spelling as the run.
+- ovl_11_func_80112B60 (m, matched this session, byte-exact) — under
+  `+0x676E < 0x12D`, three `func_8001AF70(*, 0)` reset calls, increments
+  `+0x676E` below `0x12C`, then selects `+0x677C = 2`/`1` and calls
+  `func_8001AF70(0x52/0x51, 1)`, else `func_8001AF70(0x50, 1)`. Same
+  `(s32)&D_8006C838; base = (unsigned char *)(value + 0x8000)` two-stage base
+  spelling as the run.
 - ovl_11_func_80112C28 (m, matched this session, byte-exact) — on
   `func_8001AF44(0x4B) == 0` increments `+0x677A`, else clears it; then
   `func_8001AF70(0x4B, 0)` and `func_8001AF70(0x4C, 0)`.
