@@ -6480,7 +6480,9 @@ Members (link order):
 - **adjacent-band predecessor chain (new evidence):** the pair head sits at
   the end of one unbroken 0x800FF8C8–0x800FFA40 link band —
   `ovl_11_func_800FF8C8` (0xA4, ends exactly at 0x800FF96C) →
-  `ovl_11_func_800FF96C` (0xBC, stub, ends exactly at 0x800FFA28) → the pair.
+  `ovl_11_func_800FF96C` (0xBC, matched, ends exactly at 0x800FFA28) → the pair
+  — the middle member touches none of the `D_801273xx` region, so its band tie
+  is link adjacency alone.
   800FF8C8 is a `D_801273B0` handler (0x21 → advances to 0x20 on
   `func_800226A4() == 2`) whose sibling state word `D_801273B0` is the
   init/trigger word of matched `ovl_11_func_800FEBF8`/`ovl_11_func_800FEC2C`,
@@ -6514,6 +6516,12 @@ Members (link order):
   `func_80017B18`) and the same `D_801273B0` base-reuse codegen; membership
   rests on the shared handler/idiom fingerprint and the shared state-word
   cluster, not on link adjacency
+- ovl_11_func_800FF96C (m, matched this session, byte-exact) — middle band
+  member: reads the three work-area s16 flags at `D_8006C838`+0x8000+
+  +0x64CE/+0x64D0/+0x64D2 via two-stage `base += 0x8000` bases and dispatches
+  each to a setter pair (`func_80013AEC(1/0)`; `func_80020A40`/`func_80020A14`;
+  `ovl_11_func_800FB608`/`ovl_11_func_800FB628`); touches no `D_801273xx`
+  global, so its membership here is the gapless band alone
 - ovl_11_func_800FFA28 (m) — void init leaf: `D_801273D8 = 0`,
   `D_801273DA = 0xFF`
 - ovl_11_func_800FFA40 (m) — void reset: calls 800FFA28, then
