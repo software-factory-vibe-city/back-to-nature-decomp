@@ -6160,6 +6160,18 @@ Members:
   snapshot-write idiom as 800E9778 and the same 0x22-record caller shape as
   800E5ADC (both call 800E5C60 with a cleared 4th argument), inside the
   accessor band.
+- ovl_11_func_800E8550 (m, matched this session, 0xC4, byte-exact) —
+  conditional-slot consumer plus formatted-number staging: `arg0 != 0` resolves
+  `D_80129560[arg2]` (raw `arg2` otherwise), formats the value into the s16
+  buffer `D_801295B0` (the 0x16 bytes immediately after the 0x50-byte s32 table,
+  now in `globals_override.h`) via `func_8001A970(…, 0xA)`, stores the `-1`
+  halfword terminator, then walks the buffer while `0xFFD` blank markers
+  continue (signed `lh`) and forwards `arg1 & 0xFFFF` plus the cursor to
+  `func_80017A08`; returns 1. Same `lui`+`addiu %lo` absolute base and
+  conditional table-resolve shape as 800ED760/800E7CCC, inside the accessor
+  band; the `D_801295B0` staging buffer is the second `func_8001A970` + `0xFFD`
+  scan site (idiom sibling of the D_8012A028 cluster, different buffer and draw
+  call).
 
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 

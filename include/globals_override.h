@@ -920,6 +920,12 @@ extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
 extern s32 _D_80129560[] __asm__("D_80129560");
 #define D_80129560 ((s32 *)_D_80129560)
 
+/* D_801295B0 - 11 halfword scratch buffer (0x16 bytes, ovl_11) that
+ * ovl_11_func_800E8550 fills via func_8001A970 and then scans for the
+ * 0xFFD blank marker (lh reads). Absolute-addressed from the overlay
+ * (only ever declared extern, never GP). */
+extern s16 D_801295B0;
+
 /* D_80074124 - 7x7 table of 8-byte entries (ovl_11), written by
  * ovl_11_func_800D7B00. Each entry holds two s16 set to 0x167, two spare
  * u8, and an s16 set to 0. Reads in func_800BF630 etc. use the s16 @0
