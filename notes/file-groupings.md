@@ -5637,6 +5637,24 @@ Members:
   0x800F1AE0, and both bind the shared callee with the same `0x3FF` mask plus
   constant-offset idiom.
 
+## `ovl_11` 0x800F144C–0x800F1744 gapless link run, shared caller 0x800F1078 (confidence: low)
+
+Evidence: one unbroken link-order run — `ovl_11_func_800F144C` (0x8C, ends
+0x800F14D8), `ovl_11_func_800F14D8` (0x68), `ovl_11_func_800F1540` (0x74),
+`ovl_11_func_800F15B4` (0xC4, ends 0x800F1678), `ovl_11_func_800F1678` (0xCC,
+ends 0x800F1744) — and the call graph agrees on a shared caller:
+`ovl_11_func_800F1078` is the sole caller of both `ovl_11_func_800F15B4`
+(`jal` at 0x800F11D0) and the already-recorded `ovl_11_func_800F144C` (`jal`
+at 0x800F1194). 0x800F14D8 / 0x800F1540 / 0x800F1678 are parked or unmatched,
+so their membership is linkage-only and unproven.
+
+Members:
+- ovl_11_func_800F15B4 (m, matched this session, 0xC4, byte-exact) — masked
+  sentinel-window predicate over `ovl_11_func_800EEBF4(arg0) & 0xFF`
+  (arg2/arg3 `0xFF` sentinels; result inverted by the 0x400 bit of the stack
+  argument); call edge into the matched 0x800EEBF4 run.
+- ovl_11_func_800F144C (m) — see the record-halfword sibling pair entry above.
+
 ## `ovl_11` 0x800C9888–0x800C99C8 shared-caller link run (confidence: low)
 
 Evidence: one unbroken link-order run — `ovl_11_func_800C9888` (0xB0, ends
