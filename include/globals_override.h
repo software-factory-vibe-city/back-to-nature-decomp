@@ -1272,6 +1272,13 @@ typedef struct {
 extern Ovl11E5230Entry _D_80129230[] __asm__("D_80129230");
 #define D_80129230 ((Ovl11E5230Entry *)_D_80129230)
 
+/* D_80129410 / D_80129412 - ovl_11 signed halfword display bounds read by
+ * the ovl_11 sprite helpers (ovl_11_func_800E516C and ovl_11_func_800E4BA4)
+ * and passed as four of the five arguments to func_80015868 /
+ * func_80017240. Absolute-addressed (extern-only, lui + %lo). */
+extern s16 D_80129410;
+extern s16 D_80129412;
+
 /* D_8006C904 - byte state written by the func_800226F0/func_80022B20/
  * func_80022D70 cluster (values 0/4/6) and read by
  * ovl_11_func_800E6AB0 as a plain zero/non-zero test. The original read is

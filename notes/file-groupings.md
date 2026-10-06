@@ -1881,13 +1881,20 @@ Fingerprints:
 - link-order adjacency: `ovl_11_func_800E516C` (0xC4) ends exactly at
   `ovl_11_func_800E5230` (0x800E5230) — one unbroken run;
 - shared work-area idiom: all three (and 800E8960/800E8BA0) reach the entity
-  pool through `D_8006C838`+0x8000 (`base2[0x5DD0>>2]`).
+  pool through `D_8006C838`+0x8000 (`base2[0x5DD0>>2]`); 800E516C reaches the
+  same +0x5DD0 slot directly from `D_80074838`;
+- shared display-bounds globals: 800E516C reads the ovl_11 halfwords
+  `D_80129410` / `D_80129412` (declared together in `globals_override.h` by
+  this session) through the same five-argument helper call shape also used by
+  ovl_11_func_800E4BA4 — a shared-global link, though 800E4BA4's per-file
+  `-fno-rerun-loop-opt` override leaves it outside this cluster's TU claim.
 
 Members (address order):
 - ovl_11_func_800E4568 (s) — walks the 10 records, tests bit 0 of the u16@+4
   of each work-area entity and calls 800E48CC for each set record
-- ovl_11_func_800E516C (s) — walks the 10 records and dispatches on the
-  s32@+0x14 (zero = free) through func_80015704 / func_80015868
+- ovl_11_func_800E516C (m, matched this session) — walks the 10 records,
+  dispatches on the s32@+0x14 (zero = free) through func_80015704 /
+  func_80015868, then installs arg1 at +2 of a 0x18-stride side table
 - ovl_11_func_800E5230 (m, matched this session) — reset leaf: clears the
   s32@+0x14 of all 10 records, then clears the work-area entity via
   ovl_11_func_800F4390 and sets a state halfword
