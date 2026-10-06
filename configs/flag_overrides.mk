@@ -236,27 +236,6 @@ CC1FLAGS_func_8002495C := -fno-schedule-insns -fno-schedule-insns2
 CC1FLAGS_func_8002470C := -fno-schedule-insns -fno-schedule-insns2
 
 
-# ovl_11_func_8011FF74: -fno-schedule-insns (ALLOWLIST DECISION REQUESTED).
-#
-# Target fingerprint (assembly-level proof, stronger than the flag probe's
-# structural detectors): the block-0 order sll/sra/addiu 0xFF/subu/lh/lhu/slt
-# is EXACTLY the expand-time (unscheduled) order. With sched1 enabled the
-# ready-list hazard re-pick sinks the lhu's speculative load to the block tail
-# (lh/subu order flips, lhu lands after slt); disabling pre-reload scheduling
-# reproduces every position and opcode and keeps the target's sched2-filled
-# delay slots (beq<-addu v0,a2,a1; jr<-sh) with all 13 instructions and 0
-# residual on order or population. Same mechanism and prime-fact state as the
-# allowlisted func_8002495C/func_8002470C siblings (sched1 drifts
-# independently-birthed values out of their expand-time position; the target
-# keeps them there).
-#
-# Remaining residual under this flag: 2 allocation words only (sra delta
-# a1->a2, lhu a2->a1) - an exact allocno priority tie (delta refs3/live9 ==
-# lhu refs2/live6 == 3333) whose flip needs lhu refs>=3 or live<=5, both
-# provably unreachable from clean C (3 closure proofs of 1 candidate,
-# allocator counterfactual).
-CC1FLAGS_ovl_11_func_8011FF74 := -fno-schedule-insns
-
 # ovl_11_func_800F3D40: -fno-gcse. The target materializes D_8006C838+0x4AD5
 # and +0x4ADF as two independent lui %hi(D_8006C838) / addiu %lo / addiu-offset
 # preheaders. Under baseline gcse+rerun-cse-after-loop the two offsets collapse

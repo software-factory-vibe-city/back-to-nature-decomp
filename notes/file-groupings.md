@@ -6142,7 +6142,7 @@ Members:
 
 ---
 
-## `ovl_11` 0x8011FD2C–0x8011FF0C link-order run — 8011FD7C driver of 8011FF0C (confidence: low)
+## `ovl_11` 0x8011FD2C–0x8011FF74 link-order run — paired drivers and halfword writers (confidence: low)
 
 Zero-gap link-order run in `ovl_11` whose matched member calls the matched
 writer two entries later, so the run is the tightest TU-membership evidence
@@ -6151,6 +6151,7 @@ for this cluster yet (the struct_80076220 tie above is a data tie only):
 - link order: `ovl_11_func_8011FD2C` → `ovl_11_func_8011FD7C` (ends
   0x8011FDCC) → `ovl_11_func_8011FDCC` → `ovl_11_func_8011FEA0` →
   `ovl_11_func_8011FF0C`, every symbol start equal to the previous end;
+  the next writer in this address band is `ovl_11_func_8011FF74`;
 - internal call edge: `ovl_11_func_8011FD7C` calls `ovl_11_func_8011FF0C`
   (the matched u16@+4 increment/limit writer of the 37-entry, 0x1D4-stride
   `D_80076220` array) once per index 0..0x24 — this is the loop driver that
@@ -6173,9 +6174,16 @@ Members:
   the documented FD7C/FF0C driver/writer edge. These are original-word
   adjacency and data/call ties; the recovery's local register bindings are
   not evidence that the original used register variables.
+- ovl_11_func_8011FF74 (m, parked recovery) — pointer-based halfword@+0x16
+  increment/limit writer, the same signed-comparison/unsigned-sum operation
+  as FEA0 but without record-index arithmetic. Original FDCC calls it at
+  8011FE14 over `D_800742EC` records (0xB4 stride), and at 8011FE58 over
+  `D_800749F4` records (0xB8 stride). The matched body needs no flag override;
+  its user-authorized local bindings are not original-TU evidence.
 - ovl_11_func_8011FD2C / 8011FDCC (s) — other link-order neighbours;
   FD2C is the 37-entry driver of FEA0, established by its original call
-  at 8011FD50. FDCC's role remains unknown.
+  at 8011FD50. FDCC drives FF74 over the two arrays, with counts 5/10 and
+  10/20 selected by the work-area halfwords +0x44D2 and +0x44D0.
 
 ---
 

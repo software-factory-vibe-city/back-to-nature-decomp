@@ -1299,3 +1299,27 @@ read order, not a wrong field type. Signed-first and unsigned-first reads
 of the same cell are different experiments on this compiler. Hard-binding
 a conditional result can inhibit speculative loads; separate the actual
 loads without manufacturing volatile storage or fake uses.
+
+
+## ovl_11_func_8011FF74 — transfer the signed-first two-load construction
+
+**Outcome:** 13/13 words under baseline flags; full controller finalization
+passed all images, scope, context and scoped exceptions
+(build/parked-recovery/8011FF74-finalize.json). No assembly instruction blocks.
+
+What was tried:
+1. Removed the inherited, unapproved -fno-schedule-insns override. Its old
+   unscheduled-order argument was not an independently established TU fact.
+2. Transferred the newly exact FEA0 construction: signed load before unsigned
+   load, explicit fresh sum, bound delta A2/cap A3/unsigned value A1/sum V0.
+   The first baseline compile was EXACT; no separate attribution is claimed
+   for the four bindings in this transferred complete-source experiment.
+3. Used a void pointer plus the independently observed +0x16 halfword
+   accesses, avoiding an invented full record extent. Integrated with the
+   function's user-authorized scanner exceptions, rechecked triage and
+   finalized. Original FDCC call sites establish the two real array strides
+   and strengthen the existing driver/writer grouping.
+
+**Reusable technique:** once a same-container construction matches, reuse
+its operation boundaries before allocator modelling. A baseline solution
+can eliminate a speculative flag hypothesis rather than legitimizing it.
