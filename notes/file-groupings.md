@@ -933,6 +933,30 @@ that documented cluster. Members (address order):
 
 ---
 
+## `ovl_11` 0x582F8 far-state/reset band — 0x80110118 → 0x80110E28 (confidence: medium-low)
+
+Same-TU candidate band of `ovl_11` (`Obj\GF_FARM.bin`): matched
+`ovl_11_func_80110118` sits at the head of the unbroken link run that opens at
+0x582F8 and continues through 0x80110188 / 0x8011031C / 0x801103E8 /
+0x80110494 / 0x80110520 / 0x80110544 / 0x801105C8 / 0x80110658 / 0x80110790 /
+0x80110838 / 0x80110890 / 0x801108F8 / 0x80110944 / 0x80110CE8 /
+0x80110DA0 / 0x80110E28 / 0x80110E34, and it ties that run to two documented
+idioms at once:
+- the far-state halfword gate `*(s16 *)((char *)&D_8007AFF0 + 0x25476) ==
+  s16@+0x30` built through the `char *far_base` two-stage split — the same
+  spelling as the far-state gate run's `ovl_11_func_80109B88`; the run also
+  contains the documented far-state reader `ovl_11_func_80110494`, so the two
+  accessor families sit inside one link run;
+- the object reset view {u16@+0xB6, s32@+0xDC} cleared to 0, shared with
+  matched `ovl_11_func_80110E28` (0x59008) in the same run.
+Members:
+- ovl_11_func_80110118 (m, this session) — far-state reset leaf: forwards
+  u16@+0xB6 to ovl_11_func_800F3BCC, calls func_8001FABC(0x13) /
+  func_8001AF70(7, 1) when the far-state halfword equals s16@+0x30, then clears
+  u16@+0xB6 and s32@+0xDC and returns 1; byte-exact clean C, baseline flags
+
+---
+
 ## `ovl_11` 0x8010B64C gapless run (0xF0 far-state initializer band) — 0x8010B64C–0x8010B898 (confidence: medium-low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:

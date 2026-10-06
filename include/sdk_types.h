@@ -368,6 +368,15 @@ typedef struct {
 } M2C_4224e215b714_Ov11FlagSet8010B218;
 
 typedef struct {
+               char pad_00[0x30];
+               s16 unk30;
+               char pad_32[0xB6 - 0x32];
+               u16 unkB6;
+               char pad_B8[0xDC - 0xB8];
+               s32 unkDC;
+} M2C_45034dae4597_Struct_80110118;
+
+typedef struct {
                u16 unk0;
                u16 unk2;
                u8 unk4;
