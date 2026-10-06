@@ -191,6 +191,7 @@ void func_8001BA40(s32 arg0, s32 arg1, s32 arg2);
 void func_8001BF74(s32 arg0, s32 arg1, s32 arg2);
 void func_8001BF88(s32 arg0, s32 arg1, s32 arg2);
 void func_8001BFA8(void *arg0, void *arg1);
+void func_8001BFEC(void **arg0);
 s16 func_8001C0D4(M2C_e0bb1011384a_FuncC0D4Args *arg0, VECTOR *arg1, VECTOR *arg2);
 s32 func_8001C1C0(SVECTOR *arg0);
 s32 func_8001D2D8(s32 sxy0, s32 sxy1, s32 sxy2, s32 sxy3);

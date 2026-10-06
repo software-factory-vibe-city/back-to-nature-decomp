@@ -1,4 +1,13 @@
-# func_8001BFEC — human decision needed
+# func_8001BFEC — resolved with a byte-exact counter guard
+
+The parked-function campaign restored the SDK declarations, derived the
+primitive offset from the counter, and initialized the counter before an
+entry test of `i < count`. The probe and integrated source match 58/58 words;
+full finalization passed (`build/parked-recovery/8001BFEC-finalize.json`).
+The fresh allocator report measures counter lifetime 21 and priority 6666,
+meeting the requirement below and placing it in s0, with slot/offset in
+s1/s2. The existing scratchpad-stack classification remains unchanged.
+The earlier handoff is retained below as historical evidence.
 
 - **Parked:** 2026-08-22 (re-parked; first parked 2026-08-22T08:04:22Z)
 - **Reason:** one allocation priority inversion

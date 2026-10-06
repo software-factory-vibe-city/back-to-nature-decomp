@@ -3319,15 +3319,23 @@ Members:
 - func_8001B9F8 (m) — writes D_80061DE8 fields 0/4/8/0x18/0x1C
 - func_8001BA40 (m) — writes D_80061DE8 fields 0xC/0x10/0x14/0x1C
 
-## projected primitive clipping — 0x8001C0D4–0x8001D348 (confidence: medium)
+## projected primitive clipping — 0x8001BFEC–0x8001D348 (confidence: medium)
 
 GTE-projected triangle/quad rendering and screen-X rejection. Fingerprints:
 func_8001C37C directly calls both adjacent bounds helpers four times each;
 both helpers consume packed GTE SXY words loaded from primitive X/Y pairs and
 test the signed low-half X coordinate against the same screen interval.
-Members: func_8001C0D4 (s) — GTE camera/view driver (PushMatrix/PopMatrix),
-sole caller of both func_8001C1C0 and func_8001C37C, plus func_8001D348/
-func_8001D6B8; func_8001C1C0 (m) — camera-to-point direction via
+The preceding func_8001BFEC ends exactly at 0x8001C0D4. Both use
+PushMatrix/PopMatrix, call func_8001D6B8 and func_8001C37C, and pass the
+primitive origin at descriptor+0xC together with a 0x1C-stride entry. Both
+use the independently classified scratchpad-stack switching idiom; this is
+shared rendering machinery plus adjacency, not a proven TU boundary.
+Members: func_8001BFEC (m) — batch driver: publishes D_8005E4D8, optionally
+runs func_8001D6B8 under the D_8005E2D4 guard, and renders each primitive on
+the scratchpad stack; its counter-based entry guard yields the original
+saved-register allocation. func_8001C0D4 (m) — GTE camera/view driver
+(PushMatrix/PopMatrix), caller of func_8001C1C0 and func_8001C37C, plus
+func_8001D348/func_8001D6B8; func_8001C1C0 (m) — camera-to-point direction via
 VectorNormalSS tested against 4 planes, read by sole caller func_8001C0D4
 (address-adjacent, shares the GTE vector idiom; owns D_80061EC8 camera +
 D_80061EA8 plane coefficients); func_8001C37C (s) — projected primitive

@@ -688,3 +688,37 @@ Grouping evidence: the original reads D_8012D050[2] at +8/+A and writes
 D_8006C838+E7A2+d for d in 0..8. Existing matched 8011760C/801176BC access
 the same cells. Updated both documented clusters; shared storage does not
 prove a shared translation unit.
+
+## func_8001BFEC — put the loop counter in the entry guard
+
+**Outcome:** 58/58 byte-exact words; complete finalization passed
+(build/parked-recovery/8001BFEC-finalize.json). Uses the established
+scratchpad-stack macro classification, with no new policy exception.
+
+What was tried:
+1. Restored the SDK PushMatrix/PopMatrix declarations and the two game
+   declarations, following the already-matched C0D4 driver. This removed the
+   old population discrepancy, leaving allocation 4: counter, scratchpad
+   slot and offset occupied the wrong saved registers.
+2. Derived the primitive offset from i instead of incrementing a separate
+   offset. The compiled words were identical. A natural while-loop changed
+   the population and did not match.
+3. Kept the guarded do-loop, but initialized i before the guard and tested
+   i < count rather than count > 0. This probe was EXACT. The derived offset
+   remains an ordinary i*0x1C expression, not a register assignment trick.
+4. Integrated with the matched sibling's const pointer declarations,
+   remeasured EXACT, triaged without blockers, and passed full finalization.
+   The fresh allocator report measured the counter at 7 references / 21
+   lifetime units, priority 6666, assigned s0; slot and offset occupy s1/s2.
+   This meets the old documented lifetime requirement, not a claimed extra
+   phantom reference.
+
+**Reusable technique:** an entry guard that explicitly mentions the counter
+can change its compiler lifetime even when zero initialization folds the
+comparison to the same machine test. Do not freeze the decompiler's manually
+peeled count>0 guard while treating the resulting allocation as impossible.
+
+Grouping evidence: BFEC ends exactly at C0D4. Both bracket rendering with
+PushMatrix/PopMatrix, call D6B8/C37C, and use the descriptor+0xC origin with
+0x1C-stride primitives. Expanded the existing projected-primitive cluster
+and corrected its stale sole-caller claim.
