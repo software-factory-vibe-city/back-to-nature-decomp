@@ -3348,10 +3348,12 @@ renderer/caller; HasTriangleVertexXInBounds (m) — three-vertex X bounds
 helper; func_8001D2D8 (?) — four-vertex X bounds helper. func_8001D348 is
 the first following function and may mark the next TU; membership unverified.
 
-## u16 string library — 0x80017D9C–0x80017F30 (confidence: medium)
+## u16 string library — 0x80017D9C–0x80017F88 (confidence: medium)
 
-Library TU of 0xFFFF-terminated u16 string routines; none of it is
-reachable from shipped code, so the linker pulled it in wholesale.
+Library-like family of 0xFFFF-terminated u16 string routines. Earlier members
+were recorded as unreferenced, but 80017F30 has two original calls from
+ovl_11_func_80104EC8, at 801050CC and 80105180. Reachability therefore does
+not support the earlier claim that this entire interval was pulled in unused.
 
 Fingerprints:
 - shared idiom: all members operate on 0xFFFF-terminated u16 buffers;
@@ -3368,6 +3370,11 @@ Members (address order):
 - func_80017EA0 (s) — u16 strcpy (copy); void return
 - func_80017EE4 (m) — u16 strcmp (compare); entry is a `j` over the
   rotated loop tail (expand_end_loop rotation)
+- func_80017F30 (m, 0x58) — three-buffer comparison: advances when the first
+  element matches either other buffer, returns zero at its FFFF terminator,
+  otherwise compares first versus second. Gapless after 17EE4, with the same
+  u16/sentinel idiom. Two user-authorized raw/carry bindings preserve its
+  required copy; those bindings are not original-TU evidence.
 
 References: notes/research/func_80017E34-shared-web-global-allocno.md
 (apply the shared-variable shape to func_80017EA0 when decompiling it),

@@ -132,6 +132,7 @@ void func_80017C3C(s32 arg0);
 void func_80017D9C(s32 *arg0, u16 *arg1, s16 arg2, s16 arg3, s32 arg4);
 u16 *func_80017E34(u16 *arg0, u16 *arg1);
 s32 func_80017EE4(u16 *s1, u16 *s2);
+s32 func_80017F30(u16 *pa, u16 *pb, u16 *pc);
 void func_800183B8(s32 arg0, s32 arg1);
 s16 func_80019030(void);
 void *func_80019070(s32 *ordering_table, u8 *packet, u32 glyph, s32 x, s16 y, u8 red, u8 green, u8 blue, u32 palette, s32 semitransparent);
