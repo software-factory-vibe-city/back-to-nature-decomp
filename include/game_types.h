@@ -462,6 +462,16 @@ typedef struct {
     s32 unk8;
 } Recon800D0408A1View;
 
+/* Pointer argument to ovl_21_func_800B98CC: a signed selector at +2,
+ * a stored s32 predicate at +0x18, and an unsigned halfword at +0x1C. */
+typedef struct {
+    /* 0x00 */ u8 pad_00[2];
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ u8 pad_04[0x14];
+    /* 0x18 */ s32 unk18;
+    /* 0x1C */ u16 unk1C;
+} Ovl21Func800B98CCArg;
+
 /* Four-byte entries scanned by ovl_11_func_800F27B0. The signed byte
  * at +2 is the -1 empty marker; +0 is a halfword and +3 a byte. */
 typedef struct {

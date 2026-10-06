@@ -277,3 +277,40 @@ Grouping update marks the already-documented v0-channel sibling matched;
 its cross-run data-free comparison identity does not prove a TU boundary.
 Evidence: original entry-liveness scan, historical approval record,
 static-chain research note, experiment ledger, live source and receipt.
+
+## ovl_21_func_800B98CC — validate the parked scheduling-flag evidence
+
+**Outcome:** clean C, 16/16 byte-exact words; full finalization passed all
+images and policy/scope checks (`build/parked-recovery/800B98CC-finalize.json`).
+
+What was tried:
+1. The bulk preserved-source sweep rediscovered the historical exact
+   implementation, but its -fno-schedule-insns override lacked an allowlist
+   entry. Scratch exactness alone was not promoted.
+2. Read the original's two tails: each computes the predicate in v0 and
+   stores/returns it with no copy. The existing compiler-mechanism evidence
+   identifies sched1's return-copy/store ordering as the baseline obstruction.
+3. Re-ran the flag matrix on the actual C, not the assembly stub: baseline
+   and -fno-schedule-insns2 produce 18 instructions and 6/16 masked matches;
+   disabling sched1 produces the target's 16 instructions. The single
+   -fno-schedule-insns production override was independently 16/16 byte-exact.
+4. Checked the adjacent matched 800B9844 under -fno-schedule-insns alone: its
+   entire 136-byte assembled text was unchanged. The combined sched1/sched2
+   matrix differs there because of sched2; that is not contrary evidence for
+   the sched1-only flag. The following neighbour is a stub, not a witness.
+5. Retained the evidence-gated override, recorded its flag-override allowlist
+   entry, corrected the old claim that a one-function source file proves an
+   original TU boundary, and published the argument layout in game_types.h.
+   Live source remained EXACT; triage and the full finalization gate passed.
+
+**Reusable technique:** re-measure the candidate under the precise flag,
+not only a combined flag column. Check an actual matched regional witness
+without treating a stub's inherited assembly as compiled evidence. A manual
+original-byte fingerprint can justify a flag even when the probe's two
+encoded fingerprint detectors do not recognize it.
+
+Grouping evidence: original caller 800B8B3C passes D_800C0448 record+0x10;
+this establishes the callee's +0x12/+0x2C reads and +0x28 word write.
+Evidence: original tails/call sites, existing flag mechanism comment, fresh
+flag matrix, `build/parked-recovery/800B98CC-region-check.json`, ledger,
+verified source and finalization receipt.

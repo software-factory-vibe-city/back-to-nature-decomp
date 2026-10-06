@@ -1,4 +1,9 @@
-# ovl_21_func_800B98CC — human decision needed
+# ovl_21_func_800B98CC — resolved
+
+**Resolved:** 16/16 byte-exact clean C, fully finalized. Fresh candidate flag
+measurements and the original store/return fingerprint support the sched1-only
+override; its allowlist audit trail is now present. See the techniques ledger.
+Historical record follows.
 
 - **Parked:** 2026-10-03T20:59:10.060Z
 - **Reason:** asm-needs-human-approval

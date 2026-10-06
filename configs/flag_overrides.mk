@@ -298,8 +298,11 @@ CC1FLAGS_ovl_11_func_80103B24 := -fno-cse-skip-blocks
 # value out of its expand-time position).
 #
 # Flag-probe matrix on the matching source: baseline 6/16 masked, 18 instrs;
-# -fno-schedule-insns{,2} 16/16 masked, 16 instrs (target 16). No contrary
-# regional witness: this is its own TU (single function per src file).
+# -fno-schedule-insns{,2} 16/16 masked, 16 instrs (target 16). Fresh recovery
+# checks confirm -fno-schedule-insns alone is 16/16 byte-exact. The adjacent
+# matched 800B9844's assembled text is unchanged under that flag (136 bytes),
+# so it supplies no contrary regional witness. This does not infer a TU
+# boundary from the repository's one-function-per-file source layout.
 CC1FLAGS_ovl_21_func_800B98CC := -fno-schedule-insns
 
 # ovl_11_func_8011F574: -fno-schedule-insns (ALLOWLIST DECISION REQUESTED).

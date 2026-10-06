@@ -7389,6 +7389,15 @@ Members (link order):
   near-twin of `ovl_21_func_800BA7F0` (same `sel/pos/step` fixed-point
   counter idiom); membership rests on the shared global and idiom, not on
   adjacency.
+- ovl_21_func_800B98CC (m, byte-exact, finalized) — stores and returns a
+  0/1 range predicate using s16@argument+2 and u16@argument+0x1C.
+  Caller 800B8B3C passes a D_800C0448 record's +0x10 sub-view, establishing
+  reads at record +0x12/+0x2C and an s32 write at +0x28. This caller-derived
+  data tie, plus gapless adjacency after 800B9844, supports membership.
+  The target's two store-and-return tails support the evidence-gated
+  -fno-schedule-insns override; the adjacent matched 800B9844's assembled
+  text is unchanged under that flag. Neither fact establishes a TU boundary
+  or licenses applying the flag to the whole cluster.
 - ovl_21_func_800BA868 / ovl_21_func_800BA944 (s, unmatched) — gapless
   link neighbours (0x800BA868 ends at 0x800BA944) that are near-twins of
   `ovl_21_func_800BA7F0`: both fill a 3-entry `s16 buf[4]` with the indices
