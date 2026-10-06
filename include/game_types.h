@@ -480,6 +480,15 @@ typedef struct {
     /* 0x03 */ u8 day;
 } Ovl11QueuedEntry;
 
+/* D_8006C838 row view shared by the +0xE514 selector consumers.
+ * Each row contains six seven-halfword entries (0x54 bytes). */
+typedef struct {
+    char pad_000[0xE514];
+    s16 selector;
+    s16 pad_516[6];
+    s16 rows[1][6][7];
+} Ovl11RowE522View;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14

@@ -350,3 +350,33 @@ Grouping evidence: the gapless 800B90F8 initializer touches the same +0x2D8
 word, +0x2DC halfword, stride 8 and +0x5A8 cursor within D_800BD848.
 Evidence: original words, experiment ledger, flag matrix, config mechanism
 comment, `build/parked-recovery/800B9158-region-checks.jsonl`, and receipt.
+
+## ovl_11_func_80103770 — transfer the matched table-access idiom
+
+**Outcome:** clean C, 27/27 byte-exact words; full binary, source-policy and
+scope gates passed (build/parked-recovery/80103770-finalize.json).
+
+What was tried:
+1. Restored and measured the historical pointer-walking candidate: allocation
+   1 remained in the row-address preheader. Earlier offset grouping, pointer
+   reuse and count-up pointer loops either worsened population or compiled
+   identically; the bounded eight-schema closure exhausted 80 candidates.
+2. Read triage's matched donor, 80104394, instead of searching allocation
+   against that fixed address expression again. It uses a view containing
+   the +0xE514 selector and +0xE522 six-by-seven-halfword rows.
+3. Wrote the sum as a six-iteration count-up loop over
+   v->rows[sel][i][0], retaining the target's unsigned selector after
+   the signed selector comparison. The first complete donor-style variant
+   was EXACT. Published the local view in game_types.h and remeasured the
+   integrated source: still EXACT, then full finalization passed.
+
+**Reusable technique:** an allocation-only floor can originate in an address
+expression family. A source-space exhaustion conditioned on explicit pointer
+arithmetic says nothing about a matched neighbour's indexed-member form.
+Read the donor before attempting another solver on the frozen wrong form.
+
+Grouping evidence: 80103770 and 80104394 now independently match the same
+selector, row layout and indexed-access idiom; gapless predecessor status
+remains corroborating evidence, not proof of an original TU boundary.
+Evidence: donor source, original words, experiment ledger, shared view and
+finalization receipt.

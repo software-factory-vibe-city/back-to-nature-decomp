@@ -1311,13 +1311,15 @@ members of this cluster's zero-gap span. `ovl_11_func_80104394` itself sits
 address-apart (0x80104394, past the run trailer 0x801040A8) and touches none
 of D_80127428/2C, so its TU membership with the cluster is supported by the
 caller adjacency + shared 6-halfword buffer but unproven. Additional tie: the
-parked stub `ovl_11_func_80103770` (0x6C, gapless predecessor of the run head
+matched `ovl_11_func_80103770` (m, 0x6C, gapless predecessor of the run head
 0x801037DC) is this function's idiom twin — identical `+0xE514` select (default
 2 when the halfword == 3) and `base + 0xE522 + sel * 0x54` table walk with 6
 s16 at +0xE stride — summing (returns sum == 0) where 80104394 compares
-(returns all-equal). Its non-matching C and the byte-exact 80104394 spelling
-are the two witnesses for how this author forms that large-offset table
-address (indexed member access, not precomputed pointer arithmetic).
+(returns all-equal). Both now match with indexed member access rather than
+precomputed pointer arithmetic. The sum consumer uses the same six-iteration
+count-up loop over `rows[sel][i][0]`, with an unsigned selector after the
+signed +0xE514 check (27/27 words, fully finalized). This corroborates the
+shared large-offset table idiom without proving the original TU boundary.
 
 Widening (2026-10-05, byte-exact match of `ovl_11_func_80103830`): the run's
 setter is now matched, and it is a third, cleaner witness to the same
@@ -1359,7 +1361,7 @@ D_80127428 run itself remains unproven (touches none of D_80127428/2C).
 
 Widening (byte-exact match of `ovl_11_func_80103714`): the run's flag arm is
 now matched. `ovl_11_func_80103714` (m, 0x80103714, 0x5C, void leaf) sits
-zero-gap two slots before the run head — its immediate follower is the parked
+zero-gap two slots before the run head — its immediate follower is matched
 `ovl_11_func_80103770`, itself the run head's gapless predecessor — and shares
 the cluster's two fingerprints: the D_8006C838 work area (`|= 0x40000` at
 +0xC and `|= 0x2000` at +0x5234, the field 80103B24 updates) and the
