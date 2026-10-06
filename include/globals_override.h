@@ -1528,6 +1528,8 @@ extern s32 (*D_800B9920[4])(void);
 /* First 20-entry stride-4 queue: D_8006C838 + 0x49E4. The full-queue
  * path in ovl_11_func_800F27B0 shifts 0x4C bytes within this 0x50-byte span. */
 extern u8 D_8007121C[0x50];
+/* Adjacent second 20-entry queue selected by ovl_11_func_800F2880. */
+extern u8 D_8007126C[0x50];
 
 #endif /* GLOBALS_OVERRIDE_H */
 

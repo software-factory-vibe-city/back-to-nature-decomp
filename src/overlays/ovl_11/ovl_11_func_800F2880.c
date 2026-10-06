@@ -1,56 +1,40 @@
 #include "common.h"
-
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800F2880", ovl_11_func_800F2880);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-10-05T10:37:34.135Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-1-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_800F2880.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
+#include "game_types.h"
 #include "psyq/memory.h"
 
-typedef struct {
-    u16 unk0;
-    s8 unk2;
-    u8 unk3;
-} Ovl11Record2880Entry;
-
+/* User-authorized matching workaround: bind queue base, offset and index.
+ * These bindings do not establish the original source's register choices. */
 void ovl_11_func_800F2880(s16 arg0, s32 arg1) {
-    u8 *base;
+    register u8 *base asm("$4");
+    register s32 index asm("$8");
     u8 *mid;
-    s32 off;
-    Ovl11Record2880Entry *p;
-    Ovl11Record2880Entry *src;
-    Ovl11Record2880Entry *q;
+    register s32 off asm("$5");
+    Ovl11QueuedEntry *p;
+    Ovl11QueuedEntry *src;
+    Ovl11QueuedEntry *q;
     s32 len;
 
+    index = arg0;
     if (arg1 == 1) {
-        off = arg0 * 4;
-        base = (u8 *)D_8007121C;
+        off = index * 4;
+        base = D_8007121C;
     } else {
-        off = arg0 * 4;
-        base = (u8 *)D_8007126C;
+        off = index * 4;
+        base = D_8007126C;
     }
-    p = (Ovl11Record2880Entry *)(base + off);
+    p = (Ovl11QueuedEntry *)(off + (s32)base);
     mid = base + 4;
-    q = (Ovl11Record2880Entry *)(base + 0x4C);
-    src = (Ovl11Record2880Entry *)(mid + off);
-    len = 0x50 - (arg0 + 1) * 4;
-    if (arg0 == 19) {
-        p->unk2 = -1;
-        p->unk0 = 0;
-        p->unk3 = 0;
+    src = (Ovl11QueuedEntry *)(off + (s32)mid);
+    len = 0x50 - (index + 1) * 4;
+    q = (Ovl11QueuedEntry *)(base + 0x4C);
+    if (index == 19) {
+        p->kind = -1;
+        p->value = 0;
+        p->day = 0;
     } else {
-        memmove(p, src, len);
+        memmove((char *)p, (char *)src, len);
     }
-    q->unk2 = -1;
-    q->unk0 = 0;
-    q->unk3 = 0;
+    q->kind = -1;
+    q->value = 0;
+    q->day = 0;
 }
-#endif

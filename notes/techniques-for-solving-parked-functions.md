@@ -963,3 +963,36 @@ Grouping evidence: gapless adjacency to matched 17EE4 and the same halfword
 sentinel idiom support extending the existing library interval through 17F88.
 Original overlay calls at 801050CC/80105180 disprove the old whole-interval
 unreachable assertion; the notes now distinguish that fact from TU evidence.
+
+## ovl_11_func_800F2880 — bind three roles, then restore tail birth and operand order
+
+**Outcome:** user-authorized three-register workaround, 39/39 byte-exact
+words; full finalization passed (build/parked-recovery/800F2880-finalize.json).
+Baseline flags and the real SDK memmove declaration were retained.
+
+What was tried:
+1. Argument reuse and whole member-array access did not improve the preserved
+   allocation 4 floor. Bound base to a0, byte offset to a1 and the wide signed
+   index value to t0: allocation 1 remained in the shared address/length block.
+2. The emitted code initialized the saved last-entry pointer before computing
+   the source and length, freeing a0 for the constant 19 and changing its delay
+   slot. Moved that real pointer initialization after the length calculation:
+   all staged terms became zero, but two commutative addu operands still differed.
+3. Expressed both addresses as offset plus the integer-converted base, rather
+   than pointer plus offset: EXACT. The residual's zero key was not mistaken
+   for a match; its exact differing-word listing decided this last source move.
+4. Reused the independently witnessed shared queue entry layout and published
+   missing D_8007126C[50] beside the first queue alias in globals_override.h.
+   Integrated, remeasured, reran triage without blockers and passed full
+   finalization, including every linked image and scoped policy checks.
+
+**Reusable technique:** bindings alone need not restore an allocation result.
+The lifetime of a genuine saved pointer can decide another temporary's register
+and the branch delay slot. After every staged term clears, use the remaining
+word-level differences: commutative operand order is deliberately invisible to
+several residual waypoints and still matters to byte identity.
+
+Grouping evidence: the second 50-byte queue is adjacent to the first, and the
+existing gapless F2724/F27B0/F2880 run uses the same stride-four fields, -1 empty
+marker and SDK shift operation. Corrected the earlier F2724 memmove direction
+against its independently matched source; did not infer TU membership from pins.

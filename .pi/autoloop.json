@@ -88,6 +88,10 @@
         "register-asm",
         "embedded-asm"
       ],
+      "ovl_11_func_800f2880": [
+        "register-asm",
+        "embedded-asm"
+      ],
       "func_80020e38": [
         "register-asm",
         "embedded-asm"
