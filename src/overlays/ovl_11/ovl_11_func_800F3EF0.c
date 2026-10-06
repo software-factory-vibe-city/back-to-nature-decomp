@@ -1,42 +1,40 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800F3EF0", ovl_11_func_800F3EF0);
+/* User-authorized parked-function policy exception: three register variables
+ * reproduce allocation and constant birth order. They are reconstruction
+ * workarounds, not evidence that the original source pinned registers. */
 
-
-/* PARKED by /auto_decompilation_loop on 2026-09-15T06:04:38.786Z.
- * Reason: escalation-exhausted.
- * Escalation reached: glm-5-3-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_800F3EF0.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
-s32 ovl_11_func_800F3EF0(void)
-{
-    u16 *cnt;
-    u16 *pend;
-    u16 *src;
+s32 ovl_11_func_800F3EF0(void) {
+    u16 *base;
+    u16 *pending;
+    register u16 *src asm("$4");
+    register u16 *dst asm("$5");
     s32 i;
+    u32 sum;
+    register u32 cap asm("$9");
 
-    cnt = D_800711C4;
-    if (cnt[0x7E] == 0) {
+    base = D_800711C4;
+    pending = base + 0x7E;
+    if (*pending == 0) {
         return 0;
     }
-    pend = cnt + 0x7E;
-    src = cnt + 0x7F;
-    for (i = 0; i < 25; i++) {
-        cnt[i] = cnt[i] + src[i];
-        if (cnt[i] >= 1000) {
-            cnt[i] = 999;
+    cap = 999;
+    src = base + 0x7F;
+    dst = base;
+    i = 24;
+    do {
+        sum = *dst + *src;
+        *dst = sum;
+        if ((u16)sum >= 1000) {
+            *dst = cap;
         }
-        src[i] = 0;
-    }
-    *(s32 *)&cnt[0x1A] += *(s32 *)&pend[0x1A];
-    pend[0] = 0;
-    *(s32 *)&pend[0x1A] = 0;
+        *src = 0;
+        src++;
+        i--;
+        dst++;
+    } while (i >= 0);
+    *(s32 *)&base[0x1A] += *(s32 *)&pending[0x1A];
+    pending[0] = 0;
+    *(s32 *)&pending[0x1A] = 0;
     return 1;
 }
-#endif

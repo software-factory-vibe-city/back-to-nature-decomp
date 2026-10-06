@@ -1,4 +1,12 @@
-# ovl_11_func_800F3EF0 — human decision needed
+# ovl_11_func_800F3EF0 — resolved in the parked-function campaign
+
+**Current resolution:** 35/35 byte-exact and fully finalized. The user expressly
+permitted source-policy exceptions for these parked functions. This candidate
+uses three allowlisted register variables to reproduce pointer allocation and
+constant birth order, without a compiler-flag change. They are reconstruction
+workarounds, not evidence of original register-variable source. The historical
+attempt and its conditional search results below remain archived.
+Receipt: build/parked-recovery/800F3EF0-finalize.json.
 
 - **Parked:** 2026-09-15T06:04:38.786Z
 - **Reason:** escalation-exhausted

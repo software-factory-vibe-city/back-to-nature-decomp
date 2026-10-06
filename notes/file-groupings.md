@@ -2215,9 +2215,14 @@ Members (address order):
   into the s32 at `D_800712C0+0x34`, bumps the counter, then increments the
   pending entry selected by `ovl_11_func_800F3C9C(arg0 & 0xFFFF)`; returns 1
   when the counter is full
-- ovl_11_func_800F3EF0 (s) — fold-update: when entry 0x7E is non-zero, adds the
+- ovl_11_func_800F3EF0 (m) — fold-update: when entry 0x7E is non-zero, adds the
   25 pending entries (0x7F..0x97) into the counters (0..0x18) with a 999 clamp,
-  clears the pending entries, and folds the s32 at `+0x130` into `+0x34`
+  clears the pending entries, and folds the s32 at `+0x130` into `+0x34`.
+  Byte-exact and fully finalized in the parked-function campaign with three
+  explicitly user-authorized register-variable workarounds; no flag override.
+  The counter/pending layout agrees with the adjacent E44 producer and the
+  original C580C caller at 0x800C5C4C. These remain storage/call relationships,
+  not proof of a translation-unit boundary.
 
 ---
 

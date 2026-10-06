@@ -754,3 +754,35 @@ callee declarations or full-build verification.
 Grouping: updated the existing graphics-heap carve twin group to mark 1231C
 matched. Its shared pool constants, D_8005E3B0/B8/BC GP accesses and call to
 E160 remain the evidence; the forcing constructs are not grouping evidence.
+
+## ovl_11_func_800F3EF0 — three authorized register-variable workarounds
+
+**Outcome:** 35/35 byte-exact words; complete finalization passed
+(build/parked-recovery/800F3EF0-finalize.json), baseline compiler flags.
+
+What was tried:
+1. The earlier indexed/member, counter, load-order and sum-width probes did
+   not match. An explicit pair of walking cursors with a u32 sum retained the
+   required store-before-mask operation but left schedule 1 / allocation 2.
+2. Under the user's explicit source-policy authorization, bound only the
+   source and destination cursors to a0/a1. This removed allocation but left
+   the 999 clamp constant after the cursor/counter initialization.
+3. Named that constant in t1 and assigned it before cursor initialization.
+   This third register variable restored the target preheader order: EXACT.
+4. Integrated with a per-function allowlist and an explicit source comment
+   identifying the workaround. Remeasured EXACT, triaged without blockers,
+   and passed full linked-binary, policy, scope and context finalization.
+
+**Tradeoff:** three hard-register variables, not ordinary clean C. No claim
+is made that the original source used these bindings. The broad user
+permission is the authorization, not a newly invented target classification.
+
+**Verification caution:** diffFunc --bytes checks the live linked binary;
+combining it with --src while the live function is a stub does not verify a
+scratch candidate. Only the integrated candidate's complete finalization
+receipt was treated as linked-build success here. Likewise, the intermediate
+34/34 residual still carried a scheduling term and was not an exact match.
+
+Grouping: marked the existing D_800711C4 progress-record cluster member
+matched; the adjacent pending producer's offsets and the original C580C call
+support the storage/call relationship, not a new TU claim.
