@@ -10,7 +10,6 @@ typedef struct {
     /* 0x2A */ u8 pad3[0x6];
 } Ovl11FuncDDA08Entry;
 
-extern Ovl11FuncDDA08Entry D_80128E08[];
 extern s32 D_801291A0;
 extern Ovl11FuncDDA08Entry *D_8012919C;
 
@@ -19,7 +18,7 @@ void ovl_11_func_800DDA08(void) {
     Ovl11FuncDDA08Entry *p;
 
     D_801291A0 = 0;
-    for (i = 0, p = &D_80128E08[0]; i < 0xF; i++, p++) {
+    for (i = 0, p = (Ovl11FuncDDA08Entry *)D_80128E08; i < 0xF; i++, p++) {
         if (p->unk28 & 0x20) {
             p->unk10 = 0;
             p->unk12 = 0;

@@ -574,3 +574,36 @@ Grouping evidence: matched D0CD8 independently reads the same u16 at 44D2;
 original calls from D0F20 and F4618 corroborate use but not common TU membership.
 Evidence: original words, existing matched sibling, typed-view probe, staged
 ledger and full finalization receipt.
+
+## ovl_11_func_800DDC64 — restore the natural scan, then reuse its flag
+
+**Outcome:** clean C, 45/45 byte-exact words; complete finalization passed
+(build/parked-recovery/800DDC64-finalize.json).
+
+What was tried:
+1. The best preserved source hand-peeled the first entry and used a while/goto
+   scan: control-flow 1/population 34. Replaced it with an ordinary 15-entry
+   for-loop and conditional break: both early terms became zero, leaving
+   schedule 2/allocation 5.
+2. Scheduler trace showed index initialization and the walked pointer as plain
+   multi-set births. Initializing i before p, before clearing the result pair,
+   reduced the residual to schedule 1/allocation 3.
+3. Masked the loaded flag in place before indexing the result pair and testing
+   its low bit, rather than using two independent f & 1 expressions: EXACT.
+4. Published the entry view and a compatible shared byte-storage declaration.
+   Six already-matched clients had incompatible private extern views, so
+   removed those declarations and cast their local entry pointers instead.
+   Individually remeasured all six: 17/17, 22/22, 22/22, 15/15, 16/16, 16/16.
+   Integrated source remains EXACT and the complete linked build passed.
+
+**Reusable technique:** the optimized peeled first iteration and two nested
+back-edge ranges can be compiler-generated from one natural source loop.
+Triage's nested-loop signal is not proof of source nesting; this exact match
+is a counterexample. Once the operation boundary is right, plain birth order
+and one genuinely reused flag web close the remaining scheduling/allocation.
+
+Grouping evidence: the existing gapless DDC64/DDD18 pointer-pair family now
+has both members matched, and shared byte storage accommodates independently
+witnessed partial layouts without changing their code. Evidence: original
+words, scheduler plain-birth report, three measured probes, six client exact
+checks and full finalization receipt.

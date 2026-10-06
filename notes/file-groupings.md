@@ -1232,10 +1232,13 @@ Fingerprints:
   the next file-scope data object after that run's globals.
 
 Members:
-- ovl_11_func_800DDC64 (s) — pointer-pair setter: clears `D_801291A8` then
+- ovl_11_func_800DDC64 (m) — pointer-pair setter: clears `D_801291A8` then
   stores up to two `D_80128E08` entries into the slot selected by entry bit
-  0; itself walks the shared `D_80128E08` table (see the 0x30-stride walk
-  section above)
+  0; stops after a qualifying bit-0 entry. The natural for-loop and reused
+  flag variable are byte-exact with baseline flags. The compiler generates
+  the apparent peeled/nested back-edge shape; it does not require nested
+  source loops. A shared byte-storage declaration now reconciles the existing
+  partial entry views (all six matched clients retain their exact bytes).
 - ovl_11_func_800DDD18 (m, matched this session) — pointer-pair modifier: if
   `D_801291A8[0]` is nonzero, calls `func_8001AF44(0x72)` and, on `== 1`,
   clears bit 0x1000 on `D_801291A8[1]`'s 0x28 halfword and sets it on

@@ -1413,6 +1413,10 @@ extern s32 D_80126F88;
  * overlay data segment, so only an extern declaration belongs here. */
 extern u16 *D_801287F8;
 
+/* D_80128E08 - fifteen 0x30-byte entries. Byte storage keeps the existing
+ * partial views compatible; each client casts to its witnessed layout. */
+extern u8 D_80128E08[15 * 0x30];
+
 /* D_801291A8 - pair of pointers to 0x30-byte overlay entries. Set by
  * ovl_11_func_800DDC64, whose loop indexes the pair by bit 0 of an entry's
  * 0x28 halfword; ovl_11_func_800DDD18 clears/sets bit 0x1000 of the two

@@ -1,7 +1,5 @@
 #include "common.h"
 
-extern u8 D_80128E08[];
-
 void ovl_11_func_800DC990(void) {
     u8 *base;
     s32 i;

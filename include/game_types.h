@@ -669,3 +669,10 @@ typedef struct {
     char pad_44D4[0x99C8 - 0x44D4];
     s16 field_99C8[1];
 } Ovl11Status99C8View;
+
+/* 0x30-byte table entry scanned by ovl_11_func_800DDC64. */
+typedef struct {
+    u8 pad[0x28];
+    u16 unk28;
+    u8 pad2[6];
+} Ovl11FuncDDC64Entry;

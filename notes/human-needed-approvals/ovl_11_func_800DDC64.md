@@ -1,4 +1,9 @@
-# ovl_11_func_800DDC64 — human decision needed
+# ovl_11_func_800DDC64 — resolved
+
+A natural for-loop, early index/pointer births and a reused masked flag produce
+45/45 byte-exact words. Full finalization passed without any policy exception
+or flag change. See `notes/techniques-for-solving-parked-functions.md`.
+The historical escalation report below is retained as an archive.
 
 - **Parked:** 2026-09-16T02:46:47.424Z
 - **Reason:** escalation-exhausted

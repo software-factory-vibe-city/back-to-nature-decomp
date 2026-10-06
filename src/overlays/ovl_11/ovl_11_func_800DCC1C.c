@@ -8,14 +8,13 @@ typedef struct {
     /* 0x26 */ u8 pad2[0xA];
 } Ovl11FuncDCC1CEntry;
 
-extern Ovl11FuncDCC1CEntry D_80128E08[];
 
 void ovl_11_func_800DCC1C(s16 arg0, void *arg1) {
     Ovl11FuncDCC1CEntry *base;
     Ovl11FuncDCC1CEntry *e;
     u16 *src;
 
-    base = &D_80128E08[0];
+    base = (Ovl11FuncDCC1CEntry *)D_80128E08;
     src = (u16 *)arg1;
     e = &base[arg0];
     e->unk20 = src[0];
