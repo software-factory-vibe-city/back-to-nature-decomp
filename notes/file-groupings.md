@@ -5108,7 +5108,9 @@ argument. The link-preceding 0x800E6B18's sole callee is the run's own
 - ovl_11_func_800E6AB0 (m) — CD-music guard: returns 1 early on `D_8006C904`,
   else `func_80021B90(arg0)` or `func_80021B64()` sets `var_s0`.
 - ovl_11_func_800E6B18 (s) — caller of 0x800E6CAC.
-- ovl_11_func_800E6BDC (s) — unmatched link gap.
+- ovl_11_func_800E6BDC (m, matched this session) — sound-state reinit: gates
+  on the D_8007AFF0 +0x25388 far-buffer pointer and the +0x2549C state value,
+  then `func_80020818()` + `func_8001FB30()`.
 - ovl_11_func_800E6CAC (m, matched this session) — state toggle: `arg1 == 0`
   → `func_8001FE34(arg0 ? arg0 : 10)`; else `func_8001FE6C() == 0 || arg1 == 2`
   → `func_8001FBBC(0)` and return 1; otherwise return 0.
@@ -5117,6 +5119,13 @@ argument. The link-preceding 0x800E6B18's sole callee is the run's own
   flag check → `func_8001AF70(3, 1)` / `func_8001AF70(3, 0)` then state call
   `ovl_11_func_800EAF5C(var_s0)`; same `var = 0; if/else-if; return var`
   idiom and s16-argument sign-extension as the run.
+
+Widening (2026-10-06, byte-exact match of `ovl_11_func_800E6BDC`): the run's
+remaining unmatched member is now a matched role with the same audio/state
+call cluster as 800E6AB0/800E6CAC and the same s16-argument gate; it reads the
+`D_8007AFF0` far-buffer pointer slot +0x25388 and state s32 +0x2549C shared with
+`ovl_11_func_801047FC`, which keeps the run's shared-global
+fingerprint but still does not prove TU membership.
 
 ## `ovl_11` D_8006C838 +0x7A78 halfword-record table — 0x800DBB94 / 0x800DBF60 / 0x800DBE9C (confidence: low)
 
