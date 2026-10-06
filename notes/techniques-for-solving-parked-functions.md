@@ -206,3 +206,40 @@ its emitted preheader or searching the frozen source's closure again.
 
 Evidence: triage cluster-donor output, both original assemblies, matched
 `src/overlays/ovl_15/ovl_15_func_80135B68.c`, the experiment ledger and receipt.
+
+## ovl_11_func_800F27B0 — fresh pointer webs on the full-queue path
+
+**Outcome:** 52/52 byte-exact words; full finalization passed exact diff,
+all configured images, scope and source policy
+(`build/parked-recovery/800F27B0-finalize.json`).
+
+What was tried:
+1. This parked entry contained no prior C or measurements. Refreshed m2c
+   context; no usable draft was produced. Read the original assembly and
+   audited the SDK memmove signature instead of inventing a declaration.
+2. Wrote a signed-byte sentinel scan over 20 four-byte entries. The first
+   natural count-up for loop already reproduced the target's peeled scan.
+   Its full-queue tail retained the original base across memmove and had
+   population 6, schedule 3 and allocation 7.
+3. Rebased the full-queue path through D_8007121C, then subtracted 0x49E4.
+   A typed tail-entry pointer let combine fold that subtraction into the
+   last-entry address; replacing it with three independent base-relative
+   stores reduced the residual to population 2, schedule 1, allocation 2.
+4. Pipeline reversal identified the original base wrongly assigned s0 and
+   the later alias's hi16 wrongly assigned v0. Both came from sharing one
+   multi-set base variable between the scan and the full-queue path.
+5. Gave the latter path a fresh tail pointer. This immediately produced
+   EXACT. Published the witnessed four-byte local layout in game_types.h
+   and the 0x50-byte queue alias in globals_override.h; live integration
+   remained EXACT and passed full finalization.
+
+**Reusable technique:** identical addresses need not be one C variable.
+A fresh branch-local web can remove both a needless callee-saved assignment
+and its displaced save, without pinning registers or changing flags.
+Keep independent base-relative stores when a shared entry pointer would
+allow combine to collapse the original rebase operation.
+
+Grouping evidence: shares the +0x49E4 queue, byte-at-2 empty marker and
+0x4C-byte shift with matched 800F2724; adjacent to that member and 800F2880.
+The common data/call/link run supports cluster membership, not a TU boundary.
+Evidence: original assembly, experiment ledger, verified source and receipt.

@@ -462,6 +462,14 @@ typedef struct {
     s32 unk8;
 } Recon800D0408A1View;
 
+/* Four-byte entries scanned by ovl_11_func_800F27B0. The signed byte
+ * at +2 is the -1 empty marker; +0 is a halfword and +3 a byte. */
+typedef struct {
+    /* 0x00 */ s16 value;
+    /* 0x02 */ s8 kind;
+    /* 0x03 */ u8 day;
+} Ovl11QueuedEntry;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14

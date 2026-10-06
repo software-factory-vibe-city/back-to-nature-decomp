@@ -1,4 +1,8 @@
-# ovl_11_func_800F27B0 — human decision needed
+# ovl_11_func_800F27B0 — resolved
+
+**Resolved:** byte-exact clean C (52/52), fully finalized and documented.
+No policy exception or compiler override was required. See
+`notes/techniques-for-solving-parked-functions.md`. Historical record follows.
 
 - **Parked:** 2026-10-06T15:40:58.949Z
 - **Reason:** escalation-exhausted

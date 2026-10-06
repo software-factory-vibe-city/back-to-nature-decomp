@@ -5074,6 +5074,14 @@ the overlay, never GP-relative), and the large-offset writers use the same
   accesses constant-displacement), and its +0x49E6 byte sentinel / +0x4A32 byte
   store sit in the same buffer region as sibling 0x800F2508's +0x49E6/+0x4A36
   fields, in the same 0x800F2xxx link band as 0x800F2354/0x800F2508
+- ovl_11_func_800F27B0 (m, byte-exact, finalized) — appends a halfword / signed
+  byte / day-byte entry to the 20-entry stride-4 queue at +0x49E4. The -1
+  byte-at-2 empty marker and 0x4C-byte memmove span independently corroborate
+  the queue shared with 800F2724; when full it shifts entries toward the head
+  and writes the last entry at +0x4A30. The original alias D_8007121C is
+  D_8006C838+0x49E4. Reads the s16 day at +0x44BC. Gapless link successor of
+  800F2724 and predecessor of 800F2880; caller edges from 800F2538/800F2620
+  reinforce this local queue run, without proving an original TU boundary.
 - ovl_11_func_800F45A4 (m, matched this session, byte-exact) — loads the +0x8000+0x5DB4 entity slot and
   calls ovl_11_func_800F5700 to find a matching entry, then OR/AND flips bit 0
   of the result's u16 at +0x4; one of the two readers of the same slot
