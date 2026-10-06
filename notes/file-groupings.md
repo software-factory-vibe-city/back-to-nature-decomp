@@ -5351,6 +5351,28 @@ Members (link order):
 - ovl_23_func_800B97E0 (m, byte-exact this session) — fills the six u16 at
   `D_800BF892` (`D_800BF87C` +0x16) with values drawn uniquely from 0..9.
 
+## `ovl_23` D_800BF87C screen-record init run — 0x800B823C–0x800B8354 (confidence: medium)
+
+Evidence: gapless link order and the call graph agree over the same
+`D_800BF87C` aggregate. `ovl_23_func_800B823C` (0x800B823C, ends 0x800B8290)
+clears `D_800BF87C`+0x4/+0x8/+0xC, writes +0x414 = -1, +0x10 = 0x40000 and
++0x14 = 0, then calls `ovl_23_func_800B8290` and `ovl_23_func_800B8354`;
+`ovl_23_func_800B8290` writes the 0x44-stride record array at `D_800BF87C`+0x204,
+the same aggregate/stride read by the matched `ovl_23_func_800BA1E0` at +0x210;
+and `ovl_23_func_800B8354` continues over `D_800BF87C` records (base +0x24/+0x26/
++0x28/+0x2A/+0x2C and +0xA0/+0x140 fields) and also calls the exe selector
+`func_80012A34`. The three are one contiguous span, so aggregate, adjacency and
+call edge corroborate the same TU.
+
+Members (link order):
+- ovl_23_func_800B823C (s) — clears the `D_800BF87C` header, then calls
+  800B8290, 800B8354 and 800B937C.
+- ovl_23_func_800B8290 (m, byte-exact this session) — fills six 0x44-stride
+  records at `D_800BF87C`+0x204 from `D_800BBA7C`, tagging each with
+  `D_800BBA88[func_80012A34(4)]`.
+- ovl_23_func_800B8354 (s) — `D_800BF87C` record/field initialiser; calls
+  `func_80012A34`.
+
 ## `ovl_23` display-setup state-handler run — 0x800BB214–0x800BB758 (confidence: medium)
 
 Evidence: the dispatcher `ovl_23_func_800B7F00` (s) selects on the state byte
