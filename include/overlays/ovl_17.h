@@ -4,6 +4,7 @@
 
 void ovl_17_func_800B7E38(void);
 s32 ovl_17_func_800B8078(void);
+void ovl_17_func_800B90F8(void);
 void ovl_17_func_800B9158(s32 arg0, s16 arg1);
 void ovl_17_func_800B9594(void);
 s16 ovl_17_func_800B9C48(s16 arg0);

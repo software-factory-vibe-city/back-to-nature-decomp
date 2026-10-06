@@ -1,4 +1,10 @@
-# ovl_17_func_800B90F8 — human decision needed
+# ovl_17_func_800B90F8 — resolved
+
+**Resolved:** ordinary clean C is byte-exact (24/24) and fully finalized.
+A signed-halfword count-up index, independently indexed members and the
+expression `0x4D + 0x1A*i` let loop.c create the induction variables that
+older drafts simulated by hand. No flag override or policy exception was
+needed. Historical evidence below is retained.
 
 - **Parked:** 2026-10-04T08:33:39.490Z
 - **Reason:** escalation-exhausted

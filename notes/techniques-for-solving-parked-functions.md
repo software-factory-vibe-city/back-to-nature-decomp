@@ -412,3 +412,35 @@ Grouping evidence: the 801047FC initializer independently witnesses the
 five-record bound, 0xC stride and +0/+8/+A fields. Shared storage supports a
 family link, not an original-TU proof. Evidence: matched donor, original
 words, experiment ledger/conditional closure, shared type and receipt.
+
+## ovl_17_func_800B90F8 — recover the source induction variables, not their machine simulation
+
+**Outcome:** ordinary clean C, 24/24 byte-exact words; all finalization gates
+passed (build/parked-recovery/800B90F8-finalize.json). No override or exception.
+
+What was tried:
+1. The preserved draft manually carried a 0x10000-step accumulator, a derived
+   integer counter, a walked byte pointer and an incremented value. Its best
+   allocation 7 floor survived a large source-order/web-partition closure.
+2. Reconstructed the actual array region and used a signed-halfword count-up
+   index. An explicit value accumulator still left population 1/schedule 2/
+   allocation 5. loopTrace confirmed that loop.c creates the 65536-step giv
+   naturally from that narrow index; it need not be simulated in C.
+3. Replaced the explicit value accumulator with the source expression
+   i*0x1A+0x4D inside the first-six guard, and indexed each member directly
+   from the global view. The required constant birth order emerged naturally;
+   the remaining differences were the cursor's address and its live high part.
+4. Changed the final raw global+0x5A8 store to the same view's cursor member.
+   This preserved the common symbol high part and its late low-part formation,
+   closing allocation as well as population: EXACT. Published the shared
+   90-entry view, remeasured the integrated source and fully finalized.
+
+**Reusable technique:** fixed-point-looking loop code can be strength-reduced
+signed-short iteration. A machine-level simulation gets the right arithmetic
+while freezing the wrong constant origins and allocation. Derive the source
+expression and let the real loop pass create its givs; typed member access
+also preserves the correct relocation origin for a post-loop store.
+
+Grouping evidence: the adjacent matched 800B9158 appends to these exact
+stride-8 fields and shares the +0x5A8 cursor. Evidence: original words,
+loopTrace, staged ledger, shared layout, verified source and receipt.

@@ -6903,6 +6903,13 @@ weak TU evidence on its own; the group's binding evidence is the call graph:
 800B9CE4, 800B9F44 and 800B9F78 in one branch sequence.
 
 Members:
+- ovl_17_func_800B90F8 (m, 0x60, byte-exact, finalized) — initializes the
+  90 stride-8 entries at +0x2D8/+0x2DC and sets their +0x5A8 cursor to 6.
+  Every word becomes -0x20000; the halfword is -1 except the first six,
+  which receive `0x4D + 0x1A*i`. Its signed-halfword count-up loop and
+  indexed members naturally produce the original's fixed-point induction
+  sequence. This corroborates the gapless initializer/append pair; shared
+  storage still does not prove TU co-membership.
 - ovl_17_func_800B9158 (m, byte-exact, finalized) — appends an s32 and s16
   to the separate 90-entry stride-8 array at D_800BD848+0x2D8/+0x2DC,
   wrapping its signed halfword cursor at +0x5A8. Gapless predecessor

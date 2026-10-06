@@ -496,6 +496,20 @@ typedef struct {
     s16 recs[5][6];
 } Ovl11RecordE4D8View;
 
+/* ovl_17's 90-entry region at D_800BD848 +0x2D8 and the
+ * following +0x5A8 cursor, shared by the initializer and append routine. */
+typedef struct {
+    s32 word;
+    s16 field;
+    s16 pad;
+} Ovl17QueueEntry;
+
+typedef struct {
+    u8 pad[0x2D8];
+    Ovl17QueueEntry entries[90];
+    s16 cursor;
+} Ovl17QueueView;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14
