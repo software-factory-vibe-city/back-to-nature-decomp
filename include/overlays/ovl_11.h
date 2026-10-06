@@ -322,6 +322,7 @@ void ovl_11_func_800E516C(SpriteDataHeader *arg0, s32 arg1);
 void ovl_11_func_800E5230(void);
 void ovl_11_func_800E549C(void);
 void ovl_11_func_800E54C8(void);
+void ovl_11_func_800E5524(u8 *arg0, u8 *arg1, s32 arg2);
 void ovl_11_func_800E5870(s16 arg0, s16 arg1, s32 arg2, s16 arg3);
 s32 ovl_11_func_800E5A1C(s16 arg0, s16 arg1, s32 arg2, s32 arg3);
 s32 ovl_11_func_800E5ADC(s16 arg0, s16 arg1, s32 arg2, s32 arg3);

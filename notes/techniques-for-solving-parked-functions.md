@@ -634,3 +634,29 @@ Grouping evidence: original 8010E644 calls this helper, but remains a stub;
 this establishes a caller link, not a TU boundary. No new grouping confidence
 is inferred from the clean member-view reconstruction. Evidence: original
 words, first exact candidate, conditional closed ledger and finalization receipt.
+
+## ovl_11_func_800E5524 — put the outer count in its natural for-loop
+
+**Outcome:** clean C, 30/30 byte-exact words; complete finalization passed
+(build/parked-recovery/800E5524-finalize.json).
+
+What was tried:
+1. The preserved delimiter decoder had opcode/order parity but allocation 2:
+   count and repeated-byte roles were exchanged. Earlier probes reused the
+   decoded character, moved count birth, made the inner loop count up, used a
+   word fill value, or incremented count in each branch. None settled it.
+2. Kept the inner countdown and byte decoding, but restored an ordinary outer
+   for-loop with count++ and input++ in its continuation. Removed the manual
+   next-count variable and branch-specific assignments. This probe was EXACT.
+3. Integrated the source, remeasured, triaged without blockers and completed
+   full linked-build, source-policy and scope finalization.
+
+**Reusable technique:** a decompiler's explicit next-count value can freeze
+an unnecessary user web even when all instructions already look right. Let
+an ordinary for-continuation produce the optimized counter and its temporary;
+branch-local counter respellings do not explore that source representation.
+
+Grouping evidence: original E3DC8 calls this decoder at E401C. That is a
+concrete client link only, not sufficient evidence for a shared TU. Evidence:
+original words, earlier measured probes, first outer-for exact candidate,
+live-source oracle and finalization receipt.

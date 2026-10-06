@@ -9542,3 +9542,17 @@ The explicit call is a dependency, not evidence of shared TU membership.
 80111030 is now byte-exact with a directly indexed global member; this also
 refutes the older unqualified scheduling-impossibility claim while preserving
 its actual frozen-byte-pointer search bounds. No flag change was required.
+
+
+## ovl_11 E3DC8 / E5524 byte-decoder caller link (confidence: low)
+
+- ovl_11_func_800E3DC8 (s): original jal at 800E401C calls E5524.
+- ovl_11_func_800E5524 (m): input byte zero supplies a delimiter; each of
+  arg2 encoded records emits either one byte or a repeated-byte/count packet.
+  The ordinary outer for-loop and inner countdown are byte-exact under the
+  baseline flags, with no register pins or flag override.
+
+This records the independently observed client dependency, not a new TU
+boundary. The allocation-only parked residual disappeared when the outer
+count was expressed as a natural for-continuation instead of a manual
+branch-specific next-count variable.
