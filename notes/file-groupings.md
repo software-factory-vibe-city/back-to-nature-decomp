@@ -9225,8 +9225,10 @@ Members (link order):
   dispatches `func_8002261C(2, 0x258)` / `(2, 0x259)` on the `D_80075AEA`
   threshold (s16 < 9 → 0x258, s16 >= 0xC9 → 0x259, else 0x258), then
   `ovl_11_func_800D12A0(0xD)`. Returns -1 in all paths.
-- ovl_11_func_8010BC54 (s, 0x94) — view consumer over `s32@+0x38/+0x3C/+0x40`
-  and `D_8006C838+0x5200`; no far-state gate of its own.
+- ovl_11_func_8010BC54 (m, 0x94) — view consumer over `s32@+0x38/+0x3C/+0x40`
+  and `D_8006C838+0x5200`; no far-state gate of its own. Verified transfer from
+  800E1770 with the shared padded vector interface and the same user-authorized
+  selector binding; no new evidence enlarges this TU span.
 - ovl_11_func_8010BCE8 (m, byte-exact) — clamps `u16@+0x16 -= 10` at 0, then
   `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)` and
   `ovl_11_func_800D12A0(0xE)` on the far-state gate; twin of
@@ -9616,8 +9618,9 @@ shared Ovl11PaddedVec3 leaves the remaining bytes explicitly unused. This
 corroborates an operation/layout family, not a common TU across distant bands.
 - ovl_11_func_800E1770 (m, 0x94) — component addition and selector copy;
   full-finalized with one user-authorized selector register binding.
-- ovl_11_func_8010BC54 (s, 0x94) — original-word twin in the documented
-  third far-state gate run.
+- ovl_11_func_8010BC54 (m, 0x94) — verified original-word twin in the
+  documented third far-state gate run; transferred the same audited interface
+  and user-authorized selector binding.
 - ovl_11_func_800DFB98 (m, 0xA4) — predicate-guarded sibling.
 - ovl_11_func_800D05D0 (m, 0x30) — writes components to +58/+5C/+60 and
   updates flag word +34; shared padded interface preserves all original words.

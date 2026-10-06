@@ -873,3 +873,28 @@ The binding is a matching workaround, not evidence of original pinned source.
 Grouping evidence: the original-word twin 8010BC54 and matched DFB98 use the
 same D0408/D05D0 sequence and object fields. Shared operation/layout alone does
 not prove that these distant callers belonged to one translation unit.
+
+## ovl_11_func_8010BC54 — transfer the newly settled selector-load twin
+
+**Outcome:** 37/37 byte-exact words with the user-authorized selector binding;
+full finalization passed (build/parked-recovery/8010BC54-finalize.json).
+
+What was tried:
+1. Previous unbound variants left allocation 1. Immediately after settling
+   800E1770, queried its original-word family with that verified donor.
+   All 28 holes already agreed; the first identity candidate was EXACT.
+2. Reused the newly audited shared padded-vector interface, rather than
+   reviving the old five-scalar D05D0 prototype. Callee truth corroborated
+   both declarations. No additional header types or compiler flags were needed.
+3. Integrated the transferred source and separately authorized its one v0
+   selector binding in the per-function allowlist. Live source remained EXACT,
+   post-edit triage had no blocker, and every finalization gate passed.
+
+**Reusable technique:** requeue a settled representative's family immediately.
+Even an explicitly authorized workaround transfers only as a measured
+hypothesis: retain its honest source comment, verify the callee interfaces,
+add a separately scoped policy entry and run the complete linked-build gate.
+
+Grouping evidence: the existing zero-gap third far-state run now has this
+member matched. Identical consumer bodies at distant addresses corroborate a
+layout/operation family, not an expanded same-TU claim.

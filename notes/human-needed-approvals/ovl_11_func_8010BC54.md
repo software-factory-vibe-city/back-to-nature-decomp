@@ -1,4 +1,10 @@
-# ovl_11_func_8010BC54 — human decision needed
+# ovl_11_func_8010BC54 — resolved
+
+Resolved by verified transfer from 800E1770: 37/37 byte-exact words and all
+finalization gates passed. Uses the same independently audited padded vector
+interface and one selector register binding under the user's explicit policy
+exception authorization. The scoped allowlist records that workaround, not a
+claim about original source. See the techniques ledger. Historical report follows.
 
 - **Parked:** 2026-10-05T08:03:19.026Z
 - **Reason:** escalation-exhausted
