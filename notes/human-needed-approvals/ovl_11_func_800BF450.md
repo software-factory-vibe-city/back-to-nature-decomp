@@ -1,4 +1,12 @@
-# ovl_11_func_800BF450 — human decision needed
+# ovl_11_func_800BF450 — resolved
+
+Resolved under the user's explicit matching-policy exception authorization:
+a two-instruction inline tail preserves the original zero result and dead v1
+write, and one a0 low-word binding yields 23/23 byte-exact words. Full
+finalization passed with scoped allowlisting and baseline flags. Triage's
+asm-dead claim ignores the returned v0 output; the independent original
+contains the dead v1 write. This is an authorized workaround, not proof of
+original handwritten source. See the techniques ledger; historical report follows.
 
 - **Parked:** 2026-10-04T00:54:33.390Z
 - **Reason:** asm-needs-human-approval

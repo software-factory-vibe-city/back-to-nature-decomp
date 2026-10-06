@@ -8779,8 +8779,13 @@ membership remains a prior (the callee is engine API, not proof by itself).
 Members (address order):
 - ovl_11_func_800BF3D0 (m) — gets the object, returns `unk0 >> 7` (one flag).
 - ovl_11_func_800BF3F4 (m) — gets the object, maps flags 4→2, 0x40→3, 2→bool.
-- ovl_11_func_800BF450 (s, parked asm-needs-human-approval) — gets the object,
-  caches it and its low halfword into D_80128808/D_8012880C, tests 0x2000.
+- ovl_11_func_800BF450 (m, 0x5C, finalized) — gets the object, caches its
+  pointer and low flag halfword into D_80128808/D_8012880C, tests 0x2000.
+  A user-authorized two-instruction tail preserves the original dead v1=8000
+  write; one a0 binding fixes the low-word cache value. These workarounds do
+  not establish original handwritten source or strengthen the TU prior.
+  All three consumers agree on the pointer-getter interface, but its own
+  declaration remains independently unwitnessed.
 
 ---
 

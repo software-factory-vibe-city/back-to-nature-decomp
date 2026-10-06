@@ -1531,5 +1531,9 @@ extern u8 D_8007121C[0x50];
 /* Adjacent second 20-entry queue selected by ovl_11_func_800F2880. */
 extern u8 D_8007126C[0x50];
 
+/* Object pointer and low flag-word cache written by ovl_11_func_800BF450. */
+extern u32 *D_80128808;
+extern u32 D_8012880C;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

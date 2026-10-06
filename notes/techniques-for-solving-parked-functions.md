@@ -996,3 +996,39 @@ Grouping evidence: the second 50-byte queue is adjacent to the first, and the
 existing gapless F2724/F27B0/F2880 run uses the same stride-four fields, -1 empty
 marker and SDK shift operation. Corrected the earlier F2724 memmove direction
 against its independently matched source; did not infer TU membership from pins.
+
+## ovl_11_func_800BF450 — preserve a witnessed dead instruction without reserving its register
+
+**Outcome:** explicitly user-authorized two-instruction inline tail and one
+register binding, 23/23 byte-exact words; full finalization passed
+(build/parked-recovery/800BF450-finalize.json). Baseline flags were retained.
+
+What was tried:
+1. Historical ordinary-C searches removed the dead ori v1,zero,8000 or merged
+   the zero-return arms. The file-scope v1 binding preserved a dead constant
+   but reserved that register for the entire function, distorting other values.
+2. Kept the caller and flag logic in C. In the zero-bit arm, an inline block
+   writes its actual zero result and the original dead ori, with an explicit
+   result output and v1 clobber. This restored population/control-flow parity;
+   the low-halfword value and cache-address high register remained interchanged.
+3. Bound only the real low-halfword value to a0: EXACT. No file-scope register
+   reservation, fake use or assembly function stub was introduced.
+4. Published the pointer/flag cache globals in globals_override.h and
+   integrated with an honest workaround comment and scoped authorization.
+   Matched BF3D0/BF3F4 independently use the same getter declaration; the
+   getter itself remains unwitnessed rather than being claimed as proven.
+5. Triage reported that all asm outputs die. Checked the exact original and
+   compiled tail: v0 is returned without any subsequent definition; only v1
+   is dead, and its original ori is at BF498. Recorded this narrow detector
+   premise correction. Full binary, policy, scope and publication gates passed.
+
+**Reusable technique:** an explicitly authorized dead instruction can be
+preserved in its real short lifetime with a clobber, rather than reserving its
+register everywhere. Model surviving outputs honestly. A scan that counts only
+explicit register reads must not treat the ABI return value as dead; conversely,
+that observation does not make the deliberately dead companion output live.
+
+Grouping evidence: the existing gapless three-function getter/flag-reader run
+now has all members matched. The matching workarounds provide no new original
+TU evidence. The historical pure-C closure remains conditional on its searched
+source classes; this solution uses the separately authorized exception.
