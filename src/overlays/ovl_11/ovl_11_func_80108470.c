@@ -1,19 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_80108470", ovl_11_func_80108470);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-09-09T04:22:20.497Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_80108470.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
 s32 ovl_11_func_80108470(s16 arg0, s16 arg1) {
     s16 t;
 
@@ -32,4 +18,3 @@ s32 ovl_11_func_80108470(s16 arg0, s16 arg1) {
     }
     return 0;
 }
-#endif

@@ -860,6 +860,12 @@ Members (address order, matched so far):
   `base+E = 1`; shares the D_8012D050 base with ovl_11_func_801081A0
   (+0/+2/+4/+6/+8/+A) and ovl_11_func_801084E0 (+8/+A); byte-exact clean C,
   baseline flags
+- ovl_11_func_80108470 (m) — guarded setter of D_8012D050[2]'s s16
+  value/state pair (+8/+A), returning whether it wrote; shares those fields
+  with ovl_11_func_801084E0/8010876C (shared-global evidence: original
+  `build/ovl_11/asm/nonmatchings/ovl_11_func_80108470/ovl_11_func_80108470.s`),
+  and is called by its gapless predecessor ovl_11_func_801082F8 (call graph
+  and link-order evidence).
 - ovl_11_func_8010860C (m, matched this session) — mode-decode probe over
   `((GfxObj *)D_8005E3A8)->field_8 & 0xF020`: mode 0 returns, mode 0x20 sets
   D_8012D044 = 6 and calls func_80022738, modes 0x1000/0x8000/0x2000/0x4000
