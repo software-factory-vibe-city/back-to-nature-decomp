@@ -7088,6 +7088,12 @@ Members (link order):
   writes a halfword at record offset 0x18 into three consecutive
   `D_800C0448` records starting at index `arg0*3`; membership rests on the
   shared global, not on adjacency (it is not link-adjacent to the trio).
+- ovl_21_func_800B8A80 (m, matched this session, byte-exact) — calls
+  `ovl_21_func_800BA4C0`, fills record offset 0x18 of six consecutive
+  `D_800C0448` records (indices 5..0) and, behind `func_800226A4() == 5`,
+  advances `D_800C0448 + 0x988` and writes `D_800C0448[0] = 7`; membership
+  rests on the shared global and the `ovl_21_func_800BA4C0` call, not on
+  adjacency (it sits at 0x800B8A80).
 - ovl_21_func_800B8654 (m, matched this session, byte-exact) — same
   `func_800226A4() == 2 && func_800225B8() == 1` guard writing
   `D_800C0448[0]` (`= 2`/`= 1`), preceded by `ovl_21_func_800BA4C0()` then
@@ -7145,7 +7151,8 @@ Fingerprints:
 - shared global cluster: `D_800C0448` is the base of a record table of
   0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
   above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`), a
-  halfword at 0x18 (written by `ovl_21_func_800B9798`) and a 32-bit word at
+  halfword at 0x18 (written by `ovl_21_func_800B9798` /
+  `ovl_21_func_800B8A80`) and a 32-bit word at
   0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844`),
   three records per 0x318-byte group (`func_800B9A20` walks the table at a
   0x318 stride). The trio's declaration only witnessed the leading
