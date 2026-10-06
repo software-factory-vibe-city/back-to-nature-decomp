@@ -8411,8 +8411,9 @@ Members (link order):
 - **gapless link adjacency:** `ovl_11_func_801128B4` (0x50 bytes at 0x801128B4)
   ends exactly at `ovl_11_func_80112904` (0x9C bytes at 0x80112904), which ends
   exactly at `ovl_11_func_801129A0` (0x4C bytes at 0x801129A0), which ends
-  exactly at the `ovl_11_func_801129EC` stub — consecutive functions.csv rows,
-  801128B4/80112904/801129A0 all matched byte-exact;
+  exactly at `ovl_11_func_801129EC` — consecutive functions.csv rows,
+  all four now matched byte-exact; the caller's register bindings are an
+  explicitly user-authorized workaround, not original-source evidence;
 - **identical base idiom:** all three fix `char *base = (char *)&D_8006C838` and
   reach the large-offset work area through a second pointer
   (`base2 = base + 0x8000`, the `ori 0x8000` + `addu` split), the D_8006C838
@@ -9304,8 +9305,9 @@ Members (link order):
 Evidence: link-order adjacency across an unbroken run plus a shared global
 cluster. Every member addresses the same work area as `(char *)&D_8006C838
 + 0x8000` and reads/writes halfwords in the narrow window `+0x676C`–`+0x677C`;
-four of the members are byte-exact clean C, so the spellings are the
-author's, not inferred. The caller edge `ovl_11_func_801129EC ->
+matched clean-C members independently demonstrate this addressing mechanism;
+801129EC now also matches with explicitly authorized register bindings, which
+do not establish its original spelling. The caller edge `ovl_11_func_801129EC ->
 ovl_11_func_80112C28` and `ovl_11_func_801129EC -> ovl_11_func_80112C98`
 tie the interval together (801129EC issues both `jal`s).
 
@@ -9316,7 +9318,11 @@ Members (link order; addresses are contiguous 0x801128B4, 0x80112904,
   and `func_8001AF70(0x1B, 1)`.
 - ovl_11_func_80112904 (m) — writes `+0x6778`, sets the `+0x6776` selector
   from an s16, clears `+0x676C`, copies a packed word from `+0x44B8`.
-- ovl_11_func_801129EC (s) — caller of ovl_11_func_80112C28 (discards $v0).
+- ovl_11_func_801129EC (m, 0x98) — when flag 41 is set, reads the signed
+  selector at +E778 and forms a stride-1D4 D_80076220 record pointer; passes it
+  to 80112C28/80112AB4/80112C98, then calls 80112B60 with D_8007A3F0 when
+  flag 4F is set. Uses three user-authorized register bindings; this confirms
+  the existing caller/global-cluster link without extending the TU span.
 - ovl_11_func_80112A84 (m) — same work area read as `s16*`:
   `p[0x73BB]` = `+0xE776` = base+0x8000+0x6776, indexes `D_80127FD4[5]`.
 - ovl_11_func_80112AB4 (m, matched this session, byte-exact) — on

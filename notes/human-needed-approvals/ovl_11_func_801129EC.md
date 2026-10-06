@@ -1,4 +1,10 @@
-# ovl_11_func_801129EC — human decision needed
+# ovl_11_func_801129EC — resolved
+
+Resolved under the user's explicit register-binding exception authorization:
+base v1, wide signed index a0 and scaled offset v0 reproduce 38/38 original
+words. All finalization gates passed, with unchanged baseline flags and scoped
+policy allowlisting. The bindings are matching workarounds, not evidence about
+original source. See the techniques ledger. Historical report follows.
 
 - **Parked:** 2026-10-06T07:59:50.449Z
 - **Reason:** escalation-exhausted

@@ -898,3 +898,38 @@ add a separately scoped policy entry and run the complete linked-build gate.
 Grouping evidence: the existing zero-gap third far-state run now has this
 member matched. Identical consumer bodies at distant addresses corroborate a
 layout/operation family, not an expanded same-TU claim.
+
+## ovl_11_func_801129EC — bind the base and distinct index/offset webs
+
+**Outcome:** user-authorized three-register workaround, 38/38 byte-exact
+words; full finalization passed (build/parked-recovery/801129EC-finalize.json).
+No compiler flags or callee bodies changed.
+
+What was tried:
+1. Historical declaration-order, pointer-origin and scalar-return hypotheses
+   retained allocation 3; direct indexed member access added population
+   differences. Fresh truth corroborated all five callee declarations.
+2. Bound the reused base to v1 and the signed-short index to a0, consuming the
+   product directly in a fresh record pointer. That made the narrow hard
+   register load lhu followed by explicit sign extension, and coalesced the
+   multiply into s0: population 4/allocation 7, not a solution.
+3. Kept the memory load signed-short but widened its receiving register value
+   to s32, restoring a direct lh. Gave the scaled product its own v0 binding
+   before forming the saved record pointer: EXACT. These are three explicit
+   bindings; the remaining saved pointer allocation is compiler-generated.
+4. Integrated with an honest workaround comment and scoped authorization,
+   remeasured the live source, reran triage and passed every finalization gate.
+   Period-style declarations preserve observed pointer arguments. D12C28 and
+   D12B60 do not consume arguments, so their bodies alone cannot establish
+   original arity; D12AB4 and D12C98 do consume the passed record.
+
+**Reusable technique:** distinguish load width from receiving variable width.
+A pinned s16 variable can force extra unsigned-load/sign-extension operations
+that a signed halfword load into an s32 variable does not. Separately binding
+an arithmetic result avoids unwanted coalescing into its eventual saved pointer.
+The authorization permits these workarounds but supplies no original-source
+or original-TU inference.
+
+Grouping evidence: this caller sits in the already documented gapless work-area
+run, reads its +E778 selector and invokes three helpers inside that run. Updated
+matched status and role without extending the existing interval.
