@@ -9009,3 +9009,29 @@ Members (address order):
 - ovl_11_func_800C0010 (m, already matched) — initialiser for the same state:
   sets p[6] = 0, p[7] = arg0 and p[3..5] = (v[i] - p[i]) / arg0 for target
   vector `v`, returning p[5].
+
+## `ovl_11` D_801285xx table-lookup run — 0x8011F9EC–0x80120358 (confidence: medium)
+
+Evidence: three functions in one contiguous 0x8011F9EC–0x80120358 link run
+read the same absolute-addressed s16 table region (`D_80128550`/`D_80128554`/
+`D_8012855C`/`D_80128580`; `D_801285F4` sits 0x74 on from `D_80128580`, then
+`D_8012862C`) and all call the exe selector `func_80012A34`. The data symbols
+are private to this run — `D_80128550`/`D_80128554`/`D_8012855C`/`D_80128580`
+have no reference outside 0x8011F9EC/0x8011FB80, and `D_801285F4`/
+`D_8012862C` only in 0x80120358 — so the shared region is a same-TU data
+cluster rather than a cross-group object. Link order is contiguous from
+0x8011F9EC through unmatched 0x8011FD2C–0x8011FFA8 (0x8011FFA8 also calls
+`func_80012A34`) to the new match at 0x80120358, so adjacency and call graph
+agree on the run.
+
+Members (address order):
+- ovl_11_func_8011F9EC (s) — scans two 6-entry s16 tables at `D_80071A70`
+  (stride 2, -1 sentinel) and reads `D_80128550`/`D_8012855C`/`D_80128580`;
+  calls `func_80012A34(2)`.
+- ovl_11_func_8011FB80 (s) — maps an s16 argument through the `D_80128580`
+  table indexed via `D_80128554`/`D_8012855C`, special-casing values 3/4;
+  calls `func_80012A34(2)`.
+- ovl_11_func_80120358 (m, verified byte-exact this session) — 4-entry
+  0xE-stride min/max range scan at `D_801285F4`: on a hit stores
+  `func_80012A34(D_8012862C[obj->+8]) + 5` and returns the entry's s16 value,
+  else 0.

@@ -1408,5 +1408,24 @@ extern s16 D_80075AEA;
  * to ovl_11_func_8010B778. */
 extern u16 D_80075AD4;
 
+/* D_801285F4 - ovl_11 table of 4 entries with 0xE-byte stride walked by
+ * ovl_11_func_80120358. Each entry holds an s16 min at +0, an s16 max at +2
+ * and five s16 values at +4. Absolute-addressed (overlay build is -G0), only
+ * ever declared extern. */
+typedef struct {
+    /* 0x00 */ s16 min;
+    /* 0x02 */ s16 max;
+    /* 0x04 */ s16 vals[5];
+} Ovl11D1285F4Entry;
+extern Ovl11D1285F4Entry D_801285F4[4];
+
+/* D_8012862C - ovl_11 u16 table indexed by the s32 field at +8 of the object
+ * passed to ovl_11_func_80120358 (lhu load, s16-scale). Absolute-addressed. */
+extern u16 D_8012862C[6];
+
+/* D_80070D02 - ovl_11 s16 selector compared against the min/max bounds by
+ * ovl_11_func_80120358 (lh load). Absolute-addressed. */
+extern s16 D_80070D02;
+
 #endif /* GLOBALS_OVERRIDE_H */
 
