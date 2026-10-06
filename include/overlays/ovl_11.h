@@ -472,6 +472,7 @@ void ovl_11_func_800F8480(M2C_3f22cd297a83_CopyStruct_8480 *arg0, M2C_3f22cd297a
 void ovl_11_func_800F84D4(M2C_8573ba8bfae4_CopyStruct_84D4 *arg0, M2C_8573ba8bfae4_CopyStruct_84D4 *arg1);
 void ovl_11_func_800F9D3C(void);
 void ovl_11_func_800F9D5C(void);
+void ovl_11_func_800F9F58(void);
 void ovl_11_func_800FA31C(s32 arg0, s16 arg1, s16 arg2);
 void ovl_11_func_800FA3A0(s32 arg0, s16 arg1, s16 arg2, s16 arg3);
 void ovl_11_func_800FA4F4(s32 arg0, s16 arg1, s16 arg2);

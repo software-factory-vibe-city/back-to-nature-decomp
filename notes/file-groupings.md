@@ -8608,8 +8608,11 @@ Members (address order):
   0x40000 packet path plus func_800226A4/226F0/17A48.
 - ovl_11_func_800F9E4C (s) — reads 0x80126F7C/0x88 and `D_80070CF0`, calls
   `ovl_11_func_800F6640` and `func_8001FABC`; adjacent run member.
-- ovl_11_func_800F9F58 (s), ovl_11_func_800F9FF4 (s) — later run members
-  reading the same cluster; 800F9FF4 additionally walks `D_8006C838`.
+- ovl_11_func_800F9F58 (m) — gated input handler: mask 0x50 clears
+  D_80126F80; mask 0x20 reads D_80126F88 and sets D_80126F7C = 2, sharing
+  the run's state words and 800F6640/8001FABC/80022738 helper calls.
+- ovl_11_func_800F9FF4 (s) — reads the same cluster and additionally walks
+  `D_8006C838`.
 
 ---
 

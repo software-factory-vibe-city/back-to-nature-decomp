@@ -113,3 +113,42 @@ void-return program, not proofs that this target needed an exception.
 Evidence: original `1664.rodata.s`, the four handlers' original assemblies,
 `build/experimentLedger/ovl_11_func_800E3A3C.jsonl`, and the finalization receipt.
 Grouping notes record the shared selector and original dispatch-table links.
+
+## ovl_11_func_800F9F58 — repair a direct callee's return declaration
+
+**Outcome:** byte-exact clean C, 39/39 words; full finalization passed
+(`build/parked-recovery/800F9F58-finalize.json`). The supporting refinement of
+func_8001FABC remained 11/11 exact and separately passed full finalization.
+
+What was tried:
+1. Read the preserved allocation-1 source, the 58-measurement ledger and the
+   earlier flag/source-search closures. Many purportedly different rewrites
+   had produced identical words; none had changed the void declaration of
+   func_8001FABC.
+2. Refreshed context and audited the current declarations. Inspected the
+   wrapper's original assembly and its matched callee func_800212A8: that
+   callee returns the selected voice, and the wrapper leaves v0 untouched.
+3. Changed only func_8001FABC's declaration in the scratch caller from void
+   to s32. This immediately produced EXACT, removing the wrong register on
+   the D_80126F80 address formation.
+4. Baseline-verified func_8001FABC and the full build, then made its canonical
+   definition return func_800212A8's result. It remained EXACT (11/11).
+5. Integrated the caller with the matching s32 declaration and existing
+   GfxObj layout, removing redundant globals and unused declarations/includes.
+   The live source stayed EXACT; both functions passed full finalization.
+
+**Evidence limit:** the wrapper's own words alone cannot distinguish an unused
+scalar return from void. This reconstruction chooses the value-returning
+interface consistent with the retained callee result and the caller's exact
+code generation. `callee-truth` still labels it disputed because its target
+scan sees no direct v0 write; the wrapper's jal supplies that value. This is
+not an SDK-prototype override or a register/assembly exception.
+
+**Reusable technique:** audit the return type of an apparently trivial wrapper
+before trying dozens of address spellings. Unused scalar-return calls and void
+calls can leave different hard-register state in this compiler even when the
+callee's own bytes are identical.
+
+Evidence: both experiment ledgers, the original func_8001FABC assembly,
+`src/func_800212A8.c`, and both finalization receipts. Grouping notes now mark
+800F9F58 matched and specify its confirmed state-field accesses.

@@ -1,4 +1,11 @@
-# ovl_11_func_800F9F58 — human decision needed
+# ovl_11_func_800F9F58 — resolved
+
+A value-returning func_8001FABC declaration removes the final allocation
+residual. Its definition now forwards the retained func_800212A8 result and
+remains byte-exact. Both the caller (39/39) and wrapper (11/11) passed full
+finalization; see `notes/techniques-for-solving-parked-functions.md` for
+experiments and the limits of the return-type evidence.
+The historical park record follows.
 
 - **Parked:** 2026-10-05T11:02:30.750Z
 - **Reason:** escalation-exhausted
