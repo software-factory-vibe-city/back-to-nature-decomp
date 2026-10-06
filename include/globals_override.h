@@ -1398,6 +1398,10 @@ extern s16 D_800BFC90;
  * D_800BCEFC is the flat s16 source array that function copies 8-byte records
  * out of. */
 extern s16 D_800BF4C0[];
+/* D_800BF4E0 - the s16 field at D_800BF4C0 + 0x20, addressed by ovl_19_func_800B8DE8
+ * through its own symbol (the compiler materialises D_800BF4E0 and expresses the
+ * neighbouring D_800BF4C0 accesses as negative displacements from it). */
+extern s16 D_800BF4E0[];
 extern u16 D_800BCEF0[];
 extern s16 D_800BCF0C[];
 extern u16 D_800BCEE8[];

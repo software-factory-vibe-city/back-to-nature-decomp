@@ -8790,7 +8790,10 @@ shared-RAM noise. The call graph agrees inside the cluster:
 `ovl_19_func_800B89C8` calls `800B95D4`/`800B998C`/`800BA770`,
 `ovl_19_func_800B998C` calls `800B9AB0`, `ovl_19_func_800BA770` calls
 `800BA834`, and `ovl_19_func_800B95D4` calls `800BA2D4` and consumes its
-return value.
+return value. A further member addresses the same array through the
+`D_800BF4E0` label (`D_800BF4C0` + 0x20), which the compiler materialises on
+its own and against which it folds the neighbouring `D_800BF4E0[-0xD]` access —
+the same overlay-local-symbol-folding fingerprint the `D_800BF560` member shows.
 
 Members (link order):
 - ovl_19_func_800B843C (m, matched this session, byte-exact) — gapless
@@ -8817,6 +8820,13 @@ Members (link order):
   `ovl_19_func_800B847C` initialises the `D_800BF4C0` records.
 - ovl_19_func_800B89C8 (s, 0x2AC) — cluster hub; also reads `D_800BF4C0` and
   calls `800B95D4`/`800B998C`/`800BA25C`/`800BA770`/`800BAC5C`/`800BAC7C`.
+- ovl_19_func_800B8DE8 (m, matched this session, byte-exact) — gapless
+  link-order neighbour on the same overlay-local s16 array through the
+  `D_800BF4E0` label (`D_800BF4C0` + 0x20): zeroes/+0xBE/-0x64 seeds the
+  `+0x20`/`+0x48` records, then fills the `Ovl19Func800BAC40Arg` command records
+  at `+0x80`/`+0xC0` via `800BAC50` and at `+0x20`/`+0x58` via `800BAC40`, and
+  sets `D_800BF4C0[3]` (= `D_800BF4E0[-0xD]`) to 1; calls cluster member
+  `800B843C`.
 - ovl_19_func_800B8E88 (m, matched this session, byte-exact) — same overlay-local
   s16 state array via the `D_800BF560` label (`D_800BF4C0` + 0xA0, inside the same
   `3F54.data.s` blob): `func_8002261C(4, 9)` then, when `func_800226A4() == 2`,
