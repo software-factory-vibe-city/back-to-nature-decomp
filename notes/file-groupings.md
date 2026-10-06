@@ -5400,6 +5400,38 @@ Members (link order):
   D_8006C838+0xE4C8 (masks 0x80000 / 0x2000 / 0x40000 / 0x1000 / 0x800),
   plus the 0xC3800 all-set early-return guard
 
+## `ovl_11` GTE transform + bounds-gate pair — 0x800F5868 / 0x800F5888 (confidence: medium)
+
+Candidate same-TU pair in `ovl_11` (`Obj\GF_FARM.bin`) sitting gaplessly
+immediately before the documented dispatch run (0x800F5944–0x800F6578): a
+screen-bounds check and the GTE point-transform caller that uses it.
+
+Fingerprints:
+- **address adjacency:** `ovl_11_func_800F5868` (0x20 bytes at 0x800F5868)
+  ends exactly at `ovl_11_func_800F5888` (0xBC bytes at 0x800F5888), which
+  ends exactly at the dispatch-run head 0x800F5944 — gapless link order;
+- **call edge:** `ovl_11_func_800F5888` calls `ovl_11_func_800F5868` to gate
+  its transformed (x, y);
+- **function-private data:** `D_80129620` (s32[2], transform out) and
+  `D_80129628` (s16[4], GTE in) are referenced only by
+  `ovl_11_func_800F5888` across the whole build tree (every container's asm
+  and all src) — likely static scratch of the original TU;
+- **cross-link to the adjacent run:** `ovl_11_func_800F5BC0`, the shared
+  engine callee of the documented dispatch run, is a caller of
+  `ovl_11_func_800F5888` (functions.csv);
+- **callee signature:** `ovl_11_func_800F5888` calls `func_8001DFD4` with the
+  two-argument `(s32 *, s16 *)` shape (rtps point transform) also used by the
+  matched `ovl_25_func_800BA758` — a cross-container exe-helper idiom, not a
+  TU fact.
+
+Members (link order):
+- ovl_11_func_800F5868 (m) — screen-bounds check: 1 iff (arg0+0x31) < 0x1A3
+  and (arg1+0x31) < 0x153, else 0
+- ovl_11_func_800F5888 (m, byte-exact this session) — transform + gate:
+  seeds D_80129620 with 0x5DC/0x5DC, copies arg0's first three u16s into
+  D_80129628, calls func_8001DFD4; if the result is > 0 and the bounds gate
+  passes, stores {x, y, result} into arg1 and returns 1, else 0
+
 ## `ovl_11` dispatch + 7-callback leaf run — 0x800F5944–0x800F6578 (confidence: high)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) threaded through a
