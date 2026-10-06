@@ -1316,6 +1316,12 @@ extern u8 D_800BF700[];
  * lui/addiu addressing. */
 extern u8 D_800C0454[];
 
+/* D_800C030C - ovl_25 signed halfword state word. ovl_25_func_800B81F4
+ * loads it (lh) and, when it is not -1, passes it to func_8001FAE8.
+ * Absolute-addressed (lui + lh %lo) from ovl_25 code; the object lives in
+ * the overlay data segment, so only an extern declaration belongs here. */
+extern s16 D_800C030C;
+
 /* D_801227F8 - ovl_11 pair table indexed by an s32 argument in
  * ovl_11_func_800BD1BC; entries are {start, end} s32 pairs. Defined in the
  * overlay data segment, so only an extern declaration belongs here. */

@@ -7212,9 +7212,9 @@ Fingerprints:
 - shared dispatch counter: `ovl_25_func_800B7EB4` reads the dispatch index
   at `D_8006C838`+0x448C, which `ovl_25_func_800B81B4` increments and stores
   back — the counter controls which callback is selected;
-- shared base-pointer idiom: both `ovl_25_func_800B7EB4` and
-  `ovl_25_func_800B81B4` use `(s32 *)&D_8006C838` as a local pointer to
-  access the dispatch-counter field.
+- shared base-pointer idiom: `ovl_25_func_800B7EB4`, `ovl_25_func_800B81B4`
+  and `ovl_25_func_800B81F4` use a local `(s32 *)&D_8006C838` / `(u8 *)D_8006C838`
+  pointer to access the dispatch-counter field.
 - sibling pattern: `ovl_21_func_800B7E3C` compiles to the same dispatch
   shape (save `$s0`, emit `func_80017A48(3)`, load index, load table,
   swap in delay slot, `func_80017A48($s0)`); `ovl_21`'s index comes from the
@@ -7231,7 +7231,11 @@ Members (link order):
 - ovl_25_func_800B81B4 (m, matched this session, byte-exact) — callback;
   calls `ovl_25_func_800B93E4`, then increments and stores the dispatch
   counter `base[0x448C >> 2]` and returns the new value.
-- ovl_25_func_800B81F4 (s) — callback; contract: one of five table entries.
+- ovl_25_func_800B81F4 (m, matched this session, byte-exact) — callback;
+  closes BGM/SE state when the dispatch counter is 2: reads `D_800C030C`
+  (ovl_25 s16, now declared in `globals_override.h`) and calls `func_8001FAE8`
+  with it, then stores 0xFF to `base[0x448C]`, sets bit 0x80000 at `base[0xC]`
+  and calls `func_80011EF0(6)` / `ovl_25_func_800BBA30`.
 
 ## `ovl_25` D_800BFE44/D_800BFE46 state-writer run — 0x800BA7F0–0x800BA908 (confidence: medium)
 
