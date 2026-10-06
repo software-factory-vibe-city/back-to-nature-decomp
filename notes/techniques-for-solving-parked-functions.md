@@ -786,3 +786,31 @@ receipt was treated as linked-build success here. Likewise, the intermediate
 Grouping: marked the existing D_800711C4 progress-record cluster member
 matched; the adjacent pending producer's offsets and the original C580C call
 support the storage/call relationship, not a new TU claim.
+
+## ovl_11_func_800D67F4 — two authorized bindings and reset operand order
+
+**Outcome:** 38/38 byte-exact words; complete finalization passed
+(build/parked-recovery/800D67F4-finalize.json), baseline flags.
+
+What was tried:
+1. Natural row/table, short-counter, complete-entry-view, copied wanted-value
+   and pointer-reset forms did not match. The common inline comparison kept
+   correct allocation but moved the generated shift after result/j initialization;
+   explicitly naming the wanted value fixed that order but changed allocation.
+2. Scheduler evidence showed three unpromoted, equal-priority instructions:
+   result=1, j=0 and the generated i<<3. They were tied by birth order.
+3. With the user's source-policy authorization, bound the full table base
+   to v1 and the explicitly named wanted value to a2. Allocation/scheduling
+   matched, leaving one reset-addu operand-order discrepancy.
+4. Wrote the reset address as offset+(s32)base instead of base+offset.
+   The candidate became EXACT; integrated, allowed only the two register
+   declarations, audited/triaged and passed complete finalization.
+
+**Tradeoff:** two hard-register variables, explicitly documented as workarounds
+rather than inferred original source. The policy exception does not establish
+an unconditional clean-C impossibility; previous search closures remain scoped
+only to their measured source families.
+
+Grouping: D678C independently witnesses the nine-record D_800A04B8 rows and
++0x18 check. The adjacent D6730 helper uses a different nine-halfword table;
+recorded a low-confidence helper/layout cluster, not a fabricated common array.

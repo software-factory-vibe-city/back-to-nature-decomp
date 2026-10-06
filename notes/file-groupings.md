@@ -9581,3 +9581,18 @@ This records the independently observed client dependency, not a new TU
 boundary. The allocation-only parked residual disappeared when the outer
 count was expressed as a natural for-continuation instead of a manual
 branch-specific next-count variable.
+
+## ovl_11 D6730 / D678C / D67F4 nine-slot checks (confidence: low)
+
+- ovl_11_func_800D6730 (m) scans nine halfwords in a selected row of
+  D_800A0494 and assigns the first zero slot.
+- ovl_11_func_800D678C (m) scans nine 0x1E-byte D_800A04B8 records in a
+  selected row and checks the signed halfword at +0x18 against -1 / 0x3F0.
+- ovl_11_func_800D67F4 (m) scans that same nine-record row for each of eight
+  categories i*8, checking the first halfword and +0x18 against 0x3F0.
+  It is now byte-exact and fully finalized with two explicitly user-authorized
+  register-variable reconstruction workarounds, without a flag change.
+
+The original functions are adjacent and use nine-slot rows; the shared
+D_800A04B8 layout links D678C and D67F4 directly. D6730 accesses a different
+parallel table, so this is a helper/layout cluster, not proof of a shared TU.

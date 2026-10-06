@@ -1,4 +1,12 @@
-# ovl_11_func_800D67F4 — human decision needed
+# ovl_11_func_800D67F4 — resolved in the parked-function campaign
+
+**Current resolution:** 38/38 byte-exact and fully finalized. The user explicitly
+permitted source-policy exceptions. Two allowlisted register variables fix the
+base/wanted-value allocation and birth order; writing the reset address
+index-first preserves the original final addu operand order. These bindings
+are reconstruction workarounds, not evidence of original pinned source.
+No compiler flag changed. Historical attempts remain below.
+Receipt: build/parked-recovery/800D67F4-finalize.json.
 
 - **Parked:** 2026-09-15T16:46:51.533Z
 - **Reason:** escalation-exhausted
