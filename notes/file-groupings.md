@@ -9154,3 +9154,36 @@ Members (address order):
   to the D_800A0494 row-table clear
 - ovl_11_func_800CCF58 (s) — scattered D_8006C858 sibling
 - ovl_11_func_800CCFF8 (m) — func_80015704 two-argument caller set
+
+---
+
+## `ovl_11` D_80123E54/D_80123E56 state-pair run — 0x800DDB64 / 0x800DDBA0 (confidence: medium)
+
+Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`): two adjacent functions
+that both drive the same s16 state pair and hand the result to the same
+packet writer.
+
+Fingerprints:
+- **gapless link-order adjacency**: `configs/splat/ovl_11.yaml` lists
+  0x800DDB64 (0x3C) then 0x800DDBA0 (0xC4), the second starting exactly where
+  the first ends. The pair also sits directly after the documented
+  D_80129194–D_801291A0 mirror-pair run that terminates at 0x800DDB64.
+- **shared global cluster**: `D_80123E54` (s16, mode/flag) and `D_80123E56`
+  (s16, index) are touched by both members and by no other matched source in
+  the container (grep over `src/`). Both correct them as `s16`; both are
+  `extern` here (absolute `lui`+`%lo`, never gp-relative), so the defining TU
+  is elsewhere.
+- **shared callee / idiom**: both members call `ovl_11_func_800DC114`
+  (the 0x19/0x1A/0x1B two-record packet write) as the last effect before
+  updating the pair; `ovl_11_func_800DDBA0` additionally interpolates through
+  `func_8001F278` into a 3-word stack buffer, the same engine call shape as
+  `ovl_11_func_80111D94`.
+
+Members (address order):
+- ovl_11_func_800DDB64 (m) — initializer: zeroes `D_80123E54`, sets
+  `D_80123E56 = 0x1FF`, then calls `ovl_11_func_800DC114(0, 0xA5, 0xD5)`.
+- ovl_11_func_800DDBA0 (m, verified byte-exact this session) — cyclic
+  updater: interpolates `D_80123E56` through `func_8001F278` and writes the
+  three results via `ovl_11_func_800DC114`, then increments (clamp to 0x1FF
+  with `D_80123E54 = 1`) or decrements (underflow to 0 with `D_80123E54 = 0`)
+  the pair.
