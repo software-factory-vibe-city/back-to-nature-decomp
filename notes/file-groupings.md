@@ -5279,6 +5279,21 @@ Members (link order):
 - ovl_23_func_800B94D0 (m, byte-exact this session) — same routine, 12-entry
   array at +0x5CC, cursor at +0x62C, bound 0xC (`(s32, s16, s16)`).
 
+## `ovl_23` D_800BF87C +0x16 unique-draw fill — 0x800B97E0 (confidence: low)
+
+Evidence: `D_800BF892` lies at `D_800BF87C` + 0x16 (0x800BF892 − 0x800BF87C =
+0x16), inside the large `D_800BF87C` aggregate whose +0x418/+0x5CC record
+arrays, +0x5C8/+0x62C cursors and +0x3B2/+0x39C fields are recorded above. The
+function is also gapless between two `D_800BF87C` consumers in link order —
+`ovl_23_func_800B954C` (0x172C, ends 0x800B97E0) walks the aggregate from +0x3B4,
+and `ovl_23_func_800B989C` (0x800B989C) reads +0x3B2/+0x39C — so the aggregate
+address and the link order agree. The call graph adds nothing (the only call is
+the exe `Rand`), so this is address plus adjacency, one fingerprint only.
+
+Members (link order):
+- ovl_23_func_800B97E0 (m, byte-exact this session) — fills the six u16 at
+  `D_800BF892` (`D_800BF87C` +0x16) with values drawn uniquely from 0..9.
+
 ## `ovl_23` display-setup state-handler run — 0x800BB214–0x800BB758 (confidence: medium)
 
 Evidence: the dispatcher `ovl_23_func_800B7F00` (s) selects on the state byte
