@@ -1535,5 +1535,10 @@ extern u8 D_8007126C[0x50];
 extern u32 *D_80128808;
 extern u32 D_8012880C;
 
+/* ovl_11 reset-run halfwords, initialized by 8011F52C and rewritten by
+ * 8011F574. Their signed storage views agree with the matched reset leaf. */
+extern s16 D_80128540;
+extern s16 D_8012855A;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

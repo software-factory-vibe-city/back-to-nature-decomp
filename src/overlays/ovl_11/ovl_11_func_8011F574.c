@@ -1,30 +1,21 @@
+/* User-authorized matching workaround under baseline compiler flags.
+ * The fixed-layout flag at 0x80128540 is reached by high 0x80130000 plus
+ * signed low 0x8540; its opaque high birth precedes the work-area address.
+ * All stores and the call remain C. This does not identify original source
+ * register declarations or justify the former scheduling flag override. */
 #include "common.h"
-
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_8011F574", ovl_11_func_8011F574);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-10-03T21:59:13.217Z.
- * Reason: asm-needs-human-approval.
- * Escalation reached: deepseek-v4-1-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_8011F574.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
-extern s16 D_80128540;
-extern s16 D_8012855A;
 
 void ovl_11_func_8011F52C(void);
 
 char *ovl_11_func_8011F574(void) {
     char *base;
-    u16 v;
+    register u32 v asm("$4");
+    register u32 flag_high asm("$5");
+    s16 *flag;
 
     ovl_11_func_8011F52C();
-    D_80128540 = 1;
+    asm volatile("lui %0,0x8013" : "=r"(flag_high));
+    flag = (s16 *)(flag_high + (s16)0x8540);
 
     /* Two-stage base formation keeps the +0x8000 materialized at runtime
      * (lui/addiu/ori/addu) instead of folding it into the access offset;
@@ -34,8 +25,8 @@ char *ovl_11_func_8011F574(void) {
     base += 0x8000;
 
     v = *(u16 *)(base + 0x64D2);
+    *flag = 1;
     *(u16 *)(base + 0x64D2) = 0;
     D_8012855A = v;
     return base;
 }
-#endif

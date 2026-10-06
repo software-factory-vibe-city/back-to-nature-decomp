@@ -1134,3 +1134,39 @@ What was tried:
 separate preheader birth order from commutative operand-order residuals. A fresh
 single-set real-output web can preserve allocation that a reused tied operand
 changes, even when both emit the same arithmetic operation.
+
+
+## ovl_11_func_8011F574 — force one high-address birth without changing flags
+
+**Outcome:** baseline flags, 18/18 words, byte-exact; full controller gate
+passed all containers, scope, context publication and the scoped source
+exceptions (build/parked-recovery/8011F574-finalize.json).
+
+What was tried:
+1. The preserved flag-pointer birth matched with -fno-schedule-insns, but
+   independent regional evidence contradicted that flag hypothesis: matched
+   8011F52C changes under it. Removed the inherited unallowlisted override
+   rather than promoting a speculative original-build claim.
+2. Split the flag high formation and store into assembly, with a memory
+   clobber. It kept the high early but delayed the saved-RA reload and moved
+   the payload/constant registers ([0,0,2,2]). Precise memory-output m/X
+   probes inserted another high and did not recover the target order.
+3. Binding the normal C flag pointer to A1 and payload to A0 corrected
+   allocation, leaving only one late-high scheduling term ([0,0,1,0]).
+4. Made just the high birth opaque; all stores remain C. The fixed-layout
+   object address is 0x80128540 = 0x80130000 + signed 0x8540. An unmatched
+   symbolic HI16 produced an UNDETERMINED relocation, not a match; the
+   original fixed high immediate resolved it and gave EXACT with one actual
+   assembly instruction plus two local bindings. No original-source claim
+   is made about those constraints or hard-address spelling.
+5. Published the two halfwords in globals_override.h and removed their local
+   redeclarations. Initially also removed the callee prototype: common.h
+   does not include all overlay prototypes, so callee truth correctly caught
+   implicit int and the manufactured mismatch. Restored the independently
+   corroborated void(void) declaration; the live source was again EXACT.
+6. Finalized and updated the already-documented gapless reset-run membership.
+
+**Reusable technique:** do not turn a wrong scheduling-flag hypothesis into
+an allowlist entry. Pin only the physical roles that differ, preserve the one
+required birth, and keep memory effects in C so epilogue scheduling remains
+visible to the compiler. UNDETERMINED is never byte-exact verification.
