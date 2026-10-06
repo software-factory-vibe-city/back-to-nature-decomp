@@ -9705,3 +9705,19 @@ two independently matched readers use the same absolute state buffer.
 
 The first-halfword initializer/guard tie and common coordinate consumers
 support one state family; they do not prove shared translation-unit ownership.
+
+
+## ovl_11 D_80127328 six-entry masked helper-dispatch family (confidence: low)
+
+- ovl_11_func_800FC8C8 (m, finalized, 0xD0) — scans six 8-byte entries
+  of D_80127328. Each entry's word mask is tested against work-area +0x44F8;
+  enabled entries pass their +4 byte to matched func_80015EE8 with the
+  D_8005E3C0->field_D8+0x68 context and D_8012CE88 buffer. The last two
+  helper arguments start at 0x8C/0xC0; the former advances only for enabled
+  entries via a high-half running value.
+- Original 800FC358 calls this helper at 800FC4DC. This is a corroborated
+  caller/dispatch dependency, not proof of shared TU ownership.
+
+The table stride, mask word and index byte establish a shared record layout.
+The single S6 matching constraint in the recovered source is a user-authorized
+workaround, not evidence of the original author's register declarations.

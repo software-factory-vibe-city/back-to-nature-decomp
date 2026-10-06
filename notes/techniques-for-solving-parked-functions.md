@@ -1237,3 +1237,34 @@ What was tried:
 reduction. Retain the required high lifetime and tail output while leaving
 the GIV-bearing base automatic; then inspect any zero-key byte residual
 for commutative operand order before changing a loop.
+
+
+## ovl_11_func_800FC8C8 — pin the invariant argument, not its competing base
+
+**Outcome:** 52/52 words, byte-exact; full controller gate passed all images,
+scope, context and scoped exceptions (build/parked-recovery/800FC8C8-finalize.json).
+Final body has one register binding and no assembly instruction statements.
+
+What was tried:
+1. Hypothesized the conditional 0x180000 increment needed an opaque body
+   birth. A one-instruction LUI probe retained [0,0,3,2] and duplicated a
+   previous output; it did not solve the prologue residual.
+2. Bound the invariant final argument to S6 and the work-area base to S5.
+   This reduced scheduling to one term, but binding the base coalesced its
+   high/full pair into S5 and left the wrong temporary high roles
+   ([0,0,1,2]).
+3. Removed only the base binding, leaving it automatic while the constant
+   remained S6. The compiler recovered the target prologue and temporary
+   high webs: EXACT.
+4. Removed the increment assembly and restored ordinary C += 0x180000.
+   EXACT was unchanged, so that instruction workaround was unnecessary and
+   is not in the final source. The callee's independently matched six-arg
+   void signature was corroborated; no SDK boundary or flag was changed.
+5. The first policy-only finalization rejected the register annotation as
+   embedded-asm as well as register-asm. Added both scanner classes to this
+   function's user-authorized allowlist, without adding any actual assembly
+   block, then ran the passing full finalization and documented its caller.
+
+**Reusable technique:** constrain the competing invariant rather than the
+base whose split address must stay independently allocated. Minimize every
+working workaround: a successful probe's extra opacity may not be causal.
