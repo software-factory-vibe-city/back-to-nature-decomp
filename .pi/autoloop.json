@@ -1,13 +1,6 @@
 {
   "ladder": [
     {
-      "provider": "qwen36-llama",
-      "model": "qwen3.8-27b",
-      "thinking": "off",
-      "label": "qwen38-llama",
-      "role": "prep"
-    },
-    {
       "provider": "runinfra",
       "model": "deepseek-v4-1-flash",
       "thinking": "xhigh",
@@ -135,6 +128,9 @@
         "flag-override"
       ],
       "ovl_11_func_800e4ba4": [
+        "flag-override"
+      ],
+      "ovl_11_func_800f1678": [
         "flag-override"
       ]
     }

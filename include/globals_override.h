@@ -926,6 +926,22 @@ extern s32 _D_80129560[] __asm__("D_80129560");
  * (only ever declared extern, never GP). */
 extern s16 D_801295B0;
 
+/* D_80129FD8 - 12-halfword (0x18 byte) scratch buffer in ovl_11 data,
+ * filled by ovl_11_func_800F8B4C via func_8001A970 (digit halfwords plus
+ * a 0xFFFF terminator) and passed to func_80017B3C. Absolute-addressed
+ * from the overlay; >8-byte declaration keeps the address split. */
+extern s16 D_80129FD8[12];
+
+/* D_80126E4A - s16 digit count / index in ovl_11 data at 0x80126E4A,
+ * read by ovl_11_func_800F8B4C and cleared by ovl_11_func_800F6680.
+ * Absolute-addressed from the overlay. */
+extern s16 D_80126E4A;
+
+/* D_80051BF0 - base of a data table in the PS-X EXE, indexed by
+ * D_80054BBC and passed to func_80017B3C by ovl_11_func_800F8B4C (and
+ * ovl_11_func_8011775C). Only address-taken; absolute-addressed. */
+extern u8 D_80051BF0[];
+
 /* D_80074124 - 7x7 table of 8-byte entries (ovl_11), written by
  * ovl_11_func_800D7B00. Each entry holds two s16 set to 0x167, two spare
  * u8, and an s16 set to 0. Reads in func_800BF630 etc. use the s16 @0
