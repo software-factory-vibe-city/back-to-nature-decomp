@@ -660,3 +660,31 @@ Grouping evidence: original E3DC8 calls this decoder at E401C. That is a
 concrete client link only, not sufficient evidence for a shared TU. Evidence:
 original words, earlier measured probes, first outer-for exact candidate,
 live-source oracle and finalization receipt.
+
+## ovl_11_func_80108B8C — use an indexed byte member, not a cached pointer
+
+**Outcome:** clean C, 23/23 byte-exact words; complete finalization passed
+(build/parked-recovery/80108B8C-finalize.json).
+
+What was tried:
+1. Read the preserved pointer attempt and the historical conditional closure:
+   roughly 65 pointer spellings retained the final index-first addition,
+   whereas the original adds the base first. Some historical zero-residual
+   reports still differed in one word; they were not exact matches.
+2. Removed the conflicting private copy of the already-published D_8012D050
+   type. Reconstructed the guarded byte access as states[d] in a view at
+   D_8006C838+E7A2. The first complete indexed-member probe was EXACT.
+3. Published the access view in game_types.h, integrated the source,
+   remeasured EXACT, triaged without findings, and passed the full linked
+   build, policy, scope and finalization gates. No flag override was needed.
+
+**Reusable technique:** a proof about constant-equivalent cached pointer
+operands does not cover a member-array memory expression. Audit the storage
+origin before treating an operand-order residual as an impossibility. The
+view records the observed nine-cell access window, not the original complete
+aggregate's claimed layout.
+
+Grouping evidence: the original reads D_8012D050[2] at +8/+A and writes
+D_8006C838+E7A2+d for d in 0..8. Existing matched 8011760C/801176BC access
+the same cells. Updated both documented clusters; shared storage does not
+prove a shared translation unit.

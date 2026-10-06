@@ -682,3 +682,9 @@ typedef struct {
     u8 pad[0x99DA];
     s16 values[1];
 } Ovl11Value99DAView;
+
+/* Nine byte cells at D_8006C838+E7A2, accessed by ovl_11_func_80108B8C. */
+typedef struct {
+    u8 pad[0xE7A2];
+    u8 states[9];
+} Ovl11StatesE7A2View;

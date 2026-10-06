@@ -882,6 +882,11 @@ Members (address order, matched so far):
   `build/ovl_11/asm/nonmatchings/ovl_11_func_80108470/ovl_11_func_80108470.s`),
   and is called by its gapless predecessor ovl_11_func_801082F8 (call graph
   and link-order evidence).
+- ovl_11_func_80108B8C (m) — reads the same D_8012D050[2] pair (+8/+A):
+  when field_2 is 2 and field_0-600 is in 0..8, promotes the corresponding
+  D_8006C838+E7A2 byte cell from 1 to 2. This links the buffer cluster to
+  the separately documented E7A2 state-handler run by shared storage, not
+  adjacency; byte-exact indexed-member C under baseline flags.
 - ovl_11_func_8010860C (m, matched this session) — mode-decode probe over
   `((GfxObj *)D_8005E3A8)->field_8 & 0xF020`: mode 0 returns, mode 0x20 sets
   D_8012D044 = 6 and calls func_80022738, modes 0x1000/0x8000/0x2000/0x4000
@@ -8773,9 +8778,12 @@ Members (address order):
   the id when `D_8006C838+0x5224` allows, writes cell 3 at `+0xE7A2+id`, and
   sets engine flag `id + 0x67` via `func_8001AF70`.
 
-Extension (shared cluster, no adjacency): parked `ovl_11_func_80108B8C`
-writes value 2 into the same `+0xE7A2` cell family, a third reader/writer of
-the per-id state cells.
+Extension (shared cluster, no adjacency): matched `ovl_11_func_80108B8C`
+reads D_8012D050[2]'s signed fields at +8/+A. When the state is 2 and
+field_0-600 is in 0..8, it promotes the indexed `+0xE7A2` cell from 1 to 2,
+a third reader/writer of this family. An indexed member of an access view
+produces the original base-first address addition exactly; a cached byte
+pointer did not. This is shared-object evidence, not a new TU-boundary claim.
 
 ---
 

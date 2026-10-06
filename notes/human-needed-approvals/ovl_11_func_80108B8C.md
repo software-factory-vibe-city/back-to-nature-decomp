@@ -1,4 +1,11 @@
-# ovl_11_func_80108B8C — human decision needed
+# ovl_11_func_80108B8C — resolved with byte-exact clean C
+
+The parked-function campaign replaced the cached-pointer access with an
+indexed byte member in a shared access view. The first probe and integrated
+source matched 23/23 words under baseline flags. Full finalization passed
+(`build/parked-recovery/80108B8C-finalize.json`); no exception or approval was
+needed. The earlier pointer-only closure did not cover this storage origin.
+The original handoff is retained below as historical evidence.
 
 - **Parked:** 2026-08-24T20:09:46.896Z
 - **Reason:** escalation-exhausted
