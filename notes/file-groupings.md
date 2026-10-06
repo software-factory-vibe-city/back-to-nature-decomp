@@ -843,6 +843,15 @@ Members (address order, matched so far):
   `base+E = 1`; shares the D_8012D050 base with ovl_11_func_801081A0
   (+0/+2/+4/+6/+8/+A) and ovl_11_func_801084E0 (+8/+A); byte-exact clean C,
   baseline flags
+- ovl_11_func_8010860C (m, matched this session) — mode-decode probe over
+  `((GfxObj *)D_8005E3A8)->field_8 & 0xF020`: mode 0 returns, mode 0x20 sets
+  D_8012D044 = 6 and calls func_80022738, modes 0x1000/0x8000/0x2000/0x4000
+  select 0/2/1/3, any other value reuses D_8012D040, then a changed value
+  writes D_8012D040, calls func_80022738 and sets D_8012D044 = 2; shares the
+  D_8012D040/D_8012D044 cluster pair and the func_80022738 caller with the
+  run, and sits gaplessly immediately before its mode-idiom sibling
+  ovl_11_func_801086CC (same `field_8 & 0xF020` decode and D_8012D040
+  writer); byte-exact clean C, baseline flags
 - ovl_11_func_80108738 (m, matched this session) — three-call sequencer:
   status = ovl_11_func_8010876C(); func_80022738(); return
   func_8002261C(3, status); sits gaplessly immediately before its callee
