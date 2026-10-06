@@ -5114,7 +5114,12 @@ argument. The link-preceding 0x800E6B18's sole callee is the run's own
 - ovl_11_func_800E6CAC (m, matched this session) — state toggle: `arg1 == 0`
   → `func_8001FE34(arg0 ? arg0 : 10)`; else `func_8001FE6C() == 0 || arg1 == 2`
   → `func_8001FBBC(0)` and return 1; otherwise return 0.
-- ovl_11_func_800E6D2C (s) — D_8006C838 accessor-band caller.
+- ovl_11_func_800E6D2C (m, matched this session, byte-exact) — mode
+  dispatcher: on `arg2 != 0` calls the run's D_8006C838 sibling 0x800E63C8
+  (4-argument form — the target clears a2 and a3 before the jal, so the
+  caller TU declares the full interface), then dispatches through
+  func_800132B8 / func_800132F0 selected by `arg0 & 1`, else returns
+  `func_80013394() == 1`; s16-argument sign-extension as the run.
 - ovl_11_func_800E6DFC (m, matched this session, byte-exact) — `D_8006C904`
   flag check → `func_8001AF70(3, 1)` / `func_8001AF70(3, 0)` then state call
   `ovl_11_func_800EAF5C(var_s0)`; same `var = 0; if/else-if; return var`
