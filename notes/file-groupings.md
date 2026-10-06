@@ -8793,6 +8793,12 @@ shared-RAM noise. The call graph agrees inside the cluster:
 return value.
 
 Members (link order):
+- ovl_19_func_800B843C (m, matched this session, byte-exact) — gapless
+  link-order predecessor of `800B847C`; initial state resetter for the same
+  overlay-local `D_800BF4C0` array: zeroes `s32@+0x0`, sets `s16@+0xC`,
+  `s16@+0x202` and `s16@+0x204` to -1 (the `+0x200`/`+0x202` fields later
+  written by `800B8E88`/`800B93B0`), then calls cluster members `800B847C`
+  and `800B8544`.
 - ovl_19_func_800B847C (m, matched this session, byte-exact) — gapless
   link-order predecessor of `800B8544`; initialises the two `D_800BF4C0`
   records at +0x10/+0x58 (stride 0x48), copying 8-byte records from the
