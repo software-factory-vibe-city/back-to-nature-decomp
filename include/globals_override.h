@@ -1149,6 +1149,18 @@ typedef struct {
 } Ovl11D80127220Entry;
 extern Ovl11D80127220Entry D_80127220[];
 
+/* D_80127328 - 6-entry table of 8-byte records walked by
+ * ovl_11_func_800FC8C8: s32 flag mask at +0x00 (lw, ANDed against the
+ * D_8006C838+0x44F8 status word) and u8 argument at +0x04 (lbu). Two s32
+ * words per entry (0x04/0x13, 0x08/0x12, 0x10/0x15, 0x20/0x11, 0x40/0x10,
+ * 0x80/0x14 in the data section). Absolute-addressed from ovl_11 code. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ char pad_5[0x3];
+} Ovl11D80127328Entry;
+extern Ovl11D80127328Entry D_80127328[];
+
 /* D_8012A028 - s16 scratch passed by address to func_8001A970 and
  * ovl_11_func_800FC544 by the ovl_11 countdown-table routines. */
 extern s16 D_8012A028;
