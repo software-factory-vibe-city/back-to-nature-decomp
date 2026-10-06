@@ -414,3 +414,29 @@ CC1FLAGS_ovl_11_func_800E4BA4 := -fno-rerun-loop-opt
 # entry under sourcePolicy.allowlist (kind "flag-override") before this can be
 # used as a match.
 CC1FLAGS_ovl_21_func_800B90C4 := -fno-schedule-insns
+
+# ovl_11_func_800F1678: -fno-cse-skip-blocks.
+#
+# Fingerprint (decoded from the original bytes, no source needed): the field
+# load materialises D_8006C838 in $v0 (lui a0,%hi / addiu v0,a0,%lo /
+# lh a1,0x5492(v0)) and then a post-call join re-forms the SAME symbol address
+# from the CSE-shared %hi with `addiu a1,s1,%lo(D_8006C838)` (s1 holds the %hi
+# copied out of $a0 by `move s1,a0`), rather than reusing the full-address
+# pseudo. At baseline CSE carries the full lo_sum across the call and every
+# natural C spelling of the field and the `base + idx*0x1D4` sum compiles to a
+# single full-base pseudo in $s1 (`addiu s1,v0,%lo` ... `addu v1,v1,s1`); the
+# target's re-formed lo_sum is unreachable from any C shape at baseline
+# (21 source shapes tried: pointer local, array decay, char/struct member
+# offset, base assigned before/after the call, m2c control structure).
+#
+# Flag column: psx_flag_probe matrix on the current source: baseline 7/51
+# masked; -fno-cse-skip-blocks 11/51 and the only row that reproduces the
+# target's lui a0 / addiu v0 / lh / move s1 prologue and the later
+# `addiu a1,s1,%lo` re-materialisation; every other row (gcse, rerun-cse,
+# split-addresses, schedule) stays at baseline.
+#
+# No contrary regional witness: this src file is its own TU (one function per
+# file); the already-matched ovl_11 neighbours do not reference D_8006C838.
+# The same flag is an established project precedent (func_80014494,
+# ovl_11_func_80103B24, ovl_17_func_800B9158).
+CC1FLAGS_ovl_11_func_800F1678 := -fno-cse-skip-blocks
