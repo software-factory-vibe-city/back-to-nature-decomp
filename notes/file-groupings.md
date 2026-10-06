@@ -6090,6 +6090,13 @@ Members (address order):
   the 0xE4 table; returns 1. Non-adjacent member of the same record family
   (not in the 0x800C1Bxx run) — data tie plus the run-head
   initializer→80107DD0(`&record + 0xE0`) callee pair.
+- ovl_11_func_800F227C (m, 0xD8, finalized) — non-adjacent consumer of
+  the same 30-entry +0xE4 table: scans all 37 records (stride 0x1D4),
+  selects the first signed threshold >= arg0, writes its index to +0x22,
+  clears +0xC and copies entry +2/+4/+6 into record +0xE/+0x2C/+0x2E.
+  Arg0 == 0x168 skips the sweep. Original 800C06B0 calls it at 800C07C4.
+  This adds a table-layout/data dependency, not evidence that the distant
+  selector belongs to the 800C1Bxx translation unit.
 
 ---
 

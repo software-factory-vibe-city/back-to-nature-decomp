@@ -1102,3 +1102,35 @@ Grouping evidence: the original caller edge from F787C at F79B8 documents this
 helper's dependency and role, not common TU membership across the intervening
 code. Its observable numeric/separator display calls are recorded without a
 speculative gameplay name.
+
+
+## ovl_11_func_800F227C — recover walker register, increment birth and operand order
+
+**Outcome:** 54/54 words, byte-exact; full controller finalization passed
+all images, scope, published context and the user-authorized source exceptions
+(build/parked-recovery/800F227C-finalize.json).
+
+What was tried:
+1. The initial explicit entry-walker probe fixed population but pinned it to
+   the wrong register: [0,0,1,3]. Reading original words showed walker A0,
+   signed argument A3, inner index A2. Changing only the binding to A0
+   removed allocation differences, leaving [0,0,1,0].
+2. Moved the record increment out of the body into the outer for continuation
+   after the index increment. That fixed next-index/next-record birth order;
+   all staged terms became zero, but three commutative addu operand pairs
+   still differed. Array indexing and both integer addition spellings were
+   byte-identical to this near miss, not three new experiments.
+3. Used three real-output one-instruction address additions. A reused
+   read/write integer accumulator disturbed scheduling and allocation
+   ([0,0,2,13]); fresh typed pointer outputs instead matched immediately.
+4. Integrated with one local register binding and four address instructions
+   (walker birth plus three ordered additions), honestly documented as the
+   user-authorized workaround, not evidence of original handwritten assembly.
+   Both loops, conditions, reads and record writes remain C. No flag override
+   or callee declaration is involved. AST and callee audits passed; the scoped
+   embedded-asm/register-asm allowlist resolved the policy blocker.
+
+**Reusable technique:** verify physical roles from original instructions, then
+separate preheader birth order from commutative operand-order residuals. A fresh
+single-set real-output web can preserve allocation that a reused tied operand
+changes, even when both emit the same arithmetic operation.
