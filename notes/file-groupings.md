@@ -562,7 +562,9 @@ Fingerprints:
   exactly where the previous ends, one unbroken span with no unrelated code
   between;
 - shared loader idiom: 800BD538/800BD668/800BD938/800BDA20 all call
-  `func_80014BCC(0, <ROM addr>, <size>, 0, D_8005E3B0+0x4290)`;
+  `func_80014BCC(0, <ROM addr>, <size>, 0, D_8005E3B0+0x4290)`; 800BD5A8
+  (matched this session) calls it too, with the range taken from the
+  `D_801227CC[arg0]` word pair instead of an inline ROM address;
 - adjacent destination globals: the run writes/reads the consecutive
   main-RAM slots D_8007BFF8 (800BD8DC/800BD9D4), D_801287F8 (800BD938) and
   D_80128800 (800BD8DC).
@@ -571,7 +573,8 @@ Members (address order):
 - ovl_11_func_800BD538 (s) — reloads 0x0380B000/0x5000 into +0x4290, copies
   0x540 to D_8009A3F8, then `func_8001719C(D_8005E3B0+0x5790)`
 - ovl_11_func_800BD5A0 (m) — empty body (single return)
-- ovl_11_func_800BD5A8 (s) — per-index loader (see its own entry)
+- ovl_11_func_800BD5A8 (m, matched this session, byte-exact) — per-index
+  loader (see its own entry)
 - ovl_11_func_800BD668 (m) — bare load 0x74800/0xA800 into +0x4290
 - ovl_11_func_800BD6A8 (s) — role unknown
 - ovl_11_func_800BD8DC (m) — stores arg0 to D_80128800 and loads the
@@ -6170,8 +6173,11 @@ Members:
 - ovl_11_func_800D688C (m, matched this session) — key lookup: maps an s16
   key through `D_80126254[idx]` to an entry of `D_80125528[idx]`, returning
   the entry word offset by `D_800957F8`, or NULL.
-- ovl_11_func_800BD5A8 — per-index loader: memcpy's the `D_80125528[idx]`
-  record out of the `D_800957F8` blob, then calls `800DA588`.
+- ovl_11_func_800BD5A8 (m, matched this session, byte-exact) — per-index
+  loader: indexes `D_80125528[arg0]` for the record length and
+  `D_801227CC[arg0]` for the CD range, loads that range into the
+  `D_8005E3B0+0x4290` scratch buffer via `func_80014BCC`, then memcpy's it
+  into the `D_800957F8` blob base and calls `800DA588`.
 - ovl_11_func_800DA588 — iterates a `D_80125528` entry's records against
   `D_80070400`, called from `800BD5A8`.
 - ovl_11_func_801110CC — reads the `D_80125528` table (role not yet
