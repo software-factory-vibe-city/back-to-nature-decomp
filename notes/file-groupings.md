@@ -6892,6 +6892,15 @@ weak TU evidence on its own; the group's binding evidence is the call graph:
 800B9CE4, 800B9F44 and 800B9F78 in one branch sequence.
 
 Members:
+- ovl_17_func_800B9158 (m, byte-exact, finalized) — appends an s32 and s16
+  to the separate 90-entry stride-8 array at D_800BD848+0x2D8/+0x2DC,
+  wrapping its signed halfword cursor at +0x5A8. Gapless predecessor
+  800B90F8 initializes these exact fields and the cursor, independently
+  establishing a local initializer/writer pair within this broad data
+  cluster. The evidence-gated -fno-cse-skip-blocks flag preserves the
+  original's different operand orders at the two address calculations;
+  four matched regional witnesses have unchanged text under it. Neither
+  the flag nor today's source files establishes a TU boundary.
 - ovl_17_func_800B9F10 (m) — leaf predicate: returns
   `(s16)arg1 < record[arg0].s16@+0x2A` over the D_800BD848 record area.
 - ovl_17_func_800B9F44 (m) — leaf predicate twin of 800B9F10: returns

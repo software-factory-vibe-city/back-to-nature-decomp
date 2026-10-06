@@ -352,11 +352,11 @@ CC1FLAGS_ovl_11_func_8011F574 := -fno-schedule-insns
 # join and the target's base-first `addu` appears. The same flag is already a
 # project precedent (func_80014494, ovl_11_func_80103B24).
 #
-# No contrary regional witness: this is its own TU (single function per src
-# file), so the override cannot disturb the matched ovl_17 neighbours (800B9F10,
-# 800B9F44, 800B9CAC, 800BAEF0) — none is in this translation unit.
-#
-# Needs the matching sourcePolicy.allowlist entry for ovl_17_func_800B9158.
+# Fresh regional checks: matched ovl_17 neighbours 800B9F10, 800B9F44,
+# 800B9CAC and 800BAEF0 have byte-identical assembled text under this flag
+# versus baseline (52, 52, 56 and 96 bytes). They supply no contrary witness;
+# this does not infer an original TU boundary from today's source-file layout.
+# The flag-override audit entry is present in .pi/autoloop.json.
 CC1FLAGS_ovl_17_func_800B9158 := -fno-cse-skip-blocks
 
 # ovl_11_func_800E4BA4: -fno-rerun-loop-opt.

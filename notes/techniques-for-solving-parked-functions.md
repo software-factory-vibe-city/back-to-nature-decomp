@@ -314,3 +314,39 @@ this establishes the callee's +0x12/+0x2C reads and +0x28 word write.
 Evidence: original tails/call sites, existing flag mechanism comment, fresh
 flag matrix, `build/parked-recovery/800B98CC-region-check.json`, ledger,
 verified source and finalization receipt.
+
+## ovl_17_func_800B9158 — preserve the CSE boundary's operand order
+
+**Outcome:** clean C, 24/24 byte-exact words; all images and policy/scope
+passed full finalization (`build/parked-recovery/800B9158-finalize.json`).
+
+What was tried:
+1. The preserved primary cached one entry pointer and omitted the target's
+   second cursor reload. The historical w1 candidate independently indexed
+   the two stores and was EXACT under the existing -fno-cse-skip-blocks flag.
+2. Tried a typed queue view, a reused offset, integer addition, a named
+   pointer and scaled-array/word indexing. These exposed the same one-word
+   commutative operand mismatch; they were not allocation problems.
+3. Temporarily removed the old flag and measured the candidates: baseline
+   consistently canonicalized the first address to index-first, while the
+   original uses base-first there and index-first at the second store.
+   The actual-source flag matrix has one dominant CSE-skip column; the
+   historical compiler evidence locates the equivalence propagation at
+   cse_end_of_basic_block across the guarded cursor clear.
+4. Measured four matched regional sources under the precise flag, not an
+   assembly stub. 800B9F10, 800B9F44, 800B9CAC and 800BAEF0 have identical
+   assembled text versus baseline (52/52/56/96 bytes). No contrary witness
+   was found. Corrected the old one-source-file-equals-one-original-TU claim.
+5. Integrated w1 without extra types or register directives, retained the
+   evidence-gated override and added its flag-override audit entry. Live C
+   stayed EXACT and passed the complete finalization gate.
+
+**Reusable technique:** zero staged residual can hide a commutative operand
+order. Compare exact words and inspect CSE's equivalence boundary before
+searching allocation. A dominant flag column needs original-byte mechanism
+evidence and actual matched regional checks; parked stubs cannot supply them.
+
+Grouping evidence: the gapless 800B90F8 initializer touches the same +0x2D8
+word, +0x2DC halfword, stride 8 and +0x5A8 cursor within D_800BD848.
+Evidence: original words, experiment ledger, flag matrix, config mechanism
+comment, `build/parked-recovery/800B9158-region-checks.jsonl`, and receipt.
