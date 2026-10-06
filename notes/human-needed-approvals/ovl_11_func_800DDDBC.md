@@ -1,4 +1,10 @@
-# ovl_11_func_800DDDBC — human decision needed
+# ovl_11_func_800DDDBC — resolved
+
+Resolved with the user's explicit embedded-assembly/register exception:
+three address-fragment instructions and high a2/final-pointer v0 bindings
+preserve the original C copy-loop behavior and give 16/16 byte-exact words.
+Full finalization passed under baseline flags. These are matching workarounds,
+not evidence of original handwritten source. Historical report follows.
 
 - **Parked:** 2026-08-24T09:27:45.884Z
 - **Reason:** escalation-exhausted

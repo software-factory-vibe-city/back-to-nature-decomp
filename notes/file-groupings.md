@@ -5127,7 +5127,12 @@ the overlay, never GP-relative), and the large-offset writers use the same
   as siblings 0x800F2508 (+0x44FC/+0x49E6/+0x4A36) and 0x800F00AC (+0x498C),
   and it fixes `&D_8006C838` in a shared `base` pointer with per-arm pointer
   variables that cc1 splices `%lo` into — the same shared-base idiom as
-  0x800F00AC/0x800F2508
+  0x800F00AC/0x800F2508. Separately matched 800DDDBC shifts three pairs
+  upward through the four-slot +49C4..+49E0 history and clears the first pair;
+  its two current words are exactly these +49C4/+49C8 accumulators. This is a
+  corroborated storage/layout link, not evidence for placing that distant
+  function in this run's original TU. Its split-address assembly/register
+  bindings are explicitly authorized matching workarounds.
 - ovl_11_func_800F2724 (m, matched this session) — dialog/record-advance leaf:
   reads the s8 sentinel at +0x49E6; when it is not -1, calls 0x80022738 then
   func_8002261C(s8@+0x49E6, s16@+0x49E4), and on a 0 result sets the ovl_11 data

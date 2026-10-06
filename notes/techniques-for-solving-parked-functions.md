@@ -1032,3 +1032,35 @@ Grouping evidence: the existing gapless three-function getter/flag-reader run
 now has all members matched. The matching workarounds provide no new original
 TU evidence. The historical pure-C closure remains conditional on its searched
 source classes; this solution uses the separately authorized exception.
+
+## ovl_11_func_800DDDBC — preserve the high fragment and re-splice the low fragment
+
+**Outcome:** user-authorized three-instruction address formation and two
+register bindings, 16/16 byte-exact words; full finalization passed
+(build/parked-recovery/800DDDBC-finalize.json). Baseline flags were retained.
+
+What was tried:
+1. Pointer, aggregate, reverse-index and count-up probes retained the wrong
+   base web or changed induction formation. The original keeps only the
+   global high fragment in a2 across the copy loop, then re-splices its low
+   fragment; preserving a full pointer creates a different lifetime/copy.
+2. Expressed the three witnessed address-fragment instructions as inline asm,
+   retaining the actual copy/decrement loop and stores in C. Bound only the
+   high fragment to a2. The loop/prologue became exact, but the final pointer
+   coalesced into a2; the compiler moved return 1 before the stores and used
+   the final store in the return delay slot.
+3. Bound that final pointer to v0, where it must survive through both zero
+   stores before the return value can overwrite it: EXACT. No fake reference,
+   global register reservation or whole-function assembly stub was used.
+4. Integrated with explicit authorization, remeasured, reran triage and passed
+   every linked-image, scope, source-policy and context-publication gate.
+
+**Reusable technique:** a high address fragment and the complete pointer are
+not one interchangeable lifetime. When an address-materialization workaround
+is explicitly authorized, model its actual stages and real uses; bind the
+terminal pointer separately when coalescing changes the return/delay-slot form.
+This solution does not prove the original source contained inline assembly.
+
+Grouping evidence: the shifted first history pair is the +49C4/+49C8 accumulator
+pair independently written by matched F2354. Recorded that storage/layout link
+without adding the distant function to the existing run's original TU.
