@@ -1225,6 +1225,12 @@ extern s16 D_80127F90;
  * as D_8007AD4E). */
 extern u8 D_80074838[0x8000];
 
+/* D_8007A3F0 - address inside the D_80074838 work area (base + 0x5BB8),
+ * referenced absolutely (lui + %lo) by ovl_11_func_801129EC, which passes
+ * its address to ovl_11_func_80112B60. Only the address is taken, so the
+ * element type is not witnessed; u8 keeps the base/offset relation. */
+extern u8 D_8007A3F0;
+
 /* D_80123E04 - {s16,s16} bounds record indexed by a byte offset (arg3, an
  * s16 multiplied by 4) from ovl_11_func_800D806C. Absolute-addressed. */
 typedef struct {
