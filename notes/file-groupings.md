@@ -5845,6 +5845,11 @@ Fingerprints:
   unk1E bit 0x10 respectively. Three members of one run on one record type.
 - **shared callee pattern**: 800C1C08 and 800C1CBC each call 800C1C5C then
   80107DD0 (the run's heads pair the initializer with the same callee).
+- **scattered second witness of that callee pair**: 0x800E9B68 (far from the
+  run) repeats the initializer→callee shape — it clears the record, sets
+  unk1E, calls 80107DD0(&record + 0xE0) and initialises the 0xE4 table. This
+  is a data + idiom tie, not link-order adjacency, so it adds a member to the
+  record family without proving the run's TU.
 
 Members (address order):
 - ovl_11_func_800C1BA0 (s) — calls 800C1CBC and 800F0C70
@@ -5861,6 +5866,13 @@ Members (address order):
   0x32 into unk2; confirms the run's shared record type and the 800C1C5C →
   80107DD0 callee pair (same s16 call-cast idiom as the run members)
 - ovl_11_func_800C1D68 (s) — calls 800C3548, func_80012A34, func_8001AF70
+- ovl_11_func_800E9B68 (m, matched this session, 0xCC, byte-exact) —
+  per-record initializer: sets unk2C/unk2E = 0x36, zeroes the record's
+  halfword fields, sets unk1E to `(unk1E | 0x8000) & 0x9E48`, calls
+  `80107DD0(&record + 0xE0)`, then writes 0/0/0x36/0x36 to the 30 entries of
+  the 0xE4 table; returns 1. Non-adjacent member of the same record family
+  (not in the 0x800C1Bxx run) — data tie plus the run-head
+  initializer→80107DD0(`&record + 0xE0`) callee pair.
 
 ---
 
