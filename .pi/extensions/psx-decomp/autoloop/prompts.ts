@@ -1,6 +1,7 @@
 import type { ResidualReading } from "../../shared/gates.ts";
 import type { DiffResult, GateResult, PolicyFinding } from "../../shared/types.ts";
-import type { HandoffSummary } from "./types.ts";
+import type { HandoffSummary, PrepHandoffSummary } from "./types.ts";
+import { prepHandoffBlock } from "./prep.ts";
 import { measurements, readLedger, renderValley, valley } from "../../../../tools/agent/experimentLedger.ts";
 import { renderClosed } from "../../../../tools/agent/closedDirections.ts";
 import { lookupSignature } from "../../../../tools/agent/residualSignatures.ts";
@@ -334,18 +335,26 @@ export function escalationMessage(
   tierLabel: string,
   lastReport: string,
   handoff?: HandoffSummary,
+  preparedOpening = "",
+  prepHandoff?: PrepHandoffSummary,
 ): string {
   return [
     `/skill:${DECOMPILE_SKILL} Target: ${functionName}. Mode: resume/fix.`,
-    `The previous escalation tier did not reach a match; you are now ${tierLabel}.`,
-    "Preserve the current clean-C attempt, classify its existing diff once, and continue from there.",
+    prepHandoff
+      ? `The preparation tier has handed off its candidate and context; you are now ${tierLabel}, the matching tier.`
+      : `The previous escalation tier did not reach a match; you are now ${tierLabel}.`,
+    preparedOpening
+      ? "Start from the measured candidate below, not an untouched live stub or regenerated draft. Preserve its edits and header work; classify its diff once."
+      : "Preserve the current clean-C attempt, classify its existing diff once, and continue from there.",
     "Re-derive the structural premises rather than trusting the previous tier's conclusions —",
     "but read psx_experiment_ledger first: re-deriving a classification is warranted, re-running",
     "an experiment it already records is not.",
     "",
     lastReport,
+    ...(preparedOpening ? ["", preparedOpening] : []),
     ...(closedBlock(functionName) ? ["", closedBlock(functionName)] : []),
     ...(handoff ? ["", handoffBlock(handoff)] : []),
+    ...(prepHandoff ? ["", prepHandoffBlock(prepHandoff)] : []),
     "",
     KEEP_GOING,
   ].join("\n");

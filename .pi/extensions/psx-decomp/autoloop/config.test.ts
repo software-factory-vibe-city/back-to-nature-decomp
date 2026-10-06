@@ -32,6 +32,18 @@ test("a ladder entry defaults its label to the model id and its thinking to high
   ]);
 });
 
+test("prep is opt-in and must hand off to a matching tier", () => {
+  const ladder = [{ provider: "p", model: "m", role: "prep" }, { provider: "p", model: "m" }];
+  assert.equal(parseLadder(ladder)[0].role, "prep");
+  assert.equal(parseLadder(ladder)[1].role, undefined);
+  for (const role of ["solver", "", null, 1]) {
+    assert.throws(() => parseLadder([{ provider: "p", model: "m", role }]), /role/);
+  }
+  const invalid = projectWith({ ladder: ladder.slice(0, 1), singleTier: true });
+  try { assert.throws(() => loadLoopConfig(invalid.dir), /later matching tier/); }
+  finally { invalid.cleanup(); }
+});
+
 function projectWith(config: Record<string, unknown>): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), "autoloop-config-"));
   mkdirSync(join(dir, ".pi"), { recursive: true });

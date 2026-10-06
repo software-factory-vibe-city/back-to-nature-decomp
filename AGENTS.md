@@ -16,6 +16,9 @@ instructions. It is not a function-decompilation prompt.
 
 ## Route by task
 
+- Preparing m2c output to compile (autoloop `prep` role): load
+  `.pi/skills/psx-prepare-function/SKILL.md`. This is preparation, not matching;
+  hand the compiling candidate and context to the next tier.
 - Matching or repairing one function: load
   `.pi/skills/psx-decompile-function/SKILL.md` and follow its mandatory
   matching guide. Check `notes/file-groupings.md` for the target's

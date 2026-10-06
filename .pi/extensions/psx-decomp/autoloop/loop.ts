@@ -1,5 +1,7 @@
 import { prepareAttempt, attemptStaticFinalization, buildInputs, documentCompletion, sameInputs, inputIdentity, type Completion } from "../tools/prepared-attempt.ts";
 import { mkdirSync } from "node:fs";
+import { packetOpening } from "../../../../tools/agent/campaign/packet.ts";
+import { PREP_TOOLS, prepHandoffMessage, prepMessage, prepNudge, prepStatus, setPrepHandoffToolActive, type PrepSink } from "./prep.ts";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { runFunctionDiff, runResidualObjective } from "../../shared/gates.ts";
 import type { PolicyFinding } from "../../shared/types.ts";
@@ -49,6 +51,7 @@ import { waitForTurn, type TurnGate } from "./turn-gate.ts";
 import type {
   FunctionOutcome,
   HandoffSummary,
+  PrepHandoffSummary,
   LoopConfig,
   LoopState,
   LoopTier,
@@ -64,8 +67,11 @@ export interface AbortFlag {
 export interface LoopSinks {
   verdict: VerdictSink;
   handoff: HandoffSink;
+  prep: PrepSink;
   /** Completed-agent-run counter, half of the loop's proof that a turn happened. */
   gate: TurnGate;
+  /** Turn-scoped role, used to keep preparation's system prompt lean. */
+  role?: LoopTier["role"];
 }
 
 /** How long a sent message may take to become a running agent turn. */
@@ -227,6 +233,27 @@ async function captureHandoff(
   };
 }
 
+/** Prep has its own exit report, independent of the matching tier's interview. */
+async function capturePrepHandoff(deps: LoopDeps, functionName: string, lastReport: string): Promise<PrepHandoffSummary> {
+  setStatus(deps, `◎ ${functionName} · preparation handoff`);
+  deps.sink.prep.awaiting = functionName;
+  deps.sink.prep.summary = undefined;
+  setPrepHandoffToolActive(deps.pi, true);
+  try {
+    await turn(deps, prepHandoffMessage(functionName));
+  } finally {
+    setPrepHandoffToolActive(deps.pi, false);
+    deps.sink.prep.awaiting = undefined;
+  }
+  const summary = deps.sink.prep.summary;
+  deps.sink.prep.summary = undefined;
+  return summary ?? {
+    functionName, source: "prose", candidatePath: "See the refreshed prepared packet",
+    headerChanges: "", sdkIdioms: "", compilation: lastReport,
+    unresolved: lastAssistantText(deps.ctx).slice(0, 8000) || "No preparation summary was recorded.",
+  };
+}
+
 /**
  * Drop the conversation before a new tier or a new function starts.
  *
@@ -238,9 +265,10 @@ async function captureHandoff(
  * and every message it sends after a clear is self-contained. Compaction is for
  * the other case — a context that outgrows its ceiling while one tier is still
  * working one function, where a summary keeps reasoning a clear would discard.
+ * Prep role boundaries always clear, so neither role inherits the other's task.
  */
-async function clearContext(deps: LoopDeps): Promise<void> {
-  if (!deps.config.clearContextBetween) return;
+async function clearContext(deps: LoopDeps, force = false): Promise<void> {
+  if (!force && !deps.config.clearContextBetween) return;
   await deps.ctx.waitForIdle();
 
   const entries = deps.ctx.sessionManager.getEntries();
@@ -297,7 +325,7 @@ async function adjudicate(
   findings: PolicyFinding[],
   tierIndex: number,
 ): Promise<{ decision: "approve" | "reject" | "unavailable"; rationale: string; reviewer: string }> {
-  const reviewerTier = deps.config.ladder[tierIndex + 1];
+  const reviewerTier = deps.config.ladder.slice(tierIndex + 1).find((tier) => tier.role !== "prep");
   if (!reviewerTier) return { decision: "unavailable", rationale: "", reviewer: "" };
 
   const workingTier = deps.config.ladder[tierIndex];
@@ -457,8 +485,9 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
   let lastReport = "";
   let lastFindings: PolicyFinding[] = [];
   let handoff: HandoffSummary | undefined;
+  let prepHandoff: PrepHandoffSummary | undefined;
   let reachedTier = deps.config.ladder[0]?.label ?? "none";
-  /* A park rewrites the source; it is only ever the verdict of tiers that ran. */
+  /* A park is a verdict of matching tiers that ran, never of preparation alone. */
   let tiersRan = 0;
 
   const completed = current.completions?.[functionName];
@@ -492,13 +521,50 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
   for (let tierIndex = 0; tierIndex < deps.config.ladder.length; tierIndex++) {
     const tier = deps.config.ladder[tierIndex];
     if (!(await applyTier(deps, tier))) continue;
-    tiersRan += 1;
     /* Escalating means a fresh reading of the same evidence, so the new tier
      * starts without the previous tier's conversation. */
-    if (tierIndex > 0) await clearContext(deps);
+    if (tierIndex > 0 || tier.role === "prep") {
+      await clearContext(deps, tier.role === "prep" || !!prepHandoff);
+    }
     reachedTier = tier.label;
 
     const tierStarted = Date.now();
+    if (tier.role === "prep") {
+      const savedTools = deps.pi.getActiveTools();
+      deps.sink.role = "prep";
+      deps.pi.setActiveTools(PREP_TOOLS);
+      try {
+        for (let attempt = 1; attempt <= deps.config.maxReturnsPerTier; attempt++) {
+          setStatus(deps, `↻ ${functionName} · ${tier.label} · prep ${attempt}`);
+          const message = attempt === 1 ? prepMessage(functionName, preparedOpening) : prepNudge(lastReport, preparedOpening);
+          if (!(await turn(deps, message))) return { state: current, outcome: { kind: "aborted", functionName } };
+
+          /* Re-measure the preserved primary draft, not the untouched assembly
+             stub. Forward this refreshed packet without replacing agent edits. */
+          let ready = false;
+          try {
+            const prepared = await prepareAttempt(deps.projectRoot, functionName, signal);
+            preparedOpening = packetOpening(prepared.packet, prepared.path);
+            const status = prepStatus(prepared.packet);
+            lastReport = status.report;
+            ready = status.ready;
+          } catch (error) {
+            lastReport = `Preparation measurement failed: ${String(error)}. Candidate edits remain on disk.`;
+          }
+          if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
+          if (ready || (deps.config.tierMinutes > 0 && Date.now() - tierStarted >= deps.config.tierMinutes * 60_000)) break;
+        }
+        /* Compilation, not matching or residual stagnation, ends a prep tier. */
+        prepHandoff = await capturePrepHandoff(deps, functionName, lastReport);
+      } finally {
+        deps.sink.role = undefined;
+        deps.pi.setActiveTools(savedTools);
+      }
+      if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
+      continue;
+    }
+
+    tiersRan += 1;
     for (let attempt = 1; ; attempt++) {
       if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
 
@@ -510,7 +576,7 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
           ? nudgeMessage(lastReport)
           : tierIndex === 0
             ? openingMessage(functionName) + "\n\n" + preparedOpening
-            : escalationMessage(functionName, tier.label, lastReport, handoff);
+            : escalationMessage(functionName, tier.label, lastReport, handoff, prepHandoff ? preparedOpening : "", prepHandoff);
 
       if (!(await turn(deps, message))) return { state: current, outcome: { kind: "aborted", functionName } };
 
@@ -619,6 +685,7 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
      * its model are both still the ones that produced them. */
     if (tierIndex + 1 < deps.config.ladder.length) {
       handoff = (await captureHandoff(deps, functionName, tier.label)) ?? handoff;
+      prepHandoff = undefined;
       if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
     }
   }
@@ -627,7 +694,9 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
    * not a verdict on the function, and parking it here would hand back an
    * INCLUDE_ASM stub in place of work no tier ever looked at. */
   if (tiersRan === 0) {
-    notify(deps, `No escalation tier was reachable for ${functionName}; left the source untouched.`, "error");
+    notify(deps, prepHandoff
+      ? `No matching tier was reachable for ${functionName}; preserved the preparation output without parking it.`
+      : `No escalation tier was reachable for ${functionName}; left the source untouched.`, "error");
     return { state: current, outcome: { kind: "aborted", functionName } };
   }
 
@@ -790,6 +859,7 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
     }
     setVerdictToolActive(deps.pi, false);
     setHandoffToolActive(deps.pi, false);
+    setPrepHandoffToolActive(deps.pi, false);
     setStatus(deps, undefined);
   }
 

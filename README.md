@@ -259,6 +259,15 @@ The commands dispatch three skills. The skills are game-agnostic:
 - `psx-project-refinement` — one small batch across files. The gate checks all
   of it.
 
+The loop's ladder in `.pi/autoloop.json` accepts an optional `"role": "prep"`
+on a tier. That tier uses the short `psx-prepare-function` skill and preparation
+tools to get the m2c candidate compiling, publish types/overrides in the proper
+headers, and restore supported SDK idioms. Its dedicated
+`psx_loop_prep_handoff` reports the candidate, header work, compile result and
+unresolved issues. The next tier receives that same refreshed packet and summary;
+compilation is not a match. A prep tier must have a later matching tier. Omit
+`role` to retain the existing matching behavior and matching handoff.
+
 The decompilation and resource commands never commit or merge. Commits require
 a separate explicit user request.
 

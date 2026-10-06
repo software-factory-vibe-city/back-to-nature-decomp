@@ -3,8 +3,9 @@
     {
       "provider": "qwen36-llama",
       "model": "qwen3.8-27b",
-      "thinking": "xhigh",
-      "label": "qwen38-llama"
+      "thinking": "off",
+      "label": "qwen38-llama",
+      "role": "prep"
     },
     {
       "provider": "runinfra",

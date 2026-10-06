@@ -10,6 +10,8 @@ export interface LoopTier {
   thinking: ThinkingLevel;
   /** Human-facing label used in status lines and notes. */
   label: string;
+  /** Omitted means the existing matching role; prep only prepares compiling C. */
+  role?: "prep";
 }
 
 export interface LoopConfig {
@@ -55,11 +57,11 @@ export interface LoopConfig {
   singleTier: boolean;
   /** Upper bound on functions attempted in one loop invocation. */
   maxFunctions: number;
-  /** Clear the conversation before each escalation and each new function. */
+  /** Clear between tiers/functions; prep role boundaries always clear. */
   clearContextBetween: boolean;
   /** Compact before any turn that would start above this many context tokens; 0 disables. */
   compactAtTokens: number;
-  /** Have the outgoing tier summarize its findings for the incoming one. */
+  /** Capture matching-tier exit interviews; prep always has its own handoff. */
   handoffSummary: boolean;
   /** Give the agent one notes-only turn to record grouping evidence before committing. */
   updateFileGroupings: boolean;
@@ -132,6 +134,16 @@ export type FunctionOutcome =
   | { kind: "parked"; functionName: string; record: ParkRecord; commit?: string }
   | { kind: "aborted"; functionName: string }
   | { kind: "environment-broken"; functionName: string; detail: string };
+
+export interface PrepHandoffSummary {
+  functionName: string;
+  candidatePath: string;
+  headerChanges: string;
+  sdkIdioms: string;
+  compilation: string;
+  unresolved: string;
+  source: "tool" | "prose";
+}
 
 export interface HandoffSummary {
   functionName: string;

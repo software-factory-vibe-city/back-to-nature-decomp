@@ -1,7 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getSessionBaseline } from "../tools/session-baseline.ts";
 import { loadLoopConfig } from "./config.ts";
-import { runLoop, summarize, type AbortFlag } from "./loop.ts";
+import { runLoop, summarize, type AbortFlag, type LoopSinks } from "./loop.ts";
+import { prepSystemPrompt, registerPrepHandoffTool, setPrepHandoffToolActive } from "./prep.ts";
 import { createHandoffSink, registerHandoffTool, setHandoffToolActive } from "./handoff.ts";
 import { createVerdictSink, registerPolicyVerdictTool, setVerdictToolActive } from "./policy-verdict.ts";
 import { readState } from "./state.ts";
@@ -47,9 +48,10 @@ export function parseArgs(args: string): ParsedArgs {
  * call a function finished.
  */
 export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string): () => boolean {
-  const sink = { verdict: createVerdictSink(), handoff: createHandoffSink(), gate: createTurnGate() };
+  const sink: LoopSinks = { verdict: createVerdictSink(), handoff: createHandoffSink(), prep: {}, gate: createTurnGate() };
   registerPolicyVerdictTool(pi, sink.verdict);
   registerHandoffTool(pi, sink.handoff);
+  registerPrepHandoffTool(pi, sink.prep);
   registerTurnGate(pi, sink.gate);
 
   let active: AbortFlag | null = null;
@@ -61,11 +63,12 @@ export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string):
     await running;
   });
 
-  /* Both are turn-scoped instruments: they stay out of the ordinary active set
+  /* These are turn-scoped instruments: they stay out of the ordinary active set
    * until the loop opens a policy review or a handoff. */
   pi.on("session_start", async () => {
     setVerdictToolActive(pi, false);
     setHandoffToolActive(pi, false);
+    setPrepHandoffToolActive(pi, false);
   });
 
   /* Interactive input while the loop runs is the stop signal. The loop's own
@@ -73,6 +76,12 @@ export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string):
   pi.on("input", async (event) => {
     if (active && event.source === "interactive") active.aborted = true;
     return { action: "continue" };
+  });
+
+  pi.on("before_agent_start", (event) => {
+    if (active && !active.aborted && sink.role === "prep") {
+      return { systemPrompt: prepSystemPrompt(event.systemPromptOptions) };
+    }
   });
 
   pi.registerCommand(LOOP_COMMAND, {
@@ -110,7 +119,7 @@ export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string):
         const approvals = Object.keys(state.approvals);
         ctx.ui.notify(
           [
-            `ladder: ${config.ladder.map((tier) => tier.label).join(" → ")}`,
+            `ladder: ${config.ladder.map((tier) => tier.label + (tier.role ? ` [${tier.role}]` : "")).join(" → ")}`,
             `returns per tier: ${config.returnsPerTier}`,
             `running: ${active ? "yes" : "no"}`,
             `parked (${parked.length}): ${parked.join(", ") || "none"}`,
@@ -129,7 +138,7 @@ export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string):
       const flag: AbortFlag = { aborted: false };
       active = flag;
       ctx.ui.notify(
-        `Escalation loop starting. Ladder: ${config.ladder.map((tier) => tier.label).join(" → ")}. Type any message to stop.`,
+        `Escalation loop starting. Ladder: ${config.ladder.map((tier) => tier.label + (tier.role ? ` [${tier.role}]` : "")).join(" → ")}. Type any message to stop.`,
         "info",
       );
 

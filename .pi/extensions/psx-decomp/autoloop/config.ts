@@ -68,7 +68,7 @@ export function parseLadder(value: unknown): LoopTier[] {
   if (!Array.isArray(value) || value.length === 0) throw new Error("ladder must be a non-empty array");
   return value.map((raw, index) => {
     const tier = object(raw);
-    rejectUnknown(tier, ["provider", "model", "thinking", "label"], `ladder[${index}]`);
+    rejectUnknown(tier, ["provider", "model", "thinking", "label", "role"], `ladder[${index}]`);
     const provider = tier.provider;
     const model = tier.model;
     if (typeof provider !== "string" || !provider) throw new Error(`ladder[${index}].provider must be a non-empty string`);
@@ -80,11 +80,15 @@ export function parseLadder(value: unknown): LoopTier[] {
     if (tier.label !== undefined && typeof tier.label !== "string") {
       throw new Error(`ladder[${index}].label must be a string`);
     }
+    if (tier.role !== undefined && tier.role !== "prep") {
+      throw new Error(`ladder[${index}].role must be "prep" or omitted`);
+    }
     return {
       provider,
       model,
       thinking: thinking as ThinkingLevel,
       label: (tier.label as string) ?? model,
+      ...(tier.role === "prep" ? { role: "prep" as const } : {}),
     };
   });
 }
@@ -122,6 +126,9 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
   }
 
   const ladder = parseLadder(raw.ladder);
+  if (ladder[ladder.length - 1].role === "prep") {
+    throw new Error("autoloop config: a prep tier needs a later matching tier (omit role on that tier)");
+  }
   const singleTier = raw.singleTier === undefined ? DEFAULT_LOOP_CONFIG.singleTier : Boolean(raw.singleTier);
   /* A one-rung ladder is a legitimate configuration — one API key, one model —
      and it is also three silent losses: no escalation, no handoff (captureHandoff
