@@ -1092,6 +1092,15 @@ typedef struct {
 extern Recon_ovl_11_func_800FA31C_D80126F8CEntry _D_80126F8C[1] __asm__("D_80126F8C");
 #define D_80126F8C (*((Recon_ovl_11_func_800FA31C_D80126F8CEntry*)_D_80126F8C))
 
+/* D_80126FD4 - 4-byte overlay table indexed by ovl_11_func_800FA600: a u8
+ * state id, a u8 sub-state id, and a u16 added to the first coordinate. */
+typedef struct {
+    u8 unk0;
+    u8 unk1;
+    u16 unk2;
+} Recon_ovl_11_func_800FA600_D80126FD4Entry;
+extern Recon_ovl_11_func_800FA600_D80126FD4Entry D_80126FD4[];
+
 extern s32 D_8005E3B0;
 
 extern s16 D_80128800;

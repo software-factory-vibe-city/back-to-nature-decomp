@@ -8708,8 +8708,12 @@ shape, and the run's two non-wrapper members share a direct callee:
 - ovl_11_func_800FA558 (m) — wrapper: `800FA600(0, arg0, arg1, arg2)`.
 - ovl_11_func_800FA590 (m) — wrapper: `800FA600(1, arg0, arg1, arg2)`.
 - ovl_11_func_800FA5C8 (m) — wrapper: `800FA600(2, arg0, arg1, arg2)`.
-- ovl_11_func_800FA600 (s) — run tail: calls func_80015840, func_8001585C,
-  ovl_11_func_800FA950, func_80015EE8.
+- ovl_11_func_800FA600 (m, matched 2026-10, byte-exact) — run tail: reads the
+  overlay-private 4-byte `D_80126FD4` table (u8 state / u8 sub-state / u16
+  offset) and calls func_80015840, func_8001585C, ovl_11_func_800FA950,
+  func_80015EE8. `D_80126FD4` sits directly after `D_80126F8C` in the same
+  ovl_11 data subsegment (both bitfield-scan tables), a same-container data
+  cluster tying this run's tail to the 0x800FA31C table group.
 - ovl_11_func_800FA950 (m) — shared s16 range-map helper: two `%7`/`/7`
   formulas written through two s16 pointers.
 
