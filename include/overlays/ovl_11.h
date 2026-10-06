@@ -305,6 +305,7 @@ s32 ovl_11_func_800E39B8(s32 *arg0, u32 arg1);
 s32 ovl_11_func_800E3A94(void);
 s32 ovl_11_func_800E3D88(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 void ovl_11_func_800E4428(void);
+void ovl_11_func_800E48CC(M2C_4efbdcbf20b5_Recon_ovl_11_func_800E48CC_A0View *arg0, SpriteSourceData *arg1);
 s32 ovl_11_func_800E4AEC(s32 arg0);
 s32 ovl_11_func_800E4B58(s32 arg0, s32 arg1);
 s32 ovl_11_func_800E4B6C(s32 arg0, s32 arg1);

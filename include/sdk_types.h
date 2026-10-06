@@ -445,6 +445,15 @@ typedef struct {
 } M2C_4df042861e66_BoundsEntry4994;
 
 typedef struct {
+    char pad_0[8];
+    u16 field_8;
+    u16 pad_A;
+    u16 field_C;
+    u16 pad_E;
+    u16 field_10;
+} M2C_4efbdcbf20b5_Recon_ovl_11_func_800E48CC_A0View;
+
+typedef struct {
                u8 pad0[2];
                u16 unk2;
                u16 unk4;

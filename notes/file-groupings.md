@@ -1880,6 +1880,41 @@ Members (address order, matched in bold):
 
 ---
 
+## `ovl_11` 0x800E4568–0x800E48CC `ovl_11_func_800F5888` box-fixup caller run (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) — a zero-gap
+link-order run whose members all feed the GTE/bounds hit-test leaf
+`ovl_11_func_800F5888` a local three-halfword box built by the identical
+`+0x96 / -0x64 / -0x96` fixup from three consecutive `u16` fields, then scale
+the result's third word by `D_8005E3C0->field_120`.
+
+Fingerprints:
+- zero-gap link-order contiguity (map): 0x800E4568 (0xA0) → 0x800E4608
+  (0xA0) → 0x800E46A8 (0x224) → 0x800E48CC (0xD0) → 0x800E499C (the
+  documented pointer-getter run head);
+- shared callee + idiom: `ovl_11_func_800E4608`, `ovl_11_func_800E46A8` and
+  `ovl_11_func_800E48CC` each build the box (`$sp+0x38` / `$sp+0x20` / `$sp+0x10`)
+  from three `lhu` fields with the same `+0x96`/`-0x64`/`-0x96` constants, call
+  `ovl_11_func_800F5888`, and then index `D_8005E3C0->field_120` by
+  `(hit_word >> 2) * 4`;
+- call graph agrees: `ovl_11_func_800E4568` calls both `ovl_11_func_800E4608`
+  and `ovl_11_func_800E48CC`.
+
+Members (address order, matched in bold):
+- ovl_11_func_800E4568 (s) — walks the D_80129230 0x30-byte records and calls
+  the box tester for each flagged work-area entity (see the D_80129230 entry);
+  also the run's call-graph hub
+- ovl_11_func_800E4608 (s) — fixed-coordinate box test against
+  `D_8006C838`+0x4478/+0x447C/+0x4480; forwards the hit to 800E559C
+- ovl_11_func_800E46A8 (s) — object-relative box test from `s1+0x60..0x68`,
+  the run's largest member
+- **ovl_11_func_800E48CC (m, matched this session)** — record-relative box test
+  from u16@+8/+0xC/+0x10; submits through `func_80016054` and advances the
+  sprite via `func_800158E4` when `D_8006C844` bit 0x08000000 is clear; also
+  the documented pointer-getter run head
+
+---
+
 ## `ovl_11` 0x18-byte spawn-record fill/clear/dispatch run — 0x800F4360–0x800F43CC (confidence: low)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) — three
