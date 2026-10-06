@@ -152,3 +152,29 @@ callee's own bytes are identical.
 Evidence: both experiment ledgers, the original func_8001FABC assembly,
 `src/func_800212A8.c`, and both finalization receipts. Grouping notes now mark
 800F9F58 matched and specify its confirmed state-field accesses.
+
+## ovl_11_func_800F14D8 — unsigned clamp and initialization birth order
+
+**Outcome:** 26/26 byte-exact words; full finalization passed all linked
+images, source policy and scope checks (`build/parked-recovery/800F14D8-finalize.json`).
+
+What was tried:
+1. Audited the preserved population-2 source and leaf ABI; triage named the
+   matched sibling 800F144C. Its source uses an unsigned window clamp.
+2. Changed only the clamp to `(u32)arg1 >= 30U`: population became zero,
+   but exact diff exposed two misplaced initialization words. The staged
+   inverse alone reported zero residual, so the word oracle was essential.
+3. Tried u16 parameters and a typed pointer: this introduced a new population
+   and allocation residual because modifying the narrow parameter changes
+   its web. Kept the masked full-width locals instead.
+4. Moved `found = 0` before the clamp and `i = 0` after it. This
+   immediately produced EXACT, including the branch delay-slot initializer.
+5. Integrated the winner, remeasured, triaged and fully finalized. Updated the
+   sibling grouping with the independently shared caller and predicate idiom.
+
+**Reusable technique:** check signedness against a matched sibling, then
+separate independent initialization births. A zero staged residual is not
+byte identity; read exact words when same-shape operations are transposed.
+
+Evidence: the function's experiment ledger, original assembly, matched
+`src/overlays/ovl_11/ovl_11_func_800F144C.c`, and finalization receipt.

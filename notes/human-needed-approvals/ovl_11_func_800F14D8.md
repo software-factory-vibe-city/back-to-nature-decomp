@@ -1,4 +1,4 @@
-# ovl_11_func_800F14D8 — human decision needed
+# ovl_11_func_800F14D8 — resolved
 
 - **Parked:** 2026-09-08T20:25:35.146Z
 - **Reason:** escalation-exhausted
@@ -63,3 +63,9 @@ s32 ovl_11_func_800F14D8(s32 arg0, s32 arg1, s32 arg2) {
     return found;
 }
 ```
+
+## Resolution
+
+Recovered clean C with an unsigned clamp and corrected initialization birth order.
+26/26 words are exact; full finalization passed with no policy exception.
+Historical attempt and park report above are retained for provenance.

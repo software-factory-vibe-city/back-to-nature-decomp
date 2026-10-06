@@ -5809,8 +5809,10 @@ Evidence: one unbroken link-order run — `ovl_11_func_800F144C` (0x8C, ends
 ends 0x800F1744) — and the call graph agrees on a shared caller:
 `ovl_11_func_800F1078` is the sole caller of both `ovl_11_func_800F15B4`
 (`jal` at 0x800F11D0) and the already-recorded `ovl_11_func_800F144C` (`jal`
-at 0x800F1194). 0x800F14D8 / 0x800F1540 / 0x800F1678 are parked or unmatched,
-so their membership is linkage-only and unproven.
+at 0x800F1194). The now-matched 0x800F14D8 shares 0x800F144C's masked
+halfword arguments, 0x1F sentinels, clamped window and wrapped scan predicate;
+its sole caller is also 0x800F1078. This supports the sibling relationship,
+not a definitive TU boundary. 0x800F1540 / 0x800F1678 remain unmatched.
 
 Members:
 - ovl_11_func_800F15B4 (m, matched this session, 0xC4, byte-exact) — masked
@@ -5818,6 +5820,9 @@ Members:
   (arg2/arg3 `0xFF` sentinels; result inverted by the 0x400 bit of the stack
   argument); call edge into the matched 0x800EEBF4 run.
 - ovl_11_func_800F144C (m) — see the record-halfword sibling pair entry above.
+- ovl_11_func_800F14D8 (m, 0x68, byte-exact) — returns 1 for a 0x1F
+  sentinel or when the clamped, inclusive window contains the signed halfword
+  at arg2+4; wraps values >=31 by subtracting 29.
 
 ## `ovl_11` 0x800C9888–0x800C99C8 shared-caller link run (confidence: low)
 
