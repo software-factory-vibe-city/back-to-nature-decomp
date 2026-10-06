@@ -444,3 +444,42 @@ also preserves the correct relocation origin for a post-loop store.
 Grouping evidence: the adjacent matched 800B9158 appends to these exact
 stride-8 fields and shares the +0x5A8 cursor. Evidence: original words,
 loopTrace, staged ledger, shared layout, verified source and receipt.
+
+## func_80019610 — restore the natural scan, then reuse the incoming y parameter
+
+**Outcome:** clean C, 123/123 byte-exact words; full finalization passed
+(build/parked-recovery/80019610-finalize.json). The necessary callee-return
+correction preserves func_800197FC's existing 57/57 bytes as well.
+
+What was tried:
+1. The disabled best used a goto-heavy scan and a common sentinel-store tail.
+   Fresh measurement was control-flow 2/population 117/schedule 6/allocation 17;
+   block indexing had degraded, so an allocation analysis would be misleading.
+2. Kept the 41-halfword whole-object assignment, but used a natural for-scan
+   with separate marker cases: 0xFFFE is overwritten, while an already-0xFFFF
+   terminator only marks done. This immediately reached population/allocation
+   parity; just one stack-parameter load remained six positions late.
+3. Moving the local y initializer earlier was byte-identical. The scheduler
+   reported its load as UID63, later than the other incoming parameter loads.
+   Updating arg4 itself rather than a separate local made the compiler birth
+   that incoming halfword at parameter setup: EXACT.
+4. Callee truth exposed a matched-but-wrong void declaration on 800197FC.
+   Original caller words consume its returned cursor, and the wrapper's last
+   call is matched scalar func_80011F5C(0). Returning that value corrects the
+   interface without changing any of the callee's 57 words. Aligned the caller
+   declaration with that actual signature and remeasured: still EXACT.
+5. Published TextCopyBlock for the twin wrappers, integrated the clean source,
+   reran triage without blockers and passed the complete finalization gate.
+
+**Reusable technique:** a decompiler's goto/peeled-loop simulation can freeze
+extra memory effects and distort every block comparison. Reconstruct the
+natural operation boundaries first. For a prologue load whose position will
+not move with statements, ask whether it belongs to an updated parameter or
+an independently initialized local; assign_parms gives them different births.
+A matched callee's void return is not authoritative when its original caller
+consumes a independently witnessed scalar tail-call result.
+
+Grouping evidence: the call-target-only twin 80019AD0 and gapless 800197FC
+wrapper provide an existing module-family link. Evidence: original words,
+scheduler UID63 report, staged ledger, matched 80011F5C definition, shared
+aggregate type and receipt.

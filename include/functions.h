@@ -141,6 +141,7 @@ s32 func_8001945C(u16 *arg0, u16 arg1, s16 arg2);
 void func_80019564(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 u16 func_800195F4(void);
 void func_80019600(void);
+s32 func_80019610(s32 arg0, s32 arg1, u16 *arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7, s16 arg8);
 void func_800197FC(s32 arg0, s32 arg1, s32 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7);
 s32 func_800198E0(u16 *arg0, s32 arg1, s16 arg2);
 void func_800199F8(s32 arg0, s32 arg1, s32 arg2, s16 arg3, s16 arg4, s16 arg5, s32 arg6, s16 arg7);

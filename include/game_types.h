@@ -510,6 +510,12 @@ typedef struct {
     s16 cursor;
 } Ovl17QueueView;
 
+/* Fixed 41-halfword text scan buffer used by the two multi-row
+ * layout wrappers. Whole-object assignment preserves the 82-byte copy. */
+typedef struct {
+    u16 data[41];
+} TextCopyBlock;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14
