@@ -46,3 +46,36 @@ Evidence:
 Grouping documentation adds this member to the existing ovl_11 D_8012D0xx
 cluster: shared +8/+A fields and the gapless preceding caller support the
 membership; they do not establish a definitive translation-unit boundary.
+
+## ovl_11_func_800D812C — place the store between two value births
+
+**Outcome:** byte-exact clean C, 36/36 words, residual `[0,0,0,0]`; the
+controller's `finalize` implementation passed exact diff, all linked images,
+scope and clean-source checks (`build/parked-recovery/800D812C-finalize.json`).
+
+What was tried:
+1. Read the preserved best `[0,0,2,0]` attempt and the prior closures. The
+   earlier scheduler impossibility assumed that the first store's RTL birth
+   preceded the second multiplication; it did not cover a later store birth.
+2. Refreshed m2c context; its new draft failed compilation and was not used.
+   Triaged and audited the preserved compiling source instead.
+3. Tested a void return and a separately named shared subtraction tail. Both
+   compiled to the already-measured two-store-order residual, not a new result.
+4. Ran the scheduler trace on the shared-tail variant. The first store had
+   LUID 53, the second product's final shift had LUID 66, and the branch-specific
+   constant had LUID 71. The latter two were unpromoted, multi-set pseudos.
+5. Named the first product, computed the second product, **then stored the
+   first product, then assigned the branch-specific constant**. Kept the
+   subtraction and second store in the shared tail. This put the store's birth
+   between the competing births and immediately produced EXACT.
+6. Integrated using the existing shared `Vec3` type (s32 fields at +0/+8),
+   confirmed the live source was still EXACT, and ran full finalization.
+
+**Reusable technique:** a store's emitted position is not its source position.
+For a backward-scheduler tie, move the store's RTL birth relative to the
+unpromoted arithmetic operation, not merely relative to the final result.
+An old UNSAT conditioned on a fixed LUID order does not close this alternative.
+
+Evidence: `build/schedulerTrace/ovl_11_func_800D812C`,
+`build/experimentLedger/ovl_11_func_800D812C.jsonl`, and the verified source.
+No new same-TU evidence was established; no speculative grouping was added.

@@ -1,4 +1,10 @@
-# ovl_11_func_800D812C — human decision needed
+# ovl_11_func_800D812C — resolved
+
+The preserved scheduling residual was solved with clean C: compute both
+products before storing the first, then assign the branch-specific constant.
+The live implementation is byte-exact (36/36 words) and passed full finalization.
+See `notes/techniques-for-solving-parked-functions.md` for measured experiments.
+The historical park record follows.
 
 - **Parked:** 2026-09-15T08:02:09.016Z
 - **Reason:** escalation-exhausted
