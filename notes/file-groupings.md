@@ -6314,6 +6314,14 @@ Fingerprints:
   entry).
 
 Members:
+- ovl_11_func_800EDF3C (m, parked recovery) — optional signed-halfword
+  slot resolution through `D_80129560` at stride 4; returns a predicate
+  using selectors 0xB/0x14, `func_8001AF44(0x129/0x25)`, the day halfword
+  `D_80070CF2`, and byte `D_8006C838+0xE647 == 255`. Original consumers
+  include EB85C at EB8B0, EC52C at ECA18 and ED7E0 at ED8D8. The shared
+  table/address idiom joins this accessor family, not a proven TU; the
+  recovery's address-prefix assembly and bindings are not original-source
+  evidence.
 - ovl_11_func_800E6834 (m, matched 2026-11 — this session, 0x38, byte-exact) —
   compare-forward leaf: `return ovl_11_func_800EFDA0(D_80129560[(s16)arg0],
   arg3, arg2)` — loads the s16-scaled slot with the same `sll 16`/`sra 14`

@@ -1323,3 +1323,30 @@ What was tried:
 **Reusable technique:** once a same-container construction matches, reuse
 its operation boundaries before allocator modelling. A baseline solution
 can eliminate a speculative flag hypothesis rather than legitimizing it.
+
+
+## ovl_11_func_800EDF3C — couple offset birth to the real address addition
+
+**Outcome:** 49/49 words; full controller gate passed all images, scope,
+context and scoped exceptions (build/parked-recovery/800EDF3C-finalize.json).
+Calls, branch logic and the byte load remain C.
+
+What was tried:
+1. Resumed the three-bound-role source (base V1, offset A0, byte A1).
+   Its 0x8000 birth occupied the selector branch delay slot, while the
+   original places the address high there. Staged [0,2,1,0] was not exact.
+2. Made only ORI opaque. Population became clear but scheduling and
+   allocation remained [0,0,2,2]; the address formation still followed it.
+3. Coupled ORI and its actual consuming ADDU in one two-instruction prefix,
+   with the full base as input and the updated pointer as output. That
+   prevents independent offset hoisting and fixes operand order; the C
+   high/low formation again fills the target delay slot: EXACT.
+4. Callee truth independently corroborated AF44. Integrated and finalized.
+   Triage's dead-output claim is false for this precise block: A0 from ORI
+   is consumed by ADDU inside the assembly, and V1 feeds the C byte load.
+   Recorded the counterproof conditioned on this source and original
+   ED FD4/FD8 words, without adding fake references.
+
+**Reusable technique:** keep a real address operation boundary intact.
+An opaque constant alone may move the wrong web; bundling its real consumer
+can preserve the needed birth and delay slot without replacing control flow.

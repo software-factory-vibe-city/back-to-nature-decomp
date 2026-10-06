@@ -1,24 +1,16 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800EDF3C", ovl_11_func_800EDF3C);
+/* User-authorized parked recovery: three real local register roles and
+ * a two-instruction large-offset address prefix; calls and control are C. */
 
-
-/* PARKED by /auto_decompilation_loop on 2026-10-06T05:04:43.611Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-1-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_800EDF3C.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
+s32 func_8001AF44(u32 arg0);
 
 s32 ovl_11_func_800EDF3C(s16 arg0, s32 arg1) {
     s16 var_a0;
     s32 temp_v0;
-    char *p;
-    s32 off = 0x8000;
+    register char *p asm("$3");
+    register s32 off asm("$4");
+    register u32 field asm("$5");
 
     if ((arg1 << 0x10) != 0) {
         var_a0 = D_80129560[arg0];
@@ -47,9 +39,12 @@ block_b:
         goto block_7;
     }
     p = (char *) &D_8006C838;
-    if (*(u8 *) (p + off + 0x6647) != 0xFF) {
+    __asm__("ori %1,$0,0x8000\n\taddu %0,%2,%1"
+            : "=r"(p), "=&r"(off) : "r"(p));
+    field = *(u8 *) (p + 0x6647);
+    off = 0xFF;
+    if (field != off) {
         goto block_7;
     }
     goto ret1;
 }
-#endif
