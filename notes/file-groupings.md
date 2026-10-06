@@ -7598,6 +7598,30 @@ Members (link order):
 - ovl_15_func_80134724 (m, matched this session, byte-exact) — zeroes
   `D_8013759E`/`A0`/`A2`/`A4` and memsets `D_80140FE0` to 0 (0x1568 bytes)
 
+## `ovl_15` D_800742EC/D_801376D0 dual-base slot machinery — 0x801320A8 / 0x80133538 / 0x801335F8 (confidence: medium for the 0x80133538/0x801335F8 pair, low for 0x801320A8)
+
+Evidence: the same two record bases select this run. `ovl_15_func_801320A8`
+loads `&D_800742EC` and `D_801376D0` and calls `ovl_15_func_80133538` four times
+— `(&D_800742EC, 0/1)` and `(D_801376D0, 0/1)` — to count slots. The gapless
+successor of `ovl_15_func_80133538` (0x5750+0xC0 = 0x5810 = 0x801335F8) makes
+the identical selection `(v1 == 0) ? &D_800742EC : D_801376D0` and then walks
+the shared 2x5 table `D_80140F90`. That table is the tie to the D_8013759E/A0/A2/A4
+run above, whose members `ovl_15_func_80133F4C`/`ovl_15_func_80134000` use the
+same `idx = (arg0 != (s32)&D_800742EC)` base selection on `D_80140F90`, so the
+shared global pair is the cluster tie and the 0x80133538–0x801335F8 boundary is
+exact link adjacency.
+
+Members (link order):
+- ovl_15_func_801320A8 (s) — caller: selects both bases and calls the counter
+  four times, then aggregates the returned counts against the `D_801376D0` run's
+  thresholds
+- ovl_15_func_80133538 (m, matched this session, byte-exact) — leaf slot counter:
+  mode 0 walks 10 records at stride 0xB4 (`u16@0x0`, `u32@0x34 & 0x02000000`),
+  mode 1 walks 20 records at stride 0xB8 (`u16@0x708`, `u16@0x7BA`), returning
+  the match count
+- ovl_15_func_801335F8 (s) — gapless successor (ends exactly at 0x80133808, the
+  D_8013759E run head); same two-base selection, walks `D_80140F90`
+
 ## `ovl_15` number-text formatter pair — 0x80136C70 / 0x8013703C (confidence: medium)
 
 Evidence: gapless link adjacency agreeing with the call graph. `ovl_15_func_80136C70`

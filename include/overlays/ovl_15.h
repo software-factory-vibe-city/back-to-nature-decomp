@@ -39,6 +39,7 @@ void ovl_15_func_80132520(void);
 void ovl_15_func_801325AC(void);
 s32 ovl_15_func_801328C4(void);
 void ovl_15_func_80132A8C(struct M2C_9e3562919d92_ovl_15_80132A8C_data *arg0, s16 arg1);
+s16 ovl_15_func_80133538(u8 *arg0, s16 arg1);
 void ovl_15_func_80133F4C(s32 arg0, s16 arg1);
 void ovl_15_func_80134000(s32 arg0, s16 arg1);
 s32 ovl_15_func_801340B8(s32 arg0, s16 arg1);
