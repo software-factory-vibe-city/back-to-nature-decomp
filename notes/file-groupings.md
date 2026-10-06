@@ -7092,6 +7092,29 @@ Fingerprints:
   0x318 stride). The trio's declaration only witnessed the leading
   halfwords.
 
+## `ovl_21` D_8006C838 +0x8000 per-entity field writer+reader — 0x800BAB28 / 0x800BABF8 (confidence: medium)
+
+Evidence: shared global D_8006C838 with identical `arg0 * 0x1D4` stride
+computation (the `sll 3; subu; sll 2; addu; sll 2; addu; sll 2; addu`
+sequence), both accessing adjacent per-record fields at +0x19EA (s16) and
++0x19EC (u16) relative to the +0x8000 base, the same special-case entity ID
+tests (7, 9, 0x14), and gapless link adjacency (0x800BAB28 + 0xD0 =
+0x800BABF8). BAB28 writes both fields with clamping (u16: +0x1F4 capped at
+0xFE0A; s16: +0x14 capped at 0xEB); BABF8 reads the u16 at +0x19EC via
+`SquareRoot0` for the special IDs, or returns the s16 at +0x19EA with
+identical clamping for other IDs. The functions are complementary
+writer/reader of the same per-entity record fields, confirming same-TU
+origin.
+
+Members (link order):
+- ovl_21_func_800BAB28 (s) — per-entity field writer: clamps and stores the
+  u16 at +0x19EC (for id 7/9/20, capped at 0xFE0A after +0x1F4) or the s16
+  at +0x19EA (for other ids, capped at 0xFF after +0x14).
+- ovl_21_func_800BABF8 (m, matched this session, byte-exact) — per-entity
+  field reader: `SquareRoot0` of the u16 at +0x19EC (for id 7/9/20) or
+  returns the s16 at +0x19EA clamped (capped at 0xFF after +0x14, for other
+  ids).
+
 ## `ovl_25` D_800BCBD8 dispatch-table cluster — 0x800B7EB4–0x800B81F4 (confidence: medium)
 
 Candidate same-TU cluster around the callback table `D_800BCBD8` (ovl_25 data
