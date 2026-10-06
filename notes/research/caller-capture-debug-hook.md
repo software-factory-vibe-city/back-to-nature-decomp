@@ -95,7 +95,7 @@ Trigger: target function stores `$ra` through a non-`$sp` register with the
    compiler must own it (its multi-set web is skipped by the scheduler's
    single-set priority boost, which is exactly why it lands where it does in
    the target).
-5. Add the function to `.pi/autodecomp.json` `sourcePolicy.allowlist` as
+5. Add the function to `.pi/autoloop.json` `sourcePolicy.allowlist` as
    `["embedded-asm"]`.
 6. Verify with `diffFunc`, then `make check`.
 

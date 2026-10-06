@@ -125,7 +125,7 @@ export interface GateResult {
   checkedAt: string;
   timings?: { phases: Array<{ phase: string; durationMs: number; cache?: "hit" | "miss"; reason?: string }>; totalMs: number };
   cache?: { hit: boolean; reason: string };
-  receipt?: import("../tools/verification-receipt.ts").VerificationReceipt;
+  receipt?: import("../psx-decomp/tools/verification-receipt.ts").VerificationReceipt;
   finalizationGates?: GateResult[];
 }
 
@@ -190,7 +190,7 @@ export interface FunctionState {
   attempts: string[];
   attemptsThisEpoch: number;
   matchedAt?: string;
-  completion?: import("../tools/prepared-attempt.ts").Completion;
+  completion?: import("../psx-decomp/tools/prepared-attempt.ts").Completion;
   lastGate?: GateResult;
   lastDiffCategory?: string;
   lastRemainingDiff?: string;

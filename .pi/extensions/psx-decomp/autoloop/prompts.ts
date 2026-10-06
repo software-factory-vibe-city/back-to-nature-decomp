@@ -1,5 +1,5 @@
-import type { ResidualReading } from "../autonomous/gates.ts";
-import type { DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
+import type { ResidualReading } from "../../shared/gates.ts";
+import type { DiffResult, GateResult, PolicyFinding } from "../../shared/types.ts";
 import type { HandoffSummary } from "./types.ts";
 import { measurements, readLedger, renderValley, valley } from "../../../../tools/agent/experimentLedger.ts";
 import { renderClosed } from "../../../../tools/agent/closedDirections.ts";

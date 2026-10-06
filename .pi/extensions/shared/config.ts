@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { AutodecompConfig, ModelTierConfig } from "./types.ts";
+import { LOOP_CONFIG_FIELDS } from "../psx-decomp/autoloop/config.ts";
 
 export const DEFAULT_CONFIG: AutodecompConfig = {
   runtimeDir: "run_output/autodecomp",
@@ -101,7 +102,7 @@ export function containerScope(value: unknown): string[] | null {
 }
 
 export function loadConfig(projectRoot: string): AutodecompConfig {
-  const path = resolve(projectRoot, ".pi", "autodecomp.json");
+  const path = resolve(projectRoot, ".pi", "autoloop.json");
   const raw = existsSync(path) ? object(JSON.parse(readFileSync(path, "utf8"))) : {};
   const matching = object(raw.matching);
   const refinement = object(raw.refinement);
@@ -110,7 +111,7 @@ export function loadConfig(projectRoot: string): AutodecompConfig {
   const budgets = object(raw.budgets);
   const sourcePolicy = object(raw.sourcePolicy);
 
-  rejectUnknown(raw, ["runtimeDir", "containers", "parallelism", "requireCleanTrackedTree", "matching", "refinement", "retry", "integration", "budgets", "sourcePolicy"], "autodecomp config");
+  rejectUnknown(raw, LOOP_CONFIG_FIELDS, "autoloop config");
   rejectUnknown(matching, ["models", "turnLimit", "timeoutMinutes", "idleTimeoutMinutes"], "matching");
   rejectUnknown(refinement, ["targetedEveryMatches", "targetedBatchSize", "projectEveryMatches", "projectAtFinalization"], "refinement");
   rejectUnknown(retry, ["retryParkedAfterEpoch", "retryOnNeighborHashChange", "blockedSleepMinutes"], "retry");

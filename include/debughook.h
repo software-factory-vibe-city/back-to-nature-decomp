@@ -33,7 +33,7 @@
  *   in-place parameter mask). Argument loads hoist above the asm on
  *   their own; no staging locals are needed;
  * - functions using this macro need an "embedded-asm" entry in the
- *   .pi/autodecomp.json sourcePolicy allowlist.
+ *   .pi/autoloop.json sourcePolicy allowlist.
  */
 #define CAPTURE_RA(dst) \
     __asm__ volatile("addu $8,%0,$0" : : "r"(dst) : "$8"); \

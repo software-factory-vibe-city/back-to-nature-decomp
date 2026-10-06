@@ -117,7 +117,7 @@ The root cause was a **declaration**, not a flag — the comment in
 ## 5. The residue
 
 Measured 2026-08-09 by scanning `src/*.c`, `configs/flag_overrides.mk`, and
-`.pi/autodecomp.json`. **Re-run the scan rather than trusting this list** —
+`.pi/autoloop.json`. **Re-run the scan rather than trusting this list** —
 every hand-maintained count in the deleted note went stale, in both directions.
 
 Eight `src/*.c` files contain `__asm__` at all:
@@ -147,7 +147,7 @@ delay-slot patch, so the two should be settled together.
 
 1. ~~**The allowlist under-describes the tree in both directions.**~~
    **Closed 2026-08-09 by owner decision.** Every construct the tree actually
-   carries is now listed in `.pi/autodecomp.json`: `func_8001DFD4` and
+   carries is now listed in `.pi/autoloop.json`: `func_8001DFD4` and
    `func_80038674` (legitimately assembly), `func_8002437C` (the non-emitting
    alias block), and the pins in `func_8001E9F8`, `func_80020E38`, and
    `func_80021820`. The stale `func_80016054` / `func_80015704` grants were

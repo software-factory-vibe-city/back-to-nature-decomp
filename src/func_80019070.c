@@ -102,7 +102,7 @@ void *func_80019070(s32 *ordering_table, u8 *packet, u32 glyph,
 /*
  * Exact hybrid selected after exhausting the documented clean-C mechanisms.
  * This function is explicitly allowlisted for register-asm and embedded-asm
- * in .pi/autodecomp.json; it is not a general policy precedent.
+ * in .pi/autoloop.json; it is not a general policy precedent.
  */
 void *func_80019070(s32 *ordering_table, u8 *packet, u32 glyph,
                     s32 x, s16 y, u8 red, u8 green, u8 blue,

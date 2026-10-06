@@ -5,7 +5,7 @@ one construct outside stock clean C is a **no-op inline-asm that merely reads
 the loop index** — it emits zero instructions and exists only to raise the
 index's weighted reference count above the byte-offset accumulator's, which is
 what the target's register allocation requires. User-approved allowlist entry
-`func_8001e340: ["embedded-asm"]` in `.pi/autodecomp.json`.
+`func_8001e340: ["embedded-asm"]` in `.pi/autoloop.json`.
 
 ## The function
 

@@ -141,8 +141,8 @@ sites and documentation skill.
 ## 9. Subprocess handling and cancellation — expanded scope
 
 **Files:** `tools/lib/recordedCommand.ts`,
-`.pi/extensions/psx-decomp/autonomous/process.ts`,
-`.pi/extensions/psx-decomp/autonomous/workspace.ts`, gates and command
+`.pi/extensions/shared/process.ts`,
+`.pi/extensions/shared/workspace.ts`, gates and command
 lifecycle code.
 
 - Added file-backed recording of full stdout/stderr.
@@ -193,7 +193,7 @@ New TypeScript test files:
 
 Incidental production fixes are in `tools/agent/cSourceGuard.ts`,
 `tools/agent/variant-lab/artifacts.ts`,
-`.pi/extensions/psx-decomp/autonomous/source-policy.ts` and the autoloop
+`.pi/extensions/shared/source-policy.ts` and the autoloop
 verdict narrowing, as well as parser cleanup in the context helpers.
 
 ## 12. Instructions and status documentation

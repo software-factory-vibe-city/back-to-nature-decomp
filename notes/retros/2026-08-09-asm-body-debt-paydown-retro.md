@@ -103,7 +103,7 @@ a function you could not match** — quarantine it as `INCLUDE_ASM` in
 `nonmatchings/` with its diff signature, which is honest, and file the obstacle.
 
 The same hygiene failure is visible in the other direction. As re-measured on
-2026-08-09, `.pi/autodecomp.json` still grants `embedded-asm` to
+2026-08-09, `.pi/autoloop.json` still grants `embedded-asm` to
 `func_80016054` and `func_80015704`, neither of which contains any assembly,
 while `func_80021820` (a register pin) and `func_800244FC` (a scheduling
 barrier) carry constructs and are **not** listed. The allowlist under-describes

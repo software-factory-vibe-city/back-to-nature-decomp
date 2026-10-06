@@ -1,5 +1,5 @@
 import type { Completion } from "../tools/prepared-attempt.ts";
-import type { PolicyFinding } from "../autonomous/types.ts";
+import type { PolicyFinding } from "../../shared/types.ts";
 
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 

@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { functionPaths } from "../autonomous/call-graph.ts";
-import { runCommand } from "../autonomous/process.ts";
-import type { PolicyFinding } from "../autonomous/types.ts";
+import { functionPaths } from "../../shared/call-graph.ts";
+import { runCommand } from "../../shared/process.ts";
+import type { PolicyFinding } from "../../shared/types.ts";
 import { declaresIncludeAsm, inspectSource, type SourceFacts } from "./c-ast.ts";
 import type { LoopConfig, ParkRecord, ParkReason } from "./types.ts";
 
@@ -222,7 +222,7 @@ export function buildApprovalNote(record: ParkRecord, attemptSource: string, pla
           "The top escalation tier proposed a source construct the clean-source policy forbids,",
           "and there is no higher agent to adjudicate it. Decide whether the construct is the",
           "correct answer for this function. If it is, add the allowlist entry to",
-          "`.pi/autodecomp.json` under `sourcePolicy.allowlist` and re-run the loop on this",
+          "`.pi/autoloop.json` under `sourcePolicy.allowlist` and re-run the loop on this",
           "target. If it is not, the function needs a different structural hypothesis.",
         ].join("\n")
       : [
@@ -273,7 +273,7 @@ export function buildApprovedExemptionNote(
     "",
     [
       "The loop honours this exemption for the rest of its own run, but it does not write it",
-      "into `.pi/autodecomp.json`. That allowlist is a permanent assertion that the construct is",
+      "into `.pi/autoloop.json`. That allowlist is a permanent assertion that the construct is",
       "the correct answer for this function, and only a human makes that assertion. Ratify it by",
       "adding the entry there, or reject it by re-opening the function.",
     ].join("\n"),

@@ -1,4 +1,4 @@
-import { workspaceChangedFiles } from "../autonomous/workspace.ts";
+import { workspaceChangedFiles } from "../../shared/workspace.ts";
 
 /**
  * Session-scoped snapshot of the workspace's dirty files, captured once at

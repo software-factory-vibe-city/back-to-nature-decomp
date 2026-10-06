@@ -2,7 +2,7 @@ import { basename, extname } from "node:path";
 import type { AutodecompConfig, DiffResult, GateResult, WorkMode } from "./types.ts";
 import { runCommand } from "./process.ts";
 import { checkSourcePolicy } from "./source-policy.ts";
-import { Timings } from "../../../../tools/lib/contentCache.js";
+import { Timings } from "../../../tools/lib/contentCache.js";
 
 /**
  * The oracle's summary lines.

@@ -103,7 +103,7 @@ sources should remain strict unless they carry verifiable exact-edit lineage.
 - `tools/agent/variant-lab/manifest.ts`
 - `tools/agent/variant-lab/transformations.ts`
 - `tools/agent/source-shape-search/generator.ts`
-- `.pi/extensions/psx-decomp/autonomous/source-policy.ts`
+- `.pi/extensions/shared/source-policy.ts`
 
 ## 3. Per-variant target-schedule mechanism comparison
 

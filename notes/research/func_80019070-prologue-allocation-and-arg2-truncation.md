@@ -17,7 +17,7 @@ clamp, CLUT computation, RGB setup, and semitransparency branch in C, while
 hard-register extended-assembly windows encode the compiler state that could
 not be reproduced naturally. This is a function-specific exception, recorded
 as `register-asm` and `embedded-asm` under `sourcePolicy.allowlist` in
-`.pi/autodecomp.json`, not a general relaxation of source policy.
+`.pi/autoloop.json`, not a general relaxation of source policy.
 
 Verification of the final form:
 

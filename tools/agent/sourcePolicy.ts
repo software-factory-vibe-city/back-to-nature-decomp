@@ -3,15 +3,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "../../.pi/extensions/psx-decomp/autonomous/config.ts";
-import { loadCallGraph } from "../../.pi/extensions/psx-decomp/autonomous/call-graph.ts";
-import { checkSourcePolicy, isPendingStub } from "../../.pi/extensions/psx-decomp/autonomous/source-policy.ts";
+import { loadConfig } from "../../.pi/extensions/shared/config.ts";
+import { loadCallGraph } from "../../.pi/extensions/shared/call-graph.ts";
+import { checkSourcePolicy, isPendingStub } from "../../.pi/extensions/shared/source-policy.ts";
 import {
   changedFilesBetweenTrees,
   createTreeFromWorktree,
   treePatch,
   workspaceChangedFiles,
-} from "../../.pi/extensions/psx-decomp/autonomous/workspace.ts";
+} from "../../.pi/extensions/shared/workspace.ts";
 
 const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 

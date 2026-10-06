@@ -33,9 +33,9 @@ test("packet freshness separates ledger diagnostics while checking artifacts and
 test("isolated preparation reuses evidence, preserves repeated draft edits, and rejects interrupted/cancelled work", { timeout: 150_000 }, (t) => {
   const root = mkdtempSync(join(tmpdir(), "preparation-integration-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const path of ["src", "include", "configs", ".pi/extensions/psx-decomp", "tools/agent", "tools/build", "tools/lib", "tools/diagnostics"])
+  for (const path of ["src", "include", "configs", ".pi/extensions/psx-decomp", ".pi/extensions/shared", "tools/agent", "tools/build", "tools/lib", "tools/diagnostics"])
     cpSync(join(ROOT, path), join(root, path), { recursive: true });
-  for (const path of ["Makefile", "package.json", "package-lock.json", ".pi/autodecomp.json"]) cpSync(join(ROOT, path), join(root, path));
+  for (const path of ["Makefile", "package.json", "package-lock.json", ".pi/autoloop.json"]) cpSync(join(ROOT, path), join(root, path));
   for (const path of ["node_modules", "tools/vendor", "lib", "extracted"]) symlinkSync(join(ROOT, path), join(root, path));
   mkdirSync(join(root, "build"));
   const mk = readFileSync(join(ROOT, "Makefile"), "utf8"), base = mk.match(/^BASENAME\s*:=\s*(\S+)/m)![1]!;

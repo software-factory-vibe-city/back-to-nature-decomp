@@ -564,7 +564,7 @@ export const TOOL_SPECS: ToolSpec[] = [
     label: "PSX Source Policy",
     script: "sourcePolicy.ts",
     description:
-      "Run the clean-source policy gate: scan for register pinning, embedded or top-level assembly, new assembly stubs, flag overrides, and copied legacy workarounds that are not allowlisted in .pi/autodecomp.json. Omit the function name to scan every live compiled function.",
+      "Run the clean-source policy gate: scan for register pinning, embedded or top-level assembly, new assembly stubs, flag overrides, and copied legacy workarounds that are not allowlisted in .pi/autoloop.json. Omit the function name to scan every live compiled function.",
     parameters: Type.Object({
       functionName: Type.Optional(Type.String({ description: "Restrict the scan to one function; omit to scan all" })),
       json: JSON_FLAG,

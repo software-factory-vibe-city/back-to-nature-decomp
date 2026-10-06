@@ -72,7 +72,7 @@ test("a note quoting embedded asm is documentation, not a violation", () => {
 test("project scope permits plans without widening unrelated roots or source exceptions", () => {
   const { root, config } = fixture("void target(void) {}\n");
   /* Finalization reads the project's integration roots, not DEFAULT_CONFIG. */
-  const projectRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+  const projectRoot = fileURLToPath(new URL("../../../", import.meta.url));
   config.integration = loadConfig(projectRoot).integration;
   const changedFiles = [
     "plans/retired-overview.md",

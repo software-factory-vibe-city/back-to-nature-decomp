@@ -89,30 +89,31 @@ export function parseLadder(value: unknown): LoopTier[] {
   });
 }
 
+/** Both the loop and its shared gates read this configuration file. */
+export const LOOP_CONFIG_FIELDS = [
+  "ladder",
+  "returnsPerTier",
+  "maxReturnsPerTier",
+  "tierMinutes",
+  "parkAfterStalledMeasurements",
+  "singleTier",
+  "maxFunctions",
+  "clearContextBetween",
+  "compactAtTokens",
+  "handoffSummary",
+  "updateFileGroupings",
+  "commitOnMatch",
+  "commitOnPark",
+  "runtimeDir",
+  "approvalsDir",
+  "integration",
+  "sourcePolicy",
+];
+
 export function loadLoopConfig(projectRoot: string): LoopConfig {
   const path = resolve(projectRoot, ".pi", "autoloop.json");
   const raw = existsSync(path) ? object(JSON.parse(readFileSync(path, "utf8"))) : {};
-  rejectUnknown(
-    raw,
-    [
-      "ladder",
-      "returnsPerTier",
-      "maxReturnsPerTier",
-      "tierMinutes",
-      "parkAfterStalledMeasurements",
-      "singleTier",
-      "maxFunctions",
-      "clearContextBetween",
-      "compactAtTokens",
-      "handoffSummary",
-      "updateFileGroupings",
-      "commitOnMatch",
-      "commitOnPark",
-      "runtimeDir",
-      "approvalsDir",
-    ],
-    "autoloop config",
-  );
+  rejectUnknown(raw, LOOP_CONFIG_FIELDS, "autoloop config");
 
   const runtimeDir = typeof raw.runtimeDir === "string" ? raw.runtimeDir : "run_output/autoloop";
   const approvalsDir = typeof raw.approvalsDir === "string" ? raw.approvalsDir : DEFAULT_LOOP_CONFIG.approvalsDir;

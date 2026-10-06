@@ -11,7 +11,7 @@
 The top escalation tier proposed a source construct the clean-source policy forbids,
 and there is no higher agent to adjudicate it. Decide whether the construct is the
 correct answer for this function. If it is, add the allowlist entry to
-`.pi/autodecomp.json` under `sourcePolicy.allowlist` and re-run the loop on this
+`.pi/autoloop.json` under `sourcePolicy.allowlist` and re-run the loop on this
 target. If it is not, the function needs a different structural hypothesis.
 
 ## Policy findings

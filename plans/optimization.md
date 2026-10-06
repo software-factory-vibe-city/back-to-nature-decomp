@@ -75,7 +75,7 @@ All 1,262 section-size readings agreed, and every container derivation was ident
 
 Use a validated ELF section reader, or initially batch `objdump` calls. Batch all-container validation into one process; the validator already supports `--all`.
 
-Keep checking every container. Hashing all images is practically free. The old comment in `autonomous/gates.ts` that overlay checks add only 0.2 seconds is no longer representative.
+Keep checking every container. Hashing all images is practically free. The old comment in `.pi/extensions/shared/gates.ts` that overlay checks add only 0.2 seconds is no longer representative.
 
 ### Context export
 

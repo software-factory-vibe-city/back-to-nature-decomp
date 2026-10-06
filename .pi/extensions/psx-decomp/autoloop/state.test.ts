@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_CONFIG } from "../autonomous/config.ts";
+import { DEFAULT_CONFIG } from "../../shared/config.ts";
 import { emptyState, withLoopExemptions } from "./state.ts";
 import { KEEP_GOING, escalationMessage, nudgeMessage, openingMessage } from "./prompts.ts";
 

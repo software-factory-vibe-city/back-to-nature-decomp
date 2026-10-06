@@ -121,7 +121,7 @@ trace and target-schedule reports.
 
 The project currently has two policy implementations with different behavior:
 
-- `.pi/extensions/psx-decomp/autonomous/source-policy.ts` recognizes a
+- `.pi/extensions/shared/source-policy.ts` recognizes a
   configured empty memory barrier;
 - `tools/agent/variant-lab/manifest.ts` rejects any embedded asm spelling.
 
@@ -169,7 +169,7 @@ require `sourcePolicy.allowEmptyMemoryBarrier` in the active configuration.
 
 Both autonomous source policy and variant validation should consume this
 classifier. The scanner should be pure; callers pass policy options rather
-than the low-level module loading `.pi/autodecomp.json` itself.
+than the low-level module loading `.pi/autoloop.json` itself.
 
 ## A2. Protected baseline template
 

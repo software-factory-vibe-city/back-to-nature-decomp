@@ -70,7 +70,7 @@ workaround that the C sources still use.
 | Full function in assembly | 2 | The handwritten-assembly class |
 | Per-file compiler flag | 1 | `func_80014494` uses `-fno-cse-skip-blocks` |
 
-The allowlist is `.pi/autodecomp.json`, key `sourcePolicy.allowlist`. Each
+The allowlist is `.pi/autoloop.json`, key `sourcePolicy.allowlist`. Each
 entry is the audit trail for one construct. The gate refuses a construct that
 has no entry.
 
@@ -213,7 +213,7 @@ tools/                  TypeScript tools that run with npx tsx
   diagnostics/          Progress, diff, and one-shot analysis tools
   lib/                  Shared modules (psxExeInfo.ts, symbolIndex.ts, functionOracle.ts)
   vendor/               Vendored repositories
-.pi/                    Pi extension commands, skills, tools, and the supervisor
+.pi/                    Pi extension commands, skills, tools, and the in-session loop
 notes/                  Research and write-ups. This is the project memory
 prompts/                The matching guide, and archived templates
 plans/                  Plans for tool and workflow work, with their status
@@ -832,67 +832,6 @@ verified legacy presentation copies, and preserves edited/unknown files.
 See `plans/deterministic-resource-extraction.md` for the implemented contract and
 verification, and `plans/asset-extraction.md` for the retained broader format roadmap.
 
-## The autonomous loop
-
-The supervisor is in `.pi/extensions/psx-decomp/autonomous/`. It is
-deterministic. It runs short-lived Pi workers in isolation, gates their
-patches, and schedules the work.
-
-Control it from Pi:
-
-```text
-/autodecomp start
-/autodecomp status
-/autodecomp pause
-/autodecomp resume
-/autodecomp stop
-/autodecomp retry <function-or-vram>
-/autodecomp skip <function-or-vram>
-/autodecomp unblock <function-or-vram>
-/autodecomp logs
-```
-
-Or run it from a shell:
-
-```bash
-npm run autodecomp -- start
-npm run autodecomp -- start --dry-run
-npm run autodecomp -- start --once
-npm run autodecomp -- status
-```
-
-The configuration is `.pi/autodecomp.json`. The supervisor writes its state,
-its Pi sessions, its patches, and its reports to `run_output/autodecomp/`. Git
-ignores that directory.
-
-Make the tracked tree clean before the first start. The supervisor uses
-sequential detached git worktrees. It applies an accepted patch to the main
-checkout as one transaction, and then checks the patch again. It never commits
-a patch. A failed patch stays in the runtime directory. A failed patch cannot
-make the main checkout dirty.
-
-A detached run mirrors three streams into one append-only file: the Pi worker
-JSON, the worker stderr, and the controller events. Follow the file:
-
-```bash
-tail -F run_output/autodecomp/controller.log
-```
-
-To detach and attach a terminal, run the foreground controller inside `tmux`:
-
-```bash
-tmux new-session -s autodecomp 'npm run autodecomp -- start'
-tmux attach-session -t autodecomp
-```
-
-The foreground controller mirrors each worker stream to that terminal.
-
-**Warning:** a gate that checks bytes only rewards embedded assembly, register
-pins, and flag overrides. The skills refuse those results. They ask for a
-classified report of the obstacle instead. Read
-`notes/retros/2026-08-09-asm-folding-root-cause-retro.md` before you match
-more functions.
-
 ## The `make split` pipeline
 
 Splat alone cannot process this binary. Three properties stop it: the PSY-Q
@@ -919,7 +858,7 @@ libraries, the references between files, and the BSS layout. Therefore
 
 | Directory | Contents |
 |---|---|
-| `.pi/` | The Pi commands, the PlayStation skills, the tool wrappers, and the autonomous supervisor |
+| `.pi/` | The Pi commands, the PlayStation skills, the tool wrappers, and the in-session loop |
 | `tools/agent/` | The decompilation tools. See the list below |
 | `tools/build/` | The `make split` pipeline |
 | `tools/diagnostics/` | `progress.ts`, `diffBinary.ts`, `headerInfo.ts`, `matchSignatures.ts`, `benchmarkReconstruction.ts`, `coldContextEvaluation.ts`, `feedbackLoop.ts` |

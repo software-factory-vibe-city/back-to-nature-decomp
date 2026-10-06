@@ -539,7 +539,7 @@ Reuse these existing components rather than fork their implementations:
 | `tools/agent/residual-source-search/` | C frontend, supported rewrite constructors, enumeration infrastructure |
 | `tools/agent/variant-lab/` | Preserved source/compiler experiments |
 | `tools/agent/experimentLedger.ts`, `tools/agent/closedDirections.ts` | Measurement history and assumption-scoped exclusions |
-| `.pi/extensions/psx-decomp/autonomous/` | Existing integration/policy machinery, subject to authorization |
+| `.pi/extensions/shared/` | Existing integration/policy machinery, subject to authorization |
 
 Add shared helpers only when another consumer needs them. Extend the relevant
 existing module for cache or inventory fixes. Wire new test directories into

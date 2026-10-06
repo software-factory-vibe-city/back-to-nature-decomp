@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { AutodecompConfig } from "../autonomous/types.ts";
+import type { AutodecompConfig } from "../../shared/types.ts";
 import type { ApprovalRecord, LoopConfig, LoopState, ParkRecord } from "./types.ts";
 
 export function statePath(config: LoopConfig): string {
@@ -48,7 +48,7 @@ export function recordApproval(config: LoopConfig, state: LoopState, record: App
  * A parked function is `INCLUDE_ASM` on purpose, and an agent-approved
  * exemption has been adjudicated one rung up the ladder — both must stop the
  * gate from failing every *later* function whose patch happens to contain
- * those lines. Neither is written into `.pi/autodecomp.json`: that allowlist is
+ * those lines. Neither is written into `.pi/autoloop.json`: that allowlist is
  * the human's permanent assertion about a function, and the loop only ever
  * files a request for one (see the approvals directory).
  */

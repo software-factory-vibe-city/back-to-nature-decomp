@@ -9,7 +9,6 @@ import { registerExplainDiffTool } from "./tools/explain-diff.ts";
 import { registerExportContextTool } from "./tools/export-context.ts";
 import { registerFinalizeFunctionTool } from "./tools/finalize-function.ts";
 import { registerFuzzVariantsTool } from "./tools/fuzz-variants.ts";
-import { registerAutodecompCommands } from "./autonomous/commands.ts";
 import { registerAutoloopCommands } from "./autoloop/commands.ts";
 import { registerM2cTool } from "./tools/m2c.ts";
 import { registerSearchSourceShapesTool } from "./tools/search-source-shapes.ts";
@@ -186,7 +185,7 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
   registerExplainDiffTool(pi);
   registerExportContextTool(pi);
   registerFinalizeFunctionTool(pi, (name, files, ctx) => {
-    if (process.env.AUTODECOMP_WORKER !== "1" && !loopActive()) documentation.start(name, agentCompletion(root, files), ctx);
+    if (!loopActive()) documentation.start(name, agentCompletion(root, files), ctx);
   });
   registerFuzzVariantsTool(pi);
   registerM2cTool(pi);
@@ -307,7 +306,6 @@ export default function psxDecompExtension(pi: ExtensionAPI) {
     },
   });
 
-  registerAutodecompCommands(pi, root);
   loopActive = registerAutoloopCommands(pi, root);
 
   pi.registerCommand("decomp-status", {

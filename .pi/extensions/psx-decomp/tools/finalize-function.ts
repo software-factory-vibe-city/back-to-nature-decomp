@@ -1,9 +1,9 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { loadConfig } from "../autonomous/config.ts";
+import { loadConfig } from "../../shared/config.ts";
 import { finalizeWorkspace } from "./finalization.ts";
-import { loadCallGraph } from "../autonomous/call-graph.ts";
-import { createTreeFromWorktree, changedFilesBetweenTrees, filterNewChanges, treePatch, workspaceChangedFiles } from "../autonomous/workspace.ts";
+import { loadCallGraph } from "../../shared/call-graph.ts";
+import { createTreeFromWorktree, changedFilesBetweenTrees, filterNewChanges, treePatch, workspaceChangedFiles } from "../../shared/workspace.ts";
 import { getSessionBaseline } from "./session-baseline.ts";
 import { validateFunctionName } from "./shared.ts";
 

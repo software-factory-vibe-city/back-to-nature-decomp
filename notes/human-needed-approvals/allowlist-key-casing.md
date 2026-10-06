@@ -6,12 +6,12 @@
 ## The defect
 
 The source-policy checker
-(`.pi/extensions/psx-decomp/autonomous/source-policy.ts:26`) looks up
+(`.pi/extensions/shared/source-policy.ts:26`) looks up
 allowlist entries by `name.toLowerCase()` (or lowercased vram), but reads
 the stored keys as-is. A key containing uppercase hex letters can
 therefore never match by name.
 
-Exactly one entry in `.pi/autodecomp.json` is affected:
+Exactly one entry in `.pi/autoloop.json` is affected:
 `func_8001FEA4` (`register-asm, embedded-asm`). Its exception is silently
 non-functional and will surface as a spurious asm-policy blocker the next
 time `src/func_8001FEA4.c` is touched. (Keys whose hex digits are all

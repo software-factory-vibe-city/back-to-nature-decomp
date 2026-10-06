@@ -58,7 +58,7 @@ The word is the target branch from offset 0xB4 to the shared epilogue at 0x334;
 encoding it directly preserves the delay slot. Its layout coupling is covered
 by both the exact function oracle and linked-binary verification.
 
-`.pi/autodecomp.json` allowlists only `register-asm` and `embedded-asm` for this
+`.pi/autoloop.json` allowlists only `register-asm` and `embedded-asm` for this
 symbol. It does not allow an `INCLUDE_ASM` stub or a per-file compiler flag.
 
 ## What the function is

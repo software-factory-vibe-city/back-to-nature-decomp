@@ -14,7 +14,7 @@
  * split addresses the lui is an independent insn with no a0 hazard, so
  * sched2 always lifts it into the load shadow. Two functions in this TU now
  * carry the flag independently; it is a TU-level fact, not a per-function
- * workaround. Owner-approved and allowlisted (.pi/autodecomp.json) 2026-08-06.
+ * workaround. Owner-approved and allowlisted (.pi/autoloop.json) 2026-08-06.
  *
  * Web-shape choices that are load-bearing (do not "simplify"):
  * - flip2 = flip; flip = 0;  — the dead redefinition blocks CSE in-block

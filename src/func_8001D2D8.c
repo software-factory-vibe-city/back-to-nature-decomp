@@ -1,7 +1,7 @@
 /* Return 1 if any packed GTE SXY argument has X in [-19, 319]. */
 /*
  * POLICY EXCEPTION (owner-authorized): hard-register pinning plus a
- * zero-instruction asm tie. Allowlisted in .pi/autodecomp.json as
+ * zero-instruction asm tie. Allowlisted in .pi/autoloop.json as
  * "register-asm". Everything outside the entry block is ordinary C.
  *
  * Why it is needed. The target's entry block is

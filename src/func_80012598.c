@@ -15,7 +15,7 @@ s32 D_8005E3BC;
  *
  * POLICY EXCEPTION -- hard-register pinning and embedded asm, granted
  * explicitly by the user on 2026-08-11 (AGENTS.md defers the clean-source
- * policy to explicit user instruction). Allowlisted in .pi/autodecomp.json.
+ * policy to explicit user instruction). Allowlisted in .pi/autoloop.json.
  *
  * This is tracked debt, not a claim about the original source. The original was
  * certainly plain C: the constructs below are forcing devices for register

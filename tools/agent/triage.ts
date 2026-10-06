@@ -2181,7 +2181,7 @@ function functionVram(name: string): string | undefined {
 }
 
 function allowlistFor(name: string): string[] {
-  const policyPath = join(ROOT, ".pi/autodecomp.json");
+  const policyPath = join(ROOT, ".pi/autoloop.json");
   if (!existsSync(policyPath)) return [];
   try {
     const policy = JSON.parse(readFileSync(policyPath, "utf-8"));
@@ -2193,7 +2193,7 @@ function allowlistFor(name: string): string[] {
 }
 
 /**
- * Mirrors .pi/extensions/psx-decomp/autonomous/source-policy.ts, with one
+ * Mirrors .pi/extensions/shared/source-policy.ts, with one
  * added discrimination the gate does not need but an agent does: a top-level
  * asm block that emits a whole function (`.globl`/`.ent`/`.text` in its
  * template) is an established handwritten-assembly reconstruction, not the
@@ -2223,7 +2223,7 @@ function detectAsmPolicy(name: string, srcText: string): Finding[] {
       severity: "blocker",
       summary:
         `source pins hard registers (register-asm) but ${name} has no such entry ` +
-        "in .pi/autodecomp.json sourcePolicy.allowlist — this cannot ship " +
+        "in .pi/autoloop.json sourcePolicy.allowlist — this cannot ship " +
         "regardless of its score.",
       evidence: [`allowlisted: ${allowed.length > 0 ? allowed.join(", ") : "(none)"}`],
       see: ["AGENTS.md", "prompts/c-style-guide.md"],
@@ -2250,7 +2250,7 @@ function detectAsmPolicy(name: string, srcText: string): Finding[] {
       severity: "blocker",
       summary:
         `source uses embedded asm but ${name} has no embedded-asm entry in ` +
-        ".pi/autodecomp.json sourcePolicy.allowlist — this cannot ship regardless " +
+        ".pi/autoloop.json sourcePolicy.allowlist — this cannot ship regardless " +
         "of its score. Treat the missing entry as evidence the premise is wrong, " +
         "not as paperwork to file later.",
       evidence: [

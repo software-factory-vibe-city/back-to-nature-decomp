@@ -354,7 +354,7 @@ demonstrates this for the last two).
 (missing the leading `i`) reported as "outside the configured integration
 roots".
 
-**Root cause:** `.pi/extensions/psx-decomp/autonomous/workspace.ts` — the
+**Root cause:** `.pi/extensions/shared/workspace.ts` — the
 `git()` helper returned `result.stdout.trim()`. The first
 `git status --porcelain=v1` line is `" M include/functions.h"`; trimming
 strips its status-column space, so the parser's `line.slice(3)` eats one

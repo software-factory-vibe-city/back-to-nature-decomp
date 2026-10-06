@@ -196,20 +196,6 @@ npx tsx tools/agent/residualObjective.ts ovl_31_func_800B82E8
 npx tsx tools/agent/contextExport.ts ovl_31_func_800B82E8
 ```
 
-The autonomous controller takes a container filter, which is the scheduling
-shape the plan argues for — one run per container, coordinating through nothing
-but the shared engine symbol export:
-
-```
-npx tsx .pi/extensions/psx-decomp/autonomous/controller.ts start --container ovl_11
-npx tsx .pi/extensions/psx-decomp/autonomous/controller.ts status
-```
-
-Its state is keyed by `<container>:<address>`, because two overlays that share a
-RAM slot hold different functions at one address. A control request may name a
-function or that key; a bare address is refused when it is ambiguous rather than
-resolved to whichever entry came first.
-
 ## What completes from nothing, and what does not
 
 Verified from an empty tree:

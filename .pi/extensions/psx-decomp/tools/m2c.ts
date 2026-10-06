@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { functionPaths } from "../autonomous/call-graph.ts";
+import { functionPaths } from "../../shared/call-graph.ts";
 import { runProjectCommand, validateFunctionName } from "./shared.ts";
 
 export function registerM2cTool(pi: ExtensionAPI): void {

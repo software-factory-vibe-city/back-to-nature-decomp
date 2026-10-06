@@ -31,10 +31,10 @@ export function buildInputs(root: string): Record<string, string> {
       if (e.isDirectory()) visit(file); else inputs[relative(root, file)] = hashFile(file);
     }
   };
-  for (const dir of ["src", "include", "configs", "tools/agent", "tools/build", "tools/lib", ".pi/extensions/psx-decomp", "tools/vendor/m2c/m2c", "tools/vendor/m2c/m2c_pycparser", "tools/vendor/m2c-patches", "tools/vendor/maspsx/maspsx", "tools/vendor/tree-sitter-c"]) visit(join(root, dir));
+  for (const dir of ["src", "include", "configs", "tools/agent", "tools/build", "tools/lib", ".pi/extensions/psx-decomp", ".pi/extensions/shared", "tools/vendor/m2c/m2c", "tools/vendor/m2c/m2c_pycparser", "tools/vendor/m2c-patches", "tools/vendor/maspsx/maspsx", "tools/vendor/tree-sitter-c"]) visit(join(root, dir));
   const tools = configuredToolchainIdentity();
   for (const file of [tools.compiler.path, tools.assemblerShim.path, "tools/vendor/m2c/m2c.py", ...loadContainers().map((c) => c.targetPath)]) inputs[file] = hashFile(join(root, file));
-  for (const file of ["Makefile", ".pi/autodecomp.json", "package-lock.json", "node_modules/web-tree-sitter/web-tree-sitter.js", "node_modules/web-tree-sitter/web-tree-sitter.wasm"]) inputs[file] = hashFile(join(root, file));
+  for (const file of ["Makefile", ".pi/autoloop.json", "package-lock.json", "node_modules/web-tree-sitter/web-tree-sitter.js", "node_modules/web-tree-sitter/web-tree-sitter.wasm"]) inputs[file] = hashFile(join(root, file));
   return inputs;
 }
 export const inputIdentity = (inputs: Record<string, string>) => hashText(JSON.stringify(Object.entries(inputs).sort(([a], [b]) => a.localeCompare(b))));

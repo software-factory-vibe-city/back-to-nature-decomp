@@ -36,7 +36,7 @@ import { ROOT } from "../decompToolchain.js";
 import { loadContainers, containerTargetPath } from "../../lib/container.js";
 import { requireFunctionLocation, withSymbolMetadata } from "../../lib/symbolIndex.js";
 import { digest, snapshot, readCache, writeCache } from "../../lib/contentCache.js";
-import { loadCallGraph } from "../../../.pi/extensions/psx-decomp/autonomous/call-graph.ts";
+import { loadCallGraph } from "../../../.pi/extensions/shared/call-graph.ts";
 import type { MirInsn, MirProgram } from "../pipeline-reversal/types.js";
 import { align, ngrams } from "./align.js";
 import { tokensAt, type Tier } from "./normalize.js";

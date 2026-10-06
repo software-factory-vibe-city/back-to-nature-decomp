@@ -1,6 +1,6 @@
 import { readClosed } from "../../../../tools/agent/closedDirections.ts";
 import { best, measurements, readLedger } from "../../../../tools/agent/experimentLedger.ts";
-import type { ResidualReading } from "../autonomous/gates.ts";
+import type { ResidualReading } from "../../shared/gates.ts";
 import type { LoopConfig } from "./types.ts";
 
 /**

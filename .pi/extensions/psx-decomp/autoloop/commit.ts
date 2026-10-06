@@ -1,4 +1,4 @@
-import { runCommand } from "../autonomous/process.ts";
+import { runCommand } from "../../shared/process.ts";
 import type { ParkReason } from "./types.ts";
 
 export interface CommitResult {

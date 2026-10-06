@@ -23,5 +23,119 @@
   "commitOnMatch": true,
   "commitOnPark": true,
   "runtimeDir": "run_output/autoloop",
-  "approvalsDir": "notes/human-needed-approvals"
+  "approvalsDir": "notes/human-needed-approvals",
+  "integration": {
+    "mode": "patch",
+    "allowCommits": false,
+    "allowedRoots": [
+      "src",
+      "include",
+      "configs",
+      ".pi/autoloop.json",
+      "notes",
+      "plans"
+    ]
+  },
+  "sourcePolicy": {
+    "allowEmptyMemoryBarrier": true,
+    "allowlist": {
+      "func_80019070": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80016280": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80016054": [
+        "embedded-asm"
+      ],
+      "func_80015704": [
+        "embedded-asm"
+      ],
+      "func_8001d2d8": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_8001dfd4": [
+        "embedded-asm"
+      ],
+      "func_80038674": [
+        "embedded-asm"
+      ],
+      "func_8002437c": [
+        "embedded-asm"
+      ],
+      "func_8001e9f8": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80020e38": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80021820": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_800142d8": [
+        "embedded-asm"
+      ],
+      "func_8001e340": [
+        "embedded-asm"
+      ],
+      "func_80014494": [
+        "flag-override"
+      ],
+      "func_800231E8": [
+        "flag-override"
+      ],
+      "func_80023060": [
+        "flag-override"
+      ],
+      "func_80015644": [
+        "embedded-asm"
+      ],
+      "func_80012598": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_8001FEA4": [
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_80014cbc": [
+        "embedded-asm"
+      ],
+      "func_8001a284": [
+        "embedded-asm"
+      ],
+      "func_80018B98": [
+        "flag-override"
+      ],
+      "func_80019610": [
+        "flag-override"
+      ],
+      "func_80022794": [
+        "flag-override",
+        "register-asm",
+        "embedded-asm"
+      ],
+      "func_8002495C": [
+        "flag-override"
+      ],
+      "func_8002470C": [
+        "flag-override"
+      ],
+      "ovl_11_func_800f3d40": [
+        "flag-override"
+      ],
+      "ovl_11_func_80103b24": [
+        "flag-override"
+      ],
+      "ovl_11_func_800e4ba4": [
+        "flag-override"
+      ]
+    }
+  }
 }

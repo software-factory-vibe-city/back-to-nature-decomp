@@ -13,7 +13,7 @@
 # met: a target fingerprint, a flag column that dominates baseline, and no
 # contrary witness in the same region. Every entry must carry a comment
 # stating that evidence, and the matching allowlist entry in
-# .pi/autodecomp.json (sourcePolicy.allowlist, kind "flag-override") must be
+# .pi/autoloop.json (sourcePolicy.allowlist, kind "flag-override") must be
 # added in the same change — the allowlist is the audit trail, and the gate
 # enforces that it exists. Speculative flag-shopping without a fingerprint
 # remains forbidden. The two -fno-schedule-insns entries below are legacy

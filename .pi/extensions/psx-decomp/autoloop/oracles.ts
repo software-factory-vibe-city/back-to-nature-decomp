@@ -1,18 +1,18 @@
 import { finalizeWorkspace, finalizedDiff } from "../tools/finalization.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadCallGraph, rebuildCallGraph } from "../autonomous/call-graph.ts";
-import { loadConfig } from "../autonomous/config.ts";
-import { runBuildCheck, runFunctionDiff } from "../autonomous/gates.ts";
-import { checkSourcePolicy, isPendingStub, withinAllowedRoots } from "../autonomous/source-policy.ts";
-import type { AutodecompConfig, CallGraphEntry, DiffResult, GateResult, PolicyFinding } from "../autonomous/types.ts";
+import { loadCallGraph, rebuildCallGraph } from "../../shared/call-graph.ts";
+import { loadConfig } from "../../shared/config.ts";
+import { runBuildCheck, runFunctionDiff } from "../../shared/gates.ts";
+import { checkSourcePolicy, isPendingStub, withinAllowedRoots } from "../../shared/source-policy.ts";
+import type { AutodecompConfig, CallGraphEntry, DiffResult, GateResult, PolicyFinding } from "../../shared/types.ts";
 import {
   changedFilesBetweenTrees,
   createTreeFromWorktree,
   filterNewChanges,
   treePatch,
   workspaceChangedFiles,
-} from "../autonomous/workspace.ts";
+} from "../../shared/workspace.ts";
 import { withLoopExemptions } from "./state.ts";
 import type { LoopState } from "./types.ts";
 

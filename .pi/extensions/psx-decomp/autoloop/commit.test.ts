@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { runCommand } from "../autonomous/process.ts";
+import { runCommand } from "../../shared/process.ts";
 import { commitMatchedFunction, commitMessage, commitParkedFunction, parkCommitMessage } from "./commit.ts";
 
 async function git(cwd: string, args: string[]): Promise<string> {

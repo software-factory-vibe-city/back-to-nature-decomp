@@ -1,4 +1,4 @@
-import { runCommand } from "../autonomous/process.ts";
+import { runCommand } from "../../shared/process.ts";
 import type { CSourceReport } from "../../../../tools/agent/cSourceGuard.ts";
 
 export type { CSourceReport };

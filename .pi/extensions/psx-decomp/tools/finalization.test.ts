@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_CONFIG } from "../autonomous/config.ts";
+import { DEFAULT_CONFIG } from "../../shared/config.ts";
 import { finalizeWorkspace } from "./finalization.ts";
 import { consumeReceipt } from "./verification-receipt.ts";
 

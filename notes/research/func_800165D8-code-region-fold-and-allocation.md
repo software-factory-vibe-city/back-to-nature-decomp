@@ -191,7 +191,7 @@ target has no instruction.
   count delta = arg12 slot store + arg12 reload + one nop. If the two webs
   stay unfindable, this residue is the same class as func_80016280's
   entry/guard region; the governed assembly-hybrid exception
-  (.pi/autodecomp.json allowlist: register-asm + embedded-asm) is the
+  (.pi/autoloop.json allowlist: register-asm + embedded-asm) is the
   documented last resort, owner-approved only — see that function's source
   header for the shape such an exception takes.
 

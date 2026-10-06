@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { blockedReading, shouldStop } from "./stop-rule.ts";
-import type { ResidualReading } from "../autonomous/gates.ts";
+import type { ResidualReading } from "../../shared/gates.ts";
 import type { LoopConfig } from "./types.ts";
 
 function config(overrides: Partial<LoopConfig> = {}): LoopConfig {

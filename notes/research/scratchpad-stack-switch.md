@@ -162,7 +162,7 @@ be hoisted and the loop would re-form it every iteration; it does not.
 
 ## What this means for the clean-source policy
 
-`.pi/autodecomp.json`'s allowlist exists to record that *for this function*,
+`.pi/autoloop.json`'s allowlist exists to record that *for this function*,
 assembly was judged the right answer. That is the wrong shape for this
 construct: it is the right answer for every function that runs on the
 scratchpad stack, for a reason that has nothing to do with the function. So it
@@ -170,7 +170,7 @@ is a **classification**, alongside the empty memory barrier —
 `sourcePolicy.allowStackPointerSwitch`, on by default — rather than a
 per-function exception a human grants one at a time.
 
-`stackPointerSwitch` in `.pi/extensions/psx-decomp/autonomous/source-policy.ts`
+`stackPointerSwitch` in `.pi/extensions/shared/source-policy.ts`
 recognises it narrowly enough that nothing travels with it:
 
 - **no output operands**, so the statement cannot deliver a value to C;

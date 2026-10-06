@@ -135,7 +135,7 @@ The plan's table of surfaces, as resolved:
 | `tools/agent/callGraph.ts` | already container-aware from Deliverable 10; now also publishes each function's `source` and `includeAsmPath` so nothing downstream reconstructs a path |
 | `tools/agent/m2cFunc.ts` | assembly, destination, context headers and jump-table data all resolve through the container |
 | `tools/agent/triage.ts` | resolves source and assembly through the container; the flag matrix compiles under the container's own `-G0`/`-G8` |
-| `.pi/autodecomp.json` allowlist | keys are function names (globally unique) or `<container>:<address>`; a bare address is honoured only for the executable |
+| `.pi/autoloop.json` allowlist | keys are function names (globally unique) or `<container>:<address>`; a bare address is honoured only for the executable |
 | `notes/file-groupings.md` | container column, a container index, and the first overlay group entry |
 | `.pi/skills/psx-decompile-function/` | states the container rule as an imperative: ask by name, use the path the tool answers with, never assemble one |
 | `tools/agent/contextExport.ts` | already per-container from Deliverable 7; its CLI arg parsing is fixed and covered |
@@ -1043,7 +1043,7 @@ migration, not just a type edit.
 | `.pi/skills/psx-decompile-function/` | the mandatory matching guide addresses one binary, one symbol map, one set of build commands |
 | `tools/agent/m2cFunc.ts` | resolves a function to its `.s` under `build/asm/`; needs per-container resolution |
 | `tools/agent/triage.ts` | symptom detectors encode PS-X EXE assumptions — notably the `-G8` small-data patterns that do not apply to overlay TUs at all |
-| `.pi/autodecomp.json` `sourcePolicy.allowlist` | keys are bare filenames; two overlays can hold the same function name at the same address |
+| `.pi/autoloop.json` `sourcePolicy.allowlist` | keys are bare filenames; two overlays can hold the same function name at the same address |
 | `notes/file-groupings.md` | the grouping ledger is EXE-scoped with no container column |
 | `tools/agent/contextExport.ts` | generates one `functions.h`; Deliverable 7 splits it into engine plus per-overlay |
 

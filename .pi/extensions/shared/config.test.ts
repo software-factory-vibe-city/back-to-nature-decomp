@@ -15,6 +15,6 @@ test("loads defaults and resolves the runtime directory", () => {
 test("rejects unknown configuration fields", () => {
   const root = mkdtempSync(join(tmpdir(), "autodecomp-config-"));
   mkdirSync(join(root, ".pi"));
-  writeFileSync(join(root, ".pi", "autodecomp.json"), JSON.stringify({ unexpected: true }));
+  writeFileSync(join(root, ".pi", "autoloop.json"), JSON.stringify({ unexpected: true }));
   assert.throws(() => loadConfig(root), /unknown field/);
 });

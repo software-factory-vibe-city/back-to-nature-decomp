@@ -1397,7 +1397,7 @@ cannot hoist it. If that idiom is recovered and transfers here, both debts in
    row 7's historical objection stands recorded, unresolved.
 2. The redundant `found = nclut;` — a hash-order lever, not a semantic
    statement; flagged in the source file header and inline.
-3. `.pi/autodecomp.json` allowlist: `func_80016c08: ["flag-override"]`
+3. `.pi/autoloop.json` allowlist: `func_80016c08: ["flag-override"]`
    registers the approval; `func_800165d8: ["include-asm"]` covers that
    parked stub. **Harness quirk found:** the finalizer's patch scan
    (`scanAddedPatch` in the autonomous source policy) evaluates pre-existing

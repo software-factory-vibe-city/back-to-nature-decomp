@@ -1,8 +1,8 @@
-import { createTreeFromWorktree, changedFilesBetweenTrees, treePatch } from "../autonomous/workspace.ts";
-import { loadCallGraph } from "../autonomous/call-graph.ts";
-import { runGate } from "../autonomous/gates.ts";
-import { runCommand } from "../autonomous/process.ts";
-import type { AutodecompConfig, GateResult } from "../autonomous/types.ts";
+import { createTreeFromWorktree, changedFilesBetweenTrees, treePatch } from "../../shared/workspace.ts";
+import { loadCallGraph } from "../../shared/call-graph.ts";
+import { runGate } from "../../shared/gates.ts";
+import { runCommand } from "../../shared/process.ts";
+import type { AutodecompConfig, GateResult } from "../../shared/types.ts";
 import { Timings } from "../../../../tools/lib/contentCache.js";
 import { compilerInputs, consumeReceipt, contextIsCompilerIndependent, publishReceipt, verificationOutputs } from "./verification-receipt.ts";
 

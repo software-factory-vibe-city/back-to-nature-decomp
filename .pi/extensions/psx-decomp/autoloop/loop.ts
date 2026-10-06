@@ -1,8 +1,8 @@
 import { prepareAttempt, attemptStaticFinalization, buildInputs, documentCompletion, sameInputs, inputIdentity, type Completion } from "../tools/prepared-attempt.ts";
 import { mkdirSync } from "node:fs";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { runFunctionDiff, runResidualObjective } from "../autonomous/gates.ts";
-import type { PolicyFinding } from "../autonomous/types.ts";
+import { runFunctionDiff, runResidualObjective } from "../../shared/gates.ts";
+import type { PolicyFinding } from "../../shared/types.ts";
 import { chooseParkAttempt } from "./best-attempt.ts";
 import { implicatedByPark } from "./family.ts";
 import { shouldStop } from "./stop-rule.ts";

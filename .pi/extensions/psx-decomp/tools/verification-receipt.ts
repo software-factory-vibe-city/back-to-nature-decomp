@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { buildToolInputs } from "../../../../tools/build/buildInputs.js";
 import { dependencyPaths } from "../../../../tools/agent/preprocessedCache.js";
 import { digest, filesUnder, snapshot } from "../../../../tools/lib/contentCache.js";
-import type { AutodecompConfig, GateResult } from "../autonomous/types.ts";
+import type { AutodecompConfig, GateResult } from "../../shared/types.ts";
 
 export interface VerificationReceipt {
   schema: 1; workspace: string; functionName: string; inputHash: string; outputHash: string; configHash: string; checkedAt: string;
@@ -35,7 +35,7 @@ function directFiles(directory: string): string[] {
 export function compilerInputs(root: string, omitContext = false): string {
   const mk = readFileSync(join(root, "Makefile"), "utf8");
   const target = mk.match(/^TARGET\s*:=\s*(\S+)/m)?.[1];
-  const paths = ["src", "lib", "extracted/overlays", ...(target ? [target] : []), "include", "configs", "tools/agent", "tools/build", "tools/lib", "tools/diagnostics", ".pi/extensions/psx-decomp", ".pi/autodecomp.json",
+  const paths = ["src", "lib", "extracted/overlays", ...(target ? [target] : []), "include", "configs", "tools/agent", "tools/build", "tools/lib", "tools/diagnostics", ".pi/extensions/psx-decomp", ".pi/extensions/shared", ".pi/autoloop.json",
     "tools/vendor/m2c/m2c", "tools/vendor/m2c/m2c_pycparser", "tools/vendor/m2c/m2c.py", "tools/vendor/tree-sitter-c", "package-lock.json",
     "build/engine_syms.txt", "build/callGraph.json", "build/toolchain-inputs.stamp", ...buildToolInputs(root)];
   const roots = buildRoots(root);
