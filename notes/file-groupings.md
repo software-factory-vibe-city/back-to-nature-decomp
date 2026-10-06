@@ -9513,3 +9513,16 @@ Members (address order):
   three results via `ovl_11_func_800DC114`, then increments (clamp to 0x1FF
   with `D_80123E54 = 1`) or decrements (underflow to 0 with `D_80123E54 = 0`)
   the pair.
+
+
+## ovl_11 D_8006C838+44D2 status readers (confidence: low)
+
+- ovl_11_func_800D0BC8 (m): checks u16 fields at 44D0/44D2 for selectors
+  1/3, then reads the signed halfword at 99C8 + selector * 4.
+- ovl_11_func_800D0CD8 (m): the same 44D2 field selects a five- versus
+  ten-record scan at 7AB4, stride B4.
+
+The shared typed field and nearby addresses support a data-access link, not a
+proved translation-unit boundary. Original calls from D0F20 and F4618 to D0BC8
+establish clients only. D0BC8 is now byte-exact using independent global member
+expressions; no per-file flag inference follows from this reconstruction.

@@ -547,3 +547,30 @@ Grouping evidence: existing B9798/BA7F0 record access and the paired BA868
 selection helper; updated the existing cluster's matched status. Evidence:
 original words, matched Rand definition/address, three measured candidates,
 staged ledger and finalization receipt.
+
+## ovl_11_func_800D0BC8 — independent member expressions restore base copies
+
+**Outcome:** clean C, 27/27 byte-exact words; full finalization passed
+(build/parked-recovery/800D0BC8-finalize.json).
+
+What was tried:
+1. Refreshed the preserved source: a cached byte base left population 6,
+   schedule 1 and allocation 6. Original words materialize that base anew
+   across the two guards and final stride-four status lookup.
+2. Used its already-described layout as a typed view, independently accessing
+   each field through the global and indexing the final halfword array at
+   arg0 * 2. The first probe was EXACT; no source-level dummy pointer copies
+   or optimizer barriers were required.
+3. Published the view in game_types.h with unknown final array extent marked
+   explicitly, integrated, remeasured and ran triage without findings. Full
+   binary, source-policy and scope finalization passed.
+
+**Reusable technique:** a cached byte pointer is not equivalent compiler
+input to independent global member expressions. When required base copies
+appear impossible under pointer CSE, test the latter origin before modelling
+allocation. The original's copies can arise naturally from its MEM shapes.
+
+Grouping evidence: matched D0CD8 independently reads the same u16 at 44D2;
+original calls from D0F20 and F4618 corroborate use but not common TU membership.
+Evidence: original words, existing matched sibling, typed-view probe, staged
+ledger and full finalization receipt.

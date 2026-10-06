@@ -659,3 +659,13 @@ typedef struct {
     /* 0x14 */ s32 unk14;
     /* 0x18 */ s32 unk18;
 } Ovl23Func800BA1E0Arg;
+
+/* D_8006C838 status view used by ovl_11_func_800D0BC8. The final
+ * halfword array is indexed with stride two; its full extent is unknown. */
+typedef struct {
+    char pad_000[0x44D0];
+    u16 field_44D0;
+    u16 field_44D2;
+    char pad_44D4[0x99C8 - 0x44D4];
+    s16 field_99C8[1];
+} Ovl11Status99C8View;

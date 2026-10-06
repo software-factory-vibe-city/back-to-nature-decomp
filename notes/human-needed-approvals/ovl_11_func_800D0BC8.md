@@ -1,4 +1,9 @@
-# ovl_11_func_800D0BC8 — human decision needed
+# ovl_11_func_800D0BC8 — resolved
+
+Independent typed member accesses, rather than one cached byte base, produce
+27/27 byte-exact words. Full finalization passed without a policy exception or
+flag override. See `notes/techniques-for-solving-parked-functions.md`.
+The historical escalation below is retained as an archive.
 
 - **Parked:** 2026-09-08T23:08:52.747Z
 - **Reason:** escalation-exhausted
