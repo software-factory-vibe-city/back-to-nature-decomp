@@ -1184,6 +1184,12 @@ typedef struct {
 } Ovl11D060Fields;
 extern Ovl11D060Fields D_8012D060;
 
+/* D_8012D080 - ovl_11 absolute-addressed pointer cell (outside $gp range).
+ * ovl_11_func_801098B0 passes its address as the out pointer of the
+ * D_80075BC4 record scan and clears it to 0 when the scan fails;
+ * ovl_11_func_80109E04 reads it as the current cluster record. */
+extern s32 *D_8012D080;
+
 /* D_80070D30 and D_800719F8 - the ovl_11 file-status flag word and its
  * status sibling (reached as &D_800719F8 - 0xCC8). Both are >8-byte-view
  * symbols accessed with absolute addressing (lui + %lo) from ovl_11 code. */

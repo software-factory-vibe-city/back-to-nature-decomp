@@ -517,6 +517,25 @@ typedef struct {
     /* 0x18 */ UnkStruct80075BC4 **unk18;
 } Ovl11Func801097F4Arg;
 
+/* ovl_11_func_801098B0 argument record: a D_80075BC4-shaped record with an
+ * extra s16 at 0xAC. The u16 tag at 0x00 gates the body, bit 0x8000 of the s32
+ * at 0x34 gates the scan, the s16 at 0xAC selects the radius, 0x30 is the
+ * scan selector, and 0x38/0x3C/0x40/0x44 are the four words forwarded to
+ * ovl_11_func_801097F4. Only the witnessed fields are named. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ char pad_02[0x30 - 0x02];
+    /* 0x30 */ s16 unk30;
+    /* 0x32 */ char pad_32[0x34 - 0x32];
+    /* 0x34 */ s32 unk34;
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ s32 unk3C;
+    /* 0x40 */ s32 unk40;
+    /* 0x44 */ s32 unk44;
+    /* 0x48 */ char pad_48[0xAC - 0x48];
+    /* 0xAC */ s16 unkAC;
+} Ovl11Func801098B0Arg;
+
 /* FuncC0D4Args - argument descriptor for func_8001C0D4: a primitive batch
  * pointer and the vector array origin. Shared by src/func_8001C0D4.c (its
  * local copy predates this header) and ovl_21_func_800BB2B4, which hands

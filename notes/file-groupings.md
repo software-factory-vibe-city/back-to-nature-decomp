@@ -6396,6 +6396,11 @@ Members:
   matched, and 800CF36C sits in the 0x800CF044–0x800D506C caller run of the
   0xB0 memset-clearer 800D3200 (whose head 800CF044 is also a consumer), so
   data TU ownership is unconfirmed with that run the leading candidate.
+- shared-global fingerprint (D_8012D080): the caller passes &D_8012D080 as
+  the scan's out pointer and clears it to 0 when the scan fails, so
+  801098B0 is now a confirmed writer of the absolute-addressed pointer cell
+  that 80109E04 reads (D_8012D080) — tying the record-table consumer run to
+  the ovl_11 D_8012D040/D_8012D050/D_8012D060 cluster at 0x8012D0xx.
 
 Members:
 - ovl_11_func_801097F4 (m, matched this session, byte-exact) — leaf: scans
@@ -6403,9 +6408,12 @@ Members:
   at +0x30, and a ±radius window over the s32 coordinates at +0x38/+0x40;
   stores the first full match's pointer through the arg's out pointer and
   returns 1/0.
-- ovl_11_func_801098B0 (s) — run tail: sole caller, builds the by-value
-  record (selector from a source record's s16@+0x30, radius from +0x38, out
-  pointer = &D_8012D080) and dispatches on the scan result.
+- ovl_11_func_801098B0 (m, byte-exact clean C, baseline flags) — run tail:
+  sole caller of 801097F4; builds the by-value record from a source record
+  with the same D_80075BC4 field shape (u16 tag@+0x00, s16 selector@+0x30,
+  s32 flags@+0x34, s32 coords@+0x38/+0x3C/+0x40/+0x44) plus an extra s16
+  radius source@+0xAC, gated on tag != 0 and flags & 0x8000; passes
+  &D_8012D080 as the out pointer and clears it on scan failure.
 - ovl_11_func_800CF36C (m, matched this session, byte-exact) — conditional
   batch clearer: for each of the six 0xB0 records, calls
   ovl_11_func_800D3200 (the 0xB0 memset-clearer of the idiom family) when
