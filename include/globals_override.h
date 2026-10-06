@@ -1516,5 +1516,10 @@ typedef struct {
 } Ovl11A04B8Entry;
 extern Ovl11A04B8Entry D_800A04B8[][9];
 
+/* ovl_11 four-entry state dispatch table. The original rodata entries point
+ * to ovl_11_func_800E3DC8/800E40CC/800E4280/800E4330; the dispatcher
+ * preserves the selected handler's return value across its final flag clear. */
+extern s32 (*D_800B9920[4])(void);
+
 #endif /* GLOBALS_OVERRIDE_H */
 

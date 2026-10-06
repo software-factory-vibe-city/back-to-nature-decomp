@@ -79,3 +79,37 @@ An old UNSAT conditioned on a fixed LUID order does not close this alternative.
 Evidence: `build/schedulerTrace/ovl_11_func_800D812C`,
 `build/experimentLedger/ovl_11_func_800D812C.jsonl`, and the verified source.
 No new same-TU evidence was established; no speculative grouping was added.
+
+## ovl_11_func_800E3A3C — recover the indirect call's return contract
+
+**Outcome:** byte-exact clean C, 22/22 words, residual `[0,0,0,0]`; full
+finalization passed (`build/parked-recovery/800E3A3C-finalize.json`).
+
+What was tried:
+1. Read the preserved `[0,0,0,4]` source and old allocation/search closures.
+   They all assumed a void callback and a void dispatcher. Direct-callee truth
+   cannot validate an indirect callback's type; its report explicitly left
+   this site uncovered.
+2. Refreshed m2c context; its new draft failed compilation and was not used.
+3. Inspected the original D_800B9920 table and its four handlers, rather than
+   treating the source's void callback declaration as established. Handler
+   800E4280 explicitly returns 1; 800E40CC and 800E4330 have explicit zero
+   return paths. The dispatcher leaves the handler's v0 untouched at exit.
+4. Changed the callback's result type to s32. The residual fell to allocation
+   1 (20/22 words): only the final mask still occupied the wrong register.
+5. Pipeline reversal located that mask's target register a0 versus candidate
+   v0. Changed the dispatcher to return the captured callback result after
+   clearing the flag. Keeping the result live prevented the mask from using
+   v0 and immediately produced EXACT.
+6. Published the table type in `include/globals_override.h`, removed the local
+   extern declaration, integrated the source, reconfirmed EXACT, and finalized.
+
+**Reusable technique:** a result retained in v0 can look like an allocation
+mystery when a callback or wrapper is incorrectly declared void. Audit indirect
+callee contracts against table members and the original return path before
+solving allocation. The earlier UNSAT results were conditional on the wrong
+void-return program, not proofs that this target needed an exception.
+
+Evidence: original `1664.rodata.s`, the four handlers' original assemblies,
+`build/experimentLedger/ovl_11_func_800E3A3C.jsonl`, and the finalization receipt.
+Grouping notes record the shared selector and original dispatch-table links.

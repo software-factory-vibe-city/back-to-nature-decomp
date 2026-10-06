@@ -1,4 +1,10 @@
-# ovl_11_func_800E3A3C — human decision needed
+# ovl_11_func_800E3A3C — resolved
+
+The callback and dispatcher return s32, not void. Preserving the handler's
+return value across the final flag clear removes the allocation residual.
+The live source is byte-exact (22/22 words) and passed full finalization.
+See `notes/techniques-for-solving-parked-functions.md` for measured experiments.
+The historical park record follows.
 
 - **Parked:** 2026-08-24T18:00:38.121Z
 - **Reason:** escalation-exhausted
