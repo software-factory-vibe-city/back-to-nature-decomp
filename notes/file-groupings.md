@@ -4404,14 +4404,21 @@ Members (address order):
   writes all in the documented D_8012D51A–548 data-cluster web. The remaining
   members 0x80118C28 / 0x80118C7C / 0x80118CE4 are stubs. Zero-gap link order
   + shared-global fingerprint; data TU ownership unconfirmed.
-- ovl_11 by-value struct-slice run — 0x8011D934 / 0x8011D98C /
-  0x8011D9B4 / 0x8011D9DC, zero-gap link run (0x8011D934 0x58 → 0x8011D98C
-  0x28 → 0x8011D9B4 0x28 → 0x8011D9DC 0xF8). The first three all take the
-  same 0x60-byte struct by value (StructD548; s16 selector at 0x5C, first
+- ovl_11 by-value struct-slice run — 0x8011D890 / 0x8011D934 / 0x8011D98C /
+  0x8011D9B4 / 0x8011D9DC, zero-gap link run (0x8011D890 0xA4 → 0x8011D934
+  0x58 → 0x8011D98C 0x28 → 0x8011D9B4 0x28 → 0x8011D9DC 0xF8).
+  The D934/D98C/D9B4 members take the same 0x60-byte struct by value (StructD548; s16 selector at 0x5C, first
   16 bytes ride $a0-$a3 and are spilled to sp+0..0xC, the rest placed in
   the outgoing stack area), the by-value record behind the zero-init
   D_8012D548 global which abuts the documented D_8012D524/D_8012D52C
   cluster one row up:
+  - ovl_11_func_8011D890 (m) — adjacent scan leaf with a 0x64-byte by-value
+    view: selector at 0x5C and extra mode word at 0x60. Scans up to nine
+    wrapped positions forward/backward and returns the first nonzero word's
+    position. Fully finalized with one explicitly user-authorized mode-register
+    workaround, no flag change. Original calls at 8011D804 and 8011B66C
+    witness clients D734/B2B0. This is a related prefix layout, not a claim
+    that its larger argument type is identical to StructD548.
   - ovl_11_func_8011D98C (m, matched this session) — leaf, returns
     `x.data[x.index]` with the s16 table base at 0x28.
   - ovl_11_func_8011D9B4 (m) — leaf, byte-identical to ovl_11_func_8011D98C

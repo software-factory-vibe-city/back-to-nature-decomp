@@ -814,3 +814,27 @@ only to their measured source families.
 Grouping: D678C independently witnesses the nine-record D_800A04B8 rows and
 +0x18 check. The adjacent D6730 helper uses a different nine-halfword table;
 recorded a low-confidence helper/layout cluster, not a fabricated common array.
+
+## ovl_11_func_8011D890 — one authorized mode binding
+
+**Outcome:** 41/41 byte-exact words; complete finalization passed
+(build/parked-recovery/8011D890-finalize.json), baseline flags.
+
+What was tried:
+1. Kept the published by-value argument and the natural nine-probe loop.
+   Wider return types, typed word-member indexing and a preincrement while
+   spelling did not solve the loaded-mode / constant-one register swap.
+2. With the user's explicit source-policy authorization, captured x.mode in
+   a t3 register variable after i=1. The existing comparison constant then
+   occupies t2 without an additional binding: the first probe was EXACT.
+3. Integrated with one documented per-function register-variable exception,
+   remeasured EXACT, audited zero callees, triaged clean, and passed complete
+   finalization, including generated argument/signature context publication.
+
+**Tradeoff:** one hard-register variable, documented as a workaround rather
+than as evidence of original pinned source. The by-value type and C control
+flow are retained, and no compiler flag or unrelated function changed.
+
+Grouping: D890's 0xA4 bytes end at D934. Its 0x64-byte argument shares the
+0x5C selector prefix but adds the mode at 0x60; do not conflate it with the
+neighboring 0x60-byte StructD548 views. Original D734/B2B0 calls are clients.
