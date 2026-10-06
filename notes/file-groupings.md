@@ -967,6 +967,33 @@ Members (link order):
 
 ---
 
+## `ovl_11` D_800BA9E4 / D_800BAA34 dual-table dispatcher — 0x8010B57C (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
+- call-graph adjacency inside the recorded 0x8010B64C gapless chain: two of its
+  zero-gap members call this dispatcher — `ovl_11_func_8010B8DC` (once) and
+  `ovl_11_func_8010B994` (twice, alongside `func_80012A34` and
+  `ovl_11_func_800D12A0`).
+- zero-gap link order (original ovl_11 functions.csv): 0x8010B57C (0xD0) ends
+  exactly where the recorded 0x8010B64C run head begins, so the chain extends
+  one function earlier; the chain then stays zero-gap through 0x8010B8DC and
+  0x8010B994 into the third far-state gate run's head 0x8010BA84.
+- shared data-table cluster: the dispatcher's two parallel rodata tables,
+  `D_800BA9E4` (function pointers) and `D_800BAA34` (presence flags), sit
+  adjacent in `2A28.rodata.s`, and the `D_800BA9E4` entries are the members of
+  the recorded third far-state gate run (0x8010BA84–0x8010BCE8) plus
+  `ovl_11_func_8010B994` — the same dispatcher/handler coupling class used for
+  the D_800BAA84 / D_800BAABC object-mode dispatch run.
+
+- ovl_11_func_8010B57C (m, matched this session, byte-exact) — dual-table
+  dispatcher: when `s32@+0x34 & 0x400` is clear, calls the `s32 (*)(u16 *)`
+  handler at `D_800BA9E4[arg1]` (arg1 forced to 0x11 when `+0x34 & 0x01000000`),
+  then if `D_800BAA34[arg1]` is set and the result is not -1, records the
+  selection at s16@+0x26 and clears s16@+0x28/+0x2A/+0x2C before
+  `ovl_11_func_800D0408(4, this+0x24, 0)`; returns -1 when `+0x34 & 0x400`.
+
+---
+
 ## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C0688–0x800C0EFC (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing two adjacent
