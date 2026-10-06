@@ -688,3 +688,22 @@ typedef struct {
     u8 pad[0xE7A2];
     u8 states[9];
 } Ovl11StatesE7A2View;
+
+/* Object fields written by ovl_11_func_800D05D0. */
+typedef struct {
+    char pad_00[0x34];
+    s32 field_34;
+    char pad_38[0x58 - 0x38];
+    s32 field_58;
+    s32 field_5C;
+    s32 field_60;
+} Ovl11SetFieldsView;
+
+/* Callers pass four words; D0408 initializes and D05D0 consumes only
+ * the three components. The final word is unused byte padding. */
+typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+    u8 pad_C[4];
+} Ovl11PaddedVec3;

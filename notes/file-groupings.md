@@ -9603,3 +9603,21 @@ branch-specific next-count variable.
 The original functions are adjacent and use nine-slot rows; the shared
 D_800A04B8 layout links D678C and D67F4 directly. D6730 accesses a different
 parallel table, so this is a helper/layout cluster, not proof of a shared TU.
+
+
+## ovl_11 padded-vector view consumers (confidence: low)
+
+The original words of 800E1770 and 8010BC54 share the same two calls,
+D0408 then D05D0, vector-component additions from object +38/+3C/+40,
+and final selector copy from D_8006C838+5200 to object +22. Matched DFB98
+uses the same body after its predicate guard. Their call setup passes a
+four-word aggregate, with D05D0 consuming only its first three components;
+shared Ovl11PaddedVec3 leaves the remaining bytes explicitly unused. This
+corroborates an operation/layout family, not a common TU across distant bands.
+- ovl_11_func_800E1770 (m, 0x94) — component addition and selector copy;
+  full-finalized with one user-authorized selector register binding.
+- ovl_11_func_8010BC54 (s, 0x94) — original-word twin in the documented
+  third far-state gate run.
+- ovl_11_func_800DFB98 (m, 0xA4) — predicate-guarded sibling.
+- ovl_11_func_800D05D0 (m, 0x30) — writes components to +58/+5C/+60 and
+  updates flag word +34; shared padded interface preserves all original words.

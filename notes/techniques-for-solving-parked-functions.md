@@ -838,3 +838,38 @@ flow are retained, and no compiler flag or unrelated function changed.
 Grouping: D890's 0xA4 bytes end at D934. Its 0x64-byte argument shares the
 0x5C selector prefix but adds the mode at 0x60; do not conflate it with the
 neighboring 0x60-byte StructD548 views. Original D734/B2B0 calls are clients.
+
+## ovl_11_func_800E1770 — one selector binding, with an audited aggregate ABI
+
+**Outcome:** user-authorized register-binding workaround, 37/37 byte-exact
+words; full finalization passed (build/parked-recovery/800E1770-finalize.json).
+The already-matched D05D0 remains 12/12; no compiler flags changed.
+
+What was tried:
+1. The preserved source and return-width, temporary, early-zero, signed-load
+   and aggregate-call probes all retained the final selector load in v1,
+   rather than the original v0. Binding that one loaded selector to v0 was
+   EXACT; no complete assembly replacement or dummy reference was needed.
+2. Audited the disputed five-scalar D05D0 declaration before promotion. The
+   original caller passes a fourth vector word on the outgoing stack, whereas
+   the matched callee consumes only its first three components. Added four
+   unused byte-padding bytes to the aggregate: the callee remains 12/12.
+3. Used that padded aggregate at the caller instead of the disputed scalar
+   prototype, retaining the selector binding: still EXACT. Published the
+   shared object and vector views; fresh callee truth corroborates both calls.
+   This is an ABI-consistent partial view, not proof of the original typedef.
+4. Context publication initially refused stale private type names after their
+   definitions disappeared. Retained aliases to the shared types in D05D0's
+   source, letting the generator resolve the existing context legitimately;
+   no generated file was hand-edited. Remeasured and passed all finalization
+   gates, including every linked binary and the scoped policy allowlist.
+
+**Reusable technique:** an authorized register workaround must not conceal an
+unresolved callee declaration. Reconcile caller-side aggregate passing with
+independently witnessed callee accesses, measure the callee as well as the
+caller, and preserve generated-context provenance when publishing shared types.
+The binding is a matching workaround, not evidence of original pinned source.
+
+Grouping evidence: the original-word twin 8010BC54 and matched DFB98 use the
+same D0408/D05D0 sequence and object fields. Shared operation/layout alone does
+not prove that these distant callers belonged to one translation unit.

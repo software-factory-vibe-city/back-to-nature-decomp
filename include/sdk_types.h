@@ -75,19 +75,24 @@ typedef struct {
 } M2C_067e28fd8ac0_Struct_8001F39C;
 
 typedef struct {
-               char pad_00[0x34];
-               s32 field_34;
-               char pad_38[0x58 - 0x38];
-               s32 field_58;
-               s32 field_5C;
-               s32 field_60;
-} M2C_0ac2dae062dd_Ov11SetFields;
+    char pad_00[0x34];
+    s32 field_34;
+    char pad_38[0x58 - 0x38];
+    s32 field_58;
+    s32 field_5C;
+    s32 field_60;
+} Ovl11SetFieldsView;
+
+typedef Ovl11SetFieldsView M2C_0ac2dae062dd_Ov11SetFields;
 
 typedef struct {
     s32 field_0;
     s32 field_4;
     s32 field_8;
-} M2C_0ac2dae062dd_Ov11SetVec;
+    u8 pad_C[4];
+} Ovl11PaddedVec3;
+
+typedef Ovl11PaddedVec3 M2C_0ac2dae062dd_Ov11SetVec;
 
 typedef struct {
                u16 unk0;
