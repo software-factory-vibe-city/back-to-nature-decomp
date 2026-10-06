@@ -5877,7 +5877,8 @@ Fingerprints:
   direct readers at 0x800DBFEC / 0x80104CB8 — data-family ties only.
 
 Members:
-- ovl_11_func_80113B80 (s) — populates the D_8012D110 record (+0x8/+0xA) from
+- ovl_11_func_80113B80 (m, matched this session, 0xBC, byte-exact, void) —
+  populates the D_8012D110 record (+0x8/+0xA) from
   the `D_8006C838`+0x52C6 state, writes the 400*x results into the
   `D_8006C838`+0x52C8/0x52CC/0x52D0 scratch words, then conditionally calls the
   callee.
