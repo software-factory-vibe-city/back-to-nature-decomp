@@ -5103,11 +5103,14 @@ Zero-gap link-order run of six ovl_11 functions sitting between the
 +0x5234/+0x51FE flag-byte accessor band and the D_8006C838 accessor band. Three
 members share the same register-variable return idiom — `s32 var = 0;` then an
 if/else-if chain, then `return var;` — and each sign-extends a small-integer
-argument. The link-preceding 0x800E6B18's sole callee is the run's own
-0x800E6CAC, so call graph and link order agree on the run. Member roles:
+argument. Member 0x800E6B18 calls the run's own 0x800E6BDC, 0x800E6CAC and
+0x800E6D2C, so call graph and link order agree on the run. Member roles:
 - ovl_11_func_800E6AB0 (m) — CD-music guard: returns 1 early on `D_8006C904`,
   else `func_80021B90(arg0)` or `func_80021B64()` sets `var_s0`.
-- ovl_11_func_800E6B18 (s) — caller of 0x800E6CAC.
+- ovl_11_func_800E6B18 (m, byte-exact this session) — state-slot dispatcher:
+  reads the same D_8007AFF0 +0x2549C state s32 as 800E6BDC/801047FC through the
+  run's `far_base` split-address idiom, then reinitialises via 800E6BDC
+  (arg2 == 1) / 800E6CAC (arg2 == -1) and 800E6D2C(1, 0x30, 1, 0).
 - ovl_11_func_800E6BDC (m, matched this session) — sound-state reinit: gates
   on the D_8007AFF0 +0x25388 far-buffer pointer and the +0x2549C state value,
   then `func_80020818()` + `func_8001FB30()`.
