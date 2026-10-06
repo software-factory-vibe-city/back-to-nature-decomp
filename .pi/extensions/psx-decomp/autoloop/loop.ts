@@ -490,30 +490,35 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
   /* A park is a verdict of matching tiers that ran, never of preparation alone. */
   let tiersRan = 0;
 
+  const prepFirst = deps.config.ladder[0]?.role === "prep";
   const completed = current.completions?.[functionName];
-  if (completed && sameInputs(completed.inputs, buildInputs(deps.projectRoot))) {
+  if (!prepFirst && completed && sameInputs(completed.inputs, buildInputs(deps.projectRoot))) {
     current = await documentMatch(deps, current, functionName, completed);
     if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
       outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
     return { state: current, outcome: { kind: "matched", functionName, tier: completed.origin,
       changedFiles: completed.changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
   }
-  /* No solver-model lookup until a static exact candidate has reached its gate. */
+  /* Prepare the packet before dispatch. A prep-led run must enter its declared
+     role first; completion/static shortcuts must not open documentation here. */
   let preparedOpening = "";
   try {
     const prepared = await prepareAttempt(deps.projectRoot, functionName, signal);
-    const result = await attemptStaticFinalization({ root: deps.projectRoot, attempt: prepared, aborted: () => deps.flag.aborted,
-      finalize: async () => {
-        const gate = await finalize(oracle(current), functionName);
-        return { passed: gate.passed, changedFiles: gate.changedFiles, detail: gateReport(gate.gate) };
-      } });
-    preparedOpening = result.handoff;
-    if (result.completed) {
-      current = await documentMatch(deps, current, functionName, result.completed);
-      if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
-        outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
-      return { state: current, outcome: { kind: "matched", functionName, tier: "static",
-        changedFiles: (await loopChangedFiles(oracle(current))).changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
+    preparedOpening = packetOpening(prepared.packet, prepared.path);
+    if (!prepFirst) {
+      const result = await attemptStaticFinalization({ root: deps.projectRoot, attempt: prepared, aborted: () => deps.flag.aborted,
+        finalize: async () => {
+          const gate = await finalize(oracle(current), functionName);
+          return { passed: gate.passed, changedFiles: gate.changedFiles, detail: gateReport(gate.gate) };
+        } });
+      preparedOpening = result.handoff;
+      if (result.completed) {
+        current = await documentMatch(deps, current, functionName, result.completed);
+        if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
+          outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
+        return { state: current, outcome: { kind: "matched", functionName, tier: "static",
+          changedFiles: (await loopChangedFiles(oracle(current))).changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
+      }
     }
   } catch (error) { preparedOpening = `Preparation could not complete: ${String(error)}. Preserve current source; investigate the named input failure.`; }
   if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
@@ -797,9 +802,13 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
       if (index > 0) await clearContext(deps);
 
       setStatus(deps, "↻ autoloop · selecting target");
+      /* Pending notes from older runs are not a preparation work item. Keep
+         them in state, but do not let them preempt a prep-led ladder. */
+      const pendingDocumentation = deps.config.ladder[0]?.role === "prep" ? undefined
+        : Object.entries(state.completions ?? {}).find(([name, c]) => c.documentation === "pending" && !skip.has(name))?.[0];
       const target = index === 0 && options.firstTarget
         ? options.firstTarget
-        : Object.entries(state.completions ?? {}).find(([name, c]) => c.documentation === "pending" && !skip.has(name))?.[0] ?? await nextTarget(deps.projectRoot, skip, defer);
+        : pendingDocumentation ?? await nextTarget(deps.projectRoot, skip, defer);
       if (!target) {
         notify(deps, "No remaining clean-C decompilation targets.", "info");
         break;

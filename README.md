@@ -266,7 +266,10 @@ headers, and restore supported SDK idioms. Its dedicated
 `psx_loop_prep_handoff` reports the candidate, header work, compile result and
 unresolved issues. The next tier receives that same refreshed packet and summary;
 compilation is not a match. A prep tier must have a later matching tier. Omit
-`role` to retain the existing matching behavior and matching handoff.
+`role` to retain the existing matching behavior and matching handoff. When the
+first tier is prep, the loop starts from the decompilation worklist and enters
+prep before any completion/static-match shortcut; older pending documentation
+remains saved but does not preempt that ladder.
 
 The decompilation and resource commands never commit or merge. Commits require
 a separate explicit user request.
