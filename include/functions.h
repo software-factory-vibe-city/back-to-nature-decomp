@@ -21,6 +21,7 @@ s32 func_80012098(void);
 void func_800120C8(void);
 void func_800121D4(void);
 void func_80012298(s32 arg0);
+void func_8001231C(void);
 void func_80012598(void);
 void func_800128DC(s32 arg0, s32 arg1);
 s32 func_800129E8(void);

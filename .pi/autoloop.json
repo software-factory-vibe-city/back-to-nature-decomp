@@ -98,6 +98,10 @@
         "register-asm",
         "embedded-asm"
       ],
+      "func_8001231c": [
+        "register-asm",
+        "embedded-asm"
+      ],
       "func_8001FEA4": [
         "register-asm",
         "embedded-asm"

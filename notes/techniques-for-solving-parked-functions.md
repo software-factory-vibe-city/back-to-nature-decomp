@@ -722,3 +722,35 @@ Grouping evidence: BFEC ends exactly at C0D4. Both bracket rendering with
 PushMatrix/PopMatrix, call D6B8/C37C, and use the descriptor+0xC origin with
 0x1C-stride primitives. Expanded the existing projected-primitive cluster
 and corrected its stale sole-caller claim.
+
+## func_8001231C — restore the explicitly authorized forcing candidate
+
+**Outcome:** 159/159 byte-exact words; complete finalization passed
+(build/parked-recovery/8001231C-finalize.json).
+
+What was tried:
+1. Re-extracted the disabled historical implementation after AST validation.
+   It was already EXACT; its previous blocker was source policy, not bytes.
+2. Audited both callees. Added the SDK memory header for memset and the
+   matched void func_8001E160(void) declaration. Recompiled EXACT, with both
+   declarations independently corroborated and no undeclared-callee blocker.
+3. Used the user's explicit campaign authorization for source-policy
+   exceptions, added only this function's register-asm/embedded-asm allowlist
+   entries, integrated the candidate, and rechecked EXACT and source policy.
+4. Passed the authoritative linked-binary, scope, source-policy and context
+   publication finalization gate before updating documentation.
+
+**Tradeoff:** this retains eighteen hard-register variables, copy-forcing
+assembly and explicit constant materialization. It is an authorized workaround,
+not ordinary clean C and not evidence of original assembly/register-variable
+source. The historical rejection of those constructs under the earlier policy
+is preserved in the approval archive rather than silently reclassified.
+
+**Reusable technique:** distinguish an already-exact candidate blocked by
+policy from a machine mismatch; an explicit user authorization changes the
+former premise, but does not waive byte identity, truthful documentation,
+callee declarations or full-build verification.
+
+Grouping: updated the existing graphics-heap carve twin group to mark 1231C
+matched. Its shared pool constants, D_8005E3B0/B8/BC GP accesses and call to
+E160 remain the evidence; the forcing constructs are not grouping evidence.

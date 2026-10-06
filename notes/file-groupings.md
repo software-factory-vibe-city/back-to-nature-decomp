@@ -3984,16 +3984,20 @@ D_8005E3A4, D_8005E3A8, D_8005E3AC, D_8005E3B0, D_8005E3B4, D_8005E3BC and D_800
   Reaches D_8005E394/D_8005E39C/D_8005E3A0 GP-relatively, so it shares the
   cluster with func_80011C24 / the boot TU rather than touching the cluster
   absolutely from outside. Byte-verified 2026-08-21
-- func_8001202C (s), func_80012098 (s), func_8001231C (s) — share D_8005E3B0
+- func_8001202C (s), func_80012098 (s), func_8001231C (m) — share D_8005E3B0
 - func_80012598 (m) — graphics-heap carve and double-buffer/ordering-table
   init over D_8005E5E8[2]; owns D_8005E3B0/B8/BC gp-relatively. Its second
   loop is the same source as func_8001E160 in another TU (see "unknown
   group A"). notes/research/func_80012598.md
-- func_8001231C (s) — the second-configuration twin of func_80012598: same
+- func_8001231C (m) — the second-configuration twin of func_80012598: same
   0x40 frame, same memset(0x801BE1B0, 0, 0x3EE50) carve, and a first loop with
   an identical 21-web store partition. Differs only in the 0x801F7000 /
   0x2EE0 constants and in calling func_8001E160 where func_80012598 inlines it.
-  Parked with a ready recipe: notes/research/func_8001231C.md
+  Byte-exact and fully finalized in the parked-function campaign, retaining
+  the historical allocation-forcing implementation under the user's explicit
+  source-policy authorization. This is not a claim that the original source
+  pinned registers. Recipe: notes/research/func_8001231C.md; authorization and
+  verification: notes/techniques-for-solving-parked-functions.md.
 - func_800120C8 (s) — touches the widest set of the cluster; called from
   func_80011370's init
 - func_800121D4 (m), func_800128DC (s) — share D_8005E3C0. func_800121D4
