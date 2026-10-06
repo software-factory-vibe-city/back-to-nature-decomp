@@ -1,4 +1,11 @@
-# ovl_11_func_800F8B4C — human decision needed
+# ovl_11_func_800F8B4C — resolved
+
+Resolved with the user's explicit matching-policy exceptions: four inline
+address/call-setup instructions and five local bindings (four distinct
+registers) give 52/52 byte-exact words. SDK/game calls and signed division
+remain in C; baseline flags and independently corroborated prototypes are
+unchanged. Full finalization passed. These are matching workarounds, not
+original-source evidence. Historical report follows.
 
 - **Parked:** 2026-10-06T16:12:16.145Z
 - **Reason:** escalation-exhausted

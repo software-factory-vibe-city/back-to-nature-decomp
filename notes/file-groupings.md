@@ -9653,3 +9653,17 @@ corroborates an operation/layout family, not a common TU across distant bands.
 - ovl_11_func_800DFB98 (m, 0xA4) — predicate-guarded sibling.
 - ovl_11_func_800D05D0 (m, 0x30) — writes components to +58/+5C/+60 and
   updates flag word +34; shared padded interface preserves all original words.
+
+
+## ovl_11 numeric-row display helper (confidence: low; dependency only)
+
+Original ovl_11_func_800F787C calls 800F8B4C at 800F79B8. The helper
+formats D_80126E4A+1 and a signed argument divided by eight into the shared
+12-halfword D_80129FD8 scratch buffer, adds FFFF terminators and displays
+those strings at x=28/42, y=6E, with a table-selected separator at x=35.
+The direct caller edge corroborates a rendering dependency, not a source-file
+boundary or a common TU across the intervening link addresses.
+- ovl_11_func_800F787C (s) — recorded original caller.
+- ovl_11_func_800F8B4C (m, 0xD0) — finalized numeric/separator row helper;
+  four inline address/setup instructions and scoped register bindings are
+  explicitly user-authorized matching workarounds, not original-TU evidence.

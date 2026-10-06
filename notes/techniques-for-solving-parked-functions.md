@@ -1064,3 +1064,41 @@ This solution does not prove the original source contained inline assembly.
 Grouping evidence: the shifted first history pair is the +49C4/+49C8 accumulator
 pair independently written by matched F2354. Recorded that storage/layout link
 without adding the distant function to the existing run's original TU.
+
+## ovl_11_func_800F8B4C — stage the scratch-buffer address across its first formatter
+
+**Outcome:** explicitly user-authorized four inline instructions and five
+local bindings over four registers, 52/52 byte-exact words; full finalization
+passed (build/parked-recovery/800F8B4C-finalize.json). No flag changes.
+
+What was tried:
+1. Cached full pointers and a zero-offset buffer member view kept population 1,
+   schedule 2 and allocation 5. A fresh actual-source flag matrix showed no
+   dominant alternative. The original instead preserves the buffer's high
+   fragment in s0 across the first formatter, then forms its complete pointer.
+2. Modeled that real high/low lifetime with three inline address instructions,
+   shared s0 high/pointer bindings, first-buffer a1 and saved input s1. The
+   remaining C calls, sentinel stores and signed divide generated the target
+   registers/body; only the post-call argument move versus low-add order differed.
+3. Changing the final volatile address instruction to nonvolatile with a
+   memory clobber produced identical words: not a new mechanism outcome.
+4. Made the existing first-display argument move and low-add a coupled
+   two-instruction setup, with both real outputs consumed by the first display
+   call. This adds one a0 binding and replaces that generated move, not an
+   extra operation: EXACT. Both callee interfaces remained corroborated.
+5. Removed redundant source externs in favor of existing override declarations,
+   integrated with scoped authorization, remeasured, reran triage without a
+   blocker and passed every finalization gate.
+
+**Reusable technique:** a pointer cached before a call is not equivalent to a
+high fragment retained across it and a complete pointer formed afterward. With
+an explicit assembly exception, preserve those genuine stages and their uses.
+A conservative barrier that compiles identically does not solve statement-order
+residuals; an authorized short setup can model the two actual ordered outputs.
+The routine is not an assembly stub, and none of these bindings prove its
+original source representation.
+
+Grouping evidence: the original caller edge from F787C at F79B8 documents this
+helper's dependency and role, not common TU membership across the intervening
+code. Its observable numeric/separator display calls are recorded without a
+speculative gameplay name.
