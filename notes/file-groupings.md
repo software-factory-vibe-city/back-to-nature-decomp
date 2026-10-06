@@ -5889,9 +5889,10 @@ Members:
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: low)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): ten matched functions
-sharing the one ovl_11-private 0x50-byte s32 table `D_80129560`
-(`globals_override.h`), each guarded-indexing it with `s16`-scaled slots.
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): sixteen matched
+functions (plus one stub) sharing the one ovl_11-private 0x50-byte s32 table
+`D_80129560` (`globals_override.h`), each guarded-indexing it with
+`s16`-scaled slots.
 
 Fingerprints:
 - **shared private global:** `D_80129560` is defined in ovl_11 data and has
@@ -5902,6 +5903,9 @@ Fingerprints:
   `D_80129560[(s16)arg0]`/2 — or `(s16)arg0`/2 when `arg2 == 0` — against it),
   800ED760 (`arg2 != 0` resolves the scan target through the table),
   800EB79C (`arg2 != 0` resolves the record index through the table),
+  800E5C60 (`arg2 != 0` resolves the slot through the table, else raw
+  `(s16)arg0`; forwarded to `ovl_11_func_800EFF04` as its second arg),
+  800E8DC8 (three-slot snapshot read of the `arg2`/`(s16)arg1`/`arg3` slots),
   800E9CE4 (byte-slot reader: `lbu` of the low byte of
   `D_80129560[(s16)arg0]` through a 4-byte-strided element cast) — and
   writers 800E78E4 (stores the exe `func_80012A34`/`Rand` result into the slot),
@@ -5915,10 +5919,11 @@ Fingerprints:
   (800E686C) recorded as the same by `globals_override.h` — positive adjacency
   evidence among family members, which the scattered 0x800E5A1C/800EB79C/
   800EC490/800ED760 sites do not supply;
-- **what the tie is not:** the members are scattered over ~0x6E4C of text with
-  no call edges among them (800EC490 has no callers anywhere in the link —
-  an exported entry), so per the ledger convention the global alone is a
-  data-family tie, not a TU tie.
+- **what the tie is not:** the members are scattered over ~0x6E4C of text and
+  have a single member-to-member call edge so far (stub 800E8DC8 calls
+  matched 800E5C60 with `(arg0, 0, 0)`); 800EC490 has no callers anywhere in
+  the link (an exported entry), so per the ledger convention the global alone
+  is still a data-family tie, not a TU tie.
 
 Members:
 - ovl_11_func_800E6834 (m, matched 2026-11 — this session, 0x38, byte-exact) —
@@ -6003,6 +6008,22 @@ Members:
   `lui`+`addiu %lo` absolute base, `s16`-fused index and `!= -1` guard-write
   shape as 800E78E4/800EC490, and the same conditional table-resolve as
   800E69F8/800EB79C, inside the accessor band.
+- ovl_11_func_800E5C60 (m, matched this session, 0xA0, byte-exact) —
+  conditional-slot resolver: when `arg0 != 0x2C`, resolves
+  `D_80129560[arg0]` (raw `(s16)arg0` when `arg2 == 0`) and calls
+  `ovl_11_func_800EFF04(0x25, resolved, NULL)`, setting bit `0x800` of the
+  resolved record's first halfword when `arg1 == 0` and clearing it otherwise;
+  the `arg0 == 0x2C` arm calls `ovl_11_func_800CF36C(0)`; returns 1. Its two
+  callers are still stubs: `ovl_11_func_800E5ADC` and `ovl_11_func_800E8DC8`
+  both call it as `800E5C60((s16)arg0, 0, 0)` and then store three s32s at the
+  0x22 record's +0/+4/+8 (800E5ADC's values from its own args, record base
+  `D_80077600 + arg0*0xF8` for `arg0 < 0x32`; 800E8DC8's read through the
+  table).
+- ovl_11_func_800E8DC8 (s) — three-slot snapshot writer: after
+  `ovl_11_func_800E5C60((s16)arg0, 0, 0)`, resolves the 0x22 record via
+  `ovl_11_func_800EFF04` and stores `D_80129560[arg2]`/
+  `D_80129560[(s16)arg1]`/`D_80129560[arg3]` at its +0/+4/+8; returns 1. Same
+  snapshot-write idiom as 800E9778, inside the accessor band.
 
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 
