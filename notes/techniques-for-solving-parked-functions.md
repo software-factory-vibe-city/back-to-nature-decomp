@@ -380,3 +380,35 @@ selector, row layout and indexed-access idiom; gapless predecessor status
 remains corroborating evidence, not proof of an original TU boundary.
 Evidence: donor source, original words, experiment ledger, shared view and
 finalization receipt.
+
+## ovl_11_func_800EF870 — indexed members recover the supposedly impossible copies
+
+**Outcome:** clean C, 19/19 byte-exact words; complete finalization passed
+(build/parked-recovery/800EF870-finalize.json), without an exception or flag.
+
+What was tried:
+1. Historical pointer-walking C had schedule 1/allocation 7. The ledger's
+   many pointer-forwarding and field-view probes all failed to retain the
+   two target base copies, and local-allocation/search proofs assumed that
+   every store belonged to one precomputed address web.
+2. Read matched 801047FC, which initializes the same five 0xC-stride records
+   using independently indexed recs[i][k] member stores. Also inspected
+   triage's DCC1C typed-entry donor, rather than repeating pointer copies.
+3. Described the complete +0xE4D8 region as s16 recs[5][6] and independently
+   indexed all five stores: recs[arg0][0/1/2/4/5]. The first compile was EXACT.
+   Published the view in game_types.h, remeasured the live source, and ran
+   full finalization; all passed.
+4. Recorded the counterexample to the old broad impossibility claim. CSE's
+   deletion of explicit pointer copies does not imply that the target's
+   copies had that origin: the indexed-member source produces them naturally.
+
+**Reusable technique:** a typed pointer to a padded record is not the same
+experiment as a typed global view with an indexed member array. The latter
+preserves independent address expressions through reload. Before believing
+an allocation UNSAT, check that its web partition came from the right source
+operation boundary.
+
+Grouping evidence: the 801047FC initializer independently witnesses the
+five-record bound, 0xC stride and +0/+8/+A fields. Shared storage supports a
+family link, not an original-TU proof. Evidence: matched donor, original
+words, experiment ledger/conditional closure, shared type and receipt.

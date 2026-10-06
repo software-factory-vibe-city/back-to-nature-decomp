@@ -1344,6 +1344,15 @@ and 80103770 walks — an initializer/consumer tie on one data region, so it
 extends this TU family past the 0xE514 boundary; membership in the
 D_80127428 run itself remains unproven (touches none of D_80127428/2C).
 
+Widening (byte-exact match of `ovl_11_func_800EF870`): the address-apart
+single-record resetter (m, 0x4C, void leaf) independently indexes the same
+`recs[arg0][0/1/2/4/5]` member array at +0xE4D8. It sets fields +0/+8/+A
+to -1, as 801047FC does, and also clears +2/+4. The initializer's bound 5,
+record stride 0xC and shared fields corroborate this data-region family.
+The indexed-member spelling reproduces the target's two base copies
+without assembly (19/19 words, fully finalized); TU co-membership remains
+unproven from a shared global alone.
+
 Widening (byte-exact match of `ovl_11_func_80104418`): the run's accumulator
 mutator is now matched. `ovl_11_func_80104418` (m, 0x80104418, 0xCC, void leaf)
 is called only by `ovl_11_func_80103C00` — the same link-contiguous cluster

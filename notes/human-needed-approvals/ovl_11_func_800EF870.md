@@ -1,4 +1,11 @@
-# ovl_11_func_800EF870 — human decision needed
+# ovl_11_func_800EF870 — resolved
+
+**Resolved:** clean C is byte-exact (19/19) and fully finalized, without
+assembly or flag overrides. Independently indexed member-array stores
+produce the two base copies that precomputed-pointer variants could not.
+The old impossibility findings were conditional on the wrong address
+expression family. Historical evidence below is retained; see the parked
+techniques ledger.
 
 - **Parked:** 2026-08-24T11:56:05.548Z
 - **Reason:** escalation-exhausted

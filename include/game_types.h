@@ -489,6 +489,13 @@ typedef struct {
     s16 rows[1][6][7];
 } Ovl11RowE522View;
 
+/* Five 0x0C-byte records at D_8006C838 +0xE4D8, independently
+ * indexed by the record initializer and resetter. */
+typedef struct {
+    char pad[0xE4D8];
+    s16 recs[5][6];
+} Ovl11RecordE4D8View;
+
 #endif /* GAME_TYPES_H */
 
 /* Gradient-draw command shared by func_8001FA0C and func_8001F8A4 (0xC..0x14
