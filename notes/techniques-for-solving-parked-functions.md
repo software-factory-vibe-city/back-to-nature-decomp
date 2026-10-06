@@ -243,3 +243,37 @@ Grouping evidence: shares the +0x49E4 queue, byte-at-2 empty marker and
 0x4C-byte shift with matched 800F2724; adjacent to that member and 800F2880.
 The common data/call/link run supports cluster membership, not a TU boundary.
 Evidence: original assembly, experiment ledger, verified source and receipt.
+
+## ovl_11_func_800D0600 — finish the established entry-v0 exception
+
+**Outcome:** 11/11 byte-exact words; full finalization passed all images,
+policy and scope (`build/parked-recovery/800D0600-finalize.json`).
+This is an explicitly classified register-capture exception, not clean C
+for an ordinary ABI function.
+
+What was tried:
+1. The bulk recovery sweep found that the disabled historical attempt was
+   already EXACT. Family transfer also found the byte-identical 800D1CD0
+   donor; neither scratch result was treated as finalization.
+2. Independently scanned the original: it reads incoming v0 at 800D0608
+   and spills it to an unread stack slot. The documented caller 800D062C
+   seeds v0 with sp+0x10; existing notes already establish this static-chain
+   fingerprint and the same class in matched 800D1CD0/func_8001E9F8.
+3. Restored the exact preserved implementation, retaining only its one
+   file-scope register capture. Recorded the established exception in the
+   source-policy allowlist. The scanner classifies the register declaration's
+   asm syntax as both register-asm and embedded-asm, so both categories are
+   necessary even though no inline instruction string was added.
+4. Used the lowercase symbol key required by triage; a mixed-case key was
+   not recognized. Source policy then passed, triage had no blocker, and
+   authoritative full finalization passed.
+
+**Reusable check:** separate a genuinely observed non-ABI entry register
+from an ordinary allocation near-miss. An exception must rest on original
+read-before-definition evidence and existing classification, not on score.
+Record it explicitly rather than silently copying a grandfathered macro.
+
+Grouping update marks the already-documented v0-channel sibling matched;
+its cross-run data-free comparison identity does not prove a TU boundary.
+Evidence: original entry-liveness scan, historical approval record,
+static-chain research note, experiment ledger, live source and receipt.

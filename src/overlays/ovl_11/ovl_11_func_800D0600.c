@@ -1,31 +1,11 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800D0600", ovl_11_func_800D0600);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-08-24T04:56:04.215Z.
- * Reason: asm-needs-human-approval.
- * Escalation reached: deepseek-v4-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_800D0600.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
-/* POLICY EXCEPTION (user-approved 2026-07-31): file-scope register variable
- * pinned to $2/$v0. Reproduces the target's dead `sw $v0, 0($sp)` — the callee
- * reads hard $v0 at entry (a caller-saved register read before its first
- * definition) and stores it to a stack slot that is never read again. The
- * caller ovl_11_func_800D062C seeds $v0 with the GCC nested-function static
- * chain ($sp + 0x10) before every call, the same v0-channel fossil documented
- * in notes/research/func_8001EAE4-v0-channel-delay-slot-fossil.md. The
- * block-scope CAPTURE_PREV_RET form lets GCC delete the dead store in a pure
- * leaf function like this one; only the file-scope form (stores never
- * deleted, $v0 reserved for the TU) keeps `sw $v0, 0($sp)` — the same choice
- * func_8001E9F8 makes. In the original single source file this declaration
- * sat between nested-function siblings in the parent's translation unit. */
+/* Allowlisted entry-v0 capture, not an ordinary C parameter. The original
+ * reads v0 before defining it and spills it to an unread stack slot; caller
+ * 800D062C supplies sp+0x10. This is the documented static-chain fingerprint
+ * also carried by 800D1CD0 and func_8001E9F8. The register declaration is
+ * preserved from the previously exact attempt, with its policy exception
+ * now recorded in .pi/autoloop.json. */
 register s32 channel asm("$2");
 
 /* Compares two indices and returns their rank difference folded to {0, 1, 2}:
@@ -42,4 +22,3 @@ s32 ovl_11_func_800D0600(s32 arg0, s32 arg1) {
     }
     return 2;
 }
-#endif

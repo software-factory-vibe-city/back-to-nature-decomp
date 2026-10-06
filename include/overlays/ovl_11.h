@@ -126,6 +126,7 @@ void ovl_11_func_800D03B4(M2C_057dca34f681_Struct_800D03B4 *arg0, M2C_057dca34f6
 s32 ovl_11_func_800D0408(s16 arg0, Recon800D0408A1View *arg1, s32 arg2);
 void ovl_11_func_800D049C(M2C_b289ac4b613d_Struct_800D049C *arg0);
 void ovl_11_func_800D05D0(M2C_0ac2dae062dd_Ov11SetFields *arg0, M2C_0ac2dae062dd_Ov11SetVec v);
+s32 ovl_11_func_800D0600(s32 arg0, s32 arg1);
 void ovl_11_func_800D075C(s32 arg0, s16 arg1, s32 arg2, s32 arg3);
 s32 *ovl_11_func_800D0C34(void);
 s32 *ovl_11_func_800D0CD8(void);

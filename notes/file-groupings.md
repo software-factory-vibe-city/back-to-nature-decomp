@@ -1573,7 +1573,8 @@ Fingerprints:
   sandwiched between them — a single global threading one contiguous file.
 - register-capture quirk crossing the run boundary: ovl_11_func_800D1CD0
   (matched, this session) is byte-identical to ovl_11_func_800D0600 (~0xC80
-  earlier; parked), both leaves fold a two-index compare to {0,1,2} and both
+  earlier; now matched and fully finalized with the established entry-v0
+  exception), both leaves fold a two-index compare to {0,1,2} and both
   open with the dead `sw $v0, 0($sp)` hard-`$v0` capture, and both callers
   (800D1CFC here, 800D062C there) seed `$v0 = $sp + 0x10` before every call
   — the v0-channel/static-chain fossil shared cluster, same family signature
@@ -1596,7 +1597,7 @@ Members (address order):
   `(arg2 + arg1*9)*8 + arg0*288` against a `func_80012A34(0x65)` threshold;
   called by the adjacent ovl_11_func_800D196C
 - ovl_11_func_800D1CD0 (m, matched this session) — v0-channel rank-compare
-  leaf; byte-identical to the parked ovl_11_func_800D0600; does not touch the
+  leaf; byte-identical to the now-matched ovl_11_func_800D0600; does not touch the
   global (CAPTURE_PREV_RET clean C)
 - ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter;
   caller of 800D1CD0, seeds $v0 with $sp+0x10 before each call
