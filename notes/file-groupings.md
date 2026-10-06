@@ -2093,10 +2093,14 @@ array at `+0x02` are the record's pending counter and entries at 0x7E/0x7F, and
 ovl_11_func_800F3EF0 folds into the main `+0x34`.
 
 Members (address order):
-- ovl_11_func_800F3BCC (s) — register-one-counter: increments the clamped u16
-  at `D_80070D14`, folds `ovl_11_func_800D603C(arg0)`'s result into the s32 at
-  `D_800711C4+0x34`, then `idx = ovl_11_func_800F3C9C(arg0 & 0xFFFF)` and
-  increments `D_800711C4[idx]` with a 999 clamp, returning 1 (0 when idx == -1)
+- ovl_11_func_800F3BCC (m, matched this session, 0xD0 byte-exact) —
+  register-one-counter: increments the clamped u16 at `D_80070D14`, folds
+  `ovl_11_func_800D603C(arg0)`'s result into the s32 at `D_800711C4+0x34`,
+  then `idx = ovl_11_func_800F3C9C(arg0 & 0xFFFF)` and increments
+  `D_800711C4[idx]` with a 999 clamp, returning 1 (0 when idx == -1). Keeps
+  `u16 *base = D_800711C4;` live in `$s1` across the two callees and reaches
+  `D_80070D14` as `base - 0x24C6` plus byte `0x44DC` — the same
+  base-pointer-in-register idiom as ovl_11_func_800F3E00
 - ovl_11_func_800F3C9C (m) — the cluster's index mapper: u16 id → small table
   index (0x41–0x4F → id-0x41, several id sets → 0xF..0x15), -1 otherwise
 - ovl_11_func_800F3D88 (s) — reset leaf: clears the `D_800711C4+0x34`

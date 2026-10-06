@@ -403,6 +403,7 @@ void ovl_11_func_800F3A44(u16 arg0, u16 arg1);
 s32 ovl_11_func_800F3AC4(u16 arg0);
 void ovl_11_func_800F3AF0(u16 arg0, u16 arg1);
 s32 ovl_11_func_800F3BA0(u16 arg0);
+s32 ovl_11_func_800F3BCC(u16 arg0);
 s32 ovl_11_func_800F3C9C(u16 arg0);
 void ovl_11_func_800F3D40(void);
 s32 ovl_11_func_800F3D88(void);
