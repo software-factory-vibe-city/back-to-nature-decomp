@@ -1,4 +1,4 @@
-# ovl_15_func_80135AE0 — human decision needed
+# ovl_15_func_80135AE0 — resolved
 
 - **Parked:** 2026-10-04T15:46:52.960Z
 - **Reason:** escalation-exhausted
@@ -65,3 +65,9 @@ void ovl_15_func_80135AE0(void) {
     D_80137830[0x27F] = c;
 }
 ```
+
+## Resolution
+
+Transferred the matched verifier sibling's count-up indexing idiom to the writer.
+34/34 words are exact; full finalization passed without an exception.
+The historical park record is retained above.

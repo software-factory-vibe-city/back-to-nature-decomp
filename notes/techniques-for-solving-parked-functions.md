@@ -178,3 +178,31 @@ byte identity; read exact words when same-shape operations are transposed.
 
 Evidence: the function's experiment ledger, original assembly, matched
 `src/overlays/ovl_11/ovl_11_func_800F144C.c`, and finalization receipt.
+
+## ovl_15_func_80135AE0 — transfer the matched cluster's loop idiom
+
+**Outcome:** 34/34 byte-exact words; full finalization passed all images and
+policy/scope checks (`build/parked-recovery/80135AE0-finalize.json`).
+
+What was tried:
+1. Read the preserved schedule-1 source and the previous exhausted 5250-
+   candidate closure. That closure assumed an explicit offset biv plus a
+   post-loop offset shield; it did not cover the sibling's indexed algorithm.
+2. Triage located the residual in a loop preheader and named the matched
+   verifier 80135B68 as a cluster donor with different giv formation.
+3. Tested declaration-born and statement-born base pointers. Both produced
+   the previously measured population-6 program, not a solution.
+4. Copied the verifier's actual loop construction: i from 5 to 255, inner j
+   from 0 to 126, `D_80137830[i * 0x80 + j]`, and used post-loop j for
+   the checksum store. Removed the separate offset counter and dead shield.
+   This immediately produced EXACT without allocator/scheduler tuning.
+5. Removed unused scratch declarations, integrated, remeasured and finalized.
+   Both checksum halves now independently support the shared grouping idiom.
+
+**Reusable technique:** a nearly exact hand-carved induction variable can
+freeze the wrong loop-pass history. A matched sibling is evidence for the
+source construction; transfer the whole bounded idiom rather than reordering
+its emitted preheader or searching the frozen source's closure again.
+
+Evidence: triage cluster-donor output, both original assemblies, matched
+`src/overlays/ovl_15/ovl_15_func_80135B68.c`, the experiment ledger and receipt.

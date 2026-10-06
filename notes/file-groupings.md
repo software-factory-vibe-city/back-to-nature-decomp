@@ -8896,13 +8896,16 @@ block-sum at `D_80137A30[0x38]`, and the `D_80137A30` checksum at
 `D_80137830[0x27F]`; 80135B68 recomputes the same three values and compares them
 (returning -1/0). They also share one inner-loop XOR idiom — both emit
 `xor $dst, $byte, $acc` — which in this toolchain is produced only by a `u8`
-accumulator, a quirk the sibling's own preserved source attempt independently
-rediscovered. `ovl_15_func_80135C20` (next in link order) is not a member: it
+accumulator. Both now-matched sources use the same count-up nested indexing
+`D_80137830[i * 0x80 + j]`, with i=5..255 and j=0..126; the writer uses
+j's post-loop value for the checksum slot. This independently corroborates
+the shared source idiom rather than merely the emitted XOR. `ovl_15_func_80135C20` (next in link order) is not a member: it
 references `D_80137598`, not this pair.
 
 Members (link order):
-- ovl_15_func_80135AE0 (s) — checksum writer: fills each block's 0x7F-byte
-  checksum slot and the two summary bytes in `D_80137A30`/`D_80137830`.
+- ovl_15_func_80135AE0 (m, 0x88, byte-exact) — checksum writer: fills
+  each of blocks 5..255's 0x7F-byte checksum slots and the two summary bytes
+  in `D_80137A30`/`D_80137830`.
 - ovl_15_func_80135B68 (m, matched this session, byte-exact) — checksum
   verifier: returns 0 when all three stored checksums match, else -1.
 
