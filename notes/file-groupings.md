@@ -7812,6 +7812,38 @@ Members (link order):
   stride-0x78 `D_800BFE44` records, setting index +0x10, flag +0x12, and the
   0x32000 word at +0x1C; sibling idiom of `ovl_25_func_800B83A0`
 
+## `ovl_25` D_800BCBEC/D_800BCBF8 two-level state-dispatch tables — 0x800B853C–0x800B8728 (confidence: medium)
+
+Two overlay-local function-pointer tables indexed by the two low halfwords of
+`D_800BFE44`; `ovl_25_func_800B853C` is the head of the `D_800BCBEC` run and
+also the dispatcher that reads `D_800BCBF8`.
+
+Fingerprints:
+- overlay-local 3-entry table `D_800BCBEC` = [`ovl_25_func_800B853C`,
+  `ovl_25_func_800B860C`, `ovl_25_func_800B8728`] (`build/ovl_25/asm/data/3D20.data.s`),
+  indexed by `D_800BFE44`+0 and dispatched by `ovl_25_func_800B813C`, a member
+  of the recorded `D_800BCBD8` cluster; `ovl_25_func_800B853C` itself writes
+  `D_800BFE44`+0 = 1, so it selects its own table entry;
+- overlay-local 6-entry table `D_800BCBF8` = [`ovl_25_func_800BA7F0`,
+  `ovl_25_func_800BA818`, `ovl_25_func_800BA858`, `ovl_25_func_800BA908`,
+  `ovl_25_func_800BA9A4`, `ovl_25_func_800BA9F4`] (same data file, immediately
+  after `D_800BCBEC`), indexed by `D_800BFE44`+2 (`D_800BFE46`) and dispatched
+  by `ovl_25_func_800B853C`; its entries are exactly the recorded
+  `D_800BFE44`/`D_800BFE46` state-writer run;
+- gapless link-order run of the `D_800BCBEC` members: `ovl_25_func_800B853C`
+  (0xD0, ends exactly 0x800B860C) → `ovl_25_func_800B860C` (0x11C, ends
+  exactly 0x800B8728) → `ovl_25_func_800B8728` (0x120).
+
+Members (link order):
+- ovl_25_func_800B853C (m, matched this session, byte-exact) — `D_800BCBEC[0]`;
+  when `D_800BFE44`+2 == 6 and `func_80013394() == 1` clears the flag and
+  sets the +0 selector, otherwise dispatches `D_800BCBF8[flag]` and applies
+  the `(u16)x - (((x+1)/10000)*10000 - 1)` timer-modulo to `D_800BFE44`+0xC
+- ovl_25_func_800B860C (s) — `D_800BCBEC[1]`; per-frame `D_800BFE44`+0x4CC
+  counter and field reset
+- ovl_25_func_800B8728 (s) — `D_800BCBEC[2]`; same divide-by-10000 timer-modulo
+  on `D_800BFE44`+0xC
+
 ## `ovl_25` display-setup state-handler run — 0x800BAC9C–0x800BAFCC (confidence: medium)
 
 Evidence: the state dispatcher `ovl_25_func_800B7F3C` selects on the byte
