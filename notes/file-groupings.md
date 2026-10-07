@@ -5794,6 +5794,24 @@ Members (link order):
   `ratan2(arg0, arg1)`, negative-result wrap by `+0x1000`, then
   `* 0x168 / 0x1000` to degrees
 
+## `ovl_23` D_800BF87C/D_800BBAB4 threshold-selector leaf — 0x800BA3B4 (confidence: medium)
+
+Evidence: gapless link order on both sides in ovl_23 — `ovl_23_func_800BA368`
+(0x4C, ends 0x800BA3B4) is the immediate predecessor and `ovl_23_func_800BA494`
+(0xE0) the immediate successor of this 0xE0-byte function (splat
+`[0x2594, c, ovl_23_func_800BA3B4]`). It reads the same `D_800BF87C` aggregate
+as the runs above — a record selected with stride 0x50 and its u16 pair at
++0x30/+0x32, plus s16 thresholds at +0x3A4/+0x3A6/+0x3A8/+0x3AA — and indexes the
+s16 `D_800BBAB4` table (row stride 5) through the shared exe selector
+`func_80012A34`, the same aggregate + `func_80012A34` pairing recorded for the
+screen-record init run. Aggregate, adjacency and call edge agree.
+
+Members (link order):
+- ovl_23_func_800BA3B4 (m, byte-exact this session) — s16 pair; computes a signed
+  halfword difference from the `D_800BF87C` record selected by arg1, maps it
+  through a four-threshold chain to an index 0-3 (else 4), then compares the
+  `D_800BBAB4[arg0*5 + index]` halfword against `func_80012A34(0x64)`.
+
 ## `ovl_11` mask-switch leaf run — 0x800F1BD0 / 0x800F1C48 / 0x800F1CC4 (confidence: low)
 
 Candidate same-TU run in `ovl_11` (`Obj\GF_FARM.bin`): gapless
