@@ -1726,6 +1726,12 @@ typedef struct {
 } M2C_d4baf9e5b2ba_SpriteSourceData;
 
 typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} M2C_d4cb10048269_SwapStruct_B45C;
+
+typedef struct {
     char pad_00[0x26];
     s16 field_26;
     char pad_28[0x34 - 0x28];

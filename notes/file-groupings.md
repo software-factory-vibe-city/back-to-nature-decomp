@@ -2710,6 +2710,30 @@ Members (address order):
 
 ---
 
+## `ovl_11` 800FB218/800FB290 4-argument irregular-switch pair — 0x800FB218–0x800FB290 (confidence: medium)
+
+Evidence: zero-gap link order (`ovl_11_func_800FB218`, 0x78 bytes, ends
+exactly at 0x800FB290) plus a shared author idiom cluster: both keep the
+incoming four-slot ABI shape with an unused second argument (arg0/arg2 are
+`SwapStruct_B45C *`, arg1/arg3 scalars), both call `ovl_11_func_800FB3E4`,
+`ovl_11_func_800D5810` and the swap helper `ovl_11_func_800FB45C`, both use
+the irregular switch with a nested `case 1` fallthrough, and both declare the
+same local `SwapStruct_B45C` {s16; s16; s16} typedef. Adjacency + call graph +
+idiom agreement; TU membership between the two is well supported, while the
+wider 0x800FBxxx region (0x800FB3E4 predicate, 0x800FB404, 0x800FB45C) stays a
+prior.
+
+Members:
+- ovl_11_func_800FB218 (m) — type/state gate: `800FB3E4` dispatch with a
+  nested `case 1`, swapping arg0/arg2 through `800FB45C` and returning 0 on
+  the accepting path, else 1.
+- ovl_11_func_800FB290 (m, matched this session, byte-exact) — two-stage
+  sibling: runs the same `800FB3E4`/`800D5810` gate on (arg0,arg3) then
+  (arg2,arg1), adds the `800D583C` / `field_4 < 2` check in each stage, and
+  swaps through `800FB45C` returning 0, else 1.
+
+---
+
 ## `ovl_11` D_801295C6 setter/getter run — 0x800E60A0–0x800EEBC8 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
