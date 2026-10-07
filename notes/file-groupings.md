@@ -9672,6 +9672,18 @@ establish clients only. D0BC8 is now byte-exact using independent global member
 expressions; no per-file flag inference follows from this reconstruction.
 
 
+## ovl_11 D_8006C838+99D2 s16 lookup consumers (confidence: low)
+
+- ovl_11_func_800F4618 (m, byte-exact this session): loops i=2..3 reading the
+  s16 at D_8006C838+0x99D2+(i-2)*4, gates each on `!= 1` (else 0), and calls
+  ovl_11_func_800F501C(i-2, ovl_11_func_800D0BC8(i)==1, value).
+- ovl_11_func_800D09E0 (s): its `arg0 != 1` branch forms the same base
+  D_8006C838+0x99D2 and reads `lh 0(s2)` inside an i=2..3 stride-4 scan.
+
+Shared global address and loop/lookup idiom within one container (verified
+target words); a data-access/idiom link, not a proved TU boundary.
+
+
 ## ovl_11 8010E644 / 80111030 lookup caller link (confidence: low)
 
 - ovl_11_func_8010E644 (s): original jal at 8010E650 calls 80111030.
