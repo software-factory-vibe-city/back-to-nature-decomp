@@ -10379,7 +10379,7 @@ Fingerprints:
   `ovl_11_func_800D3104`, tying the triple to the state-dispatch machine.
 
 Members (address order):
-- ovl_11_func_800E0028 (s) — start handler: state 0 sets +0x28 = 1 *and* sets
+- ovl_11_func_800E0028 (m, byte-exact) — start handler: state 0 sets +0x28 = 1 *and* sets
   flag 0x800 at +0x34; state −1 sets +0x2C = 0x12C and clears the flag; else
   steps table `D_80123F3C`.
 - ovl_11_func_800E00E0 (m, matched this session) — clear handler: state 0 sets
