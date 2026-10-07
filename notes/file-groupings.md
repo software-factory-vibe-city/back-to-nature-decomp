@@ -2907,9 +2907,12 @@ Fingerprints:
   @+0x25476 (recorded accessor family 0x800C9D64 / 0x800E8960, same single-`lui`
   +`addu` far-base idiom), address-apart from both, so it widens that family
   without changing its (low) same-TU vote;
-- the arg0 object view {u16@0x24, s16@0x2A, s16@0x30, u16@0x7A} has no other
-  matched reader yet — the other callers (`ovl_11_func_8010F80C`,
-  `ovl_11_func_8010FBC4`) are stubs.
+- the arg0 object view {u16@0x24, s16@0x2A, s16@0x30, u16@0x7A} now has a
+  second matched reader in `ovl_11_func_800D04D4` (which reads the
+  {s16@0x24, s16@0x30, u16@0x7A} subset and the same far-state gate, but
+  not +0x2A); the remaining callers (`ovl_11_func_8010F80C`,
+  `ovl_11_func_8010FBC4`) are stubs. The view is an overlay-wide data tie at
+  this confidence, not evidence of shared link order.
 
 Members (address order):
 - ovl_11_func_80110494 (m, matched this session) — state-key probe leaf: guards
@@ -6388,17 +6391,25 @@ Members:
 
 ---
 
-## `ovl_11` 3×s32 vector-record pair — 0x800D03B4 / 0x800D0408 (confidence: medium)
+## `ovl_11` 3×s32 vector-record pair + adjacent frame-step helper — 0x800D03B4–0x800D04D4 (confidence: medium; the 0x800D04D4 tail is adjacency-only)
 
 Two link-contiguous leaf functions operating on the identical 12-byte record
-(three s32 components at 0/4/8):
+(three s32 components at 0/4/8), followed by a function run the symbol map
+keeps zero-gap-contiguous with them:
 
 - `Struct_800D03B4` (field_0/4/8, local typedef in the matched source) and the
   type 0x800D0408 writes (`Recon800D0408A1View`, game_types.h) are the same
   layout — same component offsets, same component width;
 - link-order adjacency: `ovl_11_func_800D03B4` (0x54) ends exactly at
-  `ovl_11_func_800D0408` (0x94); the map places them one unbroken run, with
-  stub `ovl_11_func_800D049C` continuing it;
+  `ovl_11_func_800D0408` (0x94), which ends exactly at stub
+  `ovl_11_func_800D049C` (0x38), which ends exactly at
+  `ovl_11_func_800D04D4` (0xFC), which ends exactly at
+  `ovl_11_func_800D05D0` — so the pair's unbroken run continues through the
+  stub into the newly matched 0x800D04D4;
+- 0x800D04D4 shares no record layout and no call edge with the pair, so its
+  membership is carried by that zero-gap adjacency alone (hence the tail's
+  lower confidence), plus a separate data tie noted in the 0x80110494 group
+  above;
 - semantic kinship: 0x800D03B4 is the record's component-wise add/clear
   writer, 0x800D0408 its component-select writer (s16 selector, zeroes the
   record then stores ±arg2 into one component, and clears all three for the
@@ -6411,6 +6422,12 @@ Members (address order):
   select: zeroes the record, switch on s16 arg0 (−2..4) stores ±arg2 into
   component 0/4/8 or clears the whole record, returning −arg2 on the negative
   paths
+- ovl_11_func_800D049C (s) — 0x38-byte stub bridging the pair to the helper
+- ovl_11_func_800D04D4 (m, newly matched) — frame-step helper: indexes a
+  3-s16 keyframe record by s16@+0x28 and arg3, copies its first field to
+  obj s16@+0x24, and advances the keyframe index once the frame counter
+  reaches the record's second field, returning 1 on its −1 terminator
+- ovl_11_func_800D05D0 (m) — gapless link successor; vector-component setter
 
 ---
 
