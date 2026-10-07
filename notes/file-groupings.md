@@ -6921,6 +6921,34 @@ Members:
   ovl_11_func_8010B778(&D_80075AD4, arg0) (the band's 0xF0 record
   initializer) and returns &D_80075AD4, else returns NULL; sole witnessed
   caller 0x800CE744.
+- ovl_11_func_800C7650 (m, matched this session, byte-exact) — flag-dispatch
+  leaf on the D_80128C54/D_80128C4C pair that passes &D_80075AD4 as arg0 to
+  the D_800BA9E4 dispatcher ovl_11_func_8010B57C when the flag's 0x200 bit is
+  set, bridging this record cluster to the pair cluster below.
+
+## `ovl_11` D_80128C4C / D_80128C54 state-pair cluster — 0x800C4DE0–0x800CD0F4 (confidence: medium)
+
+- shared-global fingerprint: two adjacent main-RAM s32 globals, D_80128C4C
+  (0x80128C4C) and D_80128C54 (0x80128C54), reached absolutely (`lui`+`%lo`)
+  by every site in this band; D_80128C54 is a bit-field of state flags and
+  D_80128C4C is the dispatched object pointer.
+- writers: 0x800C7878, 0x800C9C60, 0x800CA708 and 0x800CB114 store both halves;
+  the other members load one or both.
+- span/order: every site lies inside the contiguous 0x800C4DE0–0x800CD0F4
+  ovl_11 band, and the four writers intersperse the readers, the same
+  read/write-threading fingerprint as the D_80128B50/D_80128B5C run.
+
+Members:
+- ovl_11_func_800C7650 (m, matched this session, byte-exact) — flag-dispatch
+  leaf: on `D_80128C54 & 0x206`, calls `ovl_11_func_800DF010(D_80128C4C, 0)`
+  for 0x2/0x4 and `ovl_11_func_8010B57C(&D_80075AD4, 0)` for 0x200.
+- ovl_11_func_800C7878 (s) — reads then writes both halves.
+- ovl_11_func_800C9C60 (s) — writes both halves.
+- ovl_11_func_800CA708 (s) — reads, then writes both halves.
+- ovl_11_func_800CB114 (s) — writes both halves repeatedly.
+- ovl_11_func_800C4DE0 / 800C523C / 800C541C / 800C580C / 800C8FA8 /
+  800C907C / 800CB850 / 800CD0F4 (s) — readers of one or both halves.
+- ovl_11_func_800C8D24 (s) — reads D_80128C54 only.
 
 ## `ovl_11` D_80123758 0x18-byte item-record table cluster — 0x800CF258 / 0x800CF428 (confidence: medium)
 
