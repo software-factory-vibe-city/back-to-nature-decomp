@@ -10861,3 +10861,20 @@ symbol.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80127AB4`.
+
+Thirty-third family member, link-order-adjacent to the thirty-second
+(confidence: high). `ovl_11_func_8010A3C4` (0x8010A3C4) is the immediate gapless
+successor of `ovl_11_func_8010A30C` (splat `configs/splat/ovl_11.yaml`:
+0x524EC + 0xB8 = 0x525A4 = 0x8010A3C4) and carries the byte-identical
+state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and `case 1: default:`) and
+the same `ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call
+shape; its table `D_80127AC0` (`0x001E0009, 0x005A000A, 0x001E0009,
+0x0000FFFF`) immediately follows 8010A30C's `D_80127AB4` (ends at 0x80127AC0)
+in `build/ovl_11/asm/data/69960.data.s`, so membership rests on both code and
+table adjacency. Its function words differ from the thirty-second member only
+in the table symbol; its table carries three value pairs
+(`0x001E0009, 0x005A000A, 0x001E0009`) before the `0x0000FFFF` terminator.
+- ovl_11_func_8010A3C4 (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127AC0`.
