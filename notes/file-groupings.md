@@ -7721,8 +7721,10 @@ Members (link order):
 - ovl_27_func_800B9B98 (s) — slot 2: counter `D_800C4A30`, buffer `D_800C4AE0`
 - ovl_27_func_800B9C84 (s) — wrapper hub: calls 800B9CB4, then 800B9DBC, then
   800B9EEC in one sequence; lives inside the run as the family's orchestrator
-- ovl_27_func_800B9CB4 (s) — slot 3: counter `D_800C4A32`, buffer `D_800C4B10`;
-  issues three `func_80015BF0` draws
+- ovl_27_func_800B9CB4 (m, byte-exact) — slot 3: counter `D_800C4A32`,
+  buffer `D_800C4B10`; issues three `func_80015BF0` draws, hoisting
+  `D_8005E3C0->field_D8 + 0x8C` into one local shared by all three calls (the
+  multi-draw slots' shared idiom; slot 0's single draw inlines it)
 - ovl_27_func_800B9DBC (s) — slot 4: counter `D_800C4A34`, buffer `D_800C4B40`;
   issues five `func_80015BF0` draws
 - ovl_27_func_800B9EEC (s) — slot 5: counter `D_800C4A36`, buffer `D_800C4B70`;
