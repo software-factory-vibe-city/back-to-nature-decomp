@@ -9653,6 +9653,12 @@ call idiom.
   `s16@+0x26 == arg1 && (s32@+0x34 & 0x800)` (then -1); when `D_800B95CC[arg1]`
   is set and the result ≠ -1 records the selection (0x26/0x28/0x2A/0x2C) and
   calls `ovl_11_func_800D0408`; stores -1 at `s16@+0xB6`.
+- ovl_11_func_800DFA7C (m, matched this session, byte-exact) — `D_800B957C`
+  table handler: gates `s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)` and
+  `func_80012A34(0xC8) < s16@+0x16`, then shares 800DFB3C's work-area latch
+  (`D_8006C838`+0x52C8/+0x52CC/+0x52D0/+0x52D4 → `s32@+0x58..+0x64`, OR
+  0x2000 into `s32@+0x34`) and calls `ovl_11_func_800DF010(this, 0x12)`;
+  zero-gap link successor of 800DF9F0 and predecessor of 800DFB3C.
 - ovl_11_func_800DFB3C (m, matched this session, byte-exact) — `D_800B957C`
   table handler (id 0x12): latches the `D_8006C838`+0x52C8/0x52CC/0x52D0/0x52D4
   work area into `s32@+0x58..+0x64`, ORs 0x2000 into `s32@+0x34`, then calls
