@@ -10749,6 +10749,13 @@ rests on the shared idiom and table shape plus successor adjacency.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80124078`.
+- ovl_11_func_800E2F58 (m, matched this session, byte-exact) — gapless successor
+  of 800E2EA0 in the same family and the same `case 1: default:` state-switch
+  idiom, but its default path selects one of the adjacent handler tables
+  `D_80124090` (u16@0 == 0x10A) / `D_80124080` (otherwise) as
+  `ovl_11_func_800D04D4`'s table argument; state 0 sets +0x28 = 1 and flag
+  0x800 at s32@+0x34, state −1 sets the loop variable 1 and clears the flag
+  (no +0x2C store).
 
 Twenty-sixth family member, link-order-distant from the documented members
 (confidence: medium). `ovl_11_func_800E3464` (0x800E3464) carries the
