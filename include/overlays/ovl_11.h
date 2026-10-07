@@ -153,6 +153,7 @@ s32 ovl_11_func_800D29B0(M2C_155fb954c77f_Unk8029B0 *arg0, s16 arg1);
 void ovl_11_func_800D2D54(void *arg0);
 s32 ovl_11_func_800D2E20(void);
 void ovl_11_func_800D2F1C(s32 arg0);
+Recon_ovl_11_func_800D3390_A0View *ovl_11_func_800D2F48(s32 arg0);
 s32 ovl_11_func_800D3104(u16 *arg0, s32 arg1);
 void ovl_11_func_800D31EC(s16 arg0, s16 arg1);
 void ovl_11_func_800D3200(s32 arg0);

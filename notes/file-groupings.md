@@ -7097,6 +7097,11 @@ Members:
   global D_8006C838+0x44F8 bit 0x01000000 is set); the tag test covers the
   same +0x00 field the scan above equality-matches, and callers pass arg0
   0/1 (800BC3E0, 800C0A4C, 800E499C, 800E5C60).
+- ovl_11_func_800D2F48 (m, matched this session, byte-exact) — first-free-slot
+  allocator over the same six 0xB0 records: scans D_80075BC4 for tag 0,
+  initialises the slot through 800D3390, then stamps the shared unaligned
+  D_8006C838+0x44B8 pair and D_8007AFF0+0x25476 halfword and dispatches tag
+  0x157/0x15B through 800D3104.
 
 ## `ovl_11` D_8007AFF0 +0x253B4/+0x253B8 pair-consumer pair — 0x800D92FC–0x800D93C8 (confidence: low)
 
