@@ -6924,6 +6924,25 @@ Same object, outside the suspected TU:
   entry whose first s16 is in [0x15,0x1A); shares the entry shape and the
   compaction-loop idiom, cross-container.
 
+## `ovl_11` D_80071AC0/D_80070D42 record-table consumer run — 0x801027D4–0x80102B6C (confidence: medium)
+
+Evidence: a gapless link run 0x80101B9C–0x80102DC4 in which the
+D_80071AC0/D_80070D42 6-byte-stride accessor `ovl_11_func_80102844` sits two
+functions before `ovl_11_func_8010289C`, and the table consumer
+`ovl_11_func_80102A64`'s immediate link predecessor `ovl_11_func_80102A10` is
+its only direct caller — call graph and link order agree. `8010289C` also
+calls its run successors `80102B6C`/`80102BCC`, and run members
+`80102368`/`801024D8` call the same engine helper `func_8001F250` that bounds
+`80102A64`'s first scan. This connects the accessor and a consumer in one
+source-file hypothesis; the D_8006C838+0x51E6/+0x450A/+0x5288 table shape is
+shared with the separate 0x80100EB8 run (different link region).
+
+Members (address order):
+- ovl_11_func_80102844 (m) — D_80071AC0/D_80070D42 stride-6 accessor.
+- ovl_11_func_80102A10 (s) — immediate link predecessor; sole caller of 80102A64.
+- ovl_11_func_80102A64 (m, matched this session, byte-exact) — counter-decrement
+  consumer of the D_80071AC0 and D_8006C838+0x450A 6-byte record tables.
+
 ## `ovl_11` D_80125528/D_80126254 record-table + D_800957F8 blob cluster (confidence: low)
 
 Evidence: a shared global cluster — `D_80125528` (per-index pointer table),
