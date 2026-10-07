@@ -1342,6 +1342,13 @@ extern s16 D_80129412;
 extern u8 _D_8006C904[9] __asm__("D_8006C904");
 #define D_8006C904 (*((u8*)_D_8006C904))
 
+/* D_80123A00 - ovl_11 table of u16 entries read by ovl_11_func_800D062C
+ * with a computed index and `lhu`. Declared as an incomplete array (unknown
+ * size > -G8) so cc1 emits the split two-register absolute address form
+ * (`lui`/`addiu %lo` with a real register) the target shows, not the
+ * <=-G8 self-clobber macro pair. Extern-only; the overlay data owns it. */
+extern u16 D_80123A00[];
+
 /* D_80123758 - ovl_11 table of 0x18-byte records (17 entries), scanned by
  * ovl_11_func_800CF258 and ovl_11_func_800CF428. Field 0x0 is an s16 id
  * (compared against item ids), field 0x4 is a u16 mask ANDed with the

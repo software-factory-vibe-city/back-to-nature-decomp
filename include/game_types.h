@@ -699,6 +699,19 @@ typedef struct {
     s32 field_60;
 } Ovl11SetFieldsView;
 
+/* Parameter view of the four words ovl_11_func_800D062C reads (0x38, 0x40,
+ * 0x58, 0x60) and passes in pairs to ovl_11_func_800D0600. */
+typedef struct {
+    /* 0x00 */ char pad_00[0x38];
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ char pad_3C[0x4];
+    /* 0x40 */ s32 unk40;
+    /* 0x44 */ char pad_44[0x14];
+    /* 0x58 */ s32 unk58;
+    /* 0x5C */ char pad_5C[0x4];
+    /* 0x60 */ s32 unk60;
+} Ovl11RankPair;
+
 /* Callers pass four words; D0408 initializes and D05D0 consumes only
  * the three components. The final word is unused byte padding. */
 typedef struct {
