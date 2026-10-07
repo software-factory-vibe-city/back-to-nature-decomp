@@ -1425,6 +1425,13 @@ extern u32 D_800BCC60[];
  * the matched pair shares. Absolute-addressed (extern-only, lui + %lo). */
 extern u16 D_800C0448[2];
 
+/* D_800C0458 - ovl_21 object-state base at D_800C0448 + 0x10, the sub-view
+ * handed to ovl_21_func_800BAE20. ovl_21_func_800BA510 walks it at stride
+ * 0x108 and derives the record base (D_800C0458 - 0x10) and the projection
+ * object (D_800C0458 + 0x6D4, which is the D_800C0B2C label) from it.
+ * Absolute-addressed (extern-only, lui + %lo) in the -G0 overlay build. */
+extern u8 D_800C0458[];
+
 /* D_800BCD18 - ovl_21 four-halfword (SVECTOR-shaped) projection workspace.
  * ovl_21_func_800BAFFC writes vx/vy/vz and passes its address as the SVECTOR
  * argument of func_8001DFD4. Absolute-addressed; classified in globals.h as

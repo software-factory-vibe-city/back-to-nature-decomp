@@ -7948,6 +7948,15 @@ Members (link order):
   -0x1F4) to `ovl_21_func_800BAFFC(obj + 0x684, vec, &D_800BCC48[arg0])`.
   Membership rests on that callee pair, the shared `D_800C0448` cluster and
   the gapless adjacency to `ovl_21_func_800BAEA0`.
+- ovl_21_func_800BA510 (m, matched this session, byte-exact) — walks the
+  `D_800C0448` record table over the six-record outer loop (0x108 stride),
+  calling `ovl_21_func_800BAE20` on each record's +0x10 object-state sub-view
+  (`D_800C0458`, a distinct named overlay symbol) and, behind `rec->unk18 ==
+  2` and the `SpriteSourceData` at `rec->unk30` having `field_2 & 0x100`,
+  projecting the record's +0x1A/+0x1C/+0x1E halfword vector through
+  `func_80015840` / `ovl_21_func_800BAFFC` with the fixed `D_800C0458 +
+  0x6D4` (the `D_800C0B2C` label). Membership rests on the shared global,
+  that callee pair, and `ovl_21_func_800BA4C0`'s dispatch.
 - ovl_21_func_800BA5D0 (m, matched this session, byte-exact) — walks the
   `D_800C0448` record table over the six-record outer loop (0x108 stride),
   stepping three +0x34 sub-records (0x4C stride) per record and calling
@@ -7962,6 +7971,11 @@ Fingerprints:
   reset/handoff leaf biases its `D_800C0AFC` base by -0x6B4 (landing on
   `D_800C0448`) and reads the byte pair at +0x6B8/+0x6B9 of that bias — the
   same addresses as `D_800C0AFC + 4/+5`.
+- `D_800C0458` is the record's object-state sub-view base at `D_800C0448 +
+  0x10`, a distinct overlay data symbol addressed with `lui` + `%lo` in the
+  target; `D_800C0B2C` is the same object at `D_800C0458 + 0x6D4`, and the
+  record carries a halfword vector at +0x1A/+0x1C/+0x1E (`ovl_21_func_
+  800BA510`).
 - shared global cluster: `D_800C0448` is the base of a record table of
   0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
   above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`), a
