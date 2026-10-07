@@ -10878,3 +10878,23 @@ in the table symbol; its table carries three value pairs
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127AC0`.
+
+Thirty-fourth family member, link-order-distant from the documented members
+(confidence: medium). `ovl_11_func_8010ABAC` (0x8010ABAC) carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80127AFC` (`0x001E0007, 0x005A000E, 0x001E0007, 0x0000FFFF`)
+immediately follows `ovl_11_func_8010A850`'s `D_80127AE8` (0x14 bytes, ending at
+0x80127AFC) in `build/ovl_11/asm/data/69960.data.s`. Its function words differ
+from the twenty-ninth member `ovl_11_func_8010A0E4` only in the table symbol,
+and its gapless link-order predecessor is `ovl_11_func_8010A850`
+(`configs/splat/ovl_11.yaml`: 0x52A30 + 0x35C = 0x52D8C = 0x8010ABAC), a larger
+handler that shares the same `{s16@0x28, s16@0x2A, s16@0x2C, s32@+0x34,
+u16@0x7A}` state-object view and the same `ovl_11_func_800D04D4` callee but not
+the 0xB8 idiom, so membership rests on the shared idiom and table cluster, not on
+adjacency to a documented member.
+- ovl_11_func_8010ABAC (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else steps table `D_80127AFC`.
