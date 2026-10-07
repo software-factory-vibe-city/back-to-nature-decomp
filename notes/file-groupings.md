@@ -7897,7 +7897,11 @@ Fingerprints:
 - gapless link adjacency of the sibling pair: `ovl_25_func_800B83A0` (0xD8)
   ends exactly at 0x800B8478, where `ovl_25_func_800B8478` (0xC4) begins, so
   the shared streaming idiom and the shared `D_800BCC10`/`D_800BCC70` reads
-  also sit in one contiguous link run;
+  also sit in one contiguous link run; `ovl_25_func_800B8340` (0x60) ends
+  exactly at 0x800B83A0, extending that run one function earlier;
+- shared absolute `D_800BFE44` base and callee: `ovl_25_func_800B8340` builds
+  `%hi/%lo(D_800BFE44)` and calls `ovl_25_func_800B83A0`, the run's streaming
+  initialiser;
 - shared far-buffer field region: both `ovl_25_func_800BAA5C` and
   `ovl_25_func_800BA9F4` write the `D_8007AFF0+0x20000` work-area halfword at
   +0x53B4 (= +0x253B4 absolute).
@@ -7915,6 +7919,9 @@ Members (link order):
   streams `D_800BCC10` (6×8 bytes) and `D_800BCC70` (2×8 bytes) into the
   stride-0x78 `D_800BFE44` records, setting index +0x10, flag +0x12, and the
   0x32000 word at +0x1C; sibling idiom of `ovl_25_func_800B83A0`
+- ovl_25_func_800B8340 (m, matched, byte-exact) — head of the run; clears and
+  seeds `D_800BFE44` fields at +0x3D0/+0x4C8, then calls
+  `ovl_25_func_800B83A0`
 
 ## `ovl_25` D_800BCBEC/D_800BCBF8 two-level state-dispatch tables — 0x800B853C–0x800B8728 (confidence: medium)
 
