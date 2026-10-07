@@ -7909,7 +7909,7 @@ Fingerprints:
 Members (link order):
 - ovl_25_func_800BA9A4 (s) — probes `func_8002261C(4,0x34)`/`func_800226A4()`
   and stores 5 to `D_800BFE46` when the read equals 2
-- ovl_25_func_800BA9F4 (s) — on the `func_80013394() == 1` path calls
+- ovl_25_func_800BA9F4 (m, matched this session, byte-exact) — on the `func_80013394() == 1` path calls
   `ovl_25_func_800B83A0`, writes -0x140 to the `D_8007AFF0`+0x253B4 halfword,
   and stores 6 to `D_800BFE46`
 - ovl_25_func_800BAA5C (m, matched this session, byte-exact) — leaf; reads u16
