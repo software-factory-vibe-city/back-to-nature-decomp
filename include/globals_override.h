@@ -1158,6 +1158,11 @@ extern u16 D_8012720E;
 
 extern u16 D_80127212;
 
+/* D_80127214 - 6-halfword threshold table (0x0000, 0x1770, 0x4650, 0x8CA0,
+ * 0xFFFF, 0x0000) read by ovl_11_func_800FE068 (entries 1..3, absolute
+ * addressing) and ovl_11_func_800FE3A0/ovl_11_func_800FE14C. */
+extern u16 D_80127214[];
+
 extern s16 D_80127222;
 
 extern s16 D_80127226;

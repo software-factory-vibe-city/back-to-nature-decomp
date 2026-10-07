@@ -2451,6 +2451,21 @@ the same text-draw path its own gapless successor `ovl_11_func_800FE068`
 (0x800FE068) uses. Membership rests on the zero-gap link order plus the
 shared clamp/lookup idiom; it does not read `D_800719FE`.
 
+Widening (byte-exact match of `ovl_11_func_800FE068`, 2026-11): the run's
+gapless successor at 0x800FE068 is matched. Role: three-iteration
+threshold-table text-draw caller — it walks the `D_80127214` halfword table
+(entries 1..3; the table is already documented on `ovl_11_func_800FE3A0`)
+through a `u16 *`, calling `func_80015EE8(D_8005E3C0->field_D8 + 0x68,
+&D_8012CEB8, ...)` on each threshold met. Per-TU flag evidence bounds its
+membership: its byte-exact source requires `-fno-strength-reduce` (baseline
+strength-reduces `p[var_a2 + 1]` into a preheader walker the target does not
+carry), while the link-adjacent 800FDFF4/800FE704/800FE86C matches need no
+override — so the zero-gap link order does **not** place 0x800FE068 in their
+TU. The only matched ovl_11 site carrying the same override is
+`ovl_11_func_800F8224`, so the shared flag fingerprint is consistent with a
+0x800FE068 / 0x800F8224 TU (low; per-TU overrides are common in this
+container, so a shared flag alone is not proof).
+
 Widening (byte-exact match of `ovl_11_func_800FE704`, 2026-11): the
 same text-draw path continues further down the link run as a gapless pair,
 0x800FE704 -> 0x800FE780 (both 0x7C, each ending exactly where the next

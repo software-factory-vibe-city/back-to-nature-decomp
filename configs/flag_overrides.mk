@@ -448,3 +448,27 @@ CC1FLAGS_ovl_11_func_800F8224 := -fno-strength-reduce
 # 0, schedule 0); the remaining register choices are ordinary local/global
 # allocation ordering.
 CC1FLAGS_ovl_15_func_8013345C := -fno-gcse
+
+# ovl_11_func_800FE068: -fno-strength-reduce.
+#
+# Target fingerprint (decoded from the original bytes, no source needed): the
+# loop test recomputes the element address from its index every iteration --
+# `sll v0,s0,1 / addu v0,v0,s6` -- and psx_target_loop_emission shows the
+# preheader carries no giv init at all (its classes are source movables only).
+# Under baseline flags loop.c strength-reduces `D_80127214[i]` into a second
+# induction register initialized in the preheader (`addu $18,base,2` then
+# `addu $18,$18,2`), which the target does not carry; the redundant `sll`/
+# `addu` per iteration is unreachable from any C spelling at baseline.
+#
+# Flag column: -fno-strength-reduce is the only measured column reaching the
+# target's words. At baseline the same source is 35/45 masked with the giv
+# present (the `addu $18,base,2` / `addu $18,$18,2` walker); under
+# -fno-strength-reduce the final source (explicit `u16 *p = D_80127214`,
+# do-while whose top computes `p[var_a2 + 1]`) is byte-exact 57/57. Regional
+# precedent: ovl_11_func_800F8224 in this same overlay is a matched TU whose
+# override is also -fno-strength-reduce, so disabling strength reduction is an
+# observed per-TU fact of this build, not a workaround.
+#
+# No contrary regional witness: this src file is its own TU (one function per
+# file), so the override cannot disturb the matched ovl_11 neighbours.
+CC1FLAGS_ovl_11_func_800FE068 := -fno-strength-reduce
