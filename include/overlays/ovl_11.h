@@ -39,6 +39,7 @@ void ovl_11_func_800BFF00(void);
 void ovl_11_func_800BFF50(M2C_ffca89de536c_UnkStruct800BFF50 *arg0);
 void ovl_11_func_800BFF74(void);
 s32 ovl_11_func_800C0010(s32 arg0, s32 arg1);
+void ovl_11_func_800C034C(u8 *arg0);
 void ovl_11_func_800C056C(void);
 void ovl_11_func_800C0688(void);
 s32 ovl_11_func_800C0824(void);

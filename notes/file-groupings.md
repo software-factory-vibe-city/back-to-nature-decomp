@@ -11266,3 +11266,27 @@ rests on both code and table adjacency.
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else selects `D_801240A8`/`D_8012409C` by `u16@0 == 0x10A` and
   steps it, storing 4 back to +0x28 on call success.
+
+---
+
+## `ovl_11` spawn/flag-object run — 0x800C009C–0x800C056C (confidence: medium)
+
+Candidate same-TU family of `ovl_11`. Evidence: zero-gap link-order
+contiguity (`build/ovl_11/functions.csv`): 0x800C009C (0x214) → 0x800C02B0
+(0x9C) → 0x800C034C (0x100) → 0x800C044C (0x120) → 0x800C056C (0x8C) →
+0x800C05F8 — each begins exactly where the previous ends. The run shares one
+stride-0xE spawn object read through its u16 flag word at +0xC, and the exe
+`Rand` selector `func_80012A34`. Call-graph links: 800C02B0 → 800C009C;
+800C044C and 800C009C → 800C034C; 800C056C → `func_80012A34`.
+
+Members:
+- ovl_11_func_800C009C (s) — reads the +0xC `0x4000`/`0x1000` flag pair and
+  calls 800C034C.
+- ovl_11_func_800C02B0 (s) — calls 800C009C.
+- ovl_11_func_800C034C (m, matched this session, byte-exact) — spawn-object
+  initializer: branches on +0xC bits `0x4000`/`0x1000` to pick ranges, writes
+  random s16 fields +0/+2/+8 and clears +0xA.
+- ovl_11_func_800C044C (s) — builds a stride-0xE array, sets each element's
+  +0xC flag word, then calls 800C034C per element.
+- ovl_11_func_800C056C (m) — guards `D_8006C838` +0xC bit `0x08000000` and
+  calls `func_80012A34(0x64)`.
