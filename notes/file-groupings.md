@@ -9851,6 +9851,13 @@ Members (link order):
   `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)` and
   `ovl_11_func_800D12A0(0xE)` on the far-state gate; twin of
   ovl_11_func_800DF5AC.
+- ovl_11_func_8010BD6C (m, byte-exact this session) — fifth and last member of
+  the zero-gap run by link order, but it does **not** carry the band's far-state
+  gate; it is a state-switch family handler (recorded as that family's
+  thirty-seventh member below). So only four of the five run members share the
+  far-state gate fingerprint, and the `0x8010BCE8 + 0x84 = 0x8010BD6C`
+  adjacency is the run's only link between the gate run and the state-switch
+  family.
 
 ## `ovl_11` record-tag update run — 0x800DA3AC–0x800DA518 (confidence: medium)
 
@@ -10934,3 +10941,24 @@ handler-table bases.
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127B1C`.
+
+Thirty-seventh family member, link-order-distant from the documented members
+(confidence: medium). `ovl_11_func_8010BD6C` (0x8010BD6C) carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+function words are byte-identical to the thirtieth member `ovl_11_func_8010A19C`
+(state 0 sets +0x28 = 1 and flag 0x800 at s32@+0x34; state −1 sets the loop
+variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34), differing
+only in the table symbol, and its table `D_80127B88` (`0x001E0000, 0x0000FFFF`)
+immediately follows `D_80127B38` (ends at 0x80127B88) in the 0x80127Bxx
+handler-table band of `build/ovl_11/asm/data/69960.data.s`. Its gapless
+link-order predecessor is `ovl_11_func_8010BCE8` (splat
+`configs/splat/ovl_11.yaml`: 0x53EC8 + 0x84 = 0x53F4C = 0x8010BD6C), a far-state
+gate member rather than a state-switch sibling, so membership rests on the
+shared idiom and table cluster, not adjacency to a documented member. The
+`{s32@0x34, u16@0x7A}` object view is the family's shared state object.
+- ovl_11_func_8010BD6C (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127B88`.

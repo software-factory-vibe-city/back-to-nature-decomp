@@ -1215,6 +1215,21 @@ typedef struct {
 } M2C_a5df3a0a31de_UnkStruct800DF4F0;
 
 typedef struct {
+    char pad_00[0x24];
+               s16 unk24;
+    char pad_26[0x02];
+               s16 unk28;
+               s16 unk2A;
+               s16 unk2C;
+    char pad_2E[0x02];
+               s16 unk30;
+    char pad_32[0x02];
+               s32 unk34;
+    char pad_38[0x42];
+               u16 unk7A;
+} M2C_a731097cefbc_Ovl11D8010BD6CObj;
+
+typedef struct {
     u16 field_0;
     u16 field_2;
 } M2C_a77afff7ba68_Cell5A0;
