@@ -753,7 +753,10 @@ Evidence:
   entries (indices 0–4, 7, 6, 5, 8, 9) sit in a *gapless* link-order block
   0x8010E2C4–0x8010ECC0 (symbol addresses plus nonmatching sizes sum exactly),
   so TU membership is plausible for that block though still unproven; the
-  remaining handlers are interleaved with unrelated functions.
+  remaining handlers are interleaved with unrelated functions. The head entry
+  `ovl_11_func_8010E2C4` (`D_800BAABC[0]`, matched this session, byte-exact) is
+also the thirty-ninth member of the keyframe-state handler family documented
+below, tying the table's head to that idiom/table cluster.
 
 - ovl_11_func_8010CB6C (s) — caller of 8010CE80 (×2) and engine helpers;
   head of the gapless run
@@ -10980,3 +10983,21 @@ membership rests on both code and table adjacency.
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127B9C`.
+
+Thirty-ninth family member, link-order-distant from the documented members
+(confidence: medium). `ovl_11_func_8010E2C4` (0x8010E2C4) carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+function words are byte-identical to the twenty-ninth member
+`ovl_11_func_8010A0E4` (state 0 sets +0x28 = 1 and flag 0x800 at s32@+0x34;
+state −1 sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+s32@+0x34), differing only in the table symbol, and its table `D_80127D48`
+(`0x001E0000, 0x0000FFFF`) sits in `build/ovl_11/asm/data/69960.data.s`, so
+membership rests on the shared idiom and table shape, not link adjacency to a
+documented member. The same function is `D_800BAABC[0]` of the object-mode
+dispatch table documented above, so membership also has named-table support.
+- ovl_11_func_8010E2C4 (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127D48`.
