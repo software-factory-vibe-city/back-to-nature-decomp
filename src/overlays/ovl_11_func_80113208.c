@@ -1,19 +1,5 @@
 #include "common.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_80113208", ovl_11_func_80113208);
-
-
-/* PARKED by /auto_decompilation_loop on 2026-10-07T23:26:03.102Z.
- * Reason: escalation-exhausted.
- * Escalation reached: deepseek-v4-1-flash.
- * The best non-matching attempt is preserved verbatim below, disabled.
- * Findings and the decision needed: notes/human-needed-approvals/ovl_11_func_80113208.md
- */
-
-#if 0
-/* Best non-matching attempt, preserved for the next session. */
-#include "common.h"
-
 typedef struct {
     /* 0x00 */ s32 unk0;
     /* 0x04 */ u8 unk4;
@@ -87,4 +73,3 @@ s32 ovl_11_func_80113208(s16 arg0, s16 arg1, s16 arg2, s8 *arg3) {
     }
     return 1;
 }
-#endif

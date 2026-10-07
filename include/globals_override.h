@@ -996,6 +996,12 @@ extern u8 D_80127D48;
  * the overlay. */
 extern u8 D_80127D88;
 
+/* D_801281D0 - overlay-local 10-byte (0xA-stride) record table in ovl_11
+ * data at 0x801281D0, indexed by a signed s16 selector in
+ * ovl_11_func_80113208 and copied field-by-field into a loaded object
+ * record. Absolute-addressed from the overlay. */
+extern u8 D_801281D0;
+
 /* D_801295B0 - 11 halfword scratch buffer (0x16 bytes, ovl_11) that
  * ovl_11_func_800E8550 fills via func_8001A970 and then scans for the
  * 0xFFD blank marker (lh reads). Absolute-addressed from the overlay
