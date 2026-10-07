@@ -10623,3 +10623,21 @@ family member).
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80123C7C`.
+
+Twentieth family member, named-table member and link-order-adjacent to the
+sixth (confidence: high). `ovl_11_func_800DFC44` (0x800DFC44) is the immediate
+gapless predecessor of the documented sixth member `ovl_11_func_800DFCFC`
+(splat `configs/splat/ovl_11.yaml`: 0x27E24 → 0x27EDC = 0xB8), is entry 0 of
+the 20-word `D_800B95CC` function-pointer table in
+`build/ovl_11/asm/data/1664.rodata.s` (the table documented as holding the
+0x800DFC44+ handler run for dispatcher `ovl_11_func_800DF010`), and carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80123F00` (`0x001E0000, 0x0000FFFF`) is the entry immediately before
+800DFCFC's `D_80123F08` in `build/ovl_11/asm/data/69960.data.s`, so membership
+rests on named table membership and both code and table adjacency.
+- ovl_11_func_800DFC44 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else steps table `D_80123F00`.
