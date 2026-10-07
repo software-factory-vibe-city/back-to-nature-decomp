@@ -9689,6 +9689,12 @@ Members (link order):
   calls `D_800B961C[arg1]` unless `s16@+0x26 == arg1 && (s32@+0x34 & 0x800)`
   (then -1); when `D_800B966C[arg1]` is set and the result != -1 records the
   selection and calls `ovl_11_func_800D0408`; stores -1 at `s16@+0xB6`.
+- ovl_11_func_800E1714 (m, matched this session, byte-exact) — `D_800B961C`
+  table handler (id 0x12): the structural twin of ovl_11_func_800DFB3C on
+  this dispatcher (same `D_8006C838`+0x52C8/0x52CC/0x52D0/0x52D4 work-area
+  latch into `s32@+0x58..+0x64` and OR 0x2000 into `s32@+0x34`), differing
+  only in the callee `ovl_11_func_800E0C24(this, 0x12)`, which ties the
+  work-area idiom to the 800E0C24 run.
 
 ## `ovl_11` `ovl_11_func_800E109C` predicate-caller run — 0x800E05A8–0x800E15C8 (confidence: medium)
 
