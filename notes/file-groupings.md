@@ -10115,6 +10115,24 @@ Members:
   `D_80071DFC` (or the `D_80074124` 7x7 table when arg0 != 0).
 - ovl_11_func_800D7B24 (m, byte-exact) — initializes every `D_80074124` entry
   (two 0x167 halfwords, two zero bytes, one zero halfword).
+- ovl_11_func_800D8320 (m, matched this session, byte-exact) — consumes an
+  entry via `ovl_11_func_800DAF60` (tag 0x168/0x16A, `+0x0 == 0x36`,
+  `+0x4 != 0`), then dispatches through `D_80123DFC[arg0]`.
+
+## `ovl_11` D_80123DFC two-entry callback-table cluster — 0x80123DFC (confidence: low)
+
+Evidence: `build/ovl_11/asm/data/69960.data.s` emits `D_80123DFC` as a
+2-word table of `ovl_11_func_800D759C` / `ovl_11_func_8011E1E8`, and four
+container functions reach that table absolutely and call one entry. Both
+table entries end `jr $ra; addiu $v0,1` (they return s32); the shared table is
+global data rather than a proven TU-private static, so membership stays low
+confidence.
+Members:
+- ovl_11_func_800D8320 (m, matched this session, byte-exact) — record-state
+  gate then `D_80123DFC[arg0](arg1, arg2, var_a2)`.
+- ovl_11_func_800DACD4 (s) — indexes the same table, keyed by arg2.
+- ovl_11_func_800D88D0 (s) — reaches the same table.
+- ovl_11_func_800DA638 (s) — reaches the same table.
 
 ## `ovl_11` D_8006C838+0x5488 state-trio run — 0x800FA31C–0x800FA410 (confidence: medium)
 
