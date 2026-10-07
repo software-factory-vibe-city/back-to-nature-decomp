@@ -10702,3 +10702,22 @@ sets flag 0x800; state −1 also sets +0x2C = 0x12C).
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80123FE8`.
+
+Twenty-fourth family member, named-table member and link-order-adjacent on
+both sides (confidence: high). `ovl_11_func_800E1BF0` (0x800E1BF0) carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; it
+is entry 5 (repeated at entries 6, 8, 9, 10) of the 20-word `D_800B966C`
+function-pointer table in `build/ovl_11/asm/data/1664.rodata.s` (the table
+read by dispatcher `ovl_11_func_800E0B40`), and its table `D_80123FF4`
+(`0x001E0000, 0x00000000, 0x0000FFFF`, content-identical to 800E1B38's
+`D_80123FE8`) is the gapless successor of that table in
+`build/ovl_11/asm/data/69960.data.s`. Splat `configs/splat/ovl_11.yaml` shows
+it gapless between `ovl_11_func_800E1B38` (0x29D18 + 0xB8 = 0x29DD0) and
+`ovl_11_func_800E1CA8` (0x29DD0 + 0xB8 = 0x29E88), so membership rests on named
+table membership and code and table adjacency.
+- ovl_11_func_800E1BF0 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else steps table `D_80123FF4`.
