@@ -1725,5 +1725,15 @@ extern Ovl11B96BCFunc _D_800B96BC[19] __asm__("D_800B96BC");
 extern s32 _D_800B970C[20] __asm__("D_800B970C");
 #define D_800B970C _D_800B970C
 
+/* D_800C4A2C - ovl_27 halfword state counter at 0x800C4A2C. Read
+ * unsigned to increment and signed to threshold-test; absolute-addressed
+ * (overlay build is -G0). */
+extern s16 D_800C4A2C;
+
+/* D_800C4A80 - ovl_27 SpriteSourceData block (0x30 bytes) at 0x800C4A80.
+ * Only its address is taken (passed to func_80015BF0/func_80015840), so an
+ * opaque byte object suffices; absolute-addressed from the overlay. */
+extern u8 D_800C4A80[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 

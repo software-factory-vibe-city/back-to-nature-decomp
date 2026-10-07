@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_27_func_800B998C",
+  "baseSourcePath": "build/cand998C/base.c",
+  "maxVariants": 400,
+  "assembleUniqueDbr": false,
+  "traceAllPreprocessed": false,
+  "constraints": {
+    "forbidInstructionCountGrowth": false,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "dimensions": [
+    {
+      "id": "mod",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "expand",
+      "invariants": ["counter wraps modulo 1800"],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        { "id": "inline", "expectedEffect": "quotient cast inline", "invariants": [], "edits": [
+          { "find": "    s32 var;\n    s16 q;\n    s16 r;\n\n    var = (u16)D_800C4A2C + 1;\n    q = (s16)var / 1800;\n    D_800C4A2C = var - q * 1800;", "occurrences": 1, "replace": "    s32 var;\n    s16 r;\n\n    var = (u16)D_800C4A2C + 1;\n    D_800C4A2C = var - (s16)(var / 1800) * 1800;" } ] },
+        { "id": "twostmt", "expectedEffect": "separate counter then mod", "invariants": [], "edits": [
+          { "find": "    var = (u16)D_800C4A2C + 1;\n    q = (s16)var / 1800;\n    D_800C4A2C = var - q * 1800;", "occurrences": 1, "replace": "    var = (u16)D_800C4A2C + 1;\n    D_800C4A2C = (s16)var;\n    q = D_800C4A2C / 1800;\n    D_800C4A2C = D_800C4A2C - q * 1800;" } ] },
+        { "id": "temps", "expectedEffect": "m2c named temps", "invariants": [], "edits": [
+          { "find": "    s32 var;\n    s16 q;\n    s16 r;", "occurrences": 1, "replace": "    s32 temp_a3;\n    s16 temp_v1;\n    s16 temp_v0;" },
+          { "find": "    var = (u16)D_800C4A2C + 1;\n    q = (s16)var / 1800;\n    D_800C4A2C = var - q * 1800;", "occurrences": 1, "replace": "    temp_a3 = (u16)D_800C4A2C + 1;\n    temp_v1 = (s16)temp_a3 / 1800;\n    D_800C4A2C = temp_a3 - temp_v1 * 1800;" },
+          { "find": "        r = func_80012A34(0xA);\n        if (r == (r / 2) * 2) {\n            r -= 1;\n        }\n        if (r < 0) {\n            r = 0;\n        }\n        func_80015840((ObjectState *)D_800C4A80, r);", "occurrences": 1, "replace": "        temp_v0 = func_80012A34(0xA);\n        if (temp_v0 == (temp_v0 / 2) * 2) {\n            temp_v0 -= 1;\n        }\n        if (temp_v0 < 0) {\n            temp_v0 = 0;\n        }\n        func_80015840((ObjectState *)D_800C4A80, temp_v0);" } ] }
+      ]
+    },
+    {
+      "id": "cmp",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "expand",
+      "invariants": ["branch taken iff counter >= 0x5A"],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        { "id": "cast", "expectedEffect": "s16 cast compare", "invariants": [], "edits": [ { "find": "    if (D_800C4A2C >= 0x5A) {", "occurrences": 1, "replace": "    if ((s16)D_800C4A2C >= 0x5A) {" } ] },
+        { "id": "u16", "expectedEffect": "u16 cast compare", "invariants": [], "edits": [ { "find": "    if (D_800C4A2C >= 0x5A) {", "occurrences": 1, "replace": "    if ((u16)D_800C4A2C >= 0x5A) {" } ] },
+        { "id": "rev", "expectedEffect": "reversed compare", "invariants": [], "edits": [ { "find": "    if (D_800C4A2C >= 0x5A) {", "occurrences": 1, "replace": "    if (0x5A <= D_800C4A2C) {" } ] },
+        { "id": "minus", "expectedEffect": "subtract compare", "invariants": [], "edits": [ { "find": "    if (D_800C4A2C >= 0x5A) {", "occurrences": 1, "replace": "    if ((D_800C4A2C - 0x5A) >= 0) {" } ] },
+        { "id": "gt", "expectedEffect": "greater-than compare", "invariants": [], "edits": [ { "find": "    if (D_800C4A2C >= 0x5A) {", "occurrences": 1, "replace": "    if (D_800C4A2C > 0x59) {" } ] },
+        { "id": "ternary", "expectedEffect": "ternary compare", "invariants": [], "edits": [ { "find": "    if (D_800C4A2C >= 0x5A) {", "occurrences": 1, "replace": "    if ((D_800C4A2C >= 0x5A) ? 1 : 0) {" } ] }
+      ]
+    },
+    {
+      "id": "call",
+      "mechanism": "constant-birth-site",
+      "expectedPass": "expand",
+      "invariants": ["first argument is field_D8 + 0x8C"],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        { "id": "a0", "expectedEffect": "a0 local", "invariants": [], "edits": [
+          { "find": "    s16 r;", "occurrences": 1, "replace": "    s16 r;\n    s32 a0;" },
+          { "find": "    func_80015BF0(D_8005E3C0->field_D8 + 0x8C, (SpriteSourceData *)D_800C4A80, 0x11A, 0xAD);", "occurrences": 1, "replace": "    a0 = D_8005E3C0->field_D8 + 0x8C;\n    func_80015BF0(a0, (SpriteSourceData *)D_800C4A80, 0x11A, 0xAD);" } ] },
+        { "id": "s8args", "expectedEffect": "s8 call constants", "invariants": [], "edits": [ { "find": "    func_80015BF0(D_8005E3C0->field_D8 + 0x8C, (SpriteSourceData *)D_800C4A80, 0x11A, 0xAD);", "occurrences": 1, "replace": "    func_80015BF0(D_8005E3C0->field_D8 + 0x8C, (SpriteSourceData *)D_800C4A80, (s16)0x11A, (s16)0xAD);" } ] }
+      ]
+    }
+  ]
+}

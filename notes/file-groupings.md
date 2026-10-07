@@ -7575,6 +7575,36 @@ neither `D_800C4A14`/`D_800C4A1C` nor the hub `ovl_27_func_800B92E4`; it is a
 `D_8006C838` counter leaf (below), so the run is not uniform. The entry's
 membership is unchanged — this only narrows its address extent.
 
+## `ovl_27` parallel slot-array effect family — 0x800B998C–0x800B9EEC (confidence: medium)
+
+Evidence: shared gp-rel cluster + shared idiom + link adjacency. Six sibling
+functions carry one body template — increment a per-slot halfword counter,
+`func_80015BF0(D_8005E3C0->field_D8 + ..., slot_buffer, a, b)`, then once the
+counter reaches 0x5A call `func_80012A34(0xA)`/`func_80015840(slot_buffer, r)`
+to redraw. Each sibling owns one counter and one buffer of a parallel array
+pair: counters `D_800C4A2C`+2i (i=0..5), buffers `D_800C4A80`+0x30i. The
+counter span 0x4A2C–0x4A36 is exactly the range zeroed by
+`ovl_27_func_800B7F7C` of the D_800C4A1C state-block cluster above, so the
+family indexes the same file-scope halfword state block. Link order is
+gapless 0x800B998C→0x800B9A8C→0x800B9B98→0x800B9C84 and
+0x800B9CB4→0x800B9DBC→0x800B9EEC; 0x800B998C starts where the 0x540 hub
+`ovl_27_func_800B944C` ends, and 0x800B9EEC ends where the already-recorded
+`ovl_27_func_800B9FF4` begins.
+
+Members (link order):
+- ovl_27_func_800B998C (m, matched this session, byte-exact) — slot 0: mod-1800
+  counter `D_800C4A2C`, buffer `D_800C4A80`, redraw every `>= 0x5A`
+- ovl_27_func_800B9A8C (s) — slot 1: counter `D_800C4A2E`, buffer `D_800C4AB0`
+- ovl_27_func_800B9B98 (s) — slot 2: counter `D_800C4A30`, buffer `D_800C4AE0`
+- ovl_27_func_800B9C84 (s) — wrapper hub: calls 800B9CB4, then 800B9DBC, then
+  800B9EEC in one sequence; lives inside the run as the family's orchestrator
+- ovl_27_func_800B9CB4 (s) — slot 3: counter `D_800C4A32`, buffer `D_800C4B10`;
+  issues three `func_80015BF0` draws
+- ovl_27_func_800B9DBC (s) — slot 4: counter `D_800C4A34`, buffer `D_800C4B40`;
+  issues five `func_80015BF0` draws
+- ovl_27_func_800B9EEC (s) — slot 5: counter `D_800C4A36`, buffer `D_800C4B70`;
+  issues three `func_80015BF0` draws
+
 ## `D_8006C838` one-shot counter leaf, shared across ovl_17/23/25/27 (confidence: medium)
 
 Four byte-exact leaves with one body template: `func_8001FE34(10)` then
