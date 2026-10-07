@@ -2463,6 +2463,15 @@ text-draw call path plus `D_8012CDF8`; it reads neither `D_800719FE` nor the
 that cluster's `ovl_11_func_800FC5F4` / `ovl_11_func_800FC6A4` call it as a draw
 leaf (the buffer set is disjoint, the call set is not).
 
+Widening (byte-exact match of `ovl_11_func_800FC7F0`, 2026-11): the same
+stride-0x30 `D_8012CDF8` draw path's next member at 0x800FC7F0 (0xD8 bytes) is
+the near-exact word-shape sibling of `ovl_11_func_800FC544` — same
+`func_80015EE8(D_8005E3C0->field_D8 + 0x68, D_8012CDF8 + arg*0x30, ...)` /
+`func_80017B3C(D_8005E3C0->field_D8 + 0x54, ...)` call pair and same
+`D_8005E3C0` / `D_8012CDF8` globals — and additionally calls
+`ovl_11_func_800FE834`. Membership rests on the shared text-draw call path plus
+`D_8012CDF8`, making 800FC544/800FC7F0 a corroborated sibling pair.
+
 ---
 
 ## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)
