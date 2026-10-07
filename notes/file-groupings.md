@@ -11133,3 +11133,25 @@ forty-fourth members).
   calls `ovl_11_func_800D3200(obj)` and returns 1; else steps table
   `D_80123C70` and, on a zero return with +0x28 == 2, calls
   `ovl_11_func_800D0408(obj->unk22, &obj->unk48, 0x3C)`.
+
+Forty-sixth family member, link-order-adjacent to the twenty-fifth and its
+state-4 table-selector sibling (confidence: high). `ovl_11_func_800E3020`
+(0x800E3020) is the immediate gapless successor of the documented twenty-fifth
+member `ovl_11_func_800E2F58` (splat `configs/splat/ovl_11.yaml`: 0x2B138 →
+0x2B200, where 0x2B200 is the `ovl_11_func_800E3020` entry) and the immediate
+gapless predecessor of `ovl_11_func_800E30FC` (0x2B200 → 0x2B2DC = 0xDC). It
+carries the family state-switch idiom against its non-zero sentinel 4 (like the
+forty-second member `ovl_11_func_800DFDAC` and the forty-third
+`ovl_11_func_800E1974`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; as
+in the twenty-fifth member it selects its table argument from two adjacent
+handler tables by `u16@0 == 0x10A` — `D_801240A8` (`0x000A0000, 0x0000FFFF`)
+when equal, else `D_8012409C` (`0x000A0005, 0x000A0000, 0x0000FFFF`; the two are
+the entries immediately after the twenty-fifth member's `D_80124080`/`D_80124090`
+in `build/ovl_11/asm/data/69960.data.s`, ending at 0x801240B0), so membership
+rests on both code and table adjacency.
+- ovl_11_func_800E3020 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state 4
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else selects `D_801240A8`/`D_8012409C` by `u16@0 == 0x10A` and
+  steps it, storing 4 back to +0x28 on call success.
