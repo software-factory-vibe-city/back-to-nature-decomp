@@ -6341,6 +6341,14 @@ Members (address order):
   0x32 into unk2; confirms the run's shared record type and the 800C1C5C →
   80107DD0 callee pair (same s16 call-cast idiom as the run members)
 - ovl_11_func_800C1D68 (s) — calls 800C3548, func_80012A34, func_8001AF70
+- ovl_11_func_800E9620 (m, matched this session, 0x104, byte-exact) —
+  record-flag driver: when `arg0 == 0x2A` recurses once per index 1..0x24,
+  otherwise for `arg0 > 0` and `arg1 < 0x25` indexes `&D_80076220 + arg0`
+  and clears u16 unk1E bits 0x1800 (unless `arg1 == 2`) and 0x100 (when
+  `arg1 != 0`); returns 1/0. Non-adjacent data + field tie to the record
+  family: identical `&D_80076220 + arg0` record index and the same u16
+  unk1E 800C1C90/800E9B68 touch; its link-order neighbours
+  800E95FC/800E9724 do not reach the array, so this is data-only evidence.
 - ovl_11_func_800E9B68 (m, matched this session, 0xCC, byte-exact) —
   per-record initializer: sets unk2C/unk2E = 0x36, zeroes the record's
   halfword fields, sets unk1E to `(unk1E | 0x8000) & 0x9E48`, calls
