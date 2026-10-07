@@ -2104,10 +2104,13 @@ Members (address order):
   0x800F42A8/0x800E5230; count-up loop reversed by check_dbra_loop (latch
   at body head, stride addiu in the tail delay slot); record stride 0x18
   confirms the 0x18-byte family size
-- ovl_11_func_800F43CC (s) — spawn-record dispatch switch on ids 0x64/0x65/
-  0xE8/0x121–0x124: computes the target from the `D_8006C838`+0x8000 entity
+- ovl_11_func_800F43CC (m, matched this session) — spawn-record dispatch switch on ids 0x64/0x65/
+  0xE8/0x122–0x124: computes the target from the `D_8006C838`+0x8000 entity
   base and calls the run-head leaf 0x800F4360; itself called by
-  0x800CC7CC/0x800E21E4/0x800C580C/0x8011C298/0x8010B05C
+  0x800CC7CC/0x800E21E4/0x800C580C/0x8011C298/0x8010B05C; its 0x64 path reads
+  the `+0x8000+0x5DD4` entity-pointer slot through the same two-stage base
+  idiom as the matched `ovl_11_func_800F4CEC` (same slot, same `*(T **)(base +
+  0x5DD4)` read), a shared entity-base-slot fingerprint
 
 ---
 

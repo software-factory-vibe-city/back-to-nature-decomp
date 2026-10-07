@@ -219,6 +219,10 @@ typedef struct {
 } M2C_19c3a40395ce_ovl_11_func_800DCA10_t;
 
 typedef struct {
+    u8 b[4];
+} M2C_1d1631a2972a_Ov11_F43CCArgBlk;
+
+typedef struct {
                char pad0[0x8];
                s16 unk8;
                s16 unkA;

@@ -456,6 +456,7 @@ void ovl_11_func_800F4114(void);
 s32 ovl_11_func_800F4240(M2C_4c1a205b3b09_ReconA0View *arg0);
 void ovl_11_func_800F4360(M2C_701317280b4c_Ov11_4360struct *arg0, s16 arg1, s16 arg2, Vec3 vec);
 void ovl_11_func_800F4390(M2C_5b7450153aff_Ov11_4390struct *arg0, s32 arg1);
+void ovl_11_func_800F43CC(s32 arg0, M2C_1d1631a2972a_Ov11_F43CCArgBlk arg1, M2C_1d1631a2972a_Ov11_F43CCArgBlk arg2, M2C_1d1631a2972a_Ov11_F43CCArgBlk arg3, M2C_1d1631a2972a_Ov11_F43CCArgBlk arg4, u16 arg5, s32 arg6);
 void ovl_11_func_800F45A4(s16 arg0, s32 arg1);
 void ovl_11_func_800F4618(void);
 M2C_4df042861e66_BoundsEntry4994 *ovl_11_func_800F4994(M2C_4df042861e66_BoundsArgs4994 *arg0);
