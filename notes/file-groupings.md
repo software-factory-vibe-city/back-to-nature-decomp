@@ -11305,6 +11305,28 @@ rests on both code and table adjacency.
   s32@+0x34; else selects `D_801240A8`/`D_8012409C` by `u16@0 == 0x10A` and
   steps it, storing 4 back to +0x28 on call success.
 
+Forty-seventh family member, link-order-adjacent to the eighteenth
+(confidence: high). `ovl_11_func_800D4B1C` (0x800D4B1C) is the immediate gapless
+successor of the eighteenth member `ovl_11_func_800D4A64` (splat
+`configs/splat/ovl_11.yaml`: 0x1CC44 → 0x1CCFC = the `ovl_11_func_800D4B1C`
+entry) and carries the byte-identical state-switch idiom (`beqz`(0) / `bgtz` /
+`beq`(−1) and `case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80123C50` (`0x0000000D, 0x005A000D, 0x012C000D, 0x0000FFFF`) is the
+entry immediately after 800D4A64's `D_80123C44` (`0x0078000C, 0x000F0000,
+0x0000FFFF`; ends at 0x80123C50) in `build/ovl_11/asm/data/69960.data.s`, so
+membership rests on both code and table adjacency. Its call-success path is the
+family's three-way variant: +0x28 == 2 calls
+`ovl_11_func_800D0408(obj->unk22, &obj->unk48, 0x3C)` and subtracts 0x10 from
+the +0x48 `Recon800D0408A1View`'s unk4 (s32@+0x4C), +0x28 == 3 calls
+`ovl_11_func_800D0408(...)` alone, and it uses the `ovl_11_func_800D3200(obj)`
+state −1 arm (like the fifth, forty-fourth and forty-fifth members).
+- ovl_11_func_800D4B1C (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 calls
+  `ovl_11_func_800D3200(obj)` and returns 1; else steps table `D_80123C50` and,
+  on a zero return, calls `ovl_11_func_800D0408(obj->unk22, &obj->unk48, 0x3C)`
+  for +0x28 == 2 or 3, decrementing the view's unk4 by 0x10 in the 2 case.
+
 ---
 
 ## `ovl_11` spawn/flag-object run — 0x800C009C–0x800C056C (confidence: medium)
