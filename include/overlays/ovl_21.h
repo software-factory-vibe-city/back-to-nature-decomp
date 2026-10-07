@@ -25,6 +25,7 @@ void ovl_21_func_800BAA18(void);
 void ovl_21_func_800BAB28(s16 arg0);
 s16 ovl_21_func_800BABF8(s16 arg0);
 s32 ovl_21_func_800BACB0(s16 arg0);
+void ovl_21_func_800BAE20(s32 *arg0);
 void ovl_21_func_800BAEA0(s32 *arg0);
 void ovl_21_func_800BAFFC(SpriteSourceData *arg0, u16 *arg1, u16 *arg2);
 void ovl_21_func_800BB0F8(void);

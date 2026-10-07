@@ -7929,6 +7929,16 @@ Members (link order):
   against `D_800C0448` record +0x30 — and on the `func_80015840`/ObjectState
   idiom shared with `ovl_21_func_800BAF70`, not on adjacency (it sits at
   0x800BAEA0, before both).
+- ovl_21_func_800BAE20 (m, matched this session, byte-exact) — ObjectState
+  state-handler sibling of `ovl_21_func_800BAEA0`: derives an index from the
+  signed halfword at +0x8 and the selector at +0x2 (values 9/6 adjust it),
+  compares it against the byte at +0x4 of the SpriteSourceData pointed to by
+  +0x20, calls `func_80015840(that pointer, index)` when they differ, then
+  projects through `ovl_21_func_800BAFFC(that pointer, obj + 0xA)`.
+  Membership rests on the `func_80015840`/`ovl_21_func_800BAFFC` callee pair
+  and the same ObjectState/SpriteSourceData idiom as its gapless predecessor
+  `ovl_21_func_800BAEA0` (0x800BAE20 + 0x80 = 0x800BAEA0), the call graph
+  and link order agreeing.
 
 Fingerprints:
 - `D_800C0AFC` is a further ovl_21 data base at `D_800C0448 + 0x6B4`; the
