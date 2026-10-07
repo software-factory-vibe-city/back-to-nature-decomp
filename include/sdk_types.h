@@ -1203,6 +1203,21 @@ typedef struct {
 } M2C_93d07a715929_Ovl11SelectArg;
 
 typedef struct {
+    char pad_00[0x24];
+               s16 unk24;
+               s16 unk26;
+               s16 unk28;
+               s16 unk2A;
+               s16 unk2C;
+    char pad_2E[0x30 - 0x2E];
+               s16 unk30;
+    char pad_32[0x34 - 0x32];
+               s32 unk34;
+    char pad_38[0x7A - 0x38];
+               u16 unk7A;
+} M2C_976f1e0feb82_Ovl11DFDACObj;
+
+typedef struct {
                char pad_00[0x16];
                u16 unk16;
                char pad_18[0x30 - 0x18];

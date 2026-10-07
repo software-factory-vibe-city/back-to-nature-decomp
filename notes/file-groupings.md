@@ -11043,3 +11043,23 @@ family's shared state object. `D_80127D88` is declared `extern u8` in
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127D88`.
+
+Forty-second family member, named-table member and link-order-adjacent to the
+sixth (confidence: high). `ovl_11_func_800DFDAC` (0x800DFDAC) is the immediate
+gapless successor of the sixth member `ovl_11_func_800DFCFC` (splat
+`configs/splat/ovl_11.yaml`: 0x27EDC → 0x27F8C = 0xB0) and carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq` against its
+non-zero sentinel) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80123F18` (`0x000A0005, 0x000A0000, 0x0000FFFF`) is the entry
+immediately after 800DFCFC's `D_80123F08` in
+`build/ovl_11/asm/data/69960.data.s` (D_80123F08 ends at 0x80123F18), so
+membership rests on named table membership and both code and table adjacency.
+This member is the family's **state-4 variant**: unlike the −1 sentinel the
+other members compare against, its state test is `case 4`, its `case 4` branch
+sets the loop variable 1, sets +0x2C = 0x12C and clears flag 0x800 at
+s32@+0x34, and the call-success path stores 4 (not −1) back to +0x28.
+- ovl_11_func_800DFDAC (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state 4 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80123F18`.
