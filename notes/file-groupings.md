@@ -6436,9 +6436,9 @@ Members (address order):
   against 0/0x109, then clears u16@0xAE and calls ovl_11_func_800D049C
 - ovl_11_func_800E2E98 (m) — trivial `return 0;`
 
-## `ovl_11` D_800B970C / D_800B96BC consumer pair — 0x800E276C / 0x800E2824 (confidence: medium)
+## `ovl_11` D_800B970C / D_800B96BC consumer chain — 0x800E276C / 0x800E2AF0 / 0x800E2824 (confidence: medium)
 
-Candidate same-TU pair in `ovl_11`: zero-gap link-order adjacency over a
+Candidate same-TU chain in `ovl_11`: zero-gap link-order adjacency over a
 shared dispatch-table global. `ovl_11_func_800E276C` (0xB8 bytes at
 0x800E276C) ends exactly at `ovl_11_func_800E2824` (0xE0 at 0x800E2824,
 matched byte-exact this session), which ends exactly at 0x800E2904. An
@@ -6457,6 +6457,13 @@ Members (address order):
   `D_800B970C` slot is non-NULL and the call did not return -1 latches the id
   into s16@+0x26 and zeroes s16@+0x28/+0x2A/+0x2C before calling
   ovl_11_func_800D0408(4, this+0x48, 0)
+- ovl_11_func_800E2AF0 (m, matched this session, byte-exact) — the intermediate
+  state-picker between the two: called by 800E276C on the same object, it
+  selects a handler id (0xE/0xF/0x10/0x12/0x13) from `u16@+0xAE`/`u16@+0x0` and
+  the `D_80070CF8`-window + `func_80012A34` switch, then calls the dispatch
+  consumer 800E2824 with that id; shares the `s16@+0x26` / `s32@+0x34` object
+  view with the family. Its tie is the verified call between the two existing
+  members, not a direct reference to either dispatch table.
 
 ## `ovl_11` D_8012D110 record feed/clear caller/callee pair — 0x80113B80 / 0x80113C3C (confidence: medium)
 
