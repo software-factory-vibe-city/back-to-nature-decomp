@@ -696,6 +696,11 @@ extern s32 D_80054BBC[4];
 extern s32 D_8005175C[4];
 extern s32 D_80051768;
 
+/* D_800517C6 - u8 table base in the PS-X EXE indexed by D_80054BBC[1]
+ * (and +0x42) in ovl_11_func_80103EB8. Never defined in the overlays, so
+ * cc1 materializes the address as the split lui/%lo pair. */
+extern u8 D_800517C6[];
+
 /* D_80061E28 - 0x20-byte u16 struct cleared with memset(&..,0,0x20) and
  * given u16 0x1000 writes at offsets 0x00/0x08/0x10 by func_8001B530.
  * Sibling objects at +0x20 (same 0x20 memset) are declared scalar s32 in
@@ -1292,6 +1297,11 @@ extern s16 D_801287CC[13];
 extern s16 D_8012CF10[7];
 extern s32 D_8012CF20;
 extern s32 D_80127428;
+
+/* D_8012CF30 - 12-halfword (0x18 byte) ovl_11 scratch buffer filled by
+ * func_8001A970 (0xFFFF terminator) and passed to func_80017B3C by
+ * ovl_11_func_80103EB8 / ovl_11_func_80103F8C. Absolute-addressed. */
+extern s16 D_8012CF30[12];
 
 /* D_800BCCD4 - ovl_21 table of s16 selector values (0x25/0x23/0x22/0x24 at
  * +0), indexed by a signed halfword read from the D_800C0448 state block.

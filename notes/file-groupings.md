@@ -1421,6 +1421,20 @@ nor D_8012742C). Declaration tie: byte-exact only when that shared
 `func_8001FABC` call is left without a prototype (implicit int); the dead
 `$v0` call def keeps `$v0` live and sends the second bit-set to `$v1`.
 
+Widening (byte-exact match of `ovl_11_func_80103EB8`): the run's panel
+emitter is now matched. `ovl_11_func_80103EB8` (m, 0x80103EB8, 0xD4, void)
+sits zero-gap between `ovl_11_func_80103D44` (ends 0x80103EB8) and
+`ovl_11_func_80103F8C` (begins 0x80103F8C), both inside the documented run
+span, and `ovl_11_func_80103964` (m) — the run's mutator — calls it
+unconditionally as its first action, then the zero-gap successor 80103F8C
+and trailer 801040A8. It adds a new site in the cluster's `0x8012CFxx`
+region: `D_8012CF30` (12-halfword scratch buffer, absolute `lui`/`%lo`),
+filled by `func_8001A970` and passed to `func_80017B3C` — the same buffer
+`ovl_11_func_80103F8C` uses — and reads `D_8012CF20`. It also materializes a
+new exe table base `D_800517C6` indexed by `D_80054BBC[1]`. Role: draws the
+panel through `func_80022580` + two `func_80017B3C` calls and formats the
+scratch text via `func_8001A970` / `func_8001ABF0`.
+
 ---
 
 ## `ovl_11` s16-pair setter pair — 0x800D0DB0 / 0x800D0DBC (confidence: low)
