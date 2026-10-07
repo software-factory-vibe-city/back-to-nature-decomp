@@ -166,8 +166,23 @@ Then build the PlayStation GCC 2.95.2 cross-compiler. This step needs Docker.
 cd tools/vendor/old-gcc && make VERSION=2.95.2-psx && cd ../..
 ```
 
-Last, put the original EXE at `extracted/iso/slus_011.15`. Git ignores that
-path.
+The SDK's converted archives lost some colliding eight-character member
+names. On a cold tree, build [psyq2elf](https://gitlab.com/jype/psyq2elf) and
+supply its executable when splitting:
+
+```bash
+PSYQ2ELF=/absolute/path/to/psyq2elf/psyq2elf make split
+```
+
+`splitSdkLibs.ts` recovers those members from the original SDK `.LIB` files
+under `tools/vendor/psyq47/LIB/`. Recovered objects and the member/signature
+map live only in `build/sdk/`; existing non-colliding `lib/` inputs stay
+unchanged. Warm splits reuse the content-identified members and need no
+converter. `make clean` removes them, so the next split needs the converter
+again.
+
+Put the original EXE at `extracted/iso/slus_011.15` before splitting. Git
+ignores that path.
 
 ## Build commands
 
@@ -175,6 +190,7 @@ path.
 |---|---|
 | `make` or `make check` | Builds the binary and checks the byte match. This is the default |
 | `make split` | Runs the full splat pipeline. See "The `make split` pipeline" |
+| `make split-sdk-libs` | Regenerates collision-safe SDK members/map under `build/sdk/`; cold recovery requires `PSYQ2ELF` |
 | `make progress` | Shows a summary of the decompilation progress |
 | `make disassemble` | Runs the spimdisasm bootstrap and writes `functions.csv` and one `.s` file for each function |
 | `make config-check` | Runs `make split` again and fails if a tracked file changes |
@@ -850,11 +866,31 @@ Splat alone cannot process this binary. Three properties stop it: the PSY-Q
 libraries, the references between files, and the BSS layout. Therefore
 `make split` runs this sequence:
 
+Before the pipeline, `splitSdkLibs.ts` prepares collision-safe SDK objects
+and their signature-identity map under `build/sdk/`. `detectLibFunctions.ts`
+returns a structured report, not a bare match array: matched-but-unverifiable
+signatures are always visible and block generation unless explicitly
+acknowledged in `configs/library-detection.json` for that exact binary,
+signature, reason and hit set. Zero-relocation return/padding signatures do
+not gain a placement from generated symbol names.
+
+Audit all vendored signature versions (the unprovisioned versions are named,
+not called verified):
+
+```bash
+npx tsx tools/build/detectLibFunctions.ts > build/sdk-detection.json
+npx tsx tools/build/auditSdkCollisions.ts --detection build/sdk-detection.json
+# Require object coverage for every version, rather than only the active SDK:
+npx tsx tools/build/auditSdkCollisions.ts --require-all
+```
+
 1. `bootstrap.ts` generates the configuration files if they are absent. It
    does nothing if they exist.
 2. `mergeFragments.ts`, `addLibSymbols.ts`, `patchSplatForLibs.ts`, and
    `addDepObjects.ts` fold the detected PSY-Q library objects into the splat
-   configuration.
+   configuration. After symbol integration, `disassemble.ts --container exe`
+   refreshes the original-word function table so retired names/extents cannot
+   survive in diagnostic censuses.
 3. `splat split` runs with `SPIMDISASM_ARCHLEVEL=1`.
 4. `fixCrossFileRefs.ts` resolves the symbols that span fragments. The split
    repeats up to three times.

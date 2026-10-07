@@ -183,7 +183,7 @@ function interleaveEntries(
 function stripNonTextPatches(lines: string[], dataRomStart: number, sdataRomStart: number): string[] {
   const result: string[] = [];
   const libONonTextRe =
-    /^\s+- \[0x[0-9A-Fa-f]+,\s*o,\s*\.\.\/lib\/[^,]+,\s*\.\w+\]/;
+    /^\s+- \[0x[0-9A-Fa-f]+,\s*o,\s*\.\.\/(?:lib|build\/sdk\/lib)\/[^,]+,\s*\.\w+\]/;
 
   let seenRodata = false;
   let seenData = false;
@@ -397,7 +397,7 @@ function main() {
   const subsegRe =
     /^(\s+- \[)(0x[0-9A-Fa-f]+)(,\s*)(c|o)(,\s*)([^\]]+)\](.*)$/;
   const textORe =
-    /^\s+- \[(0x[0-9A-Fa-f]+),\s*o,\s*(\.\.\/lib\/[^\]]+)\]/;
+    /^\s+- \[(0x[0-9A-Fa-f]+),\s*o,\s*(\.\.\/(?:lib|build\/sdk\/lib)\/[^\]]+)\]/;
 
   // Build set of library text ROM ranges to know which c entries to replace
   const libTextRanges = sortedMatches.map((m) => ({

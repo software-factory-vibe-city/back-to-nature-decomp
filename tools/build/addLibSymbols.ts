@@ -15,6 +15,8 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadPsxExeInfo, ROOT, exeSplatYamlPath, exeSymbolAddrsPath } from "../lib/psxExeInfo.ts";
+import { verifiedMatches, type DetectionReport } from "../lib/sdkDetection.js";
+import { staleSdkSymbols } from "../lib/sdkProvenance.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -45,7 +47,8 @@ function main() {
   });
 
   // stdout has JSON, stderr has summary (already printed by inherit)
-  const matches: LibMatch[] = JSON.parse(output);
+  const matches = verifiedMatches<LibMatch>(output);
+  const report: DetectionReport<LibMatch> = JSON.parse(output);
 
   // Collect all labels
   const newLabels: { name: string; vram: number; type: string }[] = [];
@@ -145,6 +148,17 @@ function main() {
 
   // Parse existing symbol_addrs.txt
   let existingContent = readFileSync(SYMBOLS_PATH, "utf-8");
+  // Retire SDK labels manufactured inside another independently verified member.
+  // A generated exe.txt name is not evidence against that object's full bytes.
+  const stale = staleSdkSymbols(existingContent, matches, ROOT, "470", new Set(report.rejectedPlacements.map(r => r.oPath)));
+  if (stale.length) {
+    for (const name of stale) console.log(`  Retiring stale SDK interior symbol: ${name}`);
+    if (writeMode) {
+      const names = new Set(stale);
+      existingContent = existingContent.split("\n").filter(line => !names.has(line.match(/^(\S+)\s*=/)?.[1] ?? "")).join("\n");
+      writeFileSync(SYMBOLS_PATH, existingContent);
+    }
+  }
   const existingNames = new Set<string>();
   const existingAddrs = new Set<number>();
   const existingNameToAddr = new Map<string, number>();

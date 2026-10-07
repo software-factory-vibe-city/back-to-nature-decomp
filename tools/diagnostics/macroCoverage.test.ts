@@ -52,11 +52,11 @@ test("extracted overlays without container mappings are explicit skips, with pre
 const containers = existsSync(join(ROOT, "extracted/iso/slus_011.15")) ? loadContainers() : [];
 const loaded = containers.length ? loadMacroFunctions(containers) : { functions: [], findings: [] };
 
-test("all 14 address-named EXE COP2 functions include the 11 INCLUDE_ASM payloads", { skip: !containers.length }, () => {
+test("all 13 game EXE COP2 functions include the 11 INCLUDE_ASM payloads; SDK OuterProduct0 is not a conversion target", { skip: !containers.length }, () => {
   const exe = containers.find(c => c.id === "exe")!;
   const report = detectMacroIdentities({ containers: [exe] });
   const cop = report.functions.filter(f => f.name.startsWith("func_") && f.cop2.count);
-  assert.equal(cop.length, 14);
+  assert.equal(cop.length, 13);
   const parked = ["8001B5DC", "8001B6A0", "8001BB88", "8001BBD8", "8001C37C", "8001D348", "8001D6B8", "8001DCB0", "8001DE4C", "8001E088", "8001E26C"];
   for (const suffix of parked) {
     const name = `func_${suffix}`, f = cop.find(f => f.name.toLowerCase() === name.toLowerCase());
@@ -73,27 +73,29 @@ test("all 14 address-named EXE COP2 functions include the 11 INCLUDE_ASM payload
   assert.equal(entry.macro, "gte_ReadRotMatrix"); assert.equal(entry.vintage, "inline_c.h");
   assert.equal(entry.operands[0]!.value, 29); assert.equal(entry.operands[0]!.expression, "&stack_0x0");
   assert.equal(cop.find(f => f.name === "func_8001D6B8")!.sourceRepresentation, "INCLUDE_ASM");
-  assert.equal(report.conversionQueue[0]!.function, "func_80038674");
+  assert.ok(!report.conversionQueue.some(f => ["func_80038674", "OuterProduct0"].includes(f.function)));
   assert.equal(report.conversionQueue.filter(f => f.sourceRepresentation === "INCLUDE_ASM").length, 11);
-  const outer = cop.find(f => f.name === "func_80038674")!;
-  assert.equal(outer.sourceRepresentation, "top-level-asm");
+  assert.ok(!cop.some(f => f.name === "func_80038674"));
+  const outer = report.functions.find(f => f.name === "OuterProduct0")!;
+  assert.equal(outer.sourceRepresentation, "missing", "SDK object, not game C/assembly");
   assert.equal(outer.coverage.fraction, 7 / 16);
   assert.deepEqual(outer.tiling.map(t => [t.macro, t.vintage]), [["gte_ldopv2", "inline_c.h"], ["gte_op0_b", "inline_c.h"], ["gte_stlvnl", "inline_c.h"]]);
   assert.ok(outer.candidateC.calls.every(c => c.header.endsWith("inline_c.h")));
   assert.equal(outer.candidateC.oracleStatus, "unverified");
 });
 
-test("38674 conversion boundary excludes the return of the exact SDK OuterProduct0 signature", { skip: !containers.length }, () => {
+test("the SDK OuterProduct0 extent includes its own return and matches the complete signature", { skip: !containers.length }, () => {
   const sdk = JSON.parse(readFileSync(join(ROOT, "tools/vendor/psx_psyq_signatures/470/LIBGTE.LIB.json"), "utf8")) as Array<{ name: string; sig: string; labels: Array<{ name: string }> }>;
   const signature = sdk.find(s => s.labels.some(l => l.name === "OuterProduct0"))!;
   const expected = Buffer.from(signature.sig.replace(/\s+/g, ""), "hex");
   const exe = containers.find(c => c.id === "exe")!;
-  const f = loaded.functions.find(f => f.name === "func_80038674")!;
+  const f = loaded.functions.find(f => f.name === "OuterProduct0")!;
   const original = readFileSync(join(ROOT, exe.targetPath));
   const offset = f.vram - exe.loadAddr + exe.payloadOffset;
-  assert.equal(f.bytes.length, 0x50); assert.equal(expected.length, 0x60);
+  assert.equal(f.bytes.length, 0x60); assert.equal(expected.length, 0x60);
+  assert.deepEqual(f.bytes, expected);
   assert.deepEqual(original.subarray(offset, offset + expected.length), expected);
-  assert.equal(original.readUInt32LE(offset + f.bytes.length), 0x03e00008, "jr ra belongs to this routine, but is outside the configured extent");
+  assert.equal(f.bytes.readUInt32LE(0x50), 0x03e00008, "jr ra belongs to the complete SDK member, not a separate dummy object");
 });
 
 test("enabled ovl_11 presence excludes both COP2-looking work-area data clusters", { skip: !containers.some(c => c.id === "ovl_11") }, () => {

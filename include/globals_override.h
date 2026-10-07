@@ -229,7 +229,7 @@ extern s32 D_8005E43C;
  *   D_8005E528: hit flag - cleared by func_8001E4C0 (0x8001E508),
  *     set to 1 by func_8001E878, early-out guard in func_8001E38C
  *     (0x8001E38C reads it, then loads the three hit-triangle vertex
- *     pointers from the array at 0x80061EF8 and calls func_80038674
+ *     pointers from the array at 0x80061EF8 and calls the SDK OuterProduct0
  *     with the query pointer)
  * Related, not declared here (addresses written 0x-style on purpose:
  * classifyGlobals treats any D_-token in this file as overridden):

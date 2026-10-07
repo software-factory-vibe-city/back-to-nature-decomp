@@ -112,11 +112,19 @@ disassemble:
 	npx tsx tools/build/solveOverlayBase.ts --write
 	npx tsx tools/diagnostics/overlayIdentity.ts --write
 
+# psyq2elf is only needed to recover missing collision members from original LIBs.
+# Supply PSYQ2ELF=/path/to/psyq2elf on a cold tree; outputs stay in build/sdk/.
+PSYQ2ELF ?=
+split-sdk-libs:
+	npx tsx tools/build/splitSdkLibs.ts --write $(if $(PSYQ2ELF),--converter "$(PSYQ2ELF)")
+
 # Split the binary with splat
-split:
+split: split-sdk-libs
 	npx tsx tools/build/bootstrap.ts --write
 	npx tsx tools/build/mergeFragments.ts --write
 	npx tsx tools/build/addLibSymbols.ts --write
+	@# Refresh the original-word function table after SDK names/extents change.
+	npx tsx tools/build/disassemble.ts --container exe
 	npx tsx tools/build/patchSplatForLibs.ts --write
 	npx tsx tools/build/addDepObjects.ts --write
 	SPIMDISASM_ARCHLEVEL=1 splat split configs/splat/exe.yaml
@@ -175,7 +183,7 @@ $(BUILD_DIR)/asm/%.s.o: $(BUILD_DIR)/asm/%.s $(BUILD_DIR)/toolchain-inputs.stamp
 # = the owner's .o .rodata size. Objects exist here, so this is the earliest
 # point the derivation can run; on drift (a jump-table function flipped
 # stub<->C) it rederives, re-splits, and rebuilds once.
-$(BUILT_ELF): $(ALL_OBJS) $(LD_SCRIPT) $(BUILD_DIR)/toolchain-inputs.stamp $(wildcard $(BUILD_DIR)/dep_syms.txt $(BUILD_DIR)/lib_bss_syms.txt $(BUILD_DIR)/undefined_funcs_auto.txt $(BUILD_DIR)/undefined_syms_auto.txt)
+$(BUILT_ELF): $(ALL_OBJS) $(LD_SCRIPT) $(BUILD_DIR)/toolchain-inputs.stamp $(wildcard $(BUILD_DIR)/dep_syms.txt $(BUILD_DIR)/lib_bss_syms.txt $(BUILD_DIR)/undefined_funcs_auto.txt $(BUILD_DIR)/undefined_syms_auto.txt) | split-sdk-libs
 	@if npx tsx tools/build/deriveRodataSplits.ts; then \
 		$(LD) -EL -T $(LD_SCRIPT) -Map $(BUILD_DIR)/$(BASENAME).map -o $@; \
 	elif [ -z "$$DERIVE_RODATA_RETRY" ]; then \
@@ -370,4 +378,4 @@ open('configs/splat/exe.yaml','w').writelines(lines[:idx+1])"
 	rm -rf $(BUILD_DIR)
 	@echo "Configs wiped. Run 'make split && make && make check' to rebuild from scratch."
 
-.PHONY: all disassemble split check check-exe check-all split-all setup progress clean wipe FORCE_BUILD_INPUTS
+.PHONY: all disassemble split split-sdk-libs check check-exe check-all split-all setup progress clean wipe FORCE_BUILD_INPUTS

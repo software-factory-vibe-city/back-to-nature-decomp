@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "acknowledgements": [
+    {
+      "version": "470",
+      "targetHash": "34e3b35dcd3fb1cd9a7d4813b8a9ef987915826e3d436f1908ecbe2d4fdf1444",
+      "sigFile": "2MBYTE.OBJ.json",
+      "identity": "d8c5aadb2f98917d237fb0e982a6ffd54d6be5d2f97436fc1085723410d7de2f",
+      "reason": "missing-file",
+      "offsets": [
+        6768
+      ],
+      "evidence": "Known SN CRT signature at the custom game entry point; the converted SDK has no 2mbyte.o. Retain game startup, not an SDK replacement (notes/psyq-detection.md, Missing .o files)."
+    },
+    {
+      "version": "470",
+      "targetHash": "34e3b35dcd3fb1cd9a7d4813b8a9ef987915826e3d436f1908ecbe2d4fdf1444",
+      "sigFile": "LIBSN.LIB.json",
+      "identity": "45fb512a8c5a7ddecb0496981677a41a0c04685dbb1f82dd120791b350e30ba4",
+      "reason": "missing-file",
+      "offsets": [
+        33256,
+        33796,
+        48076,
+        66280,
+        70100,
+        70132
+      ],
+      "evidence": "Known generic C++ trampoline signature hits; op_vnew/op_vdel exist in the 4.7 signature database but not the supplied Libsn.lib or converted libsn.a. These six hits are not verified SDK placements. Retain game code; no object invented (notes/psyq-detection.md, Missing .o files)."
+    },
+    {
+      "version": "470",
+      "targetHash": "34e3b35dcd3fb1cd9a7d4813b8a9ef987915826e3d436f1908ecbe2d4fdf1444",
+      "sigFile": "LIBSN.LIB.json",
+      "identity": "87ac0fd55b021f73b80955f110a6bc2a28a66d2bcf5bbc47529b4bb6000d1def",
+      "reason": "missing-file",
+      "offsets": [
+        33256,
+        33796,
+        48076,
+        66280,
+        70100,
+        70132
+      ],
+      "evidence": "Known generic C++ trampoline signature hits; op_vnew/op_vdel exist in the 4.7 signature database but not the supplied Libsn.lib or converted libsn.a. These six hits are not verified SDK placements. Retain game code; no object invented (notes/psyq-detection.md, Missing .o files)."
+    }
+  ]
+}

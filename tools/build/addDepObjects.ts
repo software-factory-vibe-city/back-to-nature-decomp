@@ -20,6 +20,9 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadPsxExeInfo, requireSectionLayout, ROOT, exeSplatYamlPath } from "../lib/psxExeInfo.ts";
+import { isReturnPadding, readTextObject } from "../lib/psyqMembers.js";
+import { boundaryPremise } from "../lib/sdkProvenance.js";
+import { loadSubsegments } from "../lib/symbolIndex.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -153,7 +156,7 @@ function parseOSegmentRanges(
 ): { romStart: number; romEnd: number; oPath: string }[] {
   const lines = yamlContent.split("\n");
   const oSegRe =
-    /^\s+- \[(0x[0-9A-Fa-f]+),\s*o,\s*(\.\.\/lib\/[^\],]+)/i;
+    /^\s+- \[(0x[0-9A-Fa-f]+),\s*o,\s*(\.\.\/(?:lib|build\/sdk\/lib)\/[^\],]+)/i;
 
   // Load libSections.json for actual text sizes
   const libSectionsPath = join(ROOT, "build/libSections.json");
@@ -244,7 +247,7 @@ function main() {
       if (line.includes(DEP_MARKER)) continue;
       // Strip o entries for dep .o files (may have been added in prior runs without marker)
       const oMatch = line.match(
-        /^\s+- \[0x[0-9A-Fa-f]+,\s*o,\s*(\.\.\/lib\/[^\],\s]+)/
+        /^\s+- \[0x[0-9A-Fa-f]+,\s*o,\s*(\.\.\/(?:lib|build\/sdk\/lib)\/[^\],\s]+)/
       );
       if (oMatch && depSegPaths.has(oMatch[1].trim())) {
         // Also check if next line is a gap c entry (added by addDepObjects)
@@ -263,6 +266,7 @@ function main() {
   }
 
   const existingORanges = parseOSegmentRanges(yamlContent);
+  const gameRegions = loadSubsegments("exe").filter(s => s.type === "c" || s.type === "asm");
 
   // Categorize deps
   const textDeps: { dep: DepObject; romStart: number; romEnd: number }[] = [];
@@ -316,6 +320,18 @@ function main() {
           `  SKIP ${dep.oPath}: ROM range beyond binary`
         );
         continue;
+      }
+
+      // Relocation-derived callers ARE independent evidence, unlike exe.txt.
+      // Even they cannot license a return-only object splitting a game region's
+      // missing epilogue. Leave the region intact and surface the contradiction.
+      const object = readTextObject(readFileSync(join(ROOT, dep.oPath)));
+      if (isReturnPadding(object)) {
+        const previous = gameRegions.find(s => s.rom < romStart && s.rom + s.size >= romStart);
+        if (previous && boundaryPremise(binary.subarray(previous.rom, romStart), previous.vram, object).missingTerminal) {
+          console.log(`  rejected-placement ${dep.oPath}: return padding at ${romHex(romStart)} splits the missing epilogue of ${previous.name}`);
+          continue;
+        }
       }
 
       // Compare non-relocated bytes

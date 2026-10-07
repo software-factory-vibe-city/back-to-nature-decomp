@@ -1,10 +1,9 @@
 #include "common.h"
 
-/* GTE cross-product: reads two s32[3] vectors, writes result to third.
- * The 4th argument (v1[0]) is ignored by the GTE cross product itself.
- * Passed as s32 so GCC forwards the live value in $a3 to the call without
- * reloading v1[0] from the stack. */
-extern void func_80038674(s32 *, s32 *, s32 *, s32);
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+
+/* The SDK member reads/writes only the three vector components. */
 
 /* TU-owned globals (GP-relative in this translation unit). */
 s32 D_8005E528;
@@ -33,7 +32,7 @@ s32 func_8001E38C(void) {
     diff2[1] = D_80061EF8[2]->f2 - v1[1];
     diff2[2] = D_80061EF8[2]->f4 - v1[2];
 
-    func_80038674(diff1, diff2, result, v1[0]);
+    OuterProduct0((VECTOR *)diff1, (VECTOR *)diff2, (VECTOR *)result);
 
     prod[0] = (D_8005E518->field_0 - v1[0]) * result[0];
     prod[2] = (D_8005E518->field_8 - v1[2]) * result[2];

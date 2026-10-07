@@ -8,14 +8,17 @@
  * Usage:
  *   npx tsx tools/build/detectLibFunctions.ts [--verbose]
  *
- * Output (stdout): JSON array of matched library objects:
- *   [{ vramStart, vramEnd, oPath, textSize, sigLength, labels }]
+ * Output (stdout): schema-v1 report with matches, matchedButUnverifiable,
+ * rejectedPlacements, and unacknowledged. Contradictions always reach stdout
+ * AND stderr; unacknowledged findings exit nonzero and block generators.
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
-import { exeSymbolAddrsPath, loadPsxExeInfo, requireSectionLayout } from "../lib/psxExeInfo.ts";
+import { exeSymbolAddrsPath, loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import { hash, loadMemberMap } from "../lib/psyqMembers.js";
+import { acknowledgeFindings, scanSdkSignatures, type DetectionAcknowledgement, type DetectionReport } from "../lib/sdkDetection.js";
 
 const _info = loadPsxExeInfo();
 const _layout = requireSectionLayout();
@@ -56,55 +59,6 @@ interface CandidateMatch {
   libDir: string;
   textSize: number;
   sigLength: number;
-}
-
-/** Parse a hex signature string with ?? wildcards into bytes + mask. */
-function parseSig(sigStr: string): { bytes: number[]; mask: boolean[] } {
-  const tokens = sigStr.trim().split(/\s+/);
-  const bytes: number[] = [];
-  const mask: boolean[] = [];
-
-  for (const token of tokens) {
-    if (token === "??") {
-      bytes.push(0);
-      mask.push(false);
-    } else {
-      bytes.push(parseInt(token, 16));
-      mask.push(true);
-    }
-  }
-
-  return { bytes, mask };
-}
-
-/** Find all byte pattern matches in the binary at 4-byte aligned offsets. */
-function findAllPatterns(
-  binary: Buffer,
-  searchStart: number,
-  searchEnd: number,
-  sigBytes: number[],
-  sigMask: boolean[]
-): number[] {
-  const sigLen = sigBytes.length;
-  if (sigLen === 0) return [];
-  const results: number[] = [];
-
-  // Allow signatures to start within the text section even if they extend
-  // past searchEnd — some library .o files have .text sections that span
-  // beyond the text/data boundary (e.g., large multi-function objects).
-  // The full signature must still fit within the binary buffer.
-  const scanEnd = Math.min(searchEnd, binary.length - sigLen);
-  for (let i = searchStart; i <= scanEnd; i += 4) {
-    let match = true;
-    for (let j = 0; j < sigLen; j++) {
-      if (sigMask[j] && binary[i + j] !== sigBytes[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) results.push(i);
-  }
-  return results;
 }
 
 function fileOffsetToVram(offset: number): number {
@@ -243,25 +197,6 @@ function verifyRelocations(
   return { verified, checked };
 }
 
-/** Get the .text section size from an ELF .o file using readelf. */
-function getTextSize(oPath: string): number | null {
-  try {
-    const output = execSync(`readelf -S "${oPath}" 2>/dev/null`, {
-      encoding: "utf-8",
-    });
-    // Match: [ N] .text             PROGBITS        00000000 OFFSET SIZE ...
-    const match = output.match(
-      /\] \.text\s+PROGBITS\s+[0-9a-f]+\s+[0-9a-f]+\s+([0-9a-f]+)/i
-    );
-    if (match) {
-      return parseInt(match[1], 16);
-    }
-  } catch {
-    // readelf failed
-  }
-  return null;
-}
-
 /** Get all section names from an ELF .o file. */
 function getSections(oPath: string): string[] {
   try {
@@ -279,30 +214,8 @@ function getSections(oPath: string): string[] {
   }
 }
 
-/**
- * Map a signature file name + obj name to a lib/.o path.
- *
- * For .LIB.json files: LIBAPI.LIB.json / C57.OBJ -> lib/libapi/c57.o
- * For standalone .OBJ.json files: MCGUI.OBJ.json -> lib/mcgui.o
- */
-function sigToOPath(
-  sigFileName: string,
-  objName: string
-): { oPath: string; libDir: string } | null {
-  const obj = objName.replace(/\.OBJ$/i, "").toLowerCase();
-
-  if (sigFileName.endsWith(".LIB.json")) {
-    const lib = sigFileName.replace(/\.LIB\.json$/i, "").toLowerCase();
-    return { oPath: `lib/${lib}/${obj}.o`, libDir: lib };
-  } else if (sigFileName.endsWith(".OBJ.json")) {
-    // Standalone object — lives directly in lib/
-    return { oPath: `lib/${obj}.o`, libDir: "" };
-  }
-
-  return null;
-}
-
 function main() {
+  process.chdir(ROOT);
   const verbose = process.argv.includes("--verbose");
 
   if (!fs.existsSync(BINARY_PATH)) {
@@ -314,77 +227,20 @@ function main() {
   const searchStart = TEXT_START - LOAD_ADDR + PAYLOAD_OFFSET;
   const searchEnd = TEXT_END - LOAD_ADDR + PAYLOAD_OFFSET;
 
-  const versionDir = path.join(SIGS_DIR, VERSION);
-  const sigFiles = fs
-    .readdirSync(versionDir)
-    .filter((f) => f.endsWith(".json"));
+  const versionDir = path.join(ROOT, SIGS_DIR, VERSION);
 
-  const candidates: CandidateMatch[] = [];
-  let skippedNoFile = 0;
-  let skippedSizeMismatch = 0;
-
-  for (const sigFile of sigFiles) {
-    const data: SigEntry[] = JSON.parse(
-      fs.readFileSync(path.join(versionDir, sigFile), "utf-8")
-    );
-
-    for (const entry of data) {
-      if (!entry.sig) continue;
-      const { bytes, mask } = parseSig(entry.sig);
-      if (bytes.length < 8) continue; // skip tiny sigs
-
-      const offsets = findAllPatterns(binary, searchStart, searchEnd, bytes, mask);
-      if (offsets.length === 0) continue;
-
-      const mapping = sigToOPath(sigFile, entry.name);
-      if (!mapping) continue;
-
-      const { oPath, libDir } = mapping;
-
-      // Validate .o file exists
-      if (!fs.existsSync(oPath)) {
-        if (verbose) {
-          console.error(`  SKIP: .o not found: ${oPath} (${entry.name})`);
-        }
-        skippedNoFile++;
-        continue;
-      }
-
-      // Get .text section size from .o file
-      const textSize = getTextSize(oPath);
-      if (textSize === null || textSize === 0) {
-        if (verbose) {
-          console.error(
-            `  SKIP: no .text section in ${oPath} (${entry.name})`
-          );
-        }
-        continue;
-      }
-
-      if (bytes.length > textSize) {
-        if (verbose) {
-          console.error(
-            `  SKIP: sig (${bytes.length}B) > .text (${textSize}B) for ${oPath} (${entry.name})`
-          );
-        }
-        continue;
-      }
-
-      candidates.push({
-        offsets,
-        entry,
-        oPath,
-        libDir,
-        textSize,
-        sigLength: bytes.length,
-      });
-
-      if (verbose && offsets.length > 1) {
-        console.error(
-          `  MULTI: ${oPath} (${entry.name}) matched at ${offsets.length} offsets`
-        );
-      }
-    }
+  const { candidates, matchedButUnverifiable, rejectedPlacements } = scanSdkSignatures({
+    root: ROOT, sigDir: versionDir, map: loadMemberMap(ROOT, VERSION), binary, searchStart, searchEnd,
+  });
+  const acknowledgementsPath = path.join(ROOT, "configs/library-detection.json");
+  const acknowledgements: DetectionAcknowledgement[] =
+    fs.existsSync(acknowledgementsPath) ? JSON.parse(fs.readFileSync(acknowledgementsPath, "utf8")).acknowledgements : [];
+  const unacknowledged = acknowledgeFindings(matchedButUnverifiable, acknowledgements, VERSION, hash(binary));
+  for (const finding of matchedButUnverifiable) {
+    console.error(`  matched-but-unverifiable: ${finding.sigFile}:${finding.member} (${finding.labels.join(", ")}) ${finding.reason}: ${finding.detail}${finding.acknowledgement ? ` [acknowledged: ${finding.acknowledgement}]` : ""}`);
+  }
+  for (const rejection of rejectedPlacements) {
+    console.error(`  rejected-placement: ${rejection.oPath}: ${rejection.reason} (${rejection.offsets.length} signature hits; exe.txt is not independent evidence)`);
   }
 
   // --- Helper: convert a candidate + chosen offset into a LibMatch ---
@@ -777,12 +633,8 @@ function main() {
     `  Total .text coverage: ${totalTextBytes} bytes (0x${totalTextBytes.toString(16)})`
   );
   console.error(`  Named function labels: ${totalLabels}`);
-  if (skippedNoFile > 0) {
-    console.error(`  Skipped (no .o file): ${skippedNoFile}`);
-  }
-  if (skippedSizeMismatch > 0) {
-    console.error(`  Skipped (size mismatch): ${skippedSizeMismatch}`);
-  }
+  console.error(`  Matched-but-unverifiable: ${matchedButUnverifiable.length} (${unacknowledged} unacknowledged)`);
+  console.error(`  Rejected placements: ${rejectedPlacements.length}`);
   if (warnings.length > 0) {
     console.error(`\n  Warnings:`);
     for (const w of warnings) {
@@ -802,7 +654,9 @@ function main() {
     objName: m.objName,
   }));
 
-  console.log(JSON.stringify(output, null, 2));
+  const report: DetectionReport<LibMatch> = { schemaVersion: 1, matches: output, matchedButUnverifiable, rejectedPlacements, unacknowledged };
+  console.log(JSON.stringify(report, null, 2));
+  if (unacknowledged) process.exitCode = 1;
 }
 
 main();

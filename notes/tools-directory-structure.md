@@ -144,6 +144,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 | — | `analyzeLayout.ts` | Byte-level heuristics classifying spimdisasm entries as code vs data; finds section boundaries. Library of `bootstrap.ts`. |
 | 3 | `mergeFragments.ts` | Merges functions spimdisasm split at internal branch targets. Runs **twice** in the split target (before and after lib patching). |
 | 4 | `addLibSymbols.ts` | Orchestrator for library detection: runs `detectLibFunctions.ts`, `findMissingLibDeps.ts`, `resolveLibSections.ts`; merges named lib function labels into `symbol_addrs.txt`. |
+| 4a | `disassemble.ts --container exe` | Refreshes the original-word function table after SDK symbol integration, preventing retired game names/partial extents from lingering in diagnostics. |
 | 5 | `patchSplatForLibs.ts` | Rewrites splat YAML to use `o` (object) segments for matched PSY-Q lib `.o` files; writes `build/libSections.json`. |
 | 6 | `addDepObjects.ts` | Finds `.o` files referenced by matched libs but not themselves matched; adds them as `o` segments. Wraps `findMissingLibDeps.ts`. |
 | 7 | `fixCrossFileRefs.ts` | Fixes symbols referenced across `.s` files without global visibility (adds `type:func` entries so next split emits `glabel`). |
@@ -158,7 +159,9 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 
 | File | Role |
 |---|---|
-| `detectLibFunctions.ts` | Scans the binary against `vendor/psx_psyq_signatures/470/`, cross-checks `lib/*.o` with readelf. Confirmed SDK v4.70: all 342 lib objects match the binary modulo relocations. |
+| `splitSdkLibs.ts` | Recovers original `.LIB`/ELF archive members without overwriting colliding names, preserves existing non-colliding inputs, and writes version-qualified objects plus a content/signature member map only under `build/sdk/`. Cold original-LIB recovery requires `PSYQ2ELF`/`--converter`; warm runs reuse content-identified members. |
+| `auditSdkCollisions.ts` | Audits every vendored signature version separately. Verifies disambiguated objects for provisioned versions, explicitly names unprovisioned ones, and fails required missing coverage (`--require-version`, `--require-all`). `--detection` also rejects unacknowledged matched-but-unverifiable rows. |
+| `detectLibFunctions.ts` | Scans the binary against the active SDK signatures and resolves collisions through the member map. Cross-checks complete ELF `.text` modulo relocations. Returns a structured report with `matches`, always-visible `matchedButUnverifiable`, `rejectedPlacements`, and `unacknowledged`; unacknowledged contradictions exit nonzero. Generated symbol names cannot place return/padding stubs. |
 | `findMissingLibDeps.ts` | Finds `.o` dependencies of matched libs; resolves their VRAM addresses by decoding relocations + call targets from the binary. |
 | `resolveLibSections.ts` | Locates ROM offsets of matched libs' `.data`/`.rdata`/`.bss` sections. |
 | `extractBssSymAddrs.ts` | Computes absolute VRAM addresses of lib BSS symbols from HI16/LO16 relocation pairs. Called by `patchLinkerBss.ts`. |
@@ -169,6 +172,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 |---|---|
 | `psxExeInfo.ts` | Single source of truth for binary constants (load addr, entry, offsets, GP) derived from the EXE header + `splat.yaml`, plus section-layout loading. Imported by all build/diagnostics tools — nothing hardcodes addresses. |
 | `symbolIndex.ts` | Address ↔ symbol in both directions, plus splat subsegment extents, read from the generated artifacts (`symbol_addrs.txt`, the auto symbol tables, splat's data labels, the linker script). A name no table covers resolves to the address splat encoded in it, or to nothing — never to a guess. |
+| `psyqMembers.ts` / `sdkDetection.ts` / `sdkProvenance.ts` | Strict LIB/ar member identities, ELF text/symbol/relocation cross-checks, signature-member map lookup, explicit detection contradictions/acknowledgements, proven stale-stub retirement, and the original-byte boundary premise consumed by triage. |
 | `functionOracle.ts` | Relocates a compiled object's `.text` to the function's original addresses and compares it word for word with the original image. The diff and the verdict come from that one comparison, so they cannot disagree; an unresolvable relocation is reported as `undetermined` rather than rendered with a guess. Backs `agent/diffFunc.ts`. |
 
 ## tools/diagnostics/ — run by hand
@@ -206,7 +210,7 @@ bootstrap-era tools are idempotent or no-op when configs exist.
 
 | Dir | Origin | Role |
 |---|---|---|
-| `psyq47/` | PSY-Q 4.7 SDK (original `Psy-Q_47.zip` + `psyq-4.7-converted-full.7z`) | The actual SDK this game was built with. `converted/lib` holds the ELF-converted libs; **project-root `lib/` is a byte-copy of it** (verified same listing). `DOCS/` has the official 4.7 PDF references (LibRef, LibOver, File Format). `INCLUDE/` is the original SDK headers. |
+| `psyq47/` | PSY-Q 4.7 SDK (original `Psy-Q_47.zip` + `psyq-4.7-converted-full.7z`) | The actual SDK this game was built with. `converted/lib` holds the ELF-converted libs; project-root `lib/` retains the original converted inputs. Those inputs lost colliding eight-character member names; `splitSdkLibs.ts` recovers the missing variants from the original `.LIB` files into version-qualified `build/sdk/` objects, never into source/input directories. `DOCS/` has the official 4.7 PDF references (LibRef, LibOver, File Format). `INCLUDE/` is the original SDK headers. |
 | `psx_psyq_signatures/` | github.com/lab313ru/psx_psyq_signatures | Per-version PSY-Q signature DBs. Only `470/` is used live (by `build/detectLibFunctions.ts`); the other ~15 version dirs were for SDK identification. |
 | `psyq_sdk/` | full SDK dump (314 MB) | Broader dump: beta tools, kanji utilities, sample zips. Reference only — nothing in the build reads it. |
 

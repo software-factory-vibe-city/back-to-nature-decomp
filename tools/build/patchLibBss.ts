@@ -25,6 +25,7 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
+import { patchedSdkObjectPath } from "../lib/psyqMembers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -642,7 +643,7 @@ function main() {
   // Process all library .o files: copy to build/lib/, apply all patches
   for (const entry of libSections) {
     const srcPath = join(ROOT, entry.oPath);
-    const dstPath = join(ROOT, "build", entry.oPath);
+    const dstPath = join(ROOT, patchedSdkObjectPath(entry.oPath));
 
     // Ensure output directory exists
     mkdirSync(dirname(dstPath), { recursive: true });
@@ -732,8 +733,8 @@ function main() {
       // Replace all occurrences of this exact path
       // Use a regex that matches the path not preceded by "build/"
       const escaped = oPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(`(?<!build/)${escaped}`, "g");
-      newContent = newContent.replace(re, `build/${oPath}`);
+      const re = new RegExp(`(?<![\\w./])${escaped}`, "g");
+      newContent = newContent.replace(re, patchedSdkObjectPath(oPath));
     }
 
     // Also update the .lib_bss section references
@@ -748,7 +749,7 @@ function main() {
     // the actual definitions from library .o files, causing wrong addresses.
     const allLibSyms = new Set<string>();
     for (const oPath of libOPaths) {
-      const buildPath = join(ROOT, "build", oPath);
+      const buildPath = join(ROOT, patchedSdkObjectPath(oPath));
       const origPath = join(ROOT, oPath);
       const path = existsSync(buildPath) ? buildPath : origPath;
       try {

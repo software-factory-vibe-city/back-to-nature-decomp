@@ -18,6 +18,8 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadPsxExeInfo, ROOT } from "../lib/psxExeInfo.ts";
+import { verifiedMatches } from "../lib/sdkDetection.js";
+import { loadMemberMap } from "../lib/psyqMembers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -57,7 +59,7 @@ function main() {
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,
   });
-  const matches: LibMatch[] = JSON.parse(detectOutput);
+  const matches = verifiedMatches<LibMatch>(detectOutput);
   const matchedPaths = new Set(matches.map((m) => m.oPath));
 
   // Build map of matched .o path -> match info
@@ -110,6 +112,16 @@ function main() {
     string,
     { archive: string; member: string; oPath: string; type: string }
   >();
+
+  // Lost collision variants are absent even from the converted .a. Resolve
+  // their exported symbols through the original-member map FIRST.
+  for (const member of loadMemberMap(ROOT, "470")?.members ?? []) {
+    for (const symbol of member.symbols) {
+      if (undefSyms.has(symbol.name) && !symDefInfo.has(symbol.name)) {
+        symDefInfo.set(symbol.name, { archive: member.source, member: member.member, oPath: member.oPath, type: "func" });
+      }
+    }
+  }
 
   const archives = execSync("ls lib/*.a", { encoding: "utf-8", cwd: ROOT })
     .trim()

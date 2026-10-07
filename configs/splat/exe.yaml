@@ -746,9 +746,8 @@ segments:
       - [0x28D74, o, ../lib/libgte/patchgte] # lib/libgte/patchgte.o
       - [0x28E54, o, ../lib/libgte/reg03_14] # lib/libgte/reg03_14.o
       - [0x28E64, o, ../lib/libgte/reg03_15] # lib/libgte/reg03_15.o
-      - [0x28E74, c, func_80038674]       # 0x80038674 func_80038674
-      - [0x28EC4, o, ../lib/libsnd/dmynot1] # lib/libsnd/dmynot1.o
-      - [0x28ED4, o, ../lib/libgte/smp_00_1] # lib/libgte/smp_00_1.o
+      - [0x28E74, o, ../build/sdk/lib/470/libgte/smp_00_1__OuterProduct0] # build/sdk/lib/470/libgte/smp_00_1__OuterProduct0.o
+      - [0x28ED4, o, ../build/sdk/lib/470/libgte/smp_00_1__Lzc] # build/sdk/lib/470/libgte/smp_00_1__Lzc.o
       - [0x28EF4, o, ../lib/libgs/gs_001] # lib/libgs/gs_001.o
       - [0x29444, o, ../lib/libgs/gs_0022] # lib/libgs/gs_0022.o
       - [0x29554, o, ../lib/libgs/gs_003] # lib/libgs/gs_003.o

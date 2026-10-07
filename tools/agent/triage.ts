@@ -17,6 +17,8 @@
  * hand-deriving a GPU primitive emitter that the SDK header names outright.
  *
  * Detectors:
+ *   boundary-premise  missing terminal abutting a zero-reloc return/padding
+ *                   SDK placement: validate the extent before reconstructing C
  *   frame-map       exact frame decomposition and the signature it implies
  *   sdk-idiom       PSY-Q primitive types and macro expansions in the target
  *   inventory       order-independent content diff (offsets/constants/shifts)
@@ -58,6 +60,7 @@ import {
   type DisassembledInstruction,
   assembleTarget,
   compileSource,
+  containerForSymbol,
   detectImplicitDeclarations,
   disassembleObject,
   normalizeFunctionName,
@@ -106,6 +109,8 @@ import { targetLoopEmission } from "./analyzeTargetLoopEmission.js";
 import { innerLoopsOf, loopBody, loopHeaders, preheaderOf } from "./loop-emission/derive.js";
 import { goalsFor } from "./loop-emission/compare.js";
 import { precedentIndex, precedentsFor } from "./loop-emission/precedents.js";
+import { loadSubsegments } from "../lib/symbolIndex.js";
+import { boundaryPremise, followingTextObject } from "../lib/sdkProvenance.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -2324,6 +2329,30 @@ function detectDeadAsm(compiled: CompiledFacts, srcText: string): Finding[] {
 
 /** Push header identity before source/allocator diagnostics. COP2 content and
  * unmatched regions never establish handwritten origin or grant asm policy. */
+export function detectBoundaryPremise(name: string): Finding[] {
+  const container = containerForSymbol(name);
+  if (!container) return [];
+  const segments = loadSubsegments(container);
+  const index = segments.findIndex(s => s.name === name && (s.type === "c" || s.type === "asm"));
+  if (index < 0) return [];
+  const segment = segments[index]!;
+  const binaryPath = resolve(ROOT, container.targetPath);
+  if (!existsSync(binaryPath) || segment.size <= 0) return [];
+  const binary = readFileSync(binaryPath);
+  if (segment.rom + segment.size > binary.length) return [];
+  const next = segments[index + 1];
+  const following = next?.type === "o" && next.rom === segment.rom + segment.size ? followingTextObject(ROOT, next.name) : undefined;
+  const premise = boundaryPremise(binary.subarray(segment.rom, segment.rom + segment.size), segment.vram, following);
+  if (!premise.missingTerminal && !premise.adjacentReturnPadding) return [];
+  return [{
+    detector: "boundary-premise",
+    severity: premise.missingTerminal && premise.adjacentReturnPadding ? "blocker" : "signal",
+    summary: "Validate the function extent and SDK provenance before reconstructing compiled C.",
+    evidence: premise.evidence,
+    see: ["plans/static-domain-detection/boundary-premise.md", "notes/retros/2026-10-06-outerproduct0-member-collision-retro.md"],
+  }];
+}
+
 export function macroIdentityFindings(report: MacroFunctionReport): Finding[] {
   if (!report.cop2.count) return [];
   return [{ detector: "macro-identity", severity: "signal", summary: `${report.verdict}: ${report.coverage.explained}/${report.coverage.total} COP2 instructions explained (fraction=${report.coverage.fraction.toFixed(4)}). Test the header-macro representation before source authoring; candidate C is oracle-unverified.`, evidence: [
@@ -2370,7 +2399,7 @@ function main(): void {
     process.exit(1);
   }
 
-  const findings: Finding[] = [];
+  const findings: Finding[] = detectBoundaryPremise(name);
   const srcPath = srcOverride ?? sourcePathFor(name);
   const srcText = existsSync(srcPath) ? readFileSync(srcPath, "utf-8") : undefined;
   const sourceState: "missing" | "stub" | "c" =

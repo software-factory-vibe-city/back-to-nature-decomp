@@ -16,6 +16,7 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadPsxExeInfo, requireSectionLayout, ROOT } from "../lib/psxExeInfo.ts";
+import { verifiedMatches } from "../lib/sdkDetection.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const _info = loadPsxExeInfo();
@@ -291,7 +292,7 @@ function main() {
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,
   });
-  const matches: LibMatch[] = JSON.parse(output);
+  const matches = verifiedMatches<LibMatch>(output);
 
   const binary = readFileSync(BINARY_PATH);
 
