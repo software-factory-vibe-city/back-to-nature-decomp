@@ -6220,9 +6220,12 @@ Members (link order):
 - ovl_11_func_800DB23C (m, matched this session, byte-exact) — find a record
   whose first halfword equals the sign-extended s16 arg and clear it
   (`memset(record, 0, 0x16)`, then `record->first = 0xFFFF`).
-- ovl_11_func_800DB2AC (stub) — caller side, weaker: iterates the eight
-  0x12-stride `+0x8A8` records of its arg struct, skipping 0xFFFF, and calls
-  `ovl_11_func_800DB140` on each; touches no `D_800A03B0` byte itself.
+- ovl_11_func_800DB2AC (m, matched, byte-exact) — caller side: when its
+  arg's `unk2` is 0xF and the +0xE4C8 u16 (read through the D_8006C838
+  cluster's +0x8000 two-stage split) is 1..2, it returns without doing
+  anything; otherwise it iterates the eight 0x12-stride `+0x8A8` records of
+  that same arg struct, skipping 0xFFFF, and calls `ovl_11_func_800DB140` on
+  each; touches no `D_800A03B0` byte itself.
 
 ## `ovl_11` D_8006C838 table-scan caller + exclusion-set leaf — 0x800F00E4 / 0x800F021C (confidence: low)
 
