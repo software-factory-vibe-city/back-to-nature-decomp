@@ -567,6 +567,7 @@ void ovl_11_func_800FA950(s16 arg0, s16 arg1, s16 *arg2, s16 *arg3);
 void ovl_11_func_800FAAAC(void);
 s32 ovl_11_func_800FAAD4(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 void ovl_11_func_800FB0C4(s16 *arg0);
+s32 ovl_11_func_800FB120(s32 arg0, s32 arg1);
 s32 ovl_11_func_800FB218(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 s32 ovl_11_func_800FB290(M2C_d4cb10048269_SwapStruct_B45C *arg0, s32 arg1, M2C_d4cb10048269_SwapStruct_B45C *arg2, s32 arg3);
 s32 ovl_11_func_800FB394(Recon_ovl_11_func_800FB394_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);

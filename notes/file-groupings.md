@@ -2731,6 +2731,10 @@ Members:
   sibling: runs the same `800FB3E4`/`800D5810` gate on (arg0,arg3) then
   (arg2,arg1), adds the `800D583C` / `field_4 < 2` check in each stage, and
   swaps through `800FB45C` returning 0, else 1.
+  Corroboration (this session): the pair is called from the D_80126FE0
+  state-machine direct callee `ovl_11_func_800FB120` (byte-exact), which uses
+  the same local `SwapStruct_B45C` typedef — call-graph agreement for the
+  pair's shared-TU reading.
 
 ---
 
@@ -2874,6 +2878,13 @@ Members (address order):
   `func_800226A4() == 2` writes the cluster head `D_80126FE0 = 1` and calls
   `func_80022738`; shares the D_80126FE0 write + func_8002261C/226A4 guard
   idiom with 0x800FAAD4 and 0x801014A4 (shared-global + idiom evidence)
+- ovl_11_func_800FB120 (m, matched this session, byte-exact) — state-machine
+  direct callee (caller 800FAC0C reads the result): resolves two indices
+  through 800FB4B0's 6-byte table and dispatches to 800FB218 (one side's
+  field_0 == 0), 800FB290 (field_0 unequal) or 800FB394 (equal); declares the
+  same local `SwapStruct_B45C` {s16; s16; s16} typedef as the 800FB218/290
+  pair, so it call-graph- and idiom-links this state cluster to that pair
+  (same-TU, address-apart so low)
 
 ---
 
