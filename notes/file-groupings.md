@@ -6173,6 +6173,12 @@ for this cluster yet (the struct_80076220 tie above is a data tie only):
   `sll 16` / `sra 16` sign-extension pair.
 
 Members:
+- ovl_11_func_8011FD2C (m, matched this session, 0x50, byte-exact) — loop
+  driver of FEA0: hoists a sign-extended s16 copy of arg0, then calls
+  `ovl_11_func_8011FEA0((s16)i, v)` for i in 0..0x24. Its 0x50 body is the
+  same instruction template as FD7C's, differing only in the callee symbol,
+  confirming the paired-driver shape of this run (register/argument idiom
+  shared with its link-order twin, not copied source).
 - ovl_11_func_8011FD7C (m, matched this session, 0x50, byte-exact) — loop
   driver: hoists a sign-extended s16 copy of arg0, then calls
   `ovl_11_func_8011FF0C((s16)i, v)` for i in 0..0x24.
@@ -6193,10 +6199,9 @@ Members:
   8011FE14 over `D_800742EC` records (0xB4 stride), and at 8011FE58 over
   `D_800749F4` records (0xB8 stride). The matched body needs no flag override;
   its user-authorized local bindings are not original-TU evidence.
-- ovl_11_func_8011FD2C / 8011FDCC (s) — other link-order neighbours;
-  FD2C is the 37-entry driver of FEA0, established by its original call
-  at 8011FD50. FDCC drives FF74 over the two arrays, with counts 5/10 and
-  10/20 selected by the work-area halfwords +0x44D2 and +0x44D0.
+- ovl_11_func_8011FDCC (s) — other link-order neighbour; drives FF74 over
+  the two arrays, with counts 5/10 and 10/20 selected by the work-area
+  halfwords +0x44D2 and +0x44D0.
 
 ---
 
