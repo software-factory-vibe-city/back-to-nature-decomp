@@ -6009,6 +6009,11 @@ Members:
   0x800F19C8, inside the 0x800F1878–0x800F1AE0 gapless link run that carries
   0x800F1AE0, and both bind the shared callee with the same `0x3FF` mask plus
   constant-offset idiom.
+- ovl_11_func_800F1878 (m, this session, 0xDC, byte-exact) — first member of
+  that same 0x800F1878–0x800F1AE0 gapless run and the matched caller of
+  `ovl_11_func_800F1E44`: fills three `0x3FF`-masked 10-bit fields, then
+  applies the `func_8001AF44(mask + 0xFB)` predicate as 0x800F1AE0 does, with
+  `one == 1` selecting `!= arg1` over `!= 0`.
 
 ## `ovl_11` 0x800F144C–0x800F1744 gapless link run, shared caller 0x800F1078 (confidence: low)
 
