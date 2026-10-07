@@ -7901,7 +7901,10 @@ Fingerprints:
   exactly at 0x800B83A0, extending that run one function earlier;
 - shared absolute `D_800BFE44` base and callee: `ovl_25_func_800B8340` builds
   `%hi/%lo(D_800BFE44)` and calls `ovl_25_func_800B83A0`, the run's streaming
-  initialiser;
+  initialiser; `ovl_25_func_800B82B4` (0x8C) ends exactly at 0x800B8340, builds
+  the same `%hi/%lo(D_800BFE44)` into `$s0`, seeds the `D_800BFE44` halfword
+  fields at +0x4CE..+0x4E4 (and +0/+2), and calls `ovl_25_func_800B8340` —
+  extending the contiguous run one function earlier;
 - shared far-buffer field region: both `ovl_25_func_800BAA5C` and
   `ovl_25_func_800BA9F4` write the `D_8007AFF0+0x20000` work-area halfword at
   +0x53B4 (= +0x253B4 absolute).
@@ -7919,7 +7922,10 @@ Members (link order):
   streams `D_800BCC10` (6×8 bytes) and `D_800BCC70` (2×8 bytes) into the
   stride-0x78 `D_800BFE44` records, setting index +0x10, flag +0x12, and the
   0x32000 word at +0x1C; sibling idiom of `ovl_25_func_800B83A0`
-- ovl_25_func_800B8340 (m, matched, byte-exact) — head of the run; clears and
+- ovl_25_func_800B82B4 (m, matched this session, byte-exact) — run head;
+  clears `D_800BFE44`+0/+2, seeds parameter halfwords +0x4CE..+0x4E4, and
+  calls `ovl_25_func_800B8340`
+- ovl_25_func_800B8340 (m, matched, byte-exact) — second in the run; clears and
   seeds `D_800BFE44` fields at +0x3D0/+0x4C8, then calls
   `ovl_25_func_800B83A0`
 
