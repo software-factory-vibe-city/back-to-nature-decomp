@@ -10962,3 +10962,21 @@ shared idiom and table cluster, not adjacency to a documented member. The
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127B88`.
+
+Thirty-eighth family member, link-order-adjacent to the ninth (confidence:
+high). `ovl_11_func_8010BED4` (0x8010BED4) is the immediate gapless successor of
+`ovl_11_func_8010BE24` (splat `configs/splat/ovl_11.yaml`: 0x54004 + 0xB0 =
+0x540B4 = 0x8010BED4) and carries the byte-identical state-switch idiom
+(`beqz`(0) / `bgtz` / `beq`(−1) and `case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+function words are byte-identical to the thirty-seventh member
+`ovl_11_func_8010BD6C` (state 0 sets +0x28 = 1 and flag 0x800 at s32@+0x34;
+state −1 sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+s32@+0x34), differing only in the table symbol, and its table `D_80127B9C`
+(`0x000A0000, 0x0000FFFF`) immediately follows the ninth member 8010BE24's
+`D_80127B90` (ends at 0x80127B9C) in `build/ovl_11/asm/data/69960.data.s`, so
+membership rests on both code and table adjacency.
+- ovl_11_func_8010BED4 (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127B9C`.
