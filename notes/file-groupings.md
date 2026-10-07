@@ -10342,3 +10342,39 @@ Members:
 - ovl_11_func_8011DF04 (m) — s32 selector map: 0x7A→3, 0x7B→2, 0x7C→1,
   0x60→4, else 0.
 - ovl_11_func_8011DF4C (s) — run tail, stub.
+
+---
+
+## `ovl_11` keyframe-state handler triple — 0x800E0028 / 0x800E00E0 / 0x800E0180 (confidence: high)
+
+Three zero-gap link-order neighbours with byte-for-byte identical structure,
+differing only in the table pointer each passes to the shared callee. The
+splat map has 0x800E0028 (0xB8) ending exactly at 0x800E00E0 (0xA0), which ends
+exactly at 0x800E0180 (0xA0); a gap follows to 0x800E0280.
+
+Fingerprints:
+- **identical state-switch idiom:** each loads `lh` s16@+0x28, does
+  `beqz`(0) / `bgtz` / `beq`(−1), and uses the same `case 1: default:` decision
+  tree; state 0 stores +0x28 = 1, state −1 sets the loop variable 1 and clears
+  flag `0x800` at s32@+0x34, and every other value passes
+  `(&obj->+0x2A)` as the call's stack argument;
+- **shared direct callee:** all three call `ovl_11_func_800D04D4`
+  (already grouped as the keyframe/frame-step helper) with the same argument
+  shape `(obj, table, &obj->+0x28, -1, &obj->+0x2A)`;
+- **adjacent table cluster:** each passes a distinct adjacent table —
+  800E0028 → `D_80123F3C`, 800E00E0 → `D_80123F48`, 800E0180 →
+  `D_80123F50` — consecutive entries in `build/ovl_11/asm/data/69960.data.s`
+  (0x80123F3C / 0x80123F48 / 0x80123F50);
+- **shared state-object view:** the `{s16@0x28, s16@0x2A, s32@0x34}` view is
+  the same object whose `+0x28/+0x2A/+0x2C` are zeroed by
+  `ovl_11_func_800D3104`, tying the triple to the state-dispatch machine.
+
+Members (address order):
+- ovl_11_func_800E0028 (s) — start handler: state 0 sets +0x28 = 1 *and* sets
+  flag 0x800 at +0x34; state −1 sets +0x2C = 0x12C and clears the flag; else
+  steps table `D_80123F3C`.
+- ovl_11_func_800E00E0 (m, matched this session) — clear handler: state 0 sets
+  +0x28 = 1; state −1 clears flag 0x800 at +0x34; else steps table
+  `D_80123F48`.
+- ovl_11_func_800E0180 (s) — third twin of the same shape; else steps table
+  `D_80123F50`.
