@@ -583,7 +583,15 @@ Comments saying a pin is “required” are not evidence. Many such comments in
 this project were disproven by natural C under the verified compiler.
 
 Top-level assembly is legitimate only for functions independently classified
-as handwritten assembly, including established GTE/cop2 routines and the
-known pure-assembly function. A tail call, difficult allocation, or stubborn
+as handwritten assembly, including the known pure-assembly function. COP2/GTE
+content alone does **not** establish handwritten origin. Read the macro-identity
+push in `psx_triage`: its strict verdict is `fully-tiled`, `partially-tiled`,
+`no-template-match` or `no-cop2`, with header vintage, operand bindings,
+absorbed interlock nops and oracle-unverified candidate macro calls. Fully or
+mostly tiled targets should be reconstructed as compiled C with the compatible
+header macros, then verified as complete functions by the byte oracle. An
+unmatched region remains undetermined, never "probably handwritten". A tiling
+match establishes representation compatibility, not historical provenance or
+an automatic policy exception. A tail call, difficult allocation, or stubborn
 diff does not establish handwritten origin.
 

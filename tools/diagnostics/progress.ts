@@ -28,6 +28,8 @@ import { ROOT } from "../lib/psxExeInfo.js";
 import { computeLiveness, isOverlayOnlyReference } from "../lib/liveness.js";
 import { containerPath, loadContainers, requireContainer, type Container } from "../lib/container.js";
 import { loadFunctionSpans } from "../lib/symbolIndex.js";
+import { detectMacroIdentities } from "./macroIdentity.js";
+import { macroRouteSummary, type MacroRouteSummary } from "./macroTiler.js";
 
 const args = process.argv.slice(2);
 const showList = args.includes("--list");
@@ -44,7 +46,8 @@ interface FuncInfo {
   offset: number;
   size: number;
   decompiled: boolean;
-  handwritten: false | "asm" | "gte";
+  handwritten: false | "asm";
+  macroIdentity: MacroRouteSummary | null;
   dead: boolean;
   /** Referenced only from overlay members — the engine API this metric used to omit. */
   overlayOnly: boolean;
@@ -60,6 +63,9 @@ interface ContainerTotals {
 }
 
 const liveness = computeLiveness();
+const containers = onlyContainer ? [requireContainer(onlyContainer)] : loadContainers();
+const macroCensus = detectMacroIdentities({ containers });
+const macroReports = new Map(macroCensus.functions.map(f => [f.name, macroRouteSummary(f)]));
 
 function measure(container: Container): ContainerTotals {
   const asmDir = join(containerPath(container, "asmDir"), "nonmatchings");
@@ -72,7 +78,8 @@ function measure(container: Container): ContainerTotals {
 
   for (const span of loadFunctionSpans(container)) {
     let decompiled = false;
-    let handwritten: false | "asm" | "gte" = false;
+    let handwritten: false | "asm" = false;
+    const macroIdentity = macroReports.get(span.name) ?? null;
 
     let sFile = join(asmDir, span.name, `${span.name}.s`);
     if (!existsSync(sFile)) {
@@ -84,10 +91,7 @@ function measure(container: Container): ContainerTotals {
     }
     if (existsSync(sFile)) {
       const sContent = readFileSync(sFile, "utf-8");
-      if (sContent.includes("Handwritten function")) {
-        const gtePattern = /\b(cfc2|ctc2|lwc2|swc2|mfc2|mtc2|cop2)\b/;
-        handwritten = gtePattern.test(sContent) ? "gte" : "asm";
-      }
+      if (sContent.includes("Handwritten function") && macroIdentity?.cop2Count === 0) handwritten = "asm";
     }
 
     if (span.kind === "c" && handwritten !== "asm") {
@@ -123,6 +127,7 @@ function measure(container: Container): ContainerTotals {
       size: span.size,
       decompiled,
       handwritten,
+      macroIdentity,
       dead,
       overlayOnly,
     });
@@ -131,7 +136,6 @@ function measure(container: Container): ContainerTotals {
   return { container, funcs, totalFuncs, decompFuncs, totalBytes, decompBytes };
 }
 
-const containers = onlyContainer ? [requireContainer(onlyContainer)] : loadContainers();
 const measured = containers.map(measure);
 
 function percent(part: number, whole: number): string {
@@ -140,7 +144,7 @@ function percent(part: number, whole: number): string {
 
 function reportContainer(totals: ContainerTotals): void {
   const { container, funcs } = totals;
-  const gteCount = funcs.filter((f) => f.handwritten === "gte").length;
+  const gteCount = funcs.filter((f) => (f.macroIdentity?.cop2Count ?? 0) > 0).length;
   const asmCount = funcs.filter((f) => f.handwritten === "asm").length;
   const deadCount = funcs.filter((f) => f.dead).length;
   const deadBytes = funcs.filter((f) => f.dead).reduce((s, f) => s + f.size, 0);
@@ -156,7 +160,10 @@ function reportContainer(totals: ContainerTotals): void {
   console.log(
     `  Decompiled: ${totals.decompBytes} / ${totals.totalBytes} bytes (${percent(totals.decompBytes, totals.totalBytes)}%)`
   );
-  if (gteCount > 0) console.log(`  GTE functions (C + coprocessor): ${gteCount} (excluded from counts)`);
+  if (gteCount > 0) {
+    const verdicts = Object.fromEntries(["fully-tiled", "partially-tiled", "no-template-match"].map(v => [v, funcs.filter(f => f.macroIdentity?.verdict === v).length]));
+    console.log(`  COP2 targets: ${gteCount} (counted; tiler verdicts ${JSON.stringify(verdicts)})`);
+  }
   if (asmCount > 0) console.log(`  Pure asm: ${asmCount} functions (excluded from counts)`);
   if (deadCount > 0) console.log(`  Dead code: ${deadCount} functions, ${deadBytes} bytes (excluded from counts)`);
   if (overlayOnlyFuncs.length > 0) {
@@ -199,25 +206,25 @@ if (showList || showRemaining || showDone || showMarkdown) {
 
   if (showMarkdown) {
     console.log();
-    console.log("| Status | Container | VRAM | Size | Source | ASM |");
-    console.log("|--------|-----------|------|------|--------|-----|");
+    console.log("| Status | Container | VRAM | Size | Source | ASM | Macro verdict |");
+    console.log("|--------|-----------|------|------|--------|-----|---------------|");
     for (const f of filtered) {
       const container = containers.find((c) => c.id === f.container)!;
       const status = f.dead ? "DEAD" : f.decompiled ? "OK" : f.overlayOnly ? "API" : "";
       const srcPath = `${container.paths.srcDir}/${f.name}.c`;
       const asmPath = `${container.paths.asmDir}/nonmatchings/${f.name}/${f.name}.s`;
-      console.log(`| ${status} | ${f.container} | ${f.vram} | ${f.size} | [${f.name}.c](${srcPath}) | [${f.name}.s](${asmPath}) |`);
+      console.log(`| ${status} | ${f.container} | ${f.vram} | ${f.size} | [${f.name}.c](${srcPath}) | [${f.name}.s](${asmPath}) | ${f.macroIdentity?.verdict ?? "unscanned"} |`);
     }
     console.log();
     console.log(`${filtered.length} functions listed`);
   } else {
     console.log();
-    const header = `${"STATUS".padEnd(6)} ${"CONTAINER".padEnd(9)} ${"VRAM".padEnd(12)} ${"SIZE".padStart(6)}  NAME`;
+    const header = `${"STATUS".padEnd(6)} ${"CONTAINER".padEnd(9)} ${"VRAM".padEnd(12)} ${"SIZE".padStart(6)}  NAME / MACRO VERDICT`;
     console.log(header);
     console.log("-".repeat(header.length + 10));
     for (const f of filtered) {
       const status = f.dead ? " DEAD " : f.decompiled ? "  OK  " : f.overlayOnly ? " API  " : "      ";
-      console.log(`${status} ${f.container.padEnd(9)} ${f.vram.padEnd(12)} ${f.size.toString().padStart(6)}  ${f.name}`);
+      console.log(`${status} ${f.container.padEnd(9)} ${f.vram.padEnd(12)} ${f.size.toString().padStart(6)}  ${f.name} / ${f.macroIdentity?.verdict ?? "unscanned"}`);
     }
     console.log();
     console.log(`${filtered.length} functions listed`);

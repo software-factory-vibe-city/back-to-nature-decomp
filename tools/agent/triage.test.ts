@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, phonyFindingsFrom, premiseSurvivalFrom, type TargetFacts } from "./triage.js";
+import { tileMacroFunction } from "../diagnostics/macroTiler.js";
+import { extractMacroTemplates } from "../diagnostics/macroTemplates.js";
+import { macroIdentityFindings, detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, phonyFindingsFrom, premiseSurvivalFrom, type TargetFacts } from "./triage.js";
 import { readFileSync } from "node:fs";
 import { parseLoopDump } from "./loop-trace/parse.js";
 import { sha256 } from "./variant-lab/artifacts.js";
@@ -43,6 +45,21 @@ function facts(lines: string[]): TargetFacts {
     raStores: [],
   };
 }
+
+test("macro-identity push reports candidates on INCLUDE_ASM targets without granting asm origin", () => {
+  const library = extractMacroTemplates([{ path: "fixture/inline_c.h", source: '#define LOAD(p) __asm__ volatile("lwc2 $0,0(%0)"::"r"(p))\n' }]);
+  const bytes = Buffer.alloc(8);
+  bytes.writeUInt32LE(0xc8800000, 0); bytes.writeUInt32LE(0x4affffff, 4);
+  const report = tileMacroFunction({ name: "parked", container: "fixture", vram: 0x80010000, bytes, sourceRepresentation: "INCLUDE_ASM" }, library);
+  const findings = macroIdentityFindings(report);
+  assert.equal(findings.length, 1); assert.equal(findings[0]!.detector, "macro-identity");
+  assert.match(findings[0]!.summary, /partially-tiled/);
+  assert.ok(findings[0]!.evidence.some(e => e.includes("ORACLE-UNVERIFIED: LOAD(arg0);")));
+  assert.ok(findings[0]!.evidence.some(e => e.includes("inline_c.h")));
+  assert.ok(findings[0]!.evidence.some(e => e.includes("origin undetermined")));
+  assert.equal(report.classification, "undetermined");
+  assert.deepEqual(macroIdentityFindings(tileMacroFunction({ name: "clean", container: "fixture", vram: 0, bytes: Buffer.alloc(4) }, library)), []);
+});
 
 /* func_800140C8's prefix. These five machine instructions were one
  * movstrsi_internal; treating them as five scheduling decisions is what made

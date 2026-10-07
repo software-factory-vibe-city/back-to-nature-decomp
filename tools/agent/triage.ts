@@ -79,6 +79,8 @@ import {
   renderSignature,
 } from "./frameMap.js";
 import { recognizeIdioms, sdkReconstructionGap } from "./sdkIdioms.js";
+import { detectFunctionMacroIdentity } from "../diagnostics/macroIdentity.js";
+import type { MacroFunctionReport } from "../diagnostics/macroTiler.js";
 import { auditCallees, type TruthReport } from "./calleeTruth.js";
 import { best, measurements, readLedger, type LedgerEntry } from "./experimentLedger.js";
 import { readReport, targetHashOf, toolchainHash, type FlagProbeReport } from "./flagProbe.js";
@@ -2320,6 +2322,19 @@ function detectDeadAsm(compiled: CompiledFacts, srcText: string): Finding[] {
   }];
 }
 
+/** Push header identity before source/allocator diagnostics. COP2 content and
+ * unmatched regions never establish handwritten origin or grant asm policy. */
+export function macroIdentityFindings(report: MacroFunctionReport): Finding[] {
+  if (!report.cop2.count) return [];
+  return [{ detector: "macro-identity", severity: "signal", summary: `${report.verdict}: ${report.coverage.explained}/${report.coverage.total} COP2 instructions explained (fraction=${report.coverage.fraction.toFixed(4)}). Test the header-macro representation before source authoring; candidate C is oracle-unverified.`, evidence: [
+    `header vintage: ${report.headerVintages.finding}; witnessed=${report.headerVintages.witnessed.join(", ") || "none"}; compatible=${report.headerVintages.compatible.join(", ") || "none"}`,
+    `absorbed ASPSX load-delay/GTE-interlock nops: ${report.absorbedNops}`,
+    ...report.tiling.flatMap(t => [`${hex(t.start)}–${hex(t.end)} ${t.macro} [${t.header}:${t.line}; ${t.vintage}]`, `ORACLE-UNVERIFIED: ${t.candidateC}`, ...t.operands.map(o => `${o.parameter}=${o.machine} -> ${o.expression ?? "unresolved"}`), ...t.alternatives.map(a => `also compatible: ${a.macro} [${a.header}:${a.line}; ${a.vintage}] ${a.candidateC}`)]),
+    ...report.unmatchedCop2.map(a => `unmatched COP2 at ${hex(a)} — origin undetermined`),
+    "Macro islands only: recover surrounding C and symbolic operand types; verify the complete function with the byte oracle. COP2 alone is not permission for a full-asm body.",
+  ], see: ["plans/static-domain-detection/macro-identity-recognition.md", "prompts/reference/population.md"] }];
+}
+
 /* --- main --- */
 
 function main(): void {
@@ -2365,6 +2380,8 @@ function main(): void {
    * reading taken while the source hand-expands an SDK packet is a reading of
    * the wrong program, so the SDK finding is emitted first and, being a
    * signal, sorts above the inventory signal that would otherwise lead. */
+  const macroIdentity = detectFunctionMacroIdentity(name);
+  if (macroIdentity) findings.push(...macroIdentityFindings(macroIdentity.function));
   findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
 
   let frameConverged = false;
@@ -2412,7 +2429,7 @@ function main(): void {
   rmSync(scratch, { recursive: true, force: true });
 
   if (json) {
-    console.log(JSON.stringify({ function: name, sourceState, findings }, null, 2));
+    console.log(JSON.stringify({ function: name, sourceState, macroIdentity, findings }, null, 2));
     return;
   }
 

@@ -917,6 +917,89 @@ The main tools under `tools/agent/` are:
 
 For the full list, read `notes/tools-directory-structure.md`.
 
+### Standalone macro-identity census
+
+```sh
+npm run macro-identity                         # every macro/COP2 detection
+npm run macro-identity -- --json                # full per-function census
+npm run macro-identity -- --function func_8001D6B8
+npm run macro-identity -- --container ovl_11 --mine tier-b
+```
+
+`tools/diagnostics/macroIdentity.ts` mechanically extracts assembly macro
+expansions from the SDK headers, `include/debughook.h` and
+`include/scratchpad.h`, tiles original function bytes (including every
+`INCLUDE_ASM` function), and emits operand bindings, header vintages, coverage
+fractions, absorbed-nop counts and oracle-unverified candidate C call lists. Overlay scans are bounded by splat code subsegments;
+SDK object-interior functions in the EXE are included. `--all` prints clean
+functions too. `--headers PATH` is repeatable and replaces the default header
+set. Tier-A asm recurrence mining and Tier-B instruction/effect recurrence
+mining are opt-in (`--mine tier-a|tier-b|all`); bounds and incompleteness are
+reported, never hidden. Identical whole-function bytes are reported separately.
+
+The schema-v3 artifact states its scope, target-byte/source eligibility,
+containers scanned, and extracted overlays skipped with their reasons. Missing
+splat enablement means **unknown macro identity**, not zero macros. A separate
+presence-only tier counts raw COP2/LWC2/SWC2 opcode words and clusters >=3 hits
+per sliding 32-word window. Enabled containers are bounded to splat text;
+unenabled extracted overlays are explicitly **unbounded** and may hit data.
+`--container ovl_06` can report presence without enabling the container. Presence
+hits never become function detections, tiler coverage or miner candidates.
+
+Per-function and suspected-TU vintage findings retain ambiguity and group
+alternative headers by shared macro definitions. Only different witnesses in
+the same family establish mixing: `inline_c.h` plus `scratchpad.h` is normal
+coexistence, not a mixed-SDK-vintage finding. The conversion queue puts existing
+asm bodies first, then orders stubs by tiling fraction and
+size; it is a worklist, not a claim that conversions have happened. Miner
+verdicts are only `macro-candidate`, `compiler-explainable`, or `undetermined`;
+Tier B's separate `claim: shared-source-shape` never promotes recurrence to
+macro identity. Pattern accounting explains the first-seen/singleton bias when
+the 200,000-pattern map cap is reached (separate instruction/effect maps), and
+reports the independent output cap.
+
+SDK DMPSX sentinel words are **not** final GTE encodings. The default detector
+resolves command encodings through this repo's production pipeline: a real
+`common.h` compile discovers the active assembler include graph, and probes
+run through the configured cpp → cc1 → maspsx → GAS path. Here that graph
+reaches `include/gte_macros.inc` through `include/macro.inc`. EXE and overlay
+flag columns are measured separately. The report retains SDK literals and
+records the local GAS definition, include hashes, flags and emitted object
+bytes. No other decompilation project's replacement header is used.
+
+Candidate C still needs SDK command `.word` placeholders replaced with the
+corresponding local GAS mnemonics; including the `.inc` does not rewrite raw
+`.word` literals. Diagnostic per-vintage substitution headers are emitted
+under `build/macroIdentity/repo-encodings/` and listed in the report. Their
+asm-block/clobber boundaries are preserved; include them after the matching
+SDK vintage, with `common.h` supplying the assembler macros. They are not
+integrated into live sources. `--raw-headers` explicitly disables the command
+oracle for raw extraction diagnostics. The former `--encoding-header` option
+has been removed.
+
+Names without an unambiguous production GAS definition, parameterized command
+expressions and non-asm computations remain explicit diagnostics. Unresolved
+operands stay unresolved; stack names in candidates are symbolic, not recovered
+C declarations.
+
+The reusable API is exported without CLI side effects:
+
+```ts
+import { detectMacroIdentities, tileMacroFunction } from "./tools/diagnostics/macroIdentity.js"; // doc-ref-ignore: NodeNext resolves this to the .ts module
+const report = detectMacroIdentities();
+// Or inject functions: [{ name, container, vram, bytes: Buffer }], a template
+// library, symbols and groups. tileMacroFunction handles one function directly.
+```
+
+Matches establish representation compatibility, not historical provenance.
+Unexplained COP2 stays `undetermined`, never automatically handwritten. This
+CLI does not edit source or grant asm exceptions. `callGraph.ts` and
+`progress.ts` now consume the exported tiler verdict instead of assigning
+`handwritten = "gte"`; COP2-bearing targets remain eligible and counted.
+`triage.ts` pushes the tiling, vintage, operands and unverified candidate C
+before source/allocator diagnostics, retaining encoding-toolchain provenance.
+Independent handwritten classification still requires independent evidence.
+
 ### Git submodules
 
 | Path | Repository | Purpose |

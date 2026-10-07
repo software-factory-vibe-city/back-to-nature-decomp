@@ -33,6 +33,8 @@ import { scanOverlayReferences } from "../lib/overlayReferences.js";
 import { containerPath, loadContainers, requireContainer, type Container } from "../lib/container.js";
 import { loadFunctionSpans } from "../lib/symbolIndex.js";
 import { dependencyReadySmallFirstStrategy, rankWorklist } from "./callGraphStrategies.js";
+import { detectMacroIdentities } from "../diagnostics/macroIdentity.js";
+import { macroRouteSummary, type MacroRouteSummary } from "../diagnostics/macroTiler.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "../..");
@@ -81,8 +83,9 @@ interface FuncEntry {
   sdkCalls: string[];
   instructionCount: number;
   decompiled: boolean;
-  /** false = normal C, "asm" = pure handwritten asm, "gte" = C with GTE coprocessor instructions */
-  handwritten: false | "asm" | "gte";
+  /** COP2 never establishes handwritten origin; use macroIdentity's verdict. */
+  handwritten: false | "asm";
+  macroIdentity: MacroRouteSummary | null;
   /** true if no jal or data/pointer reference exists in any container */
   dead: boolean;
   /** jal sites from overlay members targeting this function */
@@ -93,6 +96,8 @@ interface FuncEntry {
   crossContainerCalls: string[];
 }
 
+const macroCensus = detectMacroIdentities({ containers });
+const macroReports = new Map(macroCensus.functions.map(f => [f.name, macroRouteSummary(f)]));
 const funcMap = new Map<string, FuncEntry>();
 const containerOf = new Map<string, Container>();
 
@@ -116,6 +121,7 @@ for (const container of containers) {
       instructionCount: 0,
       decompiled: false,
       handwritten: false,
+      macroIdentity: macroReports.get(span.name) ?? null,
       dead: false,
       overlayCallSites: 0,
       overlayMembers: [],
@@ -156,12 +162,9 @@ for (const [name, entry] of funcMap) {
   const sdkCalls = new Set<string>();
   let instrCount = 0;
 
-  // Detect handwritten assembly (marker from spimdisasm)
-  if (rawContent.includes("Handwritten function")) {
-    // Classify: GTE functions have COP2 instructions (cfc2, ctc2, lwc2, etc.)
-    const gtePattern = /\b(cfc2|ctc2|lwc2|swc2|mfc2|mtc2|cop2)\b/;
-    entry.handwritten = gtePattern.test(rawContent) ? "gte" : "asm";
-  }
+  // Retain the non-COP2 legacy asm class only. All COP2-bearing targets route
+  // through their strict tiler verdict, including no-template-match targets.
+  if (rawContent.includes("Handwritten function") && entry.macroIdentity?.cop2Count === 0) entry.handwritten = "asm";
 
   for (const line of content) {
     if (instrRegex.test(line)) instrCount++;
@@ -349,7 +352,7 @@ const tier1 = decomposable.filter((e) => e.tier === 1).length;
 const tier2 = decomposable.filter((e) => e.tier === 2).length;
 const tier3 = decomposable.filter((e) => e.tier === 3).length;
 const decompiledCount = entries.filter((e) => e.decompiled).length;
-const gteCount = entries.filter((e) => e.handwritten === "gte").length;
+const gteCount = entries.filter((e) => (e.macroIdentity?.cop2Count ?? 0) > 0).length;
 const asmCount = entries.filter((e) => e.handwritten === "asm").length;
 const deadCount = entries.filter((e) => e.dead).length;
 const engineApiCount = entries.filter((e) => e.overlayCallSites > 0).length;
@@ -383,6 +386,7 @@ const perContainer = containers.map((container) => {
 
 const output = {
   rankingStrategy: worklistStrategy.name,
+  macroIdentity: { encodingToolchains: macroCensus.encodingToolchains, coverage: macroCensus.coverage },
   functions: entries,
   containers: perContainer,
   crossContainerEdges: [...crossPairs.entries()].map(([pair, count]) => ({ pair, count })),
@@ -413,7 +417,7 @@ console.log(`  Tier 1 (pure leaf):    ${String(tier1).padStart(3)} functions`);
 console.log(`  Tier 2 (SDK-only):     ${String(tier2).padStart(3)} functions`);
 console.log(`  Tier 3 (game callers): ${String(tier3).padStart(3)} functions`);
 console.log(`  Already decompiled:    ${String(decompiledCount).padStart(3)} functions`);
-console.log(`  GTE (C + coprocessor): ${String(gteCount).padStart(3)} functions`);
+console.log(`  COP2 targets (tiler-routed): ${String(gteCount).padStart(3)} functions`);
 if (asmCount > 0) {
   console.log(`  Pure asm (excluded):   ${String(asmCount).padStart(3)} functions`);
 }
