@@ -9667,7 +9667,13 @@ in it. `ovl_11_func_800FA87C` repeats `ovl_11_func_800FA4F4`'s idiom — call th
 shared `ovl_11_func_800FA950` to fill two adjacent s16 locals at sp+0x10/0x12,
 then pass both on — and is zero-gap adjacent to that helper (0x800FA87C + 0xD4 =
 0x800FA950). Members (link order):
-- ovl_11_func_800FA6CC (s) — references D_80129FF0; role unknown.
+- ovl_11_func_800FA6CC (m, matched this session, byte-exact) — number-field
+  panel draw: opens the buffer by writing 0xFFFF through the u16 pointer
+  returned by func_8001A970(arg1+1, D_80129FF0, 2), draws the exe table base
+  `(u8 *)D_80051B9A + *D_80054BBC` at func_80017B3C(arg0, p, 0x39, 0x34), clamps
+  arg2 to 0..3, then draws `D_80129FF0` at columns 0x8E/0x9E. The identical
+  opening write as ovl_11_func_800FA87C is a second shared-buffer witness
+  inside this cluster.
 - ovl_11_func_800FA87C (m, matched this session, byte-exact) — writes 0xFFFF
   through the u16 pointer returned by func_8001A970(arg1+1, D_80129FF0, 2),
   fills sp+0x10/0x12 via ovl_11_func_800FA950, picks a sound id from arg3 and

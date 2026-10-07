@@ -1019,6 +1019,11 @@ extern s16 D_80129FD8[12];
  * Absolute-addressed from the overlay. */
 extern s16 D_80126E4A;
 
+/* D_80051B9A - base of a data table in the PS-X EXE, indexed by
+ * D_80054BBC and passed to func_80017B3C by ovl_11_func_800FA6CC.
+ * Only address-taken; absolute-addressed (split lui/%lo pair). */
+extern u8 D_80051B9A[];
+
 /* D_80051BF0 - base of a data table in the PS-X EXE, indexed by
  * D_80054BBC and passed to func_80017B3C by ovl_11_func_800F8B4C (and
  * ovl_11_func_8011775C). Only address-taken; absolute-addressed. */
