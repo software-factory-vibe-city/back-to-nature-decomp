@@ -7921,6 +7921,14 @@ Members (link order):
   and tests `arg0` against the 32-bit pointer at record offset 0x30 of
   records 0/1/2/5 before the `func_800248E8` call; membership rests on the
   shared `D_800C0448` global, not on adjacency.
+- ovl_21_func_800BAEA0 (m, matched this session, byte-exact) — ObjectState
+  state-handler: when the signed halfword at +4 differs from the byte at
+  +0x20, calls `func_80015840(obj + 0x1C, byte@+4)`, then projects through
+  `ovl_21_func_800BAFFC(obj + 0x1C, obj + 0xC)`. Membership rests on that
+  BAFFC call — the `obj + 0x1C` it forwards is the pointer BAFFC compares
+  against `D_800C0448` record +0x30 — and on the `func_80015840`/ObjectState
+  idiom shared with `ovl_21_func_800BAF70`, not on adjacency (it sits at
+  0x800BAEA0, before both).
 
 Fingerprints:
 - `D_800C0AFC` is a further ovl_21 data base at `D_800C0448 + 0x6B4`; the
@@ -7932,7 +7940,8 @@ Fingerprints:
   above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`), a
   halfword at 0x18 (written by `ovl_21_func_800B9798` /
   `ovl_21_func_800B8A80`), a 32-bit pointer at 0x30 (compared against its
-  argument by `ovl_21_func_800BAFFC`) and a 32-bit word at
+  argument by `ovl_21_func_800BAFFC`, which `ovl_21_func_800BAEA0` feeds
+  `record + 0x1C`) and a 32-bit word at
   0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844`),
   three records per 0x318-byte group (`func_800B9A20` walks the table at a
   0x318 stride). Beyond the record table, `D_800C0448 + 0x986` (s16 index)
