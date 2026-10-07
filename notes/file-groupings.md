@@ -6549,6 +6549,16 @@ Members:
   args, if `!= -1`, writes `D_80129560[arg] = record.field` (fields +4/+0/+8);
   returns 1. Same guarded multi-slot write idiom and return-1 shape as
   `800EC490`; sits in the same 0x800E5A1C–0x800EExxx accessor band.
+- ovl_11_func_800E9838 (m, matched 2026-11 — this session, 0xDC, byte-exact) —
+  fixed-source snapshot writer: when `arg0`'s low half is non-zero remaps the
+  three slots to `arg1`/`arg1+1`/`arg1+2` (returning 0 if `arg1 == -1`), then
+  for each slot guarded by `!= -1 && < 0x14` writes
+  `D_80129560[arg] = *(s16 *)(D_8007AFF0 + 0x253B6/0x253B4/0x253B8)`; returns
+  1. Same guarded multi-slot write idiom as 800E9778/800EC490 and that
+  function's zero-gap link-order successor (0x800E9778 + 0xC0), snapshotting
+  the same relative +0x253B6/+0x253B4/+0x253B8 halfword block 800E9778 reads
+  from its selected record — a new accessor-family tie to the `D_8007AFF0`
+  far-base halfword-state block.
 - ovl_11_func_800E7CCC (m, matched 2026-11 — this session, 0x80, byte-exact) —
   guarded-slot forwarder/writer: `arg3 != 0` resolves `D_80129560[arg2]` (raw
   `arg2` otherwise), forwards `(selected, (s16)arg0)` to the two-arg accessor
