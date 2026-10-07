@@ -413,14 +413,14 @@ table's entry-init leaf: `memset(arg0, 0, 0x34)` then `u16@+0x2C = 0x8000`
 same shared table global `D_801290D8`: 0x800DCECC calls the leaf 3 times
 stepping +0x34; 0x800DCF10 reads `lhu`@+0x2C, tests bit 0x8000, re-inits via
 the leaf, then AND-clears the bit (`andi 0x7FFF`, `sh`@+0x2C). Shared global
-plus call edges plus link order agree; members not yet matched.
-Members:
+plus call edges plus link order agree. Members:
 - ovl_11_func_800DCE98 (m, matched this session) — entry-init leaf (see the
   memset-clear idiom family above)
 - ovl_11_func_800DCECC (s) — bulk re-init: calls the leaf over entries 0–2 of
   `D_801290D8` (+0x34 stride)
-- ovl_11_func_800DCF10 (s) — per-entry accessor: claims/refreshes entries by
-  the @+0x2C free bit and initialises entry fields through `func_8001BFA8`
+- ovl_11_func_800DCF10 (m, matched this session) — per-entry accessor:
+  claims/refreshes entries by the @+0x2C free bit and initialises entry fields
+  through `func_8001BFA8`; shares the same 3×0x34 walk and 0x8000 free bit
 
 ---
 

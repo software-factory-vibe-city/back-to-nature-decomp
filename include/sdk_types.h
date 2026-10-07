@@ -230,6 +230,16 @@ typedef struct {
 } M2C_1fdb90a61b2c_Ovl11FuncC9D4Entry;
 
 typedef struct {
+               u8 pad0[0x18];
+               u16 unk18;
+               u16 unk1A;
+               u16 unk1C;
+               u8 pad1[0x0E];
+               u16 unk2C;
+               u8 pad2[0x6];
+} M2C_245f54a50d63_Ovl11FuncDCF10Entry;
+
+typedef struct {
                u16 field_0;
                u16 field_2;
                u16 field_4;
