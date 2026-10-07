@@ -4620,6 +4620,16 @@ Members (address order):
   invokes the run's accumulate helper 0x800F8428 on the same two object
   pointers, confirming the 0x800F8404→0x800F8428 call pair recorded above.
   Call-graph + same-region agreement only; TU membership unconfirmed (low).
+- ovl_11_func_800F8224 (m, matched this session, byte-exact, 0xD8) — the
+  region's 6-byte-record compaction helper and a zero-gap link member of the
+  gapless 0x800F8188 (ends 0x800F8224) → 0x800F8224 (0x800F8224–0x800F82FC) →
+  0x800F82FC (ends 0x800F8404) → 0x800F8404 run: it scans the same
+  {s16; s16; s16} records (its own local `CopyStruct` typedef, same unaligned-4
+  + halfword block-move copy as the 0x800F8480/0x800F84D4 helpers), moving the
+  next non-empty record into an empty slot and clearing the source with
+  memset(6); called by the unmatched orchestrator 0x800F7AA0 (jal at
+  0x800F7CF8). Shares the region's struct-copy idiom and zero-gap link order;
+  TU membership with the 0x800F84xx run unconfirmed (low).
 
 ## s16-pair state family — 0x800183B8 / 0x800183D0 (confidence: low)
 

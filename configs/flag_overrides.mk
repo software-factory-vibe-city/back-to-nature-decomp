@@ -401,3 +401,26 @@ CC1FLAGS_ovl_21_func_800B90C4 := -fno-schedule-insns
 # The same flag is an established project precedent (func_80014494,
 # ovl_11_func_80103B24, ovl_17_func_800B9158).
 CC1FLAGS_ovl_11_func_800F1678 := -fno-cse-skip-blocks
+
+# ovl_11_func_800F8224: -fno-strength-reduce.
+#
+# Target fingerprint (decoded from the original bytes, no source needed): the
+# inner scan recomputes the element address from its index every iteration --
+# `sll v1,a1,1 / addu v1,v1,a1 / sll v1,v1,1` (6*j) and, for the loop-invariant
+# part, `addu v0,t1,a2 / sll v0,v0,1` (6*i) -- then adds the two (`addu
+# v1,v0,v1`). The target carries no strength-reduced induction variable and no
+# `addiu <reg>,<reg>,6` walker update for the inner scan. Under baseline flags
+# loop.c reduces `j*6` to exactly that `addiu ...,6` induction (keeping a
+# second counter register), so the target's redundant arithmetic is unreachable
+# from any C spelling at baseline.
+#
+# Flag column: -fno-strength-reduce is the only measured column reaching the
+# target's 54 words. The matched source (a single reused `p` pointer threaded
+# through the outer check and the inner scan, with `dst = p` copied before the
+# scan) is byte-exact 54/54 under this flag; masked baseline is 42/52 with the
+# giv present, and -fno-rerun-loop-opt (53 insns), -fno-gcse (52) and
+# -fno-peephole (53) are all non-exact.
+#
+# No contrary regional witness: this src file is its own TU (one function per
+# file), so the override cannot disturb the matched ovl_11 neighbours.
+CC1FLAGS_ovl_11_func_800F8224 := -fno-strength-reduce
