@@ -1307,6 +1307,17 @@ extern s32 D_800C49F8[];
  * the split absolute lui/addiu address the target shows. */
 extern s32 D_800C4A50[];
 
+/* D_800C4A60 - ovl_27 table of four 8-byte {s32 id; void *data;} records at
+ * 0x800C4A60 (data/2E40.data.s). ovl_27_func_800BA814 clamps the s32 at
+ * D_8006C838+0x18 into the entry index, memcpy's 0x1000 bytes from the
+ * entry's data pointer to D_8006C838+0x1C(+6), then records the entry's id.
+ * Plain extern (never defined in this TU), absolute-addressed (-G0). */
+struct D800C4A60Entry {
+    s32 field_0;
+    void *field_4;
+};
+extern struct D800C4A60Entry D_800C4A60[];
+
 
 /* D_800711C4 - main-EXE progress-counter record, absolute-addressed from the
  * ovl_11 overlays (-G0). ovl_11_func_800F3BCC increments a u16 entry selected

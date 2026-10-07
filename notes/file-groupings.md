@@ -7683,7 +7683,14 @@ Members (link order):
   `func_80014CBC(0,0,0x2000,D_8005E3B0+0x4290,1,0)`, on nonzero
   `func_8001719C(D_8005E3B0+0x4290)` and return 1, else return 0
 - ovl_27_func_800BA80C (s) — 8-byte leaf; role unknown
-- ovl_27_func_800BA814 (s) — closing member; role unknown
+- ovl_27_func_800BA814 (m, matched this session, byte-exact) — closing member,
+  page-loader leaf: clamps the `D_8006C838` +0x18 selector into 0..3, `memcpy`s
+  0x1000 bytes from `D_800C4A60[idx].field_4` to `D_8006C838`+0x1C(+6), then
+  stores `D_800C4A60[idx].field_0` back at +0x18 and returns 1. `D_800C4A60` is
+  the run's four-record `{s32 id; void *page;}` table at 0x800C4A60 (ids
+  1/3/0/2, pages D_800C09F8/D_800C19F8/D_800C29F8/D_800C39F8), sitting
+  immediately past `D_800C4A50`; it shares the run's link-order slot but not
+  the DrawSync/ClearOTagR idiom
 
 Not a member: `ovl_27_func_800BA230` ends exactly at 0x800BA4C4 but is called
 by `ovl_27_func_800B80B0`, not by the dispatcher. Its link-order predecessor

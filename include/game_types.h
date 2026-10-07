@@ -108,7 +108,8 @@ typedef struct {
 typedef struct {
     /* 0x00 */ char pad_00[0x0C];
     /* 0x0C */ s32 field_0C;
-    /* 0x10 */ char pad_10[0x0C];
+    /* 0x10 */ char pad_10[0x08];
+    /* 0x18 */ s32 field_18;
     /* 0x1C */ D8006C838Inner *field_1C;
 } D8006C838View;
 
