@@ -9746,6 +9746,12 @@ Members (link order):
   `ovl_11_func_800D12A0(0xC)` when `s16@+0x30 == *(s16 *)(&D_8007AFF0 +
   0x25476)`; structural twin of ovl_11_func_800DF51C on the 800E109C
   predicate, and a reader of the far state halfword accessor family.
+- ovl_11_func_800E0FD0 (m, matched this session, byte-exact) — link-order-only
+  member: zero-gap predecessor of the predicate leaf (0x800E0FD0 + 0xCC =
+  0x800E109C); shares the `s16@+0x26` / `s32@+0x34` object view and the
+  `ovl_11_func_800E0C24` handler-dispatcher callee with this span. It does
+  not call 800E109C, so this is link-adjacency evidence, not caller-cluster
+  membership.
 
 ## `ovl_11` third far-state gate run — 0x8010BA84–0x8010BCE8 (confidence: medium)
 
