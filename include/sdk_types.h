@@ -923,6 +923,21 @@ typedef struct {
                s16 unkB6;
 } M2C_8d3156bb36aa_Struct_800DF010;
 
+typedef struct {
+    char pad_00[0x24];
+               s16 unk24;
+               s16 unk26;
+               s16 unk28;
+               s16 unk2A;
+               s16 unk2C;
+    char pad_2E[0x30 - 0x2E];
+               s16 unk30;
+    char pad_32[0x34 - 0x32];
+               s32 unk34;
+    char pad_38[0x7A - 0x38];
+               u16 unk7A;
+} M2C_8da617f67856_Ovl11D04D4Obj;
+
 typedef signed char s8;
 
 typedef struct {

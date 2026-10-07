@@ -10592,3 +10592,18 @@ on both code and table adjacency.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80123C38`.
+
+Eighteenth family member, link-order-adjacent to the seventeenth (confidence:
+high). `ovl_11_func_800D4A64` (0x800D4A64) is the immediate gapless successor
+of `ovl_11_func_800D49AC` (splat `configs/splat/ovl_11.yaml`: 0x1CB8C →
+0x1CC44 = 0xB8) and carries the byte-identical state-switch idiom (`beqz`(0) /
+`bgtz` / `beq`(−1) and `case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80123C44` (`0x0078000C, 0x000F0000, 0x0000FFFF`) is the next entry in
+`build/ovl_11/asm/data/69960.data.s` immediately after 800D49AC's `D_80123C38`
+(`0x0078000B, 0x000F0000, 0x0000FFFF`; ends at 0x80123C44), so membership rests
+on both code and table adjacency.
+- ovl_11_func_800D4A64 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else steps table `D_80123C44`.
