@@ -7805,6 +7805,16 @@ Members (link order):
   per-iteration anomaly guard. The preheader of 800BA868 shows the original
   emission order `bound-copy, base, index, p, pos, bp, step` that 800BA944's
   target also has; membership rests on the shared global + idiom + adjacency.
+- ovl_21_func_800B93F0 (m, byte-exact, finalized) — SpuGetKeyStatus
+  state-handler: `ovl_21_func_800BA4C0`, then, behind the signed halfword at
+  `D_800C0448 + 0x988 > 0`, advances that counter (u16 read / s16 write),
+  masks `D_800BCC60[*(s16 *)(D_800C0448 + 0x986)]` into SpuGetKeyStatus, and
+  either resets via `func_80022738` + `func_800132F0(0xA, 0, 2)` +
+  `D_800C0448[0] = 0xD` or, at zero, calls `func_800226A4`/`func_8001FABC(0x44)`
+  and stores the result at `D_800C0448 + 0x986`. Membership rests on the
+  shared `D_800C0448` global, the `ovl_21_func_800BA4C0` call, and gapless
+  link adjacency (0x800B92C8 + 0x128 = 0x800B93F0, + 0xE4 = 0x800B94D4).
+  Reveals `D_800BCC60` as a second shared ovl_21 global.
 - ovl_21_func_800BAF70 (m, matched this session, byte-exact) — ObjectState
   reset/handoff leaf: `func_80015840(&D_800C0AFC, 0)` then
   `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800C0AFC, base[0x6B8],
@@ -7827,8 +7837,16 @@ Fingerprints:
   `ovl_21_func_800B8A80`) and a 32-bit word at
   0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844`),
   three records per 0x318-byte group (`func_800B9A20` walks the table at a
-  0x318 stride). The trio's declaration only witnessed the leading
-  halfwords.
+  0x318 stride). Beyond the record table, `D_800C0448 + 0x986` (s16 index)
+  and `+ 0x988` (s16/u16 counter) form a state pair used by
+  `ovl_21_func_800B93F0` and its unmatched SpuGetKeyStatus near-twins
+  `ovl_21_func_800B9178` / `ovl_21_func_800B92C8`; those same handlers index
+  the shared `D_800BCC60` voice-bit table. The trio's declaration only
+  witnessed the leading halfwords.
+- `D_800BCC60` — ovl_21 u32 table of 25 voice-bit masks (0x1..0x800000, then
+  0) indexed by the `D_800C0448 + 0x986` halfword and passed to
+  `SpuGetKeyStatus`; referenced by the 0x800B9178/0x800B92C8/0x800B93F0
+  handler run.
 
 ## `ovl_21` D_8006C838 +0x8000 per-entity field writer+reader — 0x800BAB28 / 0x800BABF8 (confidence: medium)
 

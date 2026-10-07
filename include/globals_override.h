@@ -1346,6 +1346,14 @@ extern s16 D_8012CF30[12];
  * (extern-only, lui + %lo) in the -G0 overlay build. */
 extern s16 D_800BCCD4[];
 
+/* D_800BCC60 - ovl_21 table of 25 4-byte voice-bit masks (0x1, 0x2, 0x4,
+ * ... doubling to 0x800000, then a 0 terminator). ovl_21_func_800B93F0
+ * indexes it by a signed halfword read from the D_800C0448 state block and
+ * passes the loaded word to SpuGetKeyStatus as its voice_bit argument, so the
+ * element type is u32. Absolute-addressed (extern-only, lui + %lo) in the -G0
+ * overlay build. Not classified in globals.h. */
+extern u32 D_800BCC60[];
+
 /* D_800C0448 - two-halfword ovl_21 state. ovl_21_func_800B9538 writes the
  * first halfword, ovl_21_func_800B95EC clears the first and increments the
  * second. Unsigned halfwords: the increment target loads with lhu. All the
