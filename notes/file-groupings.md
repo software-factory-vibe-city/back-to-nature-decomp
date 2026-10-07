@@ -8854,8 +8854,9 @@ Members (address order):
 - ovl_11_func_800BF450 (m, 0x5C, finalized) — gets the object, caches its
   pointer and low flag halfword into D_80128808/D_8012880C, tests 0x2000.
   A user-authorized two-instruction tail preserves the original dead v1=8000
-  write; one a0 binding fixes the low-word cache value. These workarounds do
-  not establish original handwritten source or strengthen the TU prior.
+  write; the a0 low-word cache value is produced by a plain named local (no
+  register pin). This workaround does not establish original handwritten
+  source or strengthen the TU prior.
   All three consumers agree on the pointer-getter interface, but its own
   declaration remains independently unwitnessed.
 

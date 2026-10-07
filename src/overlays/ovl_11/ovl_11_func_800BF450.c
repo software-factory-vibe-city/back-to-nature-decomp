@@ -4,13 +4,14 @@
  * BF3D0/BF3F4 siblings; the getter itself has no published definition. */
 void *func_8001EF98(void);
 
-/* User-authorized matching workarounds: bind the low halfword to a0 and
- * preserve the original zero/dead-ORI tail. Neither proves original source. */
+/* User-authorized matching workaround: an inline tail preserves the original
+ * zero result and dead-ORI write. The a0 low-halfword binding falls out of the
+ * named local naturally and is not pinned. Neither proves original source. */
 s32 ovl_11_func_800BF450(void) {
     u32 *p;
     u32 v;
+    u32 low;
     s32 result;
-    register u32 low asm("$4");
 
     p = func_8001EF98();
     D_80128808 = p;
