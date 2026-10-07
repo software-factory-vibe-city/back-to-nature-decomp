@@ -114,6 +114,25 @@ Members:
 - ovl_11_func_800D0D7C (m) — index-of-pointer: returns the record's array
   index (0..19) or -1.
 
+## `ovl_11` D_800749F4 record consumer `ovl_11_func_800D0DCC` — 0x800D0DCC (confidence: medium)
+
+Evidence: called by both predicate-run twin heads — `ovl_11_func_800DF9F0`
+(800DF4F0 span) and `ovl_11_func_800E15C8` (800E109C span) — immediately
+after their `ovl_11_func_800DF4F0`/`ovl_11_func_800E109C` guard and
+`+0x34 & 2` lazy-init, passing the caller's record pointer straight through
+as arg0. It reads `s16@+0x16`, `u16@+0xAE` and `u16@+0xB2` on that same
+record — the +0x16/+0xAE fields the predicate-run members touch — and zero-gap
+link-order adjacency places it inside the 0x800D0C34–0x800D0EA4
+accessor/setter run (0x800D0DBC ends exactly at 0x800D0DCC; 0x800D0DCC ends
+exactly at 0x800D0EA4). Same-object and caller-cluster evidence, not a proven
+TU boundary.
+
+Members:
+- ovl_11_func_800D0DCC (m) — record-apply leaf: indexes D_80128D70 by
+  `0x15 - u16@+0xB2`, stores 0xFFFF through `func_8001A970`'s returned
+  pointer, then selects 0x6BD/0x6BE/0x6BF/0x6C2/0x6C3/0x6C4 from
+  +0xAE/+0xB2/+0x16 and returns `func_8002261C(0, code)`.
+
 ## `ovl_11` two-table field-lookup siblings — 0x800D5ABC–0x800D5BBC (confidence: medium)
 
 Evidence: three adjacent 0x80-byte functions access the pointer members at

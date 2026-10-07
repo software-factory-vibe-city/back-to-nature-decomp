@@ -1422,6 +1422,8 @@ typedef struct {
  short x0, y0;
 } TILE_1;
 
+typedef struct { u16 unk0; } UnkStruct800DF4F0;
+
 typedef struct {
  long vx, vy;
  long vz, pad;

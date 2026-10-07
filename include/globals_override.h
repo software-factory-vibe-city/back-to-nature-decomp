@@ -1585,5 +1585,10 @@ extern u8 D_8012D110[];
  * from the overlay. */
 extern s16 D_80129FF0;
 
+/* ovl_11 indexed halfword table indexed by ovl_11_func_800D0DCC: the target
+ * computes 0x15 - obj->unkB2 and stores 0xFFFF through func_8001A970's
+ * returned pointer into this table. Absolute-addressed from the overlay. */
+extern s16 D_80128D70;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

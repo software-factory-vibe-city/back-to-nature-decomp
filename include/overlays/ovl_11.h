@@ -135,6 +135,7 @@ s32 *ovl_11_func_800D0CD8(void);
 s32 ovl_11_func_800D0D7C(u8 *arg0);
 void ovl_11_func_800D0DB0(M2C_bed1260e6722_UnkStruct800D0DB0 *arg0, s16 arg1, s16 arg2);
 void ovl_11_func_800D0DBC(M2C_d453384c461b_UnkStruct800D0DBC *arg0);
+s32 ovl_11_func_800D0DCC(UnkStruct800DF4F0 *arg0);
 void ovl_11_func_800D0EA4(s32 arg0, s32 arg1);
 s32 ovl_11_func_800D0ED0(s32 arg0, s32 arg1);
 void ovl_11_func_800D12A0(s16 arg0);
