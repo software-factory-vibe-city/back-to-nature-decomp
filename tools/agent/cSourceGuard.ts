@@ -140,12 +140,15 @@ export interface RegisterBindingSite {
   end: number;
   line: number;
   binding: string;
+  register: string;
+  declarationStart: number;
+  declarationEnd: number;
 }
 
 export interface MatchingConstructs {
   localRegisterBindings: RegisterBindingSite[];
   fileRegisterBindings: RegisterBindingSite[];
-  otherAsm: Array<{ line: number; scope: "file" | "function"; text: string }>;
+  otherAsm: Array<{ line: number; scope: "file" | "function"; text: string; start: number; end: number }>;
 }
 
 /** Local hard-register bindings, NOT assembler symbol labels. A declaration
@@ -157,21 +160,15 @@ export function matchingConstructs(source: string): MatchingConstructs {
   if (!guard.parses) throw new Error(`Cannot inspect register bindings: ${guard.reasons.join("; ")}`);
   const tree = parseC(source);
   const result: MatchingConstructs = { localRegisterBindings: [], fileRegisterBindings: [], otherAsm: [] };
-  const disabled: Array<{ start: number; end: number }> = [];
   try {
-    walk(tree.rootNode, node => {
-      if (disabled.some(r => r.start <= node.startIndex && node.endIndex <= r.end)) return false;
-      if (node.type === "preproc_if" || node.type === "preproc_elif") {
-        const condition = field(node, "condition"), alternative = field(node, "alternative");
-        // Prune the inactive ARM, not the entire conditional: #if 0 can
-        // carry an active #else (or #elif). Unknown conditions stay visible.
-        if (condition?.type === "number_literal" && condition.text === "0") disabled.push({ start: condition.endIndex, end: alternative?.startIndex ?? node.endIndex });
-        else if (condition?.type === "number_literal" && condition.text === "1" && alternative) disabled.push({ start: alternative.startIndex, end: alternative.endIndex });
-      }
+    walkActiveC(tree.rootNode, node => {
       if (node.type !== "gnu_asm_expression") return true;
       let scope: Node | null = node.parent;
       while (scope && scope.type !== "function_definition" && scope.type !== "translation_unit") scope = scope.parent;
-      const declaration = node.parent;
+      /* Labels belong directly to a declaration or its function declarator.
+         Do not exempt asm buried in an initializer just because a declaration
+         is an ancestor. */
+      const declaration = node.parent?.type === "function_declarator" ? node.parent.parent : node.parent;
       const operands = namedChildren(node);
       if (declaration?.type === "declaration" && operands.length === 1 && operands[0]?.type === "string_literal") {
         /* A non-register declarator asm is a symbol alias, not instructions
@@ -180,10 +177,11 @@ export function matchingConstructs(source: string): MatchingConstructs {
         const preceding = namedChildren(declaration).filter(c => c.endIndex <= node.startIndex).at(-1);
         const name = declaratorName(preceding);
         if (!name) return true;
-        const site = { name: name.text, start: node.startIndex, end: node.endIndex, line: node.startPosition.row + 1, binding: node.text };
+        const site = { name: name.text, start: node.startIndex, end: node.endIndex, line: node.startPosition.row + 1, binding: node.text,
+          register: operands[0]!.text.slice(1, -1), declarationStart: declaration.startIndex, declarationEnd: declaration.endIndex };
         if (scope?.type === "function_definition") result.localRegisterBindings.push(site);
         else result.fileRegisterBindings.push(site);
-      } else result.otherAsm.push({ line: node.startPosition.row + 1, scope: scope?.type === "function_definition" ? "function" : "file", text: node.text });
+      } else result.otherAsm.push({ line: node.startPosition.row + 1, scope: scope?.type === "function_definition" ? "function" : "file", text: node.text, start: node.startIndex, end: node.endIndex });
       return true;
     });
   } finally { tree.delete(); }
@@ -193,6 +191,77 @@ export function matchingConstructs(source: string): MatchingConstructs {
 /** Only function-local bindings are eligible for a pin-erasure probe. */
 export function localRegisterBindings(source: string): RegisterBindingSite[] {
   return matchingConstructs(source).localRegisterBindings;
+}
+
+/** Active AST walk, shared by injectors/policy. Literal disabled arms are
+ * pruned; unknown preprocessor conditions stay visible to inspection, but
+ * rewriting one requires the injector to refuse that conditional context. */
+export function walkActiveC(root: Node, visit: (node: Node) => boolean): void {
+  const disabled: Array<{ start: number; end: number }> = [];
+  walk(root, node => {
+    if (disabled.some(r => r.start <= node.startIndex && node.endIndex <= r.end)) return false;
+    if (node.type === "preproc_if" || node.type === "preproc_elif") {
+      const condition = field(node, "condition"), alternative = field(node, "alternative");
+      if (condition?.type === "number_literal" && condition.text === "0") disabled.push({ start: condition.endIndex, end: alternative?.startIndex ?? node.endIndex });
+      else if (condition?.type === "number_literal" && condition.text === "1" && alternative) disabled.push({ start: alternative.startIndex, end: alternative.endIndex });
+    }
+    return visit(node);
+  });
+}
+export interface CaptureSite {
+  name: string | null; scope: "file" | "function"; function: string | null;
+  start: number; end: number; line: number; valid: boolean;
+}
+/** Only standalone, one-identifier invocations are the approved construct.
+ * Comments, strings, disabled arms and same-named declarations are not uses. */
+export function capturePrevRetSites(source: string): CaptureSite[] {
+  const tree = parseC(source), result: CaptureSite[] = [];
+  try { walkActiveC(tree.rootNode, node => {
+    if (node.type !== "call_expression" || field(node, "function")?.text !== "CAPTURE_PREV_RET") return true;
+    const args = namedChildren(field(node, "arguments")!);
+    let scope = node.parent;
+    while (scope && scope.type !== "function_definition" && scope.type !== "translation_unit") scope = scope.parent;
+    const statement = node.parent;
+    const parentType = statement?.parent?.type ?? "";
+    const valid = statement?.type === "expression_statement" && (["compound_statement", "translation_unit"].includes(parentType) || parentType.startsWith("preproc_")) && args.length === 1 && args[0]?.type === "identifier";
+    result.push({ name: args[0]?.type === "identifier" ? args[0].text : null, scope: scope?.type === "function_definition" ? "function" : "file",
+      function: scope?.type === "function_definition" ? declaratorName(field(scope, "declarator"))?.text ?? null : null,
+      start: node.startIndex, end: node.endIndex, line: node.startPosition.row + 1, valid });
+    return true;
+  }); } finally { tree.delete(); }
+  return result;
+}
+export interface CSourceEdit { start: number; end: number; text: string }
+/** All locations come from AST nodes, never source-text patterns. Validate the
+ * complete result and reject overlapping/stale ranges before publication. */
+export function applyCSourceEdits(source: string, edits: readonly CSourceEdit[]): string {
+  const before = analyzeCSource(source);
+  if (!before.parses || !before.embeddable) throw new Error(`Unsafe C input: ${before.reasons.join("; ")}`);
+  const sorted = [...edits].sort((a, b) => a.start - b.start || a.end - b.end);
+  for (let n = 0; n < sorted.length; n++) {
+    const edit = sorted[n]!;
+    if (edit.start < 0 || edit.end < edit.start || edit.end > source.length || (n && sorted[n - 1]!.end > edit.start)) throw new Error("Invalid or overlapping AST edit");
+  }
+  let result = source;
+  for (const edit of sorted.reverse()) result = result.slice(0, edit.start) + edit.text + result.slice(edit.end);
+  const guard = analyzeCSource(result);
+  if (!guard.parses || !guard.embeddable) throw new Error(`AST edit produced unsafe C: ${guard.reasons.join("; ")}`);
+  return result;
+}
+/** Exact scalar entry-$2 declaration migration, at either scope. Non-scalar,
+ * initialized/multiple declarators and other register bindings are untouched. */
+export function migrateCapturePrevRet(source: string): string {
+  const tree = parseC(source), edits: CSourceEdit[] = [];
+  try {
+    for (const site of [...matchingConstructs(source).fileRegisterBindings, ...matchingConstructs(source).localRegisterBindings]) {
+      if (!["$2", "$v0", "2", "v0"].includes(site.register)) continue;
+      const declaration = tree.rootNode.descendantsOfType("declaration").find(n => n.startIndex === site.declarationStart);
+      if (!declaration || field(declaration, "type")?.text !== "s32" || field(declaration, "declarator")?.type !== "identifier" ||
+        children(declaration).some(n => n.type === ",")) continue;
+      edits.push({ start: site.declarationStart, end: site.declarationEnd, text: `CAPTURE_PREV_RET(${site.name});` });
+    }
+  } finally { tree.delete(); }
+  return applyCSourceEdits(source, edits);
 }
 
 export function analyzeCFile(path: string): CSourceReport {

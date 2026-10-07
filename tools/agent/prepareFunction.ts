@@ -27,6 +27,8 @@ import { seedOracle } from "./type-propagation/seeds.js";
 import { propagate, inferenceInput } from "./type-propagation/solve.js";
 import { originalAssembly } from "./type-propagation/assembly.js";
 import { unspecifiedParameters, layoutFields } from "./type-propagation/c-types.js";
+import { injectStaticChain, verifyChainInjection } from "./staticChainInjection.js";
+import type { ChainRow } from "../diagnostics/nestedFunctionScan.js";
 
 export const hashText = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
 export const hashFile = (path: string) => existsSync(path) ? hashText(readFileSync(path)) : "absent";
@@ -103,6 +105,8 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
     ...allFiles(join(root, "tools/vendor/maspsx/maspsx")).filter((p) => p.endsWith(".py")),
     ...allFiles(join(root, "tools/vendor/tree-sitter-c")),
     ...allFiles(join(root, "tools/diagnostics")).filter((p) => /\/macro[^/]*\.ts$/.test(p) && !p.endsWith(".test.ts")),
+    join(root, "tools/diagnostics/nestedFunctionScan.ts"),
+    join(root, ".pi/autoloop.json"), join(root, ".pi/extensions/shared/source-policy.ts"), join(root, ".pi/extensions/shared/types.ts"),
     join(root, "tools/build/prepareM2c.ts"), join(root, "package-lock.json"),
     ...["web-tree-sitter.js", "web-tree-sitter.wasm"].map((p) => join(root, "node_modules/web-tree-sitter", p)),
     join(root, "tools/vendor/m2c/m2c.py"), ...["tools/agent", "tools/lib"].flatMap((p) => allFiles(join(root, p))).filter((p) => p.endsWith(".ts") && !p.endsWith(".test.ts")),
@@ -482,6 +486,30 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
         timings.phases.push({ phase: "generation-cache", durationMs: 0, cache: "miss", reason: "absent, interrupted or changed generation inputs" });
       }
     }
+    /* The old scanner wire discarded every successful finding. Run it before
+       the first draft measurement, parse its byte/census routing, and edit
+       only a build/ copy; raw output and existing live attempts stay primary. */
+    const beforeDefinition = await command("npx", ["tsx", "tools/agent/scanReadBeforeDef.ts", functionName, "--json"], "read-before-definition");
+    packet.discovery.preflight.push(beforeDefinition);
+    if (beforeDefinition.status !== 0) packet.integration.blockers.push("read-before-definition preflight unavailable; inspect preserved streams");
+    else {
+      const scan = JSON.parse(readFileSync(beforeDefinition.stdout, "utf8")) as { findings: Array<{ guidance?: string; register: string; vram: string }>; staticChain: ChainRow | null; censusComplete: boolean | null };
+      packet.discovery.readBeforeDefinition = scan;
+      if (packet.primary?.origin === "m2c") {
+        const injection = injectStaticChain(packet.primary.text, scan.staticChain, readFileSync(join(root, packet.context.projection), "utf8"));
+        packet.discovery.staticChain = injection;
+        if (injection.changed) {
+          const path = relative(root, join(directory, "static-chain-draft.c"));
+          writeFileSync(join(root, path), injection.source);
+          packet.primary = { ...packet.primary, path, text: injection.source, sha256: hashText(injection.source) };
+          if (!resumedDraft || resumedDraft.primary?.sha256 === resumedDraft.generation.draftHash) packet.generation.draftHash = packet.primary.sha256;
+          packet.compilation = { status: "not-attempted", commands: [], diagnostics: "" };
+          packet.comparison = { status: "not-available" };
+        }
+        if (injection.status === "incomplete") packet.integration.blockers.push(...injection.findings);
+      }
+      for (const finding of scan.findings) if (finding.guidance && !scan.staticChain) packet.discovery.unknowns.push(unknown(`hard $${finding.register} @ ${finding.vram}`, finding.guidance, [relative(root, assembly)], "witnessed"));
+    }
     savePacket(root, directory, packet); /* retain source identity before measurement */
     if (packet.primary) {
       if (packet.primary.origin === "m2c") packet.discovery.unknowns.push(...auditM2cArithmetic(packet.primary.text, packet.primary.path));
@@ -522,9 +550,11 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
       packet.discovery.macroIdentity = report.macroIdentity ?? null;
       for (const f of report.findings ?? []) if (f.severity === "blocker") packet.integration.blockers.push(f.summary ?? JSON.stringify(f));
     }
-    const beforeDefinition = await command("npx", ["tsx", "tools/agent/scanReadBeforeDef.ts", functionName, "--json"], "read-before-definition");
-    packet.discovery.preflight.push(beforeDefinition);
-    if (beforeDefinition.status !== 0) packet.integration.blockers.push("read-before-definition preflight unavailable; inspect preserved streams");
+    if (packet.discovery.staticChain?.status === "pending-oracle") {
+      packet.discovery.staticChain.status = "failed";
+      packet.discovery.staticChain.findings.push("Static-chain oracle gate unavailable: candidate did not compile/compare");
+      packet.integration.blockers.push("Static-chain claims unverified; inspect preserved draft and diagnostics before staging");
+    }
     if (existsSync(ledger)) { packet.discovery.priorExperiments.push(relative(root, ledger)); }
     if (packet.discovery.unknowns.some((u) => u.strength === "conflict")) packet.integration.blockers.push("unresolved declaration/interface conflicts");
     if (packet.primary?.declarationsRequired.length) packet.integration.blockers.push("source-local types require explicit declaration integration");
@@ -548,6 +578,8 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
 export function stagePrepared(packet: PreparationPacket, root = ROOT): { staged: boolean; reason?: string } {
   if (!packet.primary || packet.primary.origin !== "m2c" || packet.compilation.status !== "succeeded" || packet.integration.blockers.length)
     return { staged: false, reason: "candidate is not eligible for safe staging" };
+  if (packet.discovery.staticChain && !["verified", "not-needed"].includes(packet.discovery.staticChain.status))
+    return { staged: false, reason: "static-chain claims or scaffold are not verified" };
   if (!packetIsFresh(packet, root)) return { staged: false, reason: "input or draft drift" };
   const path = join(root, packet.identity.destination);
   const dirty = execFileSync("git", ["status", "--porcelain", "--", packet.identity.destination], { cwd: root, encoding: "utf8" });
@@ -590,6 +622,10 @@ async function measurePreparation(packet: PreparationPacket, root: string, direc
   packet.compilation.assembly = { path: relative(root, assembly), sha256: hashFile(assembly) };
   packet.compilation.object = { path: relative(root, object), sha256: hashFile(object) };
   const comparison = compareFunction(name, { objectPath: object, container });
+  if (packet.discovery.staticChain?.claims.length) {
+    verifyChainInjection(packet.discovery.staticChain, comparison);
+    if (packet.discovery.staticChain.status !== "verified") packet.integration.blockers.push(...packet.discovery.staticChain.findings);
+  }
   const report = relative(root, join(directory, "comparison.json"));
   writeFileSync(join(root, report), JSON.stringify(comparison, null, 2));
   packet.comparison = { status: comparison.verdict === "match" ? "exact" : comparison.verdict === "mismatch" ? "mismatching" : "undetermined", report };

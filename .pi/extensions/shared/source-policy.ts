@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import type { AutodecompConfig, PolicyFinding, SourcePolicyResult } from "./types.ts";
+import { analyzeCSource, capturePrevRetSites, matchingConstructs, walkActiveC } from "../../../tools/agent/cSourceGuard.ts";
+import { parseC, field } from "../../../tools/agent/residual-source-search/tree-sitter-c.ts";
 
 interface PolicyOptions {
   projectRoot: string;
@@ -292,24 +294,61 @@ function logicalLines(lines: string[]): Array<{ line: number; text: string }> {
   return out;
 }
 
+/** AST classifications for complete C translation units. Macro invocations
+ * are the standing approval at either scope, not per-function pin grants.
+ * Keep legacy header/partial-patch handling separate: a diff hunk is not C. */
+export function sourceConstructFindings(source: string, config: AutodecompConfig, scope: { name?: string; vram?: string; container?: string } = {}): Array<Omit<PolicyFinding, "file">> {
+  const guard = analyzeCSource(source), findings: Array<Omit<PolicyFinding, "file">> = [];
+  if (!guard.parses) return [{ kind: "invalid-source", message: `Cannot audit malformed C: ${guard.reasons.join("; ")}` }];
+  const allowed = (kind: string) => allowlisted(config, scope.name, scope.vram, scope.container, kind);
+  const constructs = matchingConstructs(source);
+  for (const pin of [...constructs.localRegisterBindings, ...constructs.fileRegisterBindings]) {
+    if (allowed("register-asm")) continue;
+    findings.push({ kind: "register-asm", line: pin.line, text: pin.binding,
+      message: ["$2", "$v0", "2", "v0"].includes(pin.register) ?
+        "Raw entry-$2 binding is forbidden: use CAPTURE_PREV_RET at the fingerprint's scope; consult the static-chain census (tools/diagnostics/nestedFunctionScan.ts, build/nestedFunctionCensus.json)" : "Hard-register pinning is forbidden" });
+  }
+  for (const asm of constructs.otherAsm) {
+    if (allowed("embedded-asm")) continue;
+    const tree = parseC(asm.text + ";");
+    const node = tree.rootNode.descendantsOfType("gnu_asm_expression")[0];
+    const empty = node && field(node, "assembly_code")?.text === '""' &&
+      !node.descendantsOfType("gnu_asm_output_operand").length && !node.descendantsOfType("gnu_asm_input_operand").length &&
+      node.descendantsOfType("string_literal").map(n => n.text).join(",") === '\"\",\"memory\"';
+    tree.delete();
+    if (empty && config.sourcePolicy.allowEmptyMemoryBarrier) continue;
+    if (config.sourcePolicy.allowStackPointerSwitch && stackPointerSwitch(asm.text)) continue;
+    findings.push({ kind: "embedded-asm", line: asm.line, text: asm.text, message: "Embedded assembly is forbidden for an ordinary compiled function" });
+  }
+  for (const capture of capturePrevRetSites(source)) if (!capture.valid) findings.push({ kind: "register-asm", line: capture.line, message: "CAPTURE_PREV_RET requires a standalone one-identifier invocation at file or block scope" });
+  const tree = parseC(source);
+  try { walkActiveC(tree.rootNode, node => {
+    if (node.type === "preproc_function_def" || node.type === "preproc_def") {
+      if (field(node, "name")?.text === "CAPTURE_PREV_RET")
+        findings.push({ kind: "register-asm", line: node.startPosition.row + 1, message: "Do not redefine the standing CAPTURE_PREV_RET construct; use common.h" });
+      /* tree-sitter exposes a replacement list as opaque preproc_arg. Fold
+         C line splices and parse that AST-selected list as C too: otherwise
+         an asm macro would disappear from the complete-source audit. Partial
+         replacement lists that are not standalone C stay with the compiler. */
+      const value = field(node, "value");
+      if (value) {
+        const replacement = value.text.split("\\\r\n").join("\n").split("\\\n").join("\n") + ";";
+        if (analyzeCSource(replacement).parses)
+          findings.push(...sourceConstructFindings(replacement, config, scope).map(f => ({ ...f, line: node.startPosition.row + 1 })));
+      }
+    }
+    return true;
+  }); } finally { tree.delete(); }
+  if (guard.includeAsm.length && !allowed("include-asm")) for (const site of guard.includeAsm) findings.push({ kind: "include-asm", message: "Assembly stub is forbidden for an ordinary compiled function", text: site.symbol });
+  return findings;
+}
+
 function scanSourceFile(options: PolicyOptions, file: string, findings: PolicyFinding[]): void {
   const path = resolve(options.projectRoot, file);
   if (!existsSync(path)) return;
-  let inBlock = false;
-  for (const { line, text } of logicalLines(readFileSync(path, "utf8").split("\n"))) {
-    const stripped = stripComments(text, inBlock);
-    inBlock = stripped.inBlock;
-    const violation = forbiddenLine(stripped.code, options.config, options.functionName, options.functionVram, options.functionContainer);
-    if (violation) {
-      findings.push({
-        kind: violation.kind,
-        file: normalizedPath(relative(options.projectRoot, path)),
-        line,
-        message: violation.message,
-        text: text.trim(),
-      });
-    }
-  }
+  const source = readFileSync(path, "utf8");
+  const scope = patchScope(options, file);
+  findings.push(...sourceConstructFindings(source, options.config, scope).map(f => ({ ...f, file: normalizedPath(relative(options.projectRoot, path)) })));
 }
 
 /**
@@ -381,7 +420,12 @@ function scanAddedPatch(options: PolicyOptions): PolicyFinding[] {
       const text = line.slice(1);
       const trimmed = text.trim();
       const commentOnly = trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("//");
-      const violation = commentOnly || !policesConstructs(file)
+      /* Complete source files are audited through the AST once below; a hunk
+         cannot distinguish code from a multiline comment/string/disabled arm.
+         Missing-file patch fixtures retain the conservative legacy fallback. */
+      const completeSource = sourceIdentity(file) && existsSync(resolve(options.projectRoot, file)) &&
+        readFileSync(resolve(options.projectRoot, file), "utf8").split("\n")[newLine - 1] === text;
+      const violation = commentOnly || !policesConstructs(file) || completeSource
         ? undefined
         : forbiddenLine(text, options.config, scope.name, scope.vram, scope.container);
       if (violation) findings.push({ kind: violation.kind, file, line: newLine, message: violation.message, text: text.trim() });
@@ -457,7 +501,9 @@ export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
   }));
 
   const scanNames = options.scanFunctions ?? (options.functionName ? [options.functionName] : []);
+  const scannedFiles = new Set<string>();
   for (const name of scanNames) {
+    scannedFiles.add(sourceFileOf(options, name));
     scanSourceFile(
       {
         ...options,
@@ -468,6 +514,11 @@ export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
       sourceFileOf(options, name),
       hardFailures,
     );
+  }
+
+  const patchFiles = (options.patch ?? "").split("\n").flatMap(line => line.startsWith("+++ b/") ? [line.slice(6)] : []);
+  for (const file of [...changedFiles, ...patchFiles]) if (sourceIdentity(file) && !scannedFiles.has(file)) {
+    scannedFiles.add(file); scanSourceFile(options, file, hardFailures);
   }
 
   const overrides = resolve(options.projectRoot, "configs", "flag_overrides.mk");
@@ -495,10 +546,29 @@ export function checkSourcePolicy(options: PolicyOptions): SourcePolicyResult {
   const newlyAddedForbiddenConstructs = scanAddedPatch(options);
   hardFailures.push(...newlyAddedForbiddenConstructs);
 
+  /* Advisory only: a missing/incomplete/stale census never invents a grant
+     or revokes the standing macro approval (post-call capture is also valid).
+     Fresh byte detection happens in prep/triage, not through this artifact. */
+  const warnings: PolicyFinding[] = [];
+  let censusRows: Array<{ id: string; function: string; container: string; callee: unknown }> = [];
+  try {
+    const rows: unknown = JSON.parse(readFileSync(resolve(options.projectRoot, "build/nestedFunctionCensus.json"), "utf8")).rows;
+    if (Array.isArray(rows)) censusRows = rows.filter(r => r && typeof r === "object" && typeof r.function === "string" && typeof r.container === "string");
+  } catch { /* no advisory census */ }
+  for (const file of scannedFiles) {
+    const path = resolve(options.projectRoot, file);
+    if (!existsSync(path)) continue;
+    const identity = patchScope(options, file);
+    const row = censusRows.find(r => r.function === identity.name && r.container === (identity.container ?? "exe") && r.callee);
+    if (!row) for (const site of capturePrevRetSites(readFileSync(path, "utf8"))) if (site.valid) warnings.push({
+      kind: "capture-prev-ret-census", file, line: site.line,
+      message: "CAPTURE_PREV_RET has no entry-static-chain census row in the advisory artifact; run nestedFunctionScan.ts --write and check byte provenance (post-call captures are a separate idiom)",
+    });
+  }
   return {
     pass: hardFailures.length === 0,
     hardFailures: dedupeFindings(hardFailures),
-    warnings: [],
+    warnings,
     changedFiles,
     outOfScopeFiles,
     newlyAddedForbiddenConstructs,

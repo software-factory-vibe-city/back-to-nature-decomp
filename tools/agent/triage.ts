@@ -112,6 +112,9 @@ import { precedentIndex, precedentsFor } from "./loop-emission/precedents.js";
 import { loadSubsegments } from "../lib/symbolIndex.js";
 import { boundaryPremise, followingTextObject } from "../lib/sdkProvenance.js";
 import { allocationDominant, fingerprintWebPartition, type FingerprintReport } from "../diagnostics/fingerprintWebPartition.js";
+import { nestedFunctionCensus, chainRow, type ChainRow } from "../diagnostics/nestedFunctionScan.js";
+import { sourceConstructFindings } from "../../.pi/extensions/shared/source-policy.ts";
+import { loadConfig } from "../../.pi/extensions/shared/config.ts";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -2208,68 +2211,24 @@ function allowlistFor(name: string): string[] {
  * embedded-asm-inside-compiled-C failure mode this detector is hunting.
  */
 function detectAsmPolicy(name: string, srcText: string): Finding[] {
-  const stripped = srcText.replace(/\/\*[\s\S]*?\*\//g, " ");
-  const asmLines = stripped
-    .split("\n")
-    /* `__volatile__` too — the C89 spelling this project's sources use. */
-    .filter((line) => /\b(?:__asm__|__asm|asm)\s*(?:(?:__)?volatile(?:__)?\s*)?\(/.test(line));
-  if (asmLines.length === 0) return [];
+  const container = containerForSymbol(name)?.id ?? "exe";
+  return sourceConstructFindings(srcText, loadConfig(ROOT), { name, container }).map(f => ({
+    detector: "asm-policy", severity: "blocker", summary: f.message,
+    evidence: [f.text ?? `line ${f.line ?? "unknown"}`], see: ["AGENTS.md", "prompts/c-style-guide.md"],
+  }));
+}
 
-  const findings: Finding[] = [];
-  const allowed = allowlistFor(name);
-
-  const wholeFunction = /\.globl|\.ent\b|\\t\.text/.test(stripped);
-  const barrierOnly = asmLines.every((line) =>
-    /__asm__\s*(?:volatile\s*)?\(\s*""\s*:\s*:\s*:\s*"memory"\s*\)/.test(line.replace(/\s+/g, " "))
-  );
-  if (barrierOnly) return [];
-
-  const usesRegisterAsm = /\bregister\b[^;\n]*\b(?:__asm__|__asm)\s*\(/.test(stripped);
-  if (usesRegisterAsm && !allowed.includes("register-asm")) {
-    findings.push({
-      detector: "asm-policy",
-      severity: "blocker",
-      summary:
-        `source pins hard registers (register-asm) but ${name} has no such entry ` +
-        "in .pi/autoloop.json sourcePolicy.allowlist — this cannot ship " +
-        "regardless of its score.",
-      evidence: [`allowlisted: ${allowed.length > 0 ? allowed.join(", ") : "(none)"}`],
-      see: ["AGENTS.md", "prompts/c-style-guide.md"],
-    });
-  }
-
-  if (wholeFunction) {
-    findings.push({
-      detector: "asm-policy",
-      severity: "info",
-      summary:
-        "top-level asm emitting a whole function — the handwritten-assembly " +
-        "reconstruction path, not embedded asm in compiled C. Confirm the " +
-        "function's classification justifies it.",
-      evidence: [asmLines[0].trim()],
-      see: ["AGENTS.md"],
-    });
-    return findings;
-  }
-
-  if (!allowed.includes("embedded-asm")) {
-    findings.push({
-      detector: "asm-policy",
-      severity: "blocker",
-      summary:
-        `source uses embedded asm but ${name} has no embedded-asm entry in ` +
-        ".pi/autoloop.json sourcePolicy.allowlist — this cannot ship regardless " +
-        "of its score. Treat the missing entry as evidence the premise is wrong, " +
-        "not as paperwork to file later.",
-      evidence: [
-        asmLines[0].trim(),
-        `allowlisted: ${allowed.length > 0 ? allowed.join(", ") : "(none)"}`,
-        "the gate scans changed files, so a pre-existing occurrence fires only once you modify this file",
-      ],
-      see: ["AGENTS.md", "prompts/c-style-guide.md"],
-    });
-  }
-  return findings;
+export function nestedFunctionFindings(row: ChainRow | null): Finding[] {
+  if (!row || (!row.callee && !row.calls.some(c => c.verdict !== "rejected"))) return [];
+  const guidance = row.callee?.guidance ?? (row.calls.some(c => c.verdict === "confirmed-pair") ?
+    "Census-paired caller: block-local auto declaration with asm symbol label; use prep's audited prototype, not an ABI guess." :
+    "Unpaired/undetermined frame-address candidate: surface evidence only; no caller injection without a proven callee pairing.");
+  return [{ detector: "static-chain", severity: "signal", summary: `${row.id}: ${row.verdict}; ${guidance}`,
+    evidence: [
+      ...row.callee?.entryReads.map(a => `entry-$2 read at 0x${a.toString(16)} (${row.callee!.form})`) ?? [],
+      ...row.calls.filter(c => c.verdict !== "rejected").map(c => `0x${c.setup.toString(16)} -> 0x${c.call.toString(16)} ${c.callee ?? "unknown"}: ${c.verdict}; ${c.reason}`),
+      ...row.callee?.reasons ?? [],
+    ], see: ["tools/diagnostics/nestedFunctionScan.ts", "prompts/reference/declarations.md", "include/common.h"] }];
 }
 
 /**
@@ -2438,6 +2397,7 @@ function main(): void {
    * the wrong program, so the SDK finding is emitted first and, being a
    * signal, sorts above the inventory signal that would otherwise lead. */
   const macroIdentity = detectFunctionMacroIdentity(name);
+  findings.push(...nestedFunctionFindings(chainRow(nestedFunctionCensus(), name)));
   if (macroIdentity) findings.push(...macroIdentityFindings(macroIdentity.function));
   findings.push(...detectSdkIdioms(target, sourceState === "c" ? srcText : undefined));
 

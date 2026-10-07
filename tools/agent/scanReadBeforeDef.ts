@@ -36,7 +36,8 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { loadContainers } from "../lib/container.js";
 import { resolveAsmSource } from "./decompToolchain.js";
-import { BRANCH_MNEMONICS, buildBlocks, defUse, registersIn } from "./webAnalysis.js";
+import { BRANCH_MNEMONICS, buildBlocks, defUse } from "./webAnalysis.js";
+import { chainRow, nestedFunctionCensus, scanChainFunction, type ChainRow } from "../diagnostics/nestedFunctionScan.js";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 
@@ -77,20 +78,23 @@ const ALL_REGISTERS = new Set([
   "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra", "hi", "lo",
 ]);
 
-interface AsmInstruction {
+export interface AsmInstruction {
   mnemonic: string;
   operands: string[];
   vram: string;
   text: string;
   labelTarget?: string;
+  word?: number;
 }
 
-interface Finding {
+export interface Finding {
   function: string;
   register: string;
   vram: string;
   instruction: string;
   kind: "entry-liveness" | "call-clobbered";
+  subForm?: "dead-spill" | "save-forward" | "undetermined";
+  guidance?: string;
 }
 
 export function parseAsm(content: string): { name: string; instructions: AsmInstruction[]; labels: Map<string, number> } {
@@ -115,7 +119,9 @@ export function parseAsm(content: string): { name: string; instructions: AsmInst
     const operands = operandText.length > 0
       ? operandText.split(",").map((operand) => operand.trim())
       : [];
+    const encoding = line.match(/^\s*\/\*\s*\S+\s+\S+\s+([0-9a-fA-F]{8})\s*\*\//)?.[1];
     const entry: AsmInstruction = {
+      ...(encoding ? { word: Buffer.from(encoding, "hex").readUInt32LE(0) } : {}),
       mnemonic,
       operands,
       vram: instruction[1],
@@ -248,6 +254,18 @@ export function scanInstructions(name: string, instructions: AsmInstruction[], l
       });
     });
   });
+  const bytes = Buffer.alloc(instructions.length * 4);
+  if (instructions.every(i => i.word !== undefined)) {
+    instructions.forEach((i, n) => bytes.writeUInt32LE(i.word!, n * 4));
+    const callee = scanChainFunction({ name, container: "assembly", vram: parseInt(instructions[0]!.vram, 16), bytes }).callee;
+    for (const finding of findings) if (finding.kind === "entry-liveness" && finding.register === "v0") {
+      finding.subForm = callee?.form ?? "undetermined";
+      finding.guidance = callee?.guidance ?? "Entry-$2 requires CAPTURE_PREV_RET; sub-form not established, do not guess scope/body.";
+    }
+  }
+  for (const finding of findings) finding.guidance ??= finding.kind === "entry-liveness" ?
+    "Read before definition: compiled C cannot produce this hard-register entry liveness; inspect the original construct." :
+    "Read after call clobber: inspect file-register or handwritten classification; no deterministic injection recipe.";
   return findings;
 }
 
@@ -284,6 +302,8 @@ if (isCLI) {
   const json = args.includes("--json");
   const positional = args.filter((arg) => !arg.startsWith("--"));
   const findings: Finding[] = [];
+  let staticChain: ChainRow | null = null;
+  let censusComplete: boolean | null = null;
   let scanned = 0;
 
   if (args.includes("--all")) {
@@ -310,15 +330,26 @@ if (isCLI) {
       process.exit(1);
     }
     findings.push(...scanFile(path));
+    if (!positional[0]!.endsWith(".s")) {
+      const census = nestedFunctionCensus();
+      staticChain = chainRow(census, positional[0]!.replace(/^src\//, "").replace(/\.c$/, ""));
+      censusComplete = census.complete;
+    }
     scanned = 1;
   } else usage();
 
   if (json) {
-    console.log(JSON.stringify({ scanned, findings }, null, 2));
+    console.log(JSON.stringify({ scanned, findings, staticChain, censusComplete }, null, 2));
   } else {
     console.log(`scanned ${scanned} function(s); ${findings.length} finding(s)`);
     for (const finding of findings) {
-      console.log(`  ${finding.function} @ 0x${finding.vram}: $${finding.register} ${finding.kind} — ${finding.instruction}`);
+      console.log(`  ${finding.function} @ 0x${finding.vram}: $${finding.register} ${finding.kind}${finding.subForm ? ` (${finding.subForm})` : ""} — ${finding.instruction}`);
+      console.log(`    ${finding.guidance}`);
+    }
+    if (staticChain) {
+      console.log(`\nStatic-chain census ${staticChain.id}: ${staticChain.verdict}`);
+      if (staticChain.callee) console.log(staticChain.callee.guidance);
+      for (const site of staticChain.calls) console.log(`  0x${site.setup.toString(16)}: ${site.verdict}, ${site.callee ?? "unknown target"}; ${site.reason}`);
     }
     if (findings.length > 0) {
       console.log("\nentry-liveness: read before any definition on some path — compiled C cannot");

@@ -41,6 +41,8 @@ export interface PreparationPacket {
   integration: { state: "staged" | "live"; changes: string[]; blockers: string[]; destinationHash: string; stagedHash?: string };
   discovery: { unknowns: UnknownFact[]; report: unknown; priorExperiments: string[]; preflight: CommandRecord[];
     macroIdentity?: ReturnType<typeof detectFunctionMacroIdentity>;
+    readBeforeDefinition?: { findings: Array<{ guidance?: string; register: string; vram: string }>; staticChain: import("../../diagnostics/nestedFunctionScan.js").ChainRow | null; censusComplete: boolean | null };
+    staticChain?: import("../staticChainInjection.js").ChainInjection;
     propagation?: { graph: string; report: string; input: string; graphComplete: boolean; convergence: string; visited: number; facts: number; steps: number } };
   finalization: { status: "not-attempted" | "failed" | "passed"; gate?: string; verifiedIdentity?: string; changedFiles?: string[] };
 }
@@ -55,6 +57,14 @@ function macroOpening(packet: PreparationPacket): string {
   return `Detected header asm macros: ${names.slice(0, 8).join(", ")}${names.length > 8 ? `; ${names.length - 8} more in evidence.md` : ""}.\n${MACRO_CALL_POLICY}\nSee evidence.md for matched sites, headers, operands, alternatives and production encodings; unmatched regions are not exempt.`;
 }
 
+function chainOpening(packet: PreparationPacket): string {
+  const row = packet.discovery.readBeforeDefinition?.staticChain;
+  if (!row) return "Static-chain census: no applicable paired caller/entry-$2 row (other register findings retained in evidence.md).";
+  return `Static-chain census ${row.id}: ${row.verdict}; ${row.callee?.form ?? "caller"}. ${row.callee?.guidance ?? 'Use block-local auto prototype + asm symbol label for census-paired calls only.'}\n` +
+    (packet.discovery.staticChain ? `Prep injection: ${packet.discovery.staticChain.status}; ${packet.discovery.staticChain.changed ? "build/ candidate edited; claims need the relocated-byte gate" : "no edit"}.` : "Existing live attempt preserved; no injection.") +
+    " See evidence.md for addresses, provenance and unresolved scaffold requirements.";
+}
+
 export function packetOpening(packet: PreparationPacket, packetPath: string): string {
   const source = packet.primary;
   const directory = packetPath.replace(/\/packet\.json$/, "");
@@ -67,6 +77,7 @@ export function packetOpening(packet: PreparationPacket, packetPath: string): st
     `Generation: ${packet.generation.status}; compilation: ${packet.compilation.status}; comparison: ${packet.comparison.status}; finalization: ${packet.finalization.status}.`,
     links,
     macroOpening(packet),
+    chainOpening(packet),
     ...(packet.discovery.propagation ? [`Type propagation: ${packet.discovery.propagation.convergence}, ${packet.discovery.propagation.visited} original functions; graph ${packet.discovery.propagation.graphComplete ? "closed" : "coverage incomplete"}. Constraints/provenance: ${packet.discovery.propagation.report}; actual m2c input: ${packet.discovery.propagation.input}.`] : []),
     ...(packet.comparison.report ? [`Relocated-byte report: ${packet.comparison.report}. Compilation, exactness and finalization are separate claims.`] : []),
     `Blockers: ${packet.integration.blockers.length}; unresolved facts: ${packet.discovery.unknowns.filter((u) => u.strength !== "witnessed").length}. See evidence.md for constraints, examined inputs and next evidence paths.`,
@@ -89,6 +100,10 @@ export function packetEvidence(packet: PreparationPacket): string {
     `# Evidence for ${packet.identity.functionName}`,
     `Selected context: ${packet.context.projection}\nOriginal assembly: ${packet.identity.assembly}\nOriginal data: ${packet.identity.data.join(", ") || "none"}`,
     ...(packet.discovery.propagation ? [`Graph: ${packet.discovery.propagation.graph}\nPropagation: ${packet.discovery.propagation.report}\nPartial m2c inputs: ${packet.discovery.propagation.input}\nConvergence and graph completeness are separate: ${packet.discovery.propagation.convergence}, complete=${packet.discovery.propagation.graphComplete}.`] : []),
+    `## Static-chain detection/injection\n${chainOpening(packet)}`,
+    ...(packet.discovery.readBeforeDefinition?.findings.map(f => `- Hard $${f.register} @ ${f.vram}: ${f.guidance ?? "see scanner streams"}`) ?? []),
+    ...(packet.discovery.staticChain?.claims.map(c => `- Oracle claim: ${c.kind} @ 0x${c.address.toString(16)}; ${JSON.stringify(c)}`) ?? []),
+    ...(packet.discovery.staticChain?.findings.map(f => `- ${f}`) ?? []),
     `## Detected header macros\n${macroOpening(packet)}`,
     ...(packet.discovery.macroIdentity?.function.tiling.flatMap(t => [
       `### 0x${t.start.toString(16)}–0x${t.end.toString(16)}: ${t.macro}\nHeader: ${t.header}:${t.line} (${t.vintage}; sha256 ${t.headerSha256})\nOracle-unverified call: \`${t.candidateC}\``,

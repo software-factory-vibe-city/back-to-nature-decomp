@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 import { ROOT } from "../decompToolchain.js";
 import { sha256File } from "./artifacts.js";
+import { analyzeCSource, matchingConstructs, walkActiveC } from "../cSourceGuard.js";
+import { parseC } from "../residual-source-search/tree-sitter-c.js";
 import {
   VARIANT_MECHANISMS,
   type ResolvedVariantHypothesis,
@@ -179,6 +181,21 @@ export function validateVariantSource(source: string, options: VariantSourceVali
         if (characters[index] !== "\n") characters[index] = " ";
       }
     }
+    code = characters.join("");
+  }
+  /* A nested auto declaration's asm label emits no instructions. Inspect
+     declaration/scope nodes rather than matching the same `asm(` token as
+     instruction assembly; approved CAPTURE_PREV_RET calls need no masking. */
+  if (analyzeCSource(source).parses) {
+    const constructs = matchingConstructs(source), forbidden = new Set([
+      ...constructs.localRegisterBindings.map(s => s.start), ...constructs.fileRegisterBindings.map(s => s.start), ...constructs.otherAsm.map(s => s.start),
+    ]);
+    const tree = parseC(source), characters = code.split("");
+    try { walkActiveC(tree.rootNode, node => {
+      if (node.type === "gnu_asm_expression" && !forbidden.has(node.startIndex))
+        for (let n = node.startIndex; n < node.endIndex; n++) if (characters[n] !== "\n") characters[n] = " ";
+      return true;
+    }); } finally { tree.delete(); }
     code = characters.join("");
   }
   const patterns: Array<{ pattern: RegExp; kind: SourceFinding["kind"]; message: string; raw?: boolean; symbolGroup?: number }> = [

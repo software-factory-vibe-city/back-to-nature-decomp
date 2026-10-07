@@ -220,6 +220,36 @@ test("a patch to an overlay source is attributed to the function, not to the pat
   assert.equal(result.newlyAddedForbiddenConstructs.length, 0);
 });
 
+test("CAPTURE_PREV_RET has standing approval at either AST scope; absent census is advisory", () => {
+  for (const source of [
+    'CAPTURE_PREV_RET(phantom);\nint target(void) { return phantom; }\n',
+    'int target(void) {\n CAPTURE_PREV_RET(phantom);\n return phantom; }\n',
+  ]) {
+    const { root, config } = fixture(source);
+    const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target" });
+    assert.equal(result.pass, true); assert.equal(result.hardFailures.length, 0);
+    assert.equal(result.warnings.length, 1); assert.match(result.warnings[0]!.message, /census/);
+    mkdirSync(join(root, "build"));
+    writeFileSync(join(root, "build/nestedFunctionCensus.json"), JSON.stringify({ rows: [{ id: "exe:target", function: "target", container: "exe", callee: { form: "dead-spill" } }] }));
+    assert.equal(checkSourcePolicy({ projectRoot: root, config, functionName: "target" }).warnings.length, 0);
+  }
+});
+
+test("raw entry-$2 declarations route to the macro/census, including multiline syntax", () => {
+  const { root, config } = fixture('register s32\n phantom\n asm("$2");\nvoid target(void) {}\n');
+  const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target" });
+  assert.equal(result.pass, false); assert.equal(result.hardFailures.length, 1);
+  assert.match(result.hardFailures[0]!.message, /CAPTURE_PREV_RET.*census/);
+});
+
+test("AST policy ignores mentions/disabled arms, permits nested asm labels and refuses macro redefinition", () => {
+  const { root, config } = fixture('/* register s32 x asm("$2"); CAPTURE_PREV_RET(x); */\n#if 0\nregister s32 x asm("$2");\nCAPTURE_PREV_RET(x);\n#endif\nint target(void) {\n auto s32 nested(s32, s32) __asm__("real");\n return nested(1,2);\n}\n');
+  assert.equal(checkSourcePolicy({ projectRoot: root, config, functionName: "target" }).pass, true);
+  writeFileSync(join(root, "src/target.c"), '#define CAPTURE_PREV_RET(x) int x\nvoid target(void) { CAPTURE_PREV_RET(p); }\n');
+  const result = checkSourcePolicy({ projectRoot: root, config, functionName: "target" });
+  assert.equal(result.pass, false); assert.match(result.hardFailures[0]!.message, /redefine/);
+});
+
 test("a bare-address allowlist key is the executable's, never another container's", () => {
   const root = mkdtempSync(join(tmpdir(), "autodecomp-policy-keys-"));
   mkdirSync(join(root, "src", "overlays", "ovl_30"), { recursive: true });

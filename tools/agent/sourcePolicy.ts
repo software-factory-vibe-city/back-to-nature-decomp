@@ -81,6 +81,7 @@ async function main(): Promise<void> {
         console.error(`  ${finding.file}${finding.line ? `:${finding.line}` : ""}: ${finding.kind}: ${finding.message}`);
       }
     }
+    for (const warning of result.warnings) console.log(`Warning: ${warning.file}${warning.line ? `:${warning.line}` : ""}: ${warning.message}`);
     if (result.outOfScopeFiles.length > 0) {
       console.log(`Note: ${result.outOfScopeFiles.length} changed file(s) outside the integration roots (not a source-policy failure here):`);
       for (const file of result.outOfScopeFiles) console.log(`  ${file}`);

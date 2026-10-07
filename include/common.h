@@ -31,13 +31,15 @@ typedef volatile signed int vs32;
  * target's bytes prove hard-$v0 entry liveness (a caller-saved register read
  * before its first definition); see
  * notes/research/func_8001E878-dead-spill-allocation.md §9.
- * Known users: func_8001E878 (matched, this block-scope form). The idiom
- * also has a stronger file-scope form — `register s32 name asm("$2");` as a
- * GLOBAL register variable (func_8001E9F8, matched): stores to it are never
- * deleted and $v0 stays reserved for the rest of the TU, which the
- * block-scope form does not provide. Pick by fingerprint: dead capture only
- * -> this macro; surviving $v0 re-installs / $v0 absent from scratch
- * allocation -> the file-scope form. */
+ * Use this SAME macro at either scope; placement selects the recipe:
+ * block top -> dead spill (func_8001E878); file scope before the function
+ * -> save/forward (func_8001E9F8), whose stores survive and whose $v0 stays
+ * reserved for the rest of the TU. The original static-chain sites are GNU
+ * nested-function codegen; these declarations emulate their separate-file
+ * layout, not the historical spelling. Other proven post-call captures
+ * still use the block-scope form. The byte-only census and prep injector
+ * are tools/diagnostics/nestedFunctionScan.ts and
+ * tools/agent/staticChainInjection.ts; use no sub-form without its proof. */
 #define CAPTURE_PREV_RET(name) register s32 name asm("$2")
 
 #include "globals.h"

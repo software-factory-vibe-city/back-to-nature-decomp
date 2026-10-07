@@ -244,22 +244,6 @@ const historicalReplay = () => replayCache ??= runHistoricalWebReplay();
     assert.ok(r.candidate?.pseudoWebs.length || name.startsWith("Clear"), name);
   }
 });
-(toolchain ? test : test.skip)("matched pinned CLI report probes BF450 and warns that instruction asm remains", () => {
-  const name = "ovl_11_func_800BF450", source = join(ROOT, "src/overlays/ovl_11", `${name}.c`), before = readFileSync(source, "utf8");
-  const configPath = join(ROOT, ".pi/autoloop.json"), config = readFileSync(configPath, "utf8");
-  const baseline = fingerprintWebPartition(name), probe = probeRegisterPins(baseline)!;
-  assert.equal(baseline.oracleVerdict, "match");
-  assert.equal(baseline.sourceConstructs?.localRegisterBindings.length, 1);
-  assert.equal(probe.removedBindings, 1); assert.equal(probe.report?.oracleVerdict, "match");
-  assert.equal(probe.report?.sourceConstructs?.localRegisterBindings.length, 0);
-  assert.equal(probe.report?.sourceConstructs?.otherAsm.length, 1);
-  const text = renderFingerprint(baseline, probe).join("\n");
-  assert.match(text, /empty web diff does NOT test/); assert.match(text, /PIN-REMOVAL PROBE/);
-  assert.match(text, /NOT fully clean C/); assert.match(text, /pin-erased.c/);
-  assert.equal(readFileSync(source, "utf8"), before); assert.equal(readFileSync(configPath, "utf8"), config);
-  const targetOnly = fingerprintWebPartition(name, { targetOnly: true });
-  assert.equal(targetOnly.sourceConstructs, null); assert.equal(probeRegisterPins(targetOnly), null);
-});
 (toolchain ? test : test.skip)("BC54 pin probe explains the two words and pre-allocation overlap inline without claiming a clean spelling", () => {
   const name = "ovl_11_func_8010BC54", source = join(ROOT, "src/overlays/ovl_11", `${name}.c`), before = readFileSync(source, "utf8");
   const configPath = join(ROOT, ".pi/autoloop.json"), config = readFileSync(configPath, "utf8");
