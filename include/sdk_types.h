@@ -627,6 +627,18 @@ typedef struct {
 } M2C_3e88aa97bf23_Struct_800E2C64;
 
 typedef struct {
+    u16 unk0;
+    u16 unk2;
+    u16 unk4;
+    u16 unk6;
+    u16 unk8;
+    u16 unkA;
+    u16 unkC;
+    u16 unkE;
+    u16 unk10;
+} M2C_3f138653e0bb_M2C_b93e11a2_Arg0;
+
+typedef struct {
     s16 field_0;
     s16 field_2;
     s16 field_4;

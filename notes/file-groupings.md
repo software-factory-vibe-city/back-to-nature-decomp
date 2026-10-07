@@ -8831,19 +8831,25 @@ Members (link order):
   `ovl_25_func_800BBA30`, then advances the `D_800BCD52` counter and raises the
   `D_800BCD50` flag once it reaches 0x200
 
-## `ovl_25` 8×0x16 record-array initializer/consumer — 0x800BB4B4 / 0x800BB580 (confidence: low-medium)
+## `ovl_25` 8×0x16 record-array initializer/consumers — 0x800BB4B4 / 0x800BB580 / 0x800BB874 (confidence: medium)
 
-Candidate same-TU pairing of `ovl_25`. Evidence is a shared object plus a
+Candidate same-TU grouping of `ovl_25`. Evidence is a shared object plus a
 gapless link run.
 
 Fingerprints:
-- shared object, init/consumer: `ovl_25_func_800BB4B4` memsets exactly 0xB4
+- shared object, init/consumers: `ovl_25_func_800BB4B4` memsets exactly 0xB4
   bytes at `D_800A03AC`, which is the 4-byte prefix at `D_800A03AC` plus the
   eight 0x16-stride records beginning at `D_800A03B0` (`D_800A03AC + 4`;
   0x4 + 8*0x16 = 0xB4). `ovl_25_func_800BB580` walks exactly that array —
   `D_800A03B0`, eight entries, 0x16 stride — and dispatches each record by its
   first halfword against 0xFFFF and the `D_8006C838` flag. Same object, so the
   two are the initializer and the consumer of one record type.
+- shared object, find-or-insert consumer: `ovl_25_func_800BB874` also walks
+  `D_800A03B0` as eight 0x16-stride records — it scans for a matching first
+  halfword over 8 entries, and on a miss scans again for the first 0xFFFF
+  entry, `memset`s it 0x16 and copies nine halfwords into it (dest 0/2/8/4/6/
+  0xE/0x10/0x12/0x14 from src 0/2/4/6/8/0xA/0xC/0xE/0x10). Same array, so it is
+  a third accessor of the one record type.
 - gapless link run: `ovl_25_func_800BB46C` (ends exactly at 0x800BB4B4) →
   `ovl_25_func_800BB4B4` (0x5C, ends exactly 0x800BB510) →
   `ovl_25_func_800BB510` (0x70, ends exactly 0x800BB580) →
@@ -8855,8 +8861,9 @@ Fingerprints:
   +0x253B4).
 
 Non-evidence: `ovl_25_func_800BB4B4` is byte-identical to matched
-`ovl_11_func_800DB0E4`; that cross-container twin relation is not TU-membership
-evidence here. `ovl_25_func_800BB46C` (calls `func_80020B80`/`func_8001FBF0`)
+`ovl_11_func_800DB0E4`, and `ovl_25_func_800BB874` is structure-identical to
+matched `ovl_11_func_800DB140`; those cross-container twin relations are not
+TU-membership evidence here. `ovl_25_func_800BB46C` (calls `func_80020B80`/`func_8001FBF0`)
 and `ovl_25_func_800BB510` (`$a0+0x8A8`, 0x12 stride) share no global with the
 pair; their inclusion rests on address adjacency only.
 
@@ -8868,6 +8875,10 @@ Members (link order):
   0x16 stride): per record `lhu` first halfword, skips 0xFFFF, dispatches on
   the `D_8006C838` +0xC flag to `ovl_25_func_800BB628` or
   `ovl_25_func_800BB788`.
+- ovl_25_func_800BB874 (m, matched this session, byte-exact) — find-or-insert
+  over the same `D_800A03B0` records (8 entries, 0x16 stride): returns on a
+  matching first halfword, else fills the first 0xFFFF record via
+  `memset(.., 0, 0x16)` plus the halfword remap above.
 
 ## `ovl_19` clamp-table lookup run — 0x800BAD50–0x800BADF8 (confidence: low)
 

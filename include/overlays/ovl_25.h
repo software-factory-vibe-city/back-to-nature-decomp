@@ -31,6 +31,7 @@ void ovl_25_func_800BAC28(void);
 void ovl_25_func_800BAF20(void);
 void ovl_25_func_800BB46C(void);
 void ovl_25_func_800BB4B4(void);
+void ovl_25_func_800BB874(M2C_3f138653e0bb_M2C_b93e11a2_Arg0 *arg0);
 void ovl_25_func_800BB970(s16 arg0);
 void ovl_25_func_800BB9D0(s16 arg0);
 void ovl_25_func_800BBA30(s16 arg0, s16 arg1, s16 arg2);
