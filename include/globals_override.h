@@ -166,6 +166,13 @@ struct struct_8006C838_view {
     u8 field_CC;            /* 0xCC */
 };
 
+/* D_80076200 - four 4-byte records (s16 at +0) scanned by
+ * ovl_11_func_800D08FC, which returns the address of the first record whose
+ * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.
+ * Absolute-addressed (outside $gp), so it uses the _D_ label pattern. */
+extern s16 _D_80076200[4] __asm__("D_80076200");
+#define D_80076200 _D_80076200
+
 /* D_8005F0A8 - s16 digit buffer. >8-byte declaration for the genuine split
  * address form (shared lui %hi base, see func_8001205C research).
  * func_8001A970 writes up to 10 halfwords (digits + terminator). */
