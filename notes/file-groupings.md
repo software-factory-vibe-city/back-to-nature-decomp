@@ -96,6 +96,24 @@ Members:
 - ovl_11_func_800CB0B0 (m) — sibling range map: 0x01–0x19 → (arg0-1)/5;
   0x1A–0x1D → (s16)(arg0-26); else 0.
 
+## `ovl_11` D_800749F4 predicate-scan + its callee — 0x800CFAD0 / 0x800CFB20 (confidence: medium)
+
+Evidence: zero-gap link-order adjacency that the call graph agrees with —
+`ovl_11_func_800CFAD0` (0x800CFAD0, size 0x50) ends exactly where
+`ovl_11_func_800CFB20` begins, and both of 800CFB20's call sites target that
+predicate. 800CFB20 also walks the same absolute-addressed D_800749F4
+20-entry 0xB8-stride record array as the accessor pair below, in lockstep with
+the parallel 20-entry flag words at D_8006C838+0x81F0, plus a second
+10-entry 0xB4-stride D_800742EC array. Adjacency + shared-global evidence; a
+prior, not a proven TU boundary.
+
+Members:
+- ovl_11_func_800CFAD0 (m) — field 0x34 flag predicate on one D_800749F4-style
+  record, gated by arg1 bits 0/1 and 0x80000 → 0x100/0x80000 combinations.
+- ovl_11_func_800CFB20 (m, matched this session, byte-exact) — predicate run:
+  returns 1 when 800CFAD0 accepts a D_800749F4 entry (flags at
+  D_8006C838+0x81F0, arg0 bits 0/1) or a D_800742EC entry (arg0 bit 2), else 0.
+
 ## `ovl_11` D_800749F4 record-array accessor pair — 0x800D0C34 / 0x800D0D7C (confidence: low)
 
 Evidence: both walk the same absolute-addressed D_800749F4 record array with
