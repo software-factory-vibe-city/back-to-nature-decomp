@@ -749,9 +749,11 @@ Evidence:
   link run).
 - call graph: 8010CB6C and 8010CD80 both call 8010CE80; the `D_800BAABC`
   handler entries (8010EB24, 8010ECC0, 8010EEE4, 8010F324, 8010F4CC) call
-  8010CE80 back — a dispatcher/handler coupling. The handlers are
-  link-order interleaved with unrelated functions, so their TU membership
-  is not claimed here.
+  8010CE80 back — a dispatcher/handler coupling. The first ten `D_800BAABC`
+  entries (indices 0–4, 7, 6, 5, 8, 9) sit in a *gapless* link-order block
+  0x8010E2C4–0x8010ECC0 (symbol addresses plus nonmatching sizes sum exactly),
+  so TU membership is plausible for that block though still unproven; the
+  remaining handlers are interleaved with unrelated functions.
 
 - ovl_11_func_8010CB6C (s) — caller of 8010CE80 (×2) and engine helpers;
   head of the gapless run
@@ -783,6 +785,13 @@ Evidence:
   `s16@+0x26 != 0xF`, promotes the staged `s16@+0xBE/0xC0/0xC2` triple into
   `+0x26/+0x28/+0x2A` when `s16@+0xBE != 0`, else calls
   `ovl_11_func_8010CE80(this, s1)`; called by run member 8010CD80.
+- ovl_11_func_8010E434 (m, matched this session, byte-exact) — `D_800BAABC[2]`
+  handler inside the gapless block: two-state update of the shared s16@+0x28
+  field (state 0 → 1 sets flag 0x800 in s32@+0x34; state -1 clears it) and
+  otherwise calls `ovl_11_func_800D04D4(this, D_80127D5C, &this->+0x28, -1,
+  &s16@+0x2A)` to advance the +0x2A counter; same sparse-switch
+  `case 1: default:` decision tree, object view and 800D04D4 call as the
+  gapless-run sibling ovl_11_func_800D4624 (different handler table).
 
 ---
 
