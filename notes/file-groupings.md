@@ -3326,12 +3326,17 @@ Direct-call + adjacent-data cluster: func_8001B530 (m) initializes the
 and calls the two already-matched sibling helpers func_8001B9F8 (m) and
 func_8001BA40 (m), which write fields of the adjacent D_80061DE8 object
 (struct_80061DE8). Padding/stub members between them (func_8001B5DC, B6A0,
-BA18, BA5C, BAC4, BB28, BB88) keep the same link-order run.
+BA18, BA5C, BAC4, BB28, BB88) keep the same link-order run. The run's tail
+reaches a further adjacent object: func_8001BB88 (m) reads the GTE rotation
+matrix into D_80061E88, the next global past the D_80061DE8 object, matching
+the same adjacent-data fingerprint as the .E28/.E48/.E68 siblings.
 Members:
 - func_8001B530 (m, 2026) — setup entry: GTE origin/screen, then the two
   helpers, then memset+init of the .E28/.E48/.E68 sibling objects
 - func_8001B9F8 (m) — writes D_80061DE8 fields 0/4/8/0x18/0x1C
 - func_8001BA40 (m) — writes D_80061DE8 fields 0xC/0x10/0x14/0x1C
+- func_8001BB88 (m, 2026-10) — gte_ReadRotMatrix into the adjacent
+  D_80061E88 object (single SDK GTE read idiom)
 
 ## projected primitive clipping — 0x8001BFEC–0x8001D348 (confidence: medium)
 

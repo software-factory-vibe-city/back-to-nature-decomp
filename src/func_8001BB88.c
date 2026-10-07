@@ -1,4 +1,8 @@
 #include "common.h"
-#include "include_asm.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+#include "psyq/inline_c.h"
 
-INCLUDE_ASM("build/asm/nonmatchings/func_8001BB88", func_8001BB88);
+void func_8001BB88(void) {
+    gte_ReadRotMatrix(&D_80061E88);
+}
