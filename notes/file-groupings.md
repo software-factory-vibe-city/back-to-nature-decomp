@@ -11001,3 +11001,23 @@ dispatch table documented above, so membership also has named-table support.
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127D48`.
+
+Fortieth family member, link-order-adjacent to the thirty-ninth on one side and
+named-table-adjacent on the other (confidence: high). `ovl_11_func_8010E37C`
+(0x8010E37C) is the immediate gapless successor of the thirty-ninth member
+`ovl_11_func_8010E2C4` (splat `configs/splat/ovl_11.yaml`: 0x564A4 → 0x5655C =
+0xB8) and the immediate gapless predecessor of `ovl_11_func_8010E434`
+(0x5655C → 0x56614 = 0xB8), the `D_800BAABC[2]` handler documented above. Its
+function words are byte-identical to the twenty-ninth member
+`ovl_11_func_8010A0E4` and the thirty-ninth `ovl_11_func_8010E2C4` — same
+`beqz`(0) / `bgtz` / `beq`(−1) `case 1: default:` tree and same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape —
+differing only in the table symbol and labels. Its table `D_80127D50`
+(`0x001E000D, 0x000F000E, 0x0000FFFF`) is the entry immediately after the
+thirty-ninth's `D_80127D48` and immediately before 8010E434's `D_80127D5C` in
+`build/ovl_11/asm/data/69960.data.s`, so membership rests on both code and
+table adjacency on either side.
+- ovl_11_func_8010E37C (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127D50`.
