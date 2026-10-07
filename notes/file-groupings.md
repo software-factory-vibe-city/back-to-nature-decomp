@@ -9625,6 +9625,11 @@ call idiom.
   `s16@+0x26 == arg1 && (s32@+0x34 & 0x800)` (then -1); when `D_800B95CC[arg1]`
   is set and the result ≠ -1 records the selection (0x26/0x28/0x2A/0x2C) and
   calls `ovl_11_func_800D0408`; stores -1 at `s16@+0xB6`.
+- ovl_11_func_800DFB3C (m, matched this session, byte-exact) — `D_800B957C`
+  table handler (id 0x12): latches the `D_8006C838`+0x52C8/0x52CC/0x52D0/0x52D4
+  work area into `s32@+0x58..+0x64`, ORs 0x2000 into `s32@+0x34`, then calls
+  `ovl_11_func_800DF010(this, 0x12)`; zero-gap link predecessor of the run's
+  800DFB98, so the rodata-table membership and link adjacency agree.
 
 ## `ovl_11` `ovl_11_func_800E109C` predicate-caller run — 0x800E05A8–0x800E15C8 (confidence: medium)
 

@@ -285,6 +285,7 @@ s32 ovl_11_func_800DF5AC(M2C_10d75516ede6_Struct_800DF5AC *arg0);
 s32 ovl_11_func_800DF614(M2C_6d40c0948b34_Struct_800DF614 *arg0);
 s32 ovl_11_func_800DF6A8(M2C_6a900543412a_UnkStruct800DF6A8 *arg0);
 s32 ovl_11_func_800DF9F0(M2C_d1e0e5c21be3_Struct_800DF9F0 *arg0);
+s32 ovl_11_func_800DFB3C(M2C_d2ce2969afe2_Struct_800DFB3C *arg0);
 s32 ovl_11_func_800DFB98(M2C_499805aa6798_Ov11SetFields *arg0);
 s32 ovl_11_func_800DFC3C(void);
 s32 ovl_11_func_800E0220(Recon_ovl_11_func_800E0220_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
