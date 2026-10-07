@@ -7107,6 +7107,15 @@ Members:
   `record[i].s32@+0x38 - record[arg0].s32@+0x38` within [0, 0x59FFF]. Called
   via hub member ovl_17_func_800B9CE4; gapless link-order neighbour of 800B9F10
   (`+0x7C`), so the link run and the call graph agree.
+- ovl_17_func_800B9CE4 (m, 2026-10-07) — caller hub over the same 0x50-stride
+  area: selects ovl_17_func_800B9DB8/800B9DE0 by function pointer on
+  `record[work.s16@+0x2BC].s32@+0x38 < work.s16@+0x2D2 << 12`, indexing both
+  records through `base = D_800BD848` + 0x50 stride, invokes the chosen wrapper on
+  `record[arg0].s16@+0x42`, then calls the matched 800B9E94 and
+  ovl_17_func_800B9E0C on `record[arg0].s16@+0x44`. Shares the 0x50-stride and
+  s32@+0x38 field with 800B9E94/800B986C and sits in the gapless link-order run
+  800B9C48 → 800B9CAC → 800B9CE4 → 800B9DB8, whose tail is the Rand-wrapper
+  trio it dispatches; this is the call edge binding 800B9E94 to the cluster.
 - ovl_17_func_800B9C48 (m) — leaf getter over the first D_800BD848 record:
   s16 fields at +0x8/+0xA/+0xC; returns `(u16)field8 + field8 * (arg0 +
   fieldA) * fieldC / 25500`. Link-adjacent (`+0x64`) to 800B9CAC and the

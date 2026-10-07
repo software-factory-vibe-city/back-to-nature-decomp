@@ -10,6 +10,7 @@ void ovl_17_func_800B9594(void);
 s32 ovl_17_func_800B986C(void);
 s16 ovl_17_func_800B9C48(s16 arg0);
 void ovl_17_func_800B9CAC(void);
+s32 ovl_17_func_800B9CE4(s16 arg0);
 void ovl_17_func_800B9DB8(s16 arg0);
 void ovl_17_func_800B9DE0(s16 arg0);
 void ovl_17_func_800B9E0C(s16 arg0);
