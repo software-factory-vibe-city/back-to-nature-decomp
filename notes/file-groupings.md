@@ -6364,6 +6364,28 @@ Members (address order):
   against 0/0x109, then clears u16@0xAE and calls ovl_11_func_800D049C
 - ovl_11_func_800E2E98 (m) — trivial `return 0;`
 
+## `ovl_11` D_800B970C / D_800B96BC consumer pair — 0x800E276C / 0x800E2824 (confidence: medium)
+
+Candidate same-TU pair in `ovl_11`: zero-gap link-order adjacency over a
+shared dispatch-table global. `ovl_11_func_800E276C` (0xB8 bytes at
+0x800E276C) ends exactly at `ovl_11_func_800E2824` (0xE0 at 0x800E2824,
+matched byte-exact this session), which ends exactly at 0x800E2904. An
+overlay-wide asm census finds `D_800B970C` referenced by exactly these two
+functions, and no other function references `D_800B96BC` except 800E2824,
+which consumes both tables — so the shared-global and adjacency fingerprints
+agree.
+
+Members (address order):
+- ovl_11_func_800E276C (s) — reads the struct's u16@+0x26 as an index into the
+  `D_800B970C` s32 table, NULL-gates the slot and calls through it; also
+  conditionally calls 0x800E2A30 / 0x800E2AF0 on the same object
+- ovl_11_func_800E2824 (m, matched this session, byte-exact) — dispatch
+  consumer: indexes the `D_800B96BC` function-pointer table by an s32 id,
+  NULL-gates and calls the slot with the id's object, then when the separate
+  `D_800B970C` slot is non-NULL and the call did not return -1 latches the id
+  into s16@+0x26 and zeroes s16@+0x28/+0x2A/+0x2C before calling
+  ovl_11_func_800D0408(4, this+0x48, 0)
+
 ## `ovl_11` D_8012D110 record feed/clear caller/callee pair — 0x80113B80 / 0x80113C3C (confidence: medium)
 
 Candidate same-TU pair in `ovl_11`: zero-gap link adjacency + direct call + a

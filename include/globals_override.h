@@ -1606,5 +1606,20 @@ extern s16 D_80129FF0;
  * returned pointer into this table. Absolute-addressed from the overlay. */
 extern s16 D_80128D70;
 
+/* D_800B96BC - ovl_11 dispatch table of 19 function-pointer slots (0x4C
+ * bytes, absolute-addressed). ovl_11_func_800E2824 indexes it by an s16 id,
+ * tests a slot against NULL and calls through it with the id's object. The
+ * rodata run at 0x800B96BC holds ovl_11_func_800E2C64/800E2D3C/800E2E4C/
+ * 800E2E98 at slots 3/4/8/14. */
+typedef s32 (*Ovl11B96BCFunc)(u16 *);
+extern Ovl11B96BCFunc _D_800B96BC[19] __asm__("D_800B96BC");
+#define D_800B96BC _D_800B96BC
+
+/* D_800B970C - ovl_11 dispatch table of 20 function-pointer slots (0x50
+ * bytes, absolute-addressed). ovl_11_func_800E2824 indexes it by the same
+ * s16 id and only tests the slot against NULL. */
+extern s32 _D_800B970C[20] __asm__("D_800B970C");
+#define D_800B970C _D_800B970C
+
 #endif /* GLOBALS_OVERRIDE_H */
 
