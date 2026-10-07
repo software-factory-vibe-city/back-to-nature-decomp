@@ -1,17 +1,13 @@
 #include "common.h"
 
-/* User-authorized parked-function policy exception: two register variables
- * fix allocation and shift birth order. These are reconstruction workarounds,
- * not evidence of original register-variable source. */
-
 s32 ovl_11_func_800D67F4(s16 arg0) {
     Ovl11A04B8Entry *p;
     s32 result;
     s32 offset;
     u32 i;
     u32 j;
-    register u32 val asm("$6");
-    register Ovl11A04B8Entry *base asm("$3");
+    u32 val;
+    Ovl11A04B8Entry *base;
 
     i = 0;
     offset = arg0 * 0x10E;

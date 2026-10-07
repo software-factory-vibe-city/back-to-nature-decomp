@@ -9695,8 +9695,7 @@ branch-specific next-count variable.
   selected row and checks the signed halfword at +0x18 against -1 / 0x3F0.
 - ovl_11_func_800D67F4 (m) scans that same nine-record row for each of eight
   categories i*8, checking the first halfword and +0x18 against 0x3F0.
-  It is now byte-exact and fully finalized with two explicitly user-authorized
-  register-variable reconstruction workarounds, without a flag change.
+  It is byte-exact as plain C with no register binding or flag change.
 
 The original functions are adjacent and use nine-slot rows; the shared
 D_800A04B8 layout links D678C and D67F4 directly. D6730 accesses a different
