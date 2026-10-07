@@ -9438,6 +9438,12 @@ Members (link order):
   reads the `+0x8` and `+0x50` s16 of the record, returns `(a <= b)` (or
   `func_80012A34(2) != 0` when they are equal), inverting it when
   `func_80012A34(100) >= 0x5B`; the result is consumed by `800B95D4`.
+- ovl_19_func_800BA468 (m, matched this session, byte-exact) — same
+  overlay-local `D_800BF4C0` array: `800BA564` distance versus `s16@+0x174`,
+  then `800BA628` angle minus `s16@+0x4 << 10`, normalised by `+0x1000`, and
+  bracket-tested against the `+0x172`-derived 360ths; returns 0/1. Called by
+  cluster member `800B95D4`, calls `800BA564`/`800BA628`, and shares the
+  `800BA628` + `<<10`/`+0x1000` idiom (same `s16@+0x4` field) with `800BA5B4`.
 - ovl_19_func_800BA5B4 (m, matched this session, byte-exact) — angle-band
   classifier: `ovl_19_func_800BA628` result minus `s16@+0x4 << 10`, normalised
   by `+0x1000` when negative, then `sltiu` band tests returning 1/2/3/0; called
