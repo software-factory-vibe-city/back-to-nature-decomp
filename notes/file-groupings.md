@@ -9085,6 +9085,25 @@ shape, and the run's two non-wrapper members share a direct callee:
 
 ---
 
+## `ovl_11` D_80129FF0 argument-buffer cluster — 0x800FA6CC–0x800FA9B8 (confidence: medium)
+
+Evidence: the absolute global `D_80129FF0` (24-byte scratch span) is referenced
+by `ovl_11_func_800FA6CC`, `ovl_11_func_800FA87C` and `ovl_11_func_800FA9B8`,
+three members of the gapless 0x800FA4F4 link-order run, and by no other function
+in it. `ovl_11_func_800FA87C` repeats `ovl_11_func_800FA4F4`'s idiom — call the
+shared `ovl_11_func_800FA950` to fill two adjacent s16 locals at sp+0x10/0x12,
+then pass both on — and is zero-gap adjacent to that helper (0x800FA87C + 0xD4 =
+0x800FA950). Members (link order):
+- ovl_11_func_800FA6CC (s) — references D_80129FF0; role unknown.
+- ovl_11_func_800FA87C (m, matched this session, byte-exact) — writes 0xFFFF
+  through the u16 pointer returned by func_8001A970(arg1+1, D_80129FF0, 2),
+  fills sp+0x10/0x12 via ovl_11_func_800FA950, picks a sound id from arg3 and
+  the caller-saved temp, then calls func_80017A48 and func_80017B3C(arg0,
+  D_80129FF0, l0, l1).
+- ovl_11_func_800FA9B8 (s) — references D_80129FF0; role unknown.
+
+---
+
 ## `ovl_15` D_801376D0/D_80137AB0 scratch-buffer run — 0x80134C48–0x80135AE0 (confidence: medium)
 
 A gapless four-function run in `configs/splat/ovl_15.yaml`, every member

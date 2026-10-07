@@ -1551,5 +1551,11 @@ extern s16 D_8012855A;
  * 10x10x10 byte grid, initial halfword and word at +400. */
 extern u8 D_8012D110[];
 
+/* ovl_11 24-byte scratch span (six words) at 0x80129FF0: func_8001A970
+ * fills a halfword through a returned pointer into it and ovl_11
+ * functions pass its address as an argument buffer. Absolute-addressed
+ * from the overlay. */
+extern s16 D_80129FF0;
+
 #endif /* GLOBALS_OVERRIDE_H */
 
