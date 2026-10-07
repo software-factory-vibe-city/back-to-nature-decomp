@@ -1774,6 +1774,28 @@ in the D_80123754 setter run. Members:
 
 ---
 
+## `ovl_11` D_800B8EC0 state-dispatch table run — 0x800D3048 / 0x800D3104 (confidence: medium)
+
+Two absolute-addressed (-G0) tables in `build/ovl_11/asm/data/104C.rodata.s`
+tie these adjacent functions together. `D_800B8EC0` is a 21-word table of
+per-state handlers (index 5 null; entries include 800D3FEC, 800D55F8, 800D539C)
+and `D_800B8E6C` is a parallel 21-word table with only indices 5–7 populated
+(800D4030 / 800D3FEC / 800D4028). Shared fingerprint: both functions read the
+struct state id from +0x26 and index a table by it, dispatch a word from the
+table as a function pointer on the same object, and test the +0x34 flag 0x800.
+Zero-gap link-order contiguity: 0x800D3048 (0xBC) ends exactly where 0x800D3104
+begins. The D_800B8EC0 handlers overlap the D_80128D78 cluster above, whose
+dispatch caller ovl_11_func_800D3468 drives this run.
+
+- ovl_11_func_800D3048 (s) — per-state update: calls ovl_11_func_800D3574,
+  dispatches `D_800B8EC0[+0x26]` as a function pointer (skipped when +0x34 has
+  0x800), then bumps +0x2C and calls ovl_11_func_800D3468.
+- ovl_11_func_800D3104 (m) — state-entry wrapper: pre-checks `D_800B8E6C[arg1]`,
+  sets +0x26 = arg1, zeroes +0x28/+0x2A/+0x2C, and runs the `D_800B8EC0[arg1]`
+  handler, then re-inits the +0x48 vector via ovl_11_func_800D0408(4, ...).
+
+---
+
 ## `ovl_11` D_80128CD0 coord-set run — 0x800CE210–0x800CE37C (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing the adjacent
