@@ -5655,17 +5655,23 @@ Members (link order):
   `func_8001FE6C` state guard, then `base[0x448C>>2] = 0xFF` and
   `base[0xC>>2] |= 0x80000` around `func_80011EF0(6)`.
 
-## `ovl_23` D_800BF87C record-append pair — 0x800B9454 / 0x800B94D0 (confidence: medium)
+## `ovl_23` D_800BF87C record init/append run — 0x800B937C–0x800B94D0 (confidence: medium)
 
-Evidence: gapless link order — 0x800B9454 + 0x7C = 0x800B94D0 (the two are
-consecutive 0x7C-byte functions in the ovl_23 code segment). Both write an
-8-byte-record array (`{s32,s16,s16}`) inside the same `D_800BF87C` aggregate
-and share the identical append idiom `if (cursor >= N) cursor = 0;` then store
-the record and increment the cursor, where N equals the array length. This
-extends the D_800BF87C cluster above and shows that symbol is a large record
-(the dispatch-index s16 sits at offset 0), not only a scalar index.
+Evidence: gapless link order — 0x800B937C + 0xD8 = 0x800B9454 and
+0x800B9454 + 0x7C = 0x800B94D0 (consecutive functions in the ovl_23 code
+segment). All three write the same 8-byte-record arrays (`{s32,s16,s16}`)
+inside the `D_800BF87C` aggregate: `ovl_23_func_800B937C` fills both arrays,
+and the append pair shares the identical append idiom `if (cursor >= N)
+cursor = 0;` then store the record and increment the cursor, where N equals
+the array length. The call graph agrees — `ovl_23_func_800B823C` calls
+`ovl_23_func_800B937C` (recorded above). This extends the D_800BF87C cluster
+above and shows that symbol is a large record (the dispatch-index s16 sits at
+offset 0), not only a scalar index.
 
 Members (link order):
+- ovl_23_func_800B937C (m, byte-exact this session) — initialises the
+  54-entry +0x418 and 12-entry +0x5CC `(s32, s16, s16)` arrays (first six +0x4
+  halves from `D_800BBA40`) and sets both cursors to 6.
 - ovl_23_func_800B9454 (m, byte-exact this session) — 54-entry array at
   `D_800BF87C`+0x418, cursor at +0x5C8, bound 0x36 (`(s32, s16, s16)`).
 - ovl_23_func_800B94D0 (m, byte-exact this session) — same routine, 12-entry
