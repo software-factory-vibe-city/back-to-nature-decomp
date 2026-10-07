@@ -7598,6 +7598,14 @@ neither `D_800C4A14`/`D_800C4A1C` nor the hub `ovl_27_func_800B92E4`; it is a
 `D_8006C838` counter leaf (below), so the run is not uniform. The entry's
 membership is unchanged — this only narrows its address extent.
 
+Second non-member, gapless between `800B90DC` and `800B9224`: `ovl_27_func_800B9124`
+(0x800B9124, matched this session, byte-exact) — sprite-draw leaf: reads the
+`D_8006C838` halfwords at +0x5246/+0x5248 through a local
+`base = (u8 *)&D_8006C838`, formats the `D_800C5920` scratch string, and draws
+the `D_80051AF6 + *D_80054BBC` table via `func_80022580`/`func_80017B3C` — the
+same ovl_27 sprite-draw idiom recorded for `ovl_27_func_800BA130`, so its TU
+membership sits with that idiom set, not the D_800C4A14 handler cluster.
+
 ## `ovl_27` parallel slot-array effect family — 0x800B998C–0x800B9EEC (confidence: medium)
 
 Evidence: shared gp-rel cluster + shared idiom + link adjacency. Six sibling
