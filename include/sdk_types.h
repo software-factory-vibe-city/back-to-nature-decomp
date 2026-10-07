@@ -304,6 +304,18 @@ typedef struct {
 } M2C_2bc7a43223fd_CoordTri;
 
 typedef struct {
+               char pad_00[0x26];
+               s16 unk26;
+               s16 unk28;
+               s16 unk2A;
+               s16 unk2C;
+               char pad_2E[0x34 - 0x2E];
+               s32 unk34;
+               char pad_38[0xB6 - 0x38];
+               s16 unkB6;
+} M2C_2d1278b9b759_Struct_800DF010;
+
+typedef struct {
                u16 field_0;
                char pad_02[0x34 - 0x02];
                s32 field_34;

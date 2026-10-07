@@ -9665,6 +9665,31 @@ call idiom.
   `ovl_11_func_800DF010(this, 0x12)`; zero-gap link predecessor of the run's
   800DFB98, so the rodata-table membership and link adjacency agree.
 
+## `ovl_11` `D_800B961C`/`D_800B966C` two-table handler dispatcher — 0x800E0C24 (confidence: medium)
+
+Evidence: `ovl_11_func_800E0C24` is a second table-driven dispatcher of the
+same authoring shape and object layout as `ovl_11_func_800DF010` (identical
+`s16@+0x26/+0x28/+0x2A/+0x2C`, `s32@+0x34` flag 0x800, `s16@+0xB6`, and the
+`ovl_11_func_800D0408(4, this + 0x48, 0)` call), but over the next pair of
+20-word ovl_11 function-pointer tables in `1664.rodata.s`: `D_800B961C`
+(0x800B961C, holding 800E10C8/800E1158/800E15C8/800E1254/800E1404/800E11C0/
+800E12D8/800E1654/800E1714/800E1770/800E1804) and `D_800B966C` (0x800B966C,
+holding 800E180C/800E18C4/800E1974/800E1A3C/800E1B38/800E1BF0/800E1CA8/
+800E1D48/800E1DA8). `D_800B966C` is read by exactly one other ovl_11 function,
+`ovl_11_func_800E0B40`, which is this target's zero-gap link predecessor
+(0x800E0B40 + 0xE4 = 0x800E0C24); table membership and link adjacency agree.
+The `D_800B961C` table's handlers are the callers of the
+`ovl_11_func_800E109C` predicate run below, tying the pair to that span.
+
+Members (link order):
+- ovl_11_func_800E0B40 (s) — gate on `u16@+0x0`, far-state halfword compare,
+  then dispatch `D_800B966C[this->unk26]` with the object; zero-gap link
+  predecessor of the target.
+- ovl_11_func_800E0C24 (m, matched this session, byte-exact) — dispatcher:
+  calls `D_800B961C[arg1]` unless `s16@+0x26 == arg1 && (s32@+0x34 & 0x800)`
+  (then -1); when `D_800B966C[arg1]` is set and the result != -1 records the
+  selection and calls `ovl_11_func_800D0408`; stores -1 at `s16@+0xB6`.
+
 ## `ovl_11` `ovl_11_func_800E109C` predicate-caller run — 0x800E05A8–0x800E15C8 (confidence: medium)
 
 Evidence: the overlay-local leaf `ovl_11_func_800E109C` (0x800E109C, 44 bytes)
