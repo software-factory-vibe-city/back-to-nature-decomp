@@ -7915,6 +7915,12 @@ Members (link order):
   byte-shape twin of matched `ovl_17_func_800BAF50`, `ovl_19_func_800BAD50`
   and `ovl_23_func_800BB1B8`; that twin relation is not TU-membership
   evidence.
+- ovl_21_func_800BAFFC (m, matched this session, byte-exact) — projection
+  leaf over the `D_800C0448` cluster: builds `D_800BCD18` from a caller
+  halfword triple, projects it through `func_8001DFD4` into `D_800BCD20`,
+  and tests `arg0` against the 32-bit pointer at record offset 0x30 of
+  records 0/1/2/5 before the `func_800248E8` call; membership rests on the
+  shared `D_800C0448` global, not on adjacency.
 
 Fingerprints:
 - `D_800C0AFC` is a further ovl_21 data base at `D_800C0448 + 0x6B4`; the
@@ -7925,7 +7931,8 @@ Fingerprints:
   0x108-byte elements — the state pair at 0x00/0x02 (written by the trio
   above), a 32-bit word at 0x14 (read by `ovl_21_func_800BA7F0`), a
   halfword at 0x18 (written by `ovl_21_func_800B9798` /
-  `ovl_21_func_800B8A80`) and a 32-bit word at
+  `ovl_21_func_800B8A80`), a 32-bit pointer at 0x30 (compared against its
+  argument by `ovl_21_func_800BAFFC`) and a 32-bit word at
   0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844`),
   three records per 0x318-byte group (`func_800B9A20` walks the table at a
   0x318 stride). Beyond the record table, `D_800C0448 + 0x986` (s16 index)

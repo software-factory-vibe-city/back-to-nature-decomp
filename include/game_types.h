@@ -570,7 +570,9 @@ typedef struct {
     /* 0x04 */ char pad_04[0x10];
     /* 0x14 */ s32 unk14;
     /* 0x18 */ s16 unk18;
-    /* 0x1A */ char pad_1A[0x108 - 0x1A];
+    /* 0x1A */ char pad_1A[0x30 - 0x1A];
+    /* 0x30 */ void *unk30;
+    /* 0x34 */ char pad_34[0x108 - 0x34];
 } UnkStruct800C0448;
 
 /* ovl_11_func_801097F4 argument record, passed by value: the first 16 bytes

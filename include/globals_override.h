@@ -1414,6 +1414,19 @@ extern u32 D_800BCC60[];
  * the matched pair shares. Absolute-addressed (extern-only, lui + %lo). */
 extern u16 D_800C0448[2];
 
+/* D_800BCD18 - ovl_21 four-halfword (SVECTOR-shaped) projection workspace.
+ * ovl_21_func_800BAFFC writes vx/vy/vz and passes its address as the SVECTOR
+ * argument of func_8001DFD4. Absolute-addressed; classified in globals.h as
+ * an s16 scalar would be wrong width, so the aggregate lives here. */
+extern s16 D_800BCD18[4];
+
+/* D_800BCD20 - ovl_21 eight-byte projection result buffer. func_8001DFD4
+ * writes the two sxy words at +0/+4 through an s32* and
+ * ovl_21_func_800BAFFC reads their low halfwords. Absolute-addressed;
+ * classified in globals.h as an s32 scalar would be wrong width, so the
+ * buffer lives here. */
+extern s32 D_800BCD20[2];
+
 /* D_800C0AFC - ovl_21 object-state base (0x800C0AFC). ovl_21_func_800BAF70
  * passes its address to func_80015840 and reads the two bytes at +4/+5
  * through a base register biased to D_800C0AFC - 0x6B4. An opaque byte
