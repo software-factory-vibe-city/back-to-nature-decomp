@@ -10376,5 +10376,5 @@ Members (address order):
 - ovl_11_func_800E00E0 (m, matched this session) — clear handler: state 0 sets
   +0x28 = 1; state −1 clears flag 0x800 at +0x34; else steps table
   `D_80123F48`.
-- ovl_11_func_800E0180 (s) — third twin of the same shape; else steps table
+- ovl_11_func_800E0180 (m) — third twin of the same shape; else steps table
   `D_80123F50`.
