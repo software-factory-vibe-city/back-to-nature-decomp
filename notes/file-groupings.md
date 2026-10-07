@@ -2320,10 +2320,14 @@ successor `ovl_11_func_80100FFC` both `lbu D_80070D04` through the same
 absolute `lui`+`lbu %lo` base and test bits of that byte (`and`/`andi` +
 `beqz`/`bnez`), the same button-state probe idiom, widening the recorded
 `D_80070D0E`/`D_80070D38/3A/40` cluster's data region reader family to
-`D_80070D04`.
+`D_80070D04`. Inside the run, `ovl_11_func_80100A8C` and link follower
+`ovl_11_func_80100F9C` both index the same 0x16-stride `D_80071318` record
+(mask `u16@+4`, eight-value `u16@+6` array), a shared file-scope global
+reader cluster independent of the `D_80070D04` probe.
 
 Members (address order):
-- ovl_11_func_80100A8C (s) — direct caller of 0x80100E68
+- ovl_11_func_80100A8C (m, matched this session, byte-exact) — direct caller of
+  both 0x80100E68 and 0x80100EB8; 0x16-stride `D_80071318` record reader
 - ovl_11_func_80100B50 (s) — direct caller of 0x80100E68
 - ovl_11_func_80100E68 (m, matched this session, 0x50, byte-exact) — button-bit
   probe leaf: `if (arg0 < 0x80) return (D_80070D04 & arg0) != 0; return
