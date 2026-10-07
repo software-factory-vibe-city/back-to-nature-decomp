@@ -7894,6 +7894,10 @@ Fingerprints:
   a separate source pointer per loop (`$a2`, then `$a1`); the two originals
   agree instruction-for-instruction on that preheader allocation, a shared
   register-variable/idiom quirk on top of the shared data symbol;
+- gapless link adjacency of the sibling pair: `ovl_25_func_800B83A0` (0xD8)
+  ends exactly at 0x800B8478, where `ovl_25_func_800B8478` (0xC4) begins, so
+  the shared streaming idiom and the shared `D_800BCC10`/`D_800BCC70` reads
+  also sit in one contiguous link run;
 - shared far-buffer field region: both `ovl_25_func_800BAA5C` and
   `ovl_25_func_800BA9F4` write the `D_8007AFF0+0x20000` work-area halfword at
   +0x53B4 (= +0x253B4 absolute).
