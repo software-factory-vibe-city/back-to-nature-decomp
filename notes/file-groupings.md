@@ -9104,6 +9104,22 @@ then pass both on — and is zero-gap adjacent to that helper (0x800FA87C + 0xD4
 
 ---
 
+## `ovl_11` 0x800FA7D4 grid-scan leaf, gapless predecessor of `800FA87C` (confidence: medium)
+
+Evidence: zero-gap link-order adjacency with a matching direct call edge —
+`ovl_11_func_800FA7D4` (0xA8, 0x800FA7D4–0x800FA87C) ends exactly at
+`ovl_11_func_800FA87C`, which it `jal`s; its own predecessor
+`ovl_11_func_800FA6CC` (0x108) ends exactly at 0x800FA7D4, and the three sit in
+the same gapless 0x800FA4F4–0x800FA9B8 run. The `(arg1 + i) % 7` row
+computation is the same idiom as the run's shared `ovl_11_func_800FA950`
+helper.
+
+- ovl_11_func_800FA7D4 (m, matched this session, byte-exact) — grid scan:
+  for `i` in 0..29 calls `ovl_11_func_800FA87C(arg0, i, arg1, flag)`, where
+  `flag` is 2, overridden to `(arg1+i)%7 == 6` when that residue is nonzero.
+
+---
+
 ## `ovl_15` D_801376D0/D_80137AB0 scratch-buffer run — 0x80134C48–0x80135AE0 (confidence: medium)
 
 A gapless four-function run in `configs/splat/ovl_15.yaml`, every member
