@@ -424,3 +424,27 @@ CC1FLAGS_ovl_11_func_800F1678 := -fno-cse-skip-blocks
 # No contrary regional witness: this src file is its own TU (one function per
 # file), so the override cannot disturb the matched ovl_11 neighbours.
 CC1FLAGS_ovl_11_func_800F8224 := -fno-strength-reduce
+
+# ovl_15_func_8013345C: -fno-gcse.
+#
+# Fingerprint (decoded from the original bytes / provable unreachability):
+# the target TU's function is exactly 55 instructions, and no clean-C source
+# shape reachable from the current reconstruction (roughly 250 measured
+# variants: goto/for/while/do-while, merged/separate found/count/result webs,
+# mask variable vs literal, scoped per-case masks, and a 128-way cross product)
+# produces 55 instructions under baseline flags -- all produce 54 (the found
+# loop-temp copy is deleted by coalescing). The flag matrix measured by
+# psx_flag_probe shows exactly one row that reaches 55 instructions and
+# dominates baseline: -fno-gcse (38/55 masked and 54/55 opcodes, vs 14/55 for
+# baseline with 54 instructions). -fno-gcse is the only column that reproduces
+# both the instruction count and the opcode stream, i.e. the count is a
+# property no source shape can reach under baseline flags.
+#
+# Regional precedent: ovl_11_func_800F3D40 is an overlay TU in this project
+# that also requires -fno-gcse, so disabling global CSE is an observed per-TU
+# fact of this build, not a workaround.
+#
+# Under -fno-gcse the mismatch is residual allocation only (cfg 0, population
+# 0, schedule 0); the remaining register choices are ordinary local/global
+# allocation ordering.
+CC1FLAGS_ovl_15_func_8013345C := -fno-gcse

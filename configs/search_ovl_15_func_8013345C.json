@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_15_func_8013345C",
+  "baseSourcePath": "src/overlays/ovl_15/ovl_15_func_8013345C.c",
+  "analysisPath": "build/targetSchedule/ovl_15_func_8013345C/analysis.json",
+  "maxVariants": 600,
+  "assembleUniqueDbr": false,
+  "traceAllPreprocessed": true,
+  "constraints": {
+    "forbidInstructionCountGrowth": false,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "scheduleComparison": {
+    "enabled": true,
+    "analyze": "traced-classes",
+    "maxInterventions": 8
+  },
+  "dimensions": [
+    {
+      "id": "case0-shape",
+      "mechanism": "fresh-vs-reused-web",
+      "expectedPass": "cse",
+      "invariants": ["case 0 finds the first non-busy slot"],
+      "alternatives": [
+        { "id": "base", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        {
+          "id": "temp-top",
+          "expectedEffect": "explicit loop temp at header",
+          "invariants": [],
+          "edits": [
+            { "find": "loop_4:\n        if ((*(u16 *)arg0 != 0) || (*(u32 *)(arg0 + 0x34) & mask)) {\n            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_a1 + 0xB4;",
+              "occurrences": 1,
+              "replace": "loop_4:\n        var_v1 = var_a1;\n        if ((*(u16 *)arg0 != 0) || (*(u32 *)(arg0 + 0x34) & mask)) {\n            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_v1 + 0xB4;" }
+          ]
+        },
+        {
+          "id": "temp-busy",
+          "expectedEffect": "explicit loop temp inside busy branch",
+          "invariants": [],
+          "edits": [
+            { "find": "            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_a1 + 0xB4;",
+              "occurrences": 1,
+              "replace": "            var_v1 = var_a1;\n            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_v1 + 0xB4;" }
+          ]
+        },
+        {
+          "id": "temp-top-succ",
+          "expectedEffect": "loop temp read by success too",
+          "invariants": [],
+          "edits": [
+            { "find": "loop_4:\n        if ((*(u16 *)arg0 != 0) || (*(u32 *)(arg0 + 0x34) & mask)) {\n            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_a1 + 0xB4;",
+              "occurrences": 1,
+              "replace": "loop_4:\n        var_v1 = var_a1;\n        if ((*(u16 *)arg0 != 0) || (*(u32 *)(arg0 + 0x34) & mask)) {\n            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_v1 + 0xB4;" },
+            { "find": "        var_t1 = var_a1;\n        *arg2 = var_a3;\n        break;",
+              "occurrences": 1,
+              "replace": "        var_t1 = var_v1;\n        *arg2 = var_a3;\n        break;" }
+          ]
+        },
+        {
+          "id": "one-pointer",
+          "expectedEffect": "single walking pointer",
+          "invariants": [],
+          "edits": [
+            { "find": "        var_a1 = arg0;\nloop_4:\n        if ((*(u16 *)arg0 != 0) || (*(u32 *)(arg0 + 0x34) & mask)) {\n            arg0 = arg0 + 0xB4;\n            var_a3 += 1;\n            var_a1 = var_a1 + 0xB4;",
+              "occurrences": 1,
+              "replace": "        var_a1 = arg0;\nloop_4:\n        if ((*(u16 *)var_a1 != 0) || (*(u32 *)(var_a1 + 0x34) & mask)) {\n            var_a1 = var_a1 + 0xB4;\n            var_a3 += 1;" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mask-decl",
+      "mechanism": "constant-birth-site",
+      "expectedPass": "cse",
+      "invariants": ["same mask constant"],
+      "alternatives": [
+        { "id": "u32", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        { "id": "s32", "expectedEffect": "signed mask", "invariants": [],
+          "edits": [ { "find": "    u32 mask;", "occurrences": 1, "replace": "    s32 mask;" } ] }
+      ]
+    }
+  ]
+}
