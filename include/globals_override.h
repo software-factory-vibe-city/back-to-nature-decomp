@@ -1158,6 +1158,20 @@ typedef struct {
 } Ovl11D80127220Entry;
 extern Ovl11D80127220Entry D_80127220[];
 
+/* D_80127234 - 4-entry table of 0xC-byte records walked by
+ * ovl_11_func_800FC754: s32 unk0 at +0x00 (lw, passed as first argument),
+ * s32 unk4 at +0x04 (lw, nonzero selects the entry), u8 unk8 at +0x08 and
+ * u8 unk9 at +0x09 (lbu). Absolute-addressed from ovl_11 code; written by
+ * ovl_11_func_800FB908 at +0x00/+0x04/+0x09. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ char pad_A[0x2];
+} Ovl11D80127234Entry;
+extern Ovl11D80127234Entry D_80127234[];
+
 /* D_80127328 - 6-entry table of 8-byte records walked by
  * ovl_11_func_800FC8C8: s32 flag mask at +0x00 (lw, ANDed against the
  * D_8006C838+0x44F8 status word) and u8 argument at +0x04 (lbu). Two s32

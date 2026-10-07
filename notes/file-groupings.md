@@ -2472,6 +2472,14 @@ the near-exact word-shape sibling of `ovl_11_func_800FC544` — same
 `ovl_11_func_800FE834`. Membership rests on the shared text-draw call path plus
 `D_8012CDF8`, making 800FC544/800FC7F0 a corroborated sibling pair.
 
+Widening (byte-exact match of `ovl_11_func_800FC754`, 2026-11): the gapless link
+predecessor of that draw leaf (0x800FC754 + 0x9C = 0x800FC7F0) is matched as a
+caller of `ovl_11_func_800FC7F0`: it walks the 4-entry stride-0xC `.data` table
+`D_80127234` (record type `Ovl11D80127234Entry` now in `globals_override.h`)
+and draws each nonzero entry. Membership rests on the zero-gap link order plus
+the call edge, which agree; it shares `D_80127234` with the unmatched writer
+stub `ovl_11_func_800FB908` (fields +0x00/+0x04/+0x09).
+
 ---
 
 ## `ovl_11` D_80070D10/D_800719FE reset run — 0x80111D94–0x80111F10 (confidence: medium)
