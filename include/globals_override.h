@@ -1393,6 +1393,17 @@ extern s32 D_80127428;
  * ovl_11_func_80103EB8 / ovl_11_func_80103F8C. Absolute-addressed. */
 extern s16 D_8012CF30[12];
 
+/* D_800BCC48 - ovl_21 table of six 4-byte {u16,u16} pairs (0xFD12/0xFD12,
+ * 0x0000/0xFA24, 0x02EE/0xFC97, 0xFD12/0x02EE, 0x0000/0x05DC,
+ * 0x02EE/0x02EE). ovl_21_func_800BAEEC indexes it by arg0*4 and loads both
+ * halfwords with lhu, so both fields are unsigned. Absolute-addressed
+ * (extern-only, lui + %lo) in the -G0 overlay build. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+} UnkStruct800BCC48;
+extern UnkStruct800BCC48 D_800BCC48[];
+
 /* D_800BCCD4 - ovl_21 table of s16 selector values (0x25/0x23/0x22/0x24 at
  * +0), indexed by a signed halfword read from the D_800C0448 state block.
  * ovl_21_func_800B90C4 loads it with lh, so it is signed. Absolute-addressed

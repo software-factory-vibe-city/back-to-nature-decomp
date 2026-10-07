@@ -7939,6 +7939,15 @@ Members (link order):
   and the same ObjectState/SpriteSourceData idiom as its gapless predecessor
   `ovl_21_func_800BAEA0` (0x800BAE20 + 0x80 = 0x800BAEA0), the call graph
   and link order agreeing.
+- ovl_21_func_800BAEEC (m, matched this session, byte-exact) — gapless link
+  successor of `ovl_21_func_800BAEA0` (0x800BAEA0 + 0x4C = 0x800BAEEC); same
+  `func_80015840` reset-then-project idiom: behind the byte at `D_800C0448 +
+  0x688` (the `D_800C0ACC + 4` object state byte) it calls
+  `func_80015840(obj + 0x684, 0xE)` when it differs, then passes a 3-halfword
+  `s16 vec[3]` built from `D_800BCC48[arg0]` (fields +0/+2, middle constant
+  -0x1F4) to `ovl_21_func_800BAFFC(obj + 0x684, vec, &D_800BCC48[arg0])`.
+  Membership rests on that callee pair, the shared `D_800C0448` cluster and
+  the gapless adjacency to `ovl_21_func_800BAEA0`.
 
 Fingerprints:
 - `D_800C0AFC` is a further ovl_21 data base at `D_800C0448 + 0x6B4`; the
@@ -7964,6 +7973,9 @@ Fingerprints:
   0) indexed by the `D_800C0448 + 0x986` halfword and passed to
   `SpuGetKeyStatus`; referenced by the 0x800B9178/0x800B92C8/0x800B93F0
   handler run.
+- `D_800BCC48` — ovl_21 table of six 4-byte {u16,u16} pairs indexed by
+  `arg0*4`; read by `ovl_21_func_800BAEEC` and `ovl_21_func_800B836C`, so it
+  is a further shared ovl_21 data table.
 
 ## `ovl_21` D_8006C838 +0x8000 per-entity field writer+reader — 0x800BAB28 / 0x800BABF8 (confidence: medium)
 
