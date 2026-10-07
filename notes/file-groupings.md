@@ -9776,6 +9776,31 @@ Members (link order):
 
 ---
 
+## `ovl_15` MemCard save-file SDK cluster — 0x80135C20 … 0x801367F8 (confidence: medium)
+
+A gapless link-order run of eight functions in `configs/splat/ovl_15.yaml`
+(`[0x7E38]`–`[0x8A10]`). Every member references the halfword
+`D_80137598` and calls `MemCardSync`, each with a different PSY-Q card
+operation. Five of the eight (`80135FF0`, `80136288`, `80136558`,
+`80136660`, `801367F8`) also share the filename buffer `D_80140EC0` and call
+`ovl_15_func_80137544`, the filename builder the text-draw pair uses; the
+shared callee alone does not tie the two groups together — the `D_80137598`
+run boundary is what does. The run starts at `80135C20` (its link-order
+predecessor `80135B68` references neither `D_80137598` nor `D_80140EC0`) and
+ends at `801367F8` (its successor `80136990` references neither).
+
+Members (link order):
+- ovl_15_func_80135C20 (s) — `MemCardAccept` + `MemCardSync`; `D_80137598`.
+- ovl_15_func_80135E9C (s) — `MemCardExist` + `MemCardSync`; `D_80137598`.
+- ovl_15_func_80135FF0 (s) — `MemCardGetDirentry` + `MemCardSync`; `D_80140EC0`.
+- ovl_15_func_80136288 (s) — `MemCardReadFile` + `MemCardSync`; `D_80140EC0`.
+- ovl_15_func_80136470 (s) — `MemCardFormat` + `MemCardSync`; `D_80137598`.
+- ovl_15_func_80136558 (m, matched this session, byte-exact) — `MemCardCreateFile(chan, D_80140EC0, 4)` retry loop guarded by `D_80137598 < 7`; returns 0/2/4/0xB; `ovl_15_func_80137544` builds the name.
+- ovl_15_func_80136660 (s) — `MemCardWriteFile` + `MemCardSync`; `D_80140EC0`.
+- ovl_15_func_801367F8 (s) — `MemCardReadFile` + `MemCardSync`; `D_80140EC0`.
+
+---
+
 ## `ovl_11` 0x800F5700 entry-lookup callers — 0x800F5698 / 0x800F5700 / 0x800F45A4 (confidence: medium)
 
 The `Ovl11Func5700Entry` lookup `ovl_11_func_800F5700` (segment `[0x3D8E0]`)
