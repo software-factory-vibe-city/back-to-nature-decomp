@@ -587,6 +587,41 @@ typedef struct {
     /* 0x18 */ UnkStruct80075BC4 **unk18;
 } Ovl11Func801097F4Arg;
 
+/* ovl_11_func_801096FC argument record, passed by value like
+ * Ovl11Func801097F4Arg: the first 16 bytes ride in $a0-$a3 and are homed to
+ * 0x0($sp) on entry; the tail fields sit at 0x10 (s16 selector), 0x14 (s32
+ * half-width), 0x18 (s32 flag out) and 0x1C (record out). Only the fields the
+ * function reads are named. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s16 unk10;
+    /* 0x12 */ char pad_12[2];
+    /* 0x14 */ s32 unk14;
+    /* 0x18 */ s32 *unk18;
+    /* 0x1C */ s32 **unk1C;
+} Ovl11Func801096FCArg;
+
+/* Records of the D_800749F4 table scanned by ovl_11_func_801096FC: twenty
+ * 0xB8-byte entries sharing the Ovl11Func801097F4 record layout with an extra
+ * halfword at 0x26 and a flag word at 0x34. Only the witnessed fields are
+ * named. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ char pad_02[0x24];
+    /* 0x26 */ s16 unk26;
+    /* 0x28 */ char pad_28[8];
+    /* 0x30 */ s16 unk30;
+    /* 0x32 */ char pad_32[2];
+    /* 0x34 */ s32 unk34;
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ char pad_3C[4];
+    /* 0x40 */ s32 unk40;
+    /* 0x44 */ char pad_44[0xB8 - 0x44];
+} Ovl11RecD749F4;
+
 /* ovl_11_func_801098B0 argument record: a D_80075BC4-shaped record with an
  * extra s16 at 0xAC. The u16 tag at 0x00 gates the body, bit 0x8000 of the s32
  * at 0x34 gates the scan, the s16 at 0xAC selects the radius, 0x30 is the
