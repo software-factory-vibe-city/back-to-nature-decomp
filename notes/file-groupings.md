@@ -6235,9 +6235,11 @@ Members:
   8011FE14 over `D_800742EC` records (0xB4 stride), and at 8011FE58 over
   `D_800749F4` records (0xB8 stride). The matched body needs no flag override;
   its user-authorized local bindings are not original-TU evidence.
-- ovl_11_func_8011FDCC (s) — other link-order neighbour; drives FF74 over
-  the two arrays, with counts 5/10 and 10/20 selected by the work-area
-  halfwords +0x44D2 and +0x44D0.
+- ovl_11_func_8011FDCC (m, matched) — loop driver of FF74: walks the
+  `D_800742EC` 0xB4-stride array and the `D_800749F4` 0xB8-stride array,
+  with counts 5/10 and 10/20 selected by the work-area halfwords +0x44D2
+  and +0x44D0 (the same `D_8006C838` view as 800D0BC8). Shares the run's
+  sign-extended s16-copy argument idiom; no flag override.
 
 ---
 

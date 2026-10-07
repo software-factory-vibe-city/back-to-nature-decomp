@@ -766,6 +766,7 @@ void ovl_11_func_8011F52C(void);
 char *ovl_11_func_8011F574(void);
 void ovl_11_func_8011FD2C(s16 arg0);
 void ovl_11_func_8011FD7C(s32 arg0);
+void ovl_11_func_8011FDCC(s16 arg0);
 void ovl_11_func_8011FEA0(s16 arg0, s16 arg1);
 void ovl_11_func_8011FF0C(s16 arg0, s16 arg1);
 void ovl_11_func_8011FF74(void *arg0, s16 arg1);
