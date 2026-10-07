@@ -10378,3 +10378,16 @@ Members (address order):
   `D_80123F48`.
 - ovl_11_func_800E0180 (m) — third twin of the same shape; else steps table
   `D_80123F50`.
+
+Fourth family member, link-order-distant (confidence: medium).
+`ovl_11_func_800E1CA8` (0x800E1CA8, ~0x1C00 bytes later, link-adjacent to the
+`D_800B966C` dispatch handlers 800E1BF0/800E1D48) carries the byte-identical
+state-switch idiom and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape as
+the triple, and its table `D_80124000` is content-identical to 800E00E0's
+`D_80123F48` (`0x00000003, 0x0000FFFF`) and sits in the same
+`69960.data.s` handler-table cluster (0x80123F3C–0x80124000). Same authored
+family, but the basis is the shared idiom and table cluster, not link adjacency.
+- ovl_11_func_800E1CA8 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1; state −1 sets the loop variable 1 and clears
+  flag 0x800 at s32@+0x34; else steps table `D_80124000`.
