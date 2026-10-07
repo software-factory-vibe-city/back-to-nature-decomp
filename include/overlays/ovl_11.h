@@ -732,6 +732,7 @@ s32 ovl_11_func_8010E37C(M2C_6197618ba2fb_Ovl11E37CObj *arg0);
 s32 ovl_11_func_8010E434(M2C_82d125a71e25_Ovl11E434Obj *arg0);
 s32 ovl_11_func_8010E4E4(M2C_04ce15ce428a_Ovl11E4E4Obj *arg0);
 s32 ovl_11_func_8010E594(M2C_d027372267ea_Ovl11E594Obj *arg0);
+s32 ovl_11_func_8010EA6C(M2C_1b1b35dbfa0a_Ovl118010EA6CObj *arg0);
 u16 ovl_11_func_80110118(M2C_45034dae4597_Struct_80110118 *arg0);
 s32 ovl_11_func_80110494(M2C_fcf67812ccd0_Ovl11Func80110494View *arg0, s16 arg1, s16 arg2);
 s32 ovl_11_func_80110520(s32 arg0);

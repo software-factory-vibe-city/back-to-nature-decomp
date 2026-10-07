@@ -990,6 +990,12 @@ extern u8 D_80127B1C;
  * the overlay. */
 extern u8 D_80127D48;
 
+/* D_80127D88 - overlay-local 16-bit state-table base in ovl_11 data at
+ * 0x80127D88 (0x40 bytes after D_80127D48), passed by address to
+ * ovl_11_func_800D04D4 from ovl_11_func_8010EA6C. Absolute-addressed from
+ * the overlay. */
+extern u8 D_80127D88;
+
 /* D_801295B0 - 11 halfword scratch buffer (0x16 bytes, ovl_11) that
  * ovl_11_func_800E8550 fills via func_8001A970 and then scans for the
  * 0xFFD blank marker (lh reads). Absolute-addressed from the overlay

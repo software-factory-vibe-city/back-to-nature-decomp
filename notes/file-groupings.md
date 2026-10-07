@@ -11021,3 +11021,25 @@ table adjacency on either side.
   state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
   loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
   steps table `D_80127D50`.
+
+Forty-first family member, link-order-distant from the documented members
+(confidence: medium). `ovl_11_func_8010EA6C` (0x8010EA6C) carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+function words are byte-identical to the thirtieth member
+`ovl_11_func_8010A19C` (state 0 sets +0x28 = 1 and flag 0x800 at s32@+0x34;
+state −1 sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+s32@+0x34), differing only in the table symbol, and its table `D_80127D88`
+(`0x001E000B, 0x0000FFFF`) sits in the 0x80127Dxx handler-table band of
+`build/ovl_11/asm/data/69960.data.s` (between `D_80127D78` and `D_80127D90`).
+Its gapless link-order successor `ovl_11_func_8010EB24` (0x8010EB24, 0x19C) is
+a larger, different state machine, not a 0xB8 switch sibling, so membership
+rests on the shared idiom and byte-identical words, not link adjacency. The
+`{s16@0x28, s16@0x2A, s16@0x2C, s32@0x34, u16@0x7A}` object view is the
+family's shared state object. `D_80127D88` is declared `extern u8` in
+`include/globals_override.h` alongside the other 0x80127xxx handler-table bases.
+- ovl_11_func_8010EA6C (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127D88`.
