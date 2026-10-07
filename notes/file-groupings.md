@@ -7496,10 +7496,11 @@ Members (link order):
   `ovl_19_func_800BBCCC` (0xF) and `ovl_30_func_8012F3D4`; that twin relation is
   not TU-membership evidence, only the adjacency is.
 
-## `ovl_21` D_800C0448 state-pair writer run — 0x800B9538–0x800B95EC (confidence: medium)
+## `ovl_21` D_800C0448 state-pair writer run — 0x800B9538–0x800B9644 (confidence: medium)
 
 Evidence: gapless link adjacency (0x800B9538 ends at 0x800B9590, which ends
-exactly at 0x800B95EC) plus a shared two-halfword state object `D_800C0448`.
+exactly at 0x800B95EC, which ends exactly at 0x800B9644) plus a shared
+two-halfword state object `D_800C0448`.
 `ovl_21_func_800B9538` and `ovl_21_func_800B9590` both write `D_800C0448[0] = 5`
 behind the same `func_800226A4() == 2 && func_800225B8() == 1` guard, and
 `ovl_21_func_800B95EC` clears `D_800C0448[0]` and increments `D_800C0448[1]`.
@@ -7517,6 +7518,11 @@ Members (link order):
   `ovl_21_func_800BA4C0` and `func_80013394() == 1`, calls
   `func_800132B8(10, 0, 2)`, then clears `D_800C0448[0]` and increments
   `D_800C0448[1]`; the `lhu` increment needs the unsigned declaration.
+- ovl_21_func_800B9644 (m, matched this session, byte-exact) — link
+  successor of 800B95EC; reads `D_800C0448` +0x118/+0x220 into
+  `ovl_21_func_800BAB28` after `ovl_21_func_800BA4C0`, then copies a u16
+  within the `D_8006C838` +0x8000 sub-block and increments its +0x448C word;
+  membership rests on adjacency and the shared `D_800C0448` global.
 - ovl_21_func_800B9798 (m, matched this session, byte-exact) — leaf that
   writes a halfword at record offset 0x18 into three consecutive
   `D_800C0448` records starting at index `arg0*3`; membership rests on the
