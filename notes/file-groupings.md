@@ -1058,6 +1058,15 @@ Members:
   u16@+0xB6 to ovl_11_func_800F3BCC, calls func_8001FABC(0x13) /
   func_8001AF70(7, 1) when the far-state halfword equals s16@+0x30, then clears
   u16@+0xB6 and s32@+0xDC and returns 1; byte-exact clean C, baseline flags
+- ovl_11_func_801103E8 (m, matched this session) — run member immediately
+  before the state-key probe run head: its end 0x801103E8+0xAC = 0x80110494 is
+  the zero-gap start of `ovl_11_func_80110494`; reads the
+  {u16@+0x22, s32@+0x38/0x3C/0x40} record shape (the view the index/5
+  table-copy record trio above records for `ovl_11_func_80110E34`, the band's
+  tail), selecting the `ovl_11_func_800D7EF8` / `ovl_11_func_8011E090` handler
+  by arg1, feeding the record's +0x38/+0x40 components through the
+  `ovl_11_func_800D0408(u16@+0x22, ...)` component writer, then dispatching
+  through the selected handler and `ovl_11_func_800D8320`
 
 ---
 
