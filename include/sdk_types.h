@@ -1022,6 +1022,13 @@ typedef struct {
 } M2C_fe2fb85508b9_UnkStruct80109E64;
 
 typedef struct {
+               char pad_00[0x30];
+               s16 unk30;
+               char pad_32[0x2];
+               s32 unk34;
+} M2C_ff61268fbbc8_Struct_800E15C8;
+
+typedef struct {
                s16 unk0;
                s16 unk2;
                s16 unk4;
