@@ -9689,6 +9689,15 @@ Members (link order):
   calls `D_800B961C[arg1]` unless `s16@+0x26 == arg1 && (s32@+0x34 & 0x800)`
   (then -1); when `D_800B966C[arg1]` is set and the result != -1 records the
   selection and calls `ovl_11_func_800D0408`; stores -1 at `s16@+0xB6`.
+- ovl_11_func_800E1654 (m, matched this session, byte-exact) — `D_800B961C`
+  table handler (id 0x12): the guarded twin of ovl_11_func_800E1714 on this
+  dispatcher — `s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)` gate, then
+  `func_80012A34(0xC8) < s16@+0x16`, the same
+  `D_8006C838`+0x52C8/0x52CC/0x52D0/0x52D4 work-area latch into
+  `s32@+0x58..+0x64` and OR 0x2000 into `s32@+0x34`, then
+  `ovl_11_func_800E0C24(this, 0x12)` (the 0x800DFA7C/800DFB3C relationship
+  replayed on the 800E0C24 run); zero-gap link predecessor of
+  ovl_11_func_800E1714 (0x800E1654 + 0xC0).
 - ovl_11_func_800E1714 (m, matched this session, byte-exact) — `D_800B961C`
   table handler (id 0x12): the structural twin of ovl_11_func_800DFB3C on
   this dispatcher (same `D_8006C838`+0x52C8/0x52CC/0x52D0/0x52D4 work-area
