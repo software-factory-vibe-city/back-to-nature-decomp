@@ -584,6 +584,21 @@ typedef struct {
 } M2C_4efbdcbf20b5_Recon_ovl_11_func_800E48CC_A0View;
 
 typedef struct {
+    char pad_00[0x24];
+               s16 unk24;
+               s16 unk26;
+               s16 unk28;
+               s16 unk2A;
+               s16 unk2C;
+    char pad_2E[0x30 - 0x2E];
+               s16 unk30;
+    char pad_32[0x34 - 0x32];
+               s32 unk34;
+    char pad_38[0x7A - 0x38];
+               u16 unk7A;
+} M2C_52b404e2029f_Ovl11E18C4Obj;
+
+typedef struct {
                u8 pad0[2];
                u16 unk2;
                u16 unk4;
