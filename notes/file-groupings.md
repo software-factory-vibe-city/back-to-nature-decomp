@@ -9716,8 +9716,10 @@ Members (link order):
 - ovl_11_func_800FA3A0 (m, matched this session, byte-exact) — guard on
   `D_8006C838+0x5492 != -1` then `+0x5488 == arg1 && +0x548A == arg2`, then
   `ovl_11_func_800FA5C8(arg0, +0x548C, arg3)`.
-- ovl_11_func_800FA410 (s) — link successor; reads the same `+0x5488`/
-  `+0x548A`/`+0x548C` trio alongside `D_80126F80`/`D_80126F8C`.
+- ovl_11_func_800FA410 (m, matched this session, byte-exact) — link successor;
+  scans the same 18-entry `D_80126F8C` table (`lh` of `s16@+2` on a
+  `unk0`/`unk1` match) beside `D_80126F80`, then tests the same `+0x5488`/
+  `+0x548A`/`+0x548C` trio; called by `ovl_11_func_800F9E4C`.
 
 ## `ovl_11` D_8006C838+0x8000 work-area run — 0x801128B4–0x80112C98 (confidence: medium)
 

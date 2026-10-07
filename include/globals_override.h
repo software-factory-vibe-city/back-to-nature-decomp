@@ -1125,7 +1125,7 @@ typedef struct {
 typedef struct {
     u8 unk0;
     u8 unk1;
-    u8 pad_02[2];
+    s16 unk2;
 } Recon_ovl_11_func_800FA31C_D80126F8CEntry;
 
 extern Recon_ovl_11_func_800FA31C_D80126F8CEntry _D_80126F8C[1] __asm__("D_80126F8C");

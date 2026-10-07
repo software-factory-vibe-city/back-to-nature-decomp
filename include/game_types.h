@@ -670,6 +670,14 @@ typedef struct {
     s16 field_99C8[1];
 } Ovl11Status99C8View;
 
+/* D_8006C838 halfword triple at +0x5488 selected by ovl_11_func_800FA410. */
+typedef struct {
+    char pad_5488[0x5488];
+    s16 field_5488;
+    s16 field_548A;
+    s16 field_548C;
+} Ovl11Status5488View;
+
 /* 0x30-byte table entry scanned by ovl_11_func_800DDC64. */
 typedef struct {
     u8 pad[0x28];
