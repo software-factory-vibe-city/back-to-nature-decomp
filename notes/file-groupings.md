@@ -6939,7 +6939,10 @@ shared with the separate 0x80100EB8 run (different link region).
 
 Members (address order):
 - ovl_11_func_80102844 (m) — D_80071AC0/D_80070D42 stride-6 accessor.
-- ovl_11_func_80102A10 (s) — immediate link predecessor; sole caller of 80102A64.
+- ovl_11_func_80102A10 (m, matched this session, byte-exact) — immediate link
+  predecessor; sole caller of 80102A64: walks the 8-entry `D_8012CF00` u16
+  table and calls 80102A64 on each nonzero entry (the same `D_8012CF00`
+  table read by run-start `ovl_11_func_801027D4`).
 - ovl_11_func_80102A64 (m, matched this session, byte-exact) — counter-decrement
   consumer of the D_80071AC0 and D_8006C838+0x450A 6-byte record tables.
 
