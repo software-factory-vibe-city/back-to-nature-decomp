@@ -9606,6 +9606,26 @@ Members (link order):
   ovl_11_func_800DF6A8's far-state gate and a reader of the same far-state
   halfword accessor family.
 
+## `ovl_11` `D_800B957C`/`D_800B95CC` two-table handler dispatcher — 0x800DF010 (confidence: medium)
+
+Evidence: `ovl_11_func_800DF010` is a zero-gap member of the confirmed
+`ovl_11_func_800DF4F0` predicate-caller span — its predecessor
+`ovl_11_func_800DEF30` (0xE0) ends exactly at 0x800DF010 and the target (0xE8)
+ends exactly at `ovl_11_func_800DF0F8` — and it is that span's dispatcher: the
+first 20-word function-pointer table `D_800B957C` (0x800B957C,
+`1664.rodata.s`) holds span members
+`800DF51C`/`800DF5AC`/`800DF614`/`800DF6A8`/`800DF72C`/`800DF84C`/`800DF9F0`/
+`800DFA7C`/`800DFB3C`/`800DFB98`; the adjacent 20-word table `D_800B95CC`
+(0x800B95CC, same rodata file) holds the 0x800DFC44+ handler run. It shares the
+span's object layout (`s16@+0x26` handler id, `s16@+0x28/+0x2A/+0x2C`,
+`s32@+0x34` flag 0x800) and the `ovl_11_func_800D0408(4, this + 0x48, 0)`
+call idiom.
+- ovl_11_func_800DF010 (m, matched this session, byte-exact) — table-driven
+  dispatcher: when `D_800B957C[arg1]` is set calls it unless
+  `s16@+0x26 == arg1 && (s32@+0x34 & 0x800)` (then -1); when `D_800B95CC[arg1]`
+  is set and the result ≠ -1 records the selection (0x26/0x28/0x2A/0x2C) and
+  calls `ovl_11_func_800D0408`; stores -1 at `s16@+0xB6`.
+
 ## `ovl_11` `ovl_11_func_800E109C` predicate-caller run — 0x800E05A8–0x800E15C8 (confidence: medium)
 
 Evidence: the overlay-local leaf `ovl_11_func_800E109C` (0x800E109C, 44 bytes)
