@@ -122,6 +122,18 @@ test("a back edge makes a natural loop with its latch and its exit", () => {
   assert.equal(loops[0]!.exits.length, 1, "one edge leaves the loop");
 });
 
+test("a single-block self-loop does not absorb its preheader", () => {
+  const ir = lift([
+    ["addiu", "v0", "zero", 0],
+    ["label", "body"], ["addiu", "v0", "v0", 1],
+    ["bne", "v0", "a0", "body"], ["nop"],
+    ["jr", "ra"], ["nop"],
+  ]);
+  const loop = ir.regions.loops[0]!;
+  assert.deepEqual([...loop.body], [loop.header]);
+  assert.equal(loop.body.has(0), false);
+});
+
 test("a cycle with two entries is reported, not approximated as a loop", () => {
   /* Both `a` and `b` are entered from outside the cycle: there is no `while`
    * whose body they are, and inventing one would be wrong in a way no byte

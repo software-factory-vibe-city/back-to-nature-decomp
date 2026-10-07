@@ -111,6 +111,7 @@ import { goalsFor } from "./loop-emission/compare.js";
 import { precedentIndex, precedentsFor } from "./loop-emission/precedents.js";
 import { loadSubsegments } from "../lib/symbolIndex.js";
 import { boundaryPremise, followingTextObject } from "../lib/sdkProvenance.js";
+import { allocationDominant, fingerprintWebPartition, type FingerprintReport } from "../diagnostics/fingerprintWebPartition.js";
 
 /* Both spellings: target assembly uses names, cc1 output uses numbers. */
 const CALL_CLOBBERED = new Set([
@@ -2353,6 +2354,33 @@ export function detectBoundaryPremise(name: string): Finding[] {
   }];
 }
 
+export function webPartitionFindings(report: FingerprintReport): Finding[] {
+  if (!report.diff) return [{ detector: "web-partition", severity: "info", summary: "Web alignment unavailable; no spelling directive.", evidence: report.caveats, see: [] }];
+  const facts = report.diff.facts;
+  const assignments: Finding[] = report.diff.assignments.map(a => ({
+    detector: "web-partition", severity: "info",
+    summary: `Scratch assignment: ${a.description}, target $${a.targetRegister} vs candidate $${a.candidateRegister}; allocator diagnostic, not a spelling directive.`,
+    evidence: [
+      a.unchangedGeometry ? "Observed value, web count, birth/death, reads and estimated weight agree; not fused/split." : "Same proven value; observed lifetime/uses also differ.",
+      a.pseudo ? `lreg pseudo ${a.pseudo.pseudo}: ${a.pseudo.sets ?? "?"} SET(s), ${a.pseudo.weightedReferences ?? "?"} weighted refs, span ${a.pseudo.allocatorLiveLength ?? "?"}; ${a.pseudo.allocationStage ?? "unknown"} -> $${a.pseudo.hardRegister}.` : "No unique dump-pseudo correspondence; allocation cause undetermined.",
+      ...a.overlaps.flatMap(o => [`Reconstructed block ${o.role.block}: pseudo UID ${o.role.birthUid ?? "live-in"}..${o.role.deathUid ?? "live-out"} overlaps explicit $${a.targetRegister} UID ${o.hard.birthUid ?? "live-in"}..${o.hard.deathUid ?? "live-out"}.`, ...(o.requiredRelation ? [`Nonoverlap ordering experiment: UID ${o.requiredRelation.beforeUid} before UID ${o.requiredRelation.afterUid} in pre-allocation RTL; not sufficient for exact allocation.`] : [])]),
+      "No verified clean-C spelling follows from reconstructed intervals. Inspect local allocation, then measure a complete clean candidate.",
+    ], see: ["prompts/reference/allocation.md"],
+  }));
+  if (!facts.length && !assignments.length) return [{ detector: "web-partition", severity: "info", summary: report.diff.exactObservedPartition ? "Observed web partition agrees; this does not establish pre-reload pseudo parity." : "No proven web spelling lever; do not interpret undetermined identities as parity.", evidence: [`${report.diff.undetermined.length} undetermined alignments/identities.`], see: ["prompts/reference/allocation.md"] }];
+  return [...facts.map((f): Finding => ({ detector: "web-partition", severity: f.confidence === "observed" ? "signal" : "info", summary: `${f.class}: ${f.identity} — ${f.directive.text}`, evidence: [...f.evidence, f.directive.mechanismSheet, f.directive.verification], see: f.directive.citations.map(c => c.path) })), ...assignments];
+}
+
+function detectWebPartition(name: string, source: string): Finding[] {
+  try {
+    const residual = reversePipeline({ functionName: name, source, replay: false }).report.objective;
+    if (!allocationDominant(residual)) return [];
+    return webPartitionFindings(fingerprintWebPartition(name, { source }));
+  } catch (error) {
+    return [{ detector: "web-partition", severity: "info", summary: "Web-partition analysis unavailable; no directive was inferred.", evidence: [String(error)], see: [] }];
+  }
+}
+
 export function macroIdentityFindings(report: MacroFunctionReport): Finding[] {
   if (!report.cop2.count) return [];
   return [{ detector: "macro-identity", severity: "signal", summary: `${report.verdict}: ${report.coverage.explained}/${report.coverage.total} COP2 instructions explained (fraction=${report.coverage.fraction.toFixed(4)}). Test the header-macro representation before source authoring; candidate C is oracle-unverified.`, evidence: [
@@ -2425,6 +2453,7 @@ function main(): void {
       findings.push(...arity);
       findings.push(...detectInventory(target, compiled));
       findings.push(...detectDeadAsm(compiled, srcText));
+      findings.push(...detectWebPartition(name, resolveSource(name, srcOverride)));
       findings.push(...detectSelfSimilarity(name, resolveSource(name, srcOverride)));
       /* Before the preheader-order reading, because a phony loop invalidates
        * that reading's whole subject: the emission classes it reasons about

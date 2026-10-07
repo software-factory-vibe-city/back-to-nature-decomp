@@ -28,7 +28,7 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { children, parseC, type Node } from "./residual-source-search/tree-sitter-c.ts";
+import { children, declaratorName, field, namedChildren, parseC, walk, type Node } from "./residual-source-search/tree-sitter-c.ts";
 
 export interface IncludeAsmSite {
   /** First macro argument: the directory holding the extracted assembly. */
@@ -132,6 +132,67 @@ export function analyzeCSource(source: string): CSourceReport {
     reasons,
     includeAsm,
   };
+}
+
+export interface RegisterBindingSite {
+  name: string;
+  start: number;
+  end: number;
+  line: number;
+  binding: string;
+}
+
+export interface MatchingConstructs {
+  localRegisterBindings: RegisterBindingSite[];
+  fileRegisterBindings: RegisterBindingSite[];
+  otherAsm: Array<{ line: number; scope: "file" | "function"; text: string }>;
+}
+
+/** Local hard-register bindings, NOT assembler symbol labels. A declaration
+ * such as `extern int data asm("alias")` must never be mistaken for a pin.
+ * Guard all tokens first, then use storage/declarator/scope nodes from the
+ * pinned C AST. File-scope register context is deliberately not rewritten. */
+export function matchingConstructs(source: string): MatchingConstructs {
+  const guard = analyzeCSource(source);
+  if (!guard.parses) throw new Error(`Cannot inspect register bindings: ${guard.reasons.join("; ")}`);
+  const tree = parseC(source);
+  const result: MatchingConstructs = { localRegisterBindings: [], fileRegisterBindings: [], otherAsm: [] };
+  const disabled: Array<{ start: number; end: number }> = [];
+  try {
+    walk(tree.rootNode, node => {
+      if (disabled.some(r => r.start <= node.startIndex && node.endIndex <= r.end)) return false;
+      if (node.type === "preproc_if" || node.type === "preproc_elif") {
+        const condition = field(node, "condition"), alternative = field(node, "alternative");
+        // Prune the inactive ARM, not the entire conditional: #if 0 can
+        // carry an active #else (or #elif). Unknown conditions stay visible.
+        if (condition?.type === "number_literal" && condition.text === "0") disabled.push({ start: condition.endIndex, end: alternative?.startIndex ?? node.endIndex });
+        else if (condition?.type === "number_literal" && condition.text === "1" && alternative) disabled.push({ start: alternative.startIndex, end: alternative.endIndex });
+      }
+      if (node.type !== "gnu_asm_expression") return true;
+      let scope: Node | null = node.parent;
+      while (scope && scope.type !== "function_definition" && scope.type !== "translation_unit") scope = scope.parent;
+      const declaration = node.parent;
+      const operands = namedChildren(node);
+      if (declaration?.type === "declaration" && operands.length === 1 && operands[0]?.type === "string_literal") {
+        /* A non-register declarator asm is a symbol alias, not instructions
+         * and not a pin. Never erase or diagnose it as either. */
+        if (!namedChildren(declaration).some(c => c.type === "storage_class_specifier" && c.text === "register")) return true;
+        const preceding = namedChildren(declaration).filter(c => c.endIndex <= node.startIndex).at(-1);
+        const name = declaratorName(preceding);
+        if (!name) return true;
+        const site = { name: name.text, start: node.startIndex, end: node.endIndex, line: node.startPosition.row + 1, binding: node.text };
+        if (scope?.type === "function_definition") result.localRegisterBindings.push(site);
+        else result.fileRegisterBindings.push(site);
+      } else result.otherAsm.push({ line: node.startPosition.row + 1, scope: scope?.type === "function_definition" ? "function" : "file", text: node.text });
+      return true;
+    });
+  } finally { tree.delete(); }
+  return result;
+}
+
+/** Only function-local bindings are eligible for a pin-erasure probe. */
+export function localRegisterBindings(source: string): RegisterBindingSite[] {
+  return matchingConstructs(source).localRegisterBindings;
 }
 
 export function analyzeCFile(path: string): CSourceReport {

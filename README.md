@@ -1041,6 +1041,67 @@ when they expand to assembly—not to copy their bodies or write arbitrary asm.
 No template match means no grant; calls still require full byte verification.
 Independent handwritten classification still requires independent evidence.
 
+### Same-value web-partition diagnostic
+
+```sh
+npm run web-partition -- func_80017F30 --target-only
+npm run web-partition -- func_80017F30 --src build/attempt.c --json
+npm run web-partition -- ovl_11_func_800BF450  # matched pins get an AST erasure probe
+npm run web-partition -- ovl_11_func_8010BC54 # register-only near miss explained inline
+npm run web-partition -- func_80017F30 --src build/attempt.c --probe-pins
+npm run web-partition -- --audit
+npm run web-partition-replay
+```
+
+The pure extractor in `tools/diagnostics/webPartition.ts` reads original words,
+solves CFG reaching definitions and keeps copies as separate register webs.
+Constants, high halves, addresses, loads with memory versions and call results
+carry proven identities where available; joins, cycles, opaque words and load-delay
+hazards remain undetermined. Candidate `.rtl`/`.lreg`/`.greg` data adds pseudo
+sets, weighted references, lifetimes, assignments and UID births. Pre-reload
+pseudos and final machine residences are deliberately separate layers.
+
+Triage pushes named facts for semantically aligned allocation-majority residuals;
+residual reporting shows named-fact progress after the staged key. Directives cite
+mechanism sheets and distinguish clean closures from measured exception precedents.
+They are hypotheses, not recovered C or automatic edits. The single-function CLI
+reports the actual source's register/asm constructs and oracle verdict. A matched
+pinned live source gets a separate local pin-erasure probe by default: an empty
+diff of the original pinned source does not establish that the pins are needed.
+`--probe-pins` explicitly requests the same probe for a `--src` candidate.
+A byte-exact pin-erased candidate may still contain direct instruction asm or
+file-scope bindings; the report names that debt instead of declaring clean C.
+Only `build/` candidates are staged; live source and policy remain unchanged.
+Probe output includes the actual differing instructions and word counts, not just
+an artifact path. Correct-web/different-scratch assignments are a separate
+allocator diagnostic, **not** spelling facts or progress. A unique typed memory
+access can attach the candidate pseudo; reconstructed `.lreg` hard-register
+intervals then expose overlaps hidden by final scheduling. For BC54, the probe
+matches 35/37 words: `lhu`/`sh` use `v1` instead of `v0`; pseudo 96 overlaps the
+return-zero SET at UID 75 before its store/death at UID 72. The report names this
+ordering requirement and a focused local-allocation command, but does not claim
+a verified clean-C spelling or a pin retirement. `REG_UNUSED` births and scratch
+intervals crossing a subsequent call are excluded as unreliable evidence.
+Unknown symbols receive nearby configured-name suggestions, never silent repair.
+Machine weighted counts
+are estimates, never `REG_N_REFS` thresholds; original reload costs cannot be
+certified from bytes. The audit stages AST pin-erased candidates under
+`build/webPartition/`, without integrating them or altering policy. An empty
+observed diff is not a byte-match verdict or proof of pre-reload pseudo parity.
+
+The historical replay passes the **4/5 named-first gate**, with zero unsupported
+confident facts and passing negative controls. Bounded copy-contraction and
+multi-SET expression-role certificates live in
+`tools/diagnostics/webPartitionProof.ts`; unproved relations remain undetermined.
+The original F3EF0 attempt is retained as a no-birth negative control; a separately
+preserved, hash-checked cursor attempt supplies the positive birth case.
+`func_8001E340` remains unaccepted without a private-weight witness. The replay
+exits 2 if the count, evidence checks or controls fail.
+See `plans/static-domain-detection/web-partition-fingerprinting.md` for measured
+coverage and remaining limits; this is not a claim that the survey's residuals
+are all diagnosed. The grandfathered `func_80020E38` bindings were independently
+retired with byte-identity verification.
+
 ### Git submodules
 
 | Path | Repository | Purpose |

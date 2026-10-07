@@ -224,7 +224,9 @@ export function findNaturalLoops(cfg: Cfg, dominance: Dominance): NaturalLoop[] 
   const loops: NaturalLoop[] = [];
   for (const [header, latches] of byHeader) {
     const body = new Set<number>([header]);
-    const stack = [...latches];
+    /* The header is already in the body: walking its predecessors would
+     * absorb the preheader of a one-block self-loop into the loop. */
+    const stack = latches.filter(latch => latch !== header);
     for (const latch of latches) body.add(latch);
     while (stack.length > 0) {
       const block = stack.pop()!;

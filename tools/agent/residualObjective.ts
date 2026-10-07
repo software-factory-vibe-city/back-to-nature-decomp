@@ -33,9 +33,13 @@ import {
 import { reversePipeline } from "./pipeline-reversal/reverse.js";
 import { StubSourceError, compareFunction } from "../lib/functionOracle.js";
 import { requireFunctionLocation } from "../lib/symbolIndex.js";
+import { allocationDominant, fingerprintWebPartition } from "../diagnostics/fingerprintWebPartition.js";
+import { addressedWebFacts, renderWebDiff, type PartitionDiff } from "../diagnostics/webPartitionDiff.js";
 
 interface Entry {
   label: string;
+  webDiff?: PartitionDiff;
+  webUnavailable?: string;
   source?: string;
   /** Set when this row is an INCLUDE_ASM stub: there is nothing to score. */
   stub?: boolean;
@@ -154,6 +158,17 @@ function score(functionName: string, label: string, source?: string): Entry {
     provenance: artifacts.candidateProvenance,
   };
   if (source) entry.source = source;
+  if (entry.objective.exact) entry.webDiff = { schemaVersion: 1, facts: [], assignments: [], undetermined: [], exactObservedPartition: true };
+  /* Only allocation-dominant, semantically aligned residuals activate this
+   * diagnostic. It cannot change the staged key or make unknown identity a
+   * web improvement. Fresh dumps are retained with the measured source. */
+  if (allocationDominant(entry.objective)) {
+    try {
+      const fingerprint = fingerprintWebPartition(functionName, source ? { source } : {});
+      if (fingerprint.diff) entry.webDiff = fingerprint.diff;
+      else entry.webUnavailable = fingerprint.status;
+    } catch (error) { entry.webUnavailable = String(error); }
+  }
   return entry;
 }
 
@@ -264,6 +279,13 @@ function render(functionName: string, entries: Entry[], block: number | undefine
   for (const row of rows) lines.push(line(row));
   lines.push("");
   lines.push("  per-block cells are population/schedule/allocation; · means clear");
+  if (baseline.webDiff) {
+    lines.push("", ...renderWebDiff(baseline.webDiff));
+    const progress = entries.slice(1).filter(e => e.webDiff).map(e => ({ entry: e, addressed: addressedWebFacts(baseline.webDiff!, e.webDiff!) }));
+    progress.sort((a,b) => compareObjectives(a.entry.objective, b.entry.objective, block === undefined ? {} : { block }) || b.addressed.length - a.addressed.length);
+    if (progress.length) lines.push("", "WEB FACT PROGRESS (staged residual first; named facts break ties only)", ...progress.map(p => `  ${p.entry.label}: ${p.addressed.length ? p.addressed.join(", ") : "no proven fact addressed"}`));
+  }
+  for (const e of entries) if (e.webUnavailable) lines.push(`  ${e.label}: web analysis unavailable — ${e.webUnavailable}`);
   if (anyUndetermined) {
     lines.push("  undet: words whose relocation could not be resolved — neither match nor difference.");
   }
@@ -406,6 +428,9 @@ if (isCLI) {
           matchedWords: entry.matchedWords,
           totalWords: entry.totalWords,
           objective: entry.objective,
+          webDiff: entry.webDiff,
+          webUnavailable: entry.webUnavailable,
+          addressedWebFacts: entries[0]?.webDiff && entry.webDiff ? addressedWebFacts(entries[0].webDiff, entry.webDiff) : [],
           provenance: {
             derivedFrom: entry.provenance.value.source,
             regenerated: entry.provenance.regenerated,
