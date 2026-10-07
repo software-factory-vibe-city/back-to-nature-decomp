@@ -10898,3 +10898,21 @@ adjacency to a documented member.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80127AFC`.
+
+Thirty-fifth family member, link-order-adjacent to the thirty-fourth
+(confidence: high). `ovl_11_func_8010AC64` (0x8010AC64) is the immediate gapless
+successor of `ovl_11_func_8010ABAC` (splat `configs/splat/ovl_11.yaml`:
+0x52D8C + 0xB8 = 0x52E44 = 0x8010AC64) and carries the byte-identical
+state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and `case 1: default:`) and
+the same `ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call
+shape; its table `D_80127B0C` (`0x001E0000, 0x005A000C, 0x001E0000, 0x0000FFFF`)
+immediately follows 8010ABAC's `D_80127AFC` (ends at 0x80127B0C) in
+`build/ovl_11/asm/data/69960.data.s`, so membership rests on both code and table
+adjacency. Its function words differ from the twenty-ninth member
+`ovl_11_func_8010A0E4` only in the table symbol; `D_80127B0C` is declared
+`extern u8` in `include/globals_override.h` alongside the other 0x80127Axx/
+0x80127Bxx handler-table bases.
+- ovl_11_func_8010AC64 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else steps table `D_80127B0C`.
