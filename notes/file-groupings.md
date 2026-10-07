@@ -10797,3 +10797,19 @@ and table adjacency. Its words differ from the twenty-seventh member
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80127A90`.
+
+Twenty-ninth family member, link-order-adjacent to the twenty-eighth
+(confidence: high). `ovl_11_func_8010A0E4` (0x8010A0E4) is the immediate gapless
+successor of `ovl_11_func_8010A02C` (splat `configs/splat/ovl_11.yaml`: 0x5220C +
+0xB8 = 0x522C4 = 0x8010A0E4) and carries the byte-identical state-switch idiom
+(`beqz`(0) / `bgtz` / `beq`(−1) and `case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80127A9C` (`0x005A0005, 0x0000FFFF`) immediately follows 8010A02C's
+`D_80127A90` in `build/ovl_11/asm/data/69960.data.s`, so membership rests on both
+code and table adjacency. Its `case 1: default:` shape is byte-identical to the
+twelfth member `ovl_11_func_800D41A4` (state 0 also sets flag 0x800; state −1
+also sets +0x2C = 0x12C), from which only the table symbol differs.
+- ovl_11_func_8010A0E4 (m, byte-exact this session) — family state handler:
+  state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1 sets the
+  loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at s32@+0x34; else
+  steps table `D_80127A9C`.
