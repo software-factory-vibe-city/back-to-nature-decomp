@@ -328,6 +328,7 @@ s32 ovl_11_func_800E1770(Ovl11SetFieldsView *arg0);
 s32 ovl_11_func_800E1804(void);
 s32 ovl_11_func_800E180C(M2C_15fe93b20d39_Ovl11E180CObj *arg0);
 s32 ovl_11_func_800E18C4(M2C_52b404e2029f_Ovl11E18C4Obj *arg0);
+s32 ovl_11_func_800E1B38(M2C_3b71e692a4d6_Ovl11D04D4Obj *arg0);
 s32 ovl_11_func_800E1CA8(M2C_b3ce6a63fca8_Ovl11E1CA8Obj *arg0);
 s32 ovl_11_func_800E1D48(Recon_ovl_11_func_800E1D48_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
 void ovl_11_func_800E1F70(s32 arg0);
