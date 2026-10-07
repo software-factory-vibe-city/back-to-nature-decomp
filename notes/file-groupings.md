@@ -7948,6 +7948,14 @@ Members (link order):
   -0x1F4) to `ovl_21_func_800BAFFC(obj + 0x684, vec, &D_800BCC48[arg0])`.
   Membership rests on that callee pair, the shared `D_800C0448` cluster and
   the gapless adjacency to `ovl_21_func_800BAEA0`.
+- ovl_21_func_800BA5D0 (m, matched this session, byte-exact) — walks the
+  `D_800C0448` record table over the six-record outer loop (0x108 stride),
+  stepping three +0x34 sub-records (0x4C stride) per record and calling
+  `ovl_21_func_800BAEA0` for each non-zero entry. Membership rests on the
+  shared global plus a dispatch/adjacency tie: `ovl_21_func_800BA4C0` calls
+  `ovl_21_func_800BA510`, `ovl_21_func_800BA5D0`, `ovl_21_func_800BA670` in
+  order, and those three are gapless link neighbours (0x800BA510 + 0xC0 =
+  0x800BA5D0, + 0xA0 = 0x800BA670).
 
 Fingerprints:
 - `D_800C0AFC` is a further ovl_21 data base at `D_800C0448 + 0x6B4`; the
@@ -7961,7 +7969,8 @@ Fingerprints:
   `ovl_21_func_800B8A80`), a 32-bit pointer at 0x30 (compared against its
   argument by `ovl_21_func_800BAFFC`, which `ovl_21_func_800BAEA0` feeds
   `record + 0x1C`) and a 32-bit word at
-  0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844`),
+  0x34 stepped by 0x4C within a record (read by `ovl_21_func_800B9844` and
+  walked by `ovl_21_func_800BA5D0`),
   three records per 0x318-byte group (`func_800B9A20` walks the table at a
   0x318 stride). Beyond the record table, `D_800C0448 + 0x986` (s16 index)
   and `+ 0x988` (s16/u16 counter) form a state pair used by
