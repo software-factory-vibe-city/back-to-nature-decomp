@@ -11412,6 +11412,30 @@ state −1 arm (like the fifth, forty-fourth and forty-fifth members).
   on a zero return, calls `ovl_11_func_800D0408(obj->unk22, &obj->unk48, 0x3C)`
   for +0x28 == 2 or 3, decrementing the view's unk4 by 0x10 in the 2 case.
 
+Forty-ninth family member, link-order-adjacent to the twenty-sixth through one
+non-member (confidence: high). `ovl_11_func_800E32E4` (0x800E32E4) carries the
+byte-identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_801240C8` (`0x00000003, 0x0000FFFF`; content-identical to the fourth
+member's `D_80124000` and 800E00E0's `D_80123F48`) sits in the 69960.data.s
+handler-table band immediately after `D_801240BC` and immediately before the
+twenty-sixth member `ovl_11_func_800E3464`'s `D_801240D0`, so membership rests on
+the shared idiom and table cluster plus link adjacency. Splat
+`configs/splat/ovl_11.yaml` shows it gapless between the non-member
+`ovl_11_func_800E3200` (predecessor, 0x2B3E0 + 0xE4 = 0x2B4C4) and the
+non-member `ovl_11_func_800E33E8` (successor, 0x2B4C4 + 0x104 = 0x2B5C8, which
+in turn gaplessly precedes `ovl_11_func_800E3464`). Its state 0 is a family
+variant: it first compares `*(s16 *)((char *)&D_8007AFF0 + 0x25476)` with
+obj->unk30 and, when equal, dispatches on u16@0 == 0x109/0x10A to
+`func_8001FABC(0x17)` / `func_8001FABC(0x1B)`, then sets +0x28 = 1 and flag
+0x800 (no +0x2C store); state −1 sets the loop variable 1 and clears flag 0x800.
+- ovl_11_func_800E32E4 (m, matched this session, byte-exact) — family state
+  handler: state 0 clears through the `D_8007AFF0`+0x25476 / unk30 gate, calls
+  `func_8001FABC` for u16@0 == 0x109/0x10A, then sets +0x28 = 1 *and* flag 0x800
+  at s32@+0x34; state −1 sets the loop variable 1 and clears flag 0x800; else
+  steps table `D_801240C8`.
+
 ---
 
 ## `ovl_11` spawn/flag-object run — 0x800C009C–0x800C056C (confidence: medium)
