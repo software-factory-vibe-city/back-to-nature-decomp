@@ -667,20 +667,26 @@ Members (address order):
 
 ---
 
-## `ovl_11` timer-gated D_8006C838 count-dispatch run — 0x800FEA00 / 0x800FEB14 / 0x800FEB68 / 0x800FEBB0 (confidence: medium)
+## `ovl_11` timer-gated D_8006C838 count-dispatch run — 0x800FE928 / 0x800FEA00 / 0x800FEB14 / 0x800FEB68 / 0x800FEBB0 (confidence: medium)
 
 Evidence: a direct caller/callee run inside a 0x1B0-byte link-order window
-(splat offsets 0x46BE0 `ovl_11_func_800FEA00` len 0xD4, 0x46CB4
-`ovl_11_func_800FEAD4` len 0x40, 0x46CF4 `ovl_11_func_800FEB14` len 0x54,
-0x46D48 `ovl_11_func_800FEB68` len 0x48, 0x46D90 `ovl_11_func_800FEBB0`).
-`ovl_11_func_800FEA00` calls all three followers directly, one per countdown
-stage of the u16 `D_8012720E`; the three callees are one family of
-count-over-array loops reaching main RAM through the two-stage `D_8006C838`
-base (`+0x7AE8`/stride 0xB4 in FEB14; `+0x81BC`/stride 0xB8 in FEB68/FEBB0,
-differing only in the subtraction threshold). `800FEAD4`, between them, is a
-different family (D_80075854 scan) and is not a member.
+(splat offsets 0x46B08 `ovl_11_func_800FE928` len 0xD8, 0x46BE0
+`ovl_11_func_800FEA00` len 0xD4, 0x46CB4 `ovl_11_func_800FEAD4` len 0x40,
+0x46CF4 `ovl_11_func_800FEB14` len 0x54, 0x46D48 `ovl_11_func_800FEB68`
+len 0x48, 0x46D90 `ovl_11_func_800FEBB0`). `ovl_11_func_800FEA00` calls all
+three followers directly, one per countdown stage of the u16 `D_8012720E`, and
+`ovl_11_func_800FE928` is its increment-direction twin immediately preceding
+it: same `D_8012720E` stage machine over 2/3/4 in the mirrored order, same
+three stage helpers, same `(s16)`-cast access form. The three callees are one
+family of count-over-array loops reaching main RAM through the two-stage
+`D_8006C838` base (`+0x7AE8`/stride 0xB4 in FEB14; `+0x81BC`/stride 0xB8 in
+FEB68/FEBB0, differing only in the subtraction threshold). `800FEAD4`,
+between them, is a different family (D_80075854 scan) and is not a member.
 
 Members:
+- ovl_11_func_800FE928 (m) — increments `D_8012720E` through stages 2/3/4,
+  calling that stage's count helper; wraps to 0 at 8. Increment twin of
+  800FEA00.
 - ovl_11_func_800FEA00 (m, matched this session) — decrements `D_8012720E`
   through stages 4/3/2, calling that stage's count helper; wraps to 7 below 0.
 - ovl_11_func_800FEB14 (m) — `D_8006C838+0x7AE8` count, 10 cells, stride 0xB4.
