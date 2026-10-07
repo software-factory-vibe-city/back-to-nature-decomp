@@ -1,5 +1,6 @@
 import type { CommandRecord } from "../../lib/recordedCommand.js";
 import type { DeclarationIndex, Declaration } from "../declarationContext.js";
+import type { detectFunctionMacroIdentity } from "../../diagnostics/macroIdentity.js";
 
 /** Common handoff core. A draft's existence is independent of its compilability. */
 export interface PacketSource {
@@ -39,8 +40,19 @@ export interface PreparationPacket {
   comparison: { status: "not-available" | "mismatching" | "exact" | "undetermined"; report?: string; residual?: unknown; reason?: string };
   integration: { state: "staged" | "live"; changes: string[]; blockers: string[]; destinationHash: string; stagedHash?: string };
   discovery: { unknowns: UnknownFact[]; report: unknown; priorExperiments: string[]; preflight: CommandRecord[];
+    macroIdentity?: ReturnType<typeof detectFunctionMacroIdentity>;
     propagation?: { graph: string; report: string; input: string; graphComplete: boolean; convergence: string; visited: number; facts: number; steps: number } };
   finalization: { status: "not-attempted" | "failed" | "passed"; gate?: string; verifiedIdentity?: string; changedFiles?: string[] };
+}
+
+const MACRO_CALL_POLICY = "Policy exception for this function: you may call the detected header macros (including reported compatible alternatives), even when they expand to assembly. This permits macro calls only, not handwritten assembly, register pinning, new stubs or allowlist changes. Candidate calls remain oracle-unverified; resolve operands and header vintage, then verify the complete function.";
+
+function macroOpening(packet: PreparationPacket): string {
+  const report = packet.discovery.macroIdentity?.function;
+  if (!report) return "Header asm-macro detection unavailable; no macro policy exception.";
+  if (!report.tiling.length) return `Header asm-macro detection: no template matches (${report.cop2.count} COP2 instructions); no macro policy exception.`;
+  const names = [...new Set(report.tiling.flatMap(t => [t.macro, ...t.alternatives.map(a => a.macro)]))];
+  return `Detected header asm macros: ${names.slice(0, 8).join(", ")}${names.length > 8 ? `; ${names.length - 8} more in evidence.md` : ""}.\n${MACRO_CALL_POLICY}\nSee evidence.md for matched sites, headers, operands, alternatives and production encodings; unmatched regions are not exempt.`;
 }
 
 export function packetOpening(packet: PreparationPacket, packetPath: string): string {
@@ -54,6 +66,7 @@ export function packetOpening(packet: PreparationPacket, packetPath: string): st
     `Measured source: ${source?.path ?? "none — generation failed"}. Live destination: ${packet.identity.destination} (${packet.integration.state}).`,
     `Generation: ${packet.generation.status}; compilation: ${packet.compilation.status}; comparison: ${packet.comparison.status}; finalization: ${packet.finalization.status}.`,
     links,
+    macroOpening(packet),
     ...(packet.discovery.propagation ? [`Type propagation: ${packet.discovery.propagation.convergence}, ${packet.discovery.propagation.visited} original functions; graph ${packet.discovery.propagation.graphComplete ? "closed" : "coverage incomplete"}. Constraints/provenance: ${packet.discovery.propagation.report}; actual m2c input: ${packet.discovery.propagation.input}.`] : []),
     ...(packet.comparison.report ? [`Relocated-byte report: ${packet.comparison.report}. Compilation, exactness and finalization are separate claims.`] : []),
     `Blockers: ${packet.integration.blockers.length}; unresolved facts: ${packet.discovery.unknowns.filter((u) => u.strength !== "witnessed").length}. See evidence.md for constraints, examined inputs and next evidence paths.`,
@@ -76,6 +89,14 @@ export function packetEvidence(packet: PreparationPacket): string {
     `# Evidence for ${packet.identity.functionName}`,
     `Selected context: ${packet.context.projection}\nOriginal assembly: ${packet.identity.assembly}\nOriginal data: ${packet.identity.data.join(", ") || "none"}`,
     ...(packet.discovery.propagation ? [`Graph: ${packet.discovery.propagation.graph}\nPropagation: ${packet.discovery.propagation.report}\nPartial m2c inputs: ${packet.discovery.propagation.input}\nConvergence and graph completeness are separate: ${packet.discovery.propagation.convergence}, complete=${packet.discovery.propagation.graphComplete}.`] : []),
+    `## Detected header macros\n${macroOpening(packet)}`,
+    ...(packet.discovery.macroIdentity?.function.tiling.flatMap(t => [
+      `### 0x${t.start.toString(16)}–0x${t.end.toString(16)}: ${t.macro}\nHeader: ${t.header}:${t.line} (${t.vintage}; sha256 ${t.headerSha256})\nOracle-unverified call: \`${t.candidateC}\``,
+      ...t.operands.map(o => `- Operand ${o.parameter}: ${o.machine} → ${o.expression ?? "unresolved"} (${o.resolution})`),
+      ...t.alternatives.map(a => `- Also compatible: \`${a.candidateC}\` from ${a.header}:${a.line} (${a.vintage}; sha256 ${a.headerSha256})`),
+      ...t.encodingEvidence.map(e => `- Required production encoding: ${e.assemblerStatement} from ${e.header}:${e.line}; probe ${e.probeObject}. Do not use the raw SDK .word placeholder.`),
+    ]) ?? []),
+    ...(packet.discovery.macroIdentity?.encodingToolchains.map(e => `Production encoding probe (${e.containerKind}): ${e.probeObject}\nVintage substitution headers: ${e.reconstructionHeaders.map(h => `${h.vintage}: ${h.path}`).join("; ") || "none"}`) ?? []),
     ...packet.integration.blockers.map((b) => `- Blocker: ${b}`),
     ...packet.discovery.unknowns.map((u) => [
       `## ${u.subject} (${u.strength})`, u.missing,

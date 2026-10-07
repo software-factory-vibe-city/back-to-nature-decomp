@@ -12,7 +12,7 @@ import {
   resolveTypes,
   typeNamesIn,
 } from "./sdkTypes.js";
-import { parseContextExportArgs, verifyContextParses, writeContext } from "./contextExport.js";
+import { parseContextExportArgs, resolveContextTypes, verifyContextParses, writeContext } from "./contextExport.js";
 
 const REPO = new URL("../..", import.meta.url).pathname;
 
@@ -244,19 +244,17 @@ test("SDK types resolve to their real layouts, not opaque stubs", () => {
 });
 
 test("every type the published signatures name is resolvable", () => {
-  /* This is the invariant whose violation broke m2c project-wide, twice. */
-  const defs = harvestTypedefs(REPO);
+  /* Use the exporter's source-backed, scope-aware resolver: the legacy
+   * harvester knows original names, not the M2C_<scope> names we publish.
+   * Do not resolve against generated sdk_types.h and ingest our own output. */
   const header = readFileSync(join(REPO, "include/functions.h"), "utf-8");
+  const signatures = new Map(extractPrototypesFromSource(header).map((s) => [s.name, s.signature]));
+  assert.ok(signatures.size > 0, "the fixture must actually contain signatures");
 
-  const referenced = new Set<string>();
-  for (const line of header.split("\n")) {
-    if (!/\bfunc_[0-9A-Fa-f]+\s*\(/.test(line)) continue;
-    for (const name of typeNamesIn(line)) referenced.add(name);
-  }
-  assert.ok(referenced.size > 0, "the fixture must actually reference types");
-
-  const { unresolved } = resolveTypes(referenced, defs);
-  assert.deepEqual(unresolved, [], "an unresolved type here means a placeholder shipped");
+  const { resolution, referencedBy } = resolveContextTypes(REPO, signatures);
+  assert.ok(referencedBy.size > 0, "the fixture must actually reference types");
+  assert.ok([...referencedBy.keys()].some((name) => name.startsWith("M2C_")), "the fixture must exercise scoped types");
+  assert.deepEqual(resolution.unresolved, [], "an unresolved type here means a placeholder shipped");
 });
 
 /* ------------------------------------------------------------------ */

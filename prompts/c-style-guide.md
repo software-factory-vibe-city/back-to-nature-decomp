@@ -23,8 +23,15 @@ shape is not permission to bypass the clean-source gate. Stop with a measured
 residual rather than reaching for inline assembly, hard-register pinning, a new
 assembly stub, or an unevidenced flag override.
 
-Where a target genuinely requires one of those, it needs an allowlist entry,
-and that is a human decision. File it; do not grant it.
+A fresh preparation handoff's detected-header-macro finding is a narrow policy
+exception: agents may call those header macros (including reported compatible
+alternatives) in that function, even when they expand to assembly. It does not
+permit copied macro bodies, handwritten assembly, register pinning, new stubs
+or allowlist changes. COP2 presence alone grants nothing; the complete function
+still needs byte verification.
+
+Where a target genuinely requires any other forbidden construct, it needs an
+allowlist entry, and that is a human decision. File it; do not grant it.
 
 An allowlist entry names one function, and the name is the key. Where an entry
 is keyed by address instead, it must carry the container — `<container>:<address>`

@@ -7,8 +7,12 @@ import { tmpdir } from "node:os";
 import { emptyDeclarationIndex } from "../../../../tools/agent/declarationContext.ts";
 import { configuredToolchainIdentity } from "../../../../tools/agent/decompToolchain.ts";
 import { hashText, packetIsFresh, stagePrepared } from "../../../../tools/agent/prepareFunction.ts";
-import { packetOpening, type PreparationPacket } from "../../../../tools/agent/campaign/packet.ts";
+import { packetOpening, packetEvidence, type PreparationPacket } from "../../../../tools/agent/campaign/packet.ts";
+import { extractMacroTemplates } from "../../../../tools/diagnostics/macroTemplates.ts";
+import { tileMacroFunction } from "../../../../tools/diagnostics/macroTiler.ts";
 import { attemptStaticFinalization, buildInputs, documentCompletion, inputIdentity, sameInputs, type Completion } from "./prepared-attempt.ts";
+import { DEFAULT_CONFIG } from "../../shared/config.ts";
+import { checkSourcePolicy } from "../../shared/source-policy.ts";
 
 function fixture(t: { after: (f: () => void) => void }) {
   const root = mkdtempSync(join(tmpdir(), "prepared-lifecycle-")); t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -63,6 +67,63 @@ test("startup links selected context and evidence, never the internal provenance
   packet.primary!.text = "/* large draft marker */" + "x".repeat(12000);
   const large = packetOpening(packet, attempt.path);
   assert.match(large, /Measured source: build\/draft\/f.c/); assert.doesNotMatch(large, /large draft marker/);
+});
+test("detected macro islands and alternatives grant calls only and survive bounded handoffs", (t) => {
+  const { packet, attempt } = fixture(t);
+  const library = extractMacroTemplates([{ path: "fixture.h", source:
+    '#define READ(p) __asm__ volatile("cfc2 $12,$0;sw $12,0(%0)"::"r"(p):"$12")\n' +
+    '#define READ_ALT(p) __asm__ volatile("cfc2 $12,$0;sw $12,0(%0)"::"r"(p):"$12")\n' }]);
+  const bytes = Buffer.alloc(12);
+  [0x484c0000, 0xac8c0000, 0x4affffff].forEach((w, i) => bytes.writeUInt32LE(w, i * 4));
+  const report = tileMacroFunction({ name: "f", container: "ovl_1", vram: 0x80010000, bytes }, library);
+  assert.equal(report.verdict, "partially-tiled");
+  packet.discovery.macroIdentity = { function: report, encodingToolchains: [] };
+  const handoff = packetOpening(packet, attempt.path), evidence = packetEvidence(packet);
+  assert.match(handoff, /Detected header asm macros: .*READ/);
+  assert.match(handoff, /READ_ALT/);
+  assert.match(handoff, /Policy exception for this function: you may call/);
+  assert.match(handoff, /macro calls only, not handwritten assembly/);
+  assert.match(handoff, /oracle-unverified/);
+  assert.match(handoff, /unmatched regions are not exempt/);
+  assert.match(evidence, /fixture\.h:1/);
+  assert.match(evidence, /Operand p:.*\(argument\)/);
+  assert.match(evidence, /Also compatible:/);
+  assert.match(evidence, /READ_ALT/);
+  assert.equal(packetOpening(JSON.parse(JSON.stringify(packet)), attempt.path), handoff);
+  report.tiling = Array.from({ length: 60 }, (_, i) => ({ ...report.tiling[0]!, macro: `READ_${i}` }));
+  packet.primary!.text = "x".repeat(12000);
+  const bounded = packetOpening(packet, attempt.path);
+  assert.ok(Buffer.byteLength(bounded) < 7500);
+  assert.match(bounded, /more in evidence\.md/);
+  assert.match(bounded, /Policy exception for this function/);
+  assert.match(packetEvidence(packet), /READ_59/);
+});
+test("header macro calls pass the existing source gate without authorizing handwritten asm", (t) => {
+  const { root } = fixture(t);
+  const config = structuredClone(DEFAULT_CONFIG); config.sourcePolicy.allowlist = {};
+  const check = () => checkSourcePolicy({ projectRoot: root, config, functionName: "f" });
+  writeFileSync(join(root, "src/f.c"), '#include "psyq/inline_c.h"\nvoid f(void *p) { gte_ReadRotMatrix(p); }\n');
+  assert.equal(check().pass, true);
+  writeFileSync(join(root, "src/f.c"), 'void f(void *p) { gte_ReadRotMatrix(p); __asm__("nop"); }\n');
+  assert.equal(check().pass, false);
+  assert.deepEqual(config.sourcePolicy.allowlist, {});
+});
+test("unavailable detection, no macros and COP2 presence alone never grant a macro exception", (t) => {
+  const { packet, attempt } = fixture(t);
+  for (const value of [undefined, null]) {
+    if (value === undefined) delete packet.discovery.macroIdentity;
+    else packet.discovery.macroIdentity = value;
+    assert.match(packetOpening(packet, attempt.path), /detection unavailable; no macro policy exception/);
+  }
+  for (const word of [0x03e00008, 0x4affffff]) {
+    const bytes = Buffer.alloc(4); bytes.writeUInt32LE(word);
+    const report = tileMacroFunction({ name: "f", container: "ovl_1", vram: 0x80010000, bytes }, extractMacroTemplates([]));
+    packet.discovery.macroIdentity = { function: report, encodingToolchains: [] };
+    const opening = packetOpening(packet, attempt.path);
+    assert.match(opening, /no template matches.*no macro policy exception/);
+    assert.doesNotMatch(opening, /you may call/);
+    assert.doesNotMatch(packetEvidence(packet), /you may call/);
+  }
 });
 test("failed finalization restores only the preparer's own staging", async (t) => {
   const { root, stub, packet, attempt } = fixture(t);

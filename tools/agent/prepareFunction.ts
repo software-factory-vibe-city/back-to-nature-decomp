@@ -63,6 +63,7 @@ function unknown(subject: string, missing: string, evidence: string[], strength:
 /** Safe staging only: never publish declarations, guess a type, or repair a body.
  * This is the library used by the CLI, interactive command, and both controllers.
  */
+interface PreflightReport { macroIdentity: PreparationPacket["discovery"]["macroIdentity"]; findings?: Array<{ severity: string; summary?: string }> }
 interface PreparationOptions { root?: string; signal?: AbortSignal; alternative?: boolean; contextFile?: string;
   inferenceView?: { withhold?: string[]; disableSeeds?: string[]; permittedSeeds?: string[]; disableTransfers?: boolean } }
 export function prepareFunction(functionName: string, options: PreparationOptions = {}): Promise<{ packet: PreparationPacket; path: string }> {
@@ -101,6 +102,7 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
     ...allFiles(join(root, "tools/vendor/m2c/m2c_pycparser")).filter((p) => p.endsWith(".py")),
     ...allFiles(join(root, "tools/vendor/maspsx/maspsx")).filter((p) => p.endsWith(".py")),
     ...allFiles(join(root, "tools/vendor/tree-sitter-c")),
+    ...allFiles(join(root, "tools/diagnostics")).filter((p) => /\/macro[^/]*\.ts$/.test(p) && !p.endsWith(".test.ts")),
     join(root, "tools/build/prepareM2c.ts"), join(root, "package-lock.json"),
     ...["web-tree-sitter.js", "web-tree-sitter.wasm"].map((p) => join(root, "node_modules/web-tree-sitter", p)),
     join(root, "tools/vendor/m2c/m2c.py"), ...["tools/agent", "tools/lib"].flatMap((p) => allFiles(join(root, p))).filter((p) => p.endsWith(".ts") && !p.endsWith(".test.ts")),
@@ -171,7 +173,8 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
           packet.discovery.preflight.push(refresh);
           if (refresh.status !== 0) packet.integration.blockers.push("refreshed mandatory preflight failed");
           else {
-            const report = JSON.parse(readFileSync(refresh.stdout, "utf8")) as { findings?: Array<{ severity: string; summary?: string }> };
+            const report = JSON.parse(readFileSync(refresh.stdout, "utf8")) as PreflightReport;
+            packet.discovery.macroIdentity = report.macroIdentity ?? null;
             for (const f of report.findings ?? []) if (f.severity === "blocker") packet.integration.blockers.push(f.summary ?? JSON.stringify(f));
           }
           packet.diagnosticsIdentity = hashFile(ledger);
@@ -513,7 +516,10 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
     packet.discovery.preflight.push(preflight);
     if (preflight.status !== 0) packet.integration.blockers.push("mandatory preflight failed; inspect preserved triage streams");
     else {
-      const report = JSON.parse(readFileSync(preflight.stdout, "utf8")) as { findings?: Array<{ severity: string; summary?: string }> };
+      const report = JSON.parse(readFileSync(preflight.stdout, "utf8")) as PreflightReport;
+      /* Triage already scans the original bytes. Surface its full result in
+         both prep and matching handoffs without a second detector run. */
+      packet.discovery.macroIdentity = report.macroIdentity ?? null;
       for (const f of report.findings ?? []) if (f.severity === "blocker") packet.integration.blockers.push(f.summary ?? JSON.stringify(f));
     }
     const beforeDefinition = await command("npx", ["tsx", "tools/agent/scanReadBeforeDef.ts", functionName, "--json"], "read-before-definition");

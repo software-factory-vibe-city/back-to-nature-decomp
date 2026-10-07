@@ -75,6 +75,16 @@ const first=await prepareFunction(name), warm=await prepareFunction(name);
 assert.equal(warm.path,first.path);assert.equal(warm.packet.performance.cache,'hit');
 assert.equal(first.packet.compilation.status,'succeeded');
 assert.equal(first.packet.discovery.propagation.visited,1);
+assert.equal(first.packet.discovery.macroIdentity.function.tiling.length,0);
+assert.deepEqual(warm.packet.discovery.macroIdentity,first.packet.discovery.macroIdentity);
+assert.match(readFileSync(join(first.path,'../handoff.md'),'utf8'),/no macro policy exception/);
+/* Preparation surfaces the detector already run by triage, including a
+   positive original-byte macro finding even when m2c cannot compile it. */
+const macro=await prepareFunction('func_8001D6B8');
+assert.ok(macro.packet.discovery.macroIdentity.function.tiling.some(t=>t.macro==='gte_ReadRotMatrix'));
+assert.match(readFileSync(join(macro.path,'../handoff.md'),'utf8'),/gte_ReadRotMatrix/);
+assert.match(readFileSync(join(macro.path,'../handoff.md'),'utf8'),/Policy exception for this function/);
+assert.match(readFileSync(join(macro.path,'../evidence.md'),'utf8'),/inline_c\.h/);
 writeFileSync('src/CopyVec3.c',readFileSync('src/CopyVec3.c','utf8')+'\n/* unrelated edit */\n');
 const unrelated=await prepareFunction(name);
 assert.equal(cache(unrelated.packet,'analysis-cache'),'hit');
@@ -85,6 +95,9 @@ const ledger=await prepareFunction(name);
 assert.equal(ledger.path,unrelated.path);assert.equal(ledger.packet.performance.cache,'hit');
 assert.equal(ledger.packet.discovery.preflight.length,unrelated.packet.discovery.preflight.length+1);
 assert.deepEqual(ledger.packet.compilation,unrelated.packet.compilation);
+assert.deepEqual(ledger.packet.discovery.macroIdentity.function,unrelated.packet.discovery.macroIdentity.function);
+/* A fresh triage process retains its own encoding-probe artifact paths. */
+assert.deepEqual(ledger.packet.discovery.macroIdentity.encodingToolchains[0].commands,unrelated.packet.discovery.macroIdentity.encodingToolchains[0].commands);
 assert.match(readFileSync(ledger.packet.discovery.preflight.at(-1).stderr,'utf8'),/triage compilation: cache hit/);
 const draft=ledger.packet.primary.path, edited=readFileSync(draft,'utf8')+'\n/* retained user draft edit */\n';
 writeFileSync(draft,edited);
@@ -107,6 +120,11 @@ writeFileSync(helper.path,'{"interrupted":');
 const repaired=await prepareFunction(name);
 assert.notEqual(repaired.path,helper.path);assert.equal(repaired.packet.primary.text,edited);
 assert.equal(packetIsFresh(repaired.packet),true);
+writeFileSync('tools/diagnostics/macroTiler.ts',readFileSync('tools/diagnostics/macroTiler.ts','utf8')+'\n/* detector implementation change */\n');
+assert.equal(packetIsFresh(repaired.packet),false);
+const retiled=await prepareFunction(name);
+assert.equal(retiled.packet.primary.text,edited);
+assert.equal(packetIsFresh(retiled.packet),true);
 /* Newly available clean definitions and relevant callee edits cannot reuse a
    previously absent/rejected contract. The relocated oracle admits it anew. */
 const clean=readFileSync('src/CopyVec3.c','utf8');

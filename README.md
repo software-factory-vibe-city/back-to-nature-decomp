@@ -1034,6 +1034,11 @@ CLI does not edit source or grant asm exceptions. `callGraph.ts` and
 `handwritten = "gte"`; COP2-bearing targets remain eligible and counted.
 `triage.ts` pushes the tiling, vintage, operands and unverified candidate C
 before source/allocator diagnostics, retaining encoding-toolchain provenance.
+Preparation carries that result into `packet.json`, `handoff.md` and
+`evidence.md`. Detected header macros (including reported compatible
+alternatives) grant the agent a function-scoped exception to call them, even
+when they expand to assembly—not to copy their bodies or write arbitrary asm.
+No template match means no grant; calls still require full byte verification.
 Independent handwritten classification still requires independent evidence.
 
 ### Git submodules

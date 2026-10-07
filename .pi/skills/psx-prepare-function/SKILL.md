@@ -47,8 +47,15 @@ roles; do not infer these from an m2c declaration.
 - Read supplied SDK findings, or call `psx_sdk_idioms` when they are missing.
   Use the SDK's packet types and macros instead of m2c's hand-expanded stores
   when the evidence identifies the operation. Leave uncertain facts explicit.
+- Read the handoff's detected-header-macro section. A detected macro grants a
+  policy exception to **call that header macro** in this function, including
+  reported compatible alternatives, even if it expands to assembly. Use the
+  reported header/vintage and operand evidence; unresolved operands and candidate
+  calls are not verified C. This does not authorize handwritten assembly,
+  register pinning, new stubs, copied macro bodies or allowlist changes. COP2
+  presence without a template match grants nothing.
 - Use C89: declarations first in a block, `/* */` comments, no C99 syntax.
-  No new assembly, register pinning, flag overrides or policy exemptions.
+  No new assembly, register pinning, flag overrides or other policy exemptions.
 
 Call `psx_c_source_guard` before moving or replacing C. Refresh `psx_m2c`
 after repairs: it preserves edited primary drafts and measures them with the
