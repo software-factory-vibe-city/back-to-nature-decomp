@@ -3389,14 +3389,22 @@ References: notes/research/func_80017E34-shared-web-global-allocno.md
 (apply the shared-variable shape to func_80017EA0 when decompiling it),
 notes/retros/2026-08-28-func_80017E34-retro.md.
 
-## unknown group A — 0x8001E04C–0x8001E26C (confidence: low)
+## unknown group A — 0x8001DFD4–0x8001E26C (confidence: low)
 
 Address-adjacent block preceding collision.c; none of its functions touch
 the collision cluster (checked 2026-07-31), so the file boundary likely
 falls between func_8001E26C and SetVal8005E51C. No positive grouping
 evidence yet — recorded to mark the boundary question.
-Members: func_8001E04C (s), func_8001E088 (s), func_8001E0B8 (m),
-func_8001E158 (m), func_8001E160 (m), func_8001E26C (s).
+Adjacency/call update (2026-10-07): func_8001DFD4 (0x78) ends exactly where
+func_8001E04C begins, and func_8001E04C calls it (`jal` at 0x8001E070), so
+the boundary question now begins at 0x8001DFD4. The callee is the
+cross-container GTE helper also called from ovl_11/ovl_25, so this
+constrains where the boundary can fall without proving same-TU membership.
+Members (address order): func_8001DFD4 (m) — GTE rtps point transform:
+projects an SVECTOR, writes the unpacked x/y pair to arg0, returns OTZ>>2
+(0 when the flag is negative), baseline flags; func_8001E04C (s),
+func_8001E088 (s), func_8001E0B8 (m), func_8001E158 (m), func_8001E160 (m),
+func_8001E26C (s).
 
 Negative membership evidence for the boot TU (2026-08-11): func_8001E160
 initialises the same D_8005E5E8[2] render contexts as the boot TU's

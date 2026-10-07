@@ -199,6 +199,7 @@ s32 func_8001C1C0(SVECTOR *arg0);
 s32 func_8001D2D8(s32 sxy0, s32 sxy1, s32 sxy2, s32 sxy3);
 s32 func_8001D648(s32 arg0, s32 arg1);
 s32 func_8001DCA8(void);
+s32 func_8001DFD4(s32 *arg0, SVECTOR *arg1);
 s32 func_8001E0B8(s32 arg0, s32 arg1);
 void func_8001E158(void);
 void func_8001E160(void);

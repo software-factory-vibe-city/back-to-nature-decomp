@@ -1,51 +1,33 @@
-/* Handwritten function */
 #include "common.h"
+#include "psyq/stddef.h"
+#include "psyq/libgte.h"
+#include "psyq/inline_c.h"
 
-__asm__(
-"\n"
-"\t.text\n"
-"\t.align\t2\n"
-"\t.globl\tfunc_8001DFD4\n"
-"\t.ent\tfunc_8001DFD4\n"
-"func_8001DFD4:\n"
-"\t.frame\t$sp,16,$31\n"
-"\t.mask\t0x00000000,0\n"
-"\t.fmask\t0x00000000,0\n"
-"\t.set\tnoreorder\n"
-"\t.set\tnomacro\n"
-"\taddiu\t$sp,$sp,-16\n"
-"\tlwc2\t$0,0($a1)\n"
-"\tlwc2\t$1,4($a1)\n"
-"\tnop\n"
-"\tnop\n"
-"\t.word\t1243086849\n"  /* rtps */
-"\taddiu\t$a1,$sp,8\n"
-"\tcfc2\t$12,$31\n"
-"\tnop\n"
-"\tsw\t$12,0($a1)\n"
-"\tlw\t$v0,8($sp)\n"
-"\tnop\n"
-"\tbltz\t$v0,.Lend\n"
-"\taddu\t$v0,$zero,$zero\n"
-"\tswc2\t$14,0($sp)\n"
-"\tbeqz\t$a0,.Lskip\n"
-"\tnop\n"
-"\tlhu\t$v0,2($sp)\n"
-"\tlh\t$v1,0($sp)\n"
-"\tsll\t$v0,$v0,16\n"
-"\tsra\t$v0,$v0,16\n"
-"\tsw\t$v1,0($a0)\n"
-"\tsw\t$v0,4($a0)\n"
-".Lskip:\n"
-"\tmfc2\t$12,$19\n"
-"\tnop\n"
-"\tsra\t$12,$12,2\n"
-"\tsw\t$12,0($a1)\n"
-"\tlw\t$v0,8($sp)\n"
-".Lend:\n"
-"\tjr\t$ra\n"
-"\taddiu\t$sp,$sp,16\n"
-"\t.set\tmacro\n"
-"\t.set\treorder\n"
-"\t.end\tfunc_8001DFD4\n"
-);
+/*
+ * The SDK's gte_rtps() expands to the ASPSX command placeholder
+ * `.word 0x0000007f`, which this project's assembler does not turn into the
+ * RTPS command word. The `rtps` mnemonic defined by include/gte_macros.inc
+ * (included through include/macro.inc) assembles to the same bytes the
+ * original build emitted, so use it while keeping the surrounding nops.
+ */
+#undef gte_rtps
+#define gte_rtps() __asm__ volatile("nop; nop; rtps")
+
+s32 func_8001DFD4(s32 *arg0, SVECTOR *arg1) {
+    long flag;
+    SVECTOR sxy;
+
+    gte_ldv0(arg1);
+    gte_rtps();
+    gte_stflg(&flag);
+    if (flag < 0) {
+        return 0;
+    }
+    gte_stsxy2(&sxy);
+    if (arg0 != 0) {
+        arg0[0] = sxy.vx;
+        arg0[1] = sxy.vy;
+    }
+    gte_stszotz(&flag);
+    return flag;
+}
