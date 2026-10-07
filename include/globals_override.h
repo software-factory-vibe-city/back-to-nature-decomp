@@ -1193,6 +1193,18 @@ typedef struct {
 } Recon_ovl_11_func_800FA600_D80126FD4Entry;
 extern Recon_ovl_11_func_800FA600_D80126FD4Entry D_80126FD4[];
 
+/* D_80126E18 - ovl_11 table of 4 five-byte records, one unsigned byte per
+ * field; indexed by D_80070CF2 only after it is bounded to < 4, so the table
+ * is exactly 0x14 bytes. Fields are read as bytes (lbu) at offsets 0x0..0x4. */
+typedef struct {
+    u8 unk0;
+    u8 unk1;
+    u8 unk2;
+    u8 unk3;
+    u8 unk4;
+} Recon_ovl_11_func_800F6118_D80126E18Entry;
+extern Recon_ovl_11_func_800F6118_D80126E18Entry D_80126E18[];
+
 extern s32 D_8005E3B0;
 
 extern s16 D_80128800;

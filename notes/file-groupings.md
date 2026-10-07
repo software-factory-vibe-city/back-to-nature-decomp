@@ -5992,9 +5992,9 @@ Fingerprints:
 - **address adjacency:** the dispatch head (0x800F5944), the shared callee
   (0x800F5BC0), and all seven targets (0x800F5D04–0x800F6578) occupy a
   contiguous 0xE34-byte run with no gaps;
-- **shared signature pattern:** the three matched targets
-  (`ovl_11_func_800F64F8`, `ovl_11_func_800F6218`, and
-  `ovl_11_func_800F6578`) share the same
+- **shared signature pattern:** the four matched targets
+  (`ovl_11_func_800F64F8`, `ovl_11_func_800F6218`, `ovl_11_func_800F6578`,
+  and `ovl_11_func_800F6118`) share the same
   `s32(s32 arg0, s32 *arg1, s32 *arg2)` switch-return-id idiom.
 
 Members (link order):
@@ -6005,7 +6005,10 @@ Members (link order):
 - ovl_11_func_800F5BC0 (s) — shared engine callee: takes a callback in $a2
   and calls it with struct-field arguments; invoked by the dispatch head for
   multiple arg codes
-- ovl_11_func_800F6118 (s) — dispatch target case 0
+- ovl_11_func_800F6118 (m, this session) — dispatch target case 0: leaf
+  switch-return-id mapper, selects a byte field 0x0–0x4 of the 5-byte
+  `D_80126E18` record indexed by `D_80070CF2` for ids 0x83/0x57/0x64/0x65/
+  0xE8/0x122–0x124
 - ovl_11_func_800F64F8 (m, this session) — dispatch target case 1: leaf
   switch-return-id mapper, maps id 0x64/0x65/0xE8/0x122–0x124 to return
   codes 0x19/0x1A/0x1E/0x1D
