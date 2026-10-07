@@ -10448,3 +10448,17 @@ and table shape, not the 0x80123xxx cluster.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1 and clears flag 0x800 at s32@+0x34; else steps table
   `D_80127A80`.
+
+Ninth family member, link-order-distant (confidence: medium).
+`ovl_11_func_8010BE24` (0x8010BE24) is the byte-structural twin of its
+link-order neighbour `ovl_11_func_800E18C4` (identical state-switch idiom and
+identical `ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call
+shape; its own words differ only in the table symbol). Its table `D_80127B90`
+(`0x000A0000, 0x00000002, 0x0000FFFF`) sits in the same 0x80127Axx–0x80127Bxx
+handler-table band of `69960.data.s` as the eighth member's `D_80127A80`
+(0x110 bytes apart, between `D_80127B88` and `D_80127B9C`), so the basis is the
+shared idiom and table cluster, not link adjacency.
+- ovl_11_func_8010BE24 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1 and clears flag 0x800 at s32@+0x34; else steps table
+  `D_80127B90`.
