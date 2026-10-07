@@ -174,6 +174,7 @@ s32 ovl_11_func_800D483C(M2C_caa5a06f0394_Ovl11D04D4Obj *arg0);
 s32 ovl_11_func_800D48F4(M2C_6e8aefe731a5_Ovl11D04D4Obj *arg0);
 s32 ovl_11_func_800D49AC(M2C_f098f0333f50_Ovl11D04D4Obj *arg0);
 s32 ovl_11_func_800D4A64(M2C_8da617f67856_Ovl11D04D4Obj *arg0);
+s32 ovl_11_func_800D4DE8(M2C_d946a12d537b_Ovl11D04D4Obj *arg0);
 void ovl_11_func_800D5740(s16 *arg0);
 s32 ovl_11_func_800D5750(s16 arg0);
 s32 ovl_11_func_800D57A4(s16 arg0);

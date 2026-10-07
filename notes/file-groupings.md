@@ -10607,3 +10607,19 @@ on both code and table adjacency.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
   s32@+0x34; else steps table `D_80123C44`.
+
+Nineteenth family member, link-order-distant (confidence: medium).
+`ovl_11_func_800D4DE8` (0x800D4DE8) carries the byte-identical state-switch
+idiom (`beqz`(0) / `bgtz` / `beq`(−1) and `case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80123C7C` (`0x0078000F, 0x000F0000, 0x0000FFFF`) sits in the same
+0x80123Cxx handler-table band of `69960.data.s` as the fifth-to-eighteenth
+members and its low word `0x...0F` continues the `0x...0B` / `0x...0C` sequence
+of 800D49AC's `D_80123C38` / 800D4A64's `D_80123C44` (with `D_80123C50` /
+`D_80123C60` / `D_80123C70` in between), so the basis is the shared idiom and
+table cluster, not link adjacency (its own link predecessor 0x800D4D1C is not a
+family member).
+- ovl_11_func_800D4DE8 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1, sets +0x2C = 0x12C, and clears flag 0x800 at
+  s32@+0x34; else steps table `D_80123C7C`.
