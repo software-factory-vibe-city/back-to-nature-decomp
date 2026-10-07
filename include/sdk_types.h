@@ -881,6 +881,13 @@ typedef struct {
 } M2C_d030f1db9199_Recon800BA750A0View;
 
 typedef struct {
+               char pad_00[0x30];
+               s16 unk30;
+               char pad_32[0x2];
+               s32 unk34;
+} M2C_d1e0e5c21be3_Struct_800DF9F0;
+
+typedef struct {
                s16 unk0;
                s16 unk2;
 } M2C_d453384c461b_UnkStruct800D0DBC;
