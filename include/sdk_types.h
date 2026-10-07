@@ -354,6 +354,23 @@ typedef struct {
 } M2C_3bf33f64765e_ovl_11_DD48_arg0;
 
 typedef struct {
+               u16 unk0;
+               char pad_02[0x16 - 0x02];
+               u16 unk16;
+               char pad_18[0x30 - 0x18];
+               s16 unk30;
+               char pad_32[0x34 - 0x32];
+               s32 unk34;
+               char pad_38[0x58 - 0x38];
+               s32 unk58;
+               s32 unk5C;
+               s32 unk60;
+               s32 unk64;
+               char pad_68[0xA8 - 0x68];
+               char unkA8[0];
+} M2C_3e88aa97bf23_Struct_800E2C64;
+
+typedef struct {
     s16 field_0;
     s16 field_2;
     s16 field_4;

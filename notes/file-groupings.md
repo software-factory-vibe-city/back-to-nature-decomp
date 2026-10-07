@@ -6346,7 +6346,14 @@ consecutive in the symbol map (configs/symbols/ovl_11.txt), i.e. one unbroken
 link-order run — a shared-table cluster and address adjacency that agree.
 
 Members (address order):
-- ovl_11_func_800E2C64 (s) — role unknown
+- ovl_11_func_800E2C64 (m, matched this session, byte-exact) — dispatch entry:
+  gates `u16@+0x0` against 0 and 0x109, then on
+  `s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)` calls `func_8001FABC(0x18)`,
+  latches `D_8006C838`+0x52C8/0x52CC/0x52D0/0x52D4 into `s32@+0x58..+0x64`, ORs
+  0x2000 / clears 0x4000 in `s32@+0x34`, clamps `u16@+0x16 -= 10` at 0 and calls
+  `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)`; same far-state gate and
+  `0x24, 0x2D` clamp constants as ovl_11_func_800DF51C / 800E10C8 in the
+  800DF4F0 / 800E109C predicate-caller runs
 - ovl_11_func_800E2D3C (s) — role unknown
 - ovl_11_func_800E2E4C (m, matched this session) — guards a struct's u16@0
   against 0/0x109, then clears u16@0xAE and calls ovl_11_func_800D049C
