@@ -798,6 +798,17 @@ extern char D_800B885C[];
 extern char D_800B8868[];
 extern char D_800B8878[];
 extern char D_800B8884[];
+
+/* ovl_31 memory-card directory listing.  D_800B7EF0 is the "*" name
+ * pattern and D_800B7EF4 the "%d file(s) %d block(s)\n" format;
+ * D_800B88B0 is the DIRENTRY buffer MemCardGetDirentry fills (the loop
+ * reads its +0x18 size word at stride 0x28) and D_800B8B10 the sprintf
+ * output buffer.  All are absolute-addressed from the overlay. */
+struct DIRENTRY;
+extern char D_800B7EF0[];
+extern char D_800B7EF4[];
+extern struct DIRENTRY D_800B88B0;
+extern char D_800B8B10[];
 extern s32 D_800BB8A4;
 extern s32 D_800BB8A8;
 extern s32 D_800BB8AC;
