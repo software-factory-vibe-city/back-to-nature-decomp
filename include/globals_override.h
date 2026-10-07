@@ -1129,6 +1129,10 @@ extern s32 D_80126FE0;
 
 extern s16 D_8012720C;
 
+/* D_8012720E - u16 countdown timer decremented by ovl_11_func_800FEA00 and
+ * compared as s16; runs 4,3,2 and wraps to 7 when it goes negative. */
+extern u16 D_8012720E;
+
 extern u16 D_80127212;
 
 extern s16 D_80127222;
