@@ -9309,6 +9309,15 @@ Members (link order):
   and `s16@+0x6`; shares the `func_8002261C(4, …)` / `func_800226A4() == 2`
   state-handler shape with `800B93B0` and the `Ovl19Func800BAC40Arg` command
   setters with `800BA25C`.
+- ovl_19_func_800B9050 (m, matched this session, byte-exact) — gapless link-order
+  successor of `800B8F38` (0x800B8F38 + 0x118 = 0x800B9050) and same overlay-local
+  `D_800BF4C0` state array: `func_8002261C(4, 0xB)`, then when `s16@+0x12` (index 9)
+  is 4 and `s16@+0x16` (index 11) is < 2 fills the `+0x10` record through
+  `800BAC40`; when `func_800226A4() == 2` fills the `+0xA0`/`+0xE0` records through
+  `800BAC50` and the `+0x10`/`+0x58` records through `800BAC40`, then writes
+  `s16@+0xE` (index 7) and `s16@+0x6` (index 3); shares the `func_8002261C(4, …)` /
+  `func_800226A4() == 2` handler shape with `800B8E88`/`800B93B0` and its callee set
+  (`func_8002261C`/`func_800226A4`, two `BAC50`, two `BAC40`) with `800B8F38`.
 - ovl_19_func_800B93B0 (m, matched this session, byte-exact) — `D_800BF4C0`
   state writer: `func_8002261C(4, 0xE)` then, when `func_800226A4() == 2`,
   clears `s16@+0x6` and, per `func_800225B8()` result 1/2, clears `s16@+0x200`
