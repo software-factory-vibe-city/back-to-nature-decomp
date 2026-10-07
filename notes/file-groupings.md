@@ -10487,3 +10487,17 @@ on both code and table adjacency, unlike the link-order-distant members above.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1 and clears flag 0x800 at s32@+0x34; else steps table
   `D_80127D68`.
+
+Eleventh family member, link-order-adjacent to the tenth (confidence: high).
+`ovl_11_func_8010E594` (0x8010E594) is the immediate gapless successor of
+`ovl_11_func_8010E4E4` (0x8010E4E4 + 0xB0 = 0x8010E594; both splat entries are
+0xB0) and carries the byte-identical state-switch idiom (`beqz`(0) / `bgtz` /
+`beq`(−1) and `case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80127D70` (`0x000F000C, 0x0000FFFF`) is the next entry in
+`build/ovl_11/asm/data/69960.data.s` after 8010E4E4's `D_80127D68` (ends at
+0x80127D70), so membership rests on both code and table adjacency.
+- ovl_11_func_8010E594 (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1 and clears flag 0x800 at s32@+0x34; else steps table
+  `D_80127D70`.
