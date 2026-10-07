@@ -1748,6 +1748,30 @@ typedef struct {
 } M2C_eaa99ca3a692_Ovl11E0028Obj;
 
 typedef struct {
+    s32 unk0;
+    s32 unk4;
+    s32 unk8;
+} Recon800D0408A1View;
+
+typedef struct {
+    char pad_00[0x22];
+               u16 unk22;
+               s16 unk24;
+               s16 unk26;
+               s16 unk28;
+               s16 unk2A;
+               s16 unk2C;
+    char pad_2E[0x30 - 0x2E];
+               s16 unk30;
+    char pad_32[0x34 - 0x32];
+               s32 unk34;
+    char pad_38[0x48 - 0x38];
+               Recon800D0408A1View unk48;
+    char pad_54[0x7A - 0x54];
+               u16 unk7A;
+} M2C_ecc706da7672_Ovl11D4558Obj;
+
+typedef struct {
                u8 unk0[0x14];
                s16 unk14;
                u16 unk16;
@@ -1994,12 +2018,6 @@ typedef struct {
     s32 field_0;
     s32 field_4;
 } PairS32;
-
-typedef struct {
-    s32 unk0;
-    s32 unk4;
-    s32 unk8;
-} Recon800D0408A1View;
 
 typedef struct {
     char pad_0[0x38];
