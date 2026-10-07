@@ -6419,7 +6419,7 @@ with different widths and far-apart addresses.
   recovery's explicit register roles and arithmetic fragments are not
   evidence that the original author used bindings or assembly.
 
-## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800ED760 + 0x800EC490 (confidence: medium)
+## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800EE528 + 0x800EC490 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): eighteen matched
 functions sharing the one ovl_11-private 0x50-byte s32 table
@@ -6617,6 +6617,15 @@ Members:
   band; the `D_801295B0` staging buffer is the second `func_8001A970` + `0xFFD`
   scan site (idiom sibling of the D_8012A028 cluster, different buffer and draw
   call).
+- ovl_11_func_800EE528 (m, matched this session, 0xDC, byte-exact) —
+  0x24-record load-and-compare: rejects `(u32)(arg1 & 0xFFFF) >= 0xA`, resolves
+  the 0x24 record through `ovl_11_func_800EFF04(0x24, (s16)arg0, NULL)`, then
+  reads `D_80129560[(s16)arg1]` with the family's s16-scaled 4-byte index and,
+  when the record's `u8@+4` differs, calls `func_80015840(record, slot & 0xFF)`;
+  draws through `func_80015114`/`func_80015BF0` and returns 1. Same
+  `ovl_11_func_800EFF04(0x24, …)` record-resolver idiom as 800E5B84 and the same
+  slot-read shape as the sibling readers; extends the accessor band's high end
+  (0x800EE528, beyond the previously recorded 0x800ED760).
 
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 
