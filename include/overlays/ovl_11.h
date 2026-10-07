@@ -238,6 +238,7 @@ void ovl_11_func_800DAFD4(void);
 void ovl_11_func_800DB00C(M2C_47a72bcd7f17_Ovl11DE8 *arg0, M2C_47a72bcd7f17_Ovl11DE8 *arg1);
 void ovl_11_func_800DB054(M2C_fa7bbe7fcb28_Ovl11DE8 *arg0);
 void ovl_11_func_800DB0E4(void);
+void ovl_11_func_800DB140(M2C_d1b1d801165c_M2C_b93e11a2_Arg0 *arg0);
 void ovl_11_func_800DB23C(s16 arg0);
 void ovl_11_func_800DB78C(void);
 void ovl_11_func_800DB7F0(void);

@@ -6214,8 +6214,9 @@ and mirror relations, not TU evidence here.
 Members (link order):
 - ovl_11_func_800DB0E4 (m, byte-exact) — initializer: `memset(&D_800A03AC, 0,
   0xB4)` then eight 0xFFFF halfwords at `D_8007AFF0 + 0x253C0`, stride 0x16.
-- ovl_11_func_800DB140 (stub) — find a record whose first halfword equals the
-  arg's first halfword, then copy 0x16 bytes into the first 0xFFFF record.
+- ovl_11_func_800DB140 (m, matched this session, byte-exact) — find a
+  record whose first halfword equals the arg's first halfword, then copy the
+  arg's trailing halfwords into the first 0xFFFF record.
 - ovl_11_func_800DB23C (m, matched this session, byte-exact) — find a record
   whose first halfword equals the sign-extended s16 arg and clear it
   (`memset(record, 0, 0x16)`, then `record->first = 0xFFFF`).
