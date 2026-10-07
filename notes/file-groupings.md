@@ -5403,10 +5403,18 @@ Scans and a shift over the same main-binary 5-entry record table — absolute
 pointer walk. Shared idiom + shared-global fingerprint; the shift member
 ovl_11_func_800DBE9C is address-adjacent (0x3E8 below 0x800DBB94 in the
 0x800DBAB0–0x800DC0A0 record-family band) and callee-linked (its callers
-ovl_11_func_800DBE30/ovl_11_func_800DBEF8 are both called by func_800DBAB0,
-which also reads lh 0x7A78; func_800DBD78 calls ovl_11_func_800DBB94) —
-shared-global + adjacency + call edges, TU membership still unproven.
+ovl_11_func_800DBE30/ovl_11_func_800DBEF8 are both called by the band head
+ovl_11_func_800DBAB0, now matched, which also reads lh 0x7A78; func_800DBD78
+calls ovl_11_func_800DBB94) — shared-global + adjacency + call edges, TU
+membership still unproven.
 Members:
+- ovl_11_func_800DBAB0 (m, matched this session, 0xE4, byte-exact) — the band
+  head/selector: guards the D_8006C838+0x10 bit 0x1000, reads the table's
+  first s16 at 0x7A78 as the -1 sentinel, publishes the +0x7A78 record base
+  at D_8006C838+0x30, drives both reset/gate callers
+  ovl_11_func_800DBE30/800DBEF8, then clears the D_8006C838+0x5234 and +0x4450
+  flag words — the same per-use `%lo` tail-rematerialization of the D_8006C838
+  base from a shared `%hi` (second `&D_8006C838` view) as ovl_11_func_800DBE9C
 - ovl_11_func_800DBB94 (m, matched this session, 0x4C, byte-exact first try,
   baseline flags) — search over the table: `p[0x3D3C + i * 6] != -1 &&
   p[0x3D3C + i * 6] == arg0` for i = 0..4 → return 1, else 0; arg0 is the value
