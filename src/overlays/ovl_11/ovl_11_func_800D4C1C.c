@@ -1,3 +1,61 @@
 #include "common.h"
+#include "game_types.h"
 
-INCLUDE_ASM("build/ovl_11/asm/nonmatchings/ovl_11_func_800D4C1C", ovl_11_func_800D4C1C);
+typedef struct {
+    char pad_00[0x22];
+    /* 0x22 */ u16 unk22;
+    /* 0x24 */ s16 unk24;
+    /* 0x26 */ s16 unk26;
+    /* 0x28 */ s16 unk28;
+    /* 0x2A */ s16 unk2A;
+    /* 0x2C */ s16 unk2C;
+    char pad_2E[0x30 - 0x2E];
+    /* 0x30 */ s16 unk30;
+    char pad_32[0x34 - 0x32];
+    /* 0x34 */ s32 unk34;
+    char pad_38[0x48 - 0x38];
+    /* 0x48 */ Recon800D0408A1View unk48;
+    char pad_54[0x7A - 0x54];
+    /* 0x7A */ u16 unk7A;
+} Ovl11D4C1CObj;
+
+void ovl_11_func_800D3200(s32 arg0);
+s32 ovl_11_func_800D04D4(Ovl11D4C1CObj *arg0, u8 *arg1, s16 *arg2, s32 arg3, u16 *arg4);
+void ovl_11_func_800D0408(u16 arg0, Recon800D0408A1View *arg1, s32 arg2);
+
+extern u8 D_80123C60;
+
+s32 ovl_11_func_800D4C1C(Ovl11D4C1CObj *arg0) {
+    s16 temp_v1;
+    s32 var_s1;
+
+    temp_v1 = arg0->unk28;
+    var_s1 = 0;
+    switch (temp_v1) {
+    case 0:
+        arg0->unk28 = 1;
+        arg0->unk34 |= 0x800;
+        break;
+    case -1:
+        ovl_11_func_800D3200((s32)arg0);
+        var_s1 = 1;
+        break;
+    case 1:
+    default:
+        if (ovl_11_func_800D04D4(arg0, &D_80123C60, &arg0->unk28, -1, (u16 *)&arg0->unk2A) != 0) {
+            arg0->unk28 = -1;
+        } else {
+            switch (arg0->unk28) {
+            case 2:
+                ovl_11_func_800D0408(arg0->unk22, &arg0->unk48, 0x3C);
+                arg0->unk48.unk4 -= 0x10;
+                break;
+            case 3:
+                ovl_11_func_800D0408(arg0->unk22, &arg0->unk48, 0x3C);
+                break;
+            }
+        }
+        break;
+    }
+    return var_s1;
+}
