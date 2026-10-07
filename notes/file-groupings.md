@@ -1716,6 +1716,16 @@ with overlay-local tables. The same /5 row-lookup idiom appears, without the
 call, in ovl_11_func_80110DA0 (table D_80127EC0; recorded under the
 0x80110CE8–0x80110DA0 pair).
 
+ovl_15 same-TU extension (confidence: medium): the ovl_15 half is itself a
+gapless pair. ovl_15_func_80132B44 (0xD8, matched) begins exactly where
+ovl_15_func_80132A8C (0xB8) ends (0x80132A8C + 0xB8 = 0x80132B44), and is the
+construction twin of ovl_11_func_800D29B0: same `{w0, w1, w2 + r·600}` copy to
+0x38/0x3C/0x40, `u16@0x22 = (idx&1)?1:3`, `u16@0x30 = 5`, return 5 (table
+D_801375F8). Their tables are contiguous in splat data — D_801375D8 (2×16-byte
+rows, 0x20) ends exactly where D_801375F8 (6×16-byte rows, 0x60) begins — the
+same zero-gap table relation the ovl_11 pair shows. Corroborated same-TU
+membership for the ovl_15 pair.
+
 Members (address order):
 - ovl_11_func_800D29B0 (s) — D_80123A2C lookup: {w0, w1, w2 + r·600} to
   +0x38/+0x3C/+0x40, +0x22 = 3 (normal and arg1 == −1 paths) or 1 (arg1 ==
