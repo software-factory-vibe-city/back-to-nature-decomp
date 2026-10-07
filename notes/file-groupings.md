@@ -10432,3 +10432,19 @@ has both the idiom/table-cluster basis and named table membership.
   handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
   sets the loop variable 1 and clears flag 0x800 at s32@+0x34; else steps table
   `D_80123FC0`.
+
+Eighth family member, link-order-distant (confidence: medium).
+`ovl_11_func_80109F7C` (0x80109F7C, ~0x28000 bytes after 0x800E18C4) carries the
+identical state-switch idiom (`beqz`(0) / `bgtz` / `beq`(−1) and
+`case 1: default:`) and the same
+`ovl_11_func_800D04D4(obj, table, &obj->+0x28, -1, &obj->+0x2A)` call shape; its
+table `D_80127A80` (`0x000A0000, 0x000A0007, 0x00000002, 0x0000FFFF`) differs
+from 800DFCFC's `D_80123F08` / 800E18C4's `D_80123FC0`
+(`0x000A0000, 0x000A0005, …`) only in the second word and sits in the separate
+0x80127Axx 4-word handler-table band of `69960.data.s` (neighbour of the
+`D_80127A78` `{0x001E0000, 0x0000FFFF}` table), so the basis is the shared idiom
+and table shape, not the 0x80123xxx cluster.
+- ovl_11_func_80109F7C (m, matched this session, byte-exact) — family state
+  handler: state 0 sets +0x28 = 1 *and* sets flag 0x800 at s32@+0x34; state −1
+  sets the loop variable 1 and clears flag 0x800 at s32@+0x34; else steps table
+  `D_80127A80`.
