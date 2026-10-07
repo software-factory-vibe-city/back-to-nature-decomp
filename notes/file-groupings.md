@@ -10082,3 +10082,42 @@ support one state family; they do not prove shared translation-unit ownership.
 The table stride, mask word and index byte establish a shared record layout.
 The single S6 matching constraint in the recovered source is a user-authorized
 workaround, not evidence of the original author's register declarations.
+
+
+## `ovl_11` s16 range-map / store-view run — 0x8011DD48–0x8011DF4C (confidence: high)
+
+Zero-gap link-order run of six `ovl_11` functions, no unrelated code between
+them: 8011DD48 (0x48) → 8011DD90 (0xE0) → 8011DE70 (0x4C) → 8011DEBC (0x48)
+→ 8011DF04 (0x48) → 8011DF4C. The middle member calls the two that follow it
+in link order, and the two nearest share the container's `(x - 1) & 0xFFFF`
+gate plus `(x - 1) % 5` range-map idiom. Together with the shared
+`D_8006C838` store-view fields this supports one source file.
+
+Fingerprints:
+- **direct call edges inside the run:** 8011DD90 calls 8011DEBC and 8011DF04,
+  its immediate link-order successors (through the matched 8011DE70);
+- **shared range-map idiom:** 8011DD90 and 8011DE70 both gate
+  `(u32)((x - 1) & 0xFFFF) < 0x19` and both form `(x - 1) % 5` (DD90 also
+  forms `(x - 1) / 5`); 8011DE70 is the same `%5` leaf the run's caller shape
+  implies, differing only in its fixed store instead of the +0x524C read;
+- **shared store-view layout:** 8011DD90 reads the `D_8006C838` s16 pair at
+  +0x524C/+0x5252 and the u16 at +0x5208 indexed by `(x - 1) / 5`; the same
+  +0x524C/+0x5252 pair is written by the distant `ovl_11_func_800E8D00`, so
+  the view is container-wide rather than run-private.
+
+Members:
+- ovl_11_func_8011DD48 (m) — record field setter: writes arg0 +0x0/+0xA,
+  conditionally +0x8, and when arg2 == 0 sets +0x4 from
+  `D_80054BC0[0] + (s32)&D_8005181A`; adjacency only, no shared idiom.
+- ovl_11_func_8011DD90 (m, matched this session, 0xE0, byte-exact) —
+  store-view range-map: gates the `D_8006C838` s16 at +0x524C to 1..25,
+  derives `/5` and `%5`, maps the +0x5252 selector through 8011DF04, then
+  tests the u16 at +0x5208 + 2*((x-1)/5) against 8011DEBC's lookup; returns
+  0-5.
+- ovl_11_func_8011DE70 (m) — same s16 range gate and `(arg0 - 1) % 5`,
+  returning -1 out of range; idiom sibling of 8011DD90's remainder.
+- ovl_11_func_8011DEBC (m) — selector lookup: returns
+  `D_801282E4[arg0]` when `(arg1 << 0x10) == 0`, else `D_801282F0[arg0]`.
+- ovl_11_func_8011DF04 (m) — s32 selector map: 0x7A→3, 0x7B→2, 0x7C→1,
+  0x60→4, else 0.
+- ovl_11_func_8011DF4C (s) — run tail, stub.
