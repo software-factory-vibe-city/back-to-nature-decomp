@@ -8864,8 +8864,9 @@ Non-evidence: `ovl_25_func_800BB4B4` is byte-identical to matched
 `ovl_11_func_800DB0E4`, and `ovl_25_func_800BB874` is structure-identical to
 matched `ovl_11_func_800DB140`; those cross-container twin relations are not
 TU-membership evidence here. `ovl_25_func_800BB46C` (calls `func_80020B80`/`func_8001FBF0`)
-and `ovl_25_func_800BB510` (`$a0+0x8A8`, 0x12 stride) share no global with the
-pair; their inclusion rests on address adjacency only.
+shares no global with the pair; its inclusion rests on address adjacency only.
+`ovl_25_func_800BB510` (`$a0+0x8A8`, 0x12 stride) also shares no global, but it
+calls `ovl_25_func_800BB874`, so its call edge corroborates the adjacency.
 
 Members (link order):
 - ovl_25_func_800BB4B4 (m, matched this session, byte-exact) — initializer:
@@ -8875,6 +8876,10 @@ Members (link order):
   0x16 stride): per record `lhu` first halfword, skips 0xFFFF, dispatches on
   the `D_8006C838` +0xC flag to `ovl_25_func_800BB628` or
   `ovl_25_func_800BB788`.
+- ovl_25_func_800BB510 (m, matched this session, byte-exact) — walks eight
+  9-halfword records (0x12 stride) at `$a0+0x8A8`, calling
+  `ovl_25_func_800BB874` for each whose first halfword is not 0xFFFF: the source
+  record type that member copies into the `D_800A03B0` slots.
 - ovl_25_func_800BB874 (m, matched this session, byte-exact) — find-or-insert
   over the same `D_800A03B0` records (8 entries, 0x16 stride): returns on a
   matching first halfword, else fills the first 0xFFFF record via
