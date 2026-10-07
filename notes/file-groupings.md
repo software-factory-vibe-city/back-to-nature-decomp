@@ -2108,6 +2108,13 @@ Fingerprints:
   reaches 0x800F4240; it also touches the same record offset set (s16@2 plus
   the flag word @4, tested through an `ori 1`/`and` bits-set check), a
   low-confidence struct-shape kin;
+- chain extension: newly matched `ovl_11_func_800F413C` (0x104) ends exactly
+  at 0x800F4240, so the zero-gap link run now reaches 0x800F413C and its
+  closest kin `ovl_11_func_800F4240` is a byte-exact pair member: both call
+  the same D_80070CF2 switch leaf `ovl_11_func_800F581C`, both re-test the
+  s16@2 / u16@4 view fields through the same `ori 0x81` + `and` bits-set
+  guard, and both emit the state constants 0x13A/0x13B/0x13C from s16@2
+  values 0x40/0x3A/0x3E;
 - call graph agrees: run tail `ovl_11_func_800F43CC` direct-calls the run
   head `ovl_11_func_800F4360`; `ovl_11_func_800F4390` is
   independently called by `ovl_11_func_800F42A8` (nearby) and 0x800E5230;
@@ -2122,6 +2129,14 @@ Fingerprints:
   3-word vector from its own args and an s16 selector from 0x3C($sp).
 
 Members (address order):
+- ovl_11_func_800F413C (m, matched this session, 0x104 byte-exact) — zero-gap
+  link predecessor of 0x800F4240 and its closest kin: calls the same
+  D_80070CF2 switch leaf `ovl_11_func_800F581C`, re-tests the s16@2 / u16@4
+  field pair through the same `ori 0x81` + `and` bits-set guard, and maps the
+  s16@2 state 0x40/0x3A/0x3E to 0x13A/0x13B/0x13C against the D_80070CF2
+  values 2/3 (0x13A shared with 0x800F4240); second parameter is an out-record
+  whose s16@0 receives s16@2 and s16@4 receives 1, so the family's record
+  offset set is touched by both flags and a state slot
 - ovl_11_func_800F4240 (m, matched this session) — zero-gap link predecessor
   of the documented nearby caller 0x800F42A8: calls the D_80070CF2 switch leaf
   `ovl_11_func_800F581C` and returns either 0, the s16@2 field, or 0x13A after
