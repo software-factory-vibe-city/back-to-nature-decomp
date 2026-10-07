@@ -8187,6 +8187,28 @@ Members (link order):
   returns the s16 at +0x19EA clamped (capped at 0xFF after +0x14, for other
   ids).
 
+## `ovl_21` per-entity id-dispatch readers — 0x800BACB0 / 0x800BAD18 (confidence: medium)
+
+Evidence: gapless link adjacency (800BABF8 ends at 0x800BACB0; 0x800BACB0 +
+0x68 = 0x800BAD18), a shared s16-id contract — both take the sign-extending
+`sll 16; sra 16` prologue and map one entity id to a constant, and the calling
+run in `ovl_21_func_800B836C` invokes 800BABF8, 800BACB0 and 800BAD18 in
+immediate succession with the same `s0 + 0x10` id, then stores the BAD18
+result. This run is link-contiguous with the D_8006C838 per-entity group
+above and is likely the same original TU.
+
+Members (link order):
+- ovl_21_func_800BACB0 (m) — id-to-value reader: 0x10/0x22 → `D_800BCC20`,
+  7/9/0x14/0x16 → `D_800BCC1E`, else `D_800BCC1C` (all s16).
+- ovl_21_func_800BAD18 (m, matched this session, byte-exact) — id-to-record
+  reader: maps ids 5/6/7/9/11/16/19/20/21/22/25/34 to 0x30-stride object
+  records `D_800C0B5C`…`D_800C0D9C`, defaulting to `D_800C0B5C`.
+
+Fingerprints:
+- new ovl_21 data cluster `D_800C0B5C`…`D_800C0D9C`: 13 object records at a
+  0x30 stride, each 12 words of zeros in the data asm, keyed by the entity id
+  at the read call site.
+
 ## `ovl_25` D_800BCBD8 dispatch-table cluster — 0x800B7EB4–0x800B81F4 (confidence: medium)
 
 Candidate same-TU cluster around the callback table `D_800BCBD8` (ovl_25 data
