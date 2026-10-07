@@ -6446,14 +6446,13 @@ Fingerprints:
   (800E686C) recorded as the same by `globals_override.h` — positive adjacency
   evidence among family members, which the scattered 0x800E5A1C/800EB79C/
   800EC490/800ED760 sites do not supply;
-- **head-of-band zero-gap run:** the three lowest-address members confirmed
+- **head-of-band zero-gap run:** the four lowest-address members confirmed
   from this family are link-order contiguous with no unrelated code between
   them: `ovl_11_func_800E5A1C` (0xC0) ends exactly at `ovl_11_func_800E5ADC`
-  (0xA8), which ends exactly at `ovl_11_func_800E5B84` (0xDC, stub), which ends
-  exactly at `ovl_11_func_800E5C60` (0xA0). The run contains one interposed
-  unmatched function (800E5B84), so the adjacency is positive among the
-  matched members and unverifiable for the stub, but it is a real link-order
-  cluster rather than a scattered data-only tie;
+  (0xA8), which ends exactly at `ovl_11_func_800E5B84` (0xDC), which ends
+  exactly at `ovl_11_func_800E5C60` (0xA0). All four are now matched, so the
+  adjacency is fully positive across the run rather than interposed by a stub;
+  a real link-order cluster rather than a scattered data-only tie;
 - **what the tie is not:** beyond the head run the members are scattered over
   ~0x6E4C of text; member-to-member call edges were a single stub edge
   (800E8DC8 calls 800E5C60) until 800E5ADC was matched (800E5ADC calls
@@ -6571,10 +6570,19 @@ Members:
   `ovl_11_func_800EFF04(0x22, (s16)arg0, NULL)`, otherwise uses the static
   `D_80077600 + arg0*0xF8`; writes the three incoming s32s to record +0/+4/+8
   (in source order +0, +8, +4) and returns 1. Zero-gap link-order successor of
-  family member 800E5A1C and predecessor of stub 800E5B84; the caller that
+  family member 800E5A1C and predecessor of 800E5B84; the caller that
   supplies the matched member-to-member edge into 800E5C60 and a second
   recovered variant of the shared caller shape (it passes a cleared 4th
   argument to 800E5C60, where 800E8DC8 passes 3).
+- ovl_11_func_800E5B84 (m, matched this session, 0xDC, byte-exact) —
+  conditional flag-clear leaf: resolves the 0x24 record through
+  `ovl_11_func_800EFF04(0x24, (s16)arg0, NULL)`, then when `arg3 == 0`, the
+  record's `u8@+4` equals `(s16)arg1` and its `u16@+2` carries 0x100/0x200,
+  clears bit 0x100000 of the `D_8006C838`+0x5234 flag word and returns 1 (0
+  otherwise); the `arg3 != 0` arm forwards through `func_80015840`/
+  `func_8001585C` and returns 1. Zero-gap link-order successor of 800E5ADC and
+  predecessor of 800E5C60; same `ovl_11_func_800EFF04` resolver idiom as those
+  two and a further +0x5234 flag-word consumer (cf. 800E953C, 800E63C8).
 - ovl_11_func_800E8DC8 (m, matched this session, 0xB0, byte-exact) — three-slot
   snapshot writer: after `ovl_11_func_800E5C60((s16)arg0, 0, 0, 0)`, resolves
   the 0x22 record via `ovl_11_func_800EFF04` and stores `D_80129560[arg2]`/
