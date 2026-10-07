@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_11_func_800D0F20",
+  "baseSourcePath": "build/base_800D0F20.c",
+  "maxVariants": 400,
+  "assembleUniqueDbr": false,
+  "traceAllPreprocessed": true,
+  "constraints": {
+    "forbidInstructionCountGrowth": false,
+    "preserveExistingEmptyMemoryBarriers": false,
+    "preserveOpcodeStream": false,
+    "preserveTargetRanges": [],
+    "incompatibleAlternatives": [],
+    "requiredAlternatives": []
+  },
+  "scheduleComparison": { "enabled": true, "analyze": "traced-classes", "maxInterventions": 8 },
+  "dimensions": [
+    {
+      "id": "work",
+      "mechanism": "statement-birth-order",
+      "expectedPass": "expand",
+      "invariants": ["stores val at +0x99C8 and arg1 at +0x99CA"],
+      "alternatives": [
+        { "id": "v60", "useBase": true, "expectedEffect": "reference", "invariants": [] },
+        { "id": "v37", "expectedEffect": "v37", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)((u8 *)&D_8006C838 + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;" }] },
+        { "id": "v62", "expectedEffect": "v62", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + 0x8000);\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x0CE4] = val;\n        slot = slot + 1;\n        slot[0x0CE4] = arg1;" }] },
+        { "id": "v66", "expectedEffect": "v66", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + 0x8000);\n        a = (s16 *)((u8 *)slot + idx * 4);\n        a[0x0CE4] = val;\n        b = (s16 *)((u8 *)slot + idx * 4);\n        b[0x0CE5] = arg1;" }] },
+        { "id": "v67", "expectedEffect": "v67", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + 0x8000);\n        a = (s16 *)((u8 *)slot + idx * 4);\n        a[0x0CE4] = val;\n        slot = a;\n        slot[0x0CE5] = arg1;" }] },
+        { "id": "v74", "expectedEffect": "v74", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + 0x8000);\n        a = (s16 *)((u8 *)slot + idx * 4);\n        a[0x0CE4] = val;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x0CE5] = arg1;" }] },
+        { "id": "v77", "expectedEffect": "v77", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot = (s16 *)((u8 *)slot + 0x8000);\n        slot[0x0CE4] = val;\n        slot = slot + 1;\n        slot[0x0CE4] = arg1;" }] },
+        { "id": "v52", "expectedEffect": "v52", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        q = slot;\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        q[0x4CE5] = arg1;" }] },
+        { "id": "voff", "expectedEffect": "voff", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        off = idx * 4;\n        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + off);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;" }] },
+        { "id": "vpair", "expectedEffect": "vpair", "invariants": [], "edits": [{ "find": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        slot[0x4CE4] = val;\n        slot = slot + 1;\n        slot[0x4CE4] = arg1;", "occurrences": 1, "replace": "        slot = (s16 *)D_8006C838;\n        slot = (s16 *)((u8 *)slot + idx * 4);\n        ((Ovl11Status99C8View *)slot)->field_99C8[0] = val;\n        slot = slot + 1;\n        ((Ovl11Status99C8View *)slot)->field_99C8[0] = arg1;" }] }
+      ]
+    }
+  ]
+}
