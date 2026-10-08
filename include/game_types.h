@@ -593,6 +593,16 @@ typedef struct {
     /* 0x18 */ UnkStruct80075BC4 **unk18;
 } Ovl11Func801097F4Arg;
 
+/* ovl_11_func_800CF95C argument record, passed by value like
+ * Ovl11Func801097F4Arg: all 16 bytes ride in $a0-$a3 and are homed to
+ * 0x0($sp) on entry. Only the fields the function reads are named. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+} Ovl11Func800CF95CArg;
+
 /* ovl_11_func_801096FC argument record, passed by value like
  * Ovl11Func801097F4Arg: the first 16 bytes ride in $a0-$a3 and are homed to
  * 0x0($sp) on entry; the tail fields sit at 0x10 (s16 selector), 0x14 (s32

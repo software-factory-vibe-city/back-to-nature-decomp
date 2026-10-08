@@ -5337,6 +5337,33 @@ ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 0x38/0x3C state-switch run above.
 
 ---
+## `ovl_11` D_8006C838 +0x8000 split-base gapless run — 0x800CF848 / 0x800CF95C / 0x800CFA48 (confidence: medium)
+
+Gapless link-order run: 0x800CF848 (0x114) ends exactly at 0x800CF95C
+(0xEC), which ends exactly at 0x800CFA48 (0x88). All three touch the
+main-binary D_8006C838 flags/state buffer, reach their large-offset cell
+through the cluster's +0x8000 two-stage split, and share the callee pair
+`ovl_11_func_800CE744(_, -1)` and `func_80012A34` plus the three-word output
+object at +0x38/+0x3C/+0x40. 800CFA48 is already a member of the
+D_8006C838 flags/state-buffer cluster above (data tie only); this run
+supplies the link-order adjacency that cluster lacked, so membership is
+asserted here for the three run members.
+Members (address order):
+- ovl_11_func_800CF848 (s) — head: walks the D_80123940 s16 triple behind a
+  `func_80012A34` gate, then calls `ovl_11_func_800CE744(entry, -1)` and
+  writes the returned record's +0x38/+0x3C/+0x40 words; also reads the
+  D_8006C838 +0x8000 +0x19D8 cell.
+- ovl_11_func_800CF95C (m, matched this session, byte-exact) — sibling leaf:
+  gates on the +0xE4C8 s16 (via the +0x8000 split), on `func_80012A34(0x32)`
+  and on the +0x44BA s16, calls `ovl_11_func_800CE744(arg1 == 1 ? 0x156 :
+  0x157, -1)`, fills +0x38/+0x3C/+0x40 from a 16-byte by-value argument homed
+  to $a0-$a3 ($0x0-$0xC), and writes the +0x22 u16 from the +0x5200 cell
+  (arg1 == 1) or from `func_80012A34(2) ? 0 : 3`.
+- ovl_11_func_800CFA48 (m) — tail: listed in the flags/state-buffer cluster
+  above; gapless successor of 0x800CF95C, shares `func_80012A34` and the
+  +0xE4C8 cell.
+
+---
 ## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —

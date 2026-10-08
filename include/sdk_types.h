@@ -2068,6 +2068,13 @@ typedef struct {
 } Ovl11Func800CADBCArg0;
 
 typedef struct {
+               s32 unk0;
+               s32 unk4;
+               s32 unk8;
+               s32 unkC;
+} Ovl11Func800CF95CArg;
+
+typedef struct {
                u16 unk0;
                char pad_02[0x2E];
                s16 unk30;
