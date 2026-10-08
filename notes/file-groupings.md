@@ -2691,6 +2691,23 @@ Members (address order):
 
 ---
 
+## `ovl_11` s16 dispatch-map run — 0x80111750–0x80111944 (confidence: medium)
+
+Candidate same-TU family of `ovl_11`: address-adjacent leaf `s16`->`s32`
+selectors — each a `switch` with no callees and no file-scope data. The
+membership fingerprint is a shared case-key set: 80111750 and 80111944
+dispatch on exactly {0x8B, 0x8C, 0x8D, 0x91, 0x92, 0x93, 0xE3, 0xE7, 0xE8}
+plus the 0x122–0x124 range, differing only in the constants returned and the
+case order; 8011184C sits between them with the same leaf-switch shape.
+
+Members (address order):
+- ovl_11_func_80111750 (m, matched) — shared-key-set `s16` switch map
+- ovl_11_func_8011184C (m, matched) — biased-channel `s16` switch map
+- ovl_11_func_80111944 (m, matched this session, 0x11C bytes) — shared-key-set
+  `s16` switch map
+
+---
+
 ## `ovl_11` D_80127F60 s16-table lookup helper — 0x80111D28 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): one short leaf
