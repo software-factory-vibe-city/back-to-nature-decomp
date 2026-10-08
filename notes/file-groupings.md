@@ -10375,20 +10375,22 @@ Members (address order):
   `D_8012961C` and arg0 is in 2..8, jumps through `jtbl_800B9F68`; the
   0..1 and out-of-range paths return 1/0.
 
-## `ovl_11` D_800A0728 ObjectState reset/handoff pair — 0x800F6F7C / 0x800F7010 (confidence: medium)
+## `ovl_11` D_800A0728 ObjectState reset/handoff run — 0x800F6F7C / 0x800F7010 / 0x800F8A3C (confidence: medium)
 
-Shared-cluster plus shared-idiom tie in `ovl_11` (`Obj\GF_FARM.bin`). Both
-functions are the same thin wrapper around the engine's cached object state at
-`D_800A0728`: each calls `func_80015840(&D_800A0728, id)`, then
+Shared-cluster plus shared-idiom tie in `ovl_11` (`Obj\GF_FARM.bin`). Each
+member is a thin wrapper around the engine's cached object state at
+`D_800A0728`: it calls `func_80015840(&D_800A0728, id)`, then
 `func_8001585C(&D_800A0728, sub)`, then hands the object to the state-message
-dispatcher with its two bytes at +0x4/+0x5 as the middle arguments. They differ
-only in the reset constants, the message callee (`func_80015F80` vs
+dispatcher with its two bytes at +0x4/+0x5 as the middle arguments. Members
+differ only in the reset constants, the message callee (`func_80015F80` vs
 `func_80015EE8`), and the trailing arguments. The object is addressed
 absolutely (extern-only, `-G0`/`lui+%lo`), and zero-gap link-order contiguity
-ties them: `ovl_11_func_800F6F7C` (0x94) ends exactly at 0x800F7010, where
-`ovl_11_func_800F7010` begins. The preceding `ovl_11_func_800F6F40` ends
+ties the first two: `ovl_11_func_800F6F7C` (0x94) ends exactly at 0x800F7010,
+where `ovl_11_func_800F7010` begins. The preceding `ovl_11_func_800F6F40` ends
 exactly at 0x800F6F7C but shares no `D_800A0728` reference, so it is an
-adjacency boundary only, not a member.
+adjacency boundary only, not a member. `ovl_11_func_800F8A3C` joins by the
+same shared object and the identical three-call idiom (run twice in one body),
+not by adjacency.
 
 Members (address order):
 - ovl_11_func_800F6F7C (m, matched this session, byte-exact) — reset
@@ -10397,6 +10399,10 @@ Members (address order):
 - ovl_11_func_800F7010 (m, already matched) — reset
   `func_80015840(&D_800A0728, 11)` / `func_8001585C(&D_800A0728, 2)`, then
   `func_80015EE8(arg0, &D_800A0728, u8@+4, u8@+5, arg1, arg2)`.
+- ovl_11_func_800F8A3C (m, matched this session, byte-exact) — the same
+  reset/handoff sequence run twice (ids 0xD then 0xC, message args 0x7D/0x90
+  then 0x115/0x90, sub id from `D_80126E50`), then cycles `D_80126E52` and
+  wraps `D_80126E50` modulo 4.
 
 ## `ovl_11` D_80124A18 range-entry accessor band — 0x800EFABC–0x800EFF9C (confidence: medium)
 
