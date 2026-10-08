@@ -1360,6 +1360,17 @@ typedef struct {
 
 typedef struct {
                u16 unk0;
+               s8 unk2;
+               char pad3;
+} M2C_a3c645de7bec_M2C_Elem801032BC;
+
+typedef struct {
+               char pad0[0x1C];
+               M2C_a3c645de7bec_M2C_Elem801032BC *unk1C;
+} M2C_a3c645de7bec_M2C_Arg801032BC;
+
+typedef struct {
+               u16 unk0;
 } M2C_a5df3a0a31de_UnkStruct800DF4F0;
 
 typedef struct {

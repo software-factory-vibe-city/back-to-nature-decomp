@@ -7004,6 +7004,46 @@ Members (address order):
 - ovl_11_func_80102A64 (m, matched this session, byte-exact) — counter-decrement
   consumer of the D_80071AC0 and D_8006C838+0x450A 6-byte record tables.
 
+## `ovl_11` D_8012CF00 8-entry table id-map run — 0x80102E1C–0x801033D4 (confidence: medium)
+
+Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) built around the
+8-entry `D_8012CF00` u16 table and the raw id set 0x181–0x184. Evidence
+produced by matching `ovl_11_func_801032BC` this session:
+
+- **zero-gap link-order contiguity:** `ovl_11_func_80102E1C` (0xF8, ends
+  0x80102F14) → `ovl_11_func_80102F14` (0x2D0, ends 0x801031E4) →
+  `ovl_11_func_801031E4` (0xD8, ends 0x801032BC) → `ovl_11_func_801032BC`
+  (0x118, ends 0x801033D4); each starts exactly where the previous ends;
+- **call graph agrees with link order:** run head `80102E1C` has a single
+  `jal`, to its link successor's successor `801031E4`; `80102F14` has a
+  single `jal`, to its link successor `801032BC`. Both call sites read
+  `D_8012CF00` and pass a table entry as the id;
+- **shared global cluster:** `D_8012CF00` (8 u16 entries) is read by
+  `80102E1C`, `80102F14` and `801031E4`; `801031E4` also reads the
+  `D_80127404` key list indexed `idx*4`;
+- **shared id-map + scan idiom:** `801031E4` and `801032BC` both map ids
+  0x181–0x184 to small constants and scan an 8-entry u16 table for a
+  match — the same decision shape over the same id set, adjacent in link
+  order;
+- **adjacency to a documented run:** `801032BC` ends exactly at 0x801033D4,
+  the head of the high-confidence D_801273DC handler-table run; that run is a
+  different global cluster (`D_801273DC`), so this is adjacency only and is
+  not claimed as membership here.
+
+Members (address order):
+- ovl_11_func_80102E1C (s) — run head; reads the 8-entry `D_8012CF00` table;
+  its only call is its link successor's successor `801031E4`.
+- ovl_11_func_80102F14 (s) — reads `D_8012CF00`; walks the table and calls its
+  link successor `801032BC` with the shared object and a stack u16, testing
+  the 1/2 result codes.
+- ovl_11_func_801031E4 (s, parked attempt preserved) — maps 0x181–0x184 to
+  indices 0–3; scans the `D_8012CF00` entries against the
+  `D_80127404[idx*4]` key list; returns 1 on a hit, 2 otherwise.
+- ovl_11_func_801032BC (m, matched this session, byte-exact) — maps the same
+  0x181–0x184 ids (plus 0x88–0x90 and 0xE3–0xE5) to constants; scans an
+  8-entry {u16, s8} table through arg0+0x1C, accumulating the signed byte into
+  *arg2; returns 1/2 on the same nonzero-entry test as 801031E4.
+
 ## `ovl_11` D_80125528/D_80126254 record-table + D_800957F8 blob cluster (confidence: low)
 
 Evidence: a shared global cluster — `D_80125528` (per-index pointer table),
