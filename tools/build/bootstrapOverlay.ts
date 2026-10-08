@@ -6,11 +6,11 @@
  * infer section boundaries; an overlay member has no header, so its base comes
  * from the Deliverable 3 solver and its boundaries from `overlayLayout.ts`.
  *
- * The disassembler is then run over the derived `.text` range only. Run over
- * the whole member it collapses everything into one multi-kilobyte phantom
- * function, because a member that opens with data gives it nothing to anchor
- * on — the same failure the PS-X EXE's two-pass disassembly exists to avoid,
- * worse here because overlay members are roughly half data by volume.
+ * The disassembler receives the derived `.rodata` and `.text` as separate
+ * sections. Treating data as instructions invents phantom functions; omitting
+ * rodata altogether misses jump-table context and promotes switch arms to
+ * functions. The section-aware symbol types and parentFunction metadata decide
+ * which function-info rows are local fragments before any config is emitted.
  *
  * Usage:
  *   npx tsx tools/build/bootstrapOverlay.ts                    # every overlay
@@ -41,6 +41,13 @@ import { ENGINE_EXPORT_PATH } from "../lib/symbolIndex.js";
 import { existingRodataBlock } from "./deriveRodataSplits.ts";
 import { loadPsxExeInfo } from "../lib/psxExeInfo.js";
 import { parseCSV } from "./analyzeLayout.js";
+import {
+  overlayDirectCalls,
+  overlayFunctionSymbols,
+  overlayFunctionsFromContext,
+  overlaySectionSplits,
+  type OverlayFunction,
+} from "../lib/overlayFunctionBoundaries.js";
 
 const args = process.argv.slice(2);
 const write = args.includes("--write");
@@ -71,7 +78,7 @@ function ensureDir(path: string): void {
  * than as a bare address; the overlay's own functions go in so they carry the
  * container prefix that makes `(container, vram)` one token.
  */
-function writeDisasmSymbols(container: Container, ownFunctions: readonly number[]): void {
+function writeDisasmSymbols(container: Container, ownFunctions: readonly OverlayFunction[]): void {
   const enginePath = join(ROOT, ENGINE_EXPORT_PATH);
   const engineLines: string[] = [];
   if (existsSync(enginePath)) {
@@ -80,21 +87,20 @@ function writeDisasmSymbols(container: Container, ownFunctions: readonly number[
       if (match) engineLines.push(`${match[1]} = ${match[2]};`);
     }
   }
-  const own = ownFunctions.map(
-    (address) => `${symbolPrefix(container)}func_${address.toString(16).toUpperCase()} = ${hex(address)}; // type:func`
-  );
   const path = containerPath(container, "disasmSymbolAddrs");
   ensureDir(path);
-  writeFileSync(path, [...engineLines, ...own].join("\n") + "\n");
+  writeFileSync(path, engineLines.join("\n") + "\n" + overlayFunctionSymbols(ownFunctions));
 }
 
 function runSpimdisasm(
   container: Container,
   layout: OverlayLayout,
   outDir: string,
-  options: { unknown: boolean; csv: string; splitFunctions?: string }
+  options: { unknown: boolean; csv: string; splitFunctions?: string; context?: string }
 ): void {
   mkdirSync(join(ROOT, outDir), { recursive: true });
+  const sectionSplits = join(container.paths.disasmDir, "section_splits.csv");
+  writeFileSync(join(ROOT, sectionSplits), overlaySectionSplits(container.loadAddr, layout));
   const argv = [
     "singleFileDisasm",
     "--arch-level",
@@ -102,15 +108,14 @@ function runSpimdisasm(
     ...(options.unknown ? ["--disasm-unknown"] : []),
     container.targetPath,
     outDir,
-    "--start",
-    hex(layout.textStart),
-    "--end",
-    hex(layout.dataStart),
+    "--file-splits",
+    sectionSplits,
     "--vram",
-    hex(container.loadAddr + layout.textStart),
+    hex(container.loadAddr),
     "--instr-category",
     "r3000gte",
     ...(options.splitFunctions ? ["--split-functions", options.splitFunctions] : []),
+    ...(options.context ? ["--save-context", options.context] : []),
     "--function-info",
     options.csv,
     "--compiler",
@@ -184,7 +189,7 @@ function rodataBlock(container: Container, layout: OverlayLayout, indent: string
 function renderSplatConfig(
   container: Container,
   layout: OverlayLayout,
-  functions: Array<{ address: number; name: string }>,
+  functions: OverlayFunction[],
   crossSlot: readonly string[]
 ): string {
   const indent = "      ";
@@ -311,29 +316,33 @@ for (const container of containers) {
   }
 
   /* First pass names only the engine, so the function list it produces is the
-     disassembler's own boundary analysis rather than an echo of our seeds. */
+     disassembler's own boundary analysis rather than an echo of our seeds.
+     Function-info also lists fragments; the rodata-aware context says which
+     rows are switch labels and names their owner. Keep that evidence before
+     the second pass seeds the recovered functions and their explicit sizes. */
+  const contextPath = join(container.paths.disasmDir, "bootstrap_context.csv");
   writeDisasmSymbols(container, []);
   runSpimdisasm(container, layout, container.paths.disasmDir, {
     unknown: true,
     csv: container.paths.functionsCsv,
-    splitFunctions: container.paths.functionsDir,
+    context: contextPath,
   });
 
   const entries = parseCSV(containerPath(container, "functionsCsv"));
-  const functions = entries
-    .filter((entry) => entry.address >= container.loadAddr + layout.textStart)
-    .filter((entry) => entry.address < container.loadAddr + layout.dataStart)
-    .sort((a, b) => a.address - b.address)
-    .map((entry) => ({
-      address: entry.address,
-      name: `${symbolPrefix(container)}func_${entry.address.toString(16).toUpperCase()}`,
-    }));
+  const functions = overlayFunctionsFromContext(
+    entries, readFileSync(join(ROOT, contextPath), "utf-8"), symbolPrefix(container),
+    container.loadAddr + layout.textStart, container.loadAddr + layout.dataStart,
+    overlayDirectCalls(bytes, container.loadAddr, layout),
+  );
+  for (const fn of functions.filter((f) => f.size !== undefined)) {
+    console.log(`  ${fn.name}: local fragments recovered into size ${hex(fn.size!)}`);
+  }
 
   console.log(`  ${functions.length} functions in .text`);
 
   /* Second pass, now with the container's own names, plus the pass without
      --disasm-unknown that boundary analysis downstream reads. */
-  writeDisasmSymbols(container, functions.map((f) => f.address));
+  writeDisasmSymbols(container, functions);
   runSpimdisasm(container, layout, container.paths.disasmDir, {
     unknown: true,
     csv: container.paths.functionsCsv,
@@ -372,7 +381,7 @@ for (const container of containers) {
   ensureDir(symbolsPath);
   writeFileSync(
     symbolsPath,
-    functions.map((fn) => `${fn.name} = ${hex(fn.address)}; // type:func`).join("\n") + "\n"
+    overlayFunctionSymbols(functions)
   );
 
   const splatPath = containerPath(container, "splat");

@@ -63,6 +63,27 @@ Two things to take from it:
   and no source files exist for them — but they will read as missing functions
   to anyone scanning the symbol list.
 
+## 1b. Overlay bootstrap regression: `ovl_11_func_8010876C`
+
+Commit `2f284133` merged `801087BC`, `801087C4` and `801087CC` into the
+0xBC-byte switch at `8010876C`. A later `make split-ovl_11` recreated them:
+`bootstrapOverlay.ts` analysed only text, then treated every function-info row
+as a function and overwrote the explicit extent.
+
+The original table at `800BA808` has 16 entries; cases 1, 7 and 8 target those
+three addresses. Its address formation at `80108794/98` is inside even the
+incorrect 0x50-byte extent. The rodata derivation failed its table-content test
+because the targets were outside that extent, not because the address formation
+was absent. The combined error message obscured that distinction.
+
+The generator now supplies separate rodata/text sections and uses the
+section-aware context's `@jumptablelabel`/`parentFunction` evidence to collapse
+local fragments. It supplies the recovered size to the next disassembly pass
+and splat. The regression test starts from original bytes without matched C,
+objects or curated sizes, then checks the seeded pass keeps the whole function.
+No generated YAML edit or source deletion is required: overlay builds select
+only the configured C subsegments, leaving retired fragment files intact.
+
 ## 2. Decisive evidence, cheapest first
 
 Any one of these proves the symbol is not an independent function. They are

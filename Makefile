@@ -249,8 +249,11 @@ $(ENGINE_SYMS): $(wildcard $(BUILT_ELF))
 		echo "note: the executable does not link yet — the engine export falls back to the project symbol tables"
 	npx tsx tools/build/exportEngineSymbols.ts --write
 
+# Configured C subsegments, not every file left in src/. A boundary repair can
+# retire a fragment while preserving its source for review; on a cold build
+# that file has no standalone INCLUDE_ASM output and must not be compiled.
 define OverlayRules
-$(1)_C_SRCS := $$(wildcard src/overlays/$(1)/*.c)
+$(1)_C_SRCS := $$(shell awk -F', ' '/^[[:space:]]*- \[0x[0-9A-Fa-f]+, c, / { name = $$$$3; sub(/\].*/, "", name); print "src/overlays/$(1)/" name ".c" }' configs/splat/$(1).yaml 2>/dev/null)
 $(1)_ASM_SRCS := $$(shell find $(BUILD_DIR)/$(1)/asm -name '*.s' -not -path '*/nonmatchings/*' 2>/dev/null)
 $(1)_OBJS := $$(patsubst src/%.c,$(BUILD_DIR)/src/%.c.o,$$($(1)_C_SRCS)) \
              $$(patsubst $(BUILD_DIR)/$(1)/asm/%.s,$(BUILD_DIR)/$(1)/asm/%.s.o,$$($(1)_ASM_SRCS))

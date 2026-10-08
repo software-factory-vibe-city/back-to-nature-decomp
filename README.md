@@ -902,6 +902,13 @@ npx tsx tools/build/auditSdkCollisions.ts --require-all
    writes `globals.h`.
 8. `contextExport.ts --all` refreshes `functions.h`.
 
+Overlay bootstrapping analyses `.rodata` and `.text` as separate sections.
+Function-info rows can be switch fragments: the disassembler's symbol type
+and owning-function metadata determine which rows are merged, and the recovered
+extent is supplied to both the next disassembly pass and splat. Overlay builds
+compile only configured C subsegments; retired fragment sources can remain on
+disk for review without requiring nonexistent standalone assembly.
+
 ## Tools inventory
 
 | Directory | Contents |
