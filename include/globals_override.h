@@ -1042,6 +1042,11 @@ typedef struct {
 } Ovl11D124Entry;
 extern Ovl11D124Entry D_80074124[7][7];
 
+/* D_800742AC - word cleared by ovl_11_func_800DBE30 (`extern s32`) and reset
+ * together with its following 0x3C bytes by ovl_11_func_800DB9A4, which memsets
+ * 0x40 bytes from its address. Absolute-addressed from ovl_11. */
+extern s32 D_800742AC;
+
 /* D_80071DFC - 25x45 table of 8-byte entries (ovl_11); row stride 0x168.
  * ovl_11_func_800D8FC8 walks all 25 rows x 45 entries and ovl_11_func_800DAF60
  * indexes it; absolute-addressed from the overlay. */
