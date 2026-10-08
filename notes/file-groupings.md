@@ -8482,7 +8482,7 @@ Members (link order):
   with no bias; copies the four halves raw and adds 0x400 to the transformed
   result before the 4-byte round
 
-## `ovl_25` D_800BCC10 far-buffer consumer extension — 0x800BA9A4–0x800BAA5C (confidence: medium)
+## `ovl_25` D_800BCC10 far-buffer consumer extension — 0x800BA9A4–0x800BAAAC (confidence: medium)
 
 Extension of the `D_800BFE44`/`D_800BFE46` state cluster above: the same s16
 flag is written further along the run, and the run's tail is tied back to the
@@ -8523,7 +8523,12 @@ Fingerprints:
   extending the contiguous run one function earlier;
 - shared far-buffer field region: both `ovl_25_func_800BAA5C` and
   `ovl_25_func_800BA9F4` write the `D_8007AFF0+0x20000` work-area halfword at
-  +0x53B4 (= +0x253B4 absolute).
+  +0x53B4 (= +0x253B4 absolute);
+- continued adjacency + shared far-buffer state block: `ovl_25_func_800BAA5C`
+  (0x50) ends exactly at 0x800BAAAC, where `ovl_25_func_800BAAAC` (0x118) begins,
+  and the successor reads the writer's +0x25394/+0x25398/+0x253A0 state fields
+  and stores the transformed result back into the same +0x253AC/+0x253AE/
+  +0x253B0 halfword block.
 
 Members (link order):
 - ovl_25_func_800BA9A4 (s) — probes `func_8002261C(4,0x34)`/`func_800226A4()`
@@ -8534,6 +8539,13 @@ Members (link order):
 - ovl_25_func_800BAA5C (m, matched this session, byte-exact) — leaf; reads u16
   `D_800BCC10[0]`/`[2]` and writes the `D_8007AFF0+0x20000` work-area fields
   +0x5394..+0x53A4 and the +0x53B4/+0x53B8 halfwords
+- ovl_25_func_800BAAAC (m, matched this session, byte-exact) — gapless link
+  successor of 800BAA5C; `m0 = GsIDMATRIX; m1 = GsIDMATRIX;` + `PushMatrix` /
+  `RotMatrix` / `SetRotMatrix` / `SetTransMatrix` / `RotTrans` / `PopMatrix`
+  GTE matrix builder, reading the writer's +0x253A0/+0x25394 state fields and
+  storing +0x253AC/+0x253AE/+0x253B0 via the same far base (cross-container twin
+  of ovl_11_func_800DB674 / ovl_19_func_800BB358 / ovl_21_func_800BB138; the twin
+  relation is not itself TU evidence, the adjacency and shared cluster are)
 - ovl_25_func_800B8478 (m, matched, byte-exact) — 6+2 record initialiser;
   streams `D_800BCC10` (6×8 bytes) and `D_800BCC70` (2×8 bytes) into the
   stride-0x78 `D_800BFE44` records, setting index +0x10, flag +0x12, and the
