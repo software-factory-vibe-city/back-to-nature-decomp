@@ -126,16 +126,15 @@ before the caller in the same container, the original translation unit
 **defined** the callee inside the caller's body. Reconstruct it that way:
 
 ```c
-DECLARE_NESTED_FUNCTION(s32, callee_name, (s32, s32));
-s32 nested_callee_name(s32 a, s32 b) {
+s32 callee_name(s32 a, s32 b) {
     /* callee body */
 }
 ```
 
-Put this among the caller's block declarations, before its statements. The
-declaration keeps the project symbol name for the emitted callee. The callee's
-own source file then defines nothing and keeps only a comment pointing at the
-caller. The splat config stays one subsegment per function: the empty object
+Put this among the caller's block declarations, before its statements. cc1
+emits the callee under a private name (`callee_name.N`); the bytes are the
+same. The callee's own source file then defines nothing and keeps only a
+comment pointing at the caller. The splat config stays one subsegment per function: the empty object
 links at the same address, and the caller's object supplies both functions.
 
 The declaration alone is not equivalent. cc1 compiles a nested definition

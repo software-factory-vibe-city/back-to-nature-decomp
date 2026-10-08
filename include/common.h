@@ -23,13 +23,6 @@ typedef volatile signed int vs32;
 #define BREAK(n) __asm__ volatile("break %0" :: "n"((n) * 1024))
 #define M2C_BREAK(n) BREAK(n)
 
-/* Caller-side declaration for a separately emitted GNU nested function.
- * Calls to nested_##name retain GCC's static-chain argument; the assembler
- * label refers to the separately reconstructed callee. Use only where the
- * caller/callee bytes establish the nested-function relationship. */
-#define DECLARE_NESTED_FUNCTION(type, name, args) \
-    auto type nested_##name args __asm__(#name)
-
 /* Declares `name` as a variable bound to hard register $v0, capturing the
  * return value of the most recent function call at the point of first use.
  * POLICY EXCEPTION (user-approved 2026-07-31): reproduces a register-capture

@@ -16,8 +16,7 @@
  * not reproduce it. See notes/research/ovl_11_func_800D1CFC-nested-function-cse-not-expected.md.
  */
 s32 ovl_11_func_800D1CFC(Recon_ovl_11_func_800D2594_A0View *arg0, Recon800D0408A1View *arg1) {
-    DECLARE_NESTED_FUNCTION(s32, ovl_11_func_800D1CD0, (s32, s32));
-    s32 nested_ovl_11_func_800D1CD0(s32 a, s32 b) {
+    s32 ovl_11_func_800D1CD0(s32 a, s32 b) {
         if (a == b) {
             return 0;
         }
@@ -42,10 +41,10 @@ s32 ovl_11_func_800D1CFC(Recon_ovl_11_func_800D2594_A0View *arg0, Recon800D0408A
     x1 = *(s32 *) ((u8 *) arg0 + 0x58);
     dx = __builtin_abs(x1 - x0);
     dy = __builtin_abs(y1 - y0);
-    rank1 = nested_ovl_11_func_800D1CD0(x0, x1);
+    rank1 = ovl_11_func_800D1CD0(x0, x1);
     rank2 = 0;
     if (dy * 3 >= dx) {
-        rank2 = nested_ovl_11_func_800D1CD0(y0, y1);
+        rank2 = ovl_11_func_800D1CD0(y0, y1);
     }
     if (dx < D_80123754 && dy < D_80123754 && (dx < 50 || dy < 50)) {
         result = 0;

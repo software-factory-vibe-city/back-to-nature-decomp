@@ -10,7 +10,8 @@ cause and is EXACT at 27/27 in scratch. The sibling is not integrated (see §7).
 The fix was not a spelling. The comparator has to be **defined** inside the
 parent, as a real GNU C nested function. The project had been reconstructing it
 as a separately compiled function plus a declaration-only
-`DECLARE_NESTED_FUNCTION`. That reproduces the calls and the static chain, but
+`DECLARE_NESTED_FUNCTION` (a caller-side macro, since removed). That reproduces
+the calls and the static chain, but
 not the compiler state the parent was compiled under.
 
 ---
@@ -141,8 +142,7 @@ reconstruction artifact. It is likely the same for the other
 
 ```c
 s32 ovl_11_func_800D1CFC(Recon_ovl_11_func_800D2594_A0View *arg0, Recon800D0408A1View *arg1) {
-    DECLARE_NESTED_FUNCTION(s32, ovl_11_func_800D1CD0, (s32, s32));
-    s32 nested_ovl_11_func_800D1CD0(s32 a, s32 b) {
+    s32 ovl_11_func_800D1CD0(s32 a, s32 b) {
         if (a == b) {
             return 0;
         }
@@ -162,15 +162,16 @@ s32 ovl_11_func_800D1CFC(Recon_ovl_11_func_800D2594_A0View *arg0, Recon800D0408A
 }
 ```
 
-`DECLARE_NESTED_FUNCTION` followed by the definition gives the nested function
-its project symbol name. cc1 emits it as a local `ovl_11_func_800D1CD0` ahead of
-the parent, and the calls `jal` to it. A bare nested `cmp` would be emitted as
-`cmp.3` with identical bytes. The earlier session's `__builtin_abs` correction
+cc1 emits the nested function ahead of the parent under its private name
+`ovl_11_func_800D1CD0.3`, and the calls `jal` to it. The bytes do not depend on
+the name. An `auto` forward declaration with an asm label could restore the
+plain project symbol, but it was removed as unnecessary: it is only a naming
+device. The earlier session's `__builtin_abs` correction
 still matters; the explicit `goto block_12` structure and the `(u32)` index
 cast do not.
 
 Sibling, EXACT 27/27 for `ovl_11_func_800D062C` (`build/d1cfc_claude/nest/s.c`).
-For integration it should use the same named-declaration form:
+For integration it should use the same plain nested definition:
 
 ```c
 u16 ovl_11_func_800D062C(Ovl11RankPair *arg0) {
