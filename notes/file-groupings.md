@@ -614,7 +614,7 @@ Members (address order):
 
 ---
 
-## `ovl_11` CD asset-load init run — 0x800BD538–0x800BDA20 (confidence: medium)
+## `ovl_11` CD asset-load init run — 0x800BD538–0x800BDA70 (confidence: medium)
 
 Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) sharing the asset-load
 idiom `func_80014BCC(0, <ROM addr>, <size>, 0, D_8005E3B0+0x4290)` — the
@@ -627,9 +627,9 @@ globals `D_8007BFF8` / `D_801287F8` / `D_80128800`. `D_801287F8`
 Fingerprints:
 - zero-gap link-order contiguity (map): 0x800BD538 (0x68) → 800BD5A0 (0x8)
   → 800BD5A8 (0xC0) → 800BD668 (0x40) → 800BD6A8 (0x234) → 800BD8DC (0x5C)
-  → 800BD938 (0x9C) → 800BD9D4 (0x4C) → 800BDA20 (0x50), each starting
-  exactly where the previous ends, one unbroken span with no unrelated code
-  between;
+  → 800BD938 (0x9C) → 800BD9D4 (0x4C) → 800BDA20 (0x50) → 800BDA70
+  (0x118), each starting exactly where the previous ends, one unbroken span
+  with no unrelated code between;
 - shared loader idiom: 800BD538/800BD668/800BD938/800BDA20 all call
   `func_80014BCC(0, <ROM addr>, <size>, 0, D_8005E3B0+0x4290)`; 800BD5A8
   (matched this session) calls it too, with the range taken from the
@@ -655,6 +655,14 @@ Members (address order):
   D_8007BFF8
 - ovl_11_func_800BDA20 (m) — loads 0x03D51000/0x6800 into +0x4290, then
   `func_8001719C(D_8005E3B0+0x4290)`
+- ovl_11_func_800BDA70 (m, matched this session, byte-exact) — same loader
+  wrapper pair as 800BDA20 (`func_80014BCC` then `func_8001719C`), but its
+  source base is the render-context cluster: it selects
+  `D_8005E5E8[0/1].+0x124` on the `D_8005E3C0 == D_8005E5E8` test, loads
+  0x7F000/9 sectors into that base, `memcpy`s 0x770 bytes to `D_8009CBF8`,
+  then `func_8001719C(base+0x770)`. Shares the wrapper pair and zero-gap
+  adjacency; the differing source/destination cluster keeps run confidence
+  at medium.
 
 ---
 
