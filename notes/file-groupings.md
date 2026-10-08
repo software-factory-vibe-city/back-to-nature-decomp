@@ -5337,18 +5337,26 @@ ties it to the vector-setter run ending at 0x800D7348 (see that entry).
 0x38/0x3C state-switch run above.
 
 ---
-## `ovl_11` D_8006C838 +0x8000 split-base gapless run — 0x800CF848 / 0x800CF95C / 0x800CFA48 (confidence: medium)
+## `ovl_11` D_8006C838 +0x8000 split-base gapless run — 0x800CF748 / 0x800CF848 / 0x800CF95C / 0x800CFA48 (confidence: medium)
 
-Gapless link-order run: 0x800CF848 (0x114) ends exactly at 0x800CF95C
-(0xEC), which ends exactly at 0x800CFA48 (0x88). All three touch the
-main-binary D_8006C838 flags/state buffer, reach their large-offset cell
-through the cluster's +0x8000 two-stage split, and share the callee pair
+Gapless link-order run: 0x800CF748 (0x100) ends exactly at 0x800CF848
+(0x114), which ends exactly at 0x800CF95C (0xEC), which ends exactly at
+0x800CFA48 (0x88). All four share the callee pair
 `ovl_11_func_800CE744(_, -1)` and `func_80012A34` plus the three-word output
-object at +0x38/+0x3C/+0x40. 800CFA48 is already a member of the
-D_8006C838 flags/state-buffer cluster above (data tie only); this run
-supplies the link-order adjacency that cluster lacked, so membership is
-asserted here for the three run members.
+object at +0x38/+0x3C/+0x40; the two lower members also consume the adjacent
+D_80123920/D_80123940 record block (800CF748 reads D_80123920, 800CF848
+walks D_80123940, which begins where D_80123920 ends). The upper three touch
+the main-binary D_8006C838 flags/state buffer and reach their large-offset
+cell through the cluster's +0x8000 two-stage split. 800CFA48 is already a
+member of the D_8006C838 flags/state-buffer cluster above (data tie only);
+this run supplies the link-order adjacency that cluster lacked, so
+membership is asserted here for the four run members.
 Members (address order):
+- ovl_11_func_800CF748 (m, matched this session, byte-exact) — head: switches
+  on the D_8007AFF0 +0x25476 s16, copies the D_80123920 block's 0x1F half
+  (offset 0) or 0x1B half (offset 0x10) into a stack local, then fills the
+  shared +0x38/+0x3C/+0x40 output object and the +0x22 u16 with
+  `func_80012A34(2) ? 0 : 3`.
 - ovl_11_func_800CF848 (s) — head: walks the D_80123940 s16 triple behind a
   `func_80012A34` gate, then calls `ovl_11_func_800CE744(entry, -1)` and
   writes the returned record's +0x38/+0x3C/+0x40 words; also reads the
