@@ -28,6 +28,7 @@ void ovl_19_func_800BAC40(Ovl19Func800BAC40Arg *arg0, s32 arg1, s32 arg2, s32 ar
 void ovl_19_func_800BAC50(Ovl19Func800BAC40Arg *arg0, s32 arg1, s32 arg2);
 void ovl_19_func_800BAC5C(void);
 void ovl_19_func_800BAC7C(void);
+void ovl_19_func_800BAC9C(s32 arg0);
 void ovl_19_func_800BAD50(void);
 s32 ovl_19_func_800BADAC(s16 arg0);
 void ovl_19_func_800BB08C(s32 arg0, s32 arg1);

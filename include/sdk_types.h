@@ -2,6 +2,8 @@
 /* m2c context only: type definitions for include/functions.h.
  * Must be passed to m2c *before* functions.h; see tools/agent/m2cFunc.ts. */
 
+struct M2C_3586522a33fd_ovl_11_800D2A88_data;
+
 struct M2C_9e3562919d92_ovl_15_80132A8C_data;
 
 struct M2C_1e7e93467acd_Unk800D3FEC;
@@ -133,26 +135,6 @@ typedef struct {
     char pad_38[0x7A - 0x38];
                u16 unk7A;
 } M2C_0aa84df87d2b_Ovl11D04D4Obj;
-
-typedef struct {
-    char pad_00[0x34];
-    s32 field_34;
-    char pad_38[0x58 - 0x38];
-    s32 field_58;
-    s32 field_5C;
-    s32 field_60;
-} Ovl11SetFieldsView;
-
-typedef Ovl11SetFieldsView M2C_0ac2dae062dd_Ov11SetFields;
-
-typedef struct {
-    s32 field_0;
-    s32 field_4;
-    s32 field_8;
-    u8 pad_C[4];
-} Ovl11PaddedVec3;
-
-typedef Ovl11PaddedVec3 M2C_0ac2dae062dd_Ov11SetVec;
 
 typedef struct {
                u16 unk0;
@@ -2111,6 +2093,22 @@ typedef struct {
 } Ovl11Func8011D890Arg;
 
 typedef struct {
+    s32 field_0;
+    s32 field_4;
+    s32 field_8;
+    u8 pad_C[4];
+} Ovl11PaddedVec3;
+
+typedef struct {
+    char pad_00[0x34];
+    s32 field_34;
+    char pad_38[0x58 - 0x38];
+    s32 field_58;
+    s32 field_5C;
+    s32 field_60;
+} Ovl11SetFieldsView;
+
+typedef struct {
                s16 unk0;
 } Ovl15Func80134444Arg;
 
@@ -2450,6 +2448,17 @@ typedef struct {
     s32 y;
     s32 z;
 } Vec3;
+
+struct M2C_3586522a33fd_ovl_11_800D2A88_data {
+    s16 pad0[17];
+    s16 field_22;
+    s16 pad1[6];
+    s16 field_30;
+    s16 pad2[3];
+    s32 field_38;
+    s32 field_3C;
+    s32 field_40;
+};
 
 struct M2C_9e3562919d92_ovl_15_80132A8C_data {
     s16 pad0[17];
