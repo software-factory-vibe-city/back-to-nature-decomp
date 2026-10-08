@@ -22,6 +22,7 @@ void ovl_11_func_800BD938(void);
 void ovl_11_func_800BD9D4(s32 arg0);
 void ovl_11_func_800BDA20(void);
 s32 ovl_11_func_800BDCE0(void);
+void *ovl_11_func_800BDE84(u8 *arg0, s16 *arg1);
 void ovl_11_func_800BE2B8(void);
 u16 ovl_11_func_800BF2F4(s16 *arg0, s16 *arg1);
 s32 ovl_11_func_800BF3D0(void);

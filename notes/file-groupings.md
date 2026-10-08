@@ -11641,3 +11641,30 @@ Members:
   +0xC flag word, then calls 800C034C per element.
 - ovl_11_func_800C056C (m) — guards `D_8006C838` +0xC bit `0x08000000` and
   calls `func_80012A34(0x64)`.
+
+---
+
+## `ovl_11` stride-0x2C bounding-box record run — 0x800BDCE8 / 0x800BDE84 (confidence: medium)
+
+Candidate same-TU pair of `ovl_11`. Evidence: shared stride-0x2C record-scan
+idiom — both gate on a u16 flag word at +0x10 (800BDE84 tests bit 0x4000;
+800BDCE8 tests the 0x6008 mask and reads the sibling u16 at +0x12) and copy
+the same 12-byte box from +0x1E/+0x22/+0x24/+0x28 into a stack local with the
+identical 4+2+4+2 unaligned word/halfword sequence, comparing it against the
+same three s16 caller coordinates; both advance a pointer to the +0x10
+sub-record by 0x2C per iteration. Corroborated by zero-gap link-order
+contiguity (`configs/symbols/ovl_11.txt`): 0x800BDCE8 (0x19C) ends exactly at
+0x800BDE84 (0x114).
+
+Members (address order):
+- ovl_11_func_800BDCE8 (s) — record scanner: same +0x10/+0x12 flag pair and
+  +0x1E/+0x24 box, advances the +0x10 pointer by 0x2C, calls
+  `ovl_11_func_800F0FB0` and touches `D_8006C838` +0x51FE.
+- ovl_11_func_800BDE84 (m, matched this session, byte-exact) — leaf
+  bounding-box probe: returns the +0x10 sub-record (`NULL` if none of the 0x32
+  entries matches) whose flag bit 0x4000 is set and whose +0x1E/+0x24 min/max
+  box brackets `arg1`, y-axis biased by −0x80/+0x78.
+
+Run context (not asserted members): gapless predecessor ovl_11_func_800BDCE0
+(m, 8-byte `return -1` leaf) and successor ovl_11_func_800BDF98 (s, large
+argument-forwarding body calling 800D7EF8/800BE6E4) bound the run.
