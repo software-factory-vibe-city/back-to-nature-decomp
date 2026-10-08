@@ -9258,9 +9258,11 @@ TU-membership evidence, but the shared offsets here are the same cluster.
 Members (link order):
 - ovl_19_func_800BB318 (m, matched) — leaf reset; stores the `D_8007AFF0`
   +0x25394..+0x253A4 s32 block and clears +0x253B4/+0x253B6/+0x253B8.
-- ovl_19_func_800BB358 (s) — GTE matrix reader on the same far base; reads
-  +0x25394/+0x25398/+0x253A0/+0x253AC/+0x253AE/+0x253B0/+0x253B6 and calls
-  `PushMatrix`/`SetRotMatrix`/`SetTransMatrix`/`RotMatrix`/`RotTrans`/`PopMatrix`.
+- ovl_19_func_800BB358 (m, matched, byte-exact) — GTE matrix reader on the same
+  far base; reads +0x25394/+0x25398/+0x253A0/+0x253AC/+0x253AE/+0x253B0/+0x253B6
+  and calls `PushMatrix`/`SetRotMatrix`/`SetTransMatrix`/`RotMatrix`/`RotTrans`/
+  `PopMatrix`. Byte-identical source twin of `ovl_11_func_800DB674` and
+  `ovl_21_func_800BB138` (same code family copied across overlays).
 - ovl_19_func_800BB470 (m, byte-exact) — reads the +0x253AC/+0x253AE/+0x253B0/
   +0x253B4/+0x253B6/+0x253B8 halfwords via the same far base and passes them to
   `func_8001B9F8` (sum-of-pairs, 4 args) and `func_8001BA40` (3 args).

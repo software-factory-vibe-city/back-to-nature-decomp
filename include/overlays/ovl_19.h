@@ -33,6 +33,7 @@ void ovl_19_func_800BAD50(void);
 s32 ovl_19_func_800BADAC(s16 arg0);
 void ovl_19_func_800BB08C(s32 arg0, s32 arg1);
 void ovl_19_func_800BB318(void);
+void ovl_19_func_800BB358(void);
 void ovl_19_func_800BB470(void);
 void ovl_19_func_800BB4D4(void);
 void ovl_19_func_800BB848(void);
