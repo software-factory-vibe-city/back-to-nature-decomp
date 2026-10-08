@@ -416,6 +416,12 @@ typedef struct {
 } M2C_266679f3a6df_Struct_800DFA7C;
 
 typedef struct {
+               s32 field_00;
+               s32 field_04;
+               s32 field_08;
+} M2C_2667c0b769b3_BoundsArgs4994;
+
+typedef struct {
                u16 unk0;
                s16 unk2;
                u16 unk4;

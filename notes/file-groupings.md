@@ -1872,6 +1872,21 @@ Members (address order):
 - ovl_11_func_800CE37C (s) — larger setup body over `D_80128CEC` and
   `D_8006C838`; link successor of the run
 
+Widening (2026-10-06, byte-exact match of `ovl_11_func_800C79F8`): that
+function references the main-RAM global `D_80128CF0` (0x80128CF0, the s32
+immediately after this run's `D_80128CEC`) and derefs the same
+`D_8007AFF0+0x25388` far-buffer pointer slot as `ovl_11_func_800CE2EC`; it is
+link-order contiguous with its successor `ovl_11_func_800C7AC0`
+(0x800C79F8 + 0xC8). Adjacent-global plus shared-deref data tie; TU
+membership unproven.
+
+- ovl_11_func_800C79F8 (m, matched this session, 0xC8, byte-exact) —
+  far-buffer pointer publication leaf: passes the 3-halfword view of its
+  argument to `ovl_11_func_800BDE84`, stores the returned
+  `D_8007AFF0+0x25388` far-buffer pointer into `D_80128CF0` (first project
+  reference to that global), and returns a 4-case code (0x26/0x2A/0x2B/0x2C)
+  from the pointer's +2 halfword
+
 ---
 
 ## `ovl_11` short-fold helper trio — 0x800CE514–0x800CE53C (confidence: medium)
