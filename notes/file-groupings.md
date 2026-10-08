@@ -1983,7 +1983,7 @@ Members (address order):
 - ovl_11_func_800CDE3C (m) — initializes ten position records and five embedded sprite sources.
 - ovl_11_func_800CDEEC (s) — five-position draw driver using `800CE0F0` mode 0.
 - ovl_11_func_800CDF4C (m) — initializes ten indexed positions and animation/frame pairs.
-- ovl_11_func_800CDFAC (s) — ten-position draw driver using mode 1, skipping animation value 5.
+- ovl_11_func_800CDFAC (m) — ten-position draw driver using mode 1, skipping animation value 5.
 - ovl_11_func_800CE0F0 (m) — projects/draws a position with embedded or shared sprite-source state.
 
 Evidence: matched initializer/helper C in `src/overlays/ovl_11/`; original
