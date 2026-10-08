@@ -1676,6 +1676,12 @@ extern s16 D_800C030C;
  * overlay data segment, so only an extern declaration belongs here. */
 extern s32 D_801227F8[];
 
+/* D_80122804 - ovl_11 pair table sibling of D_801227F8, indexed by an s32
+ * argument in ovl_11_func_800BD238; entries are {start, end} s32 pairs.
+ * Defined in the overlay data segment, so only an extern declaration belongs
+ * here. */
+extern s32 D_80122804[];
+
 /* D_8007F7F8 - main-RAM destination buffer written by ovl_11_func_800BD1BC's
  * memcpy. Address comes from undefined_syms_auto.txt. */
 extern s32 D_8007F7F8;

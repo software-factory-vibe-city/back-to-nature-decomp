@@ -9529,6 +9529,10 @@ Members (link order):
   D_8005E3B0 + 0x4290)` then `memcpy(&D_8007F7F8, D_8005E3B0 + 0x4290,
   p[1]-p[0])`, re-confirming the `D_8005E3B0 + 0x4290` shared cluster and
   extending the run's gapless link-order span back to 0x800BD1BC.
+- ovl_11_func_800BD238 (m) — zero-gap link successor of 800BD1BC; same
+  `D_8005E3B0 + 0x4290` CD-load wrapper over the sibling pair table
+  `D_80122804` (immediately follows 800BD1BC's `D_801227F8`), guarded by the
+  `D_8007AFF0 + 0x20000 + 0x5476` state word. Confirms the shared cluster tie.
 - ovl_11_func_800BD374 (m, matched this session, byte-exact) — s32 wrapper:
   indexes the `D_801217A8` stride-0x10 table by arg0 and calls
   `func_80014CBC(0, record[0], record[1]-record[0], (u8 *)D_8007AFF0, 1, arg1)`,

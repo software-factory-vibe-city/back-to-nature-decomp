@@ -9,6 +9,7 @@ void ovl_11_func_800BCF28(void);
 void ovl_11_func_800BD160(void);
 void ovl_11_func_800BD168(void);
 void ovl_11_func_800BD1BC(s32 arg0);
+void ovl_11_func_800BD238(s32 arg0);
 void ovl_11_func_800BD358(void);
 void ovl_11_func_800BD368(void);
 s32 ovl_11_func_800BD374(s32 arg0, s32 arg1);
