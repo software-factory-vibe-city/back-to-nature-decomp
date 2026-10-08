@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import type { LoopConfig, LoopTier, ThinkingLevel } from "./types.ts";
 
 const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
+export const DEFAULT_CHECKPOINT_AT_TOKENS = 350_000;
 
 /**
  * The escalation ladder.
@@ -14,10 +15,10 @@ const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "hi
  * there is parked for a human instead.
  */
 export const DEFAULT_LADDER: LoopTier[] = [
-  { provider: "qwen36-llama", model: "qwen3.6-27b", thinking: "medium", label: "qwen3.6-27b (local)" },
-  { provider: "openrouter", model: "deepseek/deepseek-v4-flash-0731", thinking: "xhigh", label: "deepseek-v4-flash" },
+  { provider: "qwen36-llama", model: "qwen3.6-27b", thinking: "medium", label: "qwen3.6-27b (local)", checkpointAtTokens: DEFAULT_CHECKPOINT_AT_TOKENS },
+  { provider: "openrouter", model: "deepseek/deepseek-v4-flash-0731", thinking: "xhigh", label: "deepseek-v4-flash", checkpointAtTokens: DEFAULT_CHECKPOINT_AT_TOKENS },
   // { provider: "openrouter", model: "moonshotai/kimi-k3", thinking: "high", label: "kimi-k3" },
-  { provider: "openai-codex", model: "gpt-5.6-sol", thinking: "xhigh", label: "gpt-5.6-sol" },
+  { provider: "openai-codex", model: "gpt-5.6-sol", thinking: "xhigh", label: "gpt-5.6-sol", checkpointAtTokens: DEFAULT_CHECKPOINT_AT_TOKENS },
 ];
 
 export const DEFAULT_LOOP_CONFIG: Omit<LoopConfig, "runtimeDir"> = {
@@ -29,7 +30,6 @@ export const DEFAULT_LOOP_CONFIG: Omit<LoopConfig, "runtimeDir"> = {
   singleTier: false,
   maxFunctions: 25,
   clearContextBetween: true,
-  compactAtTokens: 350_000,
   handoffSummary: true,
   updateFileGroupings: true,
   commitOnMatch: true,
@@ -54,7 +54,7 @@ function positiveInteger(value: unknown, fallback: number, field: string): numbe
   return value;
 }
 
-/** A ceiling that 0 turns off, so switching compaction off needs no second field. */
+/** A threshold that 0 turns off, without a separate enable flag. */
 function threshold(value: unknown, fallback: number, field: string): number {
   if (value === undefined) return fallback;
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
@@ -68,7 +68,7 @@ export function parseLadder(value: unknown): LoopTier[] {
   if (!Array.isArray(value) || value.length === 0) throw new Error("ladder must be a non-empty array");
   return value.map((raw, index) => {
     const tier = object(raw);
-    rejectUnknown(tier, ["provider", "model", "thinking", "label", "role"], `ladder[${index}]`);
+    rejectUnknown(tier, ["provider", "model", "thinking", "label", "role", "checkpointAtTokens"], `ladder[${index}]`);
     const provider = tier.provider;
     const model = tier.model;
     if (typeof provider !== "string" || !provider) throw new Error(`ladder[${index}].provider must be a non-empty string`);
@@ -83,9 +83,14 @@ export function parseLadder(value: unknown): LoopTier[] {
     if (tier.role !== undefined && tier.role !== "prep") {
       throw new Error(`ladder[${index}].role must be "prep" or omitted`);
     }
+    const checkpointAtTokens = threshold(tier.checkpointAtTokens, DEFAULT_CHECKPOINT_AT_TOKENS, `ladder[${index}].checkpointAtTokens`);
+    if (!Number.isSafeInteger(checkpointAtTokens + Math.ceil(checkpointAtTokens / 10))) {
+      throw new Error(`ladder[${index}].checkpointAtTokens must fit a safe integer including its 10% grace`);
+    }
     return {
       provider,
       model,
+      checkpointAtTokens,
       thinking: thinking as ThinkingLevel,
       label: (tier.label as string) ?? model,
       ...(tier.role === "prep" ? { role: "prep" as const } : {}),
@@ -103,7 +108,6 @@ export const LOOP_CONFIG_FIELDS = [
   "singleTier",
   "maxFunctions",
   "clearContextBetween",
-  "compactAtTokens",
   "handoffSummary",
   "updateFileGroupings",
   "commitOnMatch",
@@ -117,6 +121,9 @@ export const LOOP_CONFIG_FIELDS = [
 export function loadLoopConfig(projectRoot: string): LoopConfig {
   const path = resolve(projectRoot, ".pi", "autoloop.json");
   const raw = existsSync(path) ? object(JSON.parse(readFileSync(path, "utf8"))) : {};
+  if ("compactAtTokens" in raw) {
+    throw new Error("compactAtTokens has moved: configure checkpointAtTokens on each ladder entry instead");
+  }
   rejectUnknown(raw, LOOP_CONFIG_FIELDS, "autoloop config");
 
   const runtimeDir = typeof raw.runtimeDir === "string" ? raw.runtimeDir : "run_output/autoloop";
@@ -165,7 +172,6 @@ export function loadLoopConfig(projectRoot: string): LoopConfig {
       raw.clearContextBetween === undefined
         ? DEFAULT_LOOP_CONFIG.clearContextBetween
         : Boolean(raw.clearContextBetween),
-    compactAtTokens: threshold(raw.compactAtTokens, DEFAULT_LOOP_CONFIG.compactAtTokens, "compactAtTokens"),
     handoffSummary:
       raw.handoffSummary === undefined ? DEFAULT_LOOP_CONFIG.handoffSummary : Boolean(raw.handoffSummary),
     updateFileGroupings:

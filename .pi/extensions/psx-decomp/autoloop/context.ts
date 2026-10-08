@@ -1,5 +1,5 @@
 /**
- * The loop's context ceiling.
+ * Context readings and idle compaction for per-tier loop checkpoints.
  *
  * Clearing between tiers and between functions bounds the conversation at those
  * boundaries only. Inside one tier's work on one function the context grows
@@ -19,7 +19,7 @@ export interface ContextReading {
 }
 
 /**
- * Whether the next turn should start with a compaction.
+ * Whether a known context reading has reached the supplied checkpoint threshold.
  *
  * A missing or null reading is not a small context — it is no context reading
  * at all, which is what `getContextUsage()` returns right after a compaction
@@ -28,7 +28,7 @@ export interface ContextReading {
  */
 export function needsCompaction(usage: ContextReading | undefined, thresholdTokens: number): boolean {
   if (!Number.isFinite(thresholdTokens) || thresholdTokens <= 0) return false;
-  if (!usage || usage.tokens === null) return false;
+  if (!usage || usage.tokens === null || !Number.isFinite(usage.tokens)) return false;
   return usage.tokens >= thresholdTokens;
 }
 
@@ -51,7 +51,8 @@ export interface CompactionHandlers {
 export async function requestCompaction(options: {
   compact: (handlers: CompactionHandlers) => void;
   timeoutMs: number;
-  sleep: (ms: number) => Promise<void>;
+  /** Optional deterministic timeout clock for tests; production timers are cleared on completion. */
+  sleep?: (ms: number) => Promise<void>;
 }): Promise<{ outcome: CompactionOutcome; detail: string }> {
   let settle: ((result: { outcome: CompactionOutcome; detail: string }) => void) | undefined;
   const reported = new Promise<{ outcome: CompactionOutcome; detail: string }>((resolve) => {
@@ -63,18 +64,23 @@ export async function requestCompaction(options: {
 
   const finish = (result: { outcome: CompactionOutcome; detail: string }) => settle?.(result);
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     options.compact({
       onComplete: () => finish({ outcome: "compacted", detail: "" }),
       onError: (error) => finish({ outcome: "failed", detail: error instanceof Error ? error.message : String(error) }),
     });
+    const timeoutResult = { outcome: "timed-out" as const, detail: `no result within ${options.timeoutMs}ms` };
+    const timedOut = options.sleep
+      ? options.sleep(options.timeoutMs).then(() => timeoutResult)
+      : new Promise<typeof timeoutResult>((resolve) => {
+          timer = setTimeout(() => resolve(timeoutResult), options.timeoutMs);
+        });
+    return await Promise.race([reported, timedOut]);
   } catch (error) {
     return { outcome: "failed", detail: error instanceof Error ? error.message : String(error) };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    settle = undefined; /* Late callbacks must not change a timeout/failure. */
   }
-
-  const timedOut = options
-    .sleep(options.timeoutMs)
-    .then(() => ({ outcome: "timed-out" as const, detail: `no result within ${options.timeoutMs}ms` }));
-
-  return Promise.race([reported, timedOut]);
 }

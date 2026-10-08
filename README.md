@@ -287,6 +287,31 @@ first tier is prep, the loop starts from the decompilation worklist and enters
 prep before any completion/static-match shortcut; older pending documentation
 remains saved but does not preempt that ladder.
 
+### Autoloop context checkpoints
+
+Each ladder entry accepts `"checkpointAtTokens": 350000` (the default when
+omitted; `0` disables it for that agent). This replaces the removed top-level
+`compactAtTokens` field. Thresholds measure current context tokens, not total
+session spending, and are checked after each completed assistant/tool turn:
+
+- At the threshold, queue one steering message asking for a checkpoint focused
+  on the latest experiment, measured results, open premises and next action.
+  Prefer CLM/live-context editing and evidence annotations when available. Emit
+  a brief ordinary assistant summary too: native compaction reads raw history
+  and resets CLM's edited projection.
+- At 110% (385,000 for a 350,000 threshold), interrupt the run at that completed
+  tool boundary, wait for idle, compact, and send a continuation on the same
+  task and tier. Forced checkpoints do not consume the return budget or cause
+  escalation. A tool batch may jump over both thresholds.
+- Natural early returns retain idle compaction before the next dispatch when
+  above that agent's threshold. Successful compaction or a measured context
+  reduction re-arms the warning. Compaction failure/timeout stops the loop with
+  work preserved rather than repeatedly interrupting an uncompacted context.
+
+`/auto_decompilation_loop status` shows each agent's threshold. Run `/reload`
+after changing the extension in an open session; configuration is read when a
+loop starts.
+
 The decompilation and resource commands never commit or merge. Commits require
 a separate explicit user request.
 

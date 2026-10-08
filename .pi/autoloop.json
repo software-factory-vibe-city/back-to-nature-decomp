@@ -4,14 +4,14 @@
       "provider": "runinfra",
       "model": "deepseek-v4-1-flash",
       "thinking": "xhigh",
-      "label": "deepseek-v4-1-flash"
+      "label": "deepseek-v4-1-flash",
+      "checkpointAtTokens": 200000
     }
   ],
   "singleTier": true,
   "returnsPerTier": 1,
   "maxFunctions": 1000,
   "clearContextBetween": true,
-  "compactAtTokens": 350000,
   "handoffSummary": true,
   "updateFileGroupings": true,
   "commitOnMatch": true,

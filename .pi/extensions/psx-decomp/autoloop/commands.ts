@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getSessionBaseline } from "../tools/session-baseline.ts";
-import { loadLoopConfig } from "./config.ts";
+import { DEFAULT_CHECKPOINT_AT_TOKENS, loadLoopConfig } from "./config.ts";
+import { registerCheckpointMonitor } from "./checkpoint.ts";
 import { runLoop, summarize, type AbortFlag, type LoopSinks } from "./loop.ts";
 import { prepSystemPrompt, registerPrepHandoffTool, setPrepHandoffToolActive } from "./prep.ts";
 import { createHandoffSink, registerHandoffTool, setHandoffToolActive } from "./handoff.ts";
@@ -48,11 +49,12 @@ export function parseArgs(args: string): ParsedArgs {
  * call a function finished.
  */
 export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string): () => boolean {
-  const sink: LoopSinks = { verdict: createVerdictSink(), handoff: createHandoffSink(), prep: {}, gate: createTurnGate() };
+  const sink: LoopSinks = { verdict: createVerdictSink(), handoff: createHandoffSink(), prep: {}, gate: createTurnGate(), checkpoint: {} };
   registerPolicyVerdictTool(pi, sink.verdict);
   registerHandoffTool(pi, sink.handoff);
   registerPrepHandoffTool(pi, sink.prep);
   registerTurnGate(pi, sink.gate);
+  registerCheckpointMonitor(pi, sink.checkpoint!);
 
   let active: AbortFlag | null = null;
   let running: Promise<unknown> | undefined;
@@ -120,6 +122,7 @@ export function registerAutoloopCommands(pi: ExtensionAPI, projectRoot: string):
         ctx.ui.notify(
           [
             `ladder: ${config.ladder.map((tier) => tier.label + (tier.role ? ` [${tier.role}]` : "")).join(" → ")}`,
+            `checkpoints: ${config.ladder.map((tier) => `${tier.label}: ${tier.checkpointAtTokens ?? DEFAULT_CHECKPOINT_AT_TOKENS} tokens (0 = off)`).join("; ")}`,
             `returns per tier: ${config.returnsPerTier}`,
             `running: ${active ? "yes" : "no"}`,
             `parked (${parked.length}): ${parked.join(", ") || "none"}`,

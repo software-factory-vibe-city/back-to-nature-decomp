@@ -14,7 +14,6 @@ function config(overrides: Partial<LoopConfig> = {}): LoopConfig {
     parkAfterStalledMeasurements: 6,
     maxFunctions: 10,
     clearContextBetween: true,
-    compactAtTokens: 0,
     handoffSummary: false,
     updateFileGroupings: false,
     commitOnMatch: false,

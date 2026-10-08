@@ -10,6 +10,8 @@ import { implicatedByPark } from "./family.ts";
 import { shouldStop } from "./stop-rule.ts";
 import { commitMatchedFunction, commitParkedFunction } from "./commit.ts";
 import { needsCompaction, requestCompaction } from "./context.ts";
+import { DEFAULT_CHECKPOINT_AT_TOKENS } from "./config.ts";
+import { CHECKPOINT_COMPACTION_INSTRUCTIONS, checkpointContinuation, type CheckpointSink, type CheckpointWatch } from "./checkpoint.ts";
 import {
   environmentIsIntact,
   finalize,
@@ -72,6 +74,9 @@ export interface LoopSinks {
   gate: TurnGate;
   /** Turn-scoped role, used to keep preparation's system prompt lean. */
   role?: LoopTier["role"];
+  /** The actual applied rung, including a temporary policy-review rung. */
+  tier?: LoopTier;
+  checkpoint?: CheckpointSink;
 }
 
 /** How long a sent message may take to become a running agent turn. */
@@ -111,6 +116,7 @@ async function applyTier(deps: LoopDeps, tier: LoopTier): Promise<boolean> {
     return false;
   }
   deps.pi.setThinkingLevel(tier.thinking);
+  deps.sink.tier = tier;
   return true;
 }
 
@@ -124,69 +130,91 @@ async function applyTier(deps: LoopDeps, tier: LoopTier): Promise<boolean> {
  * oracles against an untouched file, and walk the whole ladder in seconds,
  * parking functions no tier ever attempted.
  */
-async function turn(deps: LoopDeps, message: string): Promise<boolean> {
+export async function turn(deps: LoopDeps, message: string): Promise<boolean> {
   await deps.ctx.waitForIdle();
   if (deps.flag.aborted) return false;
-  await compactIfLarge(deps);
-  if (deps.flag.aborted) return false;
+  /* Pending documentation can resume without applyTier(). Only use a matching
+     configured model there, never another rung's threshold. */
+  const tier = deps.sink.tier ?? deps.config.ladder.find((candidate) =>
+    candidate.provider === deps.ctx.model?.provider && candidate.model === deps.ctx.model?.id);
+  const thresholdTokens = tier ? tier.checkpointAtTokens ?? DEFAULT_CHECKPOINT_AT_TOKENS : 0;
+  if (!(await compactIfLarge(deps, thresholdTokens))) return false;
 
-  const before = deps.sink.gate.settled;
-  deps.pi.sendUserMessage(message);
+  const checkpoint = deps.sink.checkpoint ??= {};
+  const watch: CheckpointWatch = {
+    thresholdTokens, tierLabel: tier?.label ?? "current model",
+    isAborted: () => deps.flag.aborted, warned: false,
+  };
+  checkpoint.current = watch;
+  let nextMessage = message;
+  try {
+    while (!deps.flag.aborted) {
+      const before = deps.sink.gate.settled;
+      deps.pi.sendUserMessage(nextMessage);
+      const outcome = await waitForTurn({
+        gate: deps.sink.gate,
+        before,
+        isIdle: () => deps.ctx.isIdle(),
+        isAborted: () => deps.flag.aborted,
+        waitForIdle: () => deps.ctx.waitForIdle(),
+        startTimeoutMs: TURN_START_TIMEOUT_MS,
+        pollMs: TURN_POLL_MS,
+        now: () => Date.now(),
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      });
+      if (outcome === "never-started") {
+        notify(deps, "The agent never picked up the loop's message; stopping rather than scoring an unanswered turn.", "error");
+        deps.flag.aborted = true;
+        return false;
+      }
+      if (outcome !== "settled" || deps.flag.aborted) return false;
+      if (watch.forcedTokens === undefined) return true;
 
-  const outcome = await waitForTurn({
-    gate: deps.sink.gate,
-    before,
-    isIdle: () => deps.ctx.isIdle(),
-    isAborted: () => deps.flag.aborted,
-    waitForIdle: () => deps.ctx.waitForIdle(),
-    startTimeoutMs: TURN_START_TIMEOUT_MS,
-    pollMs: TURN_POLL_MS,
-    now: () => Date.now(),
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  });
-
-  if (outcome === "never-started") {
-    notify(deps, "The agent never picked up the loop's message; stopping rather than scoring an unanswered turn.", "error");
-    deps.flag.aborted = true;
+      /* The same early-return boundary as a natural yield, but a checkpoint
+         must not be charged to returnsPerTier or mistaken for exhaustion.
+         Compaction runs outside event handlers and only after tools settle. */
+      const forcedTokens = watch.forcedTokens;
+      delete checkpoint.current;
+      if (!watch.compactedAfterCutoff && !(await compactIfLarge(deps, thresholdTokens, forcedTokens))) return false;
+      if (deps.flag.aborted) return false;
+      watch.warned = false;
+      delete watch.forcedTokens;
+      watch.compactedAfterCutoff = false;
+      checkpoint.current = watch;
+      nextMessage = checkpointContinuation(watch.tierLabel);
+      setStatus(deps, `↻ autoloop · ${watch.tierLabel} · continuing after checkpoint`);
+    }
     return false;
+  } finally {
+    if (checkpoint.current === watch) delete checkpoint.current;
   }
-  return outcome === "settled" && !deps.flag.aborted;
 }
 
-/**
- * Hold the working context under the configured ceiling.
- *
- * Checked where every turn passes and while the session is idle, because that
- * is the only moment a compaction can run without landing in the middle of a
- * tier's reasoning. The reading is the one the last response left behind, so it
- * measures the context this turn would actually start from.
- *
- * A compaction that fails or never reports is not fatal. The turn still has its
- * message, the tree still has the evidence, and the harness has its own
- * overflow recovery — losing the ceiling costs the loop nothing it cannot get
- * back, while stopping the loop over it would.
- */
-async function compactIfLarge(deps: LoopDeps): Promise<void> {
+/** Compact at an early-return boundary, or after the monitor forced one. */
+async function compactIfLarge(deps: LoopDeps, thresholdTokens: number, forcedTokens?: number): Promise<boolean> {
+  if (deps.flag.aborted) return false;
   const usage = deps.ctx.getContextUsage();
-  if (!needsCompaction(usage, deps.config.compactAtTokens)) return;
+  if (forcedTokens === undefined && !needsCompaction(usage, thresholdTokens)) return true;
 
-  const tokens = usage?.tokens ?? 0;
-  setStatus(deps, `◎ autoloop · compacting (${tokens} tokens)`);
+  const tokens = forcedTokens ?? usage?.tokens ?? 0;
+  setStatus(deps, `◎ autoloop · checkpoint compacting (${tokens} tokens)`);
   const result = await requestCompaction({
-    compact: (handlers) => deps.ctx.compact({ onComplete: () => handlers.onComplete(), onError: handlers.onError }),
+    compact: (handlers) => deps.ctx.compact({
+      customInstructions: CHECKPOINT_COMPACTION_INSTRUCTIONS,
+      onComplete: () => handlers.onComplete(), onError: handlers.onError,
+    }),
     timeoutMs: COMPACTION_TIMEOUT_MS,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   });
-
-  if (result.outcome === "compacted") {
-    notify(deps, `Compacted the conversation at ${tokens} context tokens (ceiling ${deps.config.compactAtTokens}).`, "info");
-  } else {
-    notify(deps, `Compaction ${result.outcome} at ${tokens} context tokens; continuing. ${result.detail}`, "warning");
+  if (result.outcome !== "compacted") {
+    /* Retrying an over-limit context would immediately force another abort.
+       Stop safely instead of churning; source/artifacts remain untouched. */
+    deps.flag.aborted = true;
+    notify(deps, `Checkpoint compaction ${result.outcome} at ${tokens} context tokens; loop stopped, work preserved. ${result.detail}`, "error");
+    return false;
   }
-
-  /* Whatever the outcome, the summarizing run may still be settling, and the
-   * next thing the caller does is send a message into that session. */
+  notify(deps, `Checkpoint compacted at ${tokens} context tokens (checkpointAtTokens ${thresholdTokens}).`, "info");
   await deps.ctx.waitForIdle();
+  return !deps.flag.aborted;
 }
 
 /**
@@ -874,6 +902,7 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
     setVerdictToolActive(deps.pi, false);
     setHandoffToolActive(deps.pi, false);
     setPrepHandoffToolActive(deps.pi, false);
+    delete deps.sink.tier;
     setStatus(deps, undefined);
   }
 

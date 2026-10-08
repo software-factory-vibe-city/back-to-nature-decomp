@@ -12,6 +12,8 @@ export interface LoopTier {
   label: string;
   /** Omitted means the existing matching role; prep only prepares compiling C. */
   role?: "prep";
+  /** Steer at this context size and force a checkpoint at 110%; defaults to 350k, 0 disables. */
+  checkpointAtTokens?: number;
 }
 
 export interface LoopConfig {
@@ -59,8 +61,6 @@ export interface LoopConfig {
   maxFunctions: number;
   /** Clear between tiers/functions; prep role boundaries always clear. */
   clearContextBetween: boolean;
-  /** Compact before any turn that would start above this many context tokens; 0 disables. */
-  compactAtTokens: number;
   /** Capture matching-tier exit interviews; prep always has its own handoff. */
   handoffSummary: boolean;
   /** Give the agent one notes-only turn to record grouping evidence before committing. */

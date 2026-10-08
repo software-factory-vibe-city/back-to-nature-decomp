@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { DEFAULT_LOOP_CONFIG, DEFAULT_LADDER, loadLoopConfig, parseLadder } from "./config.ts";
+import { DEFAULT_CHECKPOINT_AT_TOKENS, DEFAULT_LADDER, loadLoopConfig, parseLadder } from "./config.ts";
 import { parseArgs } from "./commands.ts";
 
 test("the default ladder escalates local -> openrouter -> codex with the configured thinking levels", () => {
@@ -28,7 +28,7 @@ test("a ladder entry must name a provider, a model, and a known thinking level",
 
 test("a ladder entry defaults its label to the model id and its thinking to high", () => {
   assert.deepEqual(parseLadder([{ provider: "p", model: "m" }]), [
-    { provider: "p", model: "m", thinking: "high", label: "m" },
+    { provider: "p", model: "m", thinking: "high", label: "m", checkpointAtTokens: 350_000 },
   ]);
 });
 
@@ -51,33 +51,35 @@ function projectWith(config: Record<string, unknown>): { dir: string; cleanup: (
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
-test("the context ceiling defaults to 350k tokens and is settable", () => {
-  assert.equal(DEFAULT_LOOP_CONFIG.compactAtTokens, 350_000);
-
-  const { dir, cleanup } = projectWith({ compactAtTokens: 120_000 });
+test("checkpoint thresholds default to 350k and are independent for each ladder agent", () => {
+  assert.equal(DEFAULT_CHECKPOINT_AT_TOKENS, 350_000);
+  assert.ok(DEFAULT_LADDER.every((tier) => tier.checkpointAtTokens === 350_000));
+  const { dir, cleanup } = projectWith({ ladder: [
+    { provider: "p", model: "small", checkpointAtTokens: 120_000 },
+    { provider: "p", model: "large", checkpointAtTokens: 350_000 },
+    { provider: "p", model: "off", checkpointAtTokens: 0 },
+    { provider: "p", model: "default" },
+  ] });
   try {
-    assert.equal(loadLoopConfig(dir).compactAtTokens, 120_000);
-  } finally {
-    cleanup();
-  }
+    const config = loadLoopConfig(dir);
+    assert.deepEqual(config.ladder.map((tier) => tier.checkpointAtTokens), [120_000, 350_000, 0, 350_000]);
+    assert.equal("compactAtTokens" in config, false);
+  } finally { cleanup(); }
 });
 
-test("a zero ceiling turns compaction off, and a bad one is refused", () => {
-  const off = projectWith({ compactAtTokens: 0 });
-  try {
-    assert.equal(loadLoopConfig(off.dir).compactAtTokens, 0);
-  } finally {
-    off.cleanup();
+test("bad checkpoint thresholds and unsafe 10% grace limits are refused", () => {
+  for (const bad of [-1, 1.5, "350k", null, NaN, Infinity]) {
+    assert.throws(() => parseLadder([{ provider: "p", model: "m", checkpointAtTokens: bad }]),
+      /ladder\[0\].checkpointAtTokens must be a non-negative integer/);
   }
+  assert.throws(() => parseLadder([{ provider: "p", model: "m", checkpointAtTokens: Number.MAX_SAFE_INTEGER }]),
+    /safe integer including its 10% grace/);
+});
 
-  for (const bad of [-1, 1.5, "350k"]) {
-    const { dir, cleanup } = projectWith({ compactAtTokens: bad });
-    try {
-      assert.throws(() => loadLoopConfig(dir), /compactAtTokens must be a non-negative integer/);
-    } finally {
-      cleanup();
-    }
-  }
+test("the removed top-level ceiling reports how to migrate", () => {
+  const { dir, cleanup } = projectWith({ compactAtTokens: 350_000 });
+  try { assert.throws(() => loadLoopConfig(dir), /compactAtTokens has moved.*checkpointAtTokens.*ladder entry/); }
+  finally { cleanup(); }
 });
 
 test("an unknown autoloop config field is refused rather than ignored", () => {
