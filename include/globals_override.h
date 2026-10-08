@@ -1563,6 +1563,21 @@ extern u8 _D_8006C904[9] __asm__("D_8006C904");
  * <=-G8 self-clobber macro pair. Extern-only; the overlay data owns it. */
 extern u16 D_80123A00[];
 
+/* D_801239D0 - ovl_11 table of 0x10-byte records (3 s32 fields plus a
+ * trailing pad) walked by ovl_11_func_800CFD9C. Each iteration copies the
+ * record's +0x0/+0x4/+0x8 words into the +0x38/+0x3C/+0x40 sub-record of a
+ * 0xB4-byte entry returned by ovl_11_func_800E1F9C, then advances by 0x10.
+ * Absolute-addressed (lui + %lo, split two-register form): declared as an
+ * aggregate wider than -G8, and owned by the ovl_11 data image (this TU only
+ * declares it). */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+} Ovl11CFD9CEntry; /* 0x10 */
+extern Ovl11CFD9CEntry D_801239D0[];
+
 /* D_80123758 - ovl_11 table of 0x18-byte records (17 entries), scanned by
  * ovl_11_func_800CF258 and ovl_11_func_800CF428. Field 0x0 is an s16 id
  * (compared against item ids), field 0x4 is a u16 mask ANDed with the
