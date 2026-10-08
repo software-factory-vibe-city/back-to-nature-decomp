@@ -7727,8 +7727,10 @@ Members (link order):
   multi-draw slots' shared idiom; slot 0's single draw inlines it)
 - ovl_27_func_800B9DBC (s) — slot 4: counter `D_800C4A34`, buffer `D_800C4B40`;
   issues five `func_80015BF0` draws
-- ovl_27_func_800B9EEC (s) — slot 5: counter `D_800C4A36`, buffer `D_800C4B70`;
-  issues three `func_80015BF0` draws
+- ovl_27_func_800B9EEC (m, matched this session, byte-exact) — slot 5: counter
+  `D_800C4A36`, buffer `D_800C4B70`, redraw every `>= 0x1E`; issues three
+  `func_80015BF0` draws with `D_8005E3C0->field_D8 + 0x8C` hoisted into one
+  local shared by all three (same multi-draw shared idiom as slot 3)
 
 ## `D_8006C838` one-shot counter leaf, shared across ovl_17/23/25/27 (confidence: medium)
 
