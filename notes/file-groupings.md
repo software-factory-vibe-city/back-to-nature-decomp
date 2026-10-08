@@ -7748,7 +7748,9 @@ gapless 0x800B998C→0x800B9A8C→0x800B9B98→0x800B9C84 and
 Members (link order):
 - ovl_27_func_800B998C (m, matched this session, byte-exact) — slot 0: mod-1800
   counter `D_800C4A2C`, buffer `D_800C4A80`, redraw every `>= 0x5A`
-- ovl_27_func_800B9A8C (s) — slot 1: counter `D_800C4A2E`, buffer `D_800C4AB0`
+- ovl_27_func_800B9A8C (m, matched this session, byte-exact) — slot 1: mod-1800
+  counter `D_800C4A2E`, buffer `D_800C4AB0`, single draw, redraw every `>= 0x3C`
+  with `func_80012A34(9) + 10` clamped to a minimum of 10 (slot-1 prediction confirmed)
 - ovl_27_func_800B9B98 (s) — slot 2: counter `D_800C4A30`, buffer `D_800C4AE0`
 - ovl_27_func_800B9C84 (s) — wrapper hub: calls 800B9CB4, then 800B9DBC, then
   800B9EEC in one sequence; lives inside the run as the family's orchestrator
