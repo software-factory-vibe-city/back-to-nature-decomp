@@ -1729,6 +1729,12 @@ Fingerprints:
   — the v0-channel/static-chain fossil shared cluster, same family signature
   as func_8001E878/E9F8/EAE4 (see notes/research/
   func_8001EAE4-v0-channel-delay-slot-fossil.md).
+- proven same-TU pair (2026-10-08): ovl_11_func_800D1CD0 is a GNU nested
+  function *defined inside* ovl_11_func_800D1CFC. The parent only byte-matches
+  with that definition, and the definition reproduces the leaf's dead
+  `sw $v0, 0($sp)` as GCC's static-chain spill without any capture construct.
+  The same holds for 800D0600 inside 800D062C (scratch match, not integrated).
+  See notes/research/ovl_11_func_800D1CFC-nested-function-cse-not-expected.md.
 
 Members (address order):
 - ovl_11_func_800D12A0 (m, matched this session) — run head; s16 setter into
@@ -1745,11 +1751,13 @@ Members (address order):
   the global; scans a u16 table at D_801232D4 with index
   `(arg2 + arg1*9)*8 + arg0*288` against a `func_80012A34(0x65)` threshold;
   called by the adjacent ovl_11_func_800D196C
-- ovl_11_func_800D1CD0 (m, matched this session) — v0-channel rank-compare
-  leaf; byte-identical to the now-matched ovl_11_func_800D0600; does not touch the
-  global (CAPTURE_PREV_RET clean C)
-- ovl_11_func_800D1CFC (s) — reads D_80123754 (`lh`), the run's getter;
-  caller of 800D1CD0, seeds $v0 with $sp+0x10 before each call
+- ovl_11_func_800D1CD0 (m) — rank-compare leaf, nested function of
+  800D1CFC and defined inside it in ovl_11_func_800D1CFC.c (its own file
+  defines nothing); byte-identical to ovl_11_func_800D0600; does not touch
+  the global
+- ovl_11_func_800D1CFC (m, matched 2026-10-08) — reads D_80123754 (`lh`), the
+  run's getter; parent of nested 800D1CD0, seeds $v0 with $sp+0x10 before
+  each call
 - ovl_11_func_800D1E1C (s) — does not touch the global
 - ovl_11_func_800D1EB8 (s) — run tail, does not touch the global
 

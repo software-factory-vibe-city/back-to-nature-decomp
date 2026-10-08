@@ -117,6 +117,39 @@ The step-by-step recipe, the measured dead ends, and the census of stub
 functions carrying the fingerprint are in
 `notes/research/param-residence-playbook.md`.
 
+### Nested functions: define them, do not only declare them
+
+A triage `static-chain` finding means GNU C nested functions are involved. The
+caller sets `$v0 = $sp + 16` before the call, and the callee stores incoming
+`$v0` into its own frame on entry. When the callee also sits immediately
+before the caller in the same container, the original translation unit
+**defined** the callee inside the caller's body. Reconstruct it that way:
+
+```c
+DECLARE_NESTED_FUNCTION(s32, callee_name, (s32, s32));
+s32 nested_callee_name(s32 a, s32 b) {
+    /* callee body */
+}
+```
+
+Put this among the caller's block declarations, before its statements. The
+declaration keeps the project symbol name for the emitted callee. The callee's
+own source file then defines nothing and keeps only a comment pointing at the
+caller. The splat config stays one subsegment per function: the empty object
+links at the same address, and the caller's object supplies both functions.
+
+The declaration alone is not equivalent. cc1 compiles a nested definition
+mid-parse, and that leaves `cse_not_expected` set for the rest of the parent;
+no function-context save restores it. Every statement after the definition is
+then expanded differently. In particular, a constant address emits its `%hi`
+early and its `%lo` only where the address is consumed, after unrelated
+arithmetic. A residual like that in a static-chain caller is this premise, not
+a scheduling problem. The definition also reproduces the callee's dead entry
+`sw $v0,0($sp)` (the static-chain spill), so test it before reaching for a
+register-capture construct.
+
+See `notes/research/ovl_11_func_800D1CFC-nested-function-cse-not-expected.md`.
+
 ### Shared types
 
 - parameter/local structs shared across files: `include/game_types.h`

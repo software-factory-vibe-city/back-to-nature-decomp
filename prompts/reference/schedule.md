@@ -32,6 +32,17 @@ again.
 If `explainDiff.ts` cannot find archived assembly, continue with the exact diff
 oracle. A diagnostic setup failure is not a source mismatch.
 
+### A tied order that no spelling reaches: check state from earlier in the file
+
+When the competing insns tie on priority, the block replays its incoming order.
+If that order is already wrong in `.rtl` and no rewrite of the statement
+changes it, the expansion itself is in a different state. Look outside the
+function body. The known case is a GNU nested function *defined* earlier in the
+caller, which leaves cc1 expanding the rest of the caller with
+`cse_not_expected` set: a constant address emits its `%hi` at once and its
+`%lo` only where the address is consumed. If triage reports `static-chain`,
+load `psx_reference declarations`, section "Nested functions".
+
 ### Loop preheader order is decided before the scheduler
 
 When a preheader's instructions come out in the wrong order and
