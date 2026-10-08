@@ -7413,6 +7413,39 @@ Members (link order):
 - ovl_30_func_8012F3D4 (m) — call-sequence leaf, constant 0x3E7
 - ovl_30_func_8012F410 (m) — call-sequence leaf, constant 0x3E8
 
+## `ovl_30` size-selected field writer with its caller and neighbour — 0x80133454 / 0x80133974 / 0x80133A8C (confidence: medium)
+
+A record-field update cluster in `ovl_30` (`Obj\GF_swind.bin`):
+
+- **gapless link adjacency:** `ovl_30_func_80133454` (0x520 bytes at
+  0x80133454) ends exactly at `ovl_30_func_80133974` (0x118 bytes at
+  0x80133974, matched byte-exact this session), which ends exactly at
+  `ovl_30_func_80133A8C` (0x4E4 bytes at 0x80133A8C) — one unbroken link run;
+- **direct call edge:** 80133454 calls 80133974 from its input-handling tail
+  (0x80133914 and 0x8013393C), both times with `arg0 = lw record+0x0`,
+  `arg1 = lbu record+0xC`, `arg2 = lw record+0x8`, `arg3 = lh record+0x4`,
+  and `arg4` (a delta) on the stack — 80133974 is the shared
+  size/signedness-selected field writer for the record at
+  `base + D_80134014*20`;
+- **shared overlay-local data cluster:** 80133454 and 80133A8C both reference
+  D_8012EFB0/D_8012EFB8/D_8012EFD0/D_8012EFD4/D_8012EFD8/D_8012EFE8,
+  D_80134014 (0xC past this ledger's D_80134008), D_80134B10 (4 past
+  D_80134B0C) and D_8005E3A8, and both call KanjiFntPrint and func_8001FABC;
+- **what the tie is not:** 80133974 touches no global and makes no call, so
+  its membership rests on the call edge and the link run, not on the data
+  cluster.
+
+Members (link order):
+- ovl_30_func_80133454 (s) — walks the 20-byte record array by
+  `D_80134014`, dispatches on the +0xC size byte to KanjiFntPrint, and in its
+  input tail calls 80133974 to add a delta to the current record's field
+- ovl_30_func_80133974 (m, matched byte-exact this session) — leaf: selects a
+  1/2/4-byte load from `arg0` by `arg1` and a sign/zero mode by `arg3`, adds
+  `arg4` (stack), clamps against `arg2`/`arg3`, and stores back with the same
+  width; no globals or calls
+- ovl_30_func_80133A8C (s) — same global cluster as 80133454, also a
+  KanjiFntPrint / func_8001FABC caller (data-family member only)
+
 ## `ovl_11` D_801273D8/D_801273DA init/reset pair — 0x800FFA28 / 0x800FFA40 (confidence: medium)
 
 - **gapless link adjacency:** `ovl_11_func_800FFA28` (0x18 bytes at 0x47C08)

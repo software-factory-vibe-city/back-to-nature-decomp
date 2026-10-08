@@ -14,3 +14,4 @@ void ovl_30_func_8012FDEC(void);
 s32 ovl_30_func_8012FE68(s32 arg0, s32 arg1);
 void ovl_30_func_8012FE94(void);
 s32 ovl_30_func_80132EE0(s32 arg0);
+void ovl_30_func_80133974(u8 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
