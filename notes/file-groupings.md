@@ -10103,6 +10103,17 @@ Members (link order):
   and `s16@+0x6`; shares the `func_8002261C(4, …)` / `func_800226A4() == 2`
   state-handler shape with `800B93B0` and the `Ovl19Func800BAC40Arg` command
   setters with `800BA25C`.
+- ovl_19_func_800B8F38 (m, byte-exact) — same overlay-local s16 state array
+  through the `D_800BF560` label (`D_800BF4C0` + 0xA0): a per-call `s32` counter in
+  the same `3F54.data.s` blob (`D_800BD074`, absolute-addressed, incremented every
+  call and reset to 0 on the handler arm) gates a `% 30` branch that writes
+  `s16@+0x202` from `func_8001FABC(0x3A)`; the `func_8002261C(4, 0xA)` /
+  `func_800226A4() == 2` handler then fills the `+0xA0`/`+0xE0` records through
+  `800BAC50` and the `+0x10`/`+0x58` records through `800BAC40`, storing three more
+  `func_8001FABC` returns at `s16@+0x202`, then writes `s16@+0xE` (index 7) and
+  `s16@+0x6` (index 3); shares the handler shape and callee set with
+  `800B8E88`/`800B9050`. Sits in the gapless run `800B8E88` (ends 0x800B8F38) →
+  `800B8F38` (0x118, ends 0x800B9050) → `800B9050`.
 - ovl_19_func_800B9050 (m, matched this session, byte-exact) — gapless link-order
   successor of `800B8F38` (0x800B8F38 + 0x118 = 0x800B9050) and same overlay-local
   `D_800BF4C0` state array: `func_8002261C(4, 0xB)`, then when `s16@+0x12` (index 9)
