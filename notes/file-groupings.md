@@ -11853,8 +11853,17 @@ Members:
 - ovl_11_func_800C034C (m, matched this session, byte-exact) — spawn-object
   initializer: branches on +0xC bits `0x4000`/`0x1000` to pick ranges, writes
   random s16 fields +0/+2/+8 and clears +0xA.
-- ovl_11_func_800C044C (s) — builds a stride-0xE array, sets each element's
-  +0xC flag word, then calls 800C034C per element.
+- ovl_11_func_800C044C (m, matched this session, byte-exact) — spawn-object
+  driver: derives a mode-local offset from arg0 (valid 1..4, offset arg0-3 for
+  arg0>=2 else arg0-1) and walks the 40-entry stride-0xE array at `D_80128820`,
+  writing each element's +0x4 s16 and OR-ing its +0xC flag word
+  (0x4000/0x2000/0x1000/0x3000) before calling 800C034C per element; also
+  points `D_80128A80` at `D_80125EB8` and initializes `D_80128A50` via
+  `func_80015704(&D_80128A50, &D_800977F8)`. Shares the `D_80128820` 0xE-stride
+  object array and the `D_80128A80` pointer slot with matched 0x800BFEA4 /
+  0x800BFF00 (see the D_8006C838 flags/state-buffer cluster), a fingerprint
+  that a common sprite/spawn TU also fits, though link contiguity alone leaves
+  the original TU boundary unproven.
 - ovl_11_func_800C056C (m) — guards `D_8006C838` +0xC bit `0x08000000` and
   calls `func_80012A34(0x64)`.
 
