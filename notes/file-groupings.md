@@ -7299,10 +7299,11 @@ Members:
 - ovl_11_func_800D93C8 (s) — link successor and sole caller; consumes the
   written pair.
 
-## `ovl_11` D_8007AFF0 +0x253AC halfword-state consumer/writer run — 0x800DB78C / 0x800DB7F0 / 0x800DB904 / 0x800DB978 (confidence: medium)
+## `ovl_11` D_8007AFF0 +0x253AC halfword-state consumer/writer run — 0x800DB674 / 0x800DB78C / 0x800DB7F0 / 0x800DB904 / 0x800DB978 (confidence: medium)
 
 Evidence: gapless link adjacency closing a contiguous small-function run
-(`splat` offsets: 0x2396C = 0x800DB78C is 0x64 and ends exactly at 0x800DB7F0;
+(`splat` offsets: 0x23854 = 0x800DB674 is 0x118 and ends exactly at 0x2396C =
+0x800DB78C; 0x2396C = 0x800DB78C is 0x64 and ends exactly at 0x800DB7F0;
 0x800DB7F0 is 0x34 and ends exactly at 0x800DB824; 0x800DB904 is 0x74 and ends
 exactly at 0x800DB978) plus a shared far-buffer global cluster — all three
 build the same single-`lui`+`addu` `D_8007AFF0+0x20000` far base and touch the
@@ -7317,8 +7318,17 @@ source twin of `ovl_21_func_800BB250` (same forwarding to
 difference is the descriptor symbol it passes — ovl_11's `D_80128818` for
 ovl_21's `D_800C0DD8`). Cross-overlay twin relations are not membership
 evidence; here the run's own membership rests on the adjacency + shared cluster.
+`ovl_11_func_800DB674` heads the run (0x800DB674 is 0x118, ending exactly at
+0x800DB78C); it is a GTE matrix builder that writes the +0x253AC/+0x253AE/
++0x253B0 halfwords through the same far base and reads +0x25394/+0x25398/
++0x253A0/+0x253B6, the `ovl_11` counterpart of `ovl_19_func_800BB358` and a
+byte-identical source twin of `ovl_21_func_800BB138`.
 
 Members (link order):
+- ovl_11_func_800DB674 (m, matched this session, byte-exact) — run head;
+  `m0 = GsIDMATRIX; m1 = GsIDMATRIX;` + `PushMatrix` / `RotMatrix` /
+  `SetRotMatrix` / `SetTransMatrix` / `RotTrans` / `PopMatrix` GTE matrix
+  builder, writing the +0x253AC/+0x253AE/+0x253B0 halfwords via the far base.
 - ovl_11_func_800DB78C (m, matched this session, byte-exact) — reads the
   +0x253AC/+0x253AE/+0x253B0/+0x253B4/+0x253B6/+0x253B8 halfwords via the far
   base and forwards them to `func_8001B9F8` (sum-of-pairs, 4 args) and
