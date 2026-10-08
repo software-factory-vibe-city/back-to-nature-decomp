@@ -8685,15 +8685,23 @@ Fingerprints:
   `D_800BFE44`/`D_800BFE46` state-writer run;
 - gapless link-order run of the `D_800BCBEC` members: `ovl_25_func_800B853C`
   (0xD0, ends exactly 0x800B860C) → `ovl_25_func_800B860C` (0x11C, ends
-  exactly 0x800B8728) → `ovl_25_func_800B8728` (0x120).
+  exactly 0x800B8728) → `ovl_25_func_800B8728` (0x120);
+- shared far-buffer/flag write cluster: `ovl_25_func_800B860C` writes the
+  `D_8007AFF0`+0x253B4/0x253B6/0x253B8 halfword block and the
+  `D_800BCD21`/`D_800BCD48` pair, exactly the cluster `ovl_25_func_800BA858`
+  (a `D_800BCBF8` entry dispatched from this same table) writes — the outer
+  `D_800BCBEC` handler and the inner `D_800BCBF8` writer run share the state.
 
 Members (link order):
 - ovl_25_func_800B853C (m, matched this session, byte-exact) — `D_800BCBEC[0]`;
   when `D_800BFE44`+2 == 6 and `func_80013394() == 1` clears the flag and
   sets the +0 selector, otherwise dispatches `D_800BCBF8[flag]` and applies
   the `(u16)x - (((x+1)/10000)*10000 - 1)` timer-modulo to `D_800BFE44`+0xC
-- ovl_25_func_800B860C (s) — `D_800BCBEC[1]`; per-frame `D_800BFE44`+0x4CC
-  counter and field reset
+- ovl_25_func_800B860C (m, matched this session, byte-exact) — `D_800BCBEC[1]`;
+  per-frame `D_800BFE44`+0x4CC counter, zero-guarded setup at 0 and trip at
+  0x3C; on trip resets `D_800BFE44`+0xC, expands the +0x20/+0x24 halfwords
+  into the `D_8007AFF0`+0x253B4/0x253B6/0x253B8 block, and writes
+  `D_800BCD21`/`D_800BCD48`
 - ovl_25_func_800B8728 (s) — `D_800BCBEC[2]`; same divide-by-10000 timer-modulo
   on `D_800BFE44`+0xC
 

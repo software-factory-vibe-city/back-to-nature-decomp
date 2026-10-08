@@ -10,6 +10,7 @@ void ovl_25_func_800B8340(void);
 void ovl_25_func_800B83A0(void);
 void ovl_25_func_800B8478(void);
 void ovl_25_func_800B853C(void);
+void ovl_25_func_800B860C(void);
 void ovl_25_func_800B8CEC(void);
 void ovl_25_func_800B93BC(void);
 void ovl_25_func_800B93E4(void);
