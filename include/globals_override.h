@@ -1596,6 +1596,22 @@ typedef struct {
 } Ovl11ItemEntry; /* 0x18 */
 extern Ovl11ItemEntry D_80123758[];
 
+/* D_80123940 - ovl_11 table of 0x18-byte records walked by
+ * ovl_11_func_800CF848 with an advancing s16 pointer (stride 0x18). Field
+ * +0x0 is the sprite id read both signed (ba/compare) and unsigned (the
+ * argument to ovl_11_func_800CE744), +0x2 is compared against a far s16 and
+ * +0x4 gates an extra check; +0x8/+0xC/+0x10 are copied to a spawned
+ * record's +0x38/+0x3C/+0x40. Absolute-addressed (lui + %lo, split
+ * two-register form): declared as an aggregate wider than -G8, and owned by
+ * the ovl_11 data image (this TU only declares it). */
+extern s16 D_80123940[];
+
+/* D_8009AFF0 - main-RAM base whose s16 at +0x5476 ovl_11_func_800CF848
+ * compares against the D_80123940 record's +0x2 field. Only the base and
+ * that one far offset are witnessed; an incomplete byte array keeps the
+ * base/offset relation. Absolute-addressed (lui + %lo). */
+extern u8 D_8009AFF0[];
+
 /* D_80128818 - ovl_11 FuncC0D4Args descriptor whose address
  * ovl_11_func_800DB904 hands to func_8001C0D4. Only its address is taken, so
  * an opaque byte object is enough; the overlay build is -G0, giving absolute
