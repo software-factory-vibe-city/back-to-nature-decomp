@@ -10658,6 +10658,16 @@ boundary or a common TU across the intervening link addresses.
 - ovl_11_func_800F8B4C (m, 0xD0) — finalized numeric/separator row helper;
   four inline address/setup instructions and scoped register bindings are
   explicitly user-authorized matching workarounds, not original-TU evidence.
+- ovl_11_func_800F8C1C (m, matched this session, byte-exact, 0xDC) — the
+  same caller's panel/string sibling: zero-gap link successor of 800F8B4C
+  (0x800F8B4C + 0xD0 = 0x800F8C1C) and called immediately before it by
+  0x800F787C (jal 800F8C1C at 0x800F79AC, jal 800F8B4C at 0x800F79B8) on the
+  same live object (`D_8005E3C0->field_D8 + 0x64` is 800F8C1C's arg1 and
+  800F8B4C's arg0), and it draws through the same text helper func_80017B3C
+  (plus three func_80022580 boxes). Membership rests on zero-gap adjacency
+  plus the shared caller/callee, not on a shared overlay global (low). It
+  calls ovl_11_func_800F8A3C but reads no D_800A0728, so it is not a member
+  of that object's reset/handoff group above.
 
 
 ## ovl_11 D_8012D110 state-buffer initializer/consumer family (confidence: low)
