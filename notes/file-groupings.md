@@ -7932,6 +7932,13 @@ Nine members matched; the rest of the cluster is read off original asm
 and the call graph, hence low confidence until more of the run is decompiled.
 
 Calved in by call graph and shared state, outside the gapless run:
+- ovl_27_func_800B8D28 (m, matched this session, byte-exact) — 0x800B8D28,
+  inside the run's address extent but not a hub caller: reads the
+  `D_800C4A26`/`D_800C4A1A` halfwords that `ovl_27_func_800B7F2C` initialises
+  (and that `800B9FF4` reads), clearing `D_8006C838`+0x4450 and +0x4488 and
+  seeding four s16 `D_8006C838` cells via `func_80012A34(0xFFFF)`. It touches
+  neither `D_800C4A14`/`D_800C4A1C` nor the hub, so it is calved in by the
+  shared halfword state block, not by the handler chain.
 - ovl_27_func_800B9FF4 (m, matched this session, byte-exact) — 0x800B9FF4,
   between the run and the 0x800BA4C4 display-setup run: selects the
   `func_80015F80` argument pair `D_800C4A1C % 30 < 0xF` → 0x64/0x68 and

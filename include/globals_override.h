@@ -1089,6 +1089,36 @@ extern s32 D_800742AC;
  * indexes it; absolute-addressed from the overlay. */
 extern Ovl11D124Entry D_80071DFC[25][45];
 
+/* D_800BAC60/D_800BB52C/D_800BBDF8/D_800BC6C4 - four 0x8CC-byte u16 tables
+ * selected by ovl_27_func_800BA914, which walks 1125 halfwords from the
+ * chosen base. Absolute-addressed from the overlay. */
+extern u16 D_800BAC60[];
+extern u16 D_800BB52C[];
+extern u16 D_800BBDF8[];
+extern u16 D_800BC6C4[];
+
+/* View of D_8006C838 for ovl_27_func_800BA914: pointers at +0x20 (0x28-byte
+ * records with an s8 at +3) and +0x2C (0x10-byte records with a u8 at +2).
+ * Reached from the D_80071DFC base minus 0x55C4. */
+typedef struct {
+    char pad_00[0x3];
+    s8 unk3;
+    char pad_04[0x24];
+} D8006C838Pool28;
+
+typedef struct {
+    char pad_00[0x2];
+    u8 unk2;
+    char pad_03[0xD];
+} D8006C838Pool10;
+
+typedef struct {
+    char pad_000[0x20];
+    D8006C838Pool28 *unk20;
+    char pad_024[0x8];
+    D8006C838Pool10 *unk2C;
+} D8006C838Pools;
+
 /* D_800491C8 - six words written in two-argument triples by func_8001D648. */
 struct struct_800491C8 {
     /* 0x00 */ s32 unk0;
