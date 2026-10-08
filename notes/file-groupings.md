@@ -5869,12 +5869,19 @@ arrays, +0x5C8/+0x62C cursors and +0x3B2/+0x39C fields are recorded above. The
 function is also gapless between two `D_800BF87C` consumers in link order —
 `ovl_23_func_800B954C` (0x172C, ends 0x800B97E0) walks the aggregate from +0x3B4,
 and `ovl_23_func_800B989C` (0x800B989C) reads +0x3B2/+0x39C — so the aggregate
-address and the link order agree. The call graph adds nothing (the only call is
-the exe `Rand`), so this is address plus adjacency, one fingerprint only.
+address and the link order agree. The run continues gapless past
+`ovl_23_func_800B989C` into `ovl_23_func_800B9A00` (0x800B9A00, 0x118, ends
+0x800B9B18) and on to `ovl_23_func_800B9B18`: `ovl_23_func_800B9A00` reads the
+same aggregate's +0x39C/+0x3A0 s16 fields. The call graph adds nothing (the only
+call is the exe `Rand`), so this is address plus adjacency, one fingerprint only.
 
 Members (link order):
 - ovl_23_func_800B97E0 (m, byte-exact this session) — fills the six u16 at
   `D_800BF892` (`D_800BF87C` +0x16) with values drawn uniquely from 0..9.
+- ovl_23_func_800B9A00 (m, byte-exact this session) — clamps the pointer
+  argument's s32 at +0xC around the target `(D_800BF87C.unk39C + 0x77) << 12`
+  by `(D_800BF87C.unk3A0 << 12) / 10` steps, using the shared
+  `ovl_23_func_800BB0D8` record setter.
 
 ## `ovl_23` D_800BF87C screen-record init run — 0x800B823C–0x800B8354 (confidence: medium)
 

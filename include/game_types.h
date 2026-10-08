@@ -692,6 +692,15 @@ typedef struct {
     Ovl23D87CEntry0 unk210[32]; /* 0x210 */
 } Ovl23D87CView210;
 
+/* D_800BF87C view for ovl_23_func_800B9A00: s16 fields at 0x39C and 0x3A0,
+ * both read (the target keeps the aggregate base and uses these offsets). */
+typedef struct {
+    u8 pad_000[0x39C];
+    s16 unk39C;        /* 0x39C */
+    u8 pad_39E[0x2];
+    s16 unk3A0;        /* 0x3A0 */
+} Ovl23D87CView39C;
+
 /* ovl_23_func_800BA1E0 argument record: s16 selector at 0x00, s32 at 0x14
  * and s32 at 0x18. Only the fields the function reads are named. */
 typedef struct {
