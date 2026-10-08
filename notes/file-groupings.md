@@ -8068,9 +8068,10 @@ Members (link order):
 - ovl_21_func_800BB0F8 (m, matched this session, byte-exact) — leaf initialiser:
   stores -0x2328/-0x1194/0/-0x200/0 into the `D_8007AFF0` +0x25394..+0x253A4 s32
   block and zeroes the +0x253B4/+0x253B6/+0x253B8 halfwords.
-- ovl_21_func_800BB138 (s) — link successor; builds a GTE matrix from
-  `GsIDMATRIX` and the writer's +0x253A0/+0x25394 state fields and calls the
-  PSY-Q GTE helpers.
+- ovl_21_func_800BB138 (m, matched this session, byte-exact) — link successor;
+  builds a GTE matrix from `GsIDMATRIX` and the writer's +0x253A0/+0x25394 state
+  fields, calls the PSY-Q GTE helpers, and stores the transformed result back
+  into the same far-buffer +0x253AC/+0x253AE/+0x253B0 halfword block.
 - ovl_21_func_800BB8B8 (s) — reads the `D_8007AFF0` base and block-copies 0xBD0
   bytes of it to `D_8009F78C` (word or unaligned lwl/lwr variants by alignment),
   then calls `func_8001BFA8`/`func_8001E340`/`func_8001E334`; also reads

@@ -34,6 +34,7 @@ void ovl_21_func_800BAEEC(s16 arg0);
 void ovl_21_func_800BAF70(void);
 void ovl_21_func_800BAFFC(SpriteSourceData *arg0, u16 *arg1, u16 *arg2);
 void ovl_21_func_800BB0F8(void);
+void ovl_21_func_800BB138(void);
 void ovl_21_func_800BB250(void);
 void ovl_21_func_800BB2B4(void);
 void ovl_21_func_800BB59C(void);
