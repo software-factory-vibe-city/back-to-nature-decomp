@@ -1,52 +1,33 @@
 #include "common.h"
 
-s32 func_80021820(s32 arg0, s32 arg1) {
-    s32 best_idx;
+/* Fallback voice allocator: searches voices start..end in four passes, one
+ * per group 0-3 (D_8006C0C8), and returns the voice of the first group that
+ * has any, choosing the one with the smallest LRU stamp (D_8006C128, whose
+ * free value 0x1000000 is the search sentinel). Returns -1 when no voice in
+ * the range belongs to any group.
+ *
+ * cc1's delay-slot pass fills the inner-loop guard with the sentinel load
+ * (lui $t2, 0x100); the earlier register-pinned reconstruction left that slot
+ * empty and relied on a local maspsx patch to fill it.
+ */
+s32 func_80021820(s32 start, s32 end) {
+    s32 best;
     s32 pass;
-    s32 neg1;
-    s32 *base0;
-    s32 *base1;
-    s32 idx4;
-    register s32 i __asm__("a3");
-    s32 best_val;
-    s32 *p1;
-    s32 *p0;
+    s32 i;
+    s32 min;
 
-    best_idx = -1;
-    pass = 0;
-    neg1 = -1;
-    base0 = &D_8006C0C8;
-    base1 = &D_8006C128;
-    idx4 = arg0 << 2;
-    i = arg0;
-
-    for (; pass < 4; pass++) {
-        if (!(arg1 < i)) {
-            best_val = 0x1000000;
-            p1 = (s32 *)(idx4 + (s32)base1);
-            p0 = (s32 *)(idx4 + (s32)base0);
-            do {
-                s32 val;
-                val = *p0;
-                if (val == pass) {
-                    s32 c128_val;
-                    c128_val = *p1;
-                    if (c128_val < best_val) {
-                        best_idx = i;
-                        best_val = c128_val;
-                    }
-                }
-                p1++;
-                i++;
-                p0++;
-            } while (!(arg1 < i));
+    best = -1;
+    for (pass = 0; pass < 4; pass++) {
+        min = 0x1000000;
+        for (i = start; i <= end; i++) {
+            if ((&D_8006C0C8)[i] == pass && (&D_8006C128)[i] < min) {
+                best = i;
+                min = (&D_8006C128)[i];
+            }
         }
-
-        if (best_idx != neg1) {
-            return best_idx;
+        if (best != -1) {
+            return best;
         }
-        i = arg0;
     }
-
     return -1;
 }

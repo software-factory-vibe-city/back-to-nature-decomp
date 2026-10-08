@@ -6,7 +6,7 @@ extern s16 D_80129628[4];
 s32 func_8001DFD4(s32 *arg0, s16 *arg1);
 s32 ovl_11_func_800F5868(s32 arg0, s32 arg1);
 
-s32 ovl_11_func_800F5888(u16 *arg0, s32 *arg1, s32 arg2) {
+s32 ovl_11_func_800F5888(u16 *arg0, s32 *arg1) {
     s32 ret;
 
     D_80129620[1] = 0x5DC;

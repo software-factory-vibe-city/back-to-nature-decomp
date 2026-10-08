@@ -67,6 +67,12 @@ same exact words.
 - A two-argument call to a definition that declares three is ABI-clean here
   only because the third slot is not read; do not generalize it to callees that
   consume their trailing arguments.
+- *2026-10-08:* the definition now declares two parameters. The third was an
+  m2c inference that no target code witnesses: the callee overwrites `$a2`
+  before reading it, and none of its twelve target call sites writes `$a2`
+  before the call. While it stayed in the definition, callee truth reported
+  three-argument calls as "corroborated", and the same phantom argument
+  blocked `ovl_11_func_801213D8`.
 
 ## Evidence
 

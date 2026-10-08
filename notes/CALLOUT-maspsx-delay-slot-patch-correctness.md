@@ -1,7 +1,18 @@
 # CALLOUT: is the maspsx delay-slot patch actually correct?
 
-**Status: open research topic — needs discussion and exploration before the
-patch is trusted, upstreamed, or made permanent.** Mechanics and current
+**Status: RESOLVED 2026-10-08. It was not correct, and it is removed.**
+
+- **The witness.** The fill at `func_80021820` is cc1's own delay-slot pass.
+  A clean source reproduces it, and maspsx is not involved.
+- **A refutation.** `ovl_11_func_801213D8`'s target refutes the
+  assembler-fill model directly: a `jal` followed by a `lui`-only `li` keeps
+  its `nop`.
+
+See the resolution section of `notes/maspsx-issue3.md`. The original callout
+follows unchanged.
+
+**Original status: open research topic — needs discussion and exploration
+before the patch is trusted, upstreamed, or made permanent.** Mechanics and current
 state are in `notes/maspsx-issue3.md`; the patch itself is
 `tools/vendor/maspsx-delay-slot-fill.patch` (applied locally, uncommitted).
 

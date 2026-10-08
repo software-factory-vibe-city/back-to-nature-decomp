@@ -133,7 +133,109 @@ wrong, in the flattering direction.
 
 ---
 
-## 4. The standing caveat this belongs with
+## 4. A local assembler patch that made a function unmatchable
+
+**Status: fixed 2026-10-08.** The patch is removed and maspsx is upstream
+`0249ed2`.
+
+The vendored maspsx carried a local commit (`adffb69`). After any branch or
+jump it let a following `lui`-only `li` fall into the delay slot instead of
+emitting `nop`. It had one witness, `func_80021820`, and that function's
+source was a register-pinned reconstruction.
+
+`ovl_11_func_801213D8`'s target has `jal func_80015A18; nop; lui a1,0x5555`.
+cc1 always emits that `li` right after the `jal`, with the slot unfilled. The
+patch therefore removed one word that no C source could restore. The
+staged residual reported it as a one-word **schedule** difference in block 1,
+which reads as solvable. The previous session spent its whole budget on that
+function. A clean `func_80021820` (nested `for` loops, no register pin) gets
+the fill from cc1's own delay-slot pass. The patch was compensating for the
+pinned source. See `notes/maspsx-issue3.md`.
+
+**Symptom to recognize:** a branch or jump delay-slot difference where cc1's
+`.s` shows the branch outside any `.set noreorder` block. cc1 left the slot
+empty, so the slot's contents are the assembler's decision. That is a
+toolchain question, not a source question. Assemble the same `.s` through
+upstream maspsx in scratch before writing another variant.
+
+---
+
+## 5. Callee truth "corroborated" an argument nothing witnesses
+
+**Status: not fixed.** The cause instance is fixed:
+`ovl_11_func_800F5888.c` now declares two parameters.
+
+`tools/agent/calleeTruth.ts` reported a three-argument declaration of
+`ovl_11_func_800F5888` as **corroborated**. It had three witnesses:
+
+- the callee's matched definition, which declared the same unread third
+  parameter;
+- the callee's target code, used only as an arity floor ("reads 2, so
+  >= 2");
+- no SDK header.
+
+The definition's third parameter was m2c's guess from a live `$a2`. The
+"corroboration" was two copies of one guess agreeing. Passing that phantom
+argument sets `$a2` a second time in the caller. That costs a later `$a2`
+copy its sched1 birthing boost (`ovl_11_func_801213D8`) or leaves a
+surviving copy (`ovl_11_func_800E48CC`). Two sessions lost time to the same
+callee.
+
+There are two defects to fix:
+
+1. **An unread parameter is reported as corroborated.** A declared parameter
+   above the callee's read floor has no machine-code witness. A matched
+   definition cannot vouch for a parameter its own compiled code never reads.
+   Report it as unwitnessed, and as material whenever the call site passes a
+   value there. A useful extra witness: whether any caller's target code
+   writes that argument register before the call. It is not proof, because a
+   value can already be in the register, but together with "callee never
+   reads it" it is decisive.
+2. **The `disputed` advice is wrong for the caller.** The tool says a
+   disputed arity "costs nothing today… leaves no trace in either function's
+   machine code". An extra argument always writes an argument register in the
+   caller. The advice tells the agent to ignore the case that actually blocks
+   matches.
+
+**Symptom to recognize:** a residual in a call's argument setup or nearby
+allocation, where the callee's target never reads one of the argument
+registers the caller sets.
+
+---
+
+## 6. Context export cannot republish a corrected signature
+
+**Status: not fixed.** `include/overlays/ovl_11.h` still declares
+`ovl_11_func_800F5888` with three parameters, so m2c drafts keep passing the
+phantom argument.
+
+The generated m2c context (`include/functions.h`, `include/overlays/*.h`,
+`include/sdk_types.h`) is nominally regenerated from `src/`. In practice a
+signature published once can stay wrong indefinitely:
+
+1. **The per-function path refuses any function another file declares.** The
+   finalize step runs this path. `exportContext` (`contextExport.ts:305-321`)
+   skips publishing when any other `.c` file has a local prototype with the
+   same name, even an identical one. The stated reason is that publishing
+   "would break those TUs". Nothing `#include`s these headers; they are m2c
+   context only. The skip exits 0, and `finalization.ts:47` treats it as
+   success, so it is invisible.
+2. **`--container X --all` can never succeed.** It resolves the shared
+   `sdk_types.h` over that one container's signatures. That drops types only
+   other containers use, such as `PairS32` for `functions.h`'s
+   `ClearPairS32`. Its own m2c self-check then fails ("Syntax error when
+   parsing C context"), restores the old files and exits 1. The per-function
+   path unions every container's published header correctly.
+3. **Only plain `--all` avoids both problems.** It runs on `make split`, so
+   corrections wait for the next re-split.
+
+**Symptom to recognize:** an m2c draft that declares a callee with a
+signature its matched definition no longer has. Compare the draft's
+prototype with `src/`, not with `include/`.
+
+---
+
+## 7. The standing caveat this belongs with
 
 `diffFunc` is not the verdict. It compares **pre-link encodings** and can both
 false-pass (a masked transposition reported as a match) and false-fail

@@ -10,13 +10,13 @@ struct M2C_1e7e93467acd_Unk800D3FEC;
 
 typedef struct M2C_1e7e93467acd_Unk800D3FEC M2C_1e7e93467acd_Unk800D3FEC;
 
-struct M2C_6fc629d778b7_Unk800D3D2C;
-
-typedef struct M2C_6fc629d778b7_Unk800D3D2C M2C_6fc629d778b7_Unk800D3D2C;
-
 struct SpriteSourceData;
 
 typedef struct SpriteSourceData SpriteSourceData;
+
+struct M2C_6fc629d778b7_Unk800D3D2C;
+
+typedef struct M2C_6fc629d778b7_Unk800D3D2C M2C_6fc629d778b7_Unk800D3D2C;
 
 typedef unsigned long u_long;
 
@@ -840,6 +840,38 @@ typedef struct {
                u16 unk7A;
 } M2C_5a3267e904f0_Ovl11D04D4Obj;
 
+struct SpriteSourceData {
+               u16 field_0;
+               u16 field_2;
+               u8 field_4;
+               u8 field_5;
+               u16 field_6;
+               s32 field_8;
+               u16 field_C;
+               u16 field_E;
+               u16 field_10;
+               u16 field_12;
+               s32 field_14;
+               s32 field_18;
+               s32 field_1C;
+               s32 field_20;
+               s32 field_24;
+               s32 field_28;
+               s32 field_2C;
+};
+
+typedef struct {
+               s16 id;
+               u16 tick;
+               u16 x;
+               char pad_06[0x08 - 0x06];
+               u16 y;
+               char pad_0A[0x0C - 0x0A];
+               u16 z;
+               char pad_0E[0x14 - 0x0E];
+               SpriteSourceData *sprite;
+} M2C_5a4f050efe15_Struct_801213D8;
+
 typedef struct {
                s16 unk0;
                s16 unk2;
@@ -1245,26 +1277,6 @@ typedef struct {
                s16 field_20;
                s16 field_22;
 } M2C_8ffcafc4ec70_Struct_800153BC;
-
-struct SpriteSourceData {
-               u16 field_0;
-               u16 field_2;
-               u8 field_4;
-               u8 field_5;
-               u16 field_6;
-               s32 field_8;
-               u16 field_C;
-               u16 field_E;
-               u16 field_10;
-               u16 field_12;
-               s32 field_14;
-               s32 field_18;
-               s32 field_1C;
-               s32 field_20;
-               s32 field_24;
-               s32 field_28;
-               s32 field_2C;
-};
 
 typedef struct {
                s16 field_0;

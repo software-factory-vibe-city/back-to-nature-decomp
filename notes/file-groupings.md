@@ -383,10 +383,14 @@ Members (address order):
   countdown from 0x18 and calling ovl_11_func_801214F8 on each entry
 - ovl_11_func_8012135C (s) — role unknown; sits in the run between 80121318
   and 801213D8
-- ovl_11_func_801213D8 (s) — farm-object update: guards field_14, positions
-  from field_0/2/8/C via a /6 magic-reciprocal step counter, gate bit of
-  `D_8006C844`, and on its no-spawn path calls
-  ovl_11_func_801214F8 (field-14 clear)
+- ovl_11_func_801213D8 (m, matched 2026-10-08) — farm-object update: while
+  the sprite at +0x14 is set, frame = tick (+0x2) / 3. The tick advances
+  unless bit 0x08000000 of `D_8006C844` is set. While the frame is below
+  func_80015A18's animation length, the offset position (+0x4/+0x8/+0xC) is
+  projected by ovl_11_func_800F5888 and the frame is drawn by func_80015EE8.
+  Otherwise it calls ovl_11_func_801214F8 (field-14 clear). The record is
+  typed locally as `Struct_801213D8`; 80121318 still walks the same array
+  with byte arithmetic.
 - ovl_11_func_801214F8 (m, matched 2026-11 — this session) — leaf field-14
   clear: `sw $zero, 0x14(a0)`; byte-exact clean C, baseline flags (no
   override)

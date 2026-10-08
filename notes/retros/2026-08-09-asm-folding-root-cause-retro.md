@@ -94,7 +94,9 @@ the burden of proof is set in `prompts/c-style-guide.md` §10 — an
 assembler-emulation gap is proven only by assembling identical compiler output
 through both assemblers and comparing objects; failure to find a C shape is not
 proof of an assembler bug. One patch remains unvalidated with a single witness:
-see `notes/CALLOUT-maspsx-delay-slot-patch-correctness.md`.
+see `notes/CALLOUT-maspsx-delay-slot-patch-correctness.md`. *(2026-10-08: that
+patch was refuted and removed. Its witness was a register-pinned source, and
+the clean source's fill is cc1's own; maspsx is upstream again.)*
 
 ## 4. What the six-step plan produced
 

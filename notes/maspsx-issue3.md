@@ -1,5 +1,30 @@
 # maspsx issue 3: branch delay slot not filled with lui-only `li`
 
+## Resolution (2026-10-08): not a maspsx gap. The patch is removed.
+
+The patch compensated for a wrong source and was never an assembler
+behaviour.
+
+- **`func_80021820`.** A natural reconstruction (nested `for` loops, no
+  register pin) makes cc1 fill the delay slot itself. Its output carries
+  `bne $2,$0,$L8` / `li $10,16777216` inside `.set noreorder`, so the
+  `lui $t2,0x100` in the target is cc1's `dbr`. A `lui`-only constant has
+  length 1 in `mips.md` (the `L` constraint), so it qualifies for a delay
+  slot. `$t2` is dead at the branch target, so the steal is legal.
+- **A counter-witness.** `ovl_11_func_801213D8`'s target has
+  `jal func_80015A18; nop; lui a1,0x5555`, so ASPSX left a jump's slot
+  unfilled when a `lui`-only `li` followed. The patch filled it, clobbering a
+  call argument and making the function unmatchable from any C.
+- **Real ASPSX.** `notes/retros/2026-08-09-func_800142D8-retro.md` already
+  recorded that `ASPSX.EXE` 2.86 under wine does not forward-fill.
+
+The submodule is back on upstream `0249ed2`. The local commit `adffb69` is
+kept on the submodule's local `master` branch for reference only.
+`tools/vendor/maspsx-delay-slot-fill.patch` is deleted. `make check-all`
+passes on the upstream assembler.
+
+The history below is kept as it was written.
+
 > Whether this patch is CORRECT (real ASPSX behavior vs one-site hack) is
 > an open research topic: see
 > `notes/CALLOUT-maspsx-delay-slot-patch-correctness.md`.

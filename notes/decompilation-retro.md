@@ -25,7 +25,8 @@ func_8001B4E4 on 2026-07-25 (case C4), func_8001E7DC on 2026-07-26 (case C5),
 and func_8001AF44 on 2026-07-25 (case C6)** — 2 kept
 with ablation-proven load-bearing workarounds but unresolved root cause
 (SetGfxClip, SetGfxOffset), 1 excluded
-(`func_80021820`, known broken — needs full re-decomp, not a sweep candidate).
+(`func_80021820`, known broken — needs full re-decomp, not a sweep candidate;
+*re-decompiled clean 2026-10-08, see notes/maspsx-issue3.md*).
 
 ---
 

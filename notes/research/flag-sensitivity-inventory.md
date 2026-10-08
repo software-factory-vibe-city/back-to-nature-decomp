@@ -82,3 +82,7 @@ byte-matches only with the uncommitted local maspsx delay-slot patch
 applied (see notes/maspsx-issue3.md — status pending owner decision). A
 stub-flip alternative was tested and rolled back; the corpus count above
 (148 real C) reflects the current tree with the pinned C in place.
+
+*Superseded 2026-10-08:* func_80021820 now has a clean source that matches
+on upstream maspsx, and the delay-slot patch is removed. See
+notes/maspsx-issue3.md.
