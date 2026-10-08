@@ -2462,3 +2462,14 @@ struct M2C_9e3562919d92_ovl_15_80132A8C_data {
     s32 field_40;
 };
 
+typedef struct {
+               u16 f00;
+               char pad_02[0x30 - 0x02];
+               u16 f30;
+               char pad_32[0x34 - 0x32];
+               s32 f34;
+               s32 f38;
+               s32 f3C;
+               s32 f40;
+} struct_800759E4;
+

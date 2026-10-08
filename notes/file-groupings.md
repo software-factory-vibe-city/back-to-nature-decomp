@@ -7110,6 +7110,30 @@ Members:
   the D_800BA9E4 dispatcher ovl_11_func_8010B57C when the flag's 0x200 bit is
   set, bridging this record cluster to the pair cluster below.
 
+## `ovl_11` D_800759E4 0xF0-byte record gate/initializer pair — 0x80108CD0 / 0x8010946C (confidence: medium)
+
+Evidence: D_800759E4 is the 0xF0-byte record immediately preceding the
+D_80075AD4 cluster — D_800759E4 + 0xF0 == D_80075AD4, the same stride its own
+initializer memsets — so the two are one contiguous 0xF0-stride record band
+(and share a TU). The handling side is a parallel pair:
+- initializer tie (call graph): 0x80108CD0 is the gate entry — it guards arg0
+  in {0x106, 0x107} and u16@+0x0 == 0, calls
+  ovl_11_func_8010946C(&D_800759E4, arg0) (the guarded 0xF0 far-state
+  initializer of the memset-clear family), and returns &D_800759E4.
+- structural twin: 0x80108CD0 is the exact machine shape of 0x8010B1C4, the
+  D_80075AD4 gate entry; the two differ only in base global, guard range
+  (0x106/0x107 vs 0x15E/0x15F) and callee, so each record has its own
+  gate/initializer pair.
+
+Members:
+- ovl_11_func_80108CD0 (m, matched this session, byte-exact) — D_800759E4 gate
+  entry: range/zero guard, calls ovl_11_func_8010946C and returns
+  &D_800759E4, else NULL.
+- ovl_11_func_8010946C (m) — D_800759E4 0xF0 far-state initializer.
+- ovl_11_func_8010941C (m) — writes D_800759E4 +0x30/+0x38/+0x3C/+0x40 per
+  sub-state argument, the writer-side twin of 0x800CF314's +0x38/+0x3C/+0x40
+  writes on the D_80075AD4 record.
+
 ## `ovl_11` D_80128C4C / D_80128C54 state-pair cluster — 0x800C4DE0–0x800CD0F4 (confidence: medium)
 
 - shared-global fingerprint: two adjacent main-RAM s32 globals, D_80128C4C
