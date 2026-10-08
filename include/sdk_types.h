@@ -1246,6 +1246,36 @@ typedef struct {
                s16 field_22;
 } M2C_8ffcafc4ec70_Struct_800153BC;
 
+struct SpriteSourceData {
+               u16 field_0;
+               u16 field_2;
+               u8 field_4;
+               u8 field_5;
+               u16 field_6;
+               s32 field_8;
+               u16 field_C;
+               u16 field_E;
+               u16 field_10;
+               u16 field_12;
+               s32 field_14;
+               s32 field_18;
+               s32 field_1C;
+               s32 field_20;
+               s32 field_24;
+               s32 field_28;
+               s32 field_2C;
+};
+
+typedef struct {
+               s16 field_0;
+               char pad_02[0x30 - 0x02];
+               s16 unk30;
+               char pad_32[0x78 - 0x32];
+               SpriteSourceData sprite;
+               char pad_A8[0xAC - 0xA8];
+               u16 unkAC;
+} M2C_90bbdd1382f9_Struct_8010D0EC;
+
 typedef struct {
     char pad_00[0x24];
                s16 unk24;
@@ -1324,26 +1354,6 @@ typedef struct {
                u16 unk4;
                u8 pad6[0x18 - 0x06];
 } M2C_9fae74c412a7_Ovl11Func5700Entry;
-
-struct SpriteSourceData {
-               u16 field_0;
-               u16 field_2;
-               u8 field_4;
-               u8 field_5;
-               u16 field_6;
-               s32 field_8;
-               u16 field_C;
-               u16 field_E;
-               u16 field_10;
-               u16 field_12;
-               s32 field_14;
-               s32 field_18;
-               s32 field_1C;
-               s32 field_20;
-               s32 field_24;
-               s32 field_28;
-               s32 field_2C;
-};
 
 typedef void (*M2C_a048f66bc407_SpriteCallback)(s32, SpriteSourceData *, s16, s32, s32);
 

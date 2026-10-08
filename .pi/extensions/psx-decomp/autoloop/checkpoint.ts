@@ -22,6 +22,14 @@ export function checkpointLimit(thresholdTokens: number): number {
   return thresholdTokens + Math.ceil(thresholdTokens / 10);
 }
 
+/** Sent on both checkpoint paths: the threshold steer, and the continuation
+    after a forced cutoff that skipped it. */
+export const STUCK_PREMISE_CHECK =
+  "Before choosing the next experiment, load `psx_reference stuck` and check each premise it lists against this function. " +
+  "A residual that has held through this much context is more often a missing fact than an unfound spelling. " +
+  "The fact may be in the translation unit, a declaration, a callee signature, the author's idiom in matched neighbours, or a value the program does not yet compute. " +
+  "If recent experiments compiled to identical outputs, the next one must change one of those premises, not the spelling.";
+
 export function checkpointMessage(watch: CheckpointWatch, tokens: number): string {
   return [
     `Autoloop checkpoint: ${watch.tierLabel} has reached ${tokens} context tokens ` +
@@ -31,6 +39,7 @@ export function checkpointMessage(watch: CheckpointWatch, tokens: number): strin
     "- Earlier measured experiments grouped by mechanism; distinguish identical compiler outputs from genuinely different programs.",
     "- Open assumptions, blockers and ruled-out domains with their premises/bounds. Do not promote a failed search into an impossibility proof.",
     "- The next concrete experiment and the current role, file scope, completion criteria and any pending handoff/review protocol.",
+    STUCK_PREMISE_CHECK,
     "Use CLM/live-context facilities if present: edit LIVE_CONTEXT.md to retain this concise working summary and remove stale reasoning and bulky completed tool output. " +
       "Use live_context_annotate for exact evidence that must survive, and live_context_recall when needed. Follow the live-context metadata/nonce rules; do not alter system instructions.",
     "Also emit a brief normal assistant checkpoint summary: forced native compaction reads the raw transcript, not just CLM's edited projection.",
@@ -52,6 +61,7 @@ export function checkpointContinuation(tierLabel: string): string {
     `Continue the interrupted autoloop task on ${tierLabel} after checkpoint compaction.`,
     "Resume from the latest experiment and current on-disk candidate, using the checkpoint summary and preserved artifacts. " +
       "Confirm any interrupted measurement before relying on it; do not restart from an old draft or repeat already-closed experiments.",
+    STUCK_PREMISE_CHECK,
     "Keep the same role, file scope, completion criteria and any pending handoff/review protocol. " +
       "The checkpoint is not a failed return and does not advance the ladder. Continue working rather than merely reporting status; " +
       "if the task is already complete or genuinely blocked, finish its normal completion/reporting protocol. " +

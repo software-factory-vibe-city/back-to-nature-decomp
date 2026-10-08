@@ -237,6 +237,39 @@ allocno, so local-allocation tie analysis does not apply to it at all; its
 register comes from conflicts with overlapping locals. See
 `notes/research/func_80017E34-shared-web-global-allocno.md`.
 
+### A constant in an earlier block than its use is a reused register
+
+Check where the target loads a constant against where it is used. Two signs
+mean the original never loaded it as a literal at that point:
+
+- the target loads it in an earlier block than the candidate does;
+- the target keeps it in a register other than the first one free at its only
+  use.
+
+In both cases the original reused a register that already held the value.
+With jump following, CSE extends a block into a single-predecessor successor.
+It then rewrites a constant operand there to any register on that path that
+already holds the same value. The literal's own load is deleted, and the reused
+register stays live across the boundary. Spend no edits on reordering the
+expressions already present; the missing piece is a value.
+
+These source shapes leave such a register:
+
+- a variable index scaled to the value (`i = 10; tbl[i]` leaves 40);
+- a variable byte offset.
+
+These leave nothing:
+
+- a literal index or offset, which folds before RTL;
+- a variable that is assigned but never used, which is deleted before CSE
+  runs.
+
+m2c may show the surviving register as an assigned local or as extra call
+arguments. Keep the register fact, and check the arity against the callee's
+other callers.
+
+See `notes/research/ovl_11_func_8010D0EC-cse-reuses-folded-index-constant.md`.
+
 ### Store-block initializers: order from the data, never from emission
 
 When a mismatch is order-only inside a block of constant/pointer stores

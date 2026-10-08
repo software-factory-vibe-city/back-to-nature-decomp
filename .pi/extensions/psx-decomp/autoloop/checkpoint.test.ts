@@ -51,6 +51,7 @@ test("steering is queued at the per-agent threshold once, before any final retur
   assert.match(m.messages[0]!.content, /latest experiment/);
   assert.match(m.messages[0]!.content, /CLM\/live-context/);
   assert.match(m.messages[0]!.content, /normal assistant checkpoint summary/);
+  assert.match(m.messages[0]!.content, /psx_reference stuck/);
   assert.equal(watch.warned, true);
   assert.equal(m.aborts(), 0);
 });
@@ -130,6 +131,12 @@ test("checkpoint prompts preserve pending roles/protocols instead of assuming ma
   assert.match(checkpointMessage(watch, 350_000), /pending handoff\/review protocol/);
   assert.match(checkpointContinuation("reviewer"), /same role, file scope, completion criteria/);
   assert.match(checkpointContinuation("reviewer"), /not a failed return.*does not advance the ladder/);
+});
+
+test("both checkpoint paths steer to the stuck sheet, including a cutoff that skipped the steer", () => {
+  const m = monitor(), watch = m.arm();
+  assert.match(checkpointMessage(watch, 350_000), /psx_reference stuck/);
+  assert.match(checkpointContinuation("fixture"), /psx_reference stuck/);
 });
 
 /** Script whole agent returns while using the real monitor and turn controller. */
