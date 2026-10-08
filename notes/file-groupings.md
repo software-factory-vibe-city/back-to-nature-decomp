@@ -476,7 +476,7 @@ table). Members:
 
 ---
 
-## `ovl_11` memset-clear struct-constructor idiom family — 0x800C1C5C, 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0 (confidence: low)
+## `ovl_11` memset-clear struct-constructor idiom family — 0x800C1C5C, 0x800D3200, 0x800DF0F8, 0x800E0D0C, 0x800E2904, 0x8010B64C, 0x801092E0, 0x8010946C (confidence: low)
 
 Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
 `memset(arg0, 0, N); *(s16 *)arg0 = 0;` — clear a caller-provided struct then
@@ -503,6 +503,13 @@ Members:
   bytes, byte-identical to 8010B64C in all 12 words including the 0xF0
   immediate (a duplicated helper, likely its own TU copy); no direct caller
   found in any extracted bytes — dispatched indirectly or dead
+- ovl_11_func_8010946C (m, matched this session, byte-exact) — guarded 0xF0
+  far-state initializer variant (same family/band idiom as 8010B778): returns
+  -1 when u16@+0x00 != 0, else saves s32@+0x4/+0x8/+0xC/+0x10 and u16@+0x14
+  across the memset and restores them, copies the packed 8 bytes at
+  D_8006C838+0x44B8 to +0x1A, then calls ovl_11_func_80109310(this) and
+  ovl_11_func_80107DD0(this+0xA8); caller ovl_11_func_80108CD0. Membership is
+  idiom-based (shared packed-copy / 80107DD0 call cluster), not a TU claim
 - ovl_11_func_800DCE98 (m, matched this session) — variant member over 0x34
   bytes: memset 0x34 then stores the free-entry bit as `u16`@+0x2C = 0x8000
   (`ori`, not a +0 s16 store); see the `D_801290D8` entry-table cluster above
