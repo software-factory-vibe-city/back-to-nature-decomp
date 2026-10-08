@@ -11962,3 +11962,37 @@ Members (address order):
 The two bases extend the ovl_11 `D_80054BC0[0] + (s32)&D_80051xxx/518xx`
 pointer-base cluster (ovl_11_func_8011A9DC, 8011B210, 8011DD48, 8011CEE0,
 8011CF10). Zero-gap link order + caller/callee edges + shared pointer idiom.
+
+## `ovl_27` D_8006C838 work-area init/menu run — 0x800B8C6C–0x800B8D28 and 0x800BA914–0x800BAC14 (confidence: medium)
+
+Evidence: shared `D_8006C838` work-area base cluster — the +0x4488 counter
+shared by 800B8C6C/800B8CAC; 800B8D28 reads +0x4450/+0xC/+0x1C and calls
+800BA914(3); 800BA914 reaches the +0x20/+0x2C pools through the
+`D_80071DFC - 0x55C4` alias of the same base; 800BABD4 writes
++0x8000+0x64CC; 800BAC14 copies into +0x468A. Corroborated by zero-gap
+link-order contiguity (`configs/splat/ovl_27.yaml`): 0x800BA914 (0x120) ends
+exactly at 0x800BAA34 (0x1A0) → 0x800BABD4 (0x40) → 0x800BAC14 (0x4C) → the
+0x2E40 data block, and 0x800B8C6C (0x40) → 0x800B8CAC (0x7C) → 0x800B8D28
+(0x100). The 800B8D28 → 800BA914 call edge agrees with address order. This is
+a prior, not a proven TU boundary.
+
+Members (address order):
+- ovl_27_func_800B8C6C (m) — increments `D_8006C838+0x4488`, calls
+  func_800132F0/func_8001FE34.
+- ovl_27_func_800B8CAC (m) — menu branch; advances the same +0x4488 counter
+  after func_80020818/func_80020B80.
+- ovl_27_func_800B8D28 (m) — menu state handler; clears +0x4450 flags, calls
+  800BA914(3), resets +0x4488, dispatches func_80011EF0.
+- ovl_27_func_800BA914 (m, matched this session, byte-exact) — fills 0x19
+  records of 0x168-byte entries at `D_80071DFC` from the selected
+  D_800BAC60/BB52C/BBDF8/BC6C4 sprite table, resolving each through the
+  D_8006C838 palette pools.
+- ovl_27_func_800BAA34 (s) — undecoded neighbour between 800BA914 and
+  800BABD4.
+- ovl_27_func_800BABD4 (m) — writes the 0x64CC..0x64D2 s16 quarter at
+  `D_8006C838+0x8000`.
+- ovl_27_func_800BAC14 (m) — copies `D_800BCFF0` into `D_8006C838+0x468A`.
+
+Run context (not asserted members): ovl_27_func_800B9124 (m, HUD text via
+D_8006C838+0x5246/0x5248) and ovl_27_func_800BA814 (m, D_800C4A60-backed
+copy) also touch the D_8006C838 work area but sit outside these gapless runs.
