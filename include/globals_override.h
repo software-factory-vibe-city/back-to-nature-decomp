@@ -1806,5 +1806,11 @@ extern s16 D_800C4A2C;
  * opaque byte object suffices; absolute-addressed from the overlay. */
 extern u8 D_800C4A80[];
 
+/* D_80075FE4 - ovl_11 2-byte table base scanned at 0xB4 stride (first field
+ * u16, lhu) by ovl_11_func_800E1F9C and ovl_11_func_800D2160. Undefined in
+ * the overlay (undefined_syms_auto.txt, 2B); the -G0 overlay build addresses
+ * it absolutely (split lui/%lo). */
+extern u16 D_80075FE4;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

@@ -1595,6 +1595,10 @@ Members:
 - ovl_11_func_800E20B8 (m, matched this session) — counts how many of the 10
   `D_800742EC` 0xB4-stride entries have a non-zero u16 at 0x0 (the same field
   the initializer `sh`s), returns the count; leaf, no callers in the overlay
+- ovl_11_func_800E1F9C (m, matched this session) — the owner: allocates a
+  D_800742EC entry (arg2==1, by index arg1 or 0x800D0CD8) or scans a second
+  0xB4-stride array at `D_80075FE4` (3 records), then initializes the chosen
+  entry via 0x800E2968; shares `D_80075FE4` with ovl_11_func_800D2160
 - ovl_11_func_800E2A30 (m, matched this session) — reads the 0xB4-struct's
   state u16 at +0 via ovl_11_func_800E2718, mirrors a 0x109/0x10A result back
   to it, and passes its embedded SpriteSourceData at +0x78 to func_80015704;
