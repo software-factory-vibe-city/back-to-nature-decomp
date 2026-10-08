@@ -1319,12 +1319,6 @@ typedef struct {
 } M2C_99e8d4889750_Struct_800E11C0;
 
 typedef struct {
-               u16 field_0;
-               char pad_02[0x34 - 0x02];
-               s32 field_34;
-} M2C_9aeb3db9b1f9_Ovl11FuncCFAD0Flag;
-
-typedef struct {
                u8 pad0[2];
                u16 unk2;
                u16 unk4;
