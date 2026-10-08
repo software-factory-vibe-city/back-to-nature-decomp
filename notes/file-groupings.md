@@ -11691,3 +11691,22 @@ Members (address order):
 Run context (not asserted members): gapless predecessor ovl_11_func_800BDCE0
 (m, 8-byte `return -1` leaf) and successor ovl_11_func_800BDF98 (s, large
 argument-forwarding body calling 800D7EF8/800BE6E4) bound the run.
+
+## `ovl_11` sprite-draw variant run — 0x8011D0C8 / 0x8011D10C / 0x8011D150 (confidence: medium)
+
+Zero-gap link order 0x8011D0C8 (0x44) → 0x8011D10C (0x44) → 0x8011D150 (0x114)
+(`configs/symbols/ovl_11.txt`), the call graph agreeing: both earlier members
+are four-argument forwarders that call 0x8011D150, passing their variant
+selector `0`/`1` as the first argument.
+
+Members (address order):
+- ovl_11_func_8011D0C8 (m) — forwarder `8011D150(0, arg0..arg3)`.
+- ovl_11_func_8011D10C (m) — sibling forwarder `8011D150(1, arg0..arg3)`.
+- ovl_11_func_8011D150 (m, matched this session, byte-exact) — shared body:
+  picks the table base `D_800517E0` (variant 0) or `D_800517EE` (variant 1),
+  draws with `D_80054BC0[0] + base` through `func_80019E14`/`func_80017A38`/
+  `func_80017B3C`, then a `func_800136D4` box sized by the variant.
+
+The two bases extend the ovl_11 `D_80054BC0[0] + (s32)&D_80051xxx/518xx`
+pointer-base cluster (ovl_11_func_8011A9DC, 8011B210, 8011DD48, 8011CEE0,
+8011CF10). Zero-gap link order + caller/callee edges + shared pointer idiom.
