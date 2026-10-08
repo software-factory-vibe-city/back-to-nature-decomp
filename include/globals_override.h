@@ -1848,5 +1848,15 @@ extern u8 D_800C4A80[];
  * it absolutely (split lui/%lo). */
 extern u16 D_80075FE4;
 
+/* D_80123754 - ovl_11 s16 threshold (initial value 0x258) compared against
+ * the two absolute rank distances in ovl_11_func_800D1CFC and written by
+ * ovl_11_func_800D1960. Absolute-addressed (-G0 overlay build, lui/%lo). */
+extern s16 D_80123754;
+
+/* D_80123A18 - ovl_11 u16 lookup table indexed by (rank1 * 3 + rank2) * 2
+ * in ovl_11_func_800D1CFC and read with `lhu`. Declared as an incomplete
+ * array so cc1 emits the split two-register absolute address form. */
+extern u16 D_80123A18[];
+
 #endif /* GLOBALS_OVERRIDE_H */
 

@@ -5,7 +5,7 @@
       "model": "deepseek-v4-1-flash",
       "thinking": "xhigh",
       "label": "deepseek-v4-1-flash",
-      "checkpointAtTokens": 200000
+      "checkpointAtTokens": 300000
     }
   ],
   "singleTier": true,
