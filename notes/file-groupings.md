@@ -6788,6 +6788,18 @@ Members:
   the same relative +0x253B6/+0x253B4/+0x253B8 halfword block 800E9778 reads
   from its selected record — a new accessor-family tie to the `D_8007AFF0`
   far-base halfword-state block.
+- ovl_11_func_800E99EC (m, matched 2026-11 — this session, 0x110, byte-exact) —
+  conditional-slot position leaf: `arg3 & 1`/`arg3 & 2` select the low half of
+  `D_80129560[arg0]`/`[arg1]` (raw s16 args otherwise), then either calls
+  `ovl_11_func_800C08E8((t0 * 0x3C) + a3)` when `arg2 != 0`, or gates on the
+  `D_8006C838` +0x44C0 field (`< 6`, remapping +0x18) and calls the same leaf
+  with the `*0x3C` offset against the +0x44C0/+0x44C2 pair; returns 1 when the
+  difference is non-negative, 0 otherwise. Same `lui`+`addiu %lo` absolute base,
+  `s16`-fused 4-byte index and conditional table-resolve as the sibling readers
+  (800E5C60/800E8550), inside the accessor band; zero-gap link-order predecessor
+  of the matched `ovl_11_func_800E9AFC` (0x800E99EC + 0x110) and the only family
+  member whose table slots feed a `*0x3C` position calculation rather than a
+  record write/compare.
 - ovl_11_func_800E7CCC (m, matched 2026-11 — this session, 0x80, byte-exact) —
   guarded-slot forwarder/writer: `arg3 != 0` resolves `D_80129560[arg2]` (raw
   `arg2` otherwise), forwards `(selected, (s16)arg0)` to the two-arg accessor
