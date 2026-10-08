@@ -6559,7 +6559,15 @@ Members (address order):
   `ovl_11_func_80107DE0(this + 0xA8, 0x24, 0x2D)`; same far-state gate and
   `0x24, 0x2D` clamp constants as ovl_11_func_800DF51C / 800E10C8 in the
   800DF4F0 / 800E109C predicate-caller runs
-- ovl_11_func_800E2D3C (s) — role unknown
+- ovl_11_func_800E2D3C (m, matched this session, byte-exact) — second dispatch
+  entry: repeats 800E2C64's 0/0x109 gate, far-state
+  `s16@+0x30 == *(s16 *)(&D_8007AFF0 + 0x25476)` call to `func_8001FABC(0x18)`,
+  and `u16@+0x16 -= 10` clamp at 0 with the same `0x24, 0x2D`
+  `ovl_11_func_80107DE0(this + 0xA8, ...)` tail, but interposes the shared
+  padded-vector pipeline: `ovl_11_func_800D0408(D_8006C838+0x5200, &sp18,
+  0x7D0)`, adds `s32@+0x38/+0x3C/+0x40` into `sp18`, calls
+  `ovl_11_func_800D05D0(this, sp18)`, then copies `D_8006C838+0x5200` into
+  `u16@+0x22`; returns 0
 - ovl_11_func_800E2E4C (m, matched this session) — guards a struct's u16@0
   against 0/0x109, then clears u16@0xAE and calls ovl_11_func_800D049C
 - ovl_11_func_800E2E98 (m) — trivial `return 0;`
