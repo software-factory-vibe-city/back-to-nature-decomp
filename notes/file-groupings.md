@@ -1961,6 +1961,37 @@ Members:
 
 ---
 
+## `ovl_11` sprite-position initializer/draw cluster — 0x800CDE3C–0x800CE210 (confidence: medium)
+
+Candidate same-TU cluster supported by paired initializer/driver layouts,
+shared draw-helper calls, and corroborating link order; the original TU
+boundaries remain unresolved.
+
+Fingerprints:
+- `800CDE3C` / `800CDEEC` share the object's +0x120 position array with
+  stride 0x10; `800CDF4C` / `800CDFAC` share the +0x1C0 position array
+  with stride 0x10 and ten animation/frame pairs at +0x3D4 with stride 4.
+- Both drivers call `800CE0F0`, respectively with mode 0 and mode 1; the
+  verified helper consumes the corresponding position view and selects
+  embedded sprite-source state or the indexed animation/frame pairs.
+- The map places `800CDE3C` → `800CDEEC` → `800CDF4C` → `800CDFAC` →
+  `800CE034` → `800CE0F0` in zero-gap order. Intervening `800CE034` is
+  already recorded in the D_801281F0 pair-table cluster and is not added
+  here on adjacency alone.
+
+Members (address order):
+- ovl_11_func_800CDE3C (m) — initializes ten position records and five embedded sprite sources.
+- ovl_11_func_800CDEEC (s) — five-position draw driver using `800CE0F0` mode 0.
+- ovl_11_func_800CDF4C (m) — initializes ten indexed positions and animation/frame pairs.
+- ovl_11_func_800CDFAC (s) — ten-position draw driver using mode 1, skipping animation value 5.
+- ovl_11_func_800CE0F0 (m) — projects/draws a position with embedded or shared sprite-source state.
+
+Evidence: matched initializer/helper C in `src/overlays/ovl_11/`; original
+`800CDEEC` / `800CDFAC` listings under `build/ovl_11/asm/nonmatchings/`;
+`build/ovl_11/ovl_11.map`.
+
+---
+
 ## `ovl_11` 3-halfword vector setter/clear/copy family — 0x800D72E8–0x800D740C (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): four tiny functions

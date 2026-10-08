@@ -677,6 +677,11 @@ extern u32 D_8005F2B8[0xC];
  * as D_8005F2B8/D_8005F2E8; target reaches it with lui s0,%hi / addiu s0,%lo. */
 extern u32 D_800605F0[0x10];
 
+/* D_80128D00 - ovl_11 sprite source-data object (0x30 bytes).
+ * The complete type is defined in game_types.h; forward-declare it here
+ * because common.h includes this header before the shared types. */
+extern struct SpriteSourceData D_80128D00;
+
 /* D_80049268, D_80049274, D_80049280 — absolute-addressed Vec3 globals
  * used by func_8001EFA4. Accessed with lui/lw (split absolute addressing).
  * Array size 3 (12 bytes) forces >-G8 declaration for split addressing. */

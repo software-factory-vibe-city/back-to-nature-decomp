@@ -36,6 +36,15 @@ typedef struct {
     s32 z;
 } Vec3;
 
+/* Halfword position view read by ovl_11_func_800CE0F0. */
+typedef struct {
+    /* 0x00 */ u16 field_0;
+    /* 0x02 */ u16 pad_2;
+    /* 0x04 */ u16 field_4;
+    /* 0x06 */ u16 pad_6;
+    /* 0x08 */ u16 field_8;
+} Ovl11SpritePositionView;
+
 /* Simple 2-word structure for basic pair initialization */
 typedef struct {
     s32 field_0;
@@ -170,7 +179,7 @@ typedef struct {
  * field_1C (texture cels), field_28 (animation index table), and
  * field_2C (frame data) to render one animation frame as POLY_FT4
  * primitives. */
-typedef struct {
+typedef struct SpriteSourceData {
     /* 0x00 */ u16 field_0;     /* bit-flags (bit 2 = pause guard in func_800158E4) */
     /* 0x02 */ u16 field_2;     /* loop/pause flags (0x100 = loop, 0x200 = pause) */
     /* 0x04 */ u8  field_4;     /* current animation index */

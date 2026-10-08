@@ -2,7 +2,6 @@
 #include "game_types.h"
 
 extern s32 D_80123154;
-extern SpriteSourceData D_80128D00;
 extern s16 D_80070CF2;
 
 /* Callee prototypes as the original caller TU saw them. */

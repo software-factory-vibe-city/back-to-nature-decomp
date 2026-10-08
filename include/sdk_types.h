@@ -14,6 +14,10 @@ struct M2C_6fc629d778b7_Unk800D3D2C;
 
 typedef struct M2C_6fc629d778b7_Unk800D3D2C M2C_6fc629d778b7_Unk800D3D2C;
 
+struct SpriteSourceData;
+
+typedef struct SpriteSourceData SpriteSourceData;
+
 typedef unsigned long u_long;
 
 typedef struct {
@@ -1327,7 +1331,7 @@ typedef struct {
                u8 pad6[0x18 - 0x06];
 } M2C_9fae74c412a7_Ovl11Func5700Entry;
 
-typedef struct {
+struct SpriteSourceData {
                u16 field_0;
                u16 field_2;
                u8 field_4;
@@ -1345,7 +1349,7 @@ typedef struct {
                s32 field_24;
                s32 field_28;
                s32 field_2C;
-} SpriteSourceData;
+};
 
 typedef void (*M2C_a048f66bc407_SpriteCallback)(s32, SpriteSourceData *, s16, s32, s32);
 
@@ -2131,6 +2135,14 @@ typedef struct {
     s32 field_5C;
     s32 field_60;
 } Ovl11SetFieldsView;
+
+typedef struct {
+               u16 field_0;
+               u16 pad_2;
+               u16 field_4;
+               u16 pad_6;
+               u16 field_8;
+} Ovl11SpritePositionView;
 
 typedef struct {
                s16 unk0;
