@@ -177,6 +177,19 @@ struct struct_8006C838_time {
     s16 field_44C2;         /* 0x44C2 */
 };
 
+/* View of D_8006C838 for ovl_11_func_80111A60: the s16 at +0x44BA plus the
+ * two time-like fields at +0x44C0/+0x44C2. Reached as a struct member so cc1
+ * keeps lui %hi(D_8006C838) followed by lh 0x44BA/0x44C0/0x44C2 rather than
+ * folding the offsets into %hi(D_8006C838+0x44BA). The +0x44BA halfword is
+ * also named D_80070CF2 elsewhere; this view preserves the target base. */
+struct struct_8006C838_button {
+    char pad_000[0x44BA];   /* 0x0000-0x44B9 */
+    s16 field_44BA;         /* 0x44BA */
+    char pad_44BC[4];       /* 0x44BC-0x44BF */
+    s16 field_44C0;         /* 0x44C0 */
+    s16 field_44C2;         /* 0x44C2 */
+};
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.

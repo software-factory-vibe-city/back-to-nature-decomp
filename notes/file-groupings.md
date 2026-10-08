@@ -5349,6 +5349,14 @@ the overlay, never GP-relative), and the large-offset writers use the same
   entry), and gates a second read at `D_80074838`+0x64C8 (= 0x8007AD00, the
   cell 0x800F1CC4 reaches as +0xE4C8); its +0x8000-relative region ties it to
   the D_80071A00 pool cluster as well
+- ovl_11_func_80111A60 (m, matched this session) — reads the s16 at +0x44BA
+  (the `D_80070CF2` alias) and the +0x44C0/+0x44C2 pair through one
+  `&D_8006C838` struct base (`struct_8006C838_button`), computes
+  `(field_44C0 - arg)*0x3C + field_44C2` into the file-scope s32 `D_8012D0E8`
+  (clamped at 0x71), and forwards `&D_8012D088`/`&D_8012D0A8` to
+  `func_8001F664`; the same +0x44C0/+0x44C2 `*0x3C` position pair as
+  ovl_11_func_800E99EC and ovl_11_func_800C087C; byte-exact clean C, baseline
+  flags
 - ovl_11_func_800D12A0 (m) — s16 setter at +0x99E6 via the +0x8000 split
   (already documented as the D_80123754 run head)
 - ovl_11_func_8010C1C0 (m, this session) — copies four s32 fields from arg0
