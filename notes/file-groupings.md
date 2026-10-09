@@ -6681,6 +6681,29 @@ Members (address order):
   This adds a table-layout/data dependency, not evidence that the distant
   selector belongs to the 800C1Bxx translation unit.
 
+## `ovl_11` 0x800F1F48–0x800F2354 gapless link run + call edge — 0x800F1F48 / 0x800F213C / 0x800F227C / 0x800F2354 (confidence: low)
+
+Evidence: one unbroken `ovl_11` link-order run — 0x800F1F48 (0x1F4) ends
+exactly at 0x800F213C (0x140), which ends exactly at 0x800F227C (0xD8), which
+ends exactly at 0x800F2354 (0xAC) — and the call graph agrees on the edge:
+0x800F1F48 is the sole caller of 0x800F213C (`jal` at 0x800F2060, sole `jal`
+to it in the container). The now-matched 0x800F213C is the stream walker the
+run's head invokes; the run's already-matched tail 0x800F227C is the
+documented non-adjacent consumer of the `D_80076220` 30-entry +0xE4 table, so
+this run supplies the link adjacency that data tie lacked. 0x800F1F48 and
+0x800F2354 remain stubs; adjacency + call edge only, TU boundary unproven.
+
+Members:
+- ovl_11_func_800F1F48 (s) — run head and sole caller of 0x800F213C; also
+  calls `ovl_11_func_80107DD0`, the same callee used by the `D_80076220`
+  record-initializer family.
+- ovl_11_func_800F213C (m, matched this session, 0x140, byte-exact) — u16
+  stream walker: `func_8001AF44` flag test with the 0x8000 invert bit, 0xFFFC
+  pointer escape, 0xFFFE/0xFFFB sentinels; returns `arg1 + (marker & 0xFFFC)`
+  or NULL. Gapless predecessor of 0x800F227C.
+- ovl_11_func_800F227C (m) — see the `D_80076220` record-init/clear run above.
+- ovl_11_func_800F2354 (s) — run tail.
+
 ---
 
 ## `ovl_11` struct_80076220 u16@+4 reader/writer cluster — 0x800F02C8 / 0x8011256C / 0x8011FF0C / 0x800C3CCC (confidence: low)
