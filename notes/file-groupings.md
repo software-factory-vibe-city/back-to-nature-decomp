@@ -2860,10 +2860,11 @@ Members (address order):
 - ovl_11_func_80111D28 (m, matched this session) — 8-byte pure getter:
   `return D_80127F60[arg0];` over a 4-entry s16 `.data` table at 0x80127F60
   ({0x12, 0x13, 0x12, 0x11}); `s16` param sign-extended via `sll16/sra15`;
-  byte-exact clean C, baseline flags. Called by link-adjacent stubs
-  `ovl_11_func_80111A60` (0x80111A60) and `ovl_11_func_80111B74`
-  (0x80111B74), which `lh` their arg0 — so the helper re-sign-extends a
-  value the callers already sign-extended. Adjacent ovl_11 `.data` s16
+  byte-exact clean C, baseline flags. Called by link-adjacent callers
+  `ovl_11_func_80111A60` (0x80111A60, m) and `ovl_11_func_80111B74`
+  (0x80111B74, m, matched this session), which `lh` their arg0 — so the
+  helper re-sign-extends a value the callers already sign-extended. Adjacent
+  ovl_11 `.data` s16
   tables (D_80127F50, D_80127F68) suggest a compact data+helper cluster.
 - ovl_11_func_80111D48 (m, matched this session) — link-adjacent successor
   whose 0x20 bytes begin exactly at 0x80111D48: builds a 3-halfword local from
@@ -5575,6 +5576,19 @@ the overlay, never GP-relative), and the large-offset writers use the same
   (clamped at 0x71), and forwards `&D_8012D088`/`&D_8012D0A8` to
   `func_8001F664`; the same +0x44C0/+0x44C2 `*0x3C` position pair as
   ovl_11_func_800E99EC and ovl_11_func_800C087C; byte-exact clean C, baseline
+  flags
+- ovl_11_func_80111B74 (m, matched this session) — second, byte-exact member
+  of the `struct_8006C838_button` + `D_8012D0E8`/`D_8012D088` sub-cluster:
+  reads the same +0x44BA / +0x44C0 / +0x44C2 triple through one
+  `&D_8006C838` struct base, steps the same
+  `(field_44C0 - arg)*0x3C + field_44C2` value into file-scope s32
+  `D_8012D0E8` (clamped at 0x71), and selects `func_8001FA0C(&D_8012D088,
+  ...)` / `func_8001F8A4(&D_8012D088, 1, 1)` / `func_8001F664(&D_8012D088,
+  &D_8012D0A8, ...)`; link-adjacent successor of 80111A60 (splat
+  `configs/splat/ovl_11.yaml`: 0x59C40 + 0x114 = 0x59D54) and gaplessly
+  preceding its own link-adjacent callee `ovl_11_func_80111CC4` (0x59D54 +
+  0x150 = 0x59EA4), so membership rests on the shared private view/cluster
+  and on the call graph agreeing with link order; byte-exact clean C, baseline
   flags
 - ovl_11_func_800D12A0 (m) — s16 setter at +0x99E6 via the +0x8000 split
   (already documented as the D_80123754 run head)
