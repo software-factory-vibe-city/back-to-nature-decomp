@@ -11253,6 +11253,21 @@ D_800A04B8 layout links D678C and D67F4 directly. D6730 accesses a different
 parallel table, so this is a helper/layout cluster, not proof of a shared TU.
 
 
+## ovl_11 800D6944 / 800D6A94 caller-link adjacency (confidence: low)
+
+- ovl_11_func_800D6944 (m, byte-exact this session) — sprite-cel blit:
+  two MoveImage calls per backward-walked sprite-ref, staging rectangles
+  in the D_80128D80 RECT scratch.
+- ovl_11_func_800D6A94 (s) — sole caller and zero-gap link successor of
+  800D6944 (0x150 bytes, ending exactly at 800D6A94); also calls
+  800D6730 / 800D678C / 800D67F4 / 800D688C / 800D5750 in the same band.
+
+Call graph (callGraph.json: 800D6944 calledBy 800D6A94 only) and link order
+agree on the adjacency. No shared global or static joins 800D6944 to any
+neighbour — D_80128D80 is used by 800D6944 alone — so this records an
+adjacency, not a shared-global cluster and not a proved TU boundary.
+
+
 ## ovl_11 padded-vector view consumers (confidence: low)
 
 The original words of 800E1770 and 8010BC54 share the same two calls,

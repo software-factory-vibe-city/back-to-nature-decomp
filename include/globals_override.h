@@ -1969,5 +1969,17 @@ typedef struct {
 
 extern Ovl11Status801295D0 D_801295D0;
 
+/* D_80128D80 - 8-byte RECT scratch used by ovl_11_func_800D6944 to stage
+ * the two MoveImage source rectangles. Absolute-addressed (lui/%lo).
+ * Layout mirrors the PSY-Q RECT (x, y, w, h). */
+typedef struct {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 w;
+    /* 0x06 */ s16 h;
+} Ovl11Rect80128D80;
+
+extern Ovl11Rect80128D80 D_80128D80;
+
 #endif /* GLOBALS_OVERRIDE_H */
 
