@@ -352,7 +352,7 @@ prior for the rest of this group.
 
 ---
 
-## `ovl_11` farm-object clear/update run — 0x80121318–0x80121500 (confidence: medium)
+## `ovl_11` farm-object clear/update run — 0x801212C4–0x80121500 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) around the
 farm-object update/clear code at the overlay's tail. Evidence is an internal
@@ -361,23 +361,31 @@ same-TU membership is plausible but unproven (no shared gp-rel cluster or
 register quirk observed yet).
 
 Fingerprints:
-- address adjacency: `ovl_11_func_80121318` (0x44 bytes, ends 0x8012135C)
-  sits immediately before `ovl_11_func_8012135C` and `ovl_11_func_801213D8`
+- address adjacency: `ovl_11_func_801212C4` (0x54 bytes, exactly
+  0x801212C4–0x80121318) is the run head and abuts `ovl_11_func_80121318`
+  (0x44 bytes, ends 0x8012135C), which sits immediately before
+  `ovl_11_func_8012135C` and `ovl_11_func_801213D8`
   (0x120 bytes, exactly 0x801213D8–0x801214F8), which is followed directly
   by `ovl_11_func_801214F8` (0x801214F8–0x80121500) — the whole run
-  0x80121318–0x80121500 is contiguous with no unrelated code between;
+  0x801212C4–0x80121500 is contiguous with no unrelated code between;
 - internal call graph: the leaf `ovl_11_func_801214F8` is called by both of
   its neighbours — `ovl_11_func_80121318` (a `for` loop stepping a
   `D_8012DB90` 0x18-byte-stride struct array 0x18 times, calling it per
   entry) and `ovl_11_func_801213D8` (the farm-object update routine, which
   calls it on the `.L801214DC` no-spawn reset path to drop the entry's
-  live pointer);
-- shared struct + clear idiom: all three operate on the same 0x18-byte
+  live pointer). The run head `ovl_11_func_801212C4` calls
+  `ovl_11_func_801213D8` over the same `D_8012DB90` array (0x18-byte stride,
+  countdown 0x18), so 801213D8 has callers on both sides of it in the run;
+- shared struct + clear idiom: all four operate on the same 0x18-byte
   farm-object struct with a pointer field at +0x14; `ovl_11_func_801214F8` is
   the field-14 clear (single `sw $zero, 0x14(a0)`, leaf), the reset every
   caller uses to blank an entry.
 
 Members (address order):
+- ovl_11_func_801212C4 (m, matched this session) — guarded farm-array pass:
+  while `!(D_8006C848 & 0x400)`, walk the `D_8012DB90` array at 0x18 stride
+  (countdown 0x18) and call the update routine `ovl_11_func_801213D8` on
+  each entry; typed with the same local `Struct_801213D8` view as 801213D8
 - ovl_11_func_80121318 (m, matched this session) — clears the whole
   `D_8012DB90` farm array of 0x18-byte-stride entries by stepping a
   countdown from 0x18 and calling ovl_11_func_801214F8 on each entry
