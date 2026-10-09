@@ -694,6 +694,12 @@ extern u32 D_800605F0[0x10];
  * because common.h includes this header before the shared types. */
 extern struct SpriteSourceData D_80128D00;
 
+/* D_80070400 - ovl_11 sprite source-data array base (0x30-byte elements).
+ * Walked as a contiguous array by ovl_11_func_800DA588 and indexed by
+ * ovl_11_func_800F5BC0 as &D_80070400 + index. Same incomplete-type forward
+ * declaration class as D_80128D00 above. */
+extern struct SpriteSourceData D_80070400;
+
 /* D_80049268, D_80049274, D_80049280 — absolute-addressed Vec3 globals
  * used by func_8001EFA4. Accessed with lui/lw (split absolute addressing).
  * Array size 3 (12 bytes) forces >-G8 declaration for split addressing. */

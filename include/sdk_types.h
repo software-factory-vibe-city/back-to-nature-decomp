@@ -105,6 +105,19 @@ typedef struct {
 } M2C_057dca34f681_Struct_800D03B4;
 
 typedef struct {
+               s16 unk0;
+               u16 unk2;
+               u16 unk4;
+               u16 pad6;
+               u16 unk8;
+               u16 padA;
+               u16 unkC;
+               u16 padE;
+               u16 unk10;
+               u8 pad12[0x18 - 0x12];
+} M2C_0584a699a1f0_Ovl11Func5BC0Entry;
+
+typedef struct {
     s32 field_0;
     s32 field_4;
     s32 field_8;
