@@ -6971,7 +6971,7 @@ with different widths and far-apart addresses.
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800EE528 + 0x800EC490 (confidence: medium)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): twenty matched
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): twenty-six matched
 functions sharing the one ovl_11-private 0x50-byte s32 table
 `D_80129560` (`globals_override.h`), each guarded-indexing it with
 `s16`-scaled slots.
@@ -7201,6 +7201,13 @@ Members:
   band; the `D_801295B0` staging buffer is the second `func_8001A970` + `0xFFD`
   scan site (idiom sibling of the D_8012A028 cluster, different buffer and draw
   call).
+- ovl_11_func_800E87A0 (m, matched 2026-11 — this session, 0x6C, byte-exact) —
+  conditional-slot dispatcher leaf: `arg2 != 0` resolves `D_80129560[arg0]`
+  through the family's s16-scaled index (raw `arg0` otherwise), forwards its low
+  halfword and `arg3 == 0` to `ovl_11_func_800F1038`, then forwards
+  `(0, 0, 0, arg1)` to the matched mode dispatcher `ovl_11_func_800E7798` and
+  returns 1. Same `arg2 != 0` conditional table-resolve shape as
+  800ED760/800E7CCC, inside the accessor band.
 - ovl_11_func_800EE528 (m, matched this session, 0xDC, byte-exact) —
   0x24-record load-and-compare: rejects `(u32)(arg1 & 0xFFFF) >= 0xA`, resolves
   the 0x24 record through `ovl_11_func_800EFF04(0x24, (s16)arg0, NULL)`, then
