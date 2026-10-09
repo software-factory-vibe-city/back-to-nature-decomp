@@ -407,13 +407,13 @@ Members (address order):
 
 ---
 
-## `ovl_11` 0x80106DC0 struct-reset leaf run — 0x80106DC0–0x80106F1F (confidence: medium)
+## `ovl_11` 0x80106DC0 struct-reset leaf run — 0x80106DC0–0x80107043 (confidence: medium)
 
-A 0x28-byte struct-reset leaf at the head of a contiguous four-function run
+A 0x28-byte struct-reset leaf at the head of a contiguous five-function run
 (0x80106DC0, size 40, ends 0x80106DE8; 0x80106DE8, size 80, ends 0x80106E38;
-0x80106E38, size 120, ends 0x80106EB0; 0x80106EB0, size 0x70, ends 0x80106F20 —
-zero gaps). Call graph and link order agree: both immediate successors call the
-leaf. Same leaf-reset fingerprint as
+0x80106E38, size 120, ends 0x80106EB0; 0x80106EB0, size 0x70, ends 0x80106F20;
+0x80106F20, size 0x124, ends 0x80107044 — zero gaps). Call graph and link order
+agree: both immediate successors call the leaf. Same leaf-reset fingerprint as
 the farm-object clear/update run (leaf 0x801214F8 called by both its
 neighbours).
 Members:
@@ -431,6 +431,11 @@ Members:
 - ovl_11_func_80106EB0 (m) — fourth zero-gap member: 0x2C-stride walk of 50
   entries calling ovl_11_func_80106E38 on each whose s16@+0x1A != 0x63; its
   call edge plus gapless link adjacency place it in this run
+- ovl_11_func_80106F20 (m, matched this session) — fifth zero-gap member: scans
+  the same 0x18-stride `D_8012CF48` table for the entry whose f14->fA == arg0,
+  then switches on entry f0 (1/2/3/4) to set f0=1 or f0=2 with f2=arg1, or add 5
+  to f4; shares the `D_8012CF48` table with 80106DE8/80106E38/8010734C, and its
+  gapless adjacency extends the run to 0x80107044
 
 ---
 

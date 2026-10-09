@@ -697,6 +697,7 @@ void ovl_11_func_80106DC0(M2C_7147e7f955dc_UnkStruct80106DC0 *arg0);
 void ovl_11_func_80106DE8(void);
 void ovl_11_func_80106E38(M2C_a146efbf8f1a_Ovl11Func80106E38Arg *arg0);
 void ovl_11_func_80106EB0(s32 arg0);
+s32 ovl_11_func_80106F20(s16 arg0, u16 arg1);
 u16 ovl_11_func_8010734C(s32 id);
 s32 ovl_11_func_801075C0(s32 arg0, s32 arg1);
 s32 ovl_11_func_8010775C(u32 arg0);
