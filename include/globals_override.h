@@ -1945,5 +1945,24 @@ extern u8 *D_80129188[2];
  * (lui/%lo); only an extern declaration belongs here. */
 extern s32 D_80129190;
 
+/* D_801295D0 - 18-byte status record copied as a whole aggregate by
+ * ovl_11_func_800F0474 (into the D_800749F8 / D_8006C838+0x7AB8 record slots)
+ * and by ovl_11_func_800E729C (into D_80075AD8 / D_8007AFBC). It is stored as
+ * nine halfwords, so the aggregate copy is emitted as lwl/lwr/swl/swr plus one
+ * halfword. Absolute-addressed (lui/%lo) in the overlay build. */
+typedef struct {
+    s16 unk0;
+    s16 unk2;
+    s16 unk4;
+    s16 unk6;
+    s16 unk8;
+    s16 unkA;
+    s16 unkC;
+    s16 unkE;
+    s16 unk10;
+} Ovl11Status801295D0;
+
+extern Ovl11Status801295D0 D_801295D0;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

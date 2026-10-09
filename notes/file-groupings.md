@@ -11183,6 +11183,23 @@ establish clients only. D0BC8 is now byte-exact using independent global member
 expressions; no per-file flag inference follows from this reconstruction.
 
 
+## ovl_11 D_801295D0 status-record copy cluster — 0x800E729C / 0x800F0474 (confidence: low)
+
+- ovl_11_func_800F0474 (m, byte-exact this session): resolves a destination
+  record slot from arg0 (0-1: D_800749F8 + idx*0xB8; 2-3: D_8006C838+0x7AB8 +
+  idx*0xB4; else &D_801295D0, where idx is the s16 at D_8006C838+0x99C8 +
+  arg0*4), then on func_800231E8() == 1 copies the 0x12-byte D_801295D0 record
+  into it.
+- ovl_11_func_800E729C (s): the same 0x12-byte aggregate D_801295D0 copy, into
+  D_80075AD8 / D_8007AFBC on the same func_800231E8() == 1 path.
+
+The absolute-addressed 18-byte D_801295D0 record (ovl_11 data), the identical
+aggregate-copy idiom, and the shared func_800231E8 / func_80023170 staging pair
+support a data-access/idiom link, not a proved translation-unit boundary. The
+0x99C8 + arg0*4 lookup and the 0x7AB8/0xB4 record stride also link
+ovl_11_func_800F0474 to the D_8006C838+44D2 status readers above.
+
+
 ## ovl_11 D_8006C838+99D2 s16 lookup consumers (confidence: low)
 
 - ovl_11_func_800F4618 (m, byte-exact this session): loops i=2..3 reading the
