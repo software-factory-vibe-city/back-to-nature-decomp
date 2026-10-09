@@ -298,6 +298,7 @@ void ovl_11_func_800DD21C(s32 *arg0, s32 *arg1, u32 arg2);
 void ovl_11_func_800DD248(u16 *arg0, u16 *arg1, u32 arg2);
 s32 ovl_11_func_800DD36C(void);
 s32 ovl_11_func_800DD45C(M2C_891425437069_BufView *arg0, M2C_891425437069_BufView *arg1, s32 arg2);
+void ovl_11_func_800DD5B0(void);
 void ovl_11_func_800DD8AC(void);
 s32 ovl_11_func_800DD9F0(void);
 void ovl_11_func_800DDA08(void);

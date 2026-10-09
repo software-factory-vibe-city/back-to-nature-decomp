@@ -1921,5 +1921,16 @@ extern s16 D_80123754;
  * array so cc1 emits the split two-register absolute address form. */
 extern u16 D_80123A18[];
 
+/* D_80129188 - pair of pointers to 0x30-byte overlay entries, filled by
+ * ovl_11_func_800DD5B0 (indexed by a flag) and read back by
+ * ovl_11_func_800DD6F0. Absolute-addressed (lui/%lo) in ovl_11 code, so
+ * only an extern declaration belongs here. */
+extern u8 *D_80129188[2];
+
+/* D_80129190 - ovl_11 state word set to 0/2/3 by ovl_11_func_800DD5B0 and
+ * ovl_11_func_800DD6F0 and dispatched in the latter. Absolute-addressed
+ * (lui/%lo); only an extern declaration belongs here. */
+extern s32 D_80129190;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

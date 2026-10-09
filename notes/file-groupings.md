@@ -1292,6 +1292,38 @@ Members (address order):
 
 ---
 
+## `ovl_11` D_80129188/D_80129190 pair run — 0x800DD5B0 / 0x800DD6F0 (confidence: medium)
+
+Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`) and the immediate
+link-order predecessor of the D_80129194–D_801291A0 mirror-pair run below.
+
+Fingerprints:
+- **zero-gap link adjacency**: 0x800DD5B0 (0x140) ends exactly at 0x800DD6F0
+  (0x1BC), which ends exactly at 0x800DD8AC, the mirror-pair run's head
+  (`configs/splat/ovl_11.yaml`: 0x25790 → 0x258D0 → 0x25A8C).
+- **shared global cluster**: `D_80129188` (two 4-byte pointer slots) and the
+  adjacent `D_80129190` (s32), both absolute `lui`+`%lo` (no gp-rel):
+  0x800DD5B0 writes `D_80129188[0]/[1]` and clears `D_80129190`, and its
+  gapless successor 0x800DD6F0 reads both and writes `D_80129190`.
+- **data adjacency**: `D_80129188`/`D_80129190` are the file-scope objects
+  immediately before `D_80129194`, the low global of the mirror-pair run
+  below, placing the two runs in one data cluster.
+- **shared scan idiom**: 0x800DD5B0 also walks the 15-entry 0x30-stride
+  `D_80128E08` table (same base as the 0x800DC990 bulk walk and the
+  mirror-pair heads), selecting entries by the entry's 0x28 halfword to fill
+  the `D_80129188` pair.
+
+Members:
+- ovl_11_func_800DD5B0 (m, matched this session, byte-exact) — pair-fill
+  initialiser: scans `D_80128E08`, sets each qualifying entry's +0x2C->+0x30
+  value and its 0x1000/0xEFFF +0x28 bits by the entry's low nibble, stores up
+  to two selected entry pointers into `D_80129188[0]/[1]`, clears
+  `D_80129190`, then on `func_8001AF44(0xA) == 1` sets `D_80129190 = 3`.
+- ovl_11_func_800DD6F0 (s) — state machine reading `D_80129188` and
+  `D_80129190`; role per the shared pair.
+
+---
+
 ## `ovl_11` D_80129194–D_801291A0 mirror-pair run — 0x800DD8AC–0x800DDB64 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): six functions in
