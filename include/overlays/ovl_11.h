@@ -821,6 +821,7 @@ void ovl_11_func_80111E68(s16 arg0);
 void ovl_11_func_80111EE0(void);
 void ovl_11_func_80111EF0(void);
 void ovl_11_func_80111F10(void);
+u16 ovl_11_func_80112160(s32 arg0);
 void ovl_11_func_80112284(void);
 void ovl_11_func_80112318(void);
 void ovl_11_func_801123AC(void);

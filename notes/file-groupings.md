@@ -2568,7 +2568,7 @@ Members (address order):
   `>=`-guard on the pool's middle sibling
 
 
-## `ovl_11` D_800719FE s16-global cluster — 0x800FDE98–0x800FDFD8 / 0x80112160 (near trio: medium; 80112160: low)
+## `ovl_11` D_800719FE s16-global cluster — 0x800FDE98–0x800FDFD8 / 0x80112160 (near trio: medium; 80112160: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing a single
 file-scope s16 global. Same shared-global fingerprint as the documented
@@ -2580,10 +2580,13 @@ D_80071A00 pool: main-RAM file-scope global absent from the generated
 a function pointer per loop iteration — a code-level binding, not just
 adjacency. Link order is a zero-gap run 0x800FDE98 (0x44) → 0x800FDEDC
 (0xCC) → 0x800FDFA8 (0x30) → 0x800FDFD8. Third member `ovl_11_func_80112160` (0x80112160) is a
-state probe switching on arg0 to return `D_800719FE != 0` (arg0==0) or the
-s16 value itself (arg0==1) — same global, same file-scope state. Spread
-between the near trio and the far probe is large, so same-family for
-80112160 is plausible rather than established.
+state-transition dispatcher over the same global, read through the
+`&D_8006C838` view at +0x51C6; it is bound into the same work area by
+writing that view's +0x44D0/+0x44D2 mode halfwords and +0x44F8 status word
+and by calling `ovl_11_func_80111F10` (the tail of the 0x80111D94–0x80111F10
+reset run documented below). Spread between the near trio and the far
+dispatcher is large, so same-family for 80112160 remains plausible rather
+than established.
 
 Members (address order):
 - ovl_11_func_800FDE98 (m, matched 2026-11) — short s16-table lookup leaf:
@@ -2603,8 +2606,12 @@ Members (address order):
   arg0;` (7 words, `lh` + `sll/sra` sign-extend + `xor` + `sltiu`, no
   branches); byte-exact clean C, baseline flags; the cluster's only pure
   getter
-- ovl_11_func_80112160 (s) — state probe over the same global, returns
-  `D_800719FE != 0` on arg0==0 and the raw s16 on arg0==1
+- ovl_11_func_80112160 (m, matched 2026-11) — state-transition
+  dispatcher over the same global: arg0==0 returns `D_800719FE != 0`,
+  arg0==1 returns the raw s16, arg0==2 reads the +0x51C6 selector and for
+  the 0x13F/0x140/0x141 states writes the +0x44D0/+0x44D2/+0x44F8 fields,
+  calls `ovl_11_func_80111F10` and clears the selector; byte-exact clean C,
+  baseline flags
 
 Widening (byte-exact match of `ovl_11_func_80111E38`, 2026-10-03): the
 cluster's first known writer is now matched — `ovl_11_func_80111E38`
