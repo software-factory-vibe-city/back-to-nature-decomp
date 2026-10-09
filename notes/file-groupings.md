@@ -9180,8 +9180,10 @@ per-function scratch buffers. The run continues gaplessly past `801349C8`, but n
 evidence yet ties those later functions into this group.
 
 Members (link order):
-- ovl_15_func_80134770 (s) — builds a two-number text field; calls 80134890 twice and
-  801349C8 once, concatenating `D_8012E014` / `D_8012E038` / `D_8012E040`
+- ovl_15_func_80134770 (m, matched 2026-10-08, byte-exact) — builds the memory-card
+  save title (`D_80140F10.Title`, header +4) from the `D_801376E0[arg0]` save date; calls
+  80134890 twice and 801349C8 once, concatenating `D_8012E014` / `D_8012E038` /
+  `D_8012E040`. The header's Magic/Type bytes are written by `ovl_15_func_8012FAE0`
 - ovl_15_func_80134890 (m, matched this session, byte-exact) — formats a two-digit
   number into `D_801376C8` via `D_8012E040` / `D_8012E044` and appends it to `arg1`
 - ovl_15_func_801349C8 (m, matched earlier) — appends `D_8013765C[clamp(arg0,0,3)]`
