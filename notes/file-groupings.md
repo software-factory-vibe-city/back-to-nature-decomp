@@ -2629,6 +2629,12 @@ Members (address order):
   as D_8006C838+0xE4C8) and base-0x51C8 (= `D_8006C838`, u16 at +0x44C0 =
   0x80070CF8, beside the D_80070CF2/D_80070CF6 switch globals); see the
   D_8006C838 cluster entry
+- ovl_11_func_800D622C (m, matched this session) — dual-gauge clamp leaf over
+  the pool: same `char *base = (char *)&D_80071A00` s8-adjust + clamp of u16
+  +0x12 (0.. the s16 limit at +0x14) and u16 +0x16 (0..0x64) as 0x800D63C4,
+  but gated on the +0x36 bit-3 flag and reaching the `base - 0x51C8` (=
+  `D_8006C838`) s32 counter at +0x5220; zero-gap link-order predecessor of
+  0x800D6380, which is itself the zero-gap predecessor of 0x800D63C4
 - ovl_11_func_800D63C4 (m, matched this session) — dual-gauge clamp leaf over
   the pool: adds a sign-extended s8 arg to u16 +0x14 (clamp 0..0xFF, result
   also stored to s16 +0x12, which 0x800CD3C4 reads) and a second s8 arg to u16
