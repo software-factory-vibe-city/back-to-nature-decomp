@@ -162,8 +162,11 @@ upstream maspsx in scratch before writing another variant.
 
 ## 5. Callee truth "corroborated" an argument nothing witnesses
 
-**Status: not fixed.** The cause instance is fixed:
-`ovl_11_func_800F5888.c` now declares two parameters.
+**Status: fixed 2026-10-08.** Callee truth now exposes incoming read positions,
+judges parameters individually, and reports passed unread slots as material
+`unread-argument` findings. Reconstructions cannot witness their own unread
+parameters. Triage pushes these findings as signals, not unconditional proof
+that the historical interface lacked the argument.
 
 `tools/agent/calleeTruth.ts` reported a three-argument declaration of
 `ovl_11_func_800F5888` as **corroborated**. It had three witnesses:
@@ -181,7 +184,7 @@ copy its sched1 birthing boost (`ovl_11_func_801213D8`) or leaves a
 surviving copy (`ovl_11_func_800E48CC`). Two sessions lost time to the same
 callee.
 
-There are two defects to fix:
+The two defects were:
 
 1. **An unread parameter is reported as corroborated.** A declared parameter
    above the callee's read floor has no machine-code witness. A matched
@@ -201,17 +204,119 @@ There are two defects to fix:
 allocation, where the callee's target never reads one of the argument
 registers the caller sets.
 
+### Full census and byte-verified corrections
+
+The full `calleeTruth.ts --audit-definitions --audit-callers --json` census
+verified **1,649 matched definitions**, identified **29 definitions with
+unread tails**, and reported **36 material caller findings**. Every candidate
+was tested at each smaller trailing arity, not just the read floor. Callees
+were checked with the relocated-byte oracle and `residualObjective`; matched
+callers were independently recompiled with the corresponding arguments
+removed. Publication uses the fixed exporter, never manual header edits.
+
+**71 parameters were removed from 27 definitions.** All integrated definitions
+and affected callers remained `EXACT`. The following table also enumerates
+all newly changed definition signatures; republication additionally corrected
+the already-fixed `ovl_11_func_800F5888` header (3 → 2).
+
+| Definition | Parameters before → after |
+|---|---|
+| `func_80021B20` | 4 → 1 |
+| `ovl_11_func_800C3F6C` | 3 → 2 |
+| `ovl_11_func_800C6F0C` | 4 → 2 |
+| `ovl_11_func_800C97D0` | 4 → 1 |
+| `ovl_11_func_800CFB20` | 4 → 2 |
+| `ovl_11_func_800D075C` | 4 → 3 |
+| `ovl_11_func_800D1CFC` | 2 → 1 |
+| `ovl_11_func_800DE8A4` | 4 → 3 |
+| `ovl_11_func_800DEEE0` | 4 → 1 |
+| `ovl_11_func_800E0220` | 4 → 1 |
+| `ovl_11_func_800E047C` | 4 → 3 |
+| `ovl_11_func_800E0AFC` | 4 → 1 |
+| `ovl_11_func_800E1D48` | 4 → 1 |
+| `ovl_11_func_800E3D88` | 4 → 0 |
+| `ovl_11_func_800F24B0` | 4 → 0 |
+| `ovl_11_func_800F77A8` | 4 → 1 |
+| `ovl_11_func_800FAAD4` | 4 → 0 |
+| `ovl_11_func_800FBE4C` | 4 → 0 |
+| `ovl_11_func_80101B28` | 4 → 1 |
+| `ovl_11_func_8010BF8C` | 4 → 1 |
+| `ovl_11_func_801108F8` | 4 → 1 |
+| `ovl_15_func_80137228` | 4 → 2 |
+| `ovl_17_func_800BAFAC` | 4 → 1 |
+| `ovl_17_func_800BB020` | 4 → 1 |
+| `ovl_17_func_800BB094` | 4 → 1 |
+| `ovl_21_func_800B97F4` | 4 → 0 |
+| `ovl_21_func_800BAFFC` | 3 → 2 |
+
+The matched callers `ovl_17_func_800B986C` and `ovl_21_func_800BAEEC`
+accepted the corresponding argument removals byte-exactly. Three wrappers
+(`800E0220`, `800E1D48`, `8010BF8C`, all ovl_11) forwarded their unused
+incoming `$a2/$a3` to undecompiled callees. Their local prototypes and outgoing
+calls were reduced from four arguments to two; the original `$a1` copy was
+preserved. This made removing their unused incoming parameters compile and
+remain exact without inventing replacement values.
+
+**Retained because of matched caller bytes:**
+
+| Definition | Unread positions retained | Decisive caller evidence |
+|---|---|---|
+| `func_8001FBF0` | 1 | All nine matched callers lose their byte match without the second argument: ovl_17 `800BA504`, ovl_19 `800BBCCC`, ovl_21 `800BBA3C`, ovl_23 `800BB758`, ovl_25 `800BB46C`, ovl_27 `800BA4C4`, ovl_28 `800B8C94`, ovl_30 `8012F3D4`/`8012F410` |
+| `func_80021B20` | 0 | `func_80014CBC` loses its match without the first argument; higher arguments are absent already |
+| `ovl_11_func_800DE8A4` | 1–2 | `ovl_11_func_800CE744` needs its three-argument call |
+| `ovl_11_func_800E047C` | 1–2 | `ovl_11_func_800CE744` needs its three-argument call |
+| `ovl_11_func_800FB394` | 3 | `ovl_11_func_800FB120` loses its match without the fourth argument |
+
+Unreadness is not historical absence. These measured dependencies are why
+remaining material findings are a diagnostic, not an automatic deletion queue.
+The caller-copy caveat matters for the original incident too: the literal
+same-block scan reports **1 of 12** sites setting `$a2`, not zero. The one is
+`800E48CC`'s early scratch copy from `$a0`; it is not proof of a third argument.
+
+Two census safeguards were necessary: frameless leaf stack loads must not be
+lost by the frame-map's framed-load filter, and implicit forwarding at `jal`
+must not become a false negative read set. Transitive target/SDK reads are
+bounded; recursion, indirect calls, fragments and unavailable targets remain
+undetermined. Local `.text` jump relocations do not count as escaping tails.
+ABI word slots are kept separate from C parameter indices and unknown aggregate
+layouts remain undetermined. Prep truncates only witnessed unread trailing
+parameters, preserves interior holes, and records unknown arity rather than
+silently asking m2c to guess it.
+
+The post-change definition census again verified all **1,649** definitions,
+with **zero unknowns** and exactly the five retained cases above. Final
+`npm test` passed all **1,245 tests**; `make check-all` verified the EXE and
+all 13 overlays byte-identically. The historical three-argument `801213D8`
+source also produced the material finding and an actionable triage signal.
+
+The full source-policy scan has **zero newly added forbidden constructs**.
+It still exits nonzero for 31 pre-existing findings in unchanged HEAD files
+and the single-function worker's scope restriction on the requested tooling
+edits. None of those policy settings was weakened to make this task pass.
+
+Reproducible local artifacts: `build/callee-integrity-census.json`,
+`build/callee-integrity-probes/report.json`,
+`build/callee-integrity-live-exacts.json`,
+`build/callee-integrity-final-census.json`,
+`build/callee-integrity-acceptance.json`,
+`build/callee-integrity-triage.json`, and `build/callee-integrity-policy.json`.
+Final test/build logs are `build/callee-integrity-npm-test.log` and
+`build/callee-integrity-build.log`. These are generated evidence, not tracked
+source or substitutes for the final full binary gate.
+
 ---
 
 ## 6. Context export cannot republish a corrected signature
 
-**Status: not fixed.** `include/overlays/ovl_11.h` still declares
-`ovl_11_func_800F5888` with three parameters, so m2c drafts keep passing the
-phantom argument.
+**Status: fixed 2026-10-08.** Single-function and container-scoped publication
+both pass the m2c self-check. `include/overlays/ovl_11.h` now publishes
+`ovl_11_func_800F5888` with two parameters. Full republication changed exactly
+28 signatures (the table above plus this correction); `sdk_types.h` did not
+change.
 
 The generated m2c context (`include/functions.h`, `include/overlays/*.h`,
 `include/sdk_types.h`) is nominally regenerated from `src/`. In practice a
-signature published once can stay wrong indefinitely:
+signature published once could stay wrong indefinitely:
 
 1. **The per-function path refuses any function another file declares.** The
    finalize step runs this path. `exportContext` (`contextExport.ts:305-321`)
@@ -228,6 +333,14 @@ signature published once can stay wrong indefinitely:
    path unions every container's published header correctly.
 3. **Only plain `--all` avoids both problems.** It runs on `make split`, so
    corrections wait for the next re-split.
+
+The local-prototype veto is replaced by a disagreement report. An AST gate
+and regression test enforce that generated context headers are not included
+by compiler sources. Container-scoped type resolution now unions signatures
+from every container, preserving types such as `PairS32`. The CLI emits
+`CONTEXT_EXPORT_STATUS` JSON; finalization records the publication outcome and
+fails a missing outcome or a skipped, stale signature rather than treating
+exit zero as publication success.
 
 **Symptom to recognize:** an m2c draft that declares a callee with a
 signature its matched definition no longer has. Compare the draft's

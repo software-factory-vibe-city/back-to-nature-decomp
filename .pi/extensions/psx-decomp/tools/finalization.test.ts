@@ -34,7 +34,10 @@ const label=kind+':'+count;fs.appendFileSync('events',label+'\\n');
 if(s.pause===label) { fs.writeFileSync('paused',label);setInterval(()=>{},1000); }
 else if(kind==='diff') { console.log('Match: 1/1 words (100.0%)\\nVERDICT: '+(s.diffFailure&&count===1?'UNDETERMINED':'MATCH')); }
 else if(kind==='build') { if(s.buildFailure===count) process.exitCode=8; }
-else if(kind==='export') { if(s.exportFailure) process.exitCode=9;else {fs.writeFileSync('include/functions.h','void f(void);\\n');if(s.policyAfterExport) fs.writeFileSync('src/f.c','void f(void) { __asm__("nop"); }\\n');if(s.compilerAfterExport) fs.appendFileSync('include/common.h','/* changed */\\n');if(s.outputAfterExport) fs.writeFileSync('build/src/machine.c.o','changed bytes');} }
+else if(kind==='export') { if(s.exportFailure) process.exitCode=9;else {
+  if(!s.skipExport) fs.writeFileSync('include/functions.h','void f(void);\\n');
+  if(!s.missingOutcome) console.log('CONTEXT_EXPORT_STATUS '+JSON.stringify({status:s.skipExport?'skipped':'published',skipped:!!s.skipExport,signatureMatches:!s.skipExport||!!s.sameSignature,reason:s.skipExport?'fixture skip':undefined,signatures:['void f(void);'],localPrototypes:[]}));
+  if(s.policyAfterExport) fs.writeFileSync('src/f.c','void f(void) { __asm__("nop"); }\\n');if(s.compilerAfterExport) fs.appendFileSync('include/common.h','/* changed */\\n');if(s.outputAfterExport) fs.writeFileSync('build/src/machine.c.o','changed bytes');} }
 `;
   for (const command of ["npx", "make"]) writeFileSync(join(root, "bin", command), script, { mode: 0o755 });
   execFileSync("git", ["init", "-q"], { cwd: root }); execFileSync("git", ["add", "src", "include", "configs"], { cwd: root });
@@ -54,6 +57,24 @@ test("context-only publication rechecks scope without repeating machine work", a
   assert.equal(result.pass, true); assert.deepEqual(f.events(), ["diff:1", "build:1", "export:1"]);
   assert.equal(readFileSync(join(f.root, "include/functions.h"), "utf8"), "void f(void);\n");
 });
+for (const scenario of [{ skipExport: true }, { missingOutcome: true }]) {
+  test(`silent or stale skipped publication fails finalization: ${JSON.stringify(scenario)}`, async (t) => {
+    const f = fixture(t, scenario), result = await finalizeWorkspace(f.options);
+    assert.equal(result.pass, false);
+    if (scenario.skipExport) {
+      assert.equal(result.contextPublication?.status, "skipped");
+      assert.equal(result.contextPublication?.signatureMatches, false);
+    }
+  });
+}
+
+test("an explicitly skipped but already-current signature is visible and may finalize", async (t) => {
+  const f = fixture(t, { skipExport: true, sameSignature: true });
+  const result = await finalizeWorkspace(f.options);
+  assert.equal(result.pass, true);
+  assert.equal(result.contextPublication?.status, "skipped");
+});
+
 for (const [name, scenario] of [["relocation-undetermined", { diffFailure: true }], ["full build", { buildFailure: 1 }], ["publication", { exportFailure: true }], ["second build", { buildFailure: 2, compilerAfterExport: true }], ["second policy", { policyAfterExport: true }]] as const) {
   test(`${name} failure cannot be finalized`, async (t) => {
     const f = fixture(t, scenario); const result = await finalizeWorkspace(f.options);

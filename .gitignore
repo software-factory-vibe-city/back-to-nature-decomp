@@ -3,6 +3,8 @@ build/
 # m2c parse caches, written beside each --context file and regenerated
 # whenever that file changes. Generated binary artifacts, never committed.
 *.m2c
+# cc1 diagnostic dumps belong in build/, never beside live C sources.
+src/**/*.c.*
 # `build/` also matches tools/build/. Keep this generated-profile source
 # trackable without exposing unrelated local files in that directory.
 !tools/build/

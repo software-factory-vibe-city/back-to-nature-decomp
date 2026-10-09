@@ -6,12 +6,23 @@ import { test } from "node:test";
 import { ROOT } from "./decompToolchain.js";
 import {
   callResultUsed,
+  callArgumentCounts,
+  adjudicateCallee,
+  parameterWitnesses,
+  callSiteWrites,
+  targetWitness,
+  targetReadEvidence,
+  renderTruthReport,
   contradictionsAgainst,
   prototypesIn,
   scopeFromPreprocessed,
   type Prototype,
   type Witness,
 } from "./calleeTruth.js";
+
+import type { DisassembledInstruction } from "./decompToolchain.js";
+import { decodeFunction } from "./matching-reconstruction/decode.js";
+import { assemble } from "./matching-reconstruction/fixture-asm.js";
 
 const projectTest = existsSync(join(ROOT, "configs/splat")) ? test : test.skip;
 
@@ -95,6 +106,101 @@ test("an unread trailing parameter is never refutable from the machine code", ()
    * unusual but nothing in the disassembly contradicts it. */
   const target: Witness = { kind: "target", where: "f (target code)", callee: "f", arity: { min: 2, max: 4 } };
   assert.deepEqual(contradictionsAgainst({ ...DECLARED, parameters: 5 }, target, false), []);
+});
+
+const TWO_READS: Witness = { kind: "target", where: "f (target code)", callee: "f", reads: [0, 1], arity: { min: 2, max: 4 } };
+const THREE_DEF: Witness = { kind: "definition", where: "callee.c", prototype: only("int f(int a, int b, int phantom) { return a + b; }", "f") };
+
+test("two agreeing reconstructions cannot corroborate a passed unread parameter", () => {
+  const declared = only("int f(int, int, int);", "f");
+  const item = adjudicateCallee("f", declared, [THREE_DEF, TWO_READS], "void caller(void) { f(1, 2, 3); }");
+  assert.equal(item.status, "unread-argument");
+  assert.equal(item.unreadArguments[0]!.material, true);
+  assert.equal(item.parameters[2]!.status, "unread");
+  assert.match(item.unreadArguments[0]!.message, /writes \$a2.*never reads/);
+  assert.match(renderTruthReport({ function: "caller", source: "caller.c", callees: [item], indirectCalls: 0 }), /read set \[0, 1\]/);
+});
+
+test("an unavailable or implicitly forwarded read set is not corroborated by a reconstruction", () => {
+  const p = only("int f(int, int, int);", "f");
+  const item = adjudicateCallee("f", p, [THREE_DEF, { ...TWO_READS, readsComplete: false }], "void c(void) { f(1, 2, 3); }");
+  assert.equal(item.status, "unwitnessed");
+  assert.equal(item.parameters[2]!.status, "undetermined");
+  const variadic = only("int f(int, ...);", "f");
+  assert.equal(adjudicateCallee("f", variadic, [{ kind: "sdk", where: "sdk.h", prototype: variadic }], "void c(void) { f(1, 2, 3); }").status, "corroborated");
+});
+
+test("a corrected definition gives the same material finding for the old caller", () => {
+  const definition = { ...THREE_DEF, prototype: only("int f(int a, int b) { return a + b; }", "f") };
+  assert.equal(adjudicateCallee("f", only("int f(int, int, int);", "f"), [definition, TWO_READS], "void c(void) { f(1, 2, 3); }").status, "unread-argument");
+});
+
+test("a two-argument caller is corroborated with hygiene on the longer definition", () => {
+  const item = adjudicateCallee("f", only("int f(int, int);", "f"), [THREE_DEF, TWO_READS], "void c(void) { f(1, 2); }");
+  assert.equal(item.status, "corroborated");
+  assert.equal(item.unreadArguments.length, 0);
+  assert.ok(item.hygiene.some((note) => note.includes("parameter 2")));
+});
+
+test("later reads witness interior holes; SDK and unknown layouts retain their own authority", () => {
+  assert.deepEqual(parameterWitnesses(only("int f(int, int, int);", "f"), [{ ...TWO_READS, reads: [2] }]).map((p) => p.status), ["witnessed", "witnessed", "witnessed"]);
+  assert.deepEqual(parameterWitnesses(DECLARED, [SDK, TWO_READS]).map((p) => p.status), ["witnessed", "witnessed", "unread"]);
+  assert.equal(parameterWitnesses(only("int f(UnknownRecord r, int x);", "f"), [TWO_READS])[1]!.status, "undetermined");
+  assert.equal(parameterWitnesses(only("int f(int);", "f"), [THREE_DEF])[0]!.status, "undetermined");
+  assert.equal(adjudicateCallee("f", only("int f(int, ...);", "f"), [TWO_READS], "void c(void) { f(1, 2); }").unreadArguments.length, 0);
+});
+
+test("wide parameters are ABI slots, not scalar parameter counts", () => {
+  const item = adjudicateCallee("f", only("int f(int, double, int);", "f"), [{ ...TWO_READS, reads: [0, 2, 3] }], "void c(void) { f(1, 2.0, 3); }");
+  assert.equal(item.parameters[2]!.slot, 4);
+  assert.match(item.unreadArguments[0]!.message, /stack slot sp\+0x10/);
+});
+
+test("actual call counts come from AST, including multiple calls but not comments or strings", () => {
+  assert.deepEqual(callArgumentCounts('void c(void) { /* f(1,2,3); */ char *s="f(1)"; f(1,2); f(1,2,3); }', "f"), [2, 3]);
+});
+
+test("same-block call-site census includes delay slots and is not reaching-definition proof", () => {
+  const insns = decodeFunction(assemble([
+    ["addu", "a2", "a0", "zero"], ["beq", "a0", "zero", "next"], ["nop"],
+    ["jal", 0x80020000], ["nop"], ["label", "next"], ["jal", 0x80020000], ["addu", "a2", "a1", "zero"],
+    ["jr", "ra"], ["nop"],
+  ], 0x80010000));
+  assert.deepEqual(callSiteWrites(insns, 0x80020000, 2), [false, true]);
+});
+
+test("frameless stack reads and implicit argument forwarding cannot become false unread findings", () => {
+  const code = (lines: string[]): DisassembledInstruction[] => lines.map((raw, i) => {
+    const [mnemonic, rest = ""] = raw.split(/\s+(.*)/);
+    return { address: i * 4, mnemonic: mnemonic!, operands: rest.split(",").map((s) => s.trim()).filter(Boolean), operandText: rest, raw };
+  });
+  const leaf = targetReadEvidence(code(["lw v0, 16(sp)", "jr ra", "nop"]));
+  assert.deepEqual(leaf.reads, [4]);
+  const forwarding = targetReadEvidence(code(["addiu sp, sp, -24", "jal callee", "move a1, zero", "jr ra", "addiu sp, sp, 24"]));
+  assert.ok(forwarding.undeterminedReads!.includes(0));
+  assert.ok(!forwarding.undeterminedReads!.includes(1), "delay-slot overwrite happens before the call");
+  const resolved = targetReadEvidence(code(["addiu sp, sp, -24", "jal callee", "move a1, zero", "jr ra", "addiu sp, sp, 24"]),
+    () => ({ reads: [0], unknown: [] }));
+  assert.deepEqual(resolved.reads, [0]);
+  assert.deepEqual(resolved.undeterminedReads, []);
+  assert.equal(parameterWitnesses(only("int f(int, int);", "f"), [{ kind: "target", where: "original", ...resolved }])[1]!.status, "unread");
+  const local = code(["j 8 <f+8>", "nop", "jr ra", "nop"]);
+  local[0]!.relocation = { type: "R_MIPS_26", symbol: ".text" };
+  assert.equal(targetReadEvidence(local).readsComplete, true, "a local jump relocation does not escape the function");
+  const witnesses = [{ kind: "target" as const, where: "original", ...forwarding }];
+  assert.equal(adjudicateCallee("f", only("int f(int, int);", "f"), witnesses, "void c(void) { f(1, 2); }").unreadArguments.length, 0);
+  const fragment = { kind: "target" as const, where: "fragment", ...targetReadEvidence(code(["j callee", "nop"])) };
+  assert.equal(parameterWitnesses(only("int f(int);", "f"), [fragment])[0]!.status, "undetermined");
+});
+
+projectTest("original callee exposes its reads, irrespective of its definition's arity", () => {
+  const scratch = join(ROOT, "build/calleeReadSetTest");
+  try {
+    assert.deepEqual(targetWitness("ovl_11_func_800F5888", scratch)?.reads, [0, 1]);
+    assert.deepEqual(targetWitness("func_8001719C", scratch)?.reads, [0], "implicit forwarding reads the incoming a0");
+    assert.ok(targetWitness("func_8001526C", scratch)?.reads?.includes(5), "frameless leaf stack reads are still parameters");
+  }
+  finally { rmSync(scratch, { recursive: true, force: true }); }
 });
 
 test("a declaration shorter than what the callee reads is refuted", () => {

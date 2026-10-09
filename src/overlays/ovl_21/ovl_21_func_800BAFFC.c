@@ -7,7 +7,7 @@ s32 func_8001DFD4 (s32 *arg0, SVECTOR *arg1);
 void func_80015BF0 (s32 arg0, SpriteSourceData *arg1, s16 arg2, s16 arg3);
 void func_800248E8 (s32 arg0, s16 arg1, s16 arg2, s16 arg3);
 
-void ovl_21_func_800BAFFC(SpriteSourceData *arg0, u16 *arg1, u16 *arg2) {
+void ovl_21_func_800BAFFC(SpriteSourceData *arg0, u16 *arg1) {
     s32 temp_s1;
 
     D_800BCD18[0] = arg1[0] + 0x96;

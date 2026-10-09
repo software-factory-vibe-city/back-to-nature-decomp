@@ -15,7 +15,7 @@ import { ROOT, configuredCppFlags, configuredCompilerPath, configuredMaspsxFlags
   resolveAsmSource, sourceDependencyFiles, rejectionFromDiagnostics } from "./decompToolchain.js";
 import { analyzeCSource } from "./cSourceGuard.js";
 import { extractSignaturesFromSource } from "./sdkTypes.js";
-import { sdkPrototypes, scopeFromPreprocessed, targetWitness, contradictionsAgainst, prototypesIn } from "./calleeTruth.js";
+import { sdkPrototypes, scopeFromPreprocessed, targetWitness, contradictionsAgainst, prototypesIn, parameterWitnesses, type Prototype, type Witness } from "./calleeTruth.js";
 import { emptyDeclarationIndex, indexDeclarations, globalViews, projectDeclarations, type Declaration } from "./declarationContext.js";
 import { namedChildren, parseC } from "./residual-source-search/tree-sitter-c.js";
 import { renameTypeTokens } from "./scopedTypes.js";
@@ -26,9 +26,26 @@ import { buildEvidenceGraph } from "./type-propagation/graph.js";
 import { seedOracle } from "./type-propagation/seeds.js";
 import { propagate, inferenceInput } from "./type-propagation/solve.js";
 import { originalAssembly } from "./type-propagation/assembly.js";
-import { unspecifiedParameters, layoutFields } from "./type-propagation/c-types.js";
+import { projectParameters, layoutFields } from "./type-propagation/c-types.js";
 import { injectStaticChain, verifyChainInjection } from "./staticChainInjection.js";
 import type { ChainRow } from "../diagnostics/nestedFunctionScan.js";
+
+/** Do not invite call-site liveness to reinvent an unread trailing argument.
+ * Interior holes stay: a later read proves their ABI slots exist. */
+export function projectCalleeParameters(text: string, definition: Prototype, witness?: Witness, sdk?: Prototype): { text: string; unknown?: string } {
+  const used = definition.usedParameters;
+  if (definition.parameters === null) return { text, unknown: `${definition.name}: arity undetermined (definition has an unspecified parameter list); m2c call arity is an inference, not a witness` };
+  if (!used?.length || used.at(-1) || definition.variadic) return { text };
+  const witnesses: Witness[] = [...(witness ? [witness] : []), ...(sdk ? [{ kind: "sdk" as const, where: sdk.where, prototype: sdk }] : [])];
+  const parameters = parameterWitnesses(definition, witnesses);
+  let count = parameters.length;
+  while (count && !used[count - 1] && parameters[count - 1]!.status === "unread") count--;
+  const disagrees = contradictionsAgainst(definition, witness ?? { kind: "target", where: "unavailable" }, false).some((c) => c.message.startsWith("declared with"));
+  if (count < parameters.length && !disagrees) return { text: projectParameters(text, count, definition.name) };
+  if (!disagrees && parameters.every((p) => p.status === "witnessed")) return { text };
+  const reason = !witness?.reads ? "target read set unavailable" : "target reads and definition disagree, or ABI parameter layout is undetermined";
+  return { text: projectParameters(text, null, definition.name), unknown: `${definition.name}: arity undetermined (${reason}); m2c call arity is an inference, not a witness` };
+}
 
 export const hashText = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
 export const hashFile = (path: string) => existsSync(path) ? hashText(readFileSync(path)) : "absent";
@@ -319,7 +336,8 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
     for (const callee of [...new Set([...(existing && !options.alternative ? [functionName] : []), ...calls])]) {
       const contract = heldOut.includes(callee) ? undefined : seeds.get(callee);
       const definition = contract?.kind === "definition" ? contract : undefined;
-      const witness = callbacks.includes(callee) ? targetWitness(callee, join(directory, "witnesses")) : undefined;
+      const witness = callbacks.includes(callee) || definition?.usedParameters?.at(-1) === false
+        ? targetWitness(callee, join(directory, "witnesses")) : undefined;
       for (const table of discovery.callbackTables) for (const entry of table.entries.filter((e) => e.functionName === callee)) {
         const prototype = definition ?? sdk.get(callee);
         if (prototype) entry.prototype = prototype;
@@ -339,8 +357,9 @@ async function prepareFunctionInView(functionName: string, options: PreparationO
         const scopeId = hashText(definition.where).slice(0, 12);
         const renames = new Map(privateTypes.map((d) => [d.name.replace(/^(struct|union) /, ""), `M2C_${scopeId}_${d.name.replace(/^(struct|union) /, "")}`]));
         scopeRenames.set(definition.where, renames);
-        const projection = definition.usedParameters?.some((used) => !used) ? unspecifiedParameters(projected.text, callee) : projected.text;
-        projections.push(renameTypeTokens(projection, renames)); packet.context.unknown.push(...projected.unknown);
+        const projection = projectCalleeParameters(projected.text, definition, witness, sdk.get(callee));
+        if (projection.unknown) packet.discovery.unknowns.push(unknown(callee, projection.unknown, [definition.where, witness?.where ?? "no target witness"]));
+        projections.push(renameTypeTokens(projection.text, renames)); packet.context.unknown.push(...projected.unknown);
         if (privateTypes.length) {
           const privateProjection = projectDeclarations(packet.context.index, privateTypes.map((d) => d.name), definition.where, { omitPublicTypes: true });
           wrapperTypes.push(renameTypeTokens(privateProjection.text, renames));

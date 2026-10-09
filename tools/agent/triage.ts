@@ -1450,7 +1450,21 @@ function detectCalleeTruth(name: string, sourcePath: string, scratch: string): F
     return [];
   }
 
+  return calleeTruthFindings(report);
+}
+
+export function calleeTruthFindings(report: TruthReport): Finding[] {
   const findings: Finding[] = [];
+  const unread = report.callees.filter((item) => item.status === "unread-argument");
+  if (unread.length) findings.push({
+    detector: "callee-truth", severity: "signal",
+    summary: `${unread.length} callee(s) receive unread arguments. This is material caller setup, not corroboration: inspect the call sites and remove phantom arguments before allocator or scheduler work.`,
+    evidence: unread.flatMap((item) => [
+      `${item.callee}: target read set [${item.witnesses.find((w) => w.kind === "target")?.reads?.join(", ") ?? "unknown"}]`,
+      ...item.unreadArguments.map((a) => a.message), ...item.callerSites.map((s) => s.message),
+    ]),
+    see: ["prompts/reference/declarations.md", "prompts/reference/stuck.md"],
+  });
   const contradicted = report.callees.filter((item) => item.status === "contradicted");
   if (contradicted.length > 0) {
     findings.push({
@@ -1481,8 +1495,8 @@ function detectCalleeTruth(name: string, sourcePath: string, scratch: string): F
       severity: "signal",
       summary:
         `${unwitnessed.length} callee signature(s) rest on nothing but this project's own ` +
-        `authoring, and ${disputed.length} disagree with another reconstruction without costing ` +
-        "an instruction today. Neither blocks a measurement. Both are where a residual that " +
+        `authoring, and ${disputed.length} disagree with another reconstruction. An extra ` +
+        "argument can be free in the callee but costs a caller passing it. Both are where a residual that " +
         "survives every rewrite usually turns out to have come from.",
       evidence: [
         ...unwitnessed.map((item) =>

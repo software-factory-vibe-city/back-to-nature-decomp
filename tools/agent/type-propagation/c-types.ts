@@ -151,9 +151,9 @@ export function parameterReads(source: string, functionName: string): boolean[] 
   } finally { tree.delete(); }
 }
 
-/** Drop an unobservable parameter COUNT in the inference projection, not the
- * audited source contract. Return spelling and dependencies stay intact. */
-export function unspecifiedParameters(signature: string, name?: string): string {
+/** Project only the outer parameter list. Dependencies, return spelling and
+ * nested callback parameters remain intact. null means genuinely unspecified. */
+export function projectParameters(signature: string, count: number | null, name?: string): string {
   const tree = parseC(signature);
   try {
     const functionDecl = namedChildren(tree.rootNode).filter((n) => n.type === "declaration")
@@ -161,6 +161,13 @@ export function unspecifiedParameters(signature: string, name?: string): string 
       .find((n) => n && (!name || declaratorName(n)?.text === name));
     const parameters = functionDecl ? field(functionDecl, "parameters") : undefined;
     if (!parameters) throw new Error("No AST function parameter list in seed signature");
-    return signature.slice(0, parameters.startIndex) + "()" + signature.slice(parameters.endIndex);
+    const declarations = namedChildren(parameters).filter((n) => n.type === "parameter_declaration" && n.text !== "void");
+    if (count !== null && (!Number.isInteger(count) || count < 0 || count > declarations.length)) throw new Error("Invalid projected parameter count");
+    const projected = count === null ? "()" : count === 0 ? "(void)" : `(${declarations.slice(0, count).map((n) => n.text).join(", ")})`;
+    return signature.slice(0, parameters.startIndex) + projected + signature.slice(parameters.endIndex);
   } finally { tree.delete(); }
+}
+
+export function unspecifiedParameters(signature: string, name?: string): string {
+  return projectParameters(signature, null, name);
 }

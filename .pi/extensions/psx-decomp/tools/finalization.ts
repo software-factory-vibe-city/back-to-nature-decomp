@@ -4,6 +4,7 @@ import { runGate } from "../../shared/gates.ts";
 import { runCommand } from "../../shared/process.ts";
 import type { AutodecompConfig, GateResult } from "../../shared/types.ts";
 import { Timings } from "../../../../tools/lib/contentCache.js";
+import { CONTEXT_EXPORT_STATUS, type ExportResult } from "../../../../tools/agent/contextExport.js";
 import { compilerInputs, consumeReceipt, contextIsCompilerIndependent, publishReceipt, verificationOutputs } from "./verification-receipt.ts";
 
 /** One authoritative route. Machine work can be reused only across unchanged
@@ -15,7 +16,8 @@ export async function finalizeWorkspace(options: {
   options.signal?.throwIfAborted();
   const timings = new Timings();
   const gates: GateResult[] = [];
-  const done = (gate: GateResult): GateResult => ({ ...gate, finalizationGates: gates,
+  let contextPublication: GateResult["contextPublication"];
+  const done = (gate: GateResult): GateResult => ({ ...gate, ...(contextPublication ? { contextPublication } : {}), finalizationGates: gates,
     timings: { phases: timings.phases, totalMs: timings.totalMs } });
   const graph = loadCallGraph(options.projectRoot);
   const entry = graph.functions.find((f) => f.name === options.functionName);
@@ -48,8 +50,14 @@ export async function finalizeWorkspace(options: {
     cwd: options.projectRoot, signal: options.signal, timeoutMs: 120_000,
   }));
   options.signal?.throwIfAborted();
-  if (publication.code !== 0) return done({ ...first, pass: false,
-    failures: [`Context export failed: ${publication.stdout}\n${publication.stderr}`] });
+  const statusLine = publication.stdout.split("\n").find((line) => line.startsWith(CONTEXT_EXPORT_STATUS));
+  try {
+    const result = JSON.parse(statusLine?.slice(CONTEXT_EXPORT_STATUS.length) ?? "null") as ExportResult | null;
+    if (result && ["published", "skipped"].includes(result.status) && typeof result.signatureMatches === "boolean")
+      contextPublication = { ...result, command: publication };
+  } catch { /* A missing or malformed generator outcome cannot mean success. */ }
+  if (publication.code !== 0 || !contextPublication || !contextPublication.signatureMatches) return done({ ...first, pass: false,
+    failures: [`Context export failed or did not publish the definition's signature: ${contextPublication?.reason ?? "missing/failed publication outcome"}\n${publication.stdout}\n${publication.stderr}`] });
   const after = await timings.measure("after-publication-tree", () => createTreeFromWorktree(options.projectRoot, options.projectRoot, options.config.integration.allowedRoots, options.signal));
   const exportedFiles = await changedFilesBetweenTrees(options.projectRoot, before, after, options.signal);
   const afterInputs = timings.measureSync("after-publication-inputs", () => compilerInputs(options.projectRoot, true));
@@ -63,6 +71,7 @@ export async function finalizeWorkspace(options: {
     patch: options.patch + "\n" + publicationPatch,
   }));
   gates.push(gate);
+  gate.contextPublication = contextPublication;
   options.signal?.throwIfAborted();
   gate.cache = { hit: unchanged, reason: unchanged ? "publication changed only compiler-independent context" : "compiler inputs changed or dependency coverage incomplete" };
   if (gate.pass) {

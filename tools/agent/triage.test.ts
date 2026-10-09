@@ -7,6 +7,17 @@ import { tileMacroFunction } from "../diagnostics/macroTiler.js";
 import { extractMacroTemplates } from "../diagnostics/macroTemplates.js";
 import { macroIdentityFindings, detectBackendPacket, detectLoopIdiom, detectLoopNesting, detectParamResidence, detectSearchDomain, phonyFindingsFrom, premiseSurvivalFrom, type TargetFacts } from "./triage.js";
 import { readFileSync } from "node:fs";
+import { calleeTruthFindings } from "./triage.js";
+import { adjudicateCallee, prototypesIn } from "./calleeTruth.js";
+
+test("callee-truth pushes unread call arguments as actionable, not hygiene", () => {
+  const item = adjudicateCallee("f", prototypesIn("int f(int, int, int);", "caller.c")[0]!,
+    [{ kind: "target", where: "target", reads: [0, 1] }], "void caller(void) { f(1,2,3); }");
+  const findings = calleeTruthFindings({ function: "caller", source: "caller.c", callees: [item], indirectCalls: 0 });
+  assert.equal(findings[0]!.severity, "signal");
+  assert.match(findings[0]!.summary, /material caller setup/);
+  assert.ok(findings[0]!.evidence.some((s) => s.includes("$a2")));
+});
 import { parseLoopDump } from "./loop-trace/parse.js";
 import { sha256 } from "./variant-lab/artifacts.js";
 import { analyzeFrame } from "./frameMap.js";

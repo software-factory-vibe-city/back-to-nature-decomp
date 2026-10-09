@@ -12,7 +12,8 @@ import {
   resolveTypes,
   typeNamesIn,
 } from "./sdkTypes.js";
-import { parseContextExportArgs, resolveContextTypes, verifyContextParses, writeContext } from "./contextExport.js";
+import { exportContext, exportAll, generatedContextIncludes, signatureContract, parseContextExportArgs, resolveContextTypes, verifyContextParses, writeContext } from "./contextExport.js";
+import { requireContainer } from "../lib/container.js";
 
 const REPO = new URL("../..", import.meta.url).pathname;
 
@@ -348,6 +349,53 @@ test("the function name survives an argument list with no --container", () => {
     all: false,
     funcName: "func_80011C24",
   });
+});
+
+test("generated context is never included by live compiler sources or non-generated headers", () => {
+  assert.deepEqual(generatedContextIncludes(REPO), []);
+  const root = scratchRoot();
+  writeFileSync(join(root, "src/a.c"), '/* #include "functions.h" */\nvoid f(void) { char *s = "functions.h"; }\n');
+  assert.deepEqual(generatedContextIncludes(root), []);
+  writeFileSync(join(root, "include/a.h"), '#include "overlays/ovl_11.h"\n');
+  assert.equal(generatedContextIncludes(root).length, 1);
+  assert.throws(() => exportAll(root, [requireContainer("exe")]), /included by compiler/);
+});
+
+test("local prototypes are reported only when they disagree, never veto publication", () => {
+  const root = probeRoot();
+  writeFileSync(join(root, "src/f.c"), "int f(int a, int b) { return a + b; }\n");
+  writeFileSync(join(root, "src/same.c"), "int f(int x, int y);\n");
+  mkdirSync(join(root, "src/other"));
+  writeFileSync(join(root, "src/other/different.c"), "int f(int, int, int);\n");
+  writeFileSync(join(root, "include/functions.h"), "int f(int, int, int);\n");
+  const result = exportContext("f", root);
+  assert.equal(result.skipped, false);
+  assert.equal(result.signatureMatches, true);
+  assert.deepEqual(result.localPrototypes.map((p) => p.file), ["src/other/different.c"]);
+  assert.match(readFileSync(join(root, "include/functions.h"), "utf8"), /int f\(int a, int b\);/);
+  assert.equal(signatureContract("int f(int x, int y);"), signatureContract("int f(int, int);"));
+});
+
+test("container-scoped --all retains types used only by other containers", () => {
+  const root = probeRoot(), overlay = requireContainer("ovl_11");
+  mkdirSync(join(root, overlay.paths.srcDir), { recursive: true });
+  mkdirSync(join(root, "include/overlays"), { recursive: true });
+  writeFileSync(join(root, "include/game_types.h"), "typedef struct { int x, y; } PairS32;\n");
+  writeFileSync(join(root, "include/functions.h"), "void ClearPairS32(PairS32 *obj);\n");
+  writeFileSync(join(root, overlay.paths.srcDir, "own.c"), "void own(int a) {}\n");
+  const asm = join(root, overlay.paths.asmDir, "nonmatchings/test_fn");
+  mkdirSync(asm, { recursive: true }); writeFileSync(join(asm, "test_fn.s"), PROBE_ASM);
+  exportAll(root, [overlay]);
+  assert.match(readFileSync(join(root, "include/sdk_types.h"), "utf8"), /PairS32/);
+  assert.equal(verifyContextParses(root, overlay).ok, true);
+  assert.equal(readFileSync(join(root, "include/functions.h"), "utf8"), "void ClearPairS32(PairS32 *obj);\n");
+});
+
+test("skipped publication is an explicit outcome", () => {
+  const result = exportContext("missing", scratchRoot());
+  assert.equal(result.status, "skipped");
+  assert.equal(result.signatureMatches, false);
+  assert.equal(result.reason, "file not found");
 });
 
 test("--container consumes exactly its own value", () => {

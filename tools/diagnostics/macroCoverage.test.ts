@@ -52,12 +52,12 @@ test("extracted overlays without container mappings are explicit skips, with pre
 const containers = existsSync(join(ROOT, "extracted/iso/slus_011.15")) ? loadContainers() : [];
 const loaded = containers.length ? loadMacroFunctions(containers) : { functions: [], findings: [] };
 
-test("all 13 game EXE COP2 functions include the 11 INCLUDE_ASM payloads; SDK OuterProduct0 is not a conversion target", { skip: !containers.length }, () => {
+test("all 13 game EXE COP2 functions include the remaining INCLUDE_ASM payloads and the converted macro function; SDK OuterProduct0 is not a conversion target", { skip: !containers.length }, () => {
   const exe = containers.find(c => c.id === "exe")!;
   const report = detectMacroIdentities({ containers: [exe] });
   const cop = report.functions.filter(f => f.name.startsWith("func_") && f.cop2.count);
   assert.equal(cop.length, 13);
-  const parked = ["8001B5DC", "8001B6A0", "8001BB88", "8001BBD8", "8001C37C", "8001D348", "8001D6B8", "8001DCB0", "8001DE4C", "8001E088", "8001E26C"];
+  const parked = ["8001B5DC", "8001B6A0", "8001BBD8", "8001C37C", "8001D348", "8001D6B8", "8001DCB0", "8001DE4C", "8001E088", "8001E26C"];
   for (const suffix of parked) {
     const name = `func_${suffix}`, f = cop.find(f => f.name.toLowerCase() === name.toLowerCase());
     assert.ok(f, name);
@@ -74,7 +74,9 @@ test("all 13 game EXE COP2 functions include the 11 INCLUDE_ASM payloads; SDK Ou
   assert.equal(entry.operands[0]!.value, 29); assert.equal(entry.operands[0]!.expression, "&stack_0x0");
   assert.equal(cop.find(f => f.name === "func_8001D6B8")!.sourceRepresentation, "INCLUDE_ASM");
   assert.ok(!report.conversionQueue.some(f => ["func_80038674", "OuterProduct0"].includes(f.function)));
-  assert.equal(report.conversionQueue.filter(f => f.sourceRepresentation === "INCLUDE_ASM").length, 11);
+  assert.equal(cop.find(f => f.name === "func_8001BB88")!.sourceRepresentation, "compiled-C");
+  assert.ok(!report.conversionQueue.some(f => f.function === "func_8001BB88"));
+  assert.equal(report.conversionQueue.filter(f => f.sourceRepresentation === "INCLUDE_ASM").length, parked.length);
   assert.ok(!cop.some(f => f.name === "func_80038674"));
   const outer = report.functions.find(f => f.name === "OuterProduct0")!;
   assert.equal(outer.sourceRepresentation, "missing", "SDK object, not game C/assembly");

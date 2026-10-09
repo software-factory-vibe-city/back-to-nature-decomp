@@ -25,9 +25,10 @@
  * does not depend on our own source:
  *
  *   1. the vendored SDK headers      — authoritative for an SDK entry point
- *   2. the callee's own definition   — authoritative for a matched function
- *   3. the callee's own target code  — an arity floor and, where the callee
- *                                      never writes $v0, a proof of void
+ *   2. the callee's own definition   — a reconstruction, not a witness for
+ *                                      parameters its target never reads
+ *   3. the callee's own target code  — per-slot reads, an arity floor and,
+ *                                      where it never writes $v0, proof of void
  *
  * `include/functions.h` is deliberately NOT a witness. It is generated from
  * the definitions in `src/`, so a wrong signature written into a source file
@@ -54,8 +55,16 @@ import {
   sourcePathFor,
   type DisassembledInstruction,
   configuredCppFlags,
+  compileSource,
 } from "./decompToolchain.js";
-import { analyzeFrame, analyzeReturnValue, maximumArity, minimumArity } from "./frameMap.js";
+import { analyzeFrame, analyzeRegisterParameters, analyzeReturnValue, maximumArity, minimumArity, memoryOperand } from "./frameMap.js";
+import { BRANCH_MNEMONICS, defUse } from "./webAnalysis.js";
+import { originalIndex } from "./type-propagation/graph.js";
+import { decodeBytes } from "./matching-reconstruction/exec.js";
+import { definedRegister, type DecodedInsn } from "./matching-reconstruction/decode.js";
+import { buildCfg } from "./machine-ir/cfg.js";
+import { containerTargetPath, vramToRom } from "../lib/container.js";
+import { compareFunction } from "../lib/functionOracle.js";
 import { cachedPreprocess, withPreprocessorMetadata, preprocessingTools } from "./preprocessedCache.js";
 import { digest, snapshot, readCache, writeCache } from "../lib/contentCache.js";
 import { declaredFunction } from "./sdkTypes.js";
@@ -314,6 +323,12 @@ export interface Witness {
   prototype?: Prototype;
   /** Present for the target witness: what the callee's own code proves. */
   arity?: { min: number; max: number };
+  /** Incoming ABI word positions actually read, not the declared C count. */
+  reads?: number[];
+  /** False for fragments/tail transfers: absence of a read is not established. */
+  readsComplete?: boolean;
+  /** Incoming registers still live at calls may be forwarded implicitly. */
+  undeterminedReads?: number[];
   returns?: { type: "void" | "s32" | "unknown"; basis: "proven" | "callers" | "unknown" };
   notes?: string[];
 }
@@ -427,19 +442,107 @@ function computeDefinitionPrototype(callee: string): Prototype | undefined {
  * at all. It is deliberately weak where the machine code is weak: the arity is
  * a floor, and only the never-writes-$v0 case proves void.
  */
-export function targetWitness(callee: string, scratch: string): Witness | undefined {
+/** Keep frameMap read-only, but do not mistake its omitted frameless stack
+ * loads or implicit call uses for negative evidence. The latter remain unknown,
+ * not proofs derived from candidate prototypes. */
+type ReadEvidence = Pick<Witness, "reads" | "readsComplete" | "undeterminedReads">;
+type CallReadResolver = (insn: DisassembledInstruction) => { reads: number[]; unknown: number[] };
+
+export function targetReadEvidence(instructions: DisassembledInstruction[], resolveCall?: CallReadResolver): ReadEvidence {
+  const frame = analyzeFrame(instructions);
+  const reads = [...frame.registerParameters, ...frame.incoming].map((p) => Math.floor(p.index));
+  if (frame.frameSize === 0 && !instructions.some((i) => defUse(i).defs.includes("sp"))) {
+    for (const insn of instructions) {
+      const memory = memoryOperand(insn.operands.at(-1) ?? "");
+      if (defUse(insn).isLoad && memory?.base === "sp" && memory.offset >= 0x10) reads.push(Math.floor(memory.offset / 4));
+    }
+  }
+  /* To observe potential forwarding without trusting any callee prototype,
+     move call-argument reads into the delay slot's post-SET state. The
+     synthetic call consumes independently witnessed slots; unresolved calls
+     additionally probe all still-incoming arg registers. This is diagnostic
+     dataflow only, never emitted assembly or C. */
+  const callFacts = new Map(instructions.filter((i) => defUse(i).isCall).map((i) => [i.address,
+    resolveCall?.(i) ?? { reads: [], unknown: [0, 1, 2, 3] }]));
+  const observe = (includeUnknown: boolean): number[] => {
+    const augmented: DisassembledInstruction[] = [];
+    const addresses = new Map<number, number>();
+    for (let i = 0; i < instructions.length; i++) {
+      const insn = instructions[i]!;
+      addresses.set(insn.address, augmented.length * 4);
+      if (defUse(insn).isCall && instructions[i + 1]) {
+        const delay = instructions[++i]!;
+        addresses.set(delay.address, augmented.length * 4);
+        const facts = callFacts.get(insn.address)!;
+        const slots = [...facts.reads, ...(includeUnknown ? facts.unknown : [])].filter((s) => s < 4);
+        augmented.push(delay, { ...insn, operands: [...insn.operands, ...slots.map((s) => `a${s}`)] },
+          { ...insn, mnemonic: "nop", operands: [] });
+      } else augmented.push(insn);
+    }
+    const remapped = augmented.map((insn, index) => ({ ...insn, address: index * 4,
+      operands: insn.operands.map((operand) => {
+        if (!BRANCH_MNEMONICS.has(insn.mnemonic)) return operand;
+        const target = operand.match(/^(?:0x)?([0-9a-f]+)\s+</i);
+        const address = target ? addresses.get(parseInt(target[1]!, 16)) : undefined;
+        return address === undefined ? operand : `${address.toString(16)} <local>`;
+      }) }));
+    return analyzeRegisterParameters(remapped, new Map()).map((p) => p.index);
+  };
+  reads.push(...observe(false));
+  const possible = observe(true);
+  const escapes = instructions.some((i) => (i.mnemonic === "j" && i.relocation && i.relocation.symbol !== ".text") || (i.mnemonic === "jr" && i.operands[0]?.replace(/^\$/, "") !== "ra"));
+  const hasReturn = instructions.some((i) => i.mnemonic === "jr" && i.operands[0]?.replace(/^\$/, "") === "ra");
+  return { reads: [...new Set(reads)].sort((a, b) => a - b), readsComplete: hasReturn && !escapes,
+    undeterminedReads: possible.filter((s) => !reads.includes(s)) };
+}
+
+/** Bounded transitive call reads. Cycles, indirect calls, unavailable targets
+ * and budget stops remain unknown; no reconstruction participates. */
+function targetReadObserver(scratch: string,
+  load = (callee: string) => disassembleObject(assembleTarget(callee, scratch)),
+  sdkIndex?: Map<string, Prototype>): (callee: string, supplied?: DisassembledInstruction[]) => ReadEvidence {
+  const memo = new Map<string, ReadEvidence>(), active = new Set<string>();
+  const unknown: ReadEvidence = { reads: [], readsComplete: false, undeterminedReads: [0, 1, 2, 3] };
+  let visited = 0;
+  const read = (callee: string, supplied?: DisassembledInstruction[]): ReadEvidence => {
+    const hit = memo.get(callee); if (hit) return hit;
+    if (!active.size) visited = 0;
+    if (active.has(callee) || visited >= 256 || active.size >= 32) return unknown;
+    visited++; active.add(callee);
+    try {
+      const insns = supplied ?? load(callee);
+      const evidence = targetReadEvidence(insns, (insn) => {
+        const name = insn.mnemonic === "jal" ? insn.relocation?.symbol : undefined;
+        if (!name || name === ".text") return { reads: [], unknown: [0, 1, 2, 3] };
+        const sdk = (sdkIndex ??= sdkPrototypes()).get(name);
+        if (sdk?.parameters !== null && sdk?.parameters !== undefined && !sdk.variadic && sdk.slots?.every((s) => s !== null))
+          return { reads: sdk.slots as number[], unknown: [] };
+        const child = read(name);
+        return { reads: child.reads ?? [], unknown: child.readsComplete === false ? [0, 1, 2, 3] : child.undeterminedReads ?? [] };
+      });
+      memo.set(callee, evidence); return evidence;
+    } catch { return unknown; }
+    finally { active.delete(callee); }
+  };
+  return read;
+}
+
+export function targetWitness(callee: string, scratch: string, observe = targetReadObserver(scratch), supplied?: DisassembledInstruction[]): Witness | undefined {
   let instructions: DisassembledInstruction[];
   try {
-    instructions = disassembleObject(assembleTarget(callee, scratch));
+    instructions = supplied ?? disassembleObject(assembleTarget(callee, scratch));
   } catch {
     return undefined;
   }
   const frame = analyzeFrame(instructions);
   const returnValue = analyzeReturnValue(callee, instructions);
+  const readEvidence = observe(callee, instructions);
+  const min = Math.max(minimumArity(frame), ...readEvidence.reads!.map((s) => s + 1));
   return {
     kind: "target",
     where: `${callee} (target code)`,
-    arity: { min: minimumArity(frame), max: maximumArity(frame) },
+    arity: { min, max: Math.max(min, maximumArity(frame)) },
+    ...readEvidence,
     returns: { type: returnValue.type, basis: returnValue.basis },
     notes: returnValue.evidence,
   };
@@ -449,7 +552,55 @@ export function targetWitness(callee: string, scratch: string): Witness | undefi
 /* Adjudication                                                        */
 /* ------------------------------------------------------------------ */
 
-export type CalleeStatus = "contradicted" | "disputed" | "unwitnessed" | "corroborated" | "undeclared";
+export type CalleeStatus = "contradicted" | "unread-argument" | "disputed" | "unwitnessed" | "corroborated" | "undeclared";
+
+export interface ParameterWitness {
+  /** C parameter index and its incoming ABI word position (not interchangeable). */
+  position: number;
+  slot: number | null;
+  status: "witnessed" | "unread" | "undetermined";
+  basis: string;
+}
+
+/** Only SDK declarations and target reads witness a parameter. A later read
+ * also establishes the earlier slots. Reconstructions cannot witness themselves. */
+export function parameterWitnesses(prototype: Prototype, witnesses: Witness[]): ParameterWitness[] {
+  const sdk = witnesses.find((w) => w.kind === "sdk")?.prototype;
+  const reads = witnesses.find((w) => w.kind === "target")?.reads;
+  const lastRead = reads === undefined ? undefined : Math.max(-1, ...reads);
+  const slots = prototype.slots ?? Array.from({ length: prototype.parameters ?? 0 }, (_, i) => i);
+  return slots.map((slot, position) => {
+    if (sdk?.parameters !== null && sdk?.parameters !== undefined && position < sdk.parameters)
+      return { position, slot, status: "witnessed", basis: "authoritative SDK header" };
+    if (slot === null || lastRead === undefined || sdk?.variadic || prototype.variadic)
+      return { position, slot, status: "undetermined", basis: "no target read set, unknown ABI layout or variadic tail" };
+    if (slot <= lastRead) return { position, slot, status: "witnessed", basis: reads!.includes(slot) ? "target reads incoming value" : "later target read establishes this slot" };
+    const target = witnesses.find((w) => w.kind === "target");
+    if (target?.readsComplete === false || target?.undeterminedReads?.some((s) => s >= slot))
+      return { position, slot, status: "undetermined", basis: "incomplete target or possible implicit argument forwarding at a call" };
+    return { position, slot, status: "unread", basis: "no target read or SDK witness" };
+  });
+}
+
+export interface UnreadArgument {
+  position: number;
+  slot: number;
+  calls: number;
+  material: true;
+  message: string;
+}
+
+export interface CallerSiteEvidence {
+  slot: number;
+  set: number;
+  total: number;
+  incomplete: boolean;
+  message: string;
+}
+
+export function argumentLocation(slot: number): string {
+  return slot < 4 ? `$a${slot}` : `stack slot sp+0x${(slot * 4).toString(16)}`;
+}
 
 export interface Contradiction {
   witness: WitnessKind;
@@ -458,11 +609,9 @@ export interface Contradiction {
    *
    * A proven contradiction changes the code the compiler emits at the call
    * site, so it invalidates every measurement taken under it. An unproven one
-   * is a disagreement between two reconstructions where either side could be
-   * the wrong one, and it may cost nothing at all — a trailing parameter the
-   * callee ignores, or a return value the caller discards, leaves no trace in
-   * either function's machine code. Both are worth knowing. Only one is a
-   * reason to stop.
+   * is a disagreement between reconstructions. An unread parameter is free
+   * in the callee, not in a caller passing a value there. A discarded return
+   * value, by contrast, need not affect the caller. Materiality is site-local.
    */
   proven: boolean;
   message: string;
@@ -475,6 +624,10 @@ export interface CalleeReport {
   contradictions: Contradiction[];
   /** Whether this translation unit uses the call's value anywhere. */
   resultUsed: boolean;
+  parameters: ParameterWitness[];
+  unreadArguments: UnreadArgument[];
+  hygiene: string[];
+  callerSites: CallerSiteEvidence[];
   status: CalleeStatus;
 }
 
@@ -603,6 +756,106 @@ export function callResultUsed(source: string, callee: string): boolean {
   return used;
 }
 
+/** Actual arguments in the compiler's preprocessed AST, including macro calls. */
+export function callArgumentCounts(source: string, callee: string): number[] {
+  const tree = parseC(source);
+  try {
+    return tree.rootNode.descendantsOfType("call_expression")
+      .filter((n) => field(n, "function")?.type === "identifier" && field(n, "function")?.text === callee)
+      .map((n) => field(n, "arguments")?.namedChildren.filter((c) => c.type !== "comment").length ?? 0);
+  } finally { tree.delete(); }
+}
+
+/** Pure site-local adjudication, shared by the audit and synthetic regressions. */
+export function adjudicateCallee(callee: string, declared: Prototype | undefined, witnesses: Witness[], source: string): CalleeReport {
+  const counts = callArgumentCounts(source, callee);
+  const resultUsed = callResultUsed(source, callee);
+  const maxCount = Math.max(0, ...counts);
+  const callPrototype: Prototype = declared ? { ...declared,
+    parameters: Math.max(declared.parameters ?? 0, maxCount),
+    paramTypes: [...(declared.paramTypes ?? Array.from({ length: declared.parameters ?? 0 }, () => "int")),
+      ...Array.from({ length: Math.max(0, maxCount - (declared.parameters ?? 0)) }, () => "int")],
+  } : { name: callee, signature: `${callee}()`, parameters: maxCount, variadic: false,
+    returnsVoid: false, kind: "declaration", where: "implicit", line: 0 };
+  /* Preserve supplied typedef-aware slots; unknown layouts must stay unknown. */
+  if (declared?.slots) {
+    const extraSlots = incomingSlots(callPrototype.paramTypes!);
+    callPrototype.slots = [...declared.slots, ...extraSlots.slice(declared.slots.length)];
+  }
+  const parameters = parameterWitnesses(callPrototype, witnesses);
+  const unreadArguments = parameters.filter((p) => p.status === "unread" && counts.some((c) => c > p.position))
+    .map((p): UnreadArgument => ({ position: p.position, slot: p.slot!, calls: counts.filter((c) => c > p.position).length,
+      material: true, message: `this call writes ${argumentLocation(p.slot!)} (argument ${p.position}) that the callee never reads; the original call site may not have. An incoming value may already occupy the register; this is material caller setup, not an arity proof.` }));
+  const hygiene: string[] = [];
+  for (const prototype of [declared, ...witnesses.filter((w) => w.kind === "definition").map((w) => w.prototype)]) {
+    if (!prototype) continue;
+    for (const p of parameterWitnesses(prototype, witnesses).filter((p) => p.status === "unread")) {
+      if (!counts.some((c) => c > p.position)) hygiene.push(`${prototype.where}:${prototype.line}: parameter ${p.position} (${argumentLocation(p.slot!)}) is unread; no call here passes it`);
+    }
+  }
+  const contradictions = declared ? witnesses.flatMap((witness) => {
+    const found = contradictionsAgainst(declared, witness, resultUsed);
+    /* A longer reconstruction's unread tail cannot contradict a shorter,
+       witnessed interface. Keep return disagreements and all SDK conflicts. */
+    if (witness.kind !== "definition" || !witness.prototype || declared.parameters === null || witness.prototype.parameters === null) return found;
+    const longer = declared.parameters > witness.prototype.parameters ? declared : witness.prototype;
+    const shorter = Math.min(declared.parameters, witness.prototype.parameters);
+    const tail = parameterWitnesses(longer, witnesses).slice(shorter);
+    return tail.length && tail.every((p) => p.status === "unread")
+      ? found.filter((c) => !c.message.startsWith("declared with")) : found;
+  }) : [];
+  const status: CalleeStatus = contradictions.some((c) => c.proven) ? "contradicted"
+    : unreadArguments.length ? "unread-argument"
+      : !declared ? "undeclared"
+        : contradictions.length ? "disputed"
+          : witnesses.some((w) => w.prototype) &&
+            (witnesses.some((w) => w.kind === "sdk" && w.prototype?.variadic) ||
+             parameters.filter((p) => counts.some((c) => c > p.position)).every((p) => p.status === "witnessed"))
+            ? "corroborated" : "unwitnessed";
+  return { callee, ...(declared ? { declared } : {}), witnesses, contradictions, resultUsed,
+    parameters, unreadArguments, hygiene: [...new Set(hygiene)], callerSites: [], status };
+}
+
+/** Same-block writes, delay slot included. This is a heuristic, not reaching
+ * definitions: a register may already hold its value at block entry. */
+export function callSiteWrites(insns: DecodedInsn[], target: number, slot: number): boolean[] {
+  const cfg = buildCfg(insns);
+  return insns.flatMap((insn, index) => {
+    if (insn.op !== "jal" || insn.target !== target) return [];
+    const block = cfg.blocks[cfg.blockOf[index]!];
+    const before = block?.instructions.filter((i) => i <= index + 1) ?? [];
+    return [before.some((i) => slot < 4 ? definedRegister(insns[i]!) === slot + 4
+      : ["sw", "sh", "sb", "swl", "swr"].includes(insns[i]!.op) && insns[i]!.rs === 29 && insns[i]!.simm === slot * 4)];
+  });
+}
+
+/** All configured containers, from original bytes rather than a stale worklist. */
+function callerSiteObserver(): (callee: string, slots: number[]) => CallerSiteEvidence[] {
+  const index = originalIndex(Number.MAX_SAFE_INTEGER);
+  const images = new Map<string, Buffer>();
+  return (callee, slots) => {
+    const target = [...index.nodes.values()].find((n) => n.name === callee);
+    if (!target) return [];
+    const sites: DecodedInsn[][] = [];
+    for (const id of index.incoming.get(target.id) ?? []) {
+      const caller = index.nodes.get(id)!;
+      const path = containerTargetPath(caller.container);
+      let image = images.get(path);
+      if (!image) { image = readFileSync(path); images.set(path, image); }
+      const rom = vramToRom(caller.container, caller.span.vram);
+      const words = decodeBytes(image.subarray(rom, rom + caller.span.size), caller.span.vram);
+      /* Overlay RAM addresses collide. The index resolves in caller scope. */
+      sites.push(words.map((w) => w.op === "jal" && index.resolve(caller.container.id, w.target!) !== target.id ? { ...w, target: 0 } : w));
+    }
+    return slots.map((slot) => {
+      const writes = sites.flatMap((s) => callSiteWrites(s, target.span.vram, slot));
+      const set = writes.filter(Boolean).length, total = writes.length;
+      return { slot, set, total, incomplete: !index.complete,
+        message: `${set} of ${total} target call sites set ${argumentLocation(slot)} in the call's block (delay slot included). Heuristic, never proof: a value can already be in the register at block entry.${index.complete ? "" : " Container coverage incomplete."}` };
+    });
+  };
+}
+
 export interface TruthReport {
   function: string;
   source: string;
@@ -624,11 +877,17 @@ export function calleesOf(instructions: DisassembledInstruction[]): { direct: st
   return { direct: [...direct].sort(), indirect };
 }
 
-export function auditCallees(name: string, sourcePath: string, scratch: string): TruthReport {
+interface AuditEvidence {
+  sdk?: Map<string, Prototype>;
+  definition?: typeof definitionPrototype;
+  target?: (callee: string) => Witness | undefined;
+  callerSites?: ReturnType<typeof callerSiteObserver>;
+}
+
+export function auditCallees(name: string, sourcePath: string, scratch: string, evidence: AuditEvidence = {}): TruthReport {
   const targetInstructions = disassembleObject(assembleTarget(name, scratch));
   const { direct, indirect } = calleesOf(targetInstructions);
 
-  const sourceText = readFileSync(sourcePath, "utf-8");
   const preprocessed = preprocessOnly(sourcePath, scratch, `${name}.scope`);
   const { source, lineOf } = scopeFromPreprocessed(readFileSync(preprocessed, "utf-8"));
   const inScope = new Map<string, Prototype>();
@@ -638,8 +897,11 @@ export function auditCallees(name: string, sourcePath: string, scratch: string):
     if (!inScope.has(prototype.name)) inScope.set(prototype.name, prototype);
   }
 
-  const sdk = sdkPrototypes();
+  const sdk = evidence.sdk ?? sdkPrototypes();
   const callees: CalleeReport[] = [];
+  const readTarget = targetReadObserver(scratch);
+  let observer: ReturnType<typeof callerSiteObserver> | undefined;
+  const callerEvidence = evidence.callerSites ?? ((callee: string, slots: number[]) => (observer ??= callerSiteObserver())(callee, slots));
 
   for (const callee of direct) {
     if (callee === name) continue;
@@ -649,41 +911,97 @@ export function auditCallees(name: string, sourcePath: string, scratch: string):
     const fromSdk = sdk.get(callee);
     if (fromSdk) witnesses.push({ kind: "sdk", where: fromSdk.where, prototype: fromSdk });
 
-    const fromDefinition = definitionPrototype(callee);
+    const fromDefinition = (evidence.definition ?? definitionPrototype)(callee);
     if (fromDefinition && fromDefinition.where !== displayPath(sourcePath)) {
       witnesses.push({ kind: "definition", where: fromDefinition.where, prototype: fromDefinition });
     }
 
-    const fromTarget = targetWitness(callee, scratch);
+    const fromTarget = evidence.target ? evidence.target(callee) : targetWitness(callee, scratch, readTarget);
     if (fromTarget) witnesses.push({ ...fromTarget, callee });
 
-    const resultUsed = callResultUsed(sourceText, callee);
-    const contradictions = declared
-      ? witnesses.flatMap((witness) => contradictionsAgainst(declared, witness, resultUsed))
-      : [];
-
-    const hasPrototypeWitness = witnesses.some((witness) => witness.prototype !== undefined);
-    const status: CalleeStatus = declared === undefined
-      ? "undeclared"
-      : contradictions.some((item) => item.proven)
-        ? "contradicted"
-        : contradictions.length > 0
-          ? "disputed"
-          : hasPrototypeWitness
-            ? "corroborated"
-            : "unwitnessed";
-
-    callees.push({
-      callee,
-      ...(declared === undefined ? {} : { declared }),
-      witnesses,
-      contradictions,
-      resultUsed,
-      status,
-    });
+    const item = adjudicateCallee(callee, declared, witnesses, source);
+    if (item.unreadArguments.length || item.hygiene.length) {
+      try { item.callerSites = callerEvidence(callee, [...new Set([...item.parameters,
+        ...witnesses.filter((w) => w.kind === "definition" && w.prototype).flatMap((w) => parameterWitnesses(w.prototype!, witnesses))]
+        .filter((p) => p.status === "unread").map((p) => p.slot!))]); }
+      catch (error) { item.hygiene.push(`Caller-site census unavailable: ${String(error)}`); }
+    }
+    callees.push(item);
   }
 
   return { function: name, source: displayPath(sourcePath), callees, indirectCalls: indirect };
+}
+
+export interface DefinitionAudit {
+  matched: number;
+  definitions: Array<{ function: string; prototype: Prototype; reads: number[]; trailingUnread: ParameterWitness[]; callerSites: CallerSiteEvidence[] }>;
+  callerFindings: Array<{ function: string; source: string; callee: CalleeReport }>;
+  unknowns: Array<{ function: string; reason: string }>;
+}
+
+/** Census does not edit definitions. A byte match admits a reconstruction;
+ * it never witnesses an unread parameter. Caller dependencies must be tested
+ * before removing a tail, and match-only-with-tail evidence must be retained. */
+export function auditDefinitions(scratch: string, auditCallers = false,
+  progress?: (processed: number, total: number, report: DefinitionAudit) => void): DefinitionAudit {
+  const index = originalIndex(Number.MAX_SAFE_INTEGER), sdk = sdkPrototypes();
+  const observe = callerSiteObserver();
+  /* One immutable census view. Reuse each target/definition across its callers,
+     never cache by symbol across interactive source edits or separate audits. */
+  const instructions = new Map<string, DisassembledInstruction[]>();
+  const load = (name: string) => {
+    let value = instructions.get(name);
+    if (!value) { value = disassembleObject(assembleTarget(name, scratch)); instructions.set(name, value); }
+    return value;
+  };
+  const readTarget = targetReadObserver(scratch, load, sdk);
+  const targets = new Map<string, Witness | undefined>(), definitions = new Map<string, Prototype | undefined>();
+  const evidence: AuditEvidence = { sdk, callerSites: observe,
+    target: (name) => {
+      if (!targets.has(name)) {
+        try { targets.set(name, targetWitness(name, scratch, readTarget, load(name))); }
+        catch { targets.set(name, undefined); }
+      }
+      return targets.get(name);
+    },
+    definition: (name) => {
+      if (!definitions.has(name)) definitions.set(name, definitionPrototype(name));
+      return definitions.get(name);
+    },
+  };
+  const report: DefinitionAudit = { matched: 0, definitions: [], callerFindings: [], unknowns: [] };
+  const nodes = [...index.nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
+  let processed = 0;
+  for (const node of nodes) {
+    progress?.(processed++, nodes.length, report);
+    const source = sourcePathFor(node.name);
+    if (!existsSync(source) || !definesFunction(readFileSync(source, "utf8"), node.name)) continue;
+    try {
+      const scope = scopeFromPreprocessed(effectiveSource(source));
+      const prototype = prototypesIn(scope.source, displayPath(source), scope.lineOf).find((p) => p.kind === "definition" && p.name === node.name);
+      if (!prototype) continue; /* disabled attempts and stubs are not definitions */
+      const artifact = compileSource(source, join(scratch, node.name), node.name, { assemble: true, containerKind: node.container.kind });
+      const verdict = compareFunction(node.name, { objectPath: artifact.object!, container: node.container });
+      if (verdict.verdict !== "match") { report.unknowns.push({ function: node.name, reason: `definition is not matched: ${verdict.verdict}` }); continue; }
+      report.matched++;
+      const target = evidence.target!(node.name);
+      if (target?.reads === undefined) { report.unknowns.push({ function: node.name, reason: "target read set unavailable" }); continue; }
+      const witnesses: Witness[] = [target, ...(sdk.has(node.name) ? [{ kind: "sdk" as const, where: sdk.get(node.name)!.where, prototype: sdk.get(node.name)! }] : [])];
+      const parameters = parameterWitnesses(prototype, witnesses);
+      let start = parameters.length;
+      while (start && parameters[start - 1]!.status === "unread") start--;
+      const trailingUnread = parameters.slice(start);
+      if (trailingUnread.length) report.definitions.push({ function: node.name, prototype, reads: target.reads, trailingUnread,
+        callerSites: observe(node.name, trailingUnread.map((p) => p.slot!)) });
+      if (auditCallers) {
+        const truth = auditCallees(node.name, source, scratch, evidence);
+        for (const callee of truth.callees.filter((c) => c.status === "unread-argument"))
+          report.callerFindings.push({ function: node.name, source: truth.source, callee });
+      }
+    } catch (error) { report.unknowns.push({ function: node.name, reason: String(error) }); }
+  }
+  progress?.(nodes.length, nodes.length, report);
+  return report;
 }
 
 /* ------------------------------------------------------------------ */
@@ -700,7 +1018,10 @@ function describeWitness(witness: Witness): string {
   const returns = witness.returns
     ? `returns ${witness.returns.type} (${witness.returns.basis})`
     : "return undetermined";
-  return `target: ${witness.where} — ${arity}, ${returns}`;
+  return `target: ${witness.where} — ${arity}, ${returns}` +
+    (witness.reads === undefined ? "" : `; read set [${witness.reads.join(", ")}]`) +
+    (witness.readsComplete === false ? "; incomplete target: unreadness undetermined" : "") +
+    (witness.undeterminedReads?.length ? `; possible forwarded slots [${witness.undeterminedReads.join(", ")}] (undetermined)` : "");
 }
 
 export function renderTruthReport(report: TruthReport): string {
@@ -708,6 +1029,7 @@ export function renderTruthReport(report: TruthReport): string {
   const of = (status: CalleeStatus) => report.callees.filter((item) => item.status === status);
   const contradicted = of("contradicted");
   const disputed = of("disputed");
+  const unread = of("unread-argument");
   const unwitnessed = of("unwitnessed");
   const undeclared = of("undeclared");
 
@@ -716,18 +1038,21 @@ export function renderTruthReport(report: TruthReport): string {
     (report.indirectCalls > 0 ? `, ${report.indirectCalls} indirect call site(s) not covered here` : ""),
   );
   lines.push(
-    `  ${contradicted.length} contradicted, ${disputed.length} disputed, ${undeclared.length} undeclared, ` +
+    `  ${contradicted.length} contradicted, ${unread.length} unread-argument, ${disputed.length} disputed, ${undeclared.length} undeclared, ` +
     `${unwitnessed.length} unwitnessed, ${of("corroborated").length} corroborated`,
   );
 
   for (const item of report.callees) {
-    if (item.status === "corroborated") continue;
+    if (item.status === "corroborated" && !item.hygiene.length) continue;
     lines.push("", `[${item.status}] ${item.callee}`);
     lines.push(
       `  in scope: ${item.declared ? item.declared.signature : "(none — C89 implicit int)"}` +
       (item.declared ? `   from ${item.declared.where}:${item.declared.line}` : ""),
     );
     for (const witness of item.witnesses) lines.push(`  ${describeWitness(witness)}`);
+    for (const argument of item.unreadArguments) lines.push(`  !! MATERIAL: ${argument.message}`);
+    for (const note of item.hygiene) lines.push(`  hygiene: ${note}`);
+    for (const site of item.callerSites) lines.push(`  heuristic: ${site.message}`);
     for (const contradiction of item.contradictions) {
       lines.push(`  ${contradiction.proven ? "!!" : "??"} ${contradiction.message}`);
     }
@@ -752,10 +1077,9 @@ export function renderTruthReport(report: TruthReport): string {
   if (disputed.length > 0) {
     lines.push(
       "",
-      "?? A disputed callee costs nothing today: the two sources disagree about an interface in a",
-      "   way that leaves no trace in either function's machine code. It is still one of them being",
-      "   wrong about what the original author wrote, and it will cost something in whichever file",
-      "   next depends on it.",
+      "?? A disputed arity can be free in the callee, but costs the caller whenever it passes",
+      "   the extra argument. Check actual call sites before treating a disagreement as hygiene.",
+      "   An unread-argument finding is material, not corroboration of two copies of one guess.",
     );
   }
   return lines.join("\n");
@@ -767,8 +1091,26 @@ function main(): void {
   const srcFlag = args.indexOf("--src");
   const srcOverride = srcFlag >= 0 ? args[srcFlag + 1] : undefined;
   const positional = args.filter((a, i) => !a.startsWith("--") && !(srcFlag >= 0 && i === srcFlag + 1));
+  if (args.includes("--audit-definitions")) {
+    if (positional.length || srcFlag >= 0) throw new Error("--audit-definitions does not accept a function or --src");
+    const scratch = join(ROOT, "build/calleeTruth/census");
+    mkdirSync(scratch, { recursive: true });
+    let lastProgress = 0;
+    const report = auditDefinitions(scratch, args.includes("--audit-callers"), (processed, total, partial) => {
+      if (Date.now() - lastProgress < 5000 && processed < total) return;
+      lastProgress = Date.now();
+      console.error(`callee census ${processed}/${total}: ${partial.matched} matched, ${partial.definitions.length} unread tails, ${partial.callerFindings.length} material caller findings, ${partial.unknowns.length} unknowns`);
+    });
+    console.log(json ? JSON.stringify(report, null, 2) : [
+      `${report.matched} matched definitions; ${report.definitions.length} unread tails; ${report.callerFindings.length} material caller findings; ${report.unknowns.length} unknowns`,
+      ...report.definitions.map((d) => `${d.function}: reads [${d.reads.join(", ")}], unread trailing parameters [${d.trailingUnread.map((p) => p.position).join(", ")}]`),
+      ...report.callerFindings.map((f) => `${f.function} -> ${f.callee.callee}: unread-argument`),
+      ...report.unknowns.map((u) => `unknown ${u.function}: ${u.reason}`),
+    ].join("\n"));
+    return;
+  }
   if (positional.length !== 1 || (srcFlag >= 0 && !srcOverride)) {
-    console.error("Usage: npx tsx tools/agent/calleeTruth.ts <func_name> [--src <path.c>] [--json]");
+    console.error("Usage: npx tsx tools/agent/calleeTruth.ts <func_name> [--src <path.c>] [--json]\n       calleeTruth.ts --audit-definitions [--audit-callers] [--json]");
     process.exit(1);
   }
 

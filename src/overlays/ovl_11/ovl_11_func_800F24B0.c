@@ -5,7 +5,7 @@ s32 ovl_11_func_800F2724(void);
 
 s32 func_8002261C(s32 arg0, s32 arg1);
 
-s32 ovl_11_func_800F24B0(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+s32 ovl_11_func_800F24B0(void) {
     s32 callRet2;
     if (D_80126C90 == 0) {
         callRet2 = ovl_11_func_800F2724();

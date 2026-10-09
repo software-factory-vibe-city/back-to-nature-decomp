@@ -17,6 +17,5 @@ void ovl_21_func_800BAEEC(s16 arg0) {
     vec[1] = -0x1F4;
     vec[0] = temp_a3;
     vec[2] = D_800BCC48[arg0].unk2;
-    ovl_21_func_800BAFFC((SpriteSourceData *) (base + 0x684), (u16 *) vec,
-                         (u16 *) &D_800BCC48[arg0]);
+    ovl_21_func_800BAFFC((SpriteSourceData *) (base + 0x684), (u16 *) vec);
 }

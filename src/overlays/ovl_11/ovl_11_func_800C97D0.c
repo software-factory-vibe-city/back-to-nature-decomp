@@ -5,7 +5,7 @@ s32 func_80013394(void);
 
 void ovl_11_func_800C70CC(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
 
-s32 ovl_11_func_800C97D0(Recon_ovl_11_func_800C97D0_A0View *arg0, s32 arg1, s32 arg2, s32 arg3) {
+s32 ovl_11_func_800C97D0(Recon_ovl_11_func_800C97D0_A0View *arg0) {
     s32 callRet3;
     if ((D_8006C844 & 0x8000000) == 0) {
         callRet3 = func_80013394();

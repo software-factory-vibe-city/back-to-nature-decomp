@@ -108,8 +108,20 @@ export const TOOL_SPECS: ToolSpec[] = [
   functionTool(
     "psx_callee_truth", "PSX Callee Truth", "calleeTruth.ts",
     "Confront every callee declaration in scope with evidence that does not depend on this source: the vendored SDK headers, the callees' own matched definitions, and the callees' own compiled code. Every other tool in this project takes the prototypes as the fixed background and varies the source against them, so a wrong prototype is invisible to all of them at once — it is not a point in the space they search, it is the space, and each rewrite that fails to remove what it manufactured reads as evidence that the residual is hard. Run it before authoring, and again the moment a residual survives rewrites that should have moved it. `include/functions.h` is deliberately not a witness: it is generated from src/, so a wrong signature comes back out of it wearing the authority of a project header.",
-    { extra: { src: Type.Optional(Type.String({ description: "Alternate source file to audit instead of the function's own source file" })) },
-      argv: (p) => [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])] },
+    { timeout: 900_000, extra: {
+        functionName: Type.Optional(FUNCTION("Exact function symbol; omit with auditDefinitions")),
+        src: Type.Optional(Type.String({ description: "Alternate source file to audit instead of the function's own source file" })),
+        auditDefinitions: Type.Optional(Type.Boolean({ description: "Census every matched definition's unread trailing parameters; read-only" })),
+        auditCallers: Type.Optional(Type.Boolean({ description: "Also audit every matched caller for material unread arguments (requires auditDefinitions)" })),
+      },
+      argv: (p) => {
+        if (p.auditDefinitions) {
+          if (p.functionName || p.src) throw new Error("auditDefinitions cannot be combined with functionName or src");
+          return ["--audit-definitions", ...(p.auditCallers ? ["--audit-callers"] : []), ...(p.json ? ["--json"] : [])];
+        }
+        if (!p.functionName || p.auditCallers) throw new Error("Provide functionName, or auditDefinitions for the census");
+        return [p.functionName as string, ...(p.src ? ["--src", p.src as string] : []), ...(p.json ? ["--json"] : [])];
+      } },
   ),
   functionTool(
     "psx_frame_map", "PSX Frame Map", "frameMap.ts",

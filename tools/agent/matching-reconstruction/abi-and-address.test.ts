@@ -25,6 +25,7 @@ import { reconstructFunction } from "./engine.js";
 import { requireFunctionLocation } from "../../lib/symbolIndex.js";
 import type { CallEffect, SymExpr } from "./types.js";
 import { assemble } from "./fixture-asm.js";
+import { parseC, field } from "../residual-source-search/tree-sitter-c.js";
 
 const configured = existsSync(join(ROOT, "configs/splat"));
 const projectTest = configured ? test : test.skip;
@@ -243,7 +244,21 @@ projectTest("the handler family's fifth argument keeps its real value", () => {
    * could only produce `, 0)`; the snapshot produces the pointer. */
   const result = reconstructFunction({ functionName: "ovl_11_func_800D41A4", notify: () => {} });
   assert.ok(result.bestEffort, `expected a draft; state ${result.state}: ${result.unresolved?.detail}`);
-  assert.match(result.bestEffort!.source, /ovl_11_func_800D04D4\(.*, \(\(s32\)arg0\) \+ 0x2A\)/);
+  /* The matched callee now has pointer parameters. Inspect the address
+     beneath its pointer cast rather than requiring the old s32 spelling. */
+  const tree = parseC(result.bestEffort!.source);
+  try {
+    const calls = tree.rootNode.descendantsOfType("call_expression")
+      .filter((n) => field(n, "function")?.text === "ovl_11_func_800D04D4");
+    assert.ok(calls.length);
+    for (const call of calls) {
+      const args = field(call, "arguments")!.namedChildren;
+      assert.equal(args.length, 5);
+      assert.ok(args[4]!.descendantsOfType("binary_expression")
+        .some((n) => field(n, "left")?.text === "((s32)arg0)" && field(n, "right")?.text === "0x2A"),
+      "the fifth argument retains arg0 + 0x2A, under any required pointer cast");
+    }
+  } finally { tree.delete(); }
   assert.ok(!/, 0\)/.test(result.bestEffort!.source), "no argument was completed with a fabricated zero");
 });
 

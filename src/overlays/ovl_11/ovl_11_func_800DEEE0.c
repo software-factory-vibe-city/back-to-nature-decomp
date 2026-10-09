@@ -3,7 +3,7 @@
 
 s32 ovl_11_func_800DF4F0(UnkStruct800DF4F0 *arg0);
 
-s32 ovl_11_func_800DEEE0(Recon_ovl_11_func_800DEEE0_A0View *arg0, s32 arg1, s32 arg2, s32 arg3) {
+s32 ovl_11_func_800DEEE0(Recon_ovl_11_func_800DEEE0_A0View *arg0) {
     s32 callRet2;
     callRet2 = ovl_11_func_800DF4F0(((UnkStruct800DF4F0 *)(((s32)arg0))));
     if (callRet2 == 0) {

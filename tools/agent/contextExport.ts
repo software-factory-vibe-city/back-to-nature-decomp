@@ -28,7 +28,10 @@
 
 import { execFileSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, rmSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, relative } from "path";
+import { prototypesIn } from "./calleeTruth.js";
+import { inspectType } from "./type-propagation/c-types.js";
+import { parseC } from "./residual-source-search/tree-sitter-c.js";
 import {
   extractPrototypesFromSource,
   extractSignaturesFromSource,
@@ -75,11 +78,59 @@ export function contextFilesFor(container: Container): string[] {
     : [SDK_TYPES_HEADER, FUNCTIONS_HEADER, functionsHeaderFor(container)];
 }
 
-interface ExportResult {
+export interface ExportResult {
   signatures: string[];
   skipped: boolean;
   reason?: string;
+  /** Machine-readable publication outcome consumed by finalization. */
+  status: "published" | "skipped";
+  signatureMatches: boolean;
+  localPrototypes: Array<{ name: string; file: string; signature: string; published: string }>;
 }
+
+export const CONTEXT_EXPORT_STATUS = "CONTEXT_EXPORT_STATUS ";
+
+/** Ignore parameter names and trivia, but not arity, types or qualifiers. */
+export function signatureContract(signature: string): string {
+  const p = prototypesIn(signature, "context")[0];
+  return p ? JSON.stringify([p.returnType?.replace(/\s+/g, " "), p.parameters, p.variadic,
+    p.paramTypes?.map((t) => inspectType(t).key)]) : signature;
+}
+
+function filesUnder(root: string): string[] {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true }).flatMap((e) => e.isDirectory()
+    ? filesUnder(join(root, e.name)) : [join(root, e.name)]);
+}
+
+/** These files are inference context, never compiler headers. AST inspection
+ * distinguishes real directives from examples inside comments and strings. */
+export function generatedContextIncludes(rootDir: string): string[] {
+  const findings: string[] = [];
+  for (const path of [...filesUnder(join(rootDir, "src")), ...filesUnder(join(rootDir, "include"))]) {
+    const file = relative(rootDir, path);
+    if (!/\.[ch]$/.test(file) || file === SDK_TYPES_HEADER || file === FUNCTIONS_HEADER || file.startsWith("include/overlays/")) continue;
+    const tree = parseC(readFileSync(path, "utf8"));
+    try {
+      for (const n of tree.rootNode.descendantsOfType("preproc_include")) {
+        const included = n.childForFieldName("path")?.text.slice(1, -1) ?? "";
+        if (/(?:^|\/)functions\.h$|(?:^|\/)overlays\/[^/]+\.h$/.test(included)) findings.push(`${file}:${n.startPosition.row + 1}: ${included}`);
+      }
+    } finally { tree.delete(); }
+  }
+  return findings;
+}
+
+function localPrototypeDisagreements(rootDir: string, pairs: ExtractedSignature[]): ExportResult["localPrototypes"] {
+  const signatures = new Map(pairs.map((p) => [p.name, p.signature]));
+  return filesUnder(join(rootDir, "src")).filter((p) => p.endsWith(".c")).flatMap((path) =>
+    extractPrototypesFromSource(readFileSync(path, "utf8")).flatMap((p) => {
+      const published = signatures.get(p.name);
+      return published && signatureContract(published) !== signatureContract(p.signature)
+        ? [{ name: p.name, file: relative(rootDir, path), signature: p.signature, published }] : [];
+    }));
+}
+
 
 /**
  * Extract the function definitions a decompiled C file publishes.
@@ -293,39 +344,25 @@ export function exportContext(
   const cFile = join(rootDir, container.paths.srcDir, `${funcName}.c`);
 
   if (!existsSync(cFile)) {
-    return { signatures: [], skipped: true, reason: "file not found" };
+    return { signatures: [], skipped: true, status: "skipped", signatureMatches: false, localPrototypes: [], reason: "file not found" };
   }
 
   const pairs = extractSignaturePairs(cFile);
   if (pairs.length === 0) {
-    return { signatures: [], skipped: true, reason: "no function definitions (stub?)" };
+    return { signatures: [], skipped: true, status: "skipped", signatureMatches: false, localPrototypes: [], reason: "no function definitions (stub?)" };
   }
   const sigs = pairs.map((p) => p.signature);
 
-  /* A matched caller may carry its own local prototype for this function
-   * (period style: per-file declarations, often with all-s32 parameter
-   * lists that the caller's byte match depends on). Publishing a
-   * conflicting prototype in functions.h would break those TUs, so skip
-   * and report instead of writing. */
-  const srcDirGuard = join(rootDir, container.paths.srcDir);
-  const conflicting = readdirSync(srcDirGuard)
-    .filter((f) => f.endsWith(".c") && f !== `${funcName}.c`)
-    .filter((f) =>
-      extractPrototypesFromSource(readFileSync(join(srcDirGuard, f), "utf-8"))
-        .some((p) => p.name === funcName));
-  if (conflicting.length > 0) {
-    return {
-      signatures: sigs,
-      skipped: true,
-      reason: `local prototype(s) exist in ${conflicting.join(", ")}; not publishing to functions.h (reconcile manually if desired)`,
-    };
-  }
+  const includes = generatedContextIncludes(rootDir);
+  if (includes.length) throw new Error(`Generated context is included by compiler sources:\n${includes.join("\n")}`);
+  const localPrototypes = localPrototypeDisagreements(rootDir, pairs);
+  for (const p of localPrototypes) console.warn(`warning: ${p.file} declares ${p.signature}; publishing ${p.published}. Audit this local prototype with callee truth.`);
 
   const existing = readExistingHeader(join(rootDir, functionsHeaderFor(container)));
   for (const { name, signature } of pairs) existing.set(name, signature);
 
   writeContext(rootDir, existing, container, unionSignatures(rootDir, container, existing));
-  return { signatures: sigs, skipped: false };
+  return { signatures: sigs, skipped: false, status: "published", signatureMatches: true, localPrototypes };
 }
 
 /**
@@ -386,6 +423,8 @@ export function exportAll(
   rootDir: string = ROOT,
   containers: Container[] = loadContainers(),
 ): { exported: string[]; skipped: string[] } {
+  const includes = generatedContextIncludes(rootDir);
+  if (includes.length) throw new Error(`Generated context is included by compiler sources:\n${includes.join("\n")}`);
   const perContainer = containers.map((container) => ({
     container,
     ...collectAllSignatures(rootDir, container),
@@ -395,9 +434,12 @@ export function exportAll(
      covers all of them whichever container is written last. */
   const union = new Map<string, string>();
   for (const entry of perContainer) {
-    for (const [name, signature] of entry.signatures) if (!union.has(name)) union.set(name, signature);
+    for (const [name, signature] of unionSignatures(rootDir, entry.container, entry.signatures)) if (!union.has(name)) union.set(name, signature);
   }
 
+  /* Fresh definitions override published headers for every selected container,
+     regardless of which header was encountered first in the union. */
+  for (const entry of perContainer) for (const [name, signature] of entry.signatures) union.set(name, signature);
   const exported: string[] = [];
   const skipped: string[] = [];
   const catalog = scopedTypeCatalog(rootDir);
@@ -476,11 +518,6 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
       const cFile = join(ROOT, location.container.paths.srcDir, `${funcName}.c`);
       const sigs = extractSignatures(cFile);
 
-      if (sigs.length === 0) {
-        console.log(`No function definitions found in ${location.container.paths.srcDir}/${funcName}.c (stub or missing)`);
-        process.exit(0);
-      }
-
       for (const sig of sigs) {
         console.log(`  ${sig}`);
       }
@@ -489,6 +526,8 @@ if (process.argv[1]?.endsWith("contextExport.ts")) {
         console.log(`(dry run, nothing written)`);
       } else {
         const result = exportContext(funcName!, ROOT, location.container);
+        console.log(CONTEXT_EXPORT_STATUS + JSON.stringify(result));
+        if (result.skipped && result.reason !== "no function definitions (stub?)") process.exitCode = 1;
         if (!result.skipped) {
           console.log(`Updated ${SDK_TYPES_HEADER} and ${functionsHeaderFor(location.container)}`);
         } else if (result.reason) {

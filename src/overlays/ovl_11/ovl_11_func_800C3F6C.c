@@ -11,7 +11,7 @@ s32 func_8001AF44(u32 arg0);
 s32 func_8002261C(s32 arg0, s32 arg1);
 s32 ovl_11_func_800F3D88(void);
 
-void ovl_11_func_800C3F6C(Ovl11C3F6CArg0 *arg0, u16 *arg1, s32 arg2) {
+void ovl_11_func_800C3F6C(Ovl11C3F6CArg0 *arg0, u16 *arg1) {
     s32 temp_s1;
     u8 *base;
 

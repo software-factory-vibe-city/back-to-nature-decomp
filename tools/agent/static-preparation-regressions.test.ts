@@ -7,7 +7,9 @@ import { join } from "node:path";
 import { prepareM2c } from "../build/prepareM2c.js";
 import { ROOT, compileSource, disassembleObject, preprocessOnly } from "./decompToolchain.js";
 import { extractSignaturesFromSource } from "./sdkTypes.js";
-import { incomingSlots, prototypesIn, contradictionsAgainst, scopeFromPreprocessed } from "./calleeTruth.js";
+import { incomingSlots, prototypesIn, contradictionsAgainst, scopeFromPreprocessed, targetWitness } from "./calleeTruth.js";
+import { projectCalleeParameters } from "./prepareFunction.js";
+import { parameterReads } from "./type-propagation/c-types.js";
 import { auditM2cArithmetic } from "./m2cLimits.js";
 import { buildMachineIrFrom } from "./machine-ir/index.js";
 import { decodeFunction } from "./matching-reconstruction/decode.js";
@@ -74,6 +76,38 @@ test("ABI lower bounds do not turn wide or unknown-layout parameters into false 
     assert.deepEqual(contradictionsAgainst(prototypesIn(signature, "source.c")[0]!, witness, false), []);
   }
 });
+test("prep truncates a witnessed unread tail and m2c passes only the two witnessed arguments", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "prep-arity-")); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const definitionText = "s32 ovl_11_func_800F5888(u16 *arg0, s32 *arg1, s32 phantom) { return *arg0 + *arg1; }";
+  const definition = prototypesIn(definitionText, "callee.c")[0]!;
+  definition.usedParameters = parameterReads(definitionText, definition.name);
+  const projection = projectCalleeParameters("typedef unsigned short u16; typedef signed int s32;\n" + definition.signature, definition,
+    { kind: "target", where: "original", reads: [0, 1], arity: { min: 2, max: 4 } });
+  assert.equal(projection.unknown, undefined);
+  assert.match(projection.text, /ovl_11_func_800F5888\s*\(u16 \*arg0, s32 \*arg1\);/);
+  assert.doesNotMatch(projection.text, /phantom|800F5888\(\)/);
+  const context = join(dir, "context.c"), asm = join(dir, "caller.s");
+  writeFileSync(context, projection.text);
+  writeFileSync(asm, `.text\nglabel caller\naddiu $sp, $sp, -24\nsw $ra, 16($sp)\njal ovl_11_func_800F5888\naddu $a2, $a0, $zero\nlw $ra, 16($sp)\nnop\njr $ra\naddiu $sp, $sp, 24\n`);
+  const draft = execFileSync("python3", [prepareM2c(ROOT).script, "--target", "mipsel-gcc-c", "--no-cache", "-f", "caller", "--context", context, asm], { cwd: ROOT, encoding: "utf8" });
+  const tree = prototypesIn(draft, "raw.c");
+  assert.match(draft, /ovl_11_func_800F5888\(arg0, arg1\)/);
+  assert.ok(tree.length);
+});
+
+test("prep retains interior holes and marks unresolved arity instead of silently guessing", () => {
+  const def = prototypesIn("int f(int x, int hole, int y) { return x + y; }", "f.c")[0]!;
+  def.usedParameters = [true, false, true];
+  assert.equal(projectCalleeParameters(def.signature, def, { kind: "target", where: "target", reads: [0, 2] }).text, def.signature);
+  def.usedParameters = [true, true, false];
+  const unresolved = projectCalleeParameters(def.signature, def);
+  assert.match(unresolved.text, /f\s*\(\)/); assert.match(unresolved.unknown!, /target read set unavailable/);
+  const disagree = projectCalleeParameters(def.signature, def, { kind: "target", where: "target", reads: [4], arity: { min: 5, max: 5 } });
+  assert.match(disagree.unknown!, /disagree/);
+  const unspecified = prototypesIn("int f() { return 0; }", "f.c")[0]!;
+  assert.match(projectCalleeParameters(unspecified.signature, unspecified).unknown!, /unspecified parameter list/);
+});
+
 test("bounded multi-function m2c adds callee facts but does not justify the caller contract", () => {
   const one = m2c("related.s", ["-f", "fixture_caller"]);
   const many = m2c("related.s");

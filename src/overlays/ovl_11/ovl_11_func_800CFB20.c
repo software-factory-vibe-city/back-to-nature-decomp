@@ -6,7 +6,7 @@ typedef struct {
     /* 0x34 */ s32 field_34;
 } Ovl11FuncCFAD0Flag;
 
-s32 ovl_11_func_800CFB20(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+s32 ovl_11_func_800CFB20(s32 arg0, s32 arg1) {
     s32 ovl_11_func_800CFAD0(Ovl11FuncCFAD0Flag *arg0, s32 arg1) {
         s32 x;
         s32 b;

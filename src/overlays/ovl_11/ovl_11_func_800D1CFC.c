@@ -15,7 +15,7 @@
  * the table's %lo half after the index arithmetic; a declaration alone does
  * not reproduce it. See notes/research/ovl_11_func_800D1CFC-nested-function-cse-not-expected.md.
  */
-s32 ovl_11_func_800D1CFC(Recon_ovl_11_func_800D2594_A0View *arg0, Recon800D0408A1View *arg1) {
+s32 ovl_11_func_800D1CFC(Recon_ovl_11_func_800D2594_A0View *arg0) {
     s32 ovl_11_func_800D1CD0(s32 a, s32 b) {
         if (a == b) {
             return 0;

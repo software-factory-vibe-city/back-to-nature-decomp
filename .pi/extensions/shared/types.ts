@@ -127,6 +127,7 @@ export interface GateResult {
   cache?: { hit: boolean; reason: string };
   receipt?: import("../psx-decomp/tools/verification-receipt.ts").VerificationReceipt;
   finalizationGates?: GateResult[];
+  contextPublication?: import("../../../tools/agent/contextExport.js").ExportResult & { command: CommandResult };
 }
 
 export interface WorkerUsage {
