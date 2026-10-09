@@ -12577,12 +12577,33 @@ their address block (same `lui 0x23608` / `lui %hi(D_8007AFF0)` /
 `row*45+col` / `<<2` / `addu base,offset` / `addu base,index` / `lw`
 sequence, including the base-first final `addu`). What the tie is not: the six
 members span ~0x72CAC of text (0x800D7EF8 → 0x80120F30) with no call edge
-among them, so this is a data-family tie, not proven TU membership; five of the
+among them, so this is a data-family tie, not proven TU membership; four of the
 six are still stubs.
+Handler pair (call-graph + shared-shape evidence, still address-apart):
+- **One call site.** `ovl_11_func_801103E8` reaches 800D7EF8 and 8011E090
+  through one function pointer, selected by its arg1, and declares one
+  prototype for both.
+- **One shape.** The two bodies are the same position-to-cell routine with
+  different constants:
+  - a dead 16-byte copy of the position;
+  - two signed divisions;
+  - 2/3 returns when out of bounds;
+  - a `+0x25476` mode gate and a bit-3 test of the grid entry's word.
+- **Grid sizes.** The grids are 45x25 and 7x7. 801103E8 passes the handler's
+  cell to `ovl_11_func_800D8320(sel, col, row, 0)`, with sel 0 for 800D7EF8
+  and 1 for 8011E090. Through `ovl_11_func_800DAF60`, sel 0 picks the 25x45
+  `D_80071DFC` table and nonzero sel picks the 7x7 `D_80074124` table.
 Members (address order):
-- ovl_11_func_800D7EF8 (s) — grid reader + `D_8007AFF0`-relative gate: reads
-  the grid entry at (a3*0x2D + t0) and a second word one 0x23608 further on,
-  tests the entry's low bit and returns the masked word.
+- ovl_11_func_800D7EF8 (s) — the 45x25 handler:
+  - x + 0x1130, and z mirrored about 0x640, both divided by 399;
+  - returns 2/3 out of bounds, plus a redundant unsigned-column / negative-row
+    recheck that returns 1;
+  - otherwise returns 1 when the mode halfword is 1 and the entry's bit 3 is
+    clear, else 0.
+  - Its tail compiles to the inverted branch form (`beqz` with `li v0,1` in
+    the slot).
+  - Corrected 2026-10-09: the second load is the `lh` of the mode halfword,
+    not a second 0x23608 word, and the tested bit is 3, not the low bit.
 - ovl_11_func_800D806C (s, parked) — near-identical address block to 801136D0:
   bounds-gates a panel-record view then reads `grid[arg1*0x2D + arg0]` and
   returns the entry's flag bit as 0/1.
@@ -12592,8 +12613,14 @@ Members (address order):
 - ovl_11_func_801136D0 (m, matched this session, 0x148, byte-exact) — panel
   normaliser/gate: after the `0x7D0` scale-down of two u16 inputs it reads
   `grid[temp_v1*0x2D + temp_a3]` and returns `(*entry & 8) < 1` (else 2/3).
-- ovl_11_func_8011E090 (s) — twin of 800D7EF8 (reads the grid entry plus the
-  second 0x23608 word and the `+0x45476` halfword, tests the entry's low bit).
+- ovl_11_func_8011E090 (m, matched 2026-10-09, byte-exact) — the 7x7 handler:
+  - x + 0x654, and z mirrored about 0x4C4, both divided by 400;
+  - returns 2/3 out of bounds;
+  - otherwise returns 1 when the mode halfword is 6 and the entry's bit 3 is
+    clear, else 0.
+  - Its tail is the non-inverted branch form; see
+    `notes/retros/2026-10-09-ovl_11_func_8011E090-retro.md`.
+  - Corrected 2026-10-09: there is no `+0x45476` read.
 - ovl_11_func_80120F30 (s) — grid reader that tests a bit selected from the
   `D_801287C4` flag bytes against `grid[arg1*0x2D + arg0]`.
 
