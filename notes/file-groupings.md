@@ -1424,9 +1424,11 @@ Fingerprints:
   `ovl_11_func_80103830`; read-and-written at 8 sites by
   `ovl_11_func_80103964` (the run's heavy mutator);
 - adjacent sibling global `D_8012742C` (main RAM 0x8012742C, next `.word`
-  after `D_80127428`) also cleared by `ovl_11_func_801037EC` and read by
-  trailer `ovl_11_func_801040A8` — the only two sites — the two are
-  adjacent file-scope vars of one TU, same pattern as D_80128B50/5C;
+  after `D_80127428`) also cleared by `ovl_11_func_801037EC`; read by
+  trailer `ovl_11_func_801040A8` and, as a third confirmed site, by
+  `ovl_11_func_80103C00`, where it indexes the shared `D_8012CF10` buffer —
+  the two globals are adjacent file-scope vars of one TU, same pattern as
+  D_80128B50/5C;
 - zero-gap link-order contiguity: the span 0x801037DC–0x801040A8 is one
   unbroken run (each function starts exactly where the previous ends); the
   D_80127428 members are concentrated at the head — 0x801037DC (0x10) →
@@ -1461,6 +1463,11 @@ Members (address order):
   read-modify-write arms on the same field. Matched cluster members
   ovl_11_func_801037EC and ovl_11_func_80104394 remain byte-exact when
   compiled with that flag; no same-group flag contradiction was observed.
+- ovl_11_func_80103C00 (m, matched this session, byte-exact) — input/poll
+  handler and zero-gap successor of 80103B24 (0x80103B24 + 0xDC); reads
+  `D_8012742C` as an index into the shared `D_8012CF10` buffer, maps
+  `D_8005E3A8` bits to a direction, and calls matched members
+  `ovl_11_func_80104418` and `ovl_11_func_80104394`; the run's player-input arm
 - ovl_11_func_801040A8 (m) — trailer reader of D_80127428 and D_8012742C
   (the sibling global's only other site); selects a 0xD6/0x22/0xC4 value from
   D_80127428 and passes `D_8005E3C0->field_D8 + 0x54` plus a D_8012742C-derived

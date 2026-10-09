@@ -1522,6 +1522,7 @@ extern s16 D_801287CC[13];
 extern s16 D_8012CF10[7];
 extern s32 D_8012CF20;
 extern s32 D_80127428;
+extern s32 D_8012742C;
 
 /* D_8012CF30 - 12-halfword (0x18 byte) ovl_11 scratch buffer filled by
  * func_8001A970 (0xFFFF terminator) and passed to func_80017B3C by
