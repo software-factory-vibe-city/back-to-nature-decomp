@@ -10311,6 +10311,19 @@ Members (link order):
   `s16@+0xE` (index 7) and `s16@+0x6` (index 3); shares the `func_8002261C(4, …)` /
   `func_800226A4() == 2` handler shape with `800B8E88`/`800B93B0` and its callee set
   (`func_8002261C`/`func_800226A4`, two `BAC50`, two `BAC40`) with `800B8F38`.
+- ovl_19_func_800B9288 (m, matched this session, byte-exact) — gapless
+  link-order predecessor of `800B93B0` (0x800B9288 + 0x128 = 0x800B93B0) and
+  same overlay-local `D_800BF4C0` state array via the `D_800BF560` label
+  (`D_800BF4C0` + 0xA0): `func_80017B18(0)`/`func_800226D8(0)`/
+  `func_8002261C(4, 0xD)`, then when `s16@+0x12` (index 9) is 4 and `s16@+0x16`
+  (index 11) is < 2 fills the `+0x10` record through `800BAC40`; when
+  `ovl_19_func_800BA25C() == 1`, a `func_800226A4() == 5` arm re-runs
+  `80017B18`/`800226D8` with 1, and a `== 2` handler arm calls `800B843C` and
+  fills the `+0xA0`/`+0xE0` records through `800BAC50` and the `+0x10`/`+0x58`
+  records through `800BAC40`, then writes `s16@+0xE` (index 7) and `s16@+0x6`
+  (index 3); its `D_800BF560`-folded `+0xA0`/`+0xE0`/`-0x90`/`-0x48` callee
+  argument pattern is identical to `800B8F38`'s, and it calls the documented
+  cluster members `800B843C` and `800BA25C`.
 - ovl_19_func_800B93B0 (m, matched this session, byte-exact) — `D_800BF4C0`
   state writer: `func_8002261C(4, 0xE)` then, when `func_800226A4() == 2`,
   clears `s16@+0x6` and, per `func_800225B8()` result 1/2, clears `s16@+0x200`
