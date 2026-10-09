@@ -12406,3 +12406,32 @@ Members (address order):
   second 0x23608 word and the `+0x45476` halfword, tests the entry's low bit).
 - ovl_11_func_80120F30 (s) — grid reader that tests a bit selected from the
   `D_801287C4` flag bytes against `grid[arg1*0x2D + arg0]`.
+
+---
+
+## `ovl_11` `(arg0 << 0x10) == 0` gate pair — 0x800E8614 / 0x800E8760 (confidence: low)
+
+Evidence: zero-gap link order plus a shared entry idiom, not a shared private
+global. `ovl_11_func_800E8614` (0x14C) ends exactly at
+`ovl_11_func_800E8760` (0x40), and the pair's own predecessor
+`ovl_11_func_800E8550` (0xC4) ends exactly at 0x800E8614, so both sit inside one
+unbroken run (0x800E8550 → 0x800E8614 → 0x800E8760 → 0x800E87A0) in the
+0x800E5A1C–0x800EExxx accessor band. Both open with the same
+`(arg0 << 0x10) == 0` halfword-select gate, both call
+`ovl_11_func_800CE744(_, -1)`, and both `return 1`; the shared gate is the tie,
+and neither touches the band's `D_80129560` table, so this is an idiom /
+adjacency member pair rather than a data-family membership.
+
+Members (link order):
+- ovl_11_func_800E8614 (m, matched this session, 0x14C, byte-exact) —
+  halfword-select gate: when arg0's low halfword is zero, walks the five-entry
+  offset table `D_8012490C` (its only known user, newly declared in
+  `globals_override.h`), acquires a record via `ovl_11_func_800CE744(0x109,
+  -1)`, sets bit 0x40000 of s32@+0x34, and copies the 18-byte source record at
+  `D_8005175C + D_80054BBC[1] + D_8012490C[i]` to the record's +0x4 as a packed
+  aggregate; otherwise walks the ten `D_8006C838`+0x7AB4 slots, stepping +0xB4,
+  and calls `ovl_11_func_800E2904` for slots whose `+0x7AE8` word has bit
+  0x40000 set.
+- ovl_11_func_800E8760 (m, 0x40) — same gate idiom and `return 1`: zero halfword
+  calls `ovl_11_func_800CE744(0x15E, -1)`, else
+  `ovl_11_func_8010B64C(&D_80075AD4)`.

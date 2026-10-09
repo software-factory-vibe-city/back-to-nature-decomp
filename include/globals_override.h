@@ -1004,6 +1004,11 @@ extern s32 _D_80129560[] __asm__("D_80129560");
 extern s16 _D_801248F4[] __asm__("D_801248F4");
 #define D_801248F4 _D_801248F4
 
+/* D_8012490C - five-entry s32 offset table walked at +4 stride by
+ * ovl_11_func_800E8614 to index an 18-byte source record per entry.
+ * Absolute-addressed from the overlay (only declared extern, never GP). */
+extern s32 D_8012490C[5];
+
 /* D_80127A9C - overlay-local 16-bit state-table base in ovl_11 data at
  * 0x80127A9C, passed by address to ovl_11_func_800D04D4 from
  * ovl_11_func_8010A0E4. Absolute-addressed from the overlay. */
