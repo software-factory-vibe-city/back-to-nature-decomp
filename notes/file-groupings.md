@@ -9232,9 +9232,15 @@ Members (link order):
   `func_80013394`; on its `result == 1` branch increments the counter via the
   same `base = (s32 *)&D_8006C838; base[0x1122] = base[0x1122] + 1;` local-base
   idiom as `ovl_28_func_800B7F30`, and clears `D_800B961C`
-- ovl_28_func_800B7FD4 (s) — calls `func_8001FB30`/`func_8001FD10`/
-  `func_8001FD74`/`func_8001FE00`/`func_8001FE6C`/`func_80020818` and three
-  `ovl_28` siblings, then increments the counter
+- ovl_28_func_800B7FD4 (m, matched this session, byte-exact) — switch
+  dispatcher over `D_800B961C` (shared with `ovl_28_func_800B7F80`); calls
+  `func_8001FB30`/`func_8001FD10`/`func_8001FD74`/`func_8001FE00`/
+  `func_8001FE6C`/`func_80020818` and three `ovl_28` siblings, then increments
+  the counter via the same `base = (s32 *)&D_8006C838; base[0x1122] =
+  base[0x1122] + 1;` local-base idiom as `ovl_28_func_800B7F30`/
+  `ovl_28_func_800B7F80`. New evidence: not a new member (already listed on the
+  original-asm read), but the matched body confirms the shared local-base idiom
+  and the shared `D_800B961C` state global
 - ovl_28_func_800B8124 (s) — multi-branch dispatcher over `func_800132B8`/
   `func_800132F0`/`func_80013394`/`func_80015114`/`func_80015EE8`; increments
   the counter on one path
@@ -9248,7 +9254,7 @@ Members (link order):
   a u16 at `D_8006C838+0x8000+0x67A0` against 10, calling
   `func_80011EF0(0xD)` on `>= 10` and `func_80011EF0(0x14)` otherwise
 
-Four members are matched; the rest are read off original asm, hence medium
+Five members are matched; the rest are read off original asm, hence medium
 confidence.
 
 ## `ovl_28` D_800B95F8 handler-pointer table run — 0x800B7F30 … 0x800B83C0 / 0x800B8414 / 0x800B8478 / 0x800B865C (confidence: medium)
