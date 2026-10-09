@@ -6395,18 +6395,22 @@ Members:
   applies the `func_8001AF44(mask + 0xFB)` predicate as 0x800F1AE0 does, with
   `one == 1` selecting `!= arg1` over `!= 0`.
 
-## `ovl_11` 0x800F144C–0x800F1744 gapless link run, shared caller 0x800F1078 (confidence: low)
+## `ovl_11` 0x800F144C–0x800F1878 gapless link run, shared caller 0x800F1078 (confidence: low)
 
 Evidence: one unbroken link-order run — `ovl_11_func_800F144C` (0x8C, ends
 0x800F14D8), `ovl_11_func_800F14D8` (0x68), `ovl_11_func_800F1540` (0x74),
 `ovl_11_func_800F15B4` (0xC4, ends 0x800F1678), `ovl_11_func_800F1678` (0xCC,
-ends 0x800F1744) — and the call graph agrees on a shared caller:
+ends 0x800F1744), `ovl_11_func_800F1744` (0x134, ends 0x800F1878) — and the
+call graph agrees on a shared caller:
 `ovl_11_func_800F1078` is the sole caller of both `ovl_11_func_800F15B4`
 (`jal` at 0x800F11D0) and the already-recorded `ovl_11_func_800F144C` (`jal`
 at 0x800F1194). The now-matched 0x800F14D8 shares 0x800F144C's masked
 halfword arguments, 0x1F sentinels, clamped window and wrapped scan predicate;
 its sole caller is also 0x800F1078. This supports the sibling relationship,
-not a definitive TU boundary. 0x800F1540 / 0x800F1678 remain unmatched.
+not a definitive TU boundary. 0x800F1540 / 0x800F1678 remain unmatched; the
+now-matched 0x800F1744 extends the run's tail to 0x800F1878 and reaches the
+same `D_8006C838` record stride 0x1D4 (`+0x8000+0x19EA/0x19EC`) idiom as the
+matched 0x800EFF9C, through the shared callee `ovl_11_func_800C3548`.
 
 Members:
 - ovl_11_func_800F15B4 (m, matched this session, 0xC4, byte-exact) — masked
@@ -6417,6 +6421,11 @@ Members:
 - ovl_11_func_800F14D8 (m, 0x68, byte-exact) — returns 1 for a 0x1F
   sentinel or when the clamped, inclusive window contains the signed halfword
   at arg2+4; wraps values >=31 by subtracting 29.
+- ovl_11_func_800F1744 (m, matched this session, 0x134, byte-exact) — masked
+  mode dispatch returning a `sltu` comparison against a `D_8006C838` record
+  halfword: 0x32/0x33 select the +0x12B2/+0x11C2 halfwords, otherwise the
+  +0x1D4-strided record's +0x8000+0x19EA/0x19EC halfword chosen by
+  `ovl_11_func_800C3548`; the 0x4000 bit of arg2 inverts the comparison.
 
 ## `ovl_11` 0x800C9888–0x800C99C8 shared-caller link run (confidence: low)
 
