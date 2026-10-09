@@ -8186,8 +8186,11 @@ it builds POLY_FT4 primitives via `func_80011F5C`/`func_80011FD8`.
 Members (link order):
 - ovl_28_func_800B8B0C (s) — display-setup: DrawSync(0)/ClearOTagR +
   `func_80014CBC(0,0x3D77000,0x6000,D_8005E3B0+0x4290,1,1)`
-- ovl_28_func_800B8B70 (s) — display-setup: same call with tail arg 0 +
-  `func_8001719C(D_8005E3B0+0x4900)` + record copy from D_8005E3B0+0x4290
+- ovl_28_func_800B8B70 (m, matched this session, byte-exact) — display-setup:
+  same call with tail arg 0 + `func_8001719C(D_8005E3B0+0x4900)`, then
+  `memcpy(&D_800B9750, D_8005E3B0+0x4290, 0x670)` (D_800B9750 is a 0x670-byte
+  scratch buffer immediately after D_800B9720) + the `func_80015704`/
+  `func_80015840` record handoff on `D_800B9720`/`D_800B9750`
 - ovl_28_func_800B8C94 (m, matched this session, byte-exact) — audio-setup
   leaf: `func_8001FBE4(0, D_8005E3B0+0x4290)` then `func_8001FBF0` 0 / 0x3E8 / 0x23
 - ovl_28_func_800B8CE4 (m, matched this session, byte-exact) — display-setup:
@@ -8197,7 +8200,7 @@ Members (link order):
   `func_8001719C(D_8005E3B0+0x4FAC)` + record copy from D_8005E3B0+0x4290,
   tail `func_80015840` 31
 
-The audio leaf and ovl_28_func_800B8CE4 are matched; the rest are read off
+ovl_28_func_800B8B70 and ovl_28_func_800B8CE4 are matched; the rest are read off
 original asm, hence medium confidence.
 
 ## `ovl_21` display-setup state-handler run — 0x800BB328–0x800BBA3C (confidence: medium)
