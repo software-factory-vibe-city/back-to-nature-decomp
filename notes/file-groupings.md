@@ -8087,8 +8087,11 @@ Members (link order):
   buffer `D_800C4B10`; issues three `func_80015BF0` draws, hoisting
   `D_8005E3C0->field_D8 + 0x8C` into one local shared by all three calls (the
   multi-draw slots' shared idiom; slot 0's single draw inlines it)
-- ovl_27_func_800B9DBC (s) — slot 4: counter `D_800C4A34`, buffer `D_800C4B40`;
-  issues five `func_80015BF0` draws
+- ovl_27_func_800B9DBC (m, byte-exact) — slot 4: mod-1800 counter
+  `D_800C4A34`, buffer `D_800C4B40`; issues five `func_80015BF0` draws with
+  `D_8005E3C0->field_D8 + 0x8C` hoisted into one local shared by all five
+  (same multi-draw shared idiom as slots 3/5), redraw every `>= 0x14` with
+  `func_80012A34(2) + 0x18`
 - ovl_27_func_800B9EEC (m, matched this session, byte-exact) — slot 5: counter
   `D_800C4A36`, buffer `D_800C4B70`, redraw every `>= 0x1E`; issues three
   `func_80015BF0` draws with `D_8005E3C0->field_D8 + 0x8C` hoisted into one
