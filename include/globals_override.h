@@ -1981,5 +1981,17 @@ typedef struct {
 
 extern Ovl11Rect80128D80 D_80128D80;
 
+/* D_8006F5F0 - 0xE10-byte main-RAM buffer. ovl_11_func_800F0E00 clears and
+ * block-copies 0xE10 bytes into it, then scans it as a 0x24-stride array of
+ * u16-terminated records. Absolute-addressed (lui + %lo) from the -G0
+ * overlay; the overlay only declares it, so an extern scalar belongs here. */
+extern u16 D_8006F5F0;
+
+/* D_80129618 / D_8012961C - ovl_11 private state pair in the overlay data
+ * segment: a list count and a state code. Both absolute-addressed (lui + %lo)
+ * from -G0 overlay code; only extern declarations belong here. */
+extern s32 D_80129618;
+extern s32 D_8012961C;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

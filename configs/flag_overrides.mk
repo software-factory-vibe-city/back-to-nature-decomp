@@ -485,7 +485,34 @@ CC1FLAGS_ovl_15_func_8013345C := -fno-gcse
 # file), so the override cannot disturb the matched ovl_11 neighbours.
 CC1FLAGS_ovl_11_func_800FE068 := -fno-strength-reduce
 
-
+# ovl_11_func_800F0E00: -fno-strength-reduce.
+#
+# Target fingerprint (decoded from the original bytes, no source needed): the
+# 0xFFFF-terminated scan recomputes the element address from its index every
+# iteration -- `sll v0,a1,3 / addu v0,v0,a1 / sll v0,v0,2 / addu v0,v0,s0`
+# (enumerated count*0x24) -- and psx_target_loop_emission reports no giv init
+# in the loop preheader at 0x800F0EF4 (its classes are source movables and the
+# source induction init only). The target carries no strength-reduced entry
+# pointer and no `addiu <reg>,<reg>,0x24` walker update for the scan. Under
+# baseline flags loop.c reduces `count*0x24` to exactly that walker induction
+# initialized in the preheader (measured: the candidate `while`/`for` family
+# produces the reduced pointer loop with 16 basic blocks against the target's
+# 14), so the target's redundant per-iteration arithmetic is unreachable from
+# any C spelling at baseline.
+#
+# Flag column: -fno-strength-reduce is the only column that leaves the
+# recomputed index multiply in place. Baseline is 22/72 words; the two
+# precedent ovl_11 TUs below show the same fingerprint resolving to an exact
+# match under this flag alone.
+#
+# Regional precedent: ovl_11_func_800F8224 and ovl_11_func_800FE068 in this
+# same overlay are matched TUs whose overrides are also -fno-strength-reduce,
+# so disabling strength reduction is an observed per-TU fact of this build,
+# not a workaround.
+#
+# No contrary regional witness: this src file is its own TU (one function per
+# file), so the override cannot disturb the matched ovl_11 neighbours.
+CC1FLAGS_ovl_11_func_800F0E00 := -fno-strength-reduce
 
 
 # ovl_11_func_800E7660: -fno-cse-skip-blocks.
