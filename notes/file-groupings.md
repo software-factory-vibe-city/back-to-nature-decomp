@@ -8642,9 +8642,13 @@ Members (link order):
   flag-setter: `func_80015814` ORs 4 into the `D_800C024C`
   (+0x00/+0x30/+0x60/+0x90), `D_800C013C` and `D_800C0334` records, and walks
   the `D_800C024C`−0x3B0/`D_800C024C`−0x3E0 pointer pair 6x (stride 0x78)
-- ovl_25_func_800BA40C (s) — record/state initialiser; clears a series of
-  `D_800C024C` (+0x00/+0x30/+0x60/+0x90) and `D_800C013C`/`D_800C0334` records
-  via repeated `func_80015828(base, 4)` calls
+- ovl_25_func_800BA40C (m, matched this session, byte-exact) — record/state
+  initialiser; clears a series of `D_800C024C` (+0x00/+0x30/+0x60/+0x90) and
+  `D_800C013C`/`D_800C0334` records via repeated `func_80015828(base, 4)` calls;
+  local-variable role/loop structure identical to the adjacent
+  `ovl_25_func_800BA2E8` (`base`/`q`/`p`/`i` two-pointer walker, same 0x1D8/0x1F0
+  offsets, same 6x stride-0x3C loops), confirming the shared declaration-order
+  idiom rather than only the base reference
 - ovl_25_func_800BA530 (m, matched this session, byte-exact) — resets
   `D_800C024C` via `func_80015840(&D_800C024C, 0)`, then reads its
   `ObjectState` fields +4/+5 and the `HWD0`/`VWD0` halfwords and passes them to
