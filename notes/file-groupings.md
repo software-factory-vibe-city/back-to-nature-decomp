@@ -8608,19 +8608,29 @@ Members (link order):
   path selects `D_800BFE46` = 4/0 by `func_800225B8() == 1`, otherwise clamps
   the halfword down by 0x21
 
-## `ovl_25` D_800C024C object-state base run — 0x800BA40C–0x800BA5BC (confidence: medium)
+## `ovl_25` D_800C024C object-state base run — 0x800BA2E8–0x800BA5BC (confidence: medium)
 
 Candidate same-TU run of `ovl_25` around the extern object-state base
 `D_800C024C`. Evidence is gapless link adjacency plus a shared absolute base
 built with `lui/addiu %hi/%lo(D_800C024C)` and passed as the first argument to
-the `func_80015828`/`func_80015840` helper pair; `D_800C024C` is
-`extern`/absolute, so it is not TU-owned (no gp-rel cluster observed).
+the `func_80015814`/`func_80015828`/`func_80015840` helper family; `D_800C024C`
+is `extern`/absolute, so it is not TU-owned (no gp-rel cluster observed).
 
 Fingerprints:
-- address adjacency: `ovl_25_func_800BA40C` (0x124, ends 0x800BA530) sits
-  immediately before `ovl_25_func_800BA530` (0x8C, ends 0x800BA5BC), which is
-  followed directly by `ovl_25_func_800BA5BC` (0x19C) — contiguous, no
-  unrelated code between;
+- address adjacency: `ovl_25_func_800BA2E8` (0x124, ends 0x800BA40C) sits
+  immediately before `ovl_25_func_800BA40C` (0x124, ends 0x800BA530), which
+  sits immediately before `ovl_25_func_800BA530` (0x8C, ends 0x800BA5BC),
+  which is followed directly by `ovl_25_func_800BA5BC` (0x19C) — contiguous,
+  no unrelated code between;
+- shared base/field set: `ovl_25_func_800BA2E8` touches `&D_800C024C` at byte
+  offsets 0x00/0x30/0x60/0x90, the same four `D_800C024C` records
+  `ovl_25_func_800BA40C` clears, and both also reference `D_800C013C` and
+  `D_800C0334`; 0x800BA2E8 supplies the set-bits counterpart
+  (`func_80015814`) to 0x800BA40C's clear-bits (`func_80015828`);
+- cross-container idiom (not TU evidence for `ovl_25`): the 6x
+  two-pointer walker over one shared base matches the
+  `ovl_23_func_800BB0E8` shape (`ovl_23` D_800BFA90/D_800BF8BC array-pair
+  walkers), the same author idiom with a different helper and offsets;
 - shared absolute base: `ovl_25_func_800BA40C` and `ovl_25_func_800BA530` both
   build `%hi/%lo(D_800C024C)` into `$s0` and pass `&D_800C024C` as arg0 to the
   adjacent helpers `func_80015828`/`func_80015840`;
@@ -8628,6 +8638,10 @@ Fingerprints:
   the same `%hi/%lo(D_800C0334)` base, so the run terminator is retained.
 
 Members (link order):
+- ovl_25_func_800BA2E8 (m, matched this session, byte-exact) — record
+  flag-setter: `func_80015814` ORs 4 into the `D_800C024C`
+  (+0x00/+0x30/+0x60/+0x90), `D_800C013C` and `D_800C0334` records, and walks
+  the `D_800C024C`−0x3B0/`D_800C024C`−0x3E0 pointer pair 6x (stride 0x78)
 - ovl_25_func_800BA40C (s) — record/state initialiser; clears a series of
   `D_800C024C` (+0x00/+0x30/+0x60/+0x90) and `D_800C013C`/`D_800C0334` records
   via repeated `func_80015828(base, 4)` calls
