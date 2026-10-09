@@ -7830,6 +7830,13 @@ Members:
   `(rec[0x2E] - rec[0x2C]) * 0xFF / ((rec[0x2A] + 1) * work.s16@+0x14)` and
   clamps to s16@+0x2C; same `base = D_800BD848` + 0x50-stride countdown idiom
   as 800B9CAC.
+- ovl_17_func_800B946C (m, 2026-10-08) — walk of 6 D_800BD848 records
+  (0x50 stride) adjusting s16@+0x2A toward base s16@+0x12 and s16@+0x2E by
+  `rec[0x2E] * (rec[0x36] + work.s16@+0x0E) / (work.s16@+0x10 * 0xFF)`,
+  once-gated on `work.s16@+0x6514 != 3` and `func_80012A34(0x64) < 0x22`;
+  same `base = D_800BD848` + 0x50-stride field pair as 800B9594/800B9CAC,
+  and its sole caller is the cluster hub ovl_17_func_800B8898 already bound
+  to this group via 800B986C.
 - ovl_17_func_800BAFDC (m, 2026-11-01) — countdown walk of 6 D_800BD870
   records (0x50 stride): calls ovl_17_func_800BAFAC(base); same
   `base = D_800BD870` + 0x50-stride countdown idiom as 800B9CAC and the
