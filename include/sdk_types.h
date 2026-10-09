@@ -2019,6 +2019,24 @@ typedef struct {
 typedef struct {
                s16 unk0;
                s16 unk2;
+} M2C_f90dacf3c1c7_Ovl11ObjHead;
+
+typedef struct {
+               s32 unk0;
+               s32 unk4;
+               s32 unk8;
+} M2C_f90dacf3c1c7_Ovl11Pos;
+
+typedef struct {
+               M2C_f90dacf3c1c7_Ovl11Pos *unk0;
+               M2C_f90dacf3c1c7_Ovl11ObjHead *unk4;
+               u8 pad8[0xC];
+               s32 unk14;
+} M2C_f90dacf3c1c7_Ovl11CheckArg;
+
+typedef struct {
+               s16 unk0;
+               s16 unk2;
                s16 unk4;
                s16 pad6;
                s16 unk8;

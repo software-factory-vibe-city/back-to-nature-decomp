@@ -26,6 +26,7 @@ void ovl_11_func_800BDA70(void);
 s32 ovl_11_func_800BDCE0(void);
 void *ovl_11_func_800BDE84(u8 *arg0, s16 *arg1);
 void ovl_11_func_800BE2B8(void);
+s32 ovl_11_func_800BE5A0(M2C_f90dacf3c1c7_Ovl11CheckArg *arg0, s32 arg1, s32 arg2, void *arg3);
 struct_80076220 *ovl_11_func_800BF1D0(s16 *arg0, void *arg1, void *arg2);
 u16 ovl_11_func_800BF2F4(s16 *arg0, s16 *arg1);
 s32 ovl_11_func_800BF3D0(void);
