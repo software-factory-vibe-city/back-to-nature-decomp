@@ -10529,7 +10529,7 @@ ends at `801367F8` (its successor `80136990` references neither).
 
 Members (link order):
 - ovl_15_func_80135C20 (s) — `MemCardAccept` + `MemCardSync`; `D_80137598`.
-- ovl_15_func_80135E9C (s) — `MemCardExist` + `MemCardSync`; `D_80137598`.
+- ovl_15_func_80135E9C (m, matched this session, byte-exact) — `MemCardExist` + `MemCardSync` retry/return dispatcher over the u16 `D_80137598` (incremented with `lhu`, compared signed with `lh`, cleared on `MemCardSync` == -1).
 - ovl_15_func_80135FF0 (s) — `MemCardGetDirentry` + `MemCardSync`; `D_80140EC0`.
 - ovl_15_func_80136288 (s) — `MemCardReadFile` + `MemCardSync`; `D_80140EC0`.
 - ovl_15_func_80136470 (s) — `MemCardFormat` + `MemCardSync`; `D_80137598`.
