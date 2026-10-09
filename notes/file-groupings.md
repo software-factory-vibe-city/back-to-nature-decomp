@@ -5510,7 +5510,7 @@ Members (address order):
   +0xE4C8 cell.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7954 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -5588,6 +5588,17 @@ the overlay, never GP-relative), and the large-offset writers use the same
   fragment across the switch and re-splices `%lo` in the mode-5 arm — the same
   shared-base idiom as 0x800E63C8; leaf, byte-exact clean C, baseline flags;
   link-sits in the 0x800E5A1C–0x800EExxx accessor band
+- ovl_11_func_800E7798 (m, matched this session) — arg0 mode dispatcher
+  (switch on 2 then 1/3): the arg0==1 arm writes the `D_8007AFF0`+0x254A0 mode
+  word and sets bit 0x400 of the sibling s32 at +0x5234 (the same
+  0x800E953C/0x800E63C8/0x800E7954 cell) before func_8001AF70(0x47,1); modes
+  2/3 call 0x800E99EC, and the common tail (`arg3 & 2`, 0x800E9620, 0x800EAF5C)
+  touches +0x4450 and +0x7A74; fixes `&D_8006C838` in a struct-view cast so cc1
+  keeps one `lui %hi(D_8006C838)` fragment and re-splices `%lo` — the same
+  shared-base idiom as 0x800E7954/0x800E63C8 — and its `&D_8007AFF0`+0x254A0
+  mode word is the cell 0x800E7954 also writes; byte-exact clean C, baseline
+  flags; link-sits in the 0x800E5A1C–0x800EExxx accessor band, adjacent to
+  matched 0x800E78E4
 - ovl_11_func_800F2508 (m, matched this session) — stride-4 clear leaf: stores
   -1 into 20 byte fields at +0x49E6 / +0x4A36 (byte read/write class shared with
   the documented 0x800D0EA4 / 0x800D0ED0 flag-byte pair near +0x4AC0) and zeroes
