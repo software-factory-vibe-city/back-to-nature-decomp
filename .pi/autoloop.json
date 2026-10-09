@@ -208,6 +208,9 @@
       "ovl_11_func_800fc8c8": [
         "register-asm",
         "embedded-asm"
+      ],
+      "ovl_21_func_800ba698": [
+        "flag-override"
       ]
     }
   }

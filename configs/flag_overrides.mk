@@ -296,6 +296,29 @@ CC1FLAGS_ovl_11_func_80103B24 := -fno-cse-skip-blocks
 # boundary from the repository's one-function-per-file source layout.
 CC1FLAGS_ovl_21_func_800B98CC := -fno-schedule-insns
 
+# ovl_21_func_800BA698: -fno-gcse.
+#
+# Target fingerprint: the target's preheader and its first inner-loop block
+# each keep a symbol-derived temporary alive in $v1 — `addiu v1,s4,3` for the
+# outer bound and `addiu v1,s5,0x34` for the var_s1 base — while baseline gcse
+# (plus one more source statement order, measured independently) puts the bound
+# in $a0 and the base in $v0. The value levels are identical; gcse only changes
+# the allocator's live ranges, so the same word sequence cannot be reached by
+# any spelling of the program at baseline. With -fno-gcse both temporaries land
+# in $v1 and every one of the 86 target words is reproduced from clean C
+# (`diffFunc` VERDICT MATCH); baseline keeps two words wrong.
+#
+# Flag column on the final source: -fno-gcse is the probe's dominant row
+# (build/flagProbe/ovl_21_func_800BA698: baseline 48/86 masked; -fno-gcse 50/86;
+# every scheduling / cse-skip / split-address column at or below baseline). The
+# probe's target fingerprint is the -fno-gcse 'in-place bottom increment' shape
+# at word 68 inside the nested loop.
+#
+# No contrary regional witness: overlays are built -G0 and this src file is its
+# own TU (one function per file); the matched ovl_21 neighbours carry no
+# -fno-gcse override and are unaffected.
+CC1FLAGS_ovl_21_func_800BA698 := -fno-gcse
+
 # ovl_17_func_800B9158: -fno-cse-skip-blocks.
 #
 # Target fingerprint (proved unreachable from clean C at baseline, no source

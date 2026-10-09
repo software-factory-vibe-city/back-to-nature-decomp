@@ -8723,6 +8723,17 @@ Members (link order):
   near-twin of `ovl_21_func_800BA7F0` (same `sel/pos/step` fixed-point
   counter idiom); membership rests on the shared global and idiom, not on
   adjacency.
+- ovl_21_func_800BA698 (m, matched this session, byte-exact, finalized) —
+  gapless link predecessor of `ovl_21_func_800BA7F0` (0x800BA698 + 0x158 =
+  0x800BA7F0); same `D_800C0448` record-table scan as `ovl_21_func_800B9844`:
+  outer loop over three consecutive records starting at index `arg2*3` (stride
+  0x108), inner loop bounded by the halfword at `D_800C0448 + 0x64A` over a
+  0x4C sub-stride, testing record +0x34 and returning the +0x34 sub-view
+  pointer at the first record whose word is not 1 or whose `SquareRoot0`
+  distance exceeds `arg1`. Membership rests on gapless link adjacency to the
+  matched 800BA7F0 plus the shared global and scan idiom. Its evidence-gated
+  `-fno-gcse` override (see `configs/flag_overrides.mk`) is a per-function
+  technique fact and, like the 800B98CC override, establishes no TU boundary.
 - ovl_21_func_800B98CC (m, byte-exact, finalized) — stores and returns a
   0/1 range predicate using s16@argument+2 and u16@argument+0x1C.
   Caller 800B8B3C passes a D_800C0448 record's +0x10 sub-view, establishing
