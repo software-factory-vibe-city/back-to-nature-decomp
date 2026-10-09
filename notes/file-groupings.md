@@ -12332,3 +12332,40 @@ Members (address order):
   stack-box idiom over arg0[0]/arg0[2] with the 0x96 half-range, scanning a
   0xC5-entry 0x18-stride record array reached through the
   `D_8006C838+0x8000+0x5D8C` pointer slot; returns the record's u16@+2.
+
+## `ovl_11` D_8007AFF0+0x23608 45-column pointer-grid readers — 0x800D7EF8 / 0x800D806C / 0x80113208 / 0x801136D0 / 0x8011E090 / 0x80120F30 (confidence: medium-low)
+
+Candidate same-TU data family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence: all six
+container-wide referrers of the private constant 0x23608 reach it through the
+`D_8007AFF0` far-work-area base (`lui %hi(D_8007AFF0)` + `addiu %lo`, two
+references each; no other function in the container contains 0x23608), and all
+index the pointer grid at `D_8007AFF0 + 0x23608` with the same 45-column stride:
+`(row * 0x2D + col) * 4`. The stride is materialised two ways — the
+`row*3 / <<4 / -row*3` (×45) chain at 800D7EF8/800D806C/8011E090/80120F30/
+801136D0, and the equivalent `arg1*45*4` plus `arg0*4` at 80113208 — and the
+base offset is either loaded whole (`lui 2` + `ori 0x3608`) or split
+(`base + 0x20000` with a `0x3608` load displacement, 800D7EF8/8011E090).
+801136D0 and the parked 800D806C are instruction-for-instruction identical in
+their address block (same `lui 0x23608` / `lui %hi(D_8007AFF0)` /
+`row*45+col` / `<<2` / `addu base,offset` / `addu base,index` / `lw`
+sequence, including the base-first final `addu`). What the tie is not: the six
+members span ~0x72CAC of text (0x800D7EF8 → 0x80120F30) with no call edge
+among them, so this is a data-family tie, not proven TU membership; five of the
+six are still stubs.
+Members (address order):
+- ovl_11_func_800D7EF8 (s) — grid reader + `D_8007AFF0`-relative gate: reads
+  the grid entry at (a3*0x2D + t0) and a second word one 0x23608 further on,
+  tests the entry's low bit and returns the masked word.
+- ovl_11_func_800D806C (s, parked) — near-identical address block to 801136D0:
+  bounds-gates a panel-record view then reads `grid[arg1*0x2D + arg0]` and
+  returns the entry's flag bit as 0/1.
+- ovl_11_func_80113208 (s, parked) — same reader shape as 801136D0: reads
+  `grid[arg1*0x2D + arg0]`, tests the entry's `0x8` bit and the `0x2D`/`0x3D`/
+  `0xFD` tag prefixes, then indexes `D_801281D0`.
+- ovl_11_func_801136D0 (m, matched this session, 0x148, byte-exact) — panel
+  normaliser/gate: after the `0x7D0` scale-down of two u16 inputs it reads
+  `grid[temp_v1*0x2D + temp_a3]` and returns `(*entry & 8) < 1` (else 2/3).
+- ovl_11_func_8011E090 (s) — twin of 800D7EF8 (reads the grid entry plus the
+  second 0x23608 word and the `+0x45476` halfword, tests the entry's low bit).
+- ovl_11_func_80120F30 (s) — grid reader that tests a bit selected from the
+  `D_801287C4` flag bytes against `grid[arg1*0x2D + arg0]`.
