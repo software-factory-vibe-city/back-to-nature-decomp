@@ -442,6 +442,26 @@ typedef struct {
     u8 unk24;
 } Recon_ovl_17_func_800BB020_A0View;
 
+/* ovl_17_func_800BAD9C argument view: a D_800BD870 record (0x50 stride).
+ * +0x14 points at a small animation/reference triple read as three s16s
+ * (+0/+2/+4); +0x20 is passed to func_80015868 as a Struct_800154CC; the
+ * bytes +0x24/+0x25 are read unsigned (lbu) and passed to func_80015EE8. */
+typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} Recon_ovl_17_func_800BAD9C_AnimRef;
+
+typedef struct {
+    u8 field_0;                                  /* 0x00 */
+    char pad_1[0x10 - 0x01];
+    s32 field_10;                                /* 0x10 */
+    Recon_ovl_17_func_800BAD9C_AnimRef *field_14; /* 0x14 */
+    char pad_18[0x24 - 0x18];
+    u8 field_24;                                 /* 0x24 */
+    u8 field_25;                                 /* 0x25 */
+} Recon_ovl_17_func_800BAD9C_A0View;
+
 typedef struct {
     char pad_0[0x4];
     s16 unk4;

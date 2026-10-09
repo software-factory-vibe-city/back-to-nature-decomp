@@ -1424,6 +1424,14 @@ extern u8 D_800BD758[];
 
 extern u8 D_800BDA74[];
 
+/* D_800BDAD4 - ovl_17 object-state record embedded at +0x28C of the
+ * D_800BD848 display-area block. ovl_17_func_800BAD9C passes its address to
+ * func_80015EE8 and reads the two bytes at +4/+5 through a base pointer
+ * biased to D_800BDAD4 - 0x28C, exactly as the matched ovl_17_func_800BAF50
+ * does with D_800BDA74 - 0x22C. Plain extern (never defined in this TU),
+ * absolute-addressed (-G0). */
+extern u8 D_800BDAD4[];
+
 extern u8 D_800BD870[];
 
 extern u8 D_800BFA90[];

@@ -8125,6 +8125,16 @@ three call `func_80015840(ObjectState *, s8)`.
   `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800BDA74, work[0x230],
   work[0x231], 0, 0)`; link-adjacent to 800BAEF0/800BAFAC, same
   func_80015840 callee.
+- ovl_17_func_800BAD9C (m, 2026-10-09) — per-record display step over the
+  D_800BD870 records (0x50 stride): reads the record's u8 flags@+0x00 and
+  s32@+0x10, indexes `D_8005E3C0->field_D8` by `record->+0x14->s16@+0x4 * 4`,
+  passes `record+0x20` to func_80015868 and the renderer pair
+  func_80015EE8/func_800248E8; its sole caller ovl_17_func_800B92B0 walks the
+  same 6 records at 0x50 stride as 800BAFDC/800BB050. It also reaches the
+  D_800BD848 work area at +0x290/+0x291 through the `D_800BDAD4` alias
+  (`D_800BDAD4 - 0x28C`), the same work area 800BAEF0/800BAF50 address via
+  `D_800BDA74` (+0x22C); this is the call/link adjacency binding the
+  D_800BD870 record walk to the D_800BD848 work area.
 
 ## `ovl_17` Rand(100) percentage-roll wrapper trio + predicate — 0x800B9DB8–0x800B9E34 (confidence: medium)
 

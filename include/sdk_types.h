@@ -2421,6 +2421,22 @@ typedef struct {
 } Recon_ovl_11_func_8010D250_A0View;
 
 typedef struct {
+    s16 field_0;
+    s16 field_2;
+    s16 field_4;
+} Recon_ovl_17_func_800BAD9C_AnimRef;
+
+typedef struct {
+    u8 field_0;
+    char pad_1[0x10 - 0x01];
+    s32 field_10;
+    Recon_ovl_17_func_800BAD9C_AnimRef *field_14;
+    char pad_18[0x24 - 0x18];
+    u8 field_24;
+    u8 field_25;
+} Recon_ovl_17_func_800BAD9C_A0View;
+
+typedef struct {
     char pad_0[0x24];
     u8 unk24;
 } Recon_ovl_17_func_800BAFAC_A0View;
