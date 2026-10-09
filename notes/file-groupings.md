@@ -8405,6 +8405,14 @@ Members (link order):
   shared `D_800C0448` global, the `ovl_21_func_800BA4C0` call, and gapless
   link adjacency (0x800B92C8 + 0x128 = 0x800B93F0, + 0xE4 = 0x800B94D4).
   Reveals `D_800BCC60` as a second shared ovl_21 global.
+- ovl_21_func_800B92C8 (m, byte-exact, finalized this session) — link
+  predecessor of `ovl_21_func_800B93F0` (0x800B92C8 + 0x128 = 0x800B93F0);
+  same SpuGetKeyStatus state-handler over the `D_800C0448 + 0x986` / `+ 0x988`
+  state pair and `D_800BCC60` voice-bit table, adding a `D_800C0448 + 0x988
+  == -1` / `func_800226A4() == 2` reset to `D_800C0448[0] = 0x12` and a
+  `func_800226A4() == 5` init via `func_8001FABC(0x45)` +
+  `ovl_21_func_800B9798(1, 0xB)`. Membership rests on the shared globals, the
+  `ovl_21_func_800BA4C0` call, and gapless link adjacency.
 - ovl_21_func_800BAF70 (m, matched this session, byte-exact) — ObjectState
   reset/handoff leaf: `func_80015840(&D_800C0AFC, 0)` then
   `func_80015EE8(D_8005E3C0->field_D8 + 4, &D_800C0AFC, base[0x6B8],
@@ -8487,8 +8495,9 @@ Fingerprints:
   three records per 0x318-byte group (`func_800B9A20` walks the table at a
   0x318 stride). Beyond the record table, `D_800C0448 + 0x986` (s16 index)
   and `+ 0x988` (s16/u16 counter) form a state pair used by
-  `ovl_21_func_800B93F0` and its unmatched SpuGetKeyStatus near-twins
-  `ovl_21_func_800B9178` / `ovl_21_func_800B92C8`; those same handlers index
+  `ovl_21_func_800B93F0` and its SpuGetKeyStatus near-twins
+  `ovl_21_func_800B9178` (unmatched) / `ovl_21_func_800B92C8` (matched); those
+  same handlers index
   the shared `D_800BCC60` voice-bit table. The trio's declaration only
   witnessed the leading halfwords.
 - `D_800BCC60` — ovl_21 u32 table of 25 voice-bit masks (0x1..0x800000, then
