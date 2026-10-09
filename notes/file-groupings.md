@@ -1285,7 +1285,11 @@ Members (address order):
   arg1, else 0
 - ovl_11_func_800C1280 (m, matched this session) — twin leaf lookup over 18
   entries (`sltiu 0x12`), byte-exact
-- ovl_11_func_800C12DC (s) — no D_80122F0C reference; sits in the run
+- ovl_11_func_800C12DC (m, matched this session) — no D_80122F0C reference;
+  sits in the run (link adjacency only). One-line role: scans the five 12-byte
+  `D_80074838` records, comparing each against the `D_8006C838` s16 trios at
+  `+0x44B8`/`+0x44BA`/`+0x44BC` and the `+0xE4DC` halfword array, then tests
+  the `+0x5488` trio after the loop
 - ovl_11_func_800C141C (m, matched this session) — range-gated reader: calls
   `ovl_11_func_800C1224` on the shared `+0x44BA/+0x44BC` s16 pair, then returns
   field @4 of `D_80122F0C[ret-1]` when it is not -1

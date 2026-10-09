@@ -749,6 +749,27 @@ typedef struct {
     s16 field_548C;
 } Ovl11Status5488View;
 
+/* D_8006C838 slots compared by ovl_11_func_800C12DC: the +0x44B8 triple,
+ * the +0x5488 triple, and the +0xE4DC halfword array stepped by six. */
+typedef struct {
+    char pad_000[0x44B8];
+    s16 field_44B8;
+    s16 field_44BA;
+    s16 field_44BC;
+    char pad_44BE[0x5488 - 0x44BE];
+    s16 field_5488;
+    s16 field_548A;
+    s16 field_548C;
+    char pad_548E[0xE4DC - 0x548E];
+    s16 field_E4DC[1];
+} Ovl11Status44B8View;
+
+/* D_80074838 five 12-byte records read by ovl_11_func_800C12DC. */
+typedef struct {
+    char pad_000[0x64D8];
+    s16 recs[5][6];
+} Ovl11Rec64D8View;
+
 /* 0x30-byte table entry scanned by ovl_11_func_800DDC64. */
 typedef struct {
     u8 pad[0x28];
