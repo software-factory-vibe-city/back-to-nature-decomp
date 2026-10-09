@@ -6825,6 +6825,26 @@ Members:
 
 ---
 
+## `ovl_11` 0x800C3B78 / 0x800C3CCC link-order pair — far-buffer readers (confidence: low)
+
+Gapless link-order neighbours in `ovl_11` that each dereference the
+`D_8007AFF0 + 0x25388` far-buffer pointer slot, at different fields of the
+pointed-to object. That slot is container-wide (many `ovl_11` functions reach
+it), so the shared deref is only a data tie; the pair's membership evidence is
+the zero-gap link order confirmed by `configs/splat/ovl_11.yaml`
+(0xBD58 + 0x154 = 0xBEAC). TU membership unproven.
+
+- ovl_11_func_800C3B78 (m, matched this session, 0x154, byte-exact) — heading
+  emitter: selects the +0x6 heading halfword from arg1 +0x4 or -0x8, converts
+  the +0x30/+0x38 vs +0x6/+0xA deltas through `ratan2`, writes `rsin`/`rcos`-
+  scaled speed to +0x50/+0x58, and zeroes those for event codes 3/9/0x11/0x12
+  or both-unit deltas; reads the far pointer's u16@+8 bit 0x1000 to choose
+  D_80122F7C or D_80122F80.
+- ovl_11_func_800C3CCC (m) — see the `struct_80076220` u16@+4 cluster above;
+  it reads the same far pointer's s16@+0.
+
+---
+
 ## `ovl_11` 0x8011FD2C–0x8011FF74 link-order run — paired drivers and halfword writers (confidence: low)
 
 Zero-gap link-order run in `ovl_11` whose matched member calls the matched
