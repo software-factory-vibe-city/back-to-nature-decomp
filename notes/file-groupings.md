@@ -6892,7 +6892,7 @@ with different widths and far-apart addresses.
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800EE528 + 0x800EC490 (confidence: medium)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): eighteen matched
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): nineteen matched
 functions sharing the one ovl_11-private 0x50-byte s32 table
 `D_80129560` (`globals_override.h`), each guarded-indexing it with
 `s16`-scaled slots.
@@ -6983,9 +6983,21 @@ Members:
   four-slot default restore: for each of four args, if `!= -1`, writes
   `D_80129560[arg] = D_80070D06/08/0A/0C` (four adjacent engine-rodata u16s,
   read nowhere else in ovl_11 except `D_80070D06` at 800CD0C0); returns 1.
-  Sits zero-gap between `ovl_11_func_800EC354` (0x13C, stub) and
-  `ovl_11_func_800EC52C` (0xF7C, stub) — adjacency uncorroborated while both
-  neighbours are unmatched, recorded here as position only.
+  Zero-gap link-order successor of the now-matched
+  `ovl_11_func_800EC354` (0x800EC354 + 0x13C), so that edge is
+  matched-to-matched; still zero-gap before `ovl_11_func_800EC52C` (0xF7C,
+  stub), whose adjacency stays uncorroborated.
+- ovl_11_func_800EC354 (m, matched 2026-11 — this session, 0x13C, byte-exact) —
+  guarded slot read + record resolve + multi-slot writer: when `arg1 != 0`
+  loads `arg1 = D_80129560[arg0]` through the family's s16-scaled index, then
+  resolves a 0x1D4-stride record off `D_8006C838` (the special
+  +0x5246/+0x5248 pair when `arg1 == 0x29`; `(arg1-0x32)*0xF8` when `>= 0x32`;
+  else `arg1*0x1D4`) via the `base+0x8000` split-base idiom, reads the shared
+  `D_8006C838`+0x44BA/+0x44BC s16 pair, and writes each selected value back to
+  `D_80129560[arg2]`/`[arg3]` under the family's `!= -1` guard; returns the
+  pair-equal predicate. Zero-gap matched-to-matched predecessor of 800EC490 and
+  shares the 0x1D4 record space and 0x29 special case with
+  800EB79C/800E9778, inside the 0x800E5A1C–0x800EExxx accessor band.
 - ovl_11_func_800ED760 (m) — writer-side probe: resolves scan target through
   the table when `arg2 != 0`, then scans `D_80070C72[5]`.
 - ovl_11_func_800E9CE4 (m, matched 2026-11 — this session, 0x44, byte-exact) —
