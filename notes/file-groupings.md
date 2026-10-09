@@ -7738,9 +7738,11 @@ Members (link order):
 
 ## `ovl_11` func_8001ABF0 text-copy wrapper twin pair — 0x8011CEE0 / 0x8011CF10 (confidence: medium)
 
-- **gapless link adjacency:** `ovl_11_func_8011CEE0` (0x30 bytes at 0x0650C0)
-  ends exactly at `ovl_11_func_8011CF10` (0x30 bytes at 0x0650F0) — one
-  unbroken link run, consecutive functions.csv rows, both matched byte-exact;
+- **gapless link adjacency:** `ovl_11_func_8011CC08` (0x124 at 0x8011CC08)
+  ends exactly at `ovl_11_func_8011CD2C` (0x1B4 at 0x8011CD2C), which ends
+  exactly at `ovl_11_func_8011CEE0` (0x30 bytes at 0x0650C0), which ends
+  exactly at `ovl_11_func_8011CF10` (0x30 bytes at 0x0650F0) — one unbroken
+  link run, consecutive functions.csv rows, all matched except 8011CD2C;
 - **identical bodies modulo one symbol:** the two originals carry the same
   binary hash; every word agrees except the second `%hi/%lo` pair, which
   names `D_80051808` in one and `D_8005180C` in the other — adjacent
@@ -7748,11 +7750,15 @@ Members (link order):
 - **shared callee and global cluster:** both are leaves whose sole edge is
   `func_8001ABF0(dst, (u16 *)(D_80054BC0[0] + (s32)&D_800518xx))` (exe-side
   u16 copy helper, see the u16-text TU entries);
-- **shared callers:** `ovl_11_func_8011CC08` references both
+- **shared callers:** `ovl_11_func_8011CC08` (m) references both
   (`ovl_11_func_8011D474` calls both back to back), and
   `ovl_11_func_8011CD2C` calls 8011CEE0 directly.
 
 Members (link order):
+- ovl_11_func_8011CC08 (m) — head of the run: a selector branch picks the
+  text base `D_8005175C + (D_80054BC0[0] + 0x76/0x6A)` and one of the two
+  wrappers as the renderer, drawing via `func_8001A970`/`func_80017B3C` and a
+  `func_800136D4` box.
 - ovl_11_func_8011CEE0 (m) — void leaf wrapper: copies the u16 string at
   `D_80054BC0[0] + &D_80051808` via func_8001ABF0
 - ovl_11_func_8011CF10 (m) — twin wrapper over `D_80054BC0[0] +
