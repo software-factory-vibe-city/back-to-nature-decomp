@@ -2,17 +2,22 @@ import { runCommand } from "../../shared/process.ts";
 import type { ParkReason } from "./types.ts";
 import type { Completion } from "../tools/prepared-attempt.ts";
 
-type MatchAttribution = Pick<Completion, "origin" | "tier" | "documentationModel">;
+type MatchAttribution = Pick<Completion, "origin" | "tier" | "documentationModel"> &
+  Partial<Pick<Completion, "documentation" | "error">>;
 
 export interface CommitResult {
   committed: boolean;
   detail: string;
+  /** git itself refused, as opposed to there being nothing to commit. */
+  failed?: boolean;
 }
 
 /**
  * The subject line matches the project's history: `match <function>`, with the
  * matching tier recorded separately from the documentation model. Static
- * verification is an origin, not a model. No attribution trailers.
+ * verification is an origin, not a model. No attribution trailers. A match is
+ * committed before its documentation when documentation did not finish; the
+ * body says so, and the notes arrive in a later commit when it resumes.
  */
 export function commitMessage(functionName: string, tierLabel: string, attribution?: MatchAttribution): string {
   const finalized = attribution?.origin === "static"
@@ -20,11 +25,16 @@ export function commitMessage(functionName: string, tierLabel: string, attributi
     : attribution && !attribution.tier
       ? "Byte-exact and finalized by /auto_decompilation_loop. Matching tier not recorded."
       : `Byte-exact and finalized by /auto_decompilation_loop on ${attribution?.tier ?? tierLabel}.`;
+  const documentation = attribution?.documentationModel
+    ? [`Documentation completed on ${attribution.documentationModel}.`]
+    : attribution?.documentation === "pending"
+      ? [`Documentation pending: ${attribution.error ?? "not completed"}.`]
+      : [];
   return [
     `match ${functionName}`,
     "",
     finalized,
-    ...(attribution?.documentationModel ? [`Documentation completed on ${attribution.documentationModel}.`] : []),
+    ...documentation,
   ].join("\n");
 }
 
@@ -59,7 +69,7 @@ async function commitFiles(projectRoot: string, files: string[], message: string
 
   const staged = await runCommand("git", ["add", "--", ...files], { cwd: projectRoot, timeoutMs: 60_000 });
   if (staged.code !== 0) {
-    return { committed: false, detail: `git add failed: ${staged.stderr || staged.stdout}` };
+    return { committed: false, failed: true, detail: `git add failed: ${staged.stderr || staged.stdout}` };
   }
 
   const pending = await runCommand("git", ["diff", "--cached", "--name-only"], { cwd: projectRoot, timeoutMs: 60_000 });
@@ -72,7 +82,7 @@ async function commitFiles(projectRoot: string, files: string[], message: string
     timeoutMs: 120_000,
   });
   if (commit.code !== 0) {
-    return { committed: false, detail: `git commit failed: ${commit.stderr || commit.stdout}` };
+    return { committed: false, failed: true, detail: `git commit failed: ${commit.stderr || commit.stdout}` };
   }
 
   const head = await runCommand("git", ["rev-parse", "--short", "HEAD"], { cwd: projectRoot, timeoutMs: 30_000 });

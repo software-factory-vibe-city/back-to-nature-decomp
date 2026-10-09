@@ -4,10 +4,31 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { DEFAULT_LOOP_CONFIG } from "./config.ts";
-import { runFunction, runLoop, type LoopDeps } from "./loop.ts";
+import { DOCUMENTATION_TOOLS, runFunction, runLoop, type LoopDeps } from "./loop.ts";
 import { createTurnGate } from "./turn-gate.ts";
 import { buildInputs, inputIdentity, type Completion } from "../tools/prepared-attempt.ts";
 import { configuredToolchainIdentity, ROOT } from "../../../../tools/agent/decompToolchain.ts";
+import { runCommand } from "../../shared/process.ts";
+
+async function git(cwd: string, args: string[]): Promise<string> {
+  const result = await runCommand("git", args, { cwd, timeoutMs: 30_000 });
+  assert.equal(result.code, 0, `git ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
+  return result.stdout.trim();
+}
+
+/** Commit the fixture as it stands, so the loop's changed-file reading has a HEAD
+    and every default integration root exists for its pathspecs. */
+async function seedRepository(root: string): Promise<void> {
+  for (const dir of ["src", "include", "configs"]) {
+    mkdirSync(join(root, dir), { recursive: true });
+    writeFileSync(join(root, dir, ".keep"), "");
+  }
+  await git(root, ["init", "--quiet", "--initial-branch=main"]);
+  await git(root, ["config", "user.email", "test@example.com"]);
+  await git(root, ["config", "user.name", "Test"]);
+  await git(root, ["add", "-A"]);
+  await git(root, ["commit", "--quiet", "-m", "seed"]);
+}
 
 /* Exercise the controller's first dispatch, not just a prompt builder. The
    temporary project's preparation CLI supplies a synthetic exact packet;
@@ -103,20 +124,24 @@ test("documentation resumes preserve the matching tier and record only the actua
   mkdirSync(join(root, "src"));
   const name = "func_80012345";
   writeFileSync(join(root, "src", `${name}.c`), `void ${name}(void) {}\n`);
+  await seedRepository(root);
   const inputs = buildInputs(root);
   const gate = createTurnGate();
   let succeeded = true;
   let turns = 0;
+  let tools = ["read"];
   const deps = {
     projectRoot: root, baseline: new Set<string>(), flag: { aborted: false },
     config: { ...DEFAULT_LOOP_CONFIG, runtimeDir: join(root, "run_output"),
       ladder: [{ provider: "fixture", model: "configured-model", label: "configured-model", thinking: "off" }] },
     sink: { verdict: {}, handoff: {}, prep: {}, gate },
-    pi: { sendUserMessage: () => { turns++; gate.settled++; } },
+    pi: { sendUserMessage: () => { turns++; gate.settled++; },
+      getActiveTools: () => tools, setActiveTools: (value: string[]) => { tools = value; } },
     ctx: { model: { id: "actual-docs-model" }, isIdle: () => true, waitForIdle: async () => {},
       getContextUsage: () => undefined,
-      sessionManager: { getBranch: () => [{ type: "message", message: { role: "assistant", stopReason: succeeded ? "stop" : "error" } }] },
-      ui: { notify: () => {}, setStatus: () => {}, theme: { fg: (_color: string, text: string) => text } } },
+      sessionManager: { getEntries: () => [],
+        getBranch: () => [{ type: "message", message: { role: "assistant", stopReason: succeeded ? "stop" : "error" } }] },
+      ui: { notify: () => {}, setStatus: () => {}, setEditorText: () => {}, theme: { fg: (_color: string, text: string) => text } } },
   } as unknown as LoopDeps;
   const completion: Completion = { origin: "agent", tier: "original-matching-model", inputs,
     verifiedIdentity: inputIdentity(inputs), verification: "passed", documentation: "pending", changedFiles: [] };
@@ -141,4 +166,84 @@ test("documentation resumes preserve the matching tier and record only the actua
   const failed = await runFunction(deps, state, name);
   assert.equal(failed.state.completions![name]!.documentation, "pending");
   assert.equal(failed.state.completions![name]!.documentationModel, undefined);
+});
+
+/** A resumable pending-documentation fixture: one verified function, in a repository. */
+async function pendingDocumentation(prefix: string, changedFiles: (name: string) => string[]) {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  mkdirSync(join(root, "src"));
+  const name = "func_80012345";
+  writeFileSync(join(root, "src", `${name}.c`), "INCLUDE_ASM(...);\n");
+  await seedRepository(root);
+  writeFileSync(join(root, "src", `${name}.c`), `void ${name}(void) {}\n`);
+  const inputs = buildInputs(root);
+  const completion: Completion = { origin: "agent", tier: "matching-model", inputs, verifiedIdentity: inputIdentity(inputs),
+    verification: "passed", documentation: "pending", changedFiles: changedFiles(name) };
+  return { root, name, state: { parked: {}, approvals: {}, completions: { [name]: completion } } };
+}
+
+/** Loop dependencies whose every documentation turn ends on the given stop reason. */
+function documentationDeps(root: string, stopReason: string, maxFunctions = 1) {
+  const gate = createTurnGate();
+  const solverTools = ["read", "bash", "edit", "write", "psx_finalize_function", "psx_residual_objective"];
+  const record = { tools: solverTools, toolsAtSend: [] as string[][], navigated: [] as string[], navigatedAtSend: [] as number[], notices: [] as string[] };
+  const deps = {
+    projectRoot: root, baseline: new Set<string>(), flag: { aborted: false },
+    config: { ...DEFAULT_LOOP_CONFIG, runtimeDir: join(root, "run_output"), maxFunctions,
+      ladder: [{ provider: "fixture", model: "matching-model", label: "matching-model", thinking: "off" }] },
+    sink: { verdict: {}, handoff: {}, prep: {}, gate },
+    pi: {
+      getActiveTools: () => record.tools, setActiveTools: (value: string[]) => { record.tools = value; },
+      getThinkingLevel: () => "off", setThinkingLevel: () => {}, setModel: async () => true,
+      sendUserMessage: () => { record.toolsAtSend.push([...record.tools]); record.navigatedAtSend.push(record.navigated.length); gate.settled++; },
+    },
+    ctx: { model: { id: "docs-model" }, isIdle: () => true, waitForIdle: async () => {}, getContextUsage: () => undefined,
+      navigateTree: async (id: string) => { record.navigated.push(id); },
+      sessionManager: {
+        getEntries: () => [{ type: "message", id: "solver-prompt", message: { role: "user" } }],
+        getBranch: () => [{ type: "message", message: { role: "assistant", stopReason } }],
+      },
+      ui: { notify: (message: string) => { record.notices.push(message); }, setStatus: () => {}, setEditorText: () => {},
+        theme: { fg: (_color: string, text: string) => text } } },
+  } as unknown as LoopDeps;
+  return { deps, record, solverTools };
+}
+
+test("documentation starts on a cleared conversation with notes-only tools and names why it did not finish", async (t) => {
+  const { root, name, state } = await pendingDocumentation("autoloop-docs-role-", (fn) => [`src/${fn}.c`]);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  /* A passing psx_finalize_function ends the run on its tool result. */
+  const { deps, record, solverTools } = documentationDeps(root, "toolUse");
+
+  const result = await runFunction(deps, state, name);
+  assert.deepEqual(record.navigated, ["solver-prompt"], "documentation must not inherit the solver's conversation");
+  assert.deepEqual(record.navigatedAtSend, [1], "the conversation is cleared before the documentation message is sent");
+  assert.deepEqual(record.toolsAtSend, [DOCUMENTATION_TOOLS]);
+  assert.deepEqual(record.tools, solverTools, "the working tool set is restored afterwards");
+  const completion = result.state.completions![name]!;
+  assert.equal(completion.documentation, "pending");
+  assert.match(completion.error ?? "", /ended without a final reply \(last stop reason: toolUse\)/);
+});
+
+test("a verified match is committed while its documentation is pending, and a refused commit stops the loop", async (t) => {
+  const pending = await pendingDocumentation("autoloop-commit-pending-", (fn) => [`src/${fn}.c`]);
+  t.after(() => rmSync(pending.root, { recursive: true, force: true }));
+  mkdirSync(join(pending.root, "run_output"), { recursive: true });
+  writeFileSync(join(pending.root, "run_output/state.json"), JSON.stringify(pending.state));
+  const committed = documentationDeps(pending.root, "toolUse");
+  const outcomes = await runLoop(committed.deps, { firstTarget: pending.name });
+  assert.equal(outcomes[0]?.kind, "matched");
+  const message = await git(pending.root, ["log", "-1", "--format=%B"]);
+  assert.match(message, new RegExp(`^match ${pending.name}`));
+  assert.match(message, /Documentation pending: the documentation turn ended without a final reply/);
+  assert.equal(await git(pending.root, ["status", "--porcelain", "--", "src"]), "", "the verified source must not stay in the tree");
+
+  const refused = await pendingDocumentation("autoloop-commit-refused-", () => ["src/missing.c"]);
+  t.after(() => rmSync(refused.root, { recursive: true, force: true }));
+  mkdirSync(join(refused.root, "run_output"), { recursive: true });
+  writeFileSync(join(refused.root, "run_output/state.json"), JSON.stringify(refused.state));
+  const stopped = documentationDeps(refused.root, "stop", 2);
+  const stoppedOutcomes = await runLoop(stopped.deps, { firstTarget: refused.name });
+  assert.equal(stoppedOutcomes.length, 1, "the loop must not move on over an uncommitted match");
+  assert.ok(stopped.record.notices.some((notice) => /Loop stopped: .* matched but was not committed/.test(notice)));
 });

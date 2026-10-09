@@ -55,6 +55,31 @@ test("match messages distinguish the matching tier from the documentation model"
   assert.doesNotMatch(legacy, /finalized by .* on docs-model/);
 });
 
+test("a match committed before its documentation says the documentation is pending, and why", () => {
+  const message = commitMessage("fn", "agent", {
+    origin: "agent", tier: "matching-model", documentation: "pending", error: "the documentation turn was interrupted",
+  });
+  assert.match(message, /finalized by \/auto_decompilation_loop on matching-model\./);
+  assert.match(message, /Documentation pending: the documentation turn was interrupted\./);
+  assert.doesNotMatch(message, /Documentation completed/);
+});
+
+test("a commit git refuses is reported as a failure, not as nothing to commit", async () => {
+  const { dir, cleanup } = await repo();
+  try {
+    const refused = await commitMatchedFunction(dir, "fn", "agent", ["src/missing.c"]);
+    assert.equal(refused.committed, false);
+    assert.equal(refused.failed, true);
+    assert.match(refused.detail, /git add failed/);
+
+    const empty = await commitMatchedFunction(dir, "fn", "agent", []);
+    assert.equal(empty.committed, false);
+    assert.notEqual(empty.failed, true);
+  } finally {
+    cleanup();
+  }
+});
+
 test("static match commits name the documentation model without inventing a matching tier", async () => {
   const { dir, cleanup } = await repo();
   try {

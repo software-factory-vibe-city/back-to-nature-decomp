@@ -98,16 +98,16 @@ export async function attemptStaticFinalization(options: {
 }
 
 /** Documentation failure is independent of matching success and resumable.
- * Nothing here commits or resets files, including unauthorized documentation edits. */
+ * Nothing here commits or resets files, including unauthorized documentation edits.
+ * `document` resolves true on success, or with the reason it did not succeed. */
 export async function documentCompletion(root: string, completion: Completion,
-  document: () => Promise<boolean>): Promise<Completion> {
+  document: () => Promise<true | false | string>): Promise<Completion> {
   if (!sameInputs(completion.inputs, buildInputs(root))) return { ...completion, verification: "invalidated", documentation: "pending", error: "verified build inputs changed; finalization must be rerun" };
   if (completion.documentation === "passed") return completion;
-  let succeeded = false;
-  let error: string | undefined;
-  try { succeeded = await document(); } catch (failure) { error = String(failure); }
+  let outcome: true | false | string = false;
+  try { outcome = await document(); } catch (failure) { outcome = String(failure); }
   /* Even an aborted/failed role may have edited a header before it stopped. */
   if (!sameInputs(completion.inputs, buildInputs(root))) return { ...completion, verification: "invalidated", documentation: "pending", error: "documentation changed build inputs; finalization must be rerun" };
-  return succeeded ? { ...completion, verification: "passed", documentation: "passed", error: undefined } :
-    { ...completion, documentation: "pending", error: error ?? "documentation cancelled or model unavailable" };
+  return outcome === true ? { ...completion, verification: "passed", documentation: "passed", error: undefined } :
+    { ...completion, documentation: "pending", error: typeof outcome === "string" ? outcome : "the documentation turn did not complete" };
 }

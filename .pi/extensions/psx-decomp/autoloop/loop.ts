@@ -314,33 +314,55 @@ async function clearContext(deps: LoopDeps, force = false): Promise<void> {
   }
 }
 
+/** The documentation role reads and writes notes; it has no solver tools. */
+export const DOCUMENTATION_TOOLS = ["read", "bash", "edit", "write"];
+
 /**
  * The one turn between a match and its commit: record grouping evidence.
  *
  * The finalize gate has already proven this exact set of build inputs. This turn
  * is allowed to write `notes/` and nothing else, so that proof survives it
  * without a second full build. Returns the file list to commit.
+ *
+ * Documentation is its own role, so it starts on a cleared conversation with
+ * notes-only tools. Left in the solver's context it inherits the solver's
+ * completion rule, and a context checkpoint can fire mid-turn and put that rule
+ * back in front of it; a solver tool that ends the run (a passing
+ * `psx_finalize_function`) then ends documentation on a tool result instead of
+ * a reply.
  */
 async function documentMatch(deps: LoopDeps, state: LoopState, functionName: string, completion: Completion): Promise<LoopState> {
   let current: LoopState = { ...state, completions: { ...state.completions, [functionName]: completion } };
   writeState(deps.config, current); /* durable pending state BEFORE dispatch */
   if (!deps.config.updateFileGroupings) return current;
+  await clearContext(deps, true);
   setStatus(deps, `◎ ${functionName} · documentation`);
   let documentationModel: string | undefined;
-  const documented = await documentCompletion(deps.projectRoot, completion, async () => {
-    if (deps.flag.aborted || !deps.ctx.model) return false;
-    const modelId = deps.ctx.model.id;
-    if (!(await turn(deps, groupingsMessage(functionName) +
-      `\nVerified source/evidence identity: ${completion.verifiedIdentity}. Origin: ${completion.origin}. Changed files: ${completion.changedFiles.join(", ")}.`))) return false;
-    const last = [...deps.ctx.sessionManager.getBranch()].reverse().find((e) => e.type === "message" && e.message.role === "assistant");
-    const succeeded = last?.type === "message" && last.message.role === "assistant" && last.message.stopReason === "stop";
-    if (succeeded) documentationModel = modelId;
-    return succeeded;
-  });
+  const savedTools = deps.pi.getActiveTools();
+  deps.pi.setActiveTools(DOCUMENTATION_TOOLS);
+  let documented: Completion;
+  try {
+    documented = await documentCompletion(deps.projectRoot, completion, async () => {
+      if (deps.flag.aborted) return "the loop was stopped before documentation began";
+      if (!deps.ctx.model) return "no model was selected for documentation";
+      const modelId = deps.ctx.model.id;
+      if (!(await turn(deps, groupingsMessage(functionName) +
+        `\nVerified source/evidence identity: ${completion.verifiedIdentity}. Origin: ${completion.origin}. Changed files: ${completion.changedFiles.join(", ")}.`))) {
+        return "the documentation turn was interrupted (the loop was stopped, or a checkpoint compaction failed)";
+      }
+      const last = [...deps.ctx.sessionManager.getBranch()].reverse().find((e) => e.type === "message" && e.message.role === "assistant");
+      const stopReason = last?.type === "message" && last.message.role === "assistant" ? last.message.stopReason : undefined;
+      if (stopReason !== "stop") return `the documentation turn ended without a final reply (last stop reason: ${stopReason ?? "none"})`;
+      documentationModel = modelId;
+      return true;
+    });
+  } finally {
+    deps.pi.setActiveTools(savedTools);
+  }
   if (documented.documentation === "passed" && documentationModel) documented.documentationModel = documentationModel;
   current = { ...current, completions: { ...current.completions, [functionName]: documented } };
   writeState(deps.config, current);
-  if (documented.documentation !== "passed") notify(deps, `${functionName} matched; documentation pending: ${documented.error ?? "disabled"}`, "warning");
+  if (documented.documentation !== "passed") notify(deps, `${functionName} matched; documentation pending (resumes on the next loop run): ${documented.error ?? "disabled"}`, "warning");
   return current;
 }
 
@@ -529,8 +551,11 @@ async function runFunctionWithSignal(deps: LoopDeps, state: LoopState, functionN
     current = await documentMatch(deps, current, functionName, completed);
     if (current.completions?.[functionName]?.verification === "invalidated") return { state: current,
       outcome: { kind: "environment-broken", functionName, detail: "Documentation changed verified build inputs; rerun finalization." } };
+    if (deps.flag.aborted) return { state: current, outcome: { kind: "aborted", functionName } };
+    /* The verified files, plus the notes this documentation turn just wrote. */
+    const changedFiles = [...new Set([...completed.changedFiles, ...(await loopChangedFiles(oracle(current))).changedFiles])].sort();
     return { state: current, outcome: { kind: "matched", functionName, tier: completed.tier ?? completed.origin,
-      changedFiles: completed.changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
+      changedFiles, documentation: current.completions?.[functionName]?.documentation ?? "pending" } };
   }
   /* Prepare the packet before dispatch. A prep-led run must enter its declared
      role first; completion/static shortcuts must not open documentation here. */
@@ -852,13 +877,25 @@ export async function runLoop(input: LoopDeps, options: LoopOptions = {}): Promi
       state = run.state;
       outcomes.push(run.outcome);
       if (run.outcome.kind === "aborted") break;
+      /* Unverified edits are in the tree; the next function must not start on them. */
+      if (run.outcome.kind === "environment-broken") {
+        notify(deps, `Loop stopped: ${target} — ${run.outcome.detail}`, "error");
+        break;
+      }
 
-      if (run.outcome.kind === "matched" && run.outcome.documentation !== "pending" && deps.config.commitOnMatch) {
+      /* A verified match is committed whether or not its documentation finished.
+       * Documentation is notes-only and resumes as a pending item. Held back for
+       * it, the match stays in the tree, and the next function's `match` commit
+       * sweeps it up under that function's subject line. */
+      if (run.outcome.kind === "matched" && deps.config.commitOnMatch) {
         setStatus(deps, `◎ ${target} · commit`);
         const commit = await commitMatchedFunction(deps.projectRoot, target, run.outcome.tier, run.outcome.changedFiles, state.completions?.[target]);
         if (commit.committed) {
           run.outcome.commit = commit.detail;
           notify(deps, `Committed ${target} as ${commit.detail}`, "info");
+        } else if (commit.failed) {
+          notify(deps, `Loop stopped: ${target} matched but was not committed — ${commit.detail}`, "error");
+          break;
         } else {
           notify(deps, `Not committed: ${target} — ${commit.detail}`, "warning");
         }
