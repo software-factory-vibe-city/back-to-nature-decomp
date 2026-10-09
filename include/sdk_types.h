@@ -1123,6 +1123,16 @@ typedef struct {
 } M2C_75034de57f74_Ovl11D04D4Obj;
 
 typedef struct {
+               u16 unk0;
+               char pad_02[0x14];
+               s16 unk16;
+               char pad_18[0x18];
+               s16 unk30;
+               char pad_32[0x2];
+               s32 unk34;
+} M2C_7b06bd92cdbb_Struct_80109A70;
+
+typedef struct {
                char pad00[0x16];
                s16 unk16;
 } M2C_7d34f504fd33_UnkStruct800CD4E4;
