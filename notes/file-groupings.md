@@ -5445,7 +5445,7 @@ Members (address order):
   +0xE4C8 cell.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7954 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -5514,6 +5514,15 @@ the overlay, never GP-relative), and the large-offset writers use the same
   that cc1 splices `%lo` into — the same shared-base idiom as 0x800F2354;
   link-sits in the 0x800E5A1C–0x800EExxx accessor band (callers 0x800E5294 /
   0x800E537C / 0x800E60A0 / 0x800E648C / 0x800E6D2C)
+- ovl_11_func_800E7954 (m, matched this session) — s16 mode setter: zeroes the
+  s32 at +0x448C, then writes the mode word at `D_8007AFF0`+0x254A0 (0x12-0x16,
+  0x1F) and, for mode 5, sets bit 0x400 of the sibling +0x5234 word (the same
+  cell as 0x800E953C/0x800E63C8), while mode 1 zeroes six bytes at
+  +0x19..+0x1B of both 0x134-stride `D_8005E5E8` elements; fixes
+  `&D_8006C838` in a struct-view cast so cc1 keeps one `lui %hi(D_8006C838)`
+  fragment across the switch and re-splices `%lo` in the mode-5 arm — the same
+  shared-base idiom as 0x800E63C8; leaf, byte-exact clean C, baseline flags;
+  link-sits in the 0x800E5A1C–0x800EExxx accessor band
 - ovl_11_func_800F2508 (m, matched this session) — stride-4 clear leaf: stores
   -1 into 20 byte fields at +0x49E6 / +0x4A36 (byte read/write class shared with
   the documented 0x800D0EA4 / 0x800D0ED0 flag-byte pair near +0x4AC0) and zeroes
