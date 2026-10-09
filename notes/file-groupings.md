@@ -6016,6 +6016,24 @@ Members (link order):
   by `(D_800BF87C.unk3A0 << 12) / 10` steps, using the shared
   `ovl_23_func_800BB0D8` record setter.
 
+## `ovl_23` D_800BF87C movement-clamp siblings — 0x800B9A00 / 0x800BA610 (confidence: medium)
+
+Evidence: both functions clamp the s32 at +0xC of a shared
+`Ovl23Func800BB0C8Arg` around the same `D_800BF87C` target
+`(unk39C + 0x77) << 12` by the same step `(unk3A0 << 12) / 10`, and both route
+the resulting state change through the shared `ovl_23_func_800BB0D8` record
+setter. Aggregate fields (+0x39C/+0x3A0, plus +0x3A2 in 800BA610), the shared
+record view and the shared callee are three independent fingerprints, so this
+rests on idiom/global/call evidence rather than adjacency alone — the two are
+not link-adjacent (0x800B9A00..0x800B9B18 vs 0x800BA610).
+
+Members:
+- ovl_23_func_800B9A00 (m, byte-exact) — clamps unkC by the `(unk3A0 << 12)/10`
+  step around `(unk39C + 0x77) << 12`; sets state via 800BB0D8.
+- ovl_23_func_800BA610 (m, byte-exact this session) — selects the step from
+  `unk3A0`/`unk3A2` on `unk4` 2/3, clamps unkC by the same formula, and sets
+  state via 800BB0D8.
+
 ## `ovl_23` D_800BF87C screen-record init run — 0x800B823C–0x800B8354 (confidence: medium)
 
 Evidence: gapless link order and the call graph agree over the same
