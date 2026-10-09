@@ -3096,7 +3096,7 @@ Members (address order):
 
 ---
 
-## `ovl_11` 0x80110494 state-key probe run — 0x80110494–0x80110544 (confidence: low)
+## `ovl_11` 0x80110494 state-key probe run — 0x80110494–0x801105C8 (confidence: low)
 
 Candidate same-TU run of `ovl_11` (`Obj\GF_FARM.bin`) tied by a call edge that
 the link order independently agrees on.
@@ -3106,6 +3106,11 @@ Fingerprints:
   exactly at 0x80110520 where its sole matched caller `ovl_11_func_80110520`
   begins, and the caller ends exactly at 0x80110544 (stub successor); the caller
   calls the leaf with constants `(arg0, 5, 0)` and reads the s32 result;
+- shared-caller bridge across the stub: both stub callers also call the run's
+  far end, so link order and call graph agree across the whole span. The two
+  matched callers `ovl_11_func_8010F80C` and `ovl_11_func_8010F6C0` each call
+  0x801105C8 and the 0x80110544 stub, and additionally 8010F80C calls
+  0x80110494 while 8010F6C0 calls 0x80110520;
 - the leaf is the third matched reader of the `D_8007AFF0` far-buffer halfword
   @+0x25476 (recorded accessor family 0x800C9D64 / 0x800E8960, same single-`lui`
   +`addu` far-base idiom), address-apart from both, so it widens that family
@@ -3126,6 +3131,11 @@ Members (address order):
   leaf's result to 0/1 via `sltu`; shares the link run
 - ovl_11_func_80110544 (s) — 0x84-byte stub continuing the run (no grouping
   evidence of its own yet)
+- ovl_11_func_801105C8 (m, matched this session, byte-exact) — run bridge:
+  gets an (s16,s16) coordinate from the 0x80110658 dispatcher, projects it
+  through `ovl_11_func_800D812C` into a four-word `Ovl11PaddedVec3` view, and
+  forwards it to `ovl_11_func_800D05D0`; shares the 8010F80C/8010F6C0 caller
+  cluster with the stub and the rest of the run
 
 ---
 

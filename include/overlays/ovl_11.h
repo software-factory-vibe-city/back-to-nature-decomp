@@ -800,6 +800,7 @@ u16 ovl_11_func_80110118(M2C_45034dae4597_Struct_80110118 *arg0);
 void ovl_11_func_801103E8(M2C_51112120074c_Ovl11Func801103E8Obj *arg0, s32 arg1);
 s32 ovl_11_func_80110494(M2C_fcf67812ccd0_Ovl11Func80110494View *arg0, s16 arg1, s16 arg2);
 s32 ovl_11_func_80110520(s32 arg0);
+s32 ovl_11_func_801105C8(Ovl11SetFieldsView *arg0, s32 arg1, s32 arg2);
 s32 ovl_11_func_80110658(s16 *arg0, s16 *arg1, s32 arg2, s32 arg3, s32 arg4);
 s32 ovl_11_func_80110790(M2C_59ee2b8b632a_ReconA0View *arg0);
 s32 ovl_11_func_80110838(M2C_8740fcdc649a_Recon80110838A0View *arg0);
