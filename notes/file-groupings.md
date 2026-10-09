@@ -1197,6 +1197,42 @@ Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
 
 ---
 
+## `ovl_11` D_800BA848 / D_800BA894 dual-table dispatcher — 0x80109188 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
+- shared data-table cluster: the dispatcher's two parallel rodata tables,
+  `D_800BA848` (transition handlers variants, 19 slots) and `D_800BA894`
+  (presence tests, 19 slots), are adjacent in
+  `build/ovl_11/asm/data/2A28.rodata.s` (`D_800BA848` ends exactly at
+  0x800BA894), the same dispatcher/handler coupling class as the
+  `D_800BA9E4`/`D_800BAA34` and `D_800BAA84`/`D_800BAABC` pairs documented
+  above;
+- named-table membership: the `D_800BA848` entries include the recorded
+  far-state gate run head `ovl_11_func_80109A70` (index 4) and its gapless
+  members `ovl_11_func_80109B88` (3) and `ovl_11_func_80109C24` (7), plus
+  `ovl_11_func_80109D08` (5), `ovl_11_func_80109E04` (6) and
+  `ovl_11_func_80109E64` (9); the `D_800BA894` entries are the documented
+  keyframe-state handler family (80109EC4, 8010A02C, 80109F7C, 8010A0E4,
+  8010A19C, 8010A254, 8010A30C, 8010A3C4, 8010ABAC, 8010AC64, 8010AD1C,
+  8010AE64, 8010ADD4), so the table ties the dispatcher to that idiom/table
+  cluster;
+- call-graph adjacency: `ovl_11_func_80109A70` (a `D_800BA848` handler) calls
+  this dispatcher, so the call edge agrees with the named-table tie.
+
+- ovl_11_func_80109188 (m, matched this session, byte-exact) — third dual-table
+  dispatcher of the class: returns -1 when `s32@+0x34 & 0x400` and
+  `ovl_11_func_800C1224(D_8006C838+0x44BA, D_8006C838+0x44BC) == 8`; forces
+  arg1 = 0x11 when `+0x34 & 0x01000000`, calls the handler at `D_800BA848[arg1]`
+  unless the current state s16@+0x26 is 7 or is 5 with arg1 == 5, then if
+  `D_800BA894[arg1]` is set and the result is not -1 records the selection at
+  s16@+0x26, clears s16@+0x28/+0x2A/+0x2C and calls
+  `ovl_11_func_800D0408(4, this+0x48, 0)`; returns the handler result. It
+  differs from the `D_800BA9E4`/`D_800BAA34` sibling 8010B57C in the +0x400
+  guard (that one returns -1, this one probes `ovl_11_func_800C1224`) and in
+  the `ovl_11_func_800D0408` view offset (+0x48 here, +0x24 there).
+
+---
+
 ## `ovl_11` D_80128B50 / D_80128B5C input-state run — 0x800C0688–0x800C0EFC (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) sharing two adjacent
