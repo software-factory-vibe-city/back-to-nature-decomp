@@ -1585,6 +1585,13 @@ extern s16 D_800BCCD4[];
  * overlay build. Not classified in globals.h. */
 extern u32 D_800BCC60[];
 
+/* D_800BCAD8 - ovl_21 data block at 0x800BCAD8 (0x80 bytes, ending where
+ * D_800BCB58 begins). ovl_21_func_800B990C takes its address and stores it
+ * into the D_800C0448 state block; no field is read through it, so an opaque
+ * byte object suffices. Absolute-addressed (extern-only, lui + %lo) in the
+ * -G0 overlay build. Not classified in globals.h. */
+extern u8 D_800BCAD8[];
+
 /* D_800C0448 - two-halfword ovl_21 state. ovl_21_func_800B9538 writes the
  * first halfword, ovl_21_func_800B95EC clears the first and increments the
  * second. Unsigned halfwords: the increment target loads with lhu. All the

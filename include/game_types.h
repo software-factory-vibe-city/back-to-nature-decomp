@@ -608,6 +608,40 @@ typedef struct {
     /* 0x34 */ char pad_34[0x108 - 0x34];
 } UnkStruct800C0448;
 
+/* One of the six 0x108-byte records of the D_800C0448 state block, at
+ * 0x14 + i * 0x108. It is the storage UnkStruct800C0448 indexes from the block
+ * base: this record's unk0/unk4/unk6 are that element's unk14/unk18/unk1A. The
+ * halfwords at unk6 are the position ovl_21_func_800BA698 reads (+0 and +4).
+ * Only the fields ovl_21_func_800B990C touches are named. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u16 unk6[3];
+    /* 0x0C */ char pad_0C[0x1A - 0x0C];
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ char pad_1C[0x108 - 0x1C];
+} Ovl21C0448Record;
+
+/* The whole D_800C0448 state block: a 0x14-byte header, the six records as an
+ * array member, then scalar fields. The records must be an array member, not
+ * pointer arithmetic: GCC adds a 4-aligned s32 field's offset to the base
+ * before the scaled index only for an array member of a BLKmode object
+ * (expr.c expand_expr COMPONENT_REF). Only witnessed fields are named. */
+typedef struct {
+    /* 0x000 */ char pad_000[0xC];
+    /* 0x00C */ void *unkC;
+    /* 0x010 */ char pad_010[4];
+    /* 0x014 */ Ovl21C0448Record recs[6];
+    /* 0x644 */ char pad_644[2];
+    /* 0x646 */ s16 unk646;
+    /* 0x648 */ char pad_648[0x65C - 0x648];
+    /* 0x65C */ s16 unk65C;
+    /* 0x65E */ char pad_65E[0x984 - 0x65E];
+    /* 0x984 */ s16 unk984;
+    /* 0x986 */ char pad_986[2];
+    /* 0x988 */ s16 unk988;
+} Ovl21C0448View;
+
 /* ovl_11_func_801097F4 argument record, passed by value: the first 16 bytes
  * ride in $a0-$a3 and are homed to 0x0($sp) on entry; the witnessed tail
  * fields sit at 0x10 (s16 selector), 0x14 (s32 radius) and 0x18 (out

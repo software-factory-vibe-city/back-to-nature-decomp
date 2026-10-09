@@ -8743,6 +8743,19 @@ Members (link order):
   -fno-schedule-insns override; the adjacent matched 800B9844's assembled
   text is unchanged under that flag. Neither fact establishes a TU boundary
   or licenses applying the flag to the whole cluster.
+- ovl_21_func_800B990C (m, byte-exact, finalized) — gapless link successor of
+  `ovl_21_func_800B98CC` (0x800B98CC + 0x40) and predecessor of
+  `ovl_21_func_800B9A20` (0x800B990C + 0x114). Walks the six records,
+  skipping record 0 when the halfword at +0x646 is set. For a record whose
+  +0x14 word is 1 it calls the matched member `ovl_21_func_800BA698` with the
+  record's +0x1A position, the radius at +0x65C, and `i < 3`, which is the
+  selector that member multiplies by 3 to pick its record window. On a hit it
+  clears the record and writes +0x984 from `func_8001FABC`, as 800B8A80 does;
+  for record 0 it also calls `func_8001B2CC(0, 1)` and writes +0xC and +0x988.
+  Membership rests on the gapless adjacency, the call into a matched member,
+  and the shared tail fields. It matches only at baseline flags: both
+  `-fno-schedule-insns` (800B98CC's override) and `-fno-gcse` (800BA698's)
+  change its code, so neither can be a TU-wide flag of a TU that contains it.
 - ovl_21_func_800BA868 (s) / ovl_21_func_800BA944 (m) — gapless
   link neighbours (0x800BA868 ends at 0x800BA944) that are near-twins of
   `ovl_21_func_800BA7F0`: both fill a 3-entry `s16 buf[4]` with the indices
