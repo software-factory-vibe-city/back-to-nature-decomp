@@ -1746,7 +1746,10 @@ extern s16 D_800BFC90;
  * that the ovl_19 initialiser walks. D_800BCEE8 is a u16 table of four
  * halfwords read with an (entry[4] + 1) index by ovl_19_func_800B847C;
  * D_800BCEFC is the flat s16 source array that function copies 8-byte records
- * out of. */
+ * out of. D_800BCF28 is a u16 weight table read by ovl_19_func_800BA33C as six
+ * groups of four halfwords, indexed by (category << 3) + (flag << 2) in
+ * halfwords (category = ovl_19_func_800BA33C's threshold class, flag = whether
+ * arg->+0xC is non-zero). */
 extern s16 D_800BF4C0[];
 /* D_800BF4E0 - the s16 field at D_800BF4C0 + 0x20, addressed by ovl_19_func_800B8DE8
  * through its own symbol (the compiler materialises D_800BF4E0 and expresses the
@@ -1754,6 +1757,7 @@ extern s16 D_800BF4C0[];
 extern s16 D_800BF4E0[];
 extern u16 D_800BCEF0[];
 extern s16 D_800BCF0C[];
+extern u16 D_800BCF28[];
 extern u16 D_800BCEE8[];
 extern s16 D_800BCEFC[];
 

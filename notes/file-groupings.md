@@ -10388,6 +10388,15 @@ Members (link order):
   reads the `+0x8` and `+0x50` s16 of the record, returns `(a <= b)` (or
   `func_80012A34(2) != 0` when they are equal), inverting it when
   `func_80012A34(100) >= 0x5B`; the result is consumed by `800B95D4`.
+- ovl_19_func_800BA33C (m, matched this session, byte-exact) — weight-table
+  classifier: picks one of six 4-halfword groups in the overlay-local
+  `D_800BCF28` table (same `3F54.data.s` blob) from the `s16@+0x8` threshold
+  class and whether `u32@+0xC` is non-zero, accumulates the group against
+  `func_80012A34(100)` and maps the first crossing index 0/1/2/3 to 3/1/0/2.
+  Fills the gapless link-order slot `800BA2D4` (0x68, ends 0x800BA33C) →
+  `800BA33C` (0x12C, ends 0x800BA468) → `800BA468`; shares the
+  `func_80012A34` callee with `800BA2D4`/`800B85F4` and is called by cluster
+  member `800B95D4`. Does not itself read `D_800BF4D0`.
 - ovl_19_func_800BA468 (m, matched this session, byte-exact) — same
   overlay-local `D_800BF4C0` array: `800BA564` distance versus `s16@+0x174`,
   then `800BA628` angle minus `s16@+0x4 << 10`, normalised by `+0x1000`, and
