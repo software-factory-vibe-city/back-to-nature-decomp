@@ -1627,7 +1627,7 @@ Members:
 
 ---
 
-## `ovl_11` tier-lookup leaf + `/60` clamp run — 0x800CD4E4–0x800CD670 (confidence: low)
+## `ovl_11` tier-lookup leaf + `/60` clamp run — 0x800CD45C–0x800CD670 (confidence: low)
 
 Unbroken link-contiguous run 0x800CD45C→0x800CD4E4→0x800CD534→0x800CD578→
 0x800CD5BC→0x800CD624→0x800CD670 (each ends exactly where the next begins).
@@ -1637,6 +1637,11 @@ Head 0x800CD4E4 is a global-free tier-return leaf whose sole caller,
 0x800CD534/0x800CD578 (whose caller is 0x800CCCC0), so same-TU membership
 with the pair is unproven.
 Members:
+- ovl_11_func_800CD45C (m, matched this session, 0x88, byte-exact) — the run's
+  true head and zero-gap predecessor of 0x800CD4E4: scans the four-entry
+  D_801232A4 (s16 tag / s8 value) table against engine s16 `D_80070CF8` read
+  at `&D_80071A00`-0xD08 and forwards each match to the D_80071A00-pool clamp
+  leaf 0x800D622C
 - ovl_11_func_800CD4E4 (m, matched this session, 0x50, byte-exact) — reads
   s16 at arg0+0x16 and maps thresholds 0x32/0x46/0x50/0x64 to 0/0x78/0xF0/0x168
 - ovl_11_func_800CD534 / 0x800CD578 (m) — recorded `/60` clamp-scaled leaves
@@ -2619,6 +2624,11 @@ Members (address order):
   `return D_80071A22 == (arg0 & 0xFF);` (6 words, `andi` + `lh` + `sltu` mount,
   no branches); byte-exact clean C, baseline flags; run's only confirmed
   D_80071A22 reference; caller is link-adjacent ovl_11_func_800F19E0
+- ovl_11_func_800CD45C (m, matched this session, 0x88, byte-exact) — pool
+  leaf for the same `char *base = (char *)&D_80071A00` idiom: compares each
+  entry of the four-entry D_801232A4 (s16 tag / s8 value) table with engine
+  s16 `D_80070CF8` (the `base - 0xD08` sibling 0x800CD3C4 also reads) and
+  calls the pool clamp leaf 0x800D622C when they match
 - ovl_11_func_800CD3C4 (m, matched this session) — multi-cell evaluation leaf:
   sums guards over three pool cells (`lh` +0x12, `lhu` +0x36, and a second
   `& 0x200` mask-and-test of s32 `D_80071A6C`, joining 0x800CBDFC as a reader
