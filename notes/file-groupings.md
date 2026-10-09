@@ -7109,6 +7109,17 @@ Members:
   `ovl_11_func_800EFF04(0x24, …)` record-resolver idiom as 800E5B84 and the same
   slot-read shape as the sibling readers; extends the accessor band's high end
   (0x800EE528, beyond the previously recorded 0x800ED760).
+- ovl_11_func_800E7660 (m, matched 2026-11, 0x138, byte-exact) —
+  conditional-slot position predicate: `arg2 & 1`/`arg2 & 2` resolve the low
+  half of `D_80129560[arg0]`/`[arg1]` (raw args otherwise), each value is
+  remapped by +0x18 when below 6, and the result is the ordering test against
+  the `D_8006C838` +0x44C0/+0x44C2 pair; the match arm stores -1 to the s16 at
+  +0x51EA (= `D_80071A22`, the global matched reader 800F19C8 compares) and
+  calls `func_8001AF70(0x46, 0)`, while the `arg0 == -1` arm gates on the same
+  +0x44C0/+0x44C2 time pair. Same conditional table-resolve, `s16`-scaled
+  4-byte index and `struct_8006C838_time` view as 800E99EC; a new writer-side
+  tie to the `D_80071A22` byte global and a further ovl_11 site carrying the
+  `-fno-cse-skip-blocks` override (cf. 80103B24/800F1678).
 
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 

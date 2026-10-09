@@ -487,3 +487,28 @@ CC1FLAGS_ovl_11_func_800FE068 := -fno-strength-reduce
 
 
 
+
+# ovl_11_func_800E7660: -fno-cse-skip-blocks.
+#
+# Target fingerprint (decoded from the original bytes, no source needed): the
+# dominating block at 0x800E7664 materializes D_8006C838 in $a3
+# (`lui $v1,%hi(D_8006C838)` / `addiu $a3,$v1,%lo(D_8006C838)`), and the join
+# block at 0x800E7744 re-forms only the low half from the CSE-shared %hi held
+# in $t1 — `addiu $v1,$t1,%lo(D_8006C838)` — even though no call or clobber
+# sits on the fall-through path between them. Under baseline -fcse-skip-blocks
+# cse.c follows the branch around the one-block `if` in the arg0 == -1 arm and
+# carries the base pseudo into the join, so the lo_sum there is folded away and
+# the whole base stays in one register; the target's re-materialised lo_sum is
+# unreachable from any C shape at baseline. Same mechanism as func_80014494 and
+# ovl_17_func_800B9158 (both already carry this flag).
+#
+# Flag column: on the final source, baseline is 59/78 words (15 words differ);
+# -fno-cse-skip-blocks is 78/78 byte-identical (`diffFunc` VERDICT MATCH). Every
+# other measured column is far below: the flagProbe matrix over the candidate
+# family scores -fno-gcse 1/78, -mno-split-addresses 1/78, -fno-cse-follow-jumps
+# 21/78, -fno-schedule-insns{,2} 26/78, -fno-rerun-cse-after-loop 41/78, and
+# -fno-cse-skip-blocks 72/78 masked on the pre-final spelling.
+#
+# No contrary regional witness: this src file is its own TU (one function per
+# file), so the override cannot disturb the matched ovl_11 neighbours.
+CC1FLAGS_ovl_11_func_800E7660 := -fno-cse-skip-blocks

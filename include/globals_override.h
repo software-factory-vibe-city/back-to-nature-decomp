@@ -190,6 +190,18 @@ struct struct_8006C838_button {
     s16 field_44C2;         /* 0x44C2 */
 };
 
+/* View of D_8006C838 for ovl_11_func_800E7660: the two s16 time-like fields
+ * at +0x44C0/+0x44C2 plus the s16 status slot at +0x51EA. Reached as struct
+ * members so cc1 keeps lui %hi(D_8006C838) followed by lh/sh with the field
+ * offset as an immediate instead of folding each offset into the %hi. */
+struct struct_8006C838_800E7660 {
+    char pad_000[0x44C0];   /* 0x0000-0x44BF */
+    s16 field_44C0;         /* 0x44C0 */
+    s16 field_44C2;         /* 0x44C2 */
+    char pad_44C4[0xD26];   /* 0x44C4-0x51E9 */
+    s16 field_51EA;         /* 0x51EA */
+};
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.
