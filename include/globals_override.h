@@ -992,6 +992,12 @@ extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
 extern s32 _D_80129560[] __asm__("D_80129560");
 #define D_80129560 ((s32 *)_D_80129560)
 
+/* D_801248F4 - nine-entry s16 table scanned by ovl_11_func_800E58DC: the
+ * index of a matching value yields 0x731 + index. Absolute-addressed from the
+ * overlay (only declared extern, never GP). */
+extern s16 _D_801248F4[] __asm__("D_801248F4");
+#define D_801248F4 _D_801248F4
+
 /* D_80127A9C - overlay-local 16-bit state-table base in ovl_11 data at
  * 0x80127A9C, passed by address to ovl_11_func_800D04D4 from
  * ovl_11_func_8010A0E4. Absolute-addressed from the overlay. */

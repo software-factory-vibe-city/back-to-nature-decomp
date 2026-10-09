@@ -6924,7 +6924,7 @@ with different widths and far-apart addresses.
 
 ## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800EE528 + 0x800EC490 (confidence: medium)
 
-Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): nineteen matched
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): twenty matched
 functions sharing the one ovl_11-private 0x50-byte s32 table
 `D_80129560` (`globals_override.h`), each guarded-indexing it with
 `s16`-scaled slots.
@@ -7094,6 +7094,16 @@ Members:
   `lui`+`addiu %lo` absolute base, `s16`-fused index and `!= -1` guard-write
   shape as 800E78E4/800EC490, and the same conditional table-resolve as
   800E69F8/800EB79C, inside the accessor band.
+- ovl_11_func_800E58DC (m, matched 2026-11 — this session, 0x140, byte-exact) —
+  guarded slot reader/writer: `arg3 != 0` resolves
+  `var_s0 = D_80129560[(s16)arg1]` (raw `arg1` otherwise); a nine-entry s16
+  scan of the ovl_11-private table `D_801248F4` (its only known user) maps a
+  match to `0x731 + index`; then submits through `func_8002261C` and, when the
+  engine predicate `func_800226A4() == 2`, sets the return and writes
+  `D_80129560[arg2] = func_800225B8()` under the family's `arg2 != -1` guard;
+  returns 0/1. Same conditional table-resolve and `!= -1` guard-write shape as
+  800E7CCC, and the read of the exe-side `func_80021B64` state query shared
+  with 800E6AB0/800FFF7C/8011F608.
 - ovl_11_func_800E5C60 (m, matched this session, 0xA0, byte-exact) —
   conditional-slot resolver: when `arg0 != 0x2C`, resolves
   `D_80129560[arg0]` (raw `(s16)arg0` when `arg2 == 0`) and calls
