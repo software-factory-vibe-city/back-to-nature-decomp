@@ -8913,8 +8913,10 @@ Members (link order):
   `func_800132F0`/`func_800226F0` and
   `ovl_28_func_800B7E80`/`ovl_28_func_800B8B0C`, then increments the counter
   and returns the new value
-- ovl_28_func_800B7F80 (s) — calls `func_80013394`; on its `result == 1`
-  branch increments the counter and clears `D_800B961C`
+- ovl_28_func_800B7F80 (m, matched this session, byte-exact) — calls
+  `func_80013394`; on its `result == 1` branch increments the counter via the
+  same `base = (s32 *)&D_8006C838; base[0x1122] = base[0x1122] + 1;` local-base
+  idiom as `ovl_28_func_800B7F30`, and clears `D_800B961C`
 - ovl_28_func_800B7FD4 (s) — calls `func_8001FB30`/`func_8001FD10`/
   `func_8001FD74`/`func_8001FE00`/`func_8001FE6C`/`func_80020818` and three
   `ovl_28` siblings, then increments the counter
@@ -8931,7 +8933,7 @@ Members (link order):
   a u16 at `D_8006C838+0x8000+0x67A0` against 10, calling
   `func_80011EF0(0xD)` on `>= 10` and `func_80011EF0(0x14)` otherwise
 
-Two members are matched; the rest are read off original asm, hence medium
+Four members are matched; the rest are read off original asm, hence medium
 confidence.
 
 ## `ovl_28` D_800B95F8 handler-pointer table run — 0x800B7F30 … 0x800B83C0 / 0x800B8414 / 0x800B8478 / 0x800B865C (confidence: medium)
