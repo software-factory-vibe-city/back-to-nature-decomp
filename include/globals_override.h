@@ -1534,6 +1534,14 @@ extern s32 D_8012742C;
  * ovl_11_func_80103EB8 / ovl_11_func_80103F8C. Absolute-addressed. */
 extern s16 D_8012CF30[12];
 
+/* ovl_11_func_8010C6A0 scratch state. D_8007A638 is seven 0xF8-byte
+ * records (0x6C8 bytes) zeroed by that function and populated one record at
+ * a time; D_80127CD0 and D_80127CB4 are the two 7-entry parallel arrays it
+ * walks alongside them. All are absolute-addressed (outside $gp). */
+extern u8 D_8007A638[0x6C8];
+extern s32 D_80127CD0[7];
+extern s32 D_80127CB4[7];
+
 /* D_800BCC48 - ovl_21 table of six 4-byte {u16,u16} pairs (0xFD12/0xFD12,
  * 0x0000/0xFA24, 0x02EE/0xFC97, 0xFD12/0x02EE, 0x0000/0x05DC,
  * 0x02EE/0x02EE). ovl_21_func_800BAEEC indexes it by arg0*4 and loads both

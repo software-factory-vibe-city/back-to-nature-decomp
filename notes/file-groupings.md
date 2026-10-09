@@ -781,6 +781,38 @@ no callers matched yet in this container (reads only `D_80075854`, with the
 
 ---
 
+## `ovl_11` D_8007A638 seven-record state run — 0x8010C6A0 / 0x8010C7F0 / 0x8010C95C / 0x8010C9B4 (confidence: medium)
+
+Candidate same-TU family over the overlay-local global `D_8007A638` (a
+seven-entry, 0xF8-stride record array, 0x6C8 bytes).
+
+Evidence:
+- shared private global: `grep D_8007A638 build/ovl_11/asm/nonmatchings/`
+  returns exactly these four functions inside the 0x8010C6xx run; the only
+  other readers sit far apart (800BEB28, 800EDAA4, 800FD3CC), so exclusion
+  other than distance is not claimed.
+- zero-gap link order (map LOAD order plus instruction VRAMs): 0x8010C6A0
+  (last insn 0x8010C7EC) → 0x8010C7F0 (0x8010C958) → 0x8010C95C (0x8010C9B0)
+  → 0x8010C9B4 (0x8010CA08) is one unbroken run, which continues gaplessly
+  through 0x8010CA0C/0x8010CAD4 into the object-mode dispatch run at
+  0x8010CB6C.
+- complementary roles: 0x8010C6A0 clears and fills the whole array; the
+  three successors read it. Its callee `ovl_11_func_8010D04C` and call site
+  `ovl_11_func_801044E4` (0x801044E4) are not link-adjacent.
+
+Members (link order):
+- ovl_11_func_8010C6A0 (m, matched this session, byte-exact, 0x150) — array
+  initializer: memsets 0x6C8, then per each of the seven 0xF8 records calls
+  `ovl_11_func_8010D04C`, copies the 18-byte packed source record at
+  `D_8005175C + D_80054BBC[1] + D_80127CD0[i]` into +0x4, sets u16@+0xAC,
+  calls `ovl_11_func_80110E34`, and copies the 4-byte packed word at
+  `D_80127CB4[i]` into +0xC4.
+- ovl_11_func_8010C7F0 (s) — reads `D_8007A638` (with a `D_8006C838` arm).
+- ovl_11_func_8010C95C (s) — reads `D_8007A638`.
+- ovl_11_func_8010C9B4 (s) — reads `D_8007A638`.
+
+---
+
 ## `ovl_11` object-mode dispatch run — 0x8010CB6C–0x8010CE80 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` around the two function-pointer
