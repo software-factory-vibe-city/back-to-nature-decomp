@@ -6034,6 +6034,23 @@ Members:
   `unk3A0`/`unk3A2` on `unk4` 2/3, clamps unkC by the same formula, and sets
   state via 800BB0D8.
 
+## `ovl_23` D_800BFB08 arg-record state driver — 0x800B8B94 (confidence: medium)
+
+Evidence: `ovl_23_func_800B8B94` is the concrete driver of the shared
+`Ovl23Func800BB0C8Arg` instance at `D_800BFB08` — the data at 0x800BFB08 is one
+word plus one s16 (0x800BFB08..0x800BFB0C), and `D_800BFB0E` = 0x800BFB08 + 6
+is that record's `unk6`. The function derives `var_a1`/`var_a2` from the
+`D_8005E3A8` display-object word at +4 (bits 0x20, 0x8000, 0x2000), seeds the
+fallback from `D_800BFB0E` (the record's own `unk6`), then passes `&D_800BFB08`
+to the shared setter `ovl_23_func_800BB0D8` and to the movement-clamp sibling
+`ovl_23_func_800BA610`. Shared record instance plus two call edges into the
+documented setter/movement-clamp family; no `D_800BF87C` use, so membership
+rests on the global/call fingerprint, not the aggregate.
+
+- ovl_23_func_800B8B94 (m, byte-exact this session) — state selector for the
+  `D_800BFB08` record: maps display bits to `(mode, phase)`, seeds `unk6` from
+  itself, then calls the setter and `ovl_23_func_800BA610`.
+
 ## `ovl_23` D_800BF87C screen-record init run — 0x800B823C–0x800B8354 (confidence: medium)
 
 Evidence: gapless link order and the call graph agree over the same
