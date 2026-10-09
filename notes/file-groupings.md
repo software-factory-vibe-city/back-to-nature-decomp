@@ -535,7 +535,7 @@ Members:
 
 ---
 
-## `ovl_11` D_800A0494 9-`s16`-row table cluster — 0x800D6628 / 0x800D666C / 0x800D6730 / 0x800D6F78 / 0x800F0A58 (confidence: medium)
+## `ovl_11` D_800A0494 9-`s16`-row table cluster — 0x800D6628 / 0x800D666C / 0x800D6730 / 0x800D6F78 / 0x800F0A58 / 0x800F9BE4 (confidence: medium)
 
 Evidence: one shared data object, D_800A0494, addressed by five functions in
 this container and by no others in any extracted bytes, with a consistent
@@ -548,6 +548,9 @@ order ties four members (800D6628, 800D666C, 800D6730, 800D6F78) inside
 800D666C reaches the table through the far-buffer base (`D_8007AFF0`+0x254A4,
 the same address as D_800A0494) rather than the symbol, and is the immediate
 link successor of 800D6628 (0x44 bytes, ending exactly at 0x800D666C).
+Correction (2026-10-09): "no others" counted symbol references only. A sixth
+reader, 800F9BE4, reaches rows 0–1 through a second far base,
+`D_8009AFF0`+0x54A4 (= 0x800A0494), so a symbol scan misses it.
 Members:
 - ovl_11_func_800D6628 (m, matched this session) — table initializer:
   `memset(&D_800A0494, 0, 0x24); memset((char *)D_800A0494 + 0x24, 0xFF,
@@ -562,6 +565,12 @@ Members:
   `base + 2i` against `base + 0x12 + 2i` (adjacent rows), returns 0/1/-1
 - ovl_11_func_800F0A58 (s) — scans the 9-`s16` row at `base` (second cursor
   `base + 0x12`) for a matching `s16`, returns the found index or -1
+- ovl_11_func_800F9BE4 (m, matched 2026-10-09, byte-exact) — slot
+  reconciler: mirrors the 18 six-byte slot records at D_8006C838+0x524C as
+  two 9-`s16` rows (row r = slots 2+8r..9+8r, then slot r), then passes each
+  nonzero entry of table rows 0–1 that no slot still holds to 800D666C.
+  Address-apart; its link predecessor and caller is under "candidates to
+  investigate" (0x800F9210 → 0x800F9BE4)
 
 ---
 
@@ -4855,6 +4864,24 @@ Members (address order):
   Evidence class: link-order adjacency + caller relation only (the leaf is a
   private-table reader with no shared gp-rel/absolute global); confidence
   low.
+
+- ovl_11 0x800F9210→0x800F9BE4 caller/leaf pair — zero-gap link order
+  (ovl_11_func_800F9210 (s), last word 0x800F9BE0, ends exactly where
+  0x800F9BE4 begins) agrees with the call graph: the head's first `jal` (at
+  0x800F9254) calls the leaf. Both serve the D_800A0494 row table. The head
+  also calls cluster members 800D666C and 800D6730 and the row-index source
+  800D5750 (three times). The leaf reads rows 0–1 through the far base and
+  calls 800D666C.
+  - ovl_11_func_800F9210 (s) — 0x9D4-byte image/table handler (LoadImage,
+    StoreImage, MoveImage2, DrawSync; `D_80129638`/`D_80129648`) that
+    drives the D_800A0494 row helpers
+  - ovl_11_func_800F9BE4 (m, matched 2026-10-09) — slot reconciler, recorded
+    in the D_800A0494 cluster above; also called twice by the orchestrator
+    0x800F7AA0 (0x800F7C28, 0x800F7C48). It ends exactly at 0x800F9D3C, the
+    head of the D_80126F7C menu-state run, but shares none of that run's
+    state words, so no link to that run is claimed.
+  Evidence class: link-order adjacency + caller relation + shared row-table
+  callees; no shared gp-rel global; confidence low.
 
 - func_80021DA8 (m) — buffer/address initializer: clears D_8006C838 and
   D_8007AFF0, calls func_80021E60(0), computes 2048-byte-aligned addresses

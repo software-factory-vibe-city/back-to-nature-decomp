@@ -840,3 +840,18 @@ typedef struct {
     s32 field_8;
     u8 pad_C[4];
 } Ovl11PaddedVec3;
+
+/* Six-byte slot record at D_8006C838+0x524C; only the leading halfword is
+ * read by ovl_11_func_800F9BE4. */
+typedef struct {
+    u16 unk0;
+    u16 unk2;
+    u16 unk4;
+} Ovl11Slot524C;
+
+/* D_8006C838 view of the eighteen slot records at +0x524C (the D_80071A84 /
+ * D_80071A8A aliases are slots 0 and 1), read by ovl_11_func_800F9BE4. */
+typedef struct {
+    char pad_000[0x524C];
+    Ovl11Slot524C slots[18];
+} Ovl11Slots524CView;
