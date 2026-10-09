@@ -6541,11 +6541,20 @@ Members (link order):
 
 ## `ovl_11` D_8006C838 table-scan caller + exclusion-set leaf — 0x800F00E4 / 0x800F021C (confidence: low)
 
-- ovl_11_func_800F00E4 (stub) — sole caller (two `jal` sites): nested s16-table
-  scans over two sub-tables inside `D_8006C838` (sub-bases +0x78EE and +0x55C6,
-  both absolute `lui`+`%lo`, same shared-buffer fingerprint as the D_8006C838
-  cluster) counting entries whose halfword is NOT in the exclusion set below,
-  then scales the count ×25.
+- ovl_11_func_800F00E4 (m, matched this session, 0x138 byte-exact) — sole
+  caller (two `jal` sites): nested s16-table scans over two sub-tables inside
+  `D_8006C838` (sub-bases +0x78EE and +0x55C6, each an absolute
+  `lui`+`%lo`+`addiu` split, same shared-buffer fingerprint as the D_8006C838
+  cluster) counting entries where the exclusion-set leaf returns 1 (i.e. the
+  halfword is NOT excluded), then returns `count*100/denom` with denom 0x465,
+  or 0x496 when `func_8001AF44(0x3E) == 1`.
+  Carries per-TU `-fno-gcse` (baseline folds the base halves across the first
+  loop into one live register and a shorter frame): its `D_8006C838` two-step
+  address formation is the only matched ovl_11 site besides
+  `ovl_11_func_800F3D40` needing that override, so the shared fingerprint is
+  consistent with a 0x800F00E4 / 0x800F3D40 TU (low; a shared flag alone is
+  not proof, and 800F3D40 is also grouped with the 0x800D0E flag-array pair
+  above, which no single-TU reading resolves).
 - ovl_11_func_800F021C (m, matched this session, 0xAC, byte-exact) — the
   exclusion-set membership leaf `s32 func(s16)`: returns 0 for the 18 values
   0x3A–0x40 and 0x16C–0x175 (one 18-term `||` chain, constants in `$v0`),

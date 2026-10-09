@@ -250,6 +250,18 @@ CC1FLAGS_func_8002470C := -fno-schedule-insns -fno-schedule-insns2
 # (ovl_11_func_8011FF74: -fno-schedule-insns).
 CC1FLAGS_ovl_11_func_800F3D40 := -fno-gcse
 
+# ovl_11_func_800F00E4: -fno-gcse. Same fingerprint as ovl_11_func_800F3D40 in
+# this overlay: the target materializes D_8006C838+0x78EE and D_8006C838+0x55C6
+# as two independent lui %hi(D_8006C838) / addiu %lo / addiu-offset preheaders.
+# Under baseline gcse the two identical %hi(D_8006C838) halves merge into one
+# register live across the first loop, so the function needs an eighth saved
+# register and one fewer preheader statement (frame 56 vs target 48; the
+# residual-space search over the natural C closure was exhausted with no exact
+# candidate). With -fno-gcse the symbol halves are recomputed per preheader and
+# the frame is 48. Precedent: ovl_11_func_800F3D40 in this same overlay carries
+# the same flag for the identical D_8006C838+offset materialization.
+CC1FLAGS_ovl_11_func_800F00E4 := -fno-gcse
+
 # ovl_11_func_80103B24: the original keeps separate positive/negative
 # read-modify-write arms on the same work-area field, including a jump after
 # the positive store and a delayed a2=a3 pointer copy. Baseline CSE folds
