@@ -9166,6 +9166,27 @@ Members (link order):
   `arg1` via `func_8001A970`, then copies `D_80054BBC[0] + {0x12|0x18|0x1E|0x24} +
   &D_8005175C` with `func_8001ABF0`
 
+## `ovl_15` two-digit text-number run — 0x80134770 / 0x80134890 / 0x801349C8 (confidence: medium)
+
+Evidence: gapless link order in `configs/splat/ovl_15.yaml` agreeing with the call graph
+and a shared string-global cluster. `ovl_15_func_80134770` (0x120 bytes at 0x80134770)
+ends exactly where `ovl_15_func_80134890` (0x138 bytes) begins, which ends exactly where
+`ovl_15_func_801349C8` begins. `ovl_15_func_80134770` calls `ovl_15_func_80134890` twice
+and `ovl_15_func_801349C8` once
+(`build/ovl_15/asm/nonmatchings/ovl_15_func_80134770/ovl_15_func_80134770.s`), and the
+run reads a contiguous string-global cluster `D_8012E014`/`D_8012E038`/`D_8012E040` (all
+read by 80134770, `D_8012E040` shared with 80134890) with `D_801376B0`/`D_801376C8` as the
+per-function scratch buffers. The run continues gaplessly past `801349C8`, but no
+evidence yet ties those later functions into this group.
+
+Members (link order):
+- ovl_15_func_80134770 (s) — builds a two-number text field; calls 80134890 twice and
+  801349C8 once, concatenating `D_8012E014` / `D_8012E038` / `D_8012E040`
+- ovl_15_func_80134890 (m, matched this session, byte-exact) — formats a two-digit
+  number into `D_801376C8` via `D_8012E040` / `D_8012E044` and appends it to `arg1`
+- ovl_15_func_801349C8 (m, matched earlier) — appends `D_8013765C[clamp(arg0,0,3)]`
+  to `arg1`
+
 ## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012EE84–0x801328C4 (confidence: medium)
 
 Evidence: a link-order run of ten functions that all open with the same

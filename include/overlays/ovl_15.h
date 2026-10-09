@@ -49,6 +49,7 @@ s32 ovl_15_func_80134444(Ovl15Func80134444Arg *arg0);
 void ovl_15_func_80134450(s16 arg0, s16 arg1, s16 arg2);
 void ovl_15_func_8013468C(void);
 void ovl_15_func_80134724(void);
+s8 *ovl_15_func_80134890(s16 arg0, s8 *arg1, s16 arg2);
 void ovl_15_func_801349C8(s16 arg0, char *arg1);
 void ovl_15_func_801359FC(void);
 void ovl_15_func_80135A78(void);
