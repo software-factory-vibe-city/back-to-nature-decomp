@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_11_func_800E0E38",
+  "baseSourcePath": "build/ovl_11_func_800E0E38/w8.c",
+  "maxVariants": 4,
+  "constraints": { "forbidInstructionCountGrowth": false, "preserveExistingEmptyMemoryBarriers": false, "preserveOpcodeStream": false, "preserveTargetRanges": [], "incompatibleAlternatives": [], "requiredAlternatives": [] },
+  "dimensions": [
+    { "id": "base", "mechanism": "statement-birth-order", "expectedPass": "greg", "invariants": [],
+      "alternatives": [ { "id": "base", "useBase": true, "expectedEffect": "reference", "invariants": [] } ] }
+  ]
+}
