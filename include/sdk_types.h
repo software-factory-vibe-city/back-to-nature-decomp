@@ -2534,3 +2534,31 @@ typedef struct {
                s32 f40;
 } struct_800759E4;
 
+typedef struct {
+    s16 unk0;
+    u8 unk2;
+    u16 unk4;
+    u16 unk6;
+} struct_80076220_entry;
+
+typedef struct {
+    u8 unk0[2];
+    u16 unk2;
+    u16 unk4;
+    u8 unk6[0xA - 6];
+    u16 unkA;
+    u16 unkC;
+    u16 unkE;
+    u8 unk10[0x1E - 0x10];
+    u16 unk1E;
+    u8 unk20[0x22 - 0x20];
+    u16 unk22;
+    s16 unk24;
+    s16 unk26;
+    u8 unk28[0x2C - 0x28];
+    u16 unk2C;
+    u16 unk2E;
+    u8 unk30[0xE4 - 0x30];
+    struct_80076220_entry unkE4[30];
+} struct_80076220;
+
