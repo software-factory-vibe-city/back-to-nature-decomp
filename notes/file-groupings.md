@@ -9935,6 +9935,17 @@ the only callee they share. 0x80110790, 0x80110838 and the leaf also read one
 object through a shared view: the leaf reads an s16 at +0x0, 0x80110790 reads a
 u16 at +0x0, 0x80110838 a u16 at +0x2, and each forwards its own arg0 straight
 to the leaf.
+
+Additional tie found after matching 0x80110658: that function is the run's
+gapless predecessor (0x80110658 size 0x138 ends at 0x80110790) and its original
+assembly materialises the addresses of all three predicates into one selected
+callback pointer (`ovl_11_func_80110790` / `ovl_11_func_80110838` /
+`ovl_11_func_80110890`) before calling it for each of the two search tables
+(`D_80071DFC[25][45]` and `D_8006C838+0x78EC`, 7-per-row). Address-taken
+call dispatching + zero-gap link order tie the dispatcher to this run; it does
+not itself call 0x801108F8 and so is not asserted as a member of the
+shared-helper run.
+
 Members (address order):
 - ovl_11_func_80110790 (m, matched this session) — run head: calls 0x801108F8,
   returns 0 when the helper returns 0, otherwise 1 only when the u16 at +0x0
@@ -9949,6 +9960,13 @@ Members (address order):
   +0x2 is 0x168, 0x169, 0x16A or 0x16B and 0 elsewhere.
 - ovl_11_func_801108F8 (m) — run-tail shared leaf: reads the s16 at +0x0 and
   calls ovl_11_func_800D5868, then returns the XOR-with-0x36 test.
+
+Run context (not asserted member): ovl_11_func_80110658 (m, matched this
+session, byte-exact) — gapless predecessor dispatcher: picks one of the three
+predicates above by arg2/arg3/arg4, walks the selected table
+(`D_80071DFC[25][45]` 0x2D-per-row or `D_8006C838+0x78EC` 7-per-row) from a
+`func_80012A34(count)` start index, and on the first predicate hit writes
+`i % width` / `i / width` through its two s16 pointers and returns 0.
 
 ## `ovl_11` func_8001EF98 flag-reader run — 0x800BF3D0–0x800BF4AC (confidence: medium)
 
