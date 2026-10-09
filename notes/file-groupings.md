@@ -10,6 +10,8 @@ its translation-unit boundaries.
 
 - ovl_11_func_800E3A3C (m) — clears +0x522C/+0x5230, dispatches by the shared
   selector, clears flag 0x20 at +0x4450 and returns the selected handler result.
+- ovl_11_func_800E3C04 (m) — initializer entry in the same cluster: writes the
+  shared +0x7A74 selector to 2, calls ovl_11_func_800E7798, then clears +0x522C/+0x5230.
 - ovl_11_func_800E3DC8 (s) — table handler that updates the shared selector.
 - ovl_11_func_800E40CC (s) — second handler in the same original dispatch table.
 - ovl_11_func_800E4280 (s) — table handler that resets the selector and returns 1.
