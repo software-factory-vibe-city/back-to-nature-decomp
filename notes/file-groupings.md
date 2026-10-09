@@ -8488,12 +8488,17 @@ Members (link order):
 - ovl_28_func_800B8CE4 (m, matched this session, byte-exact) — display-setup:
   DrawSync(0)/ClearOTagR(D_8005E3C0->field_120,0x800) +
   `func_80014CBC(0,0x2000,0x23000,D_8005E3B0+0x4290,1,1)`
-- ovl_28_func_800B8D48 (s) — display-setup: same call with tail arg 0 +
-  `func_8001719C(D_8005E3B0+0x4FAC)` + record copy from D_8005E3B0+0x4290,
-  tail `func_80015840` 31
+- ovl_28_func_800B8D48 (m, matched this session, byte-exact) — display-setup:
+  same call with tail arg 0 + `func_8001719C(D_8005E3B0+0x4FAC)`, then
+  `memcpy(&D_800B9DF0, D_8005E3B0+0x4290, 0xD1C)` + the same
+  `func_80015704`/`func_80015840` record handoff on
+  `D_800B9DC0`/`D_800B9DF0`. The copy target `D_800B9DF0` is the 0xD1C-byte
+  buffer immediately after the 0x30-byte `D_800B9DC0`, which in turn follows
+  0x800B9750; the 0x800B9750..0x800BAB0C span is one gapless chain of scratch
+  buffers all filled from `D_8005E3B0 + 0x4290` by this run.
 
-ovl_28_func_800B8B70 and ovl_28_func_800B8CE4 are matched; the rest are read off
-original asm, hence medium confidence.
+ovl_28_func_800B8B70, ovl_28_func_800B8CE4 and ovl_28_func_800B8D48 are
+matched; the rest are read off original asm, hence medium confidence.
 
 ## `ovl_21` display-setup state-handler run — 0x800BB328–0x800BBA3C (confidence: medium)
 

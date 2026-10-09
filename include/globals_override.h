@@ -1211,6 +1211,16 @@ extern u8 D_800B9720[];
  * ovl_28_func_800B8B70 and passed as a SpriteDataHeader to func_80015704. */
 extern u8 D_800B9750[];
 
+/* D_800B9DC0 - 0x30-byte scratch object immediately after D_800B9750
+ * (0x800B9DC0..0x800B9DF0); passed as a SpriteSourceData to func_80015704
+ * and func_80015840 by ovl_28_func_800B8D48. */
+extern u8 D_800B9DC0[];
+
+/* D_800B9DF0 - 0xD1C-byte sprite-header scratch buffer immediately after
+ * D_800B9DC0 (0x800B9DF0..0x800BAB0C). Filled from D_8005E3B0 + 0x4290 by
+ * ovl_28_func_800B8D48 and passed as a SpriteDataHeader to func_80015704. */
+extern u8 D_800B9DF0[];
+
 /* D_800B93B4 - s32 frame-time delta set to 0x800 by ovl_28_func_800B8414 and
  * subtracted from a record's unk8 by ovl_28_func_800B8AA8. */
 extern s32 D_800B93B4;
