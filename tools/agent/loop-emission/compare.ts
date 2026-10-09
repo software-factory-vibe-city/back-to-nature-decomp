@@ -14,8 +14,10 @@
  */
 
 import { EmissionClass, type PreheaderGroup, type PreheaderRequirement } from "./types.js";
-import { pass2Routes, type Pass2Route } from "./derive.js";
+import { pass2Routes, solveClassOrder, type Pass2Route } from "./derive.js";
+import { valueKey, type LoopValue } from "../loop-trace/values.js";
 import type { LoopTrace } from "../loop-trace/types.js";
+import { addressEncodedInName } from "../../lib/symbolIndex.js";
 
 /** Every non-decreasing class assignment over a preheader, up to a bound. */
 export function assignments(requirement: PreheaderRequirement, limit = 512): EmissionClass[][] {
@@ -25,7 +27,10 @@ export function assignments(requirement: PreheaderRequirement, limit = 512): Emi
     if (results.length >= limit) return;
     if (index === groups.length) { results.push([...prefix]); return; }
     for (const candidate of groups[index]!.consistent) {
-      if (candidate < floor) continue;
+      if (!requirement.orderEdges && candidate < floor) continue;
+      if (requirement.orderEdges?.some(([from, to]) =>
+        (to === index && from < index && prefix[from]! > candidate)
+        || (from === index && to < index && candidate > prefix[to]!))) continue;
       prefix.push(candidate);
       walk(index + 1, candidate, prefix);
       prefix.pop();
@@ -62,21 +67,24 @@ export interface EmissionGoal {
 
 /** The groups whose class the ordering constrains beyond their own evidence. */
 export function goalsFor(requirement: PreheaderRequirement): EmissionGoal[] {
-  const options = assignments(requirement);
   const goals: EmissionGoal[] = [];
+  const edges: Array<[number, number]> = requirement.orderEdges ?? requirement.groups.slice(1).map((group) => [group.index - 1, group.index]);
 
   requirement.groups.forEach((group, index) => {
-    if (group.symbol === undefined) return;
+    if (group.symbol === undefined && group.value?.base !== "constant") return;
     if (group.consistent.length === 0) return;
     const unconditional = group.consistent.every((value) => value >= EmissionClass.Pass2Movable);
-    const hoistedOptions = options.filter((assignment) =>
-      assignment.slice(0, index).some((value) => value >= EmissionClass.Pass1Movable));
+    const hoistedOptions = requirement.groups.slice(0, index).flatMap((earlier) => {
+      const domains = solveClassOrder(requirement.groups.map((entry) => entry.index === earlier.index
+        ? entry.consistent.filter((value) => value >= EmissionClass.Pass1Movable) : entry.consistent), edges);
+      return domains.every((domain) => domain.length > 0) ? [domains[index]!] : [];
+    });
     const whenAnythingHoisted = hoistedOptions.length > 0
-      && hoistedOptions.every((assignment) => assignment[index]! >= EmissionClass.Pass2Movable);
+      && hoistedOptions.every((domain) => domain.every((value) => value >= EmissionClass.Pass2Movable));
     if (unconditional || whenAnythingHoisted) {
       goals.push({
         group,
-        symbol: group.symbol,
+        symbol: groupName(group),
         ...(group.symbolAddress === undefined ? {} : { address: group.symbolAddress }),
         unconditional,
         whenAnythingHoisted,
@@ -85,6 +93,30 @@ export function goalsFor(requirement: PreheaderRequirement): EmissionGoal[] {
     }
   });
   return goals;
+}
+
+export function groupName(group: PreheaderGroup): string {
+  return group.symbol ?? (group.value?.base === "constant" ? String(group.value.offset) : group.destination ?? group.text);
+}
+
+function candidateValueKey(value: LoopValue, addressOf: AddressOfSymbol): string | undefined {
+  if (value.base !== "symbol") return valueKey(value);
+  const address = value.symbol === undefined ? undefined : addressOf(value.symbol);
+  return address === undefined ? undefined : `address:${address + value.offset}`;
+}
+export function groupIdentity(group: PreheaderGroup): string | undefined {
+  let key = group.symbolAddress === undefined ? undefined : `address:${group.symbolAddress}`;
+  if (group.value) key = candidateValueKey(group.value, (name) => {
+    if (name === group.symbol && group.symbolAddress !== undefined) return group.symbolAddress;
+    return addressEncodedInName(name) ?? undefined;
+  }) ?? key;
+  return key === undefined ? undefined : group.role === "induction-init" ? `giv:${group.step}:${key}` : key;
+}
+function actualClass(group: PreheaderGroup, emissions: LoopEmissions | undefined): EmissionClass {
+  const key = groupIdentity(group);
+  return (key === undefined ? undefined : emissions?.values?.get(key))
+    ?? (group.symbolAddress === undefined ? undefined : emissions?.addresses.get(group.symbolAddress))
+    ?? EmissionClass.Source;
 }
 
 /* ---- what the candidate actually did ------------------------------------ */
@@ -131,6 +163,8 @@ export interface LoopEmissions {
   addresses: Map<number, EmissionClass>;
   /** Why, for the addresses a movable decision produced. */
   detail: Map<number, EmissionDetail>;
+  values?: Map<string, EmissionClass>;
+  valueDetails?: Map<string, EmissionDetail>;
 }
 
 export interface CandidateClassing {
@@ -152,13 +186,13 @@ export interface CandidateClassing {
  * `force_movables` has already tied them together.
  */
 export function classifyCandidate(trace: LoopTrace, addressOf: AddressOfSymbol): CandidateClassing {
-  const byKey = new Map<string, { addresses: Map<number, EmissionClass>; detail: Map<number, EmissionDetail> }>();
+  const byKey = new Map<string, LoopEmissions>();
   const unresolved: string[] = [];
 
   for (const pass of trace.passes) {
     for (const loop of pass.loops) {
       const key = `${loop.from}..${loop.to}`;
-      const entry = byKey.get(key) ?? { addresses: new Map<number, EmissionClass>(), detail: new Map<number, EmissionDetail>() };
+      const entry = byKey.get(key) ?? { key, addresses: new Map<number, EmissionClass>(), detail: new Map<number, EmissionDetail>(), values: new Map<string, EmissionClass>(), valueDetails: new Map<string, EmissionDetail>() };
       byKey.set(key, entry);
       const { addresses, detail } = entry;
       const note = (found: number[], value: EmissionClass): void => {
@@ -167,7 +201,18 @@ export function classifyCandidate(trace: LoopTrace, addressOf: AddressOfSymbol):
       for (const movable of loop.movables) {
         if (movable.decision !== "moved") continue;
         const found = addressesOf(movable.symbol, addressOf);
-        if (found.length === 0) { unresolved.push(`pass ${pass.index} movable insn ${movable.insn}`); continue; }
+        const value = movable.value;
+        const identity = value ? candidateValueKey(value, addressOf) : undefined;
+        if (found.length === 0 && identity === undefined) { unresolved.push(`pass ${pass.index} movable insn ${movable.insn}`); continue; }
+        if (identity !== undefined && !entry.values!.has(identity)) {
+          entry.values!.set(identity, pass.index === 1 ? EmissionClass.Pass1Movable : EmissionClass.Pass2Movable);
+          entry.valueDetails!.set(identity, {
+            insn: movable.insn, ...(movable.savings === undefined ? {} : { savings: movable.savings }), lifetime: movable.life,
+            matchedBy: loop.movables.filter((other) => other.matches === movable.insn).map((other) => other.insn),
+            forcedBy: loop.movables.filter((other) => other.forces === movable.insn).map((other) => other.insn),
+            insnCount: loop.insnCount,
+          });
+        }
         note(found, pass.index === 1 ? EmissionClass.Pass1Movable : EmissionClass.Pass2Movable);
         for (const address of found) {
           if (detail.has(address)) continue;
@@ -183,11 +228,15 @@ export function classifyCandidate(trace: LoopTrace, addressOf: AddressOfSymbol):
       }
       for (const giv of loop.givs) {
         if (giv.reducedTo === undefined) continue;
+        if (giv.initial && giv.step !== undefined && /^\(reg[^ ]* \d+\)$/.test(giv.reducedTo)) {
+          const initial = candidateValueKey(giv.initial, addressOf);
+          if (initial !== undefined) entry.values!.set(`giv:${giv.step}:${initial}`, pass.index === 1 ? EmissionClass.Pass1GivInit : EmissionClass.Pass2GivInit);
+        }
         note(addressesOf(giv.symbol, addressOf), pass.index === 1 ? EmissionClass.Pass1GivInit : EmissionClass.Pass2GivInit);
       }
     }
   }
-  return { loops: [...byKey].map(([key, value]) => ({ key, ...value })), unresolved };
+  return { loops: [...byKey.values()], unresolved };
 }
 
 /**
@@ -209,9 +258,8 @@ export function matchLoops(
   classing: CandidateClassing,
 ): Map<number, LoopEmissions> {
   const overlap = (preheader: PreheaderRequirement, loop: LoopEmissions): number =>
-    new Set(preheader.groups
-      .map((group) => group.symbolAddress)
-      .filter((address): address is number => address !== undefined && loop.addresses.has(address))).size;
+    new Set(preheader.groups.filter((group) => actualClass(group, loop) !== EmissionClass.Source)
+      .map((group) => groupIdentity(group))).size;
 
   const scores = preheaders.map((preheader) => classing.loops.map((loop) => overlap(preheader, loop)));
 
@@ -301,6 +349,8 @@ export interface PreheaderVerdict {
   combinationImpossible: boolean;
   consistentWithTarget: boolean;
   undetermined: string[];
+  given?: string[];
+  alternativeMeasurements?: import("./alternatives.js").AlternativeMeasurement[];
 }
 
 /**
@@ -417,21 +467,27 @@ export function checkPreheader(
 ): PreheaderVerdict {
   const addressed = requirement.groups
     .map((group, index) => ({ group, index }))
-    .filter((entry) => entry.group.symbolAddress !== undefined);
+    .filter((entry) => groupIdentity(entry.group) !== undefined);
 
-  const occurrences = new Map<number, number>();
+  const occurrences = new Map<string, number>();
   for (const entry of addressed) {
-    const address = entry.group.symbolAddress!;
-    occurrences.set(address, (occurrences.get(address) ?? 0) + 1);
+    const identity = groupIdentity(entry.group)!;
+    occurrences.set(identity, (occurrences.get(identity) ?? 0) + 1);
   }
 
   const attributable = (index: number): boolean =>
-    emissions !== undefined && (occurrences.get(requirement.groups[index]!.symbolAddress!) ?? 0) === 1;
-  const actualOf = (index: number): EmissionClass =>
-    emissions?.addresses.get(requirement.groups[index]!.symbolAddress!) ?? EmissionClass.Source;
+    emissions !== undefined && (occurrences.get(groupIdentity(requirement.groups[index]!)!) ?? 0) === 1;
+  const actualOf = (index: number): EmissionClass => actualClass(requirement.groups[index]!, emissions);
+  /* Condition on the measured giv inits, not on the failing movable. This
+     keeps the source-variable interpretation visible while stating a real goal. */
+  const given = addressed.filter((entry) => attributable(entry.index)
+    && (actualOf(entry.index) === EmissionClass.Pass1GivInit || actualOf(entry.index) === EmissionClass.Pass2GivInit));
+  const conditional = given.length === 0 ? requirement.groups.map((group) => group.consistent)
+    : solveClassOrder(requirement.groups.map((group) => given.some((entry) => entry.index === group.index)
+        ? [actualOf(group.index)] : group.admissible), requirement.orderEdges ?? requirement.groups.slice(1).map((group) => [group.index - 1, group.index]));
 
   const groups: GroupVerdict[] = addressed.map((entry) => {
-    const address = entry.group.symbolAddress!;
+    const address = entry.group.symbolAddress ?? entry.group.value?.offset ?? 0;
     const actual = actualOf(entry.index);
 
     if (!attributable(entry.index)) {
@@ -446,12 +502,13 @@ export function checkPreheader(
       };
     }
 
-    const outcome: GoalOutcome = entry.group.consistent.includes(actual) ? "met" : "not-met";
-    const verdict: GroupVerdict = { group: entry.group, address, actual, admissible: entry.group.consistent, outcome };
-    const detail = emissions?.detail.get(address);
+    const admissible = conditional[entry.index]!;
+    const outcome: GoalOutcome = admissible.includes(actual) ? "met" : "not-met";
+    const verdict: GroupVerdict = { group: entry.group, address, actual, admissible, outcome };
+    const detail = emissions?.valueDetails?.get(groupIdentity(entry.group)!) ?? emissions?.detail.get(address);
     if (detail !== undefined) verdict.detail = detail;
     if (outcome === "not-met") {
-      verdict.moves = movesFor(actual, entry.group.consistent, detail, pass2Routes(requirement, entry.group));
+      verdict.moves = movesFor(actual, admissible, detail, pass2Routes(requirement, entry.group));
     }
     return verdict;
   });
@@ -473,6 +530,7 @@ export function checkPreheader(
     combinationImpossible: allIndividuallyFine && !holdsAll,
     consistentWithTarget: allIndividuallyFine && holdsAll,
     undetermined: unresolved,
+    given: given.map((entry) => `${entry.group.destination ?? groupName(entry.group)} is a ${actualOf(entry.index) === EmissionClass.Pass1GivInit ? "pass-1" : "pass-2"} giv init, as in your program`),
   };
   if (emissions !== undefined) verdict.loop = emissions.key;
   return verdict;

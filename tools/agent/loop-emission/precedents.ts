@@ -88,7 +88,10 @@ function sourceFiles(): Array<{ name: string; path: string; stub: boolean }> {
   const directories = ["src"];
   const overlays = join(ROOT, "src/overlays");
   if (existsSync(overlays)) {
-    for (const entry of readdirSync(overlays)) directories.push(`src/overlays/${entry}`);
+    for (const entry of readdirSync(overlays, { withFileTypes: true })) {
+      if (entry.isDirectory()) directories.push(`src/overlays/${entry.name}`);
+    }
+    directories.push("src/overlays");
   }
   const found: Array<{ name: string; path: string; stub: boolean }> = [];
   for (const directory of directories) {

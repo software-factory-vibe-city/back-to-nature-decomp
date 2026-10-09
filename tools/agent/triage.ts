@@ -105,7 +105,8 @@ import { mechanismsOf, type Mechanism } from "./loop-trace/mechanisms.js";
 import { quoteLine } from "./loop-trace/lines.js";
 import type { LoopTrace } from "./loop-trace/types.js";
 import { groupHeadingOf, siblingsOf } from "./fileGroupings.js";
-import { targetLoopEmission } from "./analyzeTargetLoopEmission.js";
+import { scoreTargetLoopEmission, targetLoopEmission } from "./analyzeTargetLoopEmission.js";
+import { renderDesirability } from "./loop-emission/desirability.js";
 import { innerLoopsOf, loopBody, loopHeaders, preheaderOf } from "./loop-emission/derive.js";
 import { goalsFor } from "./loop-emission/compare.js";
 import { precedentIndex, precedentsFor } from "./loop-emission/precedents.js";
@@ -815,7 +816,7 @@ function detectSelfSimilarity(name: string, sourcePath: string): Finding[] {
  * impossibility proof — while `-dL` was available the whole time and prints
  * every one of the decisions.
  */
-function detectLoopPreheaderOrder(name: string, sourcePath: string): Finding[] {
+export function detectLoopPreheaderOrder(name: string, sourcePath: string): Finding[] {
   let artifacts: ReturnType<typeof reversePipeline>;
   try {
     artifacts = reversePipeline({ functionName: name, source: sourcePath, replay: false });
@@ -874,6 +875,16 @@ function detectLoopPreheaderOrder(name: string, sourcePath: string): Finding[] {
     /* No liftable target is another detector's finding, not this one's. */
   }
 
+  let desirabilityLines: string[] = [];
+  let hasFlipGoal = false;
+  try {
+    const scored = scoreTargetLoopEmission(name, sourcePath);
+    hasFlipGoal = scored.assessments.some((entry) => entry.goal.required === 3);
+    desirabilityLines = [
+      ...scored.verdicts.filter((verdict) => verdict.given?.length).map((verdict) => `GIVEN ${verdict.given!.join("; ")}:`),
+      ...renderDesirability(scored.assessments),
+    ];
+  } catch { /* A missing trace remains undetermined, not a fulfilled goal. */ }
   let layouts: ReturnType<typeof preheaderLayouts> = [];
   let traceNote = "";
   try {
@@ -901,7 +912,7 @@ function detectLoopPreheaderOrder(name: string, sourcePath: string): Finding[] {
         `REQUIRED of the original: ${goal.symbol} cannot have been emitted in pass 1` +
         `${goal.unconditional ? "" : " (in any reading where anything earlier was hoisted)"}.`);
     }
-    evidence.push(...precedentLines);
+    evidence.push(...desirabilityLines, ...precedentLines);
     evidence.push("The emission order is the decision. psx_target_loop_emission states it as a goal");
     evidence.push("and scores a candidate on it; psx_loop_trace shows each movable's savings x lifetime");
     evidence.push("against the threshold it was compared to. Iterate on that distance, NOT the byte");
@@ -917,7 +928,7 @@ function detectLoopPreheaderOrder(name: string, sourcePath: string): Finding[] {
         "order, then giv inits, per pass — not by the scheduler, so scheduler and allocator forensics " +
         "will not reach it. Read the loop pass's own log.",
       evidence,
-      see: ["psx_target_loop_emission", "psx_loop_trace", "prompts/reference/loop.md"],
+      see: ["psx_target_loop_emission", "psx_loop_trace", ...(hasFlipGoal ? ["psx_hoist_knob_sweep"] : []), "prompts/reference/loop.md"],
     };
   }).slice(0, 3);
 }
@@ -1547,9 +1558,9 @@ export function detectLoopNesting(target: TargetFacts): Finding[] {
     .sort((a, b) => a.header - b.header);
   if (distinct.length < 2) return [];
 
-  const nested = distinct.some((outer) => distinct.some((inner) =>
-    inner !== outer && outer.header < inner.header && inner.latch < outer.latch));
-  if (!nested) return [];
+  const nested = distinct.flatMap((outer) => distinct.filter((inner) =>
+    inner !== outer && outer.header < inner.header && inner.latch < outer.latch).map((inner) => ({ outer, inner })));
+  if (nested.length === 0) return [];
 
   return [{
     detector: "loop-nesting",
@@ -1562,10 +1573,8 @@ export function detectLoopNesting(target: TargetFacts): Finding[] {
     evidence: [
       ...distinct.map((loop) =>
         `header ${hex(instructions[loop.header]!.address)} <- back-edge ${hex(instructions[loop.latch]!.address)}  ${instructions[loop.latch]!.raw.trim()}`),
-      ...(distinct.length >= 2 && distinct[0]!.header + 1 < distinct[1]!.header
-        ? instructions.slice(distinct[0]!.header, distinct[1]!.header)
-            .map((insn) => `  invariant in inner loop: ${insn.raw.trim()}`)
-        : []),
+      ...nested.flatMap(({ outer, inner }) => instructions.slice(outer.header, inner.header)
+        .map((insn) => `  invariant in inner loop (outer ${hex(instructions[outer.header]!.address)}, inner ${hex(instructions[inner.header]!.address)}): ${insn.raw.trim()}`)),
     ],
     see: [
       "notes/retros/2026-08-07-func_80013B04-retro.md",

@@ -28,8 +28,13 @@ import { deriveRequirement } from "./loop-emission/derive.js";
 import { checkRequirement, classifyCandidate, emissionDistance, goalsFor, type PreheaderVerdict } from "./loop-emission/compare.js";
 import { renderGoals, renderPrecedents, renderRequirement, renderVerdicts } from "./loop-emission/render.js";
 import { precedentIndex, precedentsFor, type PrecedentHit } from "./loop-emission/precedents.js";
-import { loopTrace } from "./loopTrace.js";
+import { lineMapFor, loopTrace } from "./loopTrace.js";
+import { readThresholdLedger } from "./loop-trace/ledger.js";
+import { solveThreshold } from "./loop-trace/threshold.js";
+import { toolchainHash } from "./provenance.js";
+import { assessHoists, hoistGoals, renderDesirability } from "./loop-emission/desirability.js";
 import type { LoopEmissionRequirement } from "./loop-emission/types.js";
+import { alternativeLedgerEvidence } from "./loop-emission/alternatives.js";
 
 /**
  * Name <-> address for this function's container.
@@ -39,7 +44,7 @@ import type { LoopEmissionRequirement } from "./loop-emission/types.js";
  * wants a real name; and the compiler's RTL names symbols outright, so the
  * comparison wants their addresses.
  */
-function symbolMaps(functionName: string): {
+export function symbolMaps(functionName: string): {
   addressOf: (name: string) => number | undefined;
   nameOfAddress: (address: number) => string | undefined;
 } {
@@ -67,6 +72,21 @@ export function targetLoopEmission(functionName: string): LoopEmissionRequiremen
     );
   }
   return deriveRequirement(program, functionName, { nameOfAddress: symbolMaps(functionName).nameOfAddress });
+}
+
+export function scoreTargetLoopEmission(functionName: string, source?: string, withLines = true) {
+  const requirement = targetLoopEmission(functionName);
+  const traced = loopTrace(functionName, source).result;
+  const classing = classifyCandidate(traced.trace, symbolMaps(functionName).addressOf);
+  const verdicts = checkRequirement(requirement.preheaders, classing);
+  alternativeLedgerEvidence(functionName, verdicts, symbolMaps(functionName).addressOf);
+  const goals = hoistGoals(verdicts);
+  const ledger = readThresholdLedger(toolchainHash());
+  const solution = solveThreshold([...Object.entries(ledger.functions).filter(([name]) => name !== functionName)
+    .flatMap(([, entry]) => entry.constraints), ...traced.constraints]);
+  const lines = withLines && goals.some((goal) => goal.required === 3) ? lineMapFor(functionName, source) : undefined;
+  const assessments = assessHoists(goals, verdicts, traced.trace, solution.candidates.length === 1 ? solution.candidates[0] : undefined, solution.brackets, lines);
+  return { requirement, traced, classing, verdicts, goals, solution, assessments };
 }
 
 function main(): void {
@@ -116,11 +136,13 @@ function main(): void {
 
   let verdicts: PreheaderVerdict[] = [];
   let candidateError: string | undefined;
-  if (source !== undefined || goals.length > 0) {
+  let assessments: ReturnType<typeof assessHoists> = [];
+  /* Giv-conditioned goals may exist even when no target-only goal is forced. */
+  if (source !== undefined || requirement.preheaders.length > 0) {
     try {
-      const { addressOf } = symbolMaps(functionName);
-      const classing = classifyCandidate(loopTrace(functionName, source).result.trace, addressOf);
-      verdicts = checkRequirement(requirement.preheaders, classing);
+      const scored = scoreTargetLoopEmission(functionName, source);
+      verdicts = scored.verdicts;
+      assessments = scored.assessments;
     } catch (error) {
       /* No candidate to score is normal — the requirement stands on its own,
          and on a parked function the source IS a stub. */
@@ -135,6 +157,7 @@ function main(): void {
       goals,
       precedents,
       verdicts,
+      desirability: assessments,
       distance: verdicts.length > 0 ? emissionDistance(verdicts) : null,
       ...(candidateError ? { candidateError } : {}),
     }, null, 2));
@@ -150,6 +173,7 @@ function main(): void {
   if (verdicts.length > 0) {
     console.log("");
     console.log(renderVerdicts(verdicts).join("\n"));
+    console.log(renderDesirability(assessments).join("\n"));
   } else if (candidateError) {
     console.log("");
     console.log(`CANDIDATE\n  not scored — ${candidateError}`);

@@ -52,6 +52,9 @@ export type GroupRole =
 
 /** One emitted unit in a preheader — an address pair counts once. */
 export interface PreheaderGroup {
+  /** Consumers in this block. Only leaves carry final emission-order evidence. */
+  consumers?: number[];
+  value?: import("../loop-trace/values.js").LoopValue;
   index: number;
   /** Instruction ids from the program this was derived from. */
   insns: number[];
@@ -113,6 +116,9 @@ export interface PreheaderRequirement {
    * as such rather than being smoothed over.
    */
   unsatisfiable: boolean;
+  /** Class-order edges: producer <= consumer and successive leaves. */
+  orderEdges?: Array<[number, number]>;
+  excluded?: string[];
 }
 
 export interface LoopEmissionRequirement {

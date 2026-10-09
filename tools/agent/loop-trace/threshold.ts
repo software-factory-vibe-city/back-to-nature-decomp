@@ -346,6 +346,17 @@ export interface MovableMargin {
    * carrying it, named here so the arithmetic does not read as wrong.
    */
   carriedBy?: string;
+  /** Position in the log's loop order, not the insn UID's numeric order. */
+  loopOrder: number;
+  initialThreshold: number;
+  insnCount: number;
+  savings: number;
+  lifetime: number;
+  movedOnce: boolean;
+  /** Instructions by which N exceeds the largest N that still moves. */
+  declineSlack: number;
+  /** N can grow this much before the product ceases to pass. */
+  moveHeadroom: number;
 }
 
 /**
@@ -380,7 +391,8 @@ export function resolveMultipliers(
   bracketFor: (loop: LoopRecord) => LoopBracket | undefined,
   nonFixedRegs: number,
 ): number[][] {
-  const admissible = loops.map((loop) => admissibleMultipliers(bracketFor(loop), nonFixedRegs));
+  const admissible = loops.map((loop) => admissibleMultipliers(bracketFor(loop), nonFixedRegs)
+    .filter((multiplier) => loop.hasCall === undefined || multiplier === (loop.hasCall ? 1 : 2)));
   const pairs = containment(loops);
   let changed = true;
   while (changed) {
@@ -420,7 +432,7 @@ export function movableMargins(
       const initial = multiplier * (1 + nonFixedRegs);
       const alreadyMoved = new Set<number>();
       let decay = 0;
-      for (const movable of loop.movables) {
+      for (const [loopOrder, movable] of loop.movables.entries()) {
         if (movable.savings !== undefined && (movable.decision === "moved" || movable.decision === "not desirable")) {
           const effective = initial - 3 * decay;
           const denominator = movable.halved ? loop.insnCount * 2 : loop.insnCount;
@@ -435,7 +447,11 @@ export function movableMargins(
           margins.push({
             pass: pass.index, loop: key, insn: movable.insn, multiplier,
             effectiveThreshold: effective, requiredProduct: required, actualProduct: actual,
-            decay, decision: movable.decision, carriedBy,
+            decay, decision: movable.decision, ...(carriedBy === undefined ? {} : { carriedBy }),
+            loopOrder, initialThreshold: initial, insnCount: loop.insnCount, savings: movable.savings,
+            lifetime: movable.life, movedOnce: movable.halved,
+            declineSlack: loop.insnCount - Math.floor(effective * actual / (movable.halved ? 2 : 1)),
+            moveHeadroom: Math.floor(effective * actual / (movable.halved ? 2 : 1)) - loop.insnCount,
           });
         }
         if (movable.decision === "moved") {

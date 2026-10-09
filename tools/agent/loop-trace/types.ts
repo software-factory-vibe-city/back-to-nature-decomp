@@ -54,6 +54,7 @@ export interface Movable {
   raw: string;
   /** Symbol this movable materialises, resolved from the pre-loop RTL dump. */
   symbol?: string;
+  value?: import("./values.js").LoopValue;
 }
 
 export interface BasicInductionVariable {
@@ -102,6 +103,9 @@ export interface GeneralInductionVariable {
   finalValueReplaceable?: boolean;
   /** Symbol this giv's address involves, resolved from the pre-loop RTL dump. */
   symbol?: string;
+  /** Identity of the reduced initial value and its constant per-iteration step. */
+  initial?: import("./values.js").LoopValue;
+  step?: number;
 }
 
 /** One `Sorted combine statistics:` table. */
@@ -145,6 +149,8 @@ export interface LoopRecord {
   to: number;
   /** `%d real insns.` — the desirability denominator for this loop. */
   insnCount: number;
+  /** Call presence witnessed between this loop's RTL begin/end notes. */
+  hasCall?: boolean;
   /** `Loop from %d to %d is phony.` — discarded before any decision. */
   phony: boolean;
   /** Why, when the dump's own RTL settles it. Only ever set on a phony loop. */

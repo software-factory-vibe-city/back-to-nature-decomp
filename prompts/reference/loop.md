@@ -224,6 +224,26 @@ know. It is not a pass.
 
 - **Position-only preheader residual** → §1. Establish which pass emitted each
   instruction, in both programs, before touching source.
+- **A movable the target emits in pass 2 and yours in pass 1** is a
+  **desirability flip**. Both sides of the test belong to the **pass-1 body**,
+  before hoisting. Change the invariant work inside the window between the
+  last movable that must still move and the one that must decline. A moved
+  group costs the threshold 3 and adds its instructions to `insn_count`;
+  matching groups may merge and absorb savings/lifetime, so measure rather
+  than predict. `psx_target_loop_emission` prints the conditional goals, slack
+  and source-line window; `psx_hoist_knob_sweep` measures the finite product of
+  local-copy versus direct-global access routes (including constant-offset
+  copies, with original casts/units preserved) in and ahead of it. It also
+  enumerates compatible named record-array views already in the input context,
+  measuring their layouts with the production compiler and proving guarded
+  byte-affine read equivalence before preparing and re-tracing each family.
+  The raw family stays in the search; larger combined products are explicitly
+  sampled. Meeting the hoist goals does not prove EXACT: keep the byte oracle's
+  separate verdict. Identical final loops do **not** imply identical pass-1
+  counts. A closure based on those counts has an open source-side premise until
+  the measured context/representations and window/site sets are exhaustively
+  searched with no goal-meeting variant. That closes only the recorded domain,
+  not every source representation.
 - **A hoist the target does not have** → §2. Read the product and the
   threshold it was compared to. If the product cannot be lowered — an
   inseparable `%hi`/`%lo` pair is the common case — the lever is not

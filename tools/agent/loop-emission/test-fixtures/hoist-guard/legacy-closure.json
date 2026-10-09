@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "function": "ovl_11_func_800F9BE4",
+  "at": "2026-10-09T16:03:18.149Z",
+  "tool": "psx_loop_trace",
+  "question": "Can 17 be made a pass-2 hoist via more moved movables or moved_once?",
+  "verdict": "closed",
+  "result": "threshold0=58 fixed by n_non_fixed_regs=28 (machine property, regclass.c); 17 declines only if threshold<34, i.e. 9 moved movables before it (currently 2) or moved_once[regno]. Loop 132..243 processed first and its only movable (regno138) does not move; no source expression puts the 17 constant's regno in that loop.",
+  "evidence": "move_movables condition: threshold*savings*lifetime >= (moved_once?insn_count*2:insn_count); loop trace pass1 loop 17..120: insn251 threshold58 moves, insn53 threshold55 moves, insn95 threshold52 moves; pass2 loop 17..120 has no movables.",
+  "conditionalOn": "current 85-word source and the target's identical loop body; n_non_fixed_regs is a machine constant not source-derived"
+}

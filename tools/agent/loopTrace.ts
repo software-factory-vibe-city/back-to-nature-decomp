@@ -33,6 +33,7 @@ import {
   ROOT,
   compileSource,
   normalizeFunctionName,
+  preprocessOnly,
   resolveSource,
 } from "./decompToolchain.js";
 import {
@@ -49,6 +50,8 @@ import {
 import { parseLoopDump } from "./loop-trace/parse.js";
 import { readLineMap, sameCode, type LineMap } from "./loop-trace/lines.js";
 import { nameFor, readRtlFacts } from "./loop-trace/symbols.js";
+import { addValues, constant, rtlValue, rtlValues } from "./loop-trace/values.js";
+import { parseRtlInstructions, parseRtlNotes } from "./compiler-trace/rtl-parser.js";
 import { preheaderLayouts } from "./loop-trace/preheader.js";
 import { findCascades } from "./loop-trace/cascade.js";
 import { hashSource, recordConstraints, readThresholdLedger, LEDGER_PATH } from "./loop-trace/ledger.js";
@@ -84,16 +87,37 @@ export interface LoopTraceResult {
  */
 function resolveSymbols(trace: LoopTrace, directory: string, stem: string): void {
   const facts = readRtlFacts(directory, stem);
-  if (facts.symbolsByInsn.size === 0) return;
+  const stagePath = facts.stage ? join(directory, `${stem}.i.${facts.stage}`) : undefined;
+  const beforeDump = stagePath ? readFileSync(stagePath, "utf8") : "";
+  const values = rtlValues(beforeDump);
+  const notes = parseRtlNotes(beforeDump, "loop-values");
+  const calls = parseRtlInstructions(beforeDump, "loop-values").filter((insn) => insn.kind === "call_insn");
+  const after = rtlValues(readFileSync(join(directory, `${stem}.i.loop`), "utf8"));
   for (const pass of trace.passes) {
     for (const loop of pass.loops) {
+      const start = notes.find((note) => note.uid === loop.from && note.kind === "loop-begin");
+      const end = notes.find((note) => note.uid === loop.to && note.kind === "loop-end");
+      if (start && end) loop.hasCall = calls.some((insn) => insn.chainOrder !== undefined && insn.chainOrder > start.order && insn.chainOrder < end.order);
       for (const movable of loop.movables) {
         const name = nameFor(facts, movable.insn, movable.regno);
         if (name !== undefined) movable.symbol = name;
+        const value = values.byInsn.get(movable.insn) ?? after.byInsn.get(movable.insn)
+          ?? (movable.movedTo === undefined ? undefined : after.byInsn.get(movable.movedTo));
+        if (value) movable.value = value;
       }
       for (const giv of loop.givs) {
         const name = nameFor(facts, giv.insn, giv.reg);
         if (name !== undefined) giv.symbol = name;
+        const biv = loop.bivs.find((entry) => entry.regno === giv.srcReg && entry.verified);
+        const mult = rtlValue(giv.mult, values.registers);
+        const increment = rtlValue(biv?.increment, values.registers);
+        const initial = rtlValue(biv?.initialValue, values.registers);
+        const add = rtlValue(giv.add, values.registers);
+        if (mult?.base === "constant" && increment?.base === "constant") giv.step = mult.offset * increment.offset;
+        if (mult?.base === "constant" && initial?.base === "constant") {
+          const value = addValues(constant(mult.offset * initial.offset), add);
+          if (value) giv.initial = value;
+        }
       }
     }
   }
@@ -131,6 +155,9 @@ export function loopTrace(
     ? traceDirectory(functionName)
     : join(traceDirectory(functionName), "variants", variant);
   const artifactPath = join(directory, "trace.json");
+  /* Hoist decisions depend on header layouts/macros too, not just source bytes.
+     Hash fresh cpp and compile that very snapshot rather than a second context. */
+  const preprocessed = readFileSync(preprocessOnly(source, directory, "trace-context"), "utf8");
 
   const ensured = ensureArtifact<LoopTraceResult>({
     artifactPath,
@@ -139,7 +166,7 @@ export function loopTrace(
     costHint: "one cc1 compile",
     inputs: {
       files: [source, join(ROOT, "configs/flag_overrides.mk")],
-      values: { dump: "-dL" },
+      values: { dump: "-dL", contextHash: sha256(preprocessed) },
       implementation: [
         join(ROOT, "tools/agent/decompToolchain.ts"),
         join(ROOT, "tools/agent/loopTrace.ts"),
@@ -152,7 +179,7 @@ export function loopTrace(
       /* `-da` rather than `-dL`: the same single compile, and it also leaves the
          dump from the pass before loop, which is the only place the moved
          insns' UIDs can still be resolved to the symbols they materialise. */
-      const artifacts = compileSource(source, directory, functionName, { dumps: true });
+      const artifacts = compileSource(source, directory, functionName, { dumps: true, preprocessedText: preprocessed });
       if (!existsSync(dumpPath)) {
         throw new Error(
           `cc1 wrote no loop dump for ${functionName}. Expected ${projectPath(dumpPath)} — ` +
@@ -210,6 +237,7 @@ export function lineMapFor(functionName: string, sourceOverride?: string): LineM
   const source = resolveSource(functionName, sourceOverride);
   const directory = join(traceDirectory(functionName), "lines");
   const artifactPath = join(directory, "lines.json");
+  const preprocessed = readFileSync(preprocessOnly(source, directory, "lines-context"), "utf8");
 
   const ensured = ensureArtifact<{ file: string; byInsn: Array<[number, number]> } | null>({
     artifactPath,
@@ -218,7 +246,7 @@ export function lineMapFor(functionName: string, sourceOverride?: string): LineM
     costHint: "two cc1 compiles",
     inputs: {
       files: [source, join(ROOT, "configs/flag_overrides.mk")],
-      values: { debug: "-g" },
+      values: { debug: "-g", contextHash: sha256(preprocessed) },
       implementation: [
         join(ROOT, "tools/agent/decompToolchain.ts"),
         join(ROOT, "tools/agent/loopTrace.ts"),
@@ -228,9 +256,9 @@ export function lineMapFor(functionName: string, sourceOverride?: string): LineM
     produce: (provenance) => {
       let value: { file: string; byInsn: Array<[number, number]> } | null = null;
       try {
-        const plain = compileSource(source, join(directory, "plain"), functionName, {});
+        const plain = compileSource(source, join(directory, "plain"), functionName, { preprocessedText: preprocessed });
         const debug = compileSource(source, join(directory, "debug"), functionName,
-          { dumps: true, extraCc1Flags: ["-g"] });
+          { dumps: true, extraCc1Flags: ["-g"], preprocessedText: preprocessed });
         if (sameCode(readFileSync(plain.assembly, "utf8"), readFileSync(debug.assembly, "utf8"))) {
           const map = readLineMap(join(directory, "debug"), functionName);
           if (map) value = { file: map.file, byInsn: [...map.byInsn] };
@@ -275,7 +303,7 @@ export function cachedLoopTrace(functionName: string): { trace: LoopTrace; sourc
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const json = argv.includes("--json");
   const thresholdOnly = argv.includes("--threshold");
@@ -327,9 +355,16 @@ function main(): void {
     ? movableMargins(result.trace, solution.candidates[0]!, solution.brackets)
     : [];
 
+  let desirability: import("./loop-emission/desirability.js").HoistAssessment[] = [];
+  try {
+    const { scoreTargetLoopEmission } = await import("./analyzeTargetLoopEmission.js");
+    desirability = scoreTargetLoopEmission(functionName, sourceOverride).assessments;
+  } catch { /* Target-side evidence is optional for a candidate-only trace. */ }
+
   if (json) {
     console.log(JSON.stringify({
       function: functionName,
+      desirability,
       source: result.source,
       dump: result.dumpPath,
       passes: result.trace.passes,
@@ -368,6 +403,8 @@ function main(): void {
     }
   }
 
+  const { renderDesirability } = await import("./loop-emission/desirability.js");
+  console.log(renderDesirability(desirability).join("\n"));
   console.log("");
   console.log(renderProvenance([{ label: "loop pass trace", ensured }]));
 }

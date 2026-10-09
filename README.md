@@ -690,11 +690,13 @@ npx tsx tools/agent/analyzeTargetLoopEmission.ts <function>
 npx tsx tools/agent/analyzeTargetLoopEmission.ts <function> --source <candidate.c>
 ```
 
-A preheader is a non-decreasing sequence of emission classes, so each group's
-own evidence is cut down by the ordering until only some classes remain — and a
-group that lands after an induction initialisation cannot be a pass-1 movable.
-That becomes a goal per address, scored MET / NOT MET / UNDETERMINED, and a
-distance.
+A preheader's **leaves** form a non-decreasing sequence of emission classes.
+Producer groups are constrained only to be no later than their consumers, and
+frame-map prologue/epilogue operations are excluded. Constants join to the trace
+by value; giv inits join by affine initial value and step. The candidate's giv
+assignments can condition the goals, while the source-induction alternative
+stays visible with any fresh trace-verified ledger measurements. Goals are
+scored MET / NOT MET / UNDETERMINED with a distance.
 
 **Iterate on that distance, not the byte score.** On a preheader residual the
 byte score is flat across the whole family of source spellings and inverted at
@@ -717,6 +719,40 @@ Score a candidate and the two sides together can pin the answer: when exactly
 one reading of the target's preheader holds every class the candidate produced,
 the requirement has stopped being a range, and the report says `PINNED` and
 names the routes that reading needs.
+
+For a pass-1-decline route, both tools print the source-side inequality,
+desirability slack and verified source-line window, including the movables whose
+decisions must hold. Measure the access-route knobs rather than predict them:
+
+```bash
+npx tsx tools/agent/hoistKnobSweep.ts <function> --source <candidate.c> --max 64
+```
+
+`psx_hoist_knob_sweep` uses tree-sitter to enumerate reads through an invariant
+single-assignment local address copy, including constant-offset expressions,
+versus the global directly. Offsets retain their original casts and byte/element
+units; variable offsets, pointer loads, escapes and expanded writes are refused.
+It also automatically enumerates named record-array views already in the
+input's preprocessed context. The production compiler measures their sizes,
+field offsets and extents; only guarded, in-bounds byte-affine read equalities
+license preparation. Raw/preprocessed function tokens must agree. Compatible
+views become separate families, each with a fresh trace, window and site set;
+the unchanged raw family is always retained. The report preserves layouts,
+source ranges and affine/bounds proofs. No donor body or invented layout is used.
+
+The combined product is measured up to the bound, otherwise reported as an
+explicitly sampled fraction, globally and per family. Results rank by goals met
+then staged residual. Sources, decisions and byte-oracle EXACT evidence stay
+under `build/hoistKnobSweep/`; nothing edits or promotes live C. Meeting the
+hoist goals is not itself EXACT.
+
+Loop-count closures render as **OPEN PREMISE**, scoped to the measured source
+hash: different pass-1 bodies can reach the same final loop. Record an alternate
+measured source with `closedDirections.ts --source <path>`. Only an exhaustive,
+fully measured sweep with no goal-meeting variant can retire that premise via
+`--sweep-report <report.json>`, conditional on its source/context/representation
+families and window/site sets; sampling, input/header drift, unknown decisions,
+failed preparation and failed compiles cannot.
 
 Two further readings come out of the same log. A loop the pass discarded prints
 `Loop from A to B is phony.` and nothing else: it was never scanned, so its
@@ -973,6 +1009,7 @@ The main tools under `tools/agent/` are:
 | `reversePipeline.ts` | Runs the compiler backward and names the pass that owns the residual |
 | `loopTrace.ts` | Reads the loop optimizer's own `-dL` log and solves for its unprinted threshold |
 | `analyzeTargetLoopEmission.ts` | Derives what the original's loop pass must have done, and scores a candidate on it |
+| `hoistKnobSweep.ts` | Measures invariant-base access routes against conditional hoist goals and staged residuals |
 | `residualObjective.ts` | Scores and ranks candidate sources on the staged residual — the iteration metric |
 | `fuzzVariants.ts` | Compares mechanism hypotheses |
 | `contextExport.ts` | Exports the matched signatures |

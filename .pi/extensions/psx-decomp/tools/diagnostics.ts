@@ -413,12 +413,23 @@ export const TOOL_SPECS: ToolSpec[] = [
 
   functionTool(
     "psx_target_loop_emission", "PSX Target Loop Emission", "analyzeTargetLoopEmission.ts",
-    "What the ORIGINAL's loop optimizer must have done, derived from the target's bytes alone — so it works on a bare INCLUDE_ASM stub, before the first line of source. This is the requirement half that `psx_loop_trace` observes against; every other pass has both (psx_analyze_target_schedule, psx_allocator_counterfactual) and loop.c had only the observer, which is why a preheader residual had nothing to steer by. loop.c emits into a preheader through emit_insn_before(loop_start), so the preheader reads front to back as a NON-DECREASING sequence of emission classes: source < pass-1 movable < pass-1 giv init < pass-2 movable < pass-2 giv init. Each group admits the classes its own evidence allows — an address the loop only reads can be a movable, a register the loop steps by a constant can be an induction init, a call argument neither — and the ordering constraint cuts that down to the requirement. Pass `source` to score a candidate: it reports, per constrained address, MET / NOT MET / UNDETERMINED and a distance to minimise. Minimise THAT, not the byte score — on a preheader residual the byte score is flat across the whole family of source spellings and ranks the mechanism-correct variant worst, which is how a correct variant gets recorded as closed.",
+    "What the ORIGINAL's loop optimizer must have done, derived from the target's bytes alone — so it works on a bare INCLUDE_ASM stub, before the first line of source. This is the requirement half that `psx_loop_trace` observes against; every other pass has both (psx_analyze_target_schedule, psx_allocator_counterfactual) and loop.c had only the observer, which is why a preheader residual had nothing to steer by. loop.c emits into a preheader through emit_insn_before(loop_start), so the preheader leaves (excluding frame operations) read front to back as a NON-DECREASING sequence of emission classes: source < pass-1 movable < pass-1 giv init < pass-2 movable < pass-2 giv init. Each group admits the classes its own evidence allows — an address the loop only reads can be a movable, a register the loop steps by a constant can be an induction init, a call argument neither — and the ordering constraint cuts that down to the requirement. Pass `source` to score a candidate: constants join by value, giv inits by affine initial value and step, and goals conditioned on those giv assignments report MET / NOT MET / UNDETERMINED, desirability slack and the verified source-line window for psx_hoist_knob_sweep. Minimise THAT, not the byte score — on a preheader residual the byte score is flat across the whole family of source spellings and ranks the mechanism-correct variant worst, which is how a correct variant gets recorded as closed.",
     { extra: { source: Type.Optional(Type.String({ description: "Candidate C to score against the requirement; omit for the requirement alone" })) },
       argv: (p) => [p.functionName as string,
         ...(p.source ? ["--source", p.source as string] : []),
         ...(p.json ? ["--json"] : [])],
       timeout: 300_000 },
+  ),
+  functionTool(
+    "psx_hoist_knob_sweep", "PSX Hoist Knob Sweep", "hoistKnobSweep.ts",
+    "Measure the source-side desirability flip required by a loop-preheader residual. Uses tree-sitter to enumerate invariant-base local-copy/direct-global reads, including constant offsets, in and ahead of the verified source-line window. Automatically prepares compatible named record-array views already in the input context, with production-measured layouts and guarded byte-affine proofs, retaining raw and ambiguous families and re-tracing each window/site set. Compiles choices with loop dumps, reports must-hold/flip decisions, N and thresholds, and ranks by goals met then staged residual; EXACT requires the byte oracle. Combined full product up to max (default 64); larger domains are explicitly sampled, never exhaustive. Writes candidates and source/context/representation/window/site-scoped closure evidence only under build/, never edits or promotes live C. Output limited to 50 KB or 2000 lines.",
+    { extra: {
+      source: Type.Optional(Type.String({ description: "Alternate complete C source" })),
+      max: Type.Optional(Type.Integer({ minimum: 1, maximum: 4096, description: "Maximum variants; default 64. Larger domains are sampled." })),
+    }, argv: (p) => [p.functionName as string,
+      ...(p.source ? ["--source", p.source as string] : []),
+      ...(p.max ? ["--max", String(p.max)] : []),
+      ...(p.json ? ["--json"] : [])], timeout: 600_000 },
   ),
   {
     name: "psx_loop_trace",
@@ -504,6 +515,8 @@ export const TOOL_SPECS: ToolSpec[] = [
         result: Type.Optional(Type.String({ description: "The tool's own words for its result — UNSAT, 'no candidate', a count" })),
         evidence: Type.Optional(Type.String({ description: "How a later reader checks this without re-running: bounds, counts, run time" })),
         conditionalOn: Type.Optional(Type.String({ description: "The premise the verdict rests on, so a later session attacks the premise rather than re-running the proof" })),
+        source: Type.Optional(Type.String({ description: "Measured source whose hash scopes a source-side loop premise" })),
+        sweepReport: Type.Optional(Type.String({ description: "Exhaustive no-goal hoist sweep report; retires only its source/context/representation/window/site-set premise" })),
       },
       argv: (p) => [p.functionName as string,
         ...(p.tool ? ["--tool", p.tool as string] : []),
@@ -512,6 +525,8 @@ export const TOOL_SPECS: ToolSpec[] = [
         ...(p.result ? ["--result", p.result as string] : []),
         ...(p.evidence ? ["--evidence", p.evidence as string] : []),
         ...(p.conditionalOn ? ["--conditional-on", p.conditionalOn as string] : []),
+        ...(p.source ? ["--source", p.source as string] : []),
+        ...(p.sweepReport ? ["--sweep-report", p.sweepReport as string] : []),
         ...(p.json ? ["--json"] : [])] },
   ),
   functionTool(

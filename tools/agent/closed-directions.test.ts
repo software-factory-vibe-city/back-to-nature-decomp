@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { claimsEmptiness, readClosed, recordClosed, renderClosed } from "./closedDirections.js";
+import { claimsEmptiness, readClosed, recordClosed, renderClosed, sourceSidePremise, searchedPremise, type ClosedDirection } from "./closedDirections.js";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { sha256 } from "./provenance.js";
 
 let counter = 0;
 function uniqueFunction(): string {
@@ -138,4 +142,86 @@ test("a premise can be added to a claim already in the record", () => {
 
   /* And the amended claim is then itself a repeat. */
   assert.equal(recordClosed({ ...claim, conditionalOn: "the pair originating at this loop" }), undefined);
+});
+
+test("historical loop-count closure replays as OPEN PREMISE, residual closures are unaffected", () => {
+  const legacy = JSON.parse(readFileSync(new URL("./loop-emission/test-fixtures/hoist-guard/legacy-closure.json", import.meta.url), "utf8")) as ClosedDirection;
+  assert.ok(sourceSidePremise(legacy));
+  const text = renderClosed(legacy.function, [legacy]);
+  assert.match(text, /OPEN PREMISE/);
+  assert.match(text, /threshold<34/); assert.match(text, /currently 2/);
+  assert.match(text, /Attack the\n\s+counts, not the inequality/);
+  const ordinary = { ...legacy, tool: "psx_residual_objective", result: "bounded source search exhausted" };
+  assert.equal(sourceSidePremise(ordinary), false);
+  assert.doesNotMatch(renderClosed(legacy.function, [ordinary]), /OPEN PREMISE/);
+  for (const result of ["insn_count 34", "threshold 52", "two moved groups", "savings 1", "lifetime 1"]) {
+    assert.ok(sourceSidePremise({ tool: "other", result }));
+  }
+});
+
+test("new source-side records store the measured source hash without vetoing a closure", () => {
+  const dir = mkdtempSync(join(tmpdir(), "closed-hoist-"));
+  try {
+    const source = join(dir, "source.c"); const text = "void f(void) {}\n";
+    writeFileSync(source, text);
+    const name = uniqueFunction();
+    const row = recordClosed({ functionName: name, tool: "psx_loop_trace", question: "cannot decline?", verdict: "closed", result: "insn_count 34, two moved groups", source })!;
+    assert.equal(row.sourceHash, sha256(text)); assert.equal(row.premiseClass, "source-side");
+    assert.match(renderClosed(name), /OPEN PREMISE/); assert.ok(renderClosed(name).includes(sha256(text)));
+    assert.equal(readClosed(name)[0]!.verdict, "closed", "label, not a verdict rewrite or veto");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+function sweepCertificate(sourceHash: string) {
+  const windows = [{ before: 95 }], sites = [{ line: 34 }], contextHash = "measured-context";
+  const coverage = { exhaustive: true, evaluated: 2, total: "2" };
+  const representations = [{ id: "raw", sourceHash, windows, sites, coverage }];
+  return { schemaVersion: 1, sourceHash, contextHash, inputStable: true, preparationErrors: [],
+    goals: [{ name: "17" }], windows, sites, representations, coverage, goalMeeting: 0,
+    variants: [0, 1].map(mask => ({ representation: "raw", mask: String(mask), premiseMet: true,
+      decisions: [{ outcome: "not-met" }], objective: { key: [0, 0, 1, 0] } })),
+    closure: { sourceHash, contextHash, windows, sites, representations, result: "exhausted-no-goal-meeting-variant" } };
+}
+
+test("only an exhaustive measured window/site-set certificate can retire its source premise", () => {
+  const certificate = sweepCertificate("abc");
+  assert.ok(searchedPremise(certificate, "abc"));
+  assert.equal(searchedPremise(certificate, "different"), false);
+  assert.equal(searchedPremise({ ...certificate, coverage: { ...certificate.coverage, exhaustive: false } }, "abc"), false);
+  assert.equal(searchedPremise({ ...certificate, variants: [] }, "abc"), false);
+  assert.equal(searchedPremise({ ...certificate, variants: [{ error: "compile failed" }, certificate.variants[1]] }, "abc"), false);
+  assert.equal(searchedPremise({ ...certificate, variants: [{ ...certificate.variants[0], decisions: [{ outcome: "undetermined" }] }, certificate.variants[1]] }, "abc"), false);
+  for (const changed of [
+    { ...certificate, inputStable: false }, { ...certificate, preparationErrors: ["compile failed"] },
+    { ...certificate, contextHash: "different-headers" },
+    { ...certificate, closure: { ...certificate.closure, sites: [{ line: 35 }] } },
+    { ...certificate, closure: { ...certificate.closure, representations: [] } },
+    { ...certificate, representations: [{ ...certificate.representations[0], coverage: { exhaustive: false } }] },
+    { ...certificate, variants: [certificate.variants[0], certificate.variants[0]] },
+    { ...certificate, variants: [certificate.variants[0], { ...certificate.variants[1], mask: "00" }] },
+    { ...certificate, variants: [{ ...certificate.variants[0], representation: "unsearched" }, certificate.variants[1]] },
+    { ...certificate, variants: [{ ...certificate.variants[0], mask: "not-a-mask" }, certificate.variants[1]] },
+    { ...certificate, variants: [{ ...certificate.variants[0], decisions: [{ outcome: "met" }] }, certificate.variants[1]] },
+  ]) assert.equal(searchedPremise(changed, "abc"), false);
+  const dir = mkdtempSync(join(tmpdir(), "closed-hoist-certificate-"));
+  try {
+    const name = uniqueFunction(); const path = join(dir, "report.json");
+    writeFileSync(path, JSON.stringify({ ...certificate, functionName: name }));
+    const claim = { functionName: name, tool: "psx_loop_trace", question: "can 17 decline?", verdict: "closed" as const, result: "threshold counts", sourceHash: "abc" };
+    recordClosed(claim);
+    recordClosed({ ...claim, sweepReport: path });
+    assert.doesNotMatch(renderClosed(name), /OPEN PREMISE/);
+    assert.match(renderClosed(name), /window and site set/);
+    assert.match(renderClosed(name), /context measured-context/);
+    assert.match(renderClosed(name), /and representations/);
+    const legacyScope = readClosed(name)[0]!;
+    const { contextHash: _context, ...oldScope } = legacyScope.searchedPremise!;
+    assert.match(renderClosed(name, [{ ...legacyScope, searchedPremise: oldScope as NonNullable<ClosedDirection["searchedPremise"]> }]), /OPEN PREMISE/,
+      "pre-context certificates cannot silently close newly prepared representations");
+    recordClosed({ ...claim, sourceHash: "new-source" });
+    assert.match(renderClosed(name), /OPEN PREMISE/, "old exhaustive scope cannot retire a new source");
+    const other = uniqueFunction();
+    recordClosed({ ...claim, functionName: other, sweepReport: path });
+    assert.match(renderClosed(other), /OPEN PREMISE/, "a wrong certificate leaves a recorded closure's premise open");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

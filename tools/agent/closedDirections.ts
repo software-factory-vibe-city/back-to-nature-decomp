@@ -26,8 +26,9 @@
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { ROOT, normalizeFunctionName } from "./decompToolchain.js";
+import { dirname, join, resolve } from "node:path";
+import { sha256 } from "./provenance.js";
+import { ROOT, normalizeFunctionName, resolveSource } from "./decompToolchain.js";
 
 /**
  * 2 adds `conditionalOn`.
@@ -42,7 +43,7 @@ import { ROOT, normalizeFunctionName } from "./decompToolchain.js";
  * premises were wrong, and nothing in the row said there was a premise to
  * attack. Rows written under schema 1 stay valid and simply carry no premise.
  */
-export const CLOSED_SCHEMA_VERSION = 2;
+export const CLOSED_SCHEMA_VERSION = 3;
 
 /**
  * What a heavy tool's answer did to the search space.
@@ -76,6 +77,15 @@ export interface ClosedDirection {
    * which is itself worth seeing.
    */
   conditionalOn?: string;
+  premiseClass?: "source-side";
+  sourceHash?: string;
+  /** A checked exhaustive search retires only its source/context/representation scope. */
+  searchedPremise?: { report: string; reportHash: string; sourceHash: string; contextHash: string;
+    windows: unknown[]; sites: unknown[]; representations: unknown[] };
+}
+
+export function sourceSidePremise(row: Pick<ClosedDirection, "tool" | "result">): boolean {
+  return row.tool === "psx_loop_trace" || /\b(insn_count|threshold\w*|moved (?:movables|groups)|savings|lifetime)\b/i.test(row.result);
 }
 
 function closedPath(functionName: string): string {
@@ -105,6 +115,9 @@ function fold(rows: ClosedDirection[]): ClosedDirection[] {
       ...(row.result ? { result: row.result } : {}),
       ...(row.evidence ? { evidence: row.evidence } : {}),
       ...(row.conditionalOn ? { conditionalOn: row.conditionalOn } : {}),
+      ...(row.sourceHash ? { sourceHash: row.sourceHash } : {}),
+      ...(row.premiseClass ? { premiseClass: row.premiseClass } : {}),
+      ...(row.searchedPremise ? { searchedPremise: row.searchedPremise } : {}),
     });
   }
   return [...byClaim.values()];
@@ -117,7 +130,9 @@ export function readClosed(functionName: string): ClosedDirection[] {
   for (const line of readFileSync(path, "utf8").split("\n")) {
     if (!line.trim()) continue;
     try {
-      rows.push(JSON.parse(line) as ClosedDirection);
+      const row = JSON.parse(line) as ClosedDirection;
+      if (sourceSidePremise(row)) row.premiseClass = "source-side";
+      rows.push(row);
     } catch {
       /* A torn append is one lost row, not a broken record. */
     }
@@ -134,6 +149,49 @@ export interface RecordClosedInput {
   evidence?: string;
   conditionalOn?: string;
   at?: string;
+  source?: string | undefined;
+  sourceHash?: string;
+  sweepReport?: string | undefined;
+}
+
+/** Check the scope and completeness, never turn sampling or errors into a proof. */
+export function searchedPremise(report: any, sourceHash: string | undefined): boolean {
+  const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+  try {
+    if (!(report?.schemaVersion === 1 && typeof sourceHash === "string" && report.sourceHash === sourceHash
+      && report.inputStable === true && report.preparationErrors?.length === 0
+      && typeof report.contextHash === "string" && report.contextHash.length > 0 && report.closure?.contextHash === report.contextHash
+      && report.closure.sourceHash === sourceHash && report.closure.result === "exhausted-no-goal-meeting-variant"
+      && same(report.closure.windows, report.windows) && same(report.closure.sites, report.sites)
+      && Array.isArray(report.representations) && report.representations.length > 0 && same(report.closure.representations, report.representations)
+      && report.coverage?.exhaustive === true && String(report.coverage.evaluated) === report.coverage.total
+      && Array.isArray(report.variants) && report.variants.length === report.coverage.evaluated
+      && report.goals?.length > 0 && report.sites?.length > 0 && report.windows?.length > 0 && report.goalMeeting === 0)) return false;
+    const ids = new Set<string>(); let evaluated = 0;
+    for (const family of report.representations) {
+      if (typeof family.id !== "string" || ids.has(family.id) || typeof family.sourceHash !== "string"
+        || !Array.isArray(family.sites) || family.sites.length === 0 || !family.windows?.length) return false;
+      ids.add(family.id);
+      const rows = report.variants.filter((row: any) => row.representation === family.id);
+      const total = 1n << BigInt(family.sites.length);
+      if (family.coverage?.exhaustive !== true || BigInt(rows.length) !== total || family.coverage.evaluated !== rows.length
+        || family.coverage.total !== total.toString() || new Set(rows.map((row: any) => BigInt(row.mask).toString())).size !== rows.length
+        || rows.some((row: any) => typeof row.mask !== "string" || BigInt(row.mask) < 0n || BigInt(row.mask) >= total)) return false;
+      evaluated += rows.length;
+    }
+    const raw = report.representations.find((family: any) => family.id === "raw");
+    return raw?.sourceHash === sourceHash && same(raw.sites, report.sites) && same(raw.windows, report.windows)
+      && evaluated === report.variants.length && report.variants.every((row: any) => !row.error && row.objective
+      && typeof row.premiseMet === "boolean" && row.decisions?.length === report.goals.length
+      && row.decisions.every((decision: any) => ["met", "not-met"].includes(decision.outcome))
+      && !(row.premiseMet && row.decisions.every((decision: any) => decision.outcome === "met")));
+  } catch { return false; }
+}
+
+function retiredPremise(row: ClosedDirection): boolean {
+  const scope = row.searchedPremise;
+  return scope !== undefined && scope.sourceHash === row.sourceHash && typeof scope.contextHash === "string"
+    && scope.contextHash.length > 0 && scope.representations?.length > 0 && scope.windows?.length > 0 && scope.sites?.length > 0;
 }
 
 /**
@@ -170,6 +228,23 @@ export const PREMISE_REMINDER = [
  * the record look like corroboration when it is repetition.
  */
 export function recordClosed(input: RecordClosedInput): ClosedDirection | undefined {
+  const sourceSide = sourceSidePremise(input);
+  let sourceHash = input.sourceHash;
+  if (sourceSide && !sourceHash) {
+    try { sourceHash = sha256(readFileSync(resolveSource(input.functionName, input.source), "utf8")); }
+    catch { /* Unknown is honest for fixtures and unprovisioned functions. */ }
+  }
+  let searched: ClosedDirection["searchedPremise"];
+  if (input.sweepReport) {
+    try {
+      const text = readFileSync(resolve(ROOT, input.sweepReport), "utf8");
+      const report = JSON.parse(text);
+      if (report.functionName === input.functionName && searchedPremise(report, sourceHash)) {
+        searched = { report: input.sweepReport, reportHash: sha256(text), sourceHash: sourceHash!, contextHash: report.contextHash,
+          windows: report.windows, sites: report.sites, representations: report.representations };
+      }
+    } catch { /* The label is not a veto: record the claim, leave its premise open. */ }
+  }
   const row: ClosedDirection = {
     schemaVersion: CLOSED_SCHEMA_VERSION,
     function: input.functionName,
@@ -180,15 +255,19 @@ export function recordClosed(input: RecordClosedInput): ClosedDirection | undefi
     result: input.result,
     ...(input.evidence ? { evidence: input.evidence } : {}),
     ...(input.conditionalOn ? { conditionalOn: input.conditionalOn } : {}),
+    ...(sourceSide ? { premiseClass: "source-side" as const } : {}),
+    ...(sourceHash ? { sourceHash } : {}),
+    ...(searched ? { searchedPremise: searched } : {}),
   };
   /* Repetition is not corroboration, so an identical claim is dropped — but a
      claim that adds the premise the record was missing is not identical. That
      amendment is the whole point of the field, and refusing it would leave the
      one row a later session most needs permanently unconditional. */
   const existing = readClosed(input.functionName).find((entry) => claimKey(entry) === claimKey(row));
-  const amends = existing !== undefined
-    && row.conditionalOn !== undefined
-    && existing.conditionalOn !== row.conditionalOn;
+  const amends = existing !== undefined && (
+    row.conditionalOn !== undefined && existing.conditionalOn !== row.conditionalOn
+    || row.sourceHash !== undefined && existing.sourceHash !== row.sourceHash
+    || row.searchedPremise !== undefined && existing.searchedPremise?.reportHash !== row.searchedPremise.reportHash);
   if (existing && !amends) return undefined;
   const path = closedPath(input.functionName);
   mkdirSync(dirname(path), { recursive: true });
@@ -204,12 +283,18 @@ export function renderClosed(functionName: string, rows = readClosed(functionNam
   ];
   for (const row of rows) {
     lines.push(
-      `  ${row.verdict.toUpperCase().padEnd(12)} ${row.tool} — ${row.question}`,
+      `  ${(row.verdict === "closed" && sourceSidePremise(row) && !retiredPremise(row) ? "OPEN PREMISE" : row.verdict.toUpperCase()).padEnd(12)} ${row.tool} — ${row.question}`,
       `               → ${row.result}${row.evidence ? `  (${row.evidence})` : ""}  [${row.at.slice(0, 10)}]`,
     );
     /* Under the verdict, not beside it: what the row is conditional on is the
        one part a later session is supposed to act on. Attack the premise, not
        the proof. */
+    if (row.verdict === "closed" && sourceSidePremise(row) && !retiredPremise(row)) {
+      lines.push(`               these counts belong to source ${row.sourceHash ?? "UNKNOWN (not recorded)"}'s pass-1 body. A source`);
+      lines.push("               whose pass-1 body differs can still reach the same final loop. Attack the");
+      lines.push("               counts, not the inequality.");
+    }
+    if (row.searchedPremise) lines.push(`               conditional on searched source ${row.searchedPremise.sourceHash}, context ${row.searchedPremise.contextHash ?? "UNKNOWN"}, window and site set, and representations in ${row.searchedPremise.report} (${row.searchedPremise.reportHash})`);
     if (row.conditionalOn) lines.push(`               conditional on: ${row.conditionalOn}`);
     else if (row.verdict === "closed" && claimsEmptiness(row.question)) {
       lines.push("               conditional on: NOT RECORDED — an impossibility is conditioned on its");
@@ -224,7 +309,7 @@ function usage(message?: string): never {
   console.error(
     "Usage: npx tsx tools/agent/closedDirections.ts <function> [--json]\n" +
       "       npx tsx tools/agent/closedDirections.ts <function> --tool <name> --question <text> " +
-      "--verdict closed|open|inconclusive --result <text> [--evidence <text>] [--conditional-on <premise>]",
+      "--verdict closed|open|inconclusive --result <text> [--evidence <text>] [--conditional-on <premise>] [--source <path>] [--sweep-report <path>]",
   );
   process.exit(1);
 }
@@ -261,6 +346,8 @@ if (isCLI) {
       result,
       ...(evidence ? { evidence } : {}),
       ...(conditionalOn ? { conditionalOn } : {}),
+      ...(flag("source") ? { source: flag("source") } : {}),
+      ...(flag("sweep-report") ? { sweepReport: flag("sweep-report") } : {}),
     });
     console.log(row ? "recorded" : "already recorded — this exact claim is in the record");
     /* A nudge, never a gate: refusing the row would cost the record the fact,

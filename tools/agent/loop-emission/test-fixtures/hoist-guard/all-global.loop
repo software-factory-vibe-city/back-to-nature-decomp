@@ -1,0 +1,730 @@
+
+;; Function ovl_11_func_800F9BE4
+
+
+Loop at 185 ignored due to multiple entry points.
+
+Loop from 159 to 270: 39 real insns.
+Continue at insn 262.
+Insn 286: regno 157 (life 1), savings 1 not desirable
+
+Loop from 13 to 147: 48 real insns.
+Continue at insn 138.
+Insn 278: regno 153 (life 2), savings 2  moved to 353
+Insn 34: regno 99 (life 16), move-insn savings 8  moved to 355
+Insn 35: regno 98 (life 14), move-insn forces 34 savings 6  moved to 357
+Insn 47: regno 105 (life 2), move-insn forces 35 savings 2  moved to 359
+Insn 59: regno 108 (life 1), move-insn savings 1 not desirable
+Insn 69: regno 113 (life 2), done move-insn matches 34
+Insn 70: regno 112 (life 1), done move-insn matches 35 forces 69
+Insn 282: regno 155 (life 1), done matches 278
+Insn 90: regno 120 (life 6), done move-insn matches 34
+Insn 91: regno 119 (life 6), done move-insn matches 35 forces 90
+Insn 103: regno 126 (life 1), done move-insn matches 47 forces 91
+Insn 115: regno 129 (life 1), move-insn savings 1 not desirable
+Insn 125: regno 134 (life 2), done move-insn matches 34
+Insn 126: regno 133 (life 1), done move-insn matches 35 forces 125
+Insn 59: possible biv, reg 108, const =8
+Insn 72: possible biv, reg 114, const = (mem/s:HI (plus:SI (reg:SI 98)
+        (const_int 21068 [0x524c])) 0)
+Insn 115: possible biv, reg 129, const =17
+Insn 128: possible biv, reg 135, const = (mem/s:HI (plus:SI (reg:SI 98)
+        (const_int 21074 [0x5252])) 0)
+Insn 141: possible biv, reg 91, const =1
+Reg 91: biv verified
+Reg 135: biv discarded, never incremented
+Reg 129: biv discarded, never incremented
+Reg 114: biv discarded, never incremented
+Reg 108: biv discarded, never incremented
+Biv 91 initialized at insn 12: initial value 0
+Insn 31: giv reg 96 src reg 91 benefit 3 lifetime 2 replaceable ncav mult 2 add 0
+Insn 33: giv reg 97 src reg 91 benefit 7 lifetime 10 replaceable mult 2 add (plus:SI (reg:SI 1 at)
+    (const_int 16 [0x10]))
+Insn 37: giv reg 100 src reg 91 benefit 3 lifetime 2 replaceable mult 1 add 2
+Insn 41: giv reg 102 src reg 91 benefit 6 lifetime 1 replaceable mult 2 add 4
+Insn 43: giv reg 103 src reg 91 benefit 49 lifetime 1 replaceable mult 3 add 6
+Insn 45: giv reg 104 src reg 91 benefit 52 lifetime 2 replaceable mult 6 add 12
+Insn 49: giv reg 106 src reg 91 benefit 56 lifetime 1 replaceable mult 6 add (plus:SI (reg:SI 98)
+    (const_int 21080 [0x5258]))
+Insn 51: dest address src reg 91 benefit 56 lifetime 1 replaceable mult 6 add (plus:SI (reg:SI 98)
+    (const_int 21080 [0x5258]))
+Insn 53: dest address src reg 91 benefit 7 lifetime 1 replaceable mult 2 add (plus:SI (reg:SI 1 at)
+    (const_int 16 [0x10]))
+Insn 87: giv reg 117 src reg 91 benefit 3 lifetime 2 replaceable ncav mult 2 add 0
+Insn 89: giv reg 118 src reg 91 benefit 7 lifetime 10 replaceable mult 2 add (plus:SI (reg:SI 1 at)
+    (const_int 16 [0x10]))
+Insn 93: giv reg 121 src reg 91 benefit 3 lifetime 2 replaceable mult 1 add 1
+Insn 97: giv reg 123 src reg 91 benefit 6 lifetime 1 replaceable mult 2 add 2
+Insn 99: giv reg 124 src reg 91 benefit 49 lifetime 1 replaceable mult 3 add 3
+Insn 101: giv reg 125 src reg 91 benefit 52 lifetime 2 replaceable mult 6 add 6
+Insn 105: giv reg 127 src reg 91 benefit 56 lifetime 1 replaceable mult 6 add (plus:SI (reg:SI 98)
+    (const_int 21074 [0x5252]))
+Insn 107: dest address src reg 91 benefit 56 lifetime 1 replaceable mult 6 add (plus:SI (reg:SI 98)
+    (const_int 21074 [0x5252]))
+Insn 109: dest address src reg 91 benefit 7 lifetime 1 replaceable mult 2 add (plus:SI (reg:SI 1 at)
+    (const_int 16 [0x10]))
+Final biv value for 91, calculated.
+Cannot eliminate biv 91: biv used in insn 24.
+Sorted combine statistics:
+ {107, 115} {51, 115} {109, 17} {53, 17} {93, 3} {37, 3} {105, 0} {101, 0} {99, 0} {97, 0} {89, 0} {87, 0} {49, 0} {45, 0} {43, 0} {41, 0} {33, 0} {31, 0}
+giv at 51 combined with giv at 107
+Sorted combine statistics:
+ {109, 17} {53, 17} {93, 3} {37, 3} {105, 0} {101, 0} {99, 0} {97, 0} {89, 0} {87, 0} {49, 0} {45, 0} {43, 0} {41, 0} {33, 0} {31, 0}
+giv at 53 combined with giv at 109
+Sorted combine statistics:
+ {93, 3} {37, 3} {105, 0} {101, 0} {99, 0} {97, 0} {89, 0} {87, 0} {49, 0} {45, 0} {43, 0} {41, 0} {33, 0} {31, 0}
+giv of insn 93 not worth while, -124 vs 48.
+giv of insn 87 not worth while, -124 vs 48.
+giv of insn 37 not worth while, -124 vs 48.
+giv of insn 31 not worth while, -124 vs 48.
+giv at 109 reduced to (reg:SI 180)
+giv at 107 reduced to (reg:SI 181)
+giv at 105 reduced to (reg:SI 182)
+giv at 101 reduced to (reg:SI 183)
+giv at 99 reduced to (reg:SI 184)
+giv at 97 reduced to (reg:SI 185)
+giv at 89 reduced to (reg:SI 186)
+giv at 53 reduced to (reg:SI 180)
+giv at 51 reduced to (plus:SI (reg:SI 181)
+    (const_int 6 [0x6]))
+giv at 49 reduced to (reg:SI 187)
+giv at 45 reduced to (reg:SI 188)
+giv at 43 reduced to (reg:SI 189)
+giv at 41 reduced to (reg:SI 190)
+giv at 33 reduced to (reg:SI 191)
+
+
+Loop at 185 ignored due to multiple entry points.
+
+Loop from 159 to 270: 39 real insns.
+Continue at insn 262.
+Insn 286: regno 157 (life 1), savings 1 not desirable
+
+Loop from 13 to 147: 30 real insns.
+Continue at insn 138.
+Insn 59: regno 108 (life 1), move-insn savings 1  moved to 436
+Insn 115: regno 129 (life 1), move-insn savings 1  moved to 438
+Insn 72: possible biv, reg 114, const = (mem/s:HI (plus:SI (reg:SI 98)
+        (const_int 21068 [0x524c])) 0)
+Insn 128: possible biv, reg 135, const = (mem/s:HI (plus:SI (reg:SI 98)
+        (const_int 21074 [0x5252])) 0)
+Insn 365: possible biv, reg 180, const =2
+Insn 371: possible biv, reg 181, const =6
+Insn 383: possible biv, reg 183, const =6
+Insn 389: possible biv, reg 184, const =3
+Insn 395: possible biv, reg 185, const =2
+Insn 413: possible biv, reg 188, const =6
+Insn 419: possible biv, reg 189, const =3
+Insn 425: possible biv, reg 190, const =2
+Insn 141: possible biv, reg 91, const =1
+Reg 91: biv verified
+Reg 190: biv verified
+Reg 189: biv verified
+Reg 188: biv verified
+Reg 185: biv verified
+Reg 184: biv verified
+Reg 183: biv verified
+Reg 181: biv verified
+Reg 180: biv verified
+Reg 135: biv discarded, never incremented
+Reg 114: biv discarded, never incremented
+Biv 91 initialized at insn 12: initial value 0
+Biv 181 initialized at insn 374: initial value is complex
+Biv 180 initialized at insn 368: initial value is complex
+Insn 51: dest address src reg 181 benefit 0 lifetime 1 replaceable mult 1 add 6
+Insn 53: dest address src reg 180 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Insn 107: dest address src reg 181 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Insn 109: dest address src reg 180 benefit 0 lifetime 1 replaceable ncav mult 1 add 0
+Final biv value for 91, calculated.
+Cannot eliminate biv 91: biv used in insn 24.
+Sorted combine statistics:
+
+Cannot eliminate biv 190.
+First use: insn 425, last use: insn 425.
+Sorted combine statistics:
+
+Cannot eliminate biv 189.
+First use: insn 419, last use: insn 419.
+Sorted combine statistics:
+
+Cannot eliminate biv 188.
+First use: insn 413, last use: insn 413.
+Sorted combine statistics:
+
+Cannot eliminate biv 185.
+First use: insn 395, last use: insn 395.
+Sorted combine statistics:
+
+Cannot eliminate biv 184.
+First use: insn 389, last use: insn 389.
+Sorted combine statistics:
+
+Cannot eliminate biv 183.
+First use: insn 383, last use: insn 383.
+Sorted combine statistics:
+
+biv 181 can be eliminated.
+Sorted combine statistics:
+ {107, 4} {51, 3}
+giv at 51 combined with giv at 107
+Sorted combine statistics:
+
+giv of insn 107 not worth while, -496 vs 30.
+biv 180 can be eliminated.
+Sorted combine statistics:
+ {109, 4} {53, 4}
+giv at 53 combined with giv at 109
+Sorted combine statistics:
+
+giv of insn 109 not worth while, -496 vs 30.
+
+(note 2 0 3 "" NOTE_INSN_DELETED)
+
+(note 3 2 4 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 4 3 6 "" NOTE_INSN_DELETED)
+
+(note 6 4 316 0 NOTE_INSN_BLOCK_BEG)
+
+(note 316 6 12 [bb 0] NOTE_INSN_BASIC_BLOCK)
+
+(insn 12 316 340 (set (reg/v:SI 91)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 340 12 290 (set (reg:SI 173)
+        (high:SI (symbol_ref:SI ("D_8009AFF0")))) -1 (nil)
+    (nil))
+
+(note 290 340 356 "" NOTE_INSN_DELETED)
+
+(insn 356 290 357 (set (reg:SI 176)
+        (high:SI (symbol_ref:SI ("D_8006C838")))) -1 (nil)
+    (nil))
+
+(insn 357 356 368 (set (reg:SI 98)
+        (lo_sum:SI (reg:SI 176)
+            (symbol_ref:SI ("D_8006C838")))) -1 (nil)
+    (expr_list:REG_EQUAL (symbol_ref:SI ("D_8006C838"))
+        (nil)))
+
+(insn 368 357 374 (set (reg:SI 180)
+        (plus:SI (reg:SI 1 at)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 374 368 436 (set (reg:SI 181)
+        (plus:SI (reg:SI 98)
+            (const_int 21074 [0x5252]))) -1 (nil)
+    (nil))
+
+(insn 436 374 438 (set (reg:SI 108)
+        (const_int 8 [0x8])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 8 [0x8])
+        (nil)))
+
+(insn 438 436 13 (set (reg:SI 129)
+        (const_int 17 [0x11])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 17 [0x11])
+        (nil)))
+
+(note 13 438 20 "" NOTE_INSN_LOOP_BEG)
+
+(code_label 20 13 317 6 "" [num uses: 1])
+
+(note 317 20 22 [bb 1] NOTE_INSN_BASIC_BLOCK)
+
+(note 22 317 24 "" NOTE_INSN_DELETED)
+
+(insn 24 22 25 (set (reg:SI 94)
+        (lt:SI (reg/v:SI 91)
+            (const_int 8 [0x8]))) -1 (nil)
+    (nil))
+
+(jump_insn 25 24 27 (set (pc)
+        (if_then_else (eq:SI (reg:SI 94)
+                (const_int 0 [0x0]))
+            (label_ref 57)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 27 25 318 "" NOTE_INSN_DELETED)
+
+(note 318 27 51 [bb 2] NOTE_INSN_BASIC_BLOCK)
+
+(insn 51 318 53 (set (reg:HI 107)
+        (mem/s:HI (plus:SI (reg:SI 181)
+                (const_int 6 [0x6])) 0)) -1 (nil)
+    (nil))
+
+(insn 53 51 55 (set (mem/s:HI (reg:SI 180) 0)
+        (reg:HI 107)) -1 (nil)
+    (nil))
+
+(jump_insn 55 53 56 (set (pc)
+        (label_ref 139)) -1 (nil)
+    (nil))
+
+(barrier 56 55 57)
+
+(code_label 57 56 319 7 "" [num uses: 1])
+
+(note 319 57 60 [bb 3] NOTE_INSN_BASIC_BLOCK)
+
+(jump_insn 60 319 62 (set (pc)
+        (if_then_else (ne:SI (reg/v:SI 91)
+                (reg:SI 108))
+            (label_ref 78)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 62 60 320 "" NOTE_INSN_DELETED)
+
+(note 320 62 72 [bb 4] NOTE_INSN_BASIC_BLOCK)
+
+(insn 72 320 74 (set (reg:HI 114)
+        (mem/s:HI (plus:SI (reg:SI 98)
+                (const_int 21068 [0x524c])) 0)) -1 (nil)
+    (nil))
+
+(insn 74 72 76 (set (mem/s:HI (plus:SI (reg:SI 1 at)
+                (const_int 32 [0x20])) 0)
+        (reg:HI 114)) -1 (nil)
+    (nil))
+
+(jump_insn 76 74 77 (set (pc)
+        (label_ref 139)) -1 (nil)
+    (nil))
+
+(barrier 77 76 78)
+
+(code_label 78 77 321 9 "" [num uses: 1])
+
+(note 321 78 80 [bb 5] NOTE_INSN_BASIC_BLOCK)
+
+(insn 80 321 81 (set (reg:SI 115)
+        (lt:SI (reg/v:SI 91)
+            (const_int 17 [0x11]))) -1 (nil)
+    (nil))
+
+(jump_insn 81 80 83 (set (pc)
+        (if_then_else (eq:SI (reg:SI 115)
+                (const_int 0 [0x0]))
+            (label_ref 113)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 83 81 322 "" NOTE_INSN_DELETED)
+
+(note 322 83 107 [bb 6] NOTE_INSN_BASIC_BLOCK)
+
+(insn 107 322 109 (set (reg:HI 128)
+        (mem/s:HI (reg:SI 181) 0)) -1 (nil)
+    (nil))
+
+(insn 109 107 111 (set (mem/s:HI (reg:SI 180) 0)
+        (reg:HI 128)) -1 (nil)
+    (nil))
+
+(jump_insn 111 109 112 (set (pc)
+        (label_ref 139)) -1 (nil)
+    (nil))
+
+(barrier 112 111 113)
+
+(code_label 113 112 323 11 "" [num uses: 1])
+
+(note 323 113 116 [bb 7] NOTE_INSN_BASIC_BLOCK)
+
+(jump_insn 116 323 118 (set (pc)
+        (if_then_else (ne:SI (reg/v:SI 91)
+                (reg:SI 129))
+            (label_ref 139)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 118 116 324 "" NOTE_INSN_DELETED)
+
+(note 324 118 128 [bb 8] NOTE_INSN_BASIC_BLOCK)
+
+(insn 128 324 130 (set (reg:HI 135)
+        (mem/s:HI (plus:SI (reg:SI 98)
+                (const_int 21074 [0x5252])) 0)) -1 (nil)
+    (nil))
+
+(insn 130 128 138 (set (mem/s:HI (plus:SI (reg:SI 1 at)
+                (const_int 50 [0x32])) 0)
+        (reg:HI 135)) -1 (nil)
+    (nil))
+
+(note 138 130 139 "" NOTE_INSN_LOOP_CONT)
+
+(code_label 139 138 325 5 "" [num uses: 4])
+
+(note 325 139 365 [bb 9] NOTE_INSN_BASIC_BLOCK)
+
+(insn 365 325 371 (set (reg:SI 180)
+        (plus:SI (reg:SI 180)
+            (const_int 2 [0x2]))) -1 (nil)
+    (nil))
+
+(insn 371 365 383 (set (reg:SI 181)
+        (plus:SI (reg:SI 181)
+            (const_int 6 [0x6]))) -1 (nil)
+    (nil))
+
+(insn 383 371 389 (set (reg:SI 183)
+        (plus:SI (reg:SI 183)
+            (const_int 6 [0x6]))) -1 (nil)
+    (nil))
+
+(insn 389 383 395 (set (reg:SI 184)
+        (plus:SI (reg:SI 184)
+            (const_int 3 [0x3]))) -1 (nil)
+    (nil))
+
+(insn 395 389 413 (set (reg:SI 185)
+        (plus:SI (reg:SI 185)
+            (const_int 2 [0x2]))) -1 (nil)
+    (nil))
+
+(insn 413 395 419 (set (reg:SI 188)
+        (plus:SI (reg:SI 188)
+            (const_int 6 [0x6]))) -1 (nil)
+    (nil))
+
+(insn 419 413 425 (set (reg:SI 189)
+        (plus:SI (reg:SI 189)
+            (const_int 3 [0x3]))) -1 (nil)
+    (nil))
+
+(insn 425 419 141 (set (reg:SI 190)
+        (plus:SI (reg:SI 190)
+            (const_int 2 [0x2]))) -1 (nil)
+    (nil))
+
+(insn 141 425 293 (set (reg/v:SI 91)
+        (plus:SI (reg/v:SI 91)
+            (const_int 1 [0x1]))) -1 (nil)
+    (nil))
+
+(note 293 141 16 "" NOTE_INSN_LOOP_VTOP)
+
+(insn 16 293 17 (set (reg/s:SI 93)
+        (lt:SI (reg/v:SI 91)
+            (const_int 18 [0x12]))) -1 (nil)
+    (nil))
+
+(jump_insn 17 16 147 (set (pc)
+        (if_then_else (ne:SI (reg/s:SI 93)
+                (const_int 0 [0x0]))
+            (label_ref 20)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 147 17 441 "" NOTE_INSN_LOOP_END)
+
+(insn 441 147 326 (set (reg:SI 194)
+        (const_int 18 [0x12])) -1 (nil)
+    (nil))
+
+(note 326 441 151 [bb 10] NOTE_INSN_BASIC_BLOCK)
+
+(insn 151 326 153 (set (reg/v:SI 91)
+        (const_int 0 [0x0])) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 153 151 154 (set (reg:SI 136)
+        (reg:SI 173)) 236 {movsi_internal2} (nil)
+    (expr_list:REG_EQUAL (high:SI (symbol_ref:SI ("D_8009AFF0")))
+        (nil)))
+
+(insn 154 153 157 (set (reg/v:SI 83)
+        (lo_sum:SI (reg:SI 136)
+            (symbol_ref:SI ("D_8009AFF0")))) 221 {low} (nil)
+    (expr_list:REG_EQUAL (symbol_ref:SI ("D_8009AFF0"))
+        (nil)))
+
+(insn 157 154 159 (set (reg/v:SI 84)
+        (plus:SI (reg/v:SI 83)
+            (const_int 21668 [0x54a4]))) 3 {addsi3_internal} (nil)
+    (expr_list:REG_EQUAL (const:SI (plus:SI (symbol_ref:SI ("D_8009AFF0"))
+                (const_int 21668 [0x54a4])))
+        (nil)))
+
+(note 159 157 269 "" NOTE_INSN_LOOP_BEG)
+
+(code_label 269 159 327 26 "" [num uses: 1])
+
+(note 327 269 162 [bb 11] NOTE_INSN_BASIC_BLOCK)
+
+(note 162 327 166 "" NOTE_INSN_DELETED)
+
+(insn 166 162 168 (set (reg:SI 138)
+        (ashift:SI (reg/v:SI 91)
+            (const_int 1 [0x1]))) -1 (nil)
+    (expr_list:REG_EQUAL (mult:SI (reg/v:SI 91)
+            (const_int 2 [0x2]))
+        (nil)))
+
+(insn 168 166 171 (set (reg/v:SI 86)
+        (plus:SI (reg/v:SI 84)
+            (reg:SI 138))) -1 (nil)
+    (nil))
+
+(insn 171 168 173 (set (reg:HI 140)
+        (mem:HI (reg/v:SI 86) 0)) -1 (nil)
+    (nil))
+
+(insn 173 171 175 (set (reg:SI 141)
+        (ashift:SI (subreg:SI (reg:HI 140) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 175 173 343 (set (reg/v:SI 88)
+        (ashiftrt:SI (reg:SI 141)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 86) 0))
+        (nil)))
+
+(insn 343 175 180 (set (reg:SI 174)
+        (plus:SI (reg/v:SI 91)
+            (const_int 1 [0x1]))) -1 (nil)
+    (nil))
+
+(jump_insn 180 343 182 (set (pc)
+        (if_then_else (eq:SI (reg/v:SI 88)
+                (const_int 0 [0x0]))
+            (label_ref 257)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 182 180 328 "" NOTE_INSN_DELETED)
+
+(note 328 182 184 [bb 12] NOTE_INSN_BASIC_BLOCK)
+
+(insn 184 328 295 (set (reg/v:SI 90)
+        (const_int 0 [0x0])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(note 295 184 300 "" NOTE_INSN_DELETED)
+
+(insn 300 295 301 (set (reg:HI 165)
+        (mem/s:HI (plus:SI (reg:SI 1 at)
+                (const_int 16 [0x10])) 0)) -1 (nil)
+    (nil))
+
+(insn 301 300 302 (set (reg:SI 166)
+        (ashift:SI (subreg:SI (reg:HI 165) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 302 301 346 (set (reg:SI 167)
+        (ashiftrt:SI (reg:SI 166)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem/s:HI (plus:SI (reg:SI 1 at)
+                    (const_int 16 [0x10])) 0))
+        (nil)))
+
+(insn 346 302 304 (set (reg:SI 174)
+        (plus:SI (reg/v:SI 91)
+            (const_int 1 [0x1]))) -1 (nil)
+    (nil))
+
+(jump_insn 304 346 329 (set (pc)
+        (if_then_else (eq:SI (reg:SI 167)
+                (const_int 0 [0x0]))
+            (label_ref 235)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 329 304 349 [bb 13] NOTE_INSN_BASIC_BLOCK)
+
+(insn 349 329 305 (set (reg:SI 174)
+        (plus:SI (reg/v:SI 91)
+            (const_int 1 [0x1]))) -1 (nil)
+    (nil))
+
+(jump_insn 305 349 330 (set (pc)
+        (if_then_else (ne:SI (reg/v:SI 88)
+                (reg:SI 167))
+            (label_ref 235)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 330 305 306 [bb 14] NOTE_INSN_BASIC_BLOCK)
+
+(insn 306 330 311 (set (reg/v:SI 88)
+        (const_int 0 [0x0])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 311 306 352 (set (mem/s:HI (plus:SI (reg:SI 1 at)
+                (const_int 16 [0x10])) 0)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 352 311 312 (set (reg:SI 174)
+        (plus:SI (reg/v:SI 91)
+            (const_int 1 [0x1]))) -1 (nil)
+    (nil))
+
+(jump_insn 312 352 313 (set (pc)
+        (label_ref 244)) -1 (nil)
+    (nil))
+
+(barrier 313 312 185)
+
+(note 185 313 234 "" NOTE_INSN_LOOP_BEG)
+
+(note 234 185 235 "" NOTE_INSN_LOOP_CONT)
+
+(code_label 235 234 331 21 "" [num uses: 4])
+
+(note 331 235 237 [bb 15] NOTE_INSN_BASIC_BLOCK)
+
+(insn 237 331 314 (set (reg/v:SI 90)
+        (plus:SI (reg/v:SI 90)
+            (const_int 1 [0x1]))) -1 (nil)
+    (nil))
+
+(note 314 237 188 "" NOTE_INSN_LOOP_VTOP)
+
+(insn 188 314 189 (set (reg/s:SI 142)
+        (lt:SI (reg/v:SI 90)
+            (const_int 18 [0x12]))) -1 (nil)
+    (nil))
+
+(jump_insn 189 188 194 (set (pc)
+        (if_then_else (eq:SI (reg/s:SI 142)
+                (const_int 0 [0x0]))
+            (label_ref/s 244)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 194 189 332 "" NOTE_INSN_DELETED)
+
+(note 332 194 198 [bb 16] NOTE_INSN_BASIC_BLOCK)
+
+(insn 198 332 286 (set (reg/s:SI 144)
+        (ashift:SI (reg/v:SI 90)
+            (const_int 1 [0x1]))) -1 (nil)
+    (expr_list:REG_EQUAL (mult:SI (reg/v:SI 90)
+            (const_int 2 [0x2]))
+        (nil)))
+
+(insn 286 198 200 (set (reg/s:SI 157)
+        (plus:SI (reg:SI 1 at)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 200 286 202 (set (reg/s:SI 145)
+        (plus:SI (reg/s:SI 157)
+            (reg/s:SI 144))) -1 (nil)
+    (nil))
+
+(insn 202 200 204 (set (reg/s:HI 147)
+        (mem/s:HI (reg/s:SI 145) 0)) -1 (nil)
+    (nil))
+
+(insn 204 202 206 (set (reg/s:SI 148)
+        (ashift:SI (subreg:SI (reg/s:HI 147) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 206 204 211 (set (reg/s:SI 146)
+        (ashiftrt:SI (reg/s:SI 148)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem/s:HI (reg/s:SI 145) 0))
+        (nil)))
+
+(jump_insn 211 206 333 (set (pc)
+        (if_then_else (eq:SI (reg/s:SI 146)
+                (const_int 0 [0x0]))
+            (label_ref 235)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 333 211 213 [bb 17] NOTE_INSN_BASIC_BLOCK)
+
+(jump_insn 213 333 215 (set (pc)
+        (if_then_else (ne:SI (reg/v:SI 88)
+                (reg/s:SI 146))
+            (label_ref 235)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 215 213 334 "" NOTE_INSN_DELETED)
+
+(note 334 215 217 [bb 18] NOTE_INSN_BASIC_BLOCK)
+
+(insn 217 334 226 (set (reg/v:SI 88)
+        (const_int 0 [0x0])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 0 [0x0])
+        (nil)))
+
+(insn 226 217 243 (set (mem/s:HI (reg/s:SI 145) 0)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(note 243 226 244 "" NOTE_INSN_LOOP_END)
+
+(code_label 244 243 335 20 "" [num uses: 2])
+
+(note 335 244 247 [bb 19] NOTE_INSN_BASIC_BLOCK)
+
+(jump_insn 247 335 249 (set (pc)
+        (if_then_else (eq:SI (reg/v:SI 88)
+                (const_int 0 [0x0]))
+            (label_ref 257)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 249 247 336 "" NOTE_INSN_DELETED)
+
+(note 336 249 251 [bb 20] NOTE_INSN_BASIC_BLOCK)
+
+(insn 251 336 253 (set (reg:SI 4 a0)
+        (reg/v:SI 88)) -1 (nil)
+    (nil))
+
+(call_insn 253 251 315 (parallel[
+            (call (mem:SI (symbol_ref:SI ("ovl_11_func_800D666C")) 0)
+                (const_int 16 [0x10]))
+            (clobber (reg:SI 31 ra))
+        ] ) -1 (nil)
+    (nil)
+    (expr_list (use (reg:SI 4 a0))
+        (nil)))
+
+(insn 315 253 257 (use (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(code_label 257 315 337 18 "" [num uses: 2])
+
+(note 337 257 260 [bb 21] NOTE_INSN_BASIC_BLOCK)
+
+(insn 260 337 262 (set (reg/v:SI 91)
+        (reg:SI 174)) -1 (nil)
+    (nil))
+
+(note 262 260 265 "" NOTE_INSN_LOOP_CONT)
+
+(insn 265 262 266 (set (reg:SI 152)
+        (lt:SI (reg/v:SI 91)
+            (const_int 18 [0x12]))) -1 (nil)
+    (nil))
+
+(jump_insn 266 265 270 (set (pc)
+        (if_then_else (ne:SI (reg:SI 152)
+                (const_int 0 [0x0]))
+            (label_ref 269)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 270 266 273 "" NOTE_INSN_LOOP_END)
+
+(note 273 270 0 0 NOTE_INSN_BLOCK_END)

@@ -1,8 +1,83 @@
 # Plan: a mechanical guard for pass-2 hoist residuals
 
-**Status: proposed 2026-10-09.** This follows the match of
+**Status: implemented; all acceptance criteria verified.** Proposed
+2026-10-09. This follows the match of
 `ovl_11_func_800F9BE4`, recorded in
 `notes/retros/2026-10-09-ovl_11_func_800F9BE4-retro.md`.
+
+## Implementation and verification
+
+All four phases and the nested-pair evidence fix are implemented. The Pi tool
+`psx_hoist_knob_sweep` is registered beside `psx_loop_trace`. No production cc1
+or live C changes are part of this implementation.
+
+Text fixtures and their provenance live in
+`tools/agent/loop-emission/test-fixtures/hoist-guard/README.md`. Integration tests
+measure the real target and production compiler, not mocked EXACT results:
+
+- Prior best: conditional 8:p1 MET (`55 >= 34`), 17:p2 NOT MET
+  (`52 >= 34`, short 19), verified source window lines 34..38.
+- Committed source: both MET (`52 >= 44`, `43 < 44`).
+- Raw prior-best source alone: automatic measured record preparation plus
+  the unchanged raw family, 32/32 choices; exactly `m05` and `m10` EXACT,
+  both with both goals met. No live source is edited.
+- Prepared slot-view source: 16/16 choices, exactly `m05` and `m10` EXACT;
+  all-global `m15` violates the must-hold 8 goal (`46 < 48`).
+- Historical 16:03:18 loop-trace row: OPEN PREMISE; its missing source hash
+  is rendered UNKNOWN, not guessed from today's source.
+- Nested evidence names outer `0xA4`, inner `0xE8`, with no instruction
+  below the outer header listed as invariant in that inner loop.
+
+**Automatic raw-source recovery:** constant-offset address copies retain their
+original casts and units. The sweep also catalogues named record-array views
+already in the input's preprocessed context, measuring `sizeof`, field offsets
+and array extents with the production compiler. `hoist-record-views.ts` rewrites
+only proved, in-bounds byte-affine reads in bounded count-up loops; its report
+preserves source ranges, affine equalities, measured layouts and guarded index
+bounds. It canonicalises a constant store index only under a proved counter
+equality. Raw and preprocessed function tokens must agree; counter mutation,
+escape, shadowing, volatile counters and unproved initialization are refused.
+Ambiguous compatible views are retained as separate families, never chosen by
+name or similarity. Each prepared family gets a fresh loop trace/window/site
+analysis; trace and source-window caches include the fresh preprocessed context,
+so header-only changes invalidate them. The combined product is exhaustive
+only within the stated bound.
+No donor body, target-specific type/offset rule, live edit or promotion is used.
+
+The original command, with no manually prepared slot-view input, now passes:
+
+```bash
+npx tsx tools/agent/hoistKnobSweep.ts ovl_11_func_800F9BE4 --source build/9be4_claude/prior_best.c --json
+```
+
+It measures all 32 choices (16 raw plus 16 automatically prepared), returning
+exactly `m05` and `m10` EXACT. The raw family still has two goal-meeting choices
+and no EXACT result; it is retained honestly rather than overwritten. Meeting
+hoist goals never substitutes for the relocated-byte oracle.
+
+Backtests also cover the prepared slot-view source (16/16, `m05`/`m10` EXACT)
+and the committed mixed-route source (4/16 sampled, both EXACT shapes retained).
+Three executable C89 offset fixtures compare every spelling with the original;
+three differently named/layouted record fixtures compare all 16 normalised
+spellings. Negative fixtures cover wrong layouts/bounds, counter effects,
+macro changes, dynamic offsets, pointer loads, VLA casts and alias escapes.
+Integration tests additionally check that automatic winners pass clean-source
+policy and that input source remains unchanged.
+
+Source-induction alternative evidence uses only fresh trace/ledger joins and
+names each measured spelling's residual. A nonmatching spelling never refutes
+the whole interpretation. Without such measurements, the alternative remains
+explicitly open. Closure retirement checks exhaustive per-family coverage, unique masks, known
+decisions, stable input, successful preparation, source/context identity and
+function identity. It remains scoped to the measured representations, window
+and site set, never to all possible source spellings.
+
+Verification: `npm test` passed **1273/1273** with no skips; `make check-all`
+passed for the PS-X EXE and all 13 overlays. Direct CLI replays verify
+raw-source-only EXACT recovery, triage's short-19/window requirement and the
+historical closure's OPEN PREMISE label. `git diff --check` and changed-document
+path-reference checks pass. The repository-wide TypeScript check retains
+pre-existing failures; no diagnostics remain in the newly introduced modules.
 
 ## The theme
 
@@ -144,7 +219,7 @@ goal that requires a flip:
 
 ## Phase 3: hoist-knob sweep, the source move
 
-Add `tools/agent/hoistKnobSweep.ts <fn> [--source path] [--max 64]` and a Pi <!-- doc-ref-ignore: proposed -->
+Add `tools/agent/hoistKnobSweep.ts <fn> [--source path] [--max 64]` and a Pi
 tool `psx_hoist_knob_sweep`, registered from `diagnostics.ts` under
 `.pi/extensions/psx-decomp/tools/` beside `psx_loop_trace`.
 
@@ -153,16 +228,20 @@ tool `psx_hoist_knob_sweep`, registered from `diagnostics.ts` under
   - Enumerate expressions inside the loop that reach an invariant base:
     - access through a local that is a pure copy of a global's address,
       assigned once before the loop and never reassigned
-      (`base->f`, `base[i]`);
+      (`base->f`, `base[i]`), including constant-offset copies;
+      original offset casts and units are preserved, not inferred;
     - direct access through the global (`((T *)G)->f`, `G.f`, `G[i]`).
   - Each site has two semantics-preserving spellings: through the local, or
     through the global.
+  - Automatic preparation also enumerates already-in-scope named record-array
+    views, using production-measured layouts and guarded byte-affine equivalence.
+    Retain the raw family and re-trace each prepared family's window/sites.
 - **Domain.**
   - Use the sites inside the Phase 2 window, plus those ahead of it, since
     they move the must-hold movables.
-  - Take their full product when it is at most `--max`. Otherwise sample, and
-    print the coverage as a sampled fraction. A sampled run is never reported
-    as exhaustive.
+  - Take their full product across the retained representation families when
+    it is at most `--max`. Otherwise sample, and print global and per-family
+    coverage as sampled fractions. A sampled run is never reported exhaustive.
 - **Measure.**
   - Compile each variant with `-dL` and read the goal movables' decisions
     from the loop trace.
@@ -176,8 +255,10 @@ tool `psx_hoist_knob_sweep`, registered from `diagnostics.ts` under
   `loop-preheader-order` finding names `psx_hoist_knob_sweep` and the window
   as the next step.
 - **Acceptance.**
-  - On `prior_best.c`, with the old view typedef inlined and the slot view
-    applied, the sweep enumerates the 16 per-read choices.
+  - On `prior_best.c` alone, the sweep automatically prepares the slot view
+    from the in-scope headers and enumerates its 16 per-read choices alongside
+    the 16 unchanged raw choices. The preserved fixture inlines the retired
+    old view typedef for compilation against today's headers.
   - It returns exactly two EXACT variants, with all goals met. Their shapes
     are `m05` and `m10` (`build/9be4_claude/v2/`).
   - The all-global variant is listed with goal 8 NOT MET.
@@ -190,14 +271,15 @@ In `tools/agent/closedDirections.ts` and its renderer:
   cites `insn_count`, the threshold, moved movables, `savings` or `lifetime`,
   is classed as a **source-side premise**.
 - **Record and render.**
-  - Store the source hash it was measured on.
+  - Store the source hash it was measured on. An exhaustive sweep certificate
+    also stores its preprocessed context and representation-family scope.
   - In the ledger's CLOSED DIRECTIONS block, print it as `OPEN PREMISE` with
     the line: "these counts belong to source <hash>'s pass-1 body. A source
     whose pass-1 body differs can still reach the same final loop. Attack the
     counts, not the inequality."
 - **Retire the row.** When Phase 3 has run over that source's window with no
   goal-meeting variant, the row may be recorded as closed, conditional on the
-  window and the site set that were searched.
+  context, representations, window and site set that were searched.
 - **This is a label, not a veto.** The tool records and renders what it can
   prove. It does not refuse a closure.
 - **Acceptance.**

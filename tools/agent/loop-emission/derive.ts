@@ -20,6 +20,8 @@
  */
 
 import type { MirBlock, MirInsn, MirProgram } from "../pipeline-reversal/types.js";
+import { analyzeFrame, memoryOperand, registerOf } from "../frameMap.js";
+import { addValues, constant, type LoopValue } from "../loop-trace/values.js";
 import {
   CLASS_NAMES,
   EmissionClass,
@@ -187,41 +189,23 @@ function admissibleFor(role: GroupRole): EmissionClass[] {
 /**
  * Keep the classes that take part in at least one non-decreasing assignment.
  *
- * Forward and backward reachability over the sequence, which is exact here and
- * avoids enumerating the product — a preheader of ten groups has up to 5^10
- * assignments and only the per-group survivors are wanted.
+ * Arc consistency on producer/consumer and leaf-order <= edges is exact for
+ * these ordered domains: the surviving minima (or maxima) are a satisfying
+ * assignment. Avoid enumerating the product to constrain one group's class.
  */
-function solveNonDecreasing(admissible: EmissionClass[][]): EmissionClass[][] {
-  const count = admissible.length;
-  if (count === 0) return [];
-
-  /* forward[i] = classes at i reachable from a valid prefix */
-  const forward: Set<EmissionClass>[] = [];
-  for (let index = 0; index < count; index++) {
-    const allowed = new Set<EmissionClass>();
-    for (const candidate of admissible[index]!) {
-      const ok = index === 0
-        || [...forward[index - 1]!].some((previous) => previous <= candidate);
-      if (ok) allowed.add(candidate);
-    }
-    forward.push(allowed);
-  }
-
-  /* backward: prune with the suffix as well, so a class that no valid tail can
-     follow is dropped too. */
-  const survivors: Set<EmissionClass>[] = forward.map((entry) => new Set(entry));
-  for (let index = count - 2; index >= 0; index--) {
-    for (const candidate of [...survivors[index]!]) {
-      if (![...survivors[index + 1]!].some((next) => next >= candidate)) survivors[index]!.delete(candidate);
+export function solveClassOrder(admissible: EmissionClass[][], edges: Array<[number, number]>): EmissionClass[][] {
+  const domains = admissible.map((entry) => [...entry]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [from, to] of edges) {
+      const a = domains[from]!.filter((value) => domains[to]!.some((next) => value <= next));
+      const b = domains[to]!.filter((value) => a.some((previous) => previous <= value));
+      if (a.length !== domains[from]!.length || b.length !== domains[to]!.length) changed = true;
+      domains[from] = a; domains[to] = b;
     }
   }
-  /* One more forward sweep: dropping a class can invalidate a later one. */
-  for (let index = 1; index < count; index++) {
-    for (const candidate of [...survivors[index]!]) {
-      if (![...survivors[index - 1]!].some((previous) => previous <= candidate)) survivors[index]!.delete(candidate);
-    }
-  }
-  return survivors.map((entry) => [...entry].sort((left, right) => left - right));
+  return domains;
 }
 
 export interface DeriveOptions {
@@ -237,6 +221,19 @@ export function deriveRequirement(
 ): LoopEmissionRequirement {
   const caveats: string[] = [];
   const preheaders: PreheaderRequirement[] = [];
+  /* Frame evidence comes from the same reader as triage, on machine order. */
+  const frame = analyzeFrame([...program.insns].sort((a, b) => a.index - b.index).map((insn) => ({
+    address: insn.vram ?? insn.index * 4, mnemonic: insn.mnemonic,
+    operands: insn.operands, operandText: insn.operands.join(","), raw: insn.text,
+  })));
+  const isFrame = (insn: MirInsn): boolean => {
+    if (insn.mnemonic === "addiu" && insn.defs[0] === "sp" && insn.uses[0] === "sp") {
+      return frame.frameSize > 0 && Math.abs(Number(insn.operands[2])) === frame.frameSize;
+    }
+    const memory = memoryOperand(insn.operands[insn.operands.length - 1] ?? "");
+    return (insn.mnemonic === "sw" || insn.mnemonic === "lw") && memory?.base === "sp"
+      && frame.saveSlots.some((slot) => slot.offset === memory.offset && slot.register === registerOf(insn.operands[0] ?? ""));
+  };
 
   for (const header of loopHeaders(program)) {
     const preheaderIndex = preheaderOf(program, header);
@@ -249,7 +246,10 @@ export function deriveRequirement(
     }
     const block = program.blocks[preheaderIndex]!;
     const roles = registerRoles(program, header);
-    const rawGroups = groupPreheader(program, block);
+    const excluded = insnsOf(program, block).filter(isFrame).map((insn) => insn.text.trim());
+    const rawGroups = groupPreheader(program, { ...block, insns: block.insns.filter((id) => !isFrame(program.insns.find((insn) => insn.id === id)!)) });
+    if (excluded.length > 0) caveats.push(`block ${block.index}: frame-map prologue/epilogue operations excluded; prologue expansion and sched2, not loop.c, place ${excluded.join(" ; ")}`);
+    const values = new Map<string, LoopValue>([["sp", { base: "stack", offset: 0 }], ["zero", constant(0)]]);
 
     const groups: PreheaderGroup[] = rawGroups.map((insns, index) => {
       const { role, step } = roleOf(insns, roles);
@@ -273,10 +273,35 @@ export function deriveRequirement(
         if (better !== undefined) group.symbol = better;
       }
       if (step !== undefined) group.step = step;
+      let value: LoopValue | undefined;
+      if (group.symbol !== undefined) value = { base: "symbol", symbol: group.symbol, offset: 0 };
+      else if (last.mnemonic === "li") value = constant(Number(last.operands[1]));
+      else if (last.mnemonic === "move") value = values.get(last.uses[0] ?? (last.operands[1] === "zero" ? "zero" : ""));
+      else if (last.mnemonic === "addiu") value = addValues(values.get(last.uses[0]!), constant(Number(last.operands[2])));
+      if (value && Number.isFinite(value.offset)) {
+        group.value = value;
+        if (group.destination) values.set(group.destination, value);
+      } else if (group.destination) values.delete(group.destination);
       return group;
     });
 
-    const solved = solveNonDecreasing(groups.map((group) => group.admissible));
+    /* The backward scheduler pulls producers to their consumers. Do not read
+       that adjacency as an emission-class birth. Only order the leaves. */
+    const producer = new Map<string, number>();
+    rawGroups.forEach((insns, index) => {
+      groups[index]!.consumers = [];
+      for (const insn of insns) {
+        for (const use of insn.uses) {
+          const from = producer.get(use);
+          if (from !== undefined && from !== index && !groups[from]!.consumers!.includes(index)) groups[from]!.consumers!.push(index);
+        }
+        for (const def of insn.defs) producer.set(def, index);
+      }
+    });
+    const orderEdges: Array<[number, number]> = groups.flatMap((group) => group.consumers!.map((consumer) => [group.index, consumer] as [number, number]));
+    const leaves = groups.filter((group) => group.consumers!.length === 0);
+    for (let i = 1; i < leaves.length; i++) orderEdges.push([leaves[i - 1]!.index, leaves[i]!.index]);
+    const solved = solveClassOrder(groups.map((group) => group.admissible), orderEdges);
     groups.forEach((group, index) => { group.consistent = solved[index] ?? []; });
 
     const requirement: PreheaderRequirement = {
@@ -284,6 +309,8 @@ export function deriveRequirement(
       header,
       innerLoops: innerLoopsOf(program, header),
       groups,
+      orderEdges,
+      excluded,
       unsatisfiable: groups.some((group) => group.consistent.length === 0),
     };
     if (block.vram !== undefined) requirement.vram = block.vram;

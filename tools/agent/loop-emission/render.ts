@@ -4,7 +4,7 @@
 
 import { CLASS_NAMES, EmissionClass, type LoopEmissionRequirement, type PreheaderRequirement } from "./types.js";
 import { pass2Routes } from "./derive.js";
-import { assignments, emissionDistance, emissionDistanceParts, openReadings, type EmissionGoal, type PreheaderVerdict } from "./compare.js";
+import { assignments, emissionDistance, emissionDistanceParts, openReadings, groupName, type EmissionGoal, type PreheaderVerdict } from "./compare.js";
 import type { PrecedentHit } from "./precedents.js";
 
 function classList(classes: EmissionClass[]): string {
@@ -51,9 +51,10 @@ export function renderRequirement(requirement: LoopEmissionRequirement): string 
   const lines: string[] = [
     `loop emission requirement ${requirement.functionName} — derived from the target's bytes`,
     "  loop.c emits into a preheader through emit_insn_before(loop_start), so the preheader",
-    "  reads front to back as a NON-DECREASING sequence of emission classes:",
+    "  leaves read front to back as a NON-DECREASING sequence of emission classes:",
     "    source < pass-1 movable < pass-1 giv init < pass-2 movable < pass-2 giv init",
-    "  Each group below admits the classes its own evidence allows; the sequence constraint",
+    "  Producers are no later in class than their consumers; frame operations are excluded.",
+    "  Each group below admits the classes its own evidence allows; the leaf-order constraint",
     "  cuts that down. What is left is what the original's loop pass must have done.",
     "",
   ];
@@ -111,7 +112,21 @@ export function renderVerdicts(verdicts: PreheaderVerdict[]): string[] {
         ? " — every class is individually possible, but no reading holds them together"
         : "";
     lines.push(`  ${where}${joined}${state}`);
-    if (verdict.readings.length === 1) {
+    if (verdict.given?.length) {
+      lines.push(`    GIVEN ${verdict.given.join("; ")}:`);
+      lines.push("      OTHER READING: the induction values are source variables, not loop-created giv inits.");
+      const measurements = verdict.alternativeMeasurements ?? [];
+      if (measurements.length === 0) {
+        lines.push("      No fresh trace-verified ledger measurement of that reading is available; it remains open.");
+      } else {
+        for (const measurement of measurements) {
+          lines.push(`      LEDGER ${measurement.source} (${measurement.sourceHash}): residual ${measurement.key.join("/")}; ` +
+            (measurement.exact === true ? "EXACT — this alternative is witnessed" : "not exact — refutes this measured spelling only"));
+        }
+        lines.push("      A failed spelling does not refute the whole source-induction reading.");
+      }
+    }
+    if (verdict.readings.length === 1 && verdict.groups.every((group) => group.outcome !== "undetermined")) {
       const reading = verdict.readings[0]!;
       const shown = reading
         .map((value, index) => (value === EmissionClass.Source ? undefined : `${index}:${CLASS_NAMES[value]}`))
@@ -129,8 +144,8 @@ export function renderVerdicts(verdicts: PreheaderVerdict[]): string[] {
       lines.push(`    ${verdict.readings.length} readings of the target's preheader still hold what this candidate did.`);
     }
     for (const group of verdict.groups) {
-      const label = group.outcome === "met" ? "OK" : group.outcome === "not-met" ? "NO" : "??";
-      const name = group.group.symbol ?? `0x${group.address.toString(16).toUpperCase()}`;
+      const label = group.outcome === "met" ? "MET" : group.outcome === "not-met" ? "NOT MET" : "UNDETERMINED";
+      const name = groupName(group.group);
       lines.push(`    ${label}  ${name}: candidate emits it as ${CLASS_NAMES[group.actual]}` +
         (group.outcome === "met" ? "" : `; here the target admits ${group.admissible.map((value) => CLASS_NAMES[value]).join(" or ") || "nothing"}`));
       if (group.lever) lines.push(`        ${group.lever}`);
