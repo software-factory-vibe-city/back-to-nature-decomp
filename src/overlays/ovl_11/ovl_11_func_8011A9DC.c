@@ -1,7 +1,6 @@
 #include "common.h"
 
 extern s32 D_8005182A;
-extern s32 D_8012D538;
 extern s32 D_8012D52C;
 
 typedef struct {

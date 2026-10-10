@@ -10903,8 +10903,8 @@ A gapless four-function run in `configs/splat/ovl_11.yaml`: 0x8011775C
 0x80117BB4 (0x360, ends 0x80117F14) → 0x80117F14 (0x5C, ends 0x80117F70),
 with no unrelated code between. All four target dasm files reference the same
 external s16 table at 0x8012D7A8 — a shared absolute global cluster — and the
-call graph agrees (`80117BB4` calls `80117F14`). The run stops at 0x80117F70,
-which does not reference the table.
+call graph agrees (`80117BB4` calls `80117F14`). The run's table members end
+at 0x80117F70, where its immediate successor does not reference the table.
 Members (address order):
 - ovl_11_func_8011775C (s) — reads D_8012D7A8; role unknown.
 - ovl_11_func_80117A40 (m, byte-exact) — writer of the shared cluster:
@@ -10913,6 +10913,19 @@ Members (address order):
 - ovl_11_func_80117BB4 (s) — reads D_8012D7A8 and calls 80117F14; role unknown.
 - ovl_11_func_80117F14 (m, matched this session) — clamps arg0 to 0..4, calls
   func_80022738, then returns func_8002261C(2, D_8012D7A8[arg0]).
+
+Extension (zero-gap adjacency + shared initializer object, no table read):
+matched `ovl_11_func_80117F70` (0x180) begins exactly at the run tail
+0x80117F14's end. It does not read D_8012D7A8, but it is a third initialiser
+of the family's `D_8012D548` record: it calls the shared
+`ovl_11_func_8011D400` clearer and writes the same field offsets (s8
++0x3C/+0x3D/+0x5A/+0x5B, s16 +0x28/+0x2A/+0x46/+0x48/+0x5C) as run member
+`ovl_11_func_80117A40` and the later run-external `ovl_11_func_8011B210`,
+using the same `D_80054BC0[0] + (s32)&D_80051xxx` pointer idiom. It also
+carries the `D_8012D538` record of the reset-stub family's
+`ovl_11_func_8011A9DC` and ends `D_8012D52C = 0; return 1;`. The 0x80117F70
+boundary is therefore link order, not a data-cluster boundary; shared-object
+and adjacency evidence, not a proven TU boundary.
 
 ---
 

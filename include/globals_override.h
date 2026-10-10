@@ -1561,6 +1561,53 @@ extern u8 D_8012CEB8[];
 
 extern u8 D_8012D548[];
 
+/* D_80051D34 - base of the shared D_80051xxx table region referenced by
+ * ovl_11_func_80117F70: `&D_80051D34 + *D_80054BC0` (offset 0) and
+ * `&D_80051D34 + 0x98 + *D_80054BC0`; the same base minus 0x5D8 forms a
+ * third pointer. Address taken only (lui/addiu). Never defined in this TU. */
+extern u8 D_80051D34[];
+
+/* D_80128264 - ovl_11 s32 table indexed by the ovl_11_func_80117F70
+ * sub-state (lw at base + index*4). Absolute-addressed. */
+extern s32 D_80128264[];
+
+/* D_8012D538 - 0xC-byte ovl_11 record (pointer at +4, s16 fields at
+ * +8/+A); the +8 halfword is the separately named D_8012D540. Initialized
+ * by ovl_11_func_80117F70 (pointers) and ovl_11_func_8011A9DC. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ void *unk4;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 unkA;
+} Ovl11D8012D538;
+extern Ovl11D8012D538 D_8012D538;
+
+/* D_8012D5A8 - 0x60-byte ovl_11 record of the D_8012D548 family (s16 fields
+ * at +0x28/+0x46/+0x5C and s8 at +0x3C), reset through
+ * ovl_11_func_8011D400 by ovl_11_func_80117F70. Absolute-addressed. */
+extern u8 D_8012D5A8[];
+
+/* D_8012D7D8 - 0x18-byte ovl_11 state block initialized by
+ * ovl_11_func_80117F70 (pointer at +0, six s16 fields at +4..+E, s32 at
+ * +0x10). Absolute-addressed. */
+typedef struct {
+    /* 0x00 */ void *unk0;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ s32 unk10;
+} Ovl11D8012D7D8;
+extern Ovl11D8012D7D8 D_8012D7D8;
+
+/* D_8012D7CC / D_8012D7D0 / D_8012D7D4 - ovl_11 s32 state words written by
+ * ovl_11_func_80117F70. Absolute-addressed. */
+extern s32 D_8012D7CC;
+extern s32 D_8012D7D0;
+extern s32 D_8012D7D4;
+
 /* D_8012D7B8 - 0x14-byte ovl_11 record initialized by ovl_11_func_80117A40
  * (pointer at +0, s16 fields at +4/+6/+8/+A, s32 at +0x10) and passed as five
  * words to ovl_11_func_8011B840 by ovl_11_func_80117BB4. */
