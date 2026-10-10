@@ -7186,7 +7186,7 @@ Fingerprints:
   record family without proving the run's TU.
 
 Members (address order):
-- ovl_11_func_800C1BA0 (s) — calls 800C1CBC and 800F0C70
+- ovl_11_func_800C1BA0 (m, matched this session) — calls 800C1CBC and 800F0C70
 - ovl_11_func_800C1BE0 (m) — zeroes u16 unkA of all 37 D_80076220 entries
 - ovl_11_func_800C1C08 (s) — calls 800C1C5C, 80107DD0, 800F0C70
 - ovl_11_func_800C1C5C (m, matched this session) — record initializer:
