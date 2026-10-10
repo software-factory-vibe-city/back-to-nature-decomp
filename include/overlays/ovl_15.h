@@ -45,6 +45,7 @@ s16 ovl_15_func_80133538(u8 *arg0, s16 arg1);
 void ovl_15_func_80133F4C(s32 arg0, s16 arg1);
 void ovl_15_func_80134000(s32 arg0, s16 arg1);
 s32 ovl_15_func_801340B8(s32 arg0, s16 arg1);
+void ovl_15_func_80134134(s16 arg0, s16 arg1, s32 arg2, s16 arg3, s16 arg4, s16 arg5);
 s32 ovl_15_func_80134444(Ovl15Func80134444Arg *arg0);
 void ovl_15_func_80134450(s16 arg0, s16 arg1, s16 arg2);
 void ovl_15_func_8013468C(void);

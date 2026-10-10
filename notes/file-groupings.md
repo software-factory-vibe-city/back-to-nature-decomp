@@ -9637,9 +9637,12 @@ write the same four adjacent u16 globals `D_8013759E` / `D_801375A0` /
 0x97B6). Read widths alternate `lh`/`lhu` and the writes are in-place `sh`, so
 the fields are signed update counters rather than a flag set. No function
 outside the run references any of the four. Non-referencing functions
-(`ovl_15_func_80134134`, `ovl_15_func_80134444`, `ovl_15_func_80134450`,
-`ovl_15_func_8013468C`) are interleaved, so the tie is the shared-global
-cluster, not adjacency. The run terminates at the initialiser
+(`ovl_15_func_80134444`, `ovl_15_func_80134450`, `ovl_15_func_8013468C`) are
+interleaved, so the tie is the shared-global cluster, not adjacency. A second
+shared-global tie is the 0x744-byte zeroed buffer `D_801456A0`
+(0x801456A0–0x80145DE4), which only the run head `ovl_15_func_80133808` and
+`ovl_15_func_80134134` pass to `func_80015EE8`, admitting 80134134 to the run.
+The run terminates at the initialiser
 `ovl_15_func_80134724`, which zeroes all four and then memsets the 0x1568-byte
 buffer `D_80140FE0` — the only reference to that buffer anywhere in ovl_15.
 
@@ -9661,6 +9664,10 @@ Members (link order):
 - ovl_15_func_801340B8 (m, matched this session, byte-exact) — leaf; `lh` of
   `D_8013759E` plus a read of the 0x28-stride table `D_80140F90`, which sits
   0x50 bytes below this run's terminating memset buffer `D_80140FE0`
+- ovl_15_func_80134134 (m, matched this session, byte-exact) — maps `arg0`
+  (0x109/0x10A/0x160–0x166) to a slot index and draws through the shared
+  `D_801456A0` buffer (`func_80015EE8`/`func_80017B3C`); direct callee of
+  `ovl_15_func_801342A0`
 - ovl_15_func_801342A0 (s) — `lh` of `D_8013759E`; calls `ovl_15_func_80134134`,
   `func_8001A970`, `ovl_15_func_80134444`
 - ovl_15_func_801344E8 (s) — `lh` of `D_8013759E`, called from `ovl_15_func_80133B28`
