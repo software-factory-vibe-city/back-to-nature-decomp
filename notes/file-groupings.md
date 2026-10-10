@@ -9869,6 +9869,9 @@ Members (link order):
   returned), and `D_80137584 = 0` when `D_8013759A >= 0x5B` — same body as
   `ovl_15_func_8012FA70` with only the updater array and the immediate
   `0x12`→`0x15` changed, and contiguous in link order after it (both 0x70 bytes)
+- ovl_15_func_80130468 (m, verified byte-exact this session) — shared
+  `D_80052FC4` text-draw prologue, byte-identical to `ovl_15_func_8012ED18`:
+  calls `ovl_15_func_8012E15C` and sets `D_80137584 = 1` (void)
 - ovl_15_func_801305D4 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x11)` and `D_80137588 = 1`
