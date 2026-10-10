@@ -9780,7 +9780,7 @@ Members (link order):
 - ovl_15_func_801349C8 (m, matched earlier) — appends `D_8013765C[clamp(arg0,0,3)]`
   to `arg1`
 
-## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012EE84–0x801328C4 (confidence: medium)
+## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012ED18–0x801328C4 (confidence: medium)
 
 Evidence: a link-order run of ten functions that all open with the same
 text-draw call idiom: `func_8001AC10(D_8005E3C0->field_D8 + 0x18,
@@ -9801,13 +9801,23 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `D_80052178`, `ovl_15_func_80132494` uses `D_800521F6`,
 `ovl_15_func_80132520` uses `D_80052280`, `ovl_15_func_801325AC` uses
 `D_8005230A`, and
-`ovl_15_func_80130EBC` also uses `D_80052F4E` (shared with `ovl_15_func_8012FFD8`); none is referenced by
+`ovl_15_func_80130EBC` also uses `D_80052F4E` (shared with `ovl_15_func_8012FFD8`);
+`ovl_15_func_8012ED18` (the earliest address in the run) uses `D_80052FC4`,
+a second multi-member updater array also used by the immediate link successor
+`ovl_15_func_8012ED6C` and by later members `ovl_15_func_8012EF84`,
+`ovl_15_func_8012F158`, `ovl_15_func_8012F4F4`, `ovl_15_func_80130468`,
+`ovl_15_func_801304BC`, `ovl_15_func_801306D4`, `ovl_15_func_801308B8`,
+`ovl_15_func_8013143C`, `ovl_15_func_80131498`, `ovl_15_func_801316B0` and
+`ovl_15_func_80131858`; none is referenced by
 any function outside the run, so the tie is the shared-global/idiom cluster,
 not a single symbol or adjacency (the run is not gapless: non-member functions appear
 between cluster members in link order; `ovl_15_func_80131BCC`, `ovl_15_func_80131CDC`,
 and `func_80131ED8` are members with variant bodies that sit among the gaps).
 
 Members (link order):
+- ovl_15_func_8012ED18 (m, matched this session, byte-exact) — earliest member:
+  shared `D_80052FC4` text-draw prologue, then calls `ovl_15_func_8012E15C`
+  and sets `D_80137584 = 1` (void)
 - ovl_15_func_8012EE84 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x16)` and `D_80137588 = 1` (void; the
