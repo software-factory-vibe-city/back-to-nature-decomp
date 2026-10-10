@@ -1261,7 +1261,11 @@ Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
   8010AE64, 8010ADD4), so the table ties the dispatcher to that idiom/table
   cluster;
 - call-graph adjacency: `ovl_11_func_80109A70` (a `D_800BA848` handler) calls
-  this dispatcher, so the call edge agrees with the named-table tie.
+  this dispatcher, so the call edge agrees with the named-table tie; matched
+  state-selector `ovl_11_func_80109594` is a further caller (it compares its
+  computed state against the same s16@+0x26 the dispatcher records), and its
+  immediate link predecessor `ovl_11_func_801090A4` dispatches through
+  `D_800BA894[this+0x26]` — table, link order and call edges agree.
 
 - ovl_11_func_80109188 (m, matched this session, byte-exact) — third dual-table
   dispatcher of the class: returns -1 when `s32@+0x34 & 0x400` and
@@ -1274,6 +1278,11 @@ Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
   differs from the `D_800BA9E4`/`D_800BAA34` sibling 8010B57C in the +0x400
   guard (that one returns -1, this one probes `ovl_11_func_800C1224`) and in
   the `ovl_11_func_800D0408` view offset (+0x48 here, +0x24 there).
+- ovl_11_func_80109594 (m, matched this session, byte-exact) — state selector
+  feeding this dispatcher: derives the desired state from the object's
+  s32@+0x34 flag bits 0x2000/0x8000, engine s16 `D_80070CF8` and the
+  `func_80012A34` selector switch, then calls 80109188 when it differs from
+  the current s16@+0x26; immediate link successor of 801090A4, which calls it.
 
 ---
 
