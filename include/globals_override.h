@@ -1550,6 +1550,27 @@ extern s16 D_80127F88;
  * code. */
 extern s16 D_80127F90;
 
+/* D_80127FE8 - base of the ovl_11 16-byte-stride halfword table read by
+ * ovl_11_func_80113A20. The table index is the halfword at D_8012D110 and
+ * the selected 16-byte record is walked as eight s16 values. Accessed with
+ * absolute addressing from ovl_11 code. */
+extern s16 D_80127FE8[];
+
+/* D_80128088 - second base of the same 16-byte-stride halfword table,
+ * selected by ovl_11_func_80113A20 when its argument equals 0x37. Sits
+ * 0xA0 bytes past D_80127FE8. Accessed with absolute addressing. */
+extern s16 D_80128088[];
+
+/* D_80128128 - ovl_11 eight-halfword table walked by
+ * ovl_11_func_80113A20 alongside the selected 16-byte record. Accessed
+ * with absolute addressing from ovl_11 code. */
+extern s16 D_80128128[];
+
+/* D_80128138 - second ovl_11 eight-halfword table (0x10 bytes past
+ * D_80128128) selected by ovl_11_func_80113A20 when its argument equals
+ * 0x37. Accessed with absolute addressing from ovl_11 code. */
+extern s16 D_80128138[];
+
 /* D_80074838 - large ovl_11 work-area base. Referenced with absolute
  * addressing from ovl_11 code; the card-table region this overlay clears
  * sits at +0x6520 (three rows of six 14-byte card records, also reached

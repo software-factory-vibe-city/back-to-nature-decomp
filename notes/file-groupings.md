@@ -6080,13 +6080,13 @@ Members:
   semantics byte-exactly; same shared-`%hi` base + dual-pointer 0x7A7A/0x7A78
   walk + hoisted -1 sentinel idiom as the searchers, in the 0x800DBAB0 band;
   the 800DBBE0/800DBC04/800DBC28 accessors all delegate to it
-## `ovl_11` D_80127F88–D_80127FE8 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
+## `ovl_11` D_80127F88–D_80128138 constant-table cluster — 0x80112318 / 0x801123AC / 0x80112A84 / 0x80113A20 (confidence: medium)
 
 One contiguous rodata region in ovl_11 (short tables plus one pointer table),
 each slice read by a distinct function inside the unbroken link run
-0x80112284–0x80113A20 — a shared-data-cluster tie, not a call edge. All four
-slices are currently NON_MATCHING data; the readers below are their only
-referencers in the binary.
+0x80112284–0x80113A20 — a shared-data-cluster tie, not a call edge. The
+matched readers below are the slices' only referencers in the binary; the
+slice bytes themselves are still NON_MATCHING data.
 - ovl_11_func_80112284 (m, matched this session, 0x94, byte-exact) — reads the
   contiguous preceding slice D_80127F80 as a 4-entry s16 table in the same
   advancing-pointer loop shape as 0x80112318/0x801123AC, calling
@@ -6102,8 +6102,12 @@ referencers in the binary.
   table D_80127FD4 (middle slice) indexed by the s16 at D_8006C838+0xE776 via
   the +0x8000 two-stage split (the D_8006C838 reader idiom of cluster member
   0x8010C4B0); sole caller is link-separate 0x800FB908
-- ovl_11_func_80113A20 (s) — reads slice D_80127FE8 as a 0x10-stride table base
-  (`lh D_8012D110`, `sll ,4`, `addu`) and also touches D_80128128 / D_80128088
+- ovl_11_func_80113A20 (m, matched this session, 0x160, byte-exact) — reads
+  the 0x10-stride D_80127FE8 slice indexed by the D_8012D110 halfword
+  (`lh D_8012D110`, `sll ,4`, `addu`) against the paired D_80128128
+  eight-halfword table, switching to the second 0x10-stride base D_80128088
+  (0xA0 past D_80127FE8) and its paired D_80128138 table when the argument is
+  0x37 — the first reader to witness these two trailing slices
 
 ## `ovl_11` D_800719F8 bit-flag family — 0x80112284 / 0x80112318 / 0x801123AC / 0x8011256C (confidence: medium)
 
