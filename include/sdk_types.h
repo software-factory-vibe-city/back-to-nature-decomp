@@ -2523,6 +2523,17 @@ typedef struct {
 } Recon_ovl_11_func_800D6380_A3View;
 
 typedef struct {
+    union {
+                   u16 unk0;
+                   s16 unk0_s;
+    } u0;
+               u16 unk2;
+               u8 unk4;
+               s8 unk5;
+               u16 unk6;
+} Recon_ovl_11_func_800D85F8_A0View;
+
+typedef struct {
     char pad_0[0xB0];
     u16 unkB0;
 } Recon_ovl_11_func_800DEEE0_A0View;

@@ -11465,6 +11465,16 @@ Members:
 - ovl_11_func_800D8320 (m, matched this session, byte-exact) — consumes an
   entry via `ovl_11_func_800DAF60` (tag 0x168/0x16A, `+0x0 == 0x36`,
   `+0x4 != 0`), then dispatches through `D_80123DFC[arg0]`.
+- ovl_11_func_800D85F8 (m, matched this session, byte-exact) — item-state
+  updater over one `Ovl11D124Entry`-shaped record (`+0x0` id, `+0x2` next id,
+  `+0x4` state byte, `+0x5`, `+0x6` flags): `ovl_11_func_800D5868`/`589C` tag
+  guards, `+0x4` compared against `ovl_11_func_800D5C3C(+0x0)`, then either
+  reset `+0x0 = +0x2` or refresh `+0x4`/`+0x6` from `ovl_11_func_800D5C90`,
+  remapping the returned id through `D_80070CF2`; its caller
+  `ovl_11_func_8010D314` indexes the same 25x45/7x7 tables by
+  `row*0x168`/`row*0x38` + `col*8` — type + table + helper-idiom tie to the
+  record-tag update run above (sibling of 800DA49C/800DA518); not link-adjacent
+  (0x800D85F8 sits ~0x1E00 above the run).
 - ovl_11_func_800D81BC (m, matched this session, byte-exact) — the zero-gap
   link-order predecessor of ovl_11_func_800D8320 (ends exactly at 0x800D8320)
   and its twin: same `ovl_11_func_800DAF60` entry view then `D_80123DFC[arg0]`

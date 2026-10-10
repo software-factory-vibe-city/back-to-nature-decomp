@@ -368,6 +368,23 @@ typedef struct {
     s32 unk0;
 } Recon_ovl_11_func_800D6380_A3View;
 
+/* Argument view of ovl_11_func_800D85F8: the item id at 0x00 is read both
+ * unsigned (lhu) for the returned default and signed (lh) by the flag guards
+ * in ovl_11_func_800D5868/800D589C. 0x02 is a next-id halfword copied back to
+ * 0x00 on reset, 0x04 a state byte compared against the ovl_11_func_800D5C3C
+ * lookup, and 0x06 a flags halfword whose bit 15 is set when the
+ * ovl_11_func_800D5C90 lookup succeeds. */
+typedef struct {
+    union {
+        /* 0x00 */ u16 unk0;
+        /* 0x00 */ s16 unk0_s;
+    } u0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ s8 unk5;
+    /* 0x06 */ u16 unk6;
+} Recon_ovl_11_func_800D85F8_A0View;
+
 typedef struct { u16 unk0; } UnkStruct800DF4F0;
 
 typedef struct {
