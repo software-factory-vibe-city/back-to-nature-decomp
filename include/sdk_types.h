@@ -76,6 +76,20 @@ typedef struct {
                u16 unk7A;
 } M2C_0034004658f1_Ovl11D04D4Obj;
 
+typedef struct {
+               u16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
+               u16 unk8;
+               u16 unkA;
+               u16 unkC;
+               u16 unkE;
+               u16 unk10;
+               u16 unk12;
+               u16 unk14;
+} M2C_022d8b6d7e6d_SpriteDesc;
+
 typedef unsigned char u8;
 
 typedef struct {

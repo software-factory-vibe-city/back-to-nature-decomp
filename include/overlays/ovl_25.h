@@ -37,6 +37,7 @@ void ovl_25_func_800BAF20(void);
 void ovl_25_func_800BB46C(void);
 void ovl_25_func_800BB4B4(void);
 void ovl_25_func_800BB510(s32 arg0);
+void ovl_25_func_800BB628(M2C_022d8b6d7e6d_SpriteDesc *arg0);
 void ovl_25_func_800BB874(M2C_3f138653e0bb_M2C_b93e11a2_Arg0 *arg0);
 void ovl_25_func_800BB970(s16 arg0);
 void ovl_25_func_800BB9D0(s16 arg0);

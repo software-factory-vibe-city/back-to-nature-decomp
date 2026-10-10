@@ -9947,7 +9947,7 @@ Members (link order):
   `ovl_25_func_800BBA30`, then advances the `D_800BCD52` counter and raises the
   `D_800BCD50` flag once it reaches 0x200
 
-## `ovl_25` 8×0x16 record-array initializer/consumers — 0x800BB4B4 / 0x800BB580 / 0x800BB874 (confidence: medium)
+## `ovl_25` 8×0x16 record-array initializer/consumers/handlers — 0x800BB4B4 / 0x800BB580 / 0x800BB628 / 0x800BB788 / 0x800BB874 (confidence: medium)
 
 Candidate same-TU grouping of `ovl_25`. Evidence is a shared object plus a
 gapless link run.
@@ -9969,7 +9969,17 @@ Fingerprints:
 - gapless link run: `ovl_25_func_800BB46C` (ends exactly at 0x800BB4B4) →
   `ovl_25_func_800BB4B4` (0x5C, ends exactly 0x800BB510) →
   `ovl_25_func_800BB510` (0x70, ends exactly 0x800BB580) →
-  `ovl_25_func_800BB580`; contiguous, no unrelated code between.
+  `ovl_25_func_800BB580` (0xA8, ends exactly 0x800BB628) →
+  `ovl_25_func_800BB628` (0x160, ends exactly 0x800BB788) →
+  `ovl_25_func_800BB788` (0xEC, ends exactly 0x800BB874) →
+  `ovl_25_func_800BB874` (0xFC); seven contiguous functions, no unrelated
+  code between.
+- shared source-record type, handlers: `ovl_25_func_800BB628` reads the
+  pointer at `D_8007AFF0`+0x25388 and indexes it by `unk8 * 0x12 + 0x8A8` —
+  exactly the `$a0+0x8A8`, 0x12-stride source records `ovl_25_func_800BB510`
+  walks — and copies that 9-halfword source into its `arg0` with the same
+  dest 2/8/4/6/0xE/0x10/0x12/0x14 remap `ovl_25_func_800BB874` applies when
+  filling the `D_800A03B0` slots (source type of the group).
 - far-buffer mirror: `ovl_25_func_800BB4B4` sets eight 0xFFFF halfwords at
   `D_8007AFF0 + 0x253C0` at the same 0x16 stride, the same shape as the
   `D_800A03B0` array, tying it to the `D_8007AFF0` +0x253xx far-buffer field
@@ -9989,9 +9999,19 @@ Members (link order):
   `memset(&D_800A03AC, 0, 0xB4)` then eight `0xFFFF` halfwords at
   `D_8007AFF0 + 0x253C0`, stride 0x16.
 - ovl_25_func_800BB580 (s) — consumer of the `D_800A03B0` records (8 entries,
-  0x16 stride): per record `lhu` first halfword, skips 0xFFFF, dispatches on
-  the `D_8006C838` +0xC flag to `ovl_25_func_800BB628` or
-  `ovl_25_func_800BB788`.
+  0x16 stride): per record `lhu` first halfword, skips 0xFFFF, suppresses the
+  whole pass when `D_8006C838`+0xC has bit 0x08000000, and otherwise selects
+  `ovl_25_func_800BB628` (record unk0 bit 0x8000 set) or
+  `ovl_25_func_800BB788` (clear).
+- ovl_25_func_800BB628 (m, matched this session, byte-exact) — handler for
+  records whose unk0 bit 0x8000 is set: builds the `RECT` from `arg0`
+  +0xE/+0x10/+0x12/+0x14, `MoveImage`s it to +0x4/+0x6 (plus +8/+0x10 shifted
+  repeats while `D_8007AFF0`+0x25476 is 0x2C and unk0 bit 0 is set), then
+  advances the +0xA counter and, on reaching +0x2, reloads the descriptor from
+  the `D_8007AFF0`+0x25388 / 0x8A8 / 0x12 source record above.
+- ovl_25_func_800BB788 (s) — alternate handler for records whose unk0 bit
+  0x8000 is clear: adjacent `MoveImage` sprite-descriptor variant; membership
+  rests on the dispatch edge and gapless adjacency.
 - ovl_25_func_800BB510 (m, matched this session, byte-exact) — walks eight
   9-halfword records (0x12 stride) at `$a0+0x8A8`, calling
   `ovl_25_func_800BB874` for each whose first halfword is not 0xFFFF: the source
