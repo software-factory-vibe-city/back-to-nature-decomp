@@ -11458,6 +11458,12 @@ Members:
   0x20 : 0x10)` on each.
 - ovl_11_func_800D9064 (m, byte-exact) — walks all 25x45 `D_80071DFC` entries
   and applies the `800DA49C`/`800DA518`/`800DA454` tag-update trio to each.
+- ovl_11_func_800DADB0 (m, matched this session, byte-exact) — search entry
+  in the same gapless link-order run as 800DACD4/800DAF60 (800DACD4 ends
+  0x800DADB0; 800DADB0 ends 0x800DAF24; 800DAF60 follows 800DAF24): scans the
+  25x45 `D_80071DFC` when arg2 != 0, else the 7-wide 49-entry table at
+  `D_8006C838+0x78EC`, starting at `func_80012A34(count)` and matching
+  `Ovl11D124Entry` fields by the arg4 mask bits.
 - ovl_11_func_800DAF60 (m, byte-exact) — bounds-checked pointer into
   `D_80071DFC` (or the `D_80074124` 7x7 table when arg0 != 0).
 - ovl_11_func_800D7B24 (m, byte-exact) — initializes every `D_80074124` entry
