@@ -1721,6 +1721,19 @@ The indexed-member spelling reproduces the target's two base copies
 without assembly (19/19 words, fully finalized); TU co-membership remains
 unproven from a shared global alone.
 
+Widening (byte-exact match of `ovl_11_func_800EF6E4`): the +0xE4D8 record
+family's setter is now matched. `ovl_11_func_800EF6E4` (m, 0x800EF6E4, 0x18C)
+writes the +8/+A fields of the same five 0xC-stride records through the
+`D_8007AD10` alias (`D_8007AD10` = `D_8006C838`+0xE4D8, the compiler-recovered
+`(char *)D_80071CC0 - 0x5488` base), fills their +0/+2/+4 through shared callee
+`ovl_11_func_800EEFB8`, and is the zero-gap link predecessor of 800EF870
+(splat `configs/splat/ovl_11.yaml`: 0x378C4 + 0x18C = 0x37A50). It also
+reaches the same +0x5492-selected 0x1D4-stride record's s16 at +0x9A06 that
+cluster member 800EF8BC reads, through the sibling record `D_80071CC0` =
+`D_8006C838`+0x5488 (new base offset, tying the recorded +0x5492 unkA to it).
+Role: record setter alongside resetter 800EF870 and initializer 801047FC; TU
+co-membership remains unproven from the shared record region alone.
+
 Widening (byte-exact match of `ovl_11_func_80104418`): the run's accumulator
 mutator is now matched. `ovl_11_func_80104418` (m, 0x80104418, 0xCC, void leaf)
 is called only by `ovl_11_func_80103C00` — the same link-contiguous cluster
