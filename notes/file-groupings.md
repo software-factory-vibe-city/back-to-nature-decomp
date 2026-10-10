@@ -10173,7 +10173,7 @@ Members (address order):
 
 ---
 
-## `ovl_11` D_801273DC state-block init/installer run — 0x800FFDCC / 0x800FFE64 / 0x800FFEF0 (confidence: high)
+## `ovl_11` D_801273DC state-block init/installer run — 0x800FFDCC / 0x800FFE64 / 0x800FFEF0 / 0x800FFF7C (confidence: high)
 
 Candidate same-TU run tied to the `D_801273Exx` main-RAM state block and the
 `D_801273DC` handler pointer already documented by the D_801273DC handler-table
@@ -10185,12 +10185,20 @@ Fingerprints:
 - **gapless link adjacency:** `ovl_11_func_800FFDCC` (0x98 bytes at
   0x800FFDCC) ends exactly at `ovl_11_func_800FFE64` (0x8C bytes at
   0x800FFE64), which in turn ends exactly at `ovl_11_func_800FFEF0` (0x8C
-  bytes at 0x800FFEF0) — a zero-gap three-function run;
+  bytes at 0x800FFEF0), which in turn ends exactly at
+  `ovl_11_func_800FFF7C` (0x158 bytes at 0x800FFF7C) — a zero-gap
+  four-function run (splat `ovl_11.yaml` confirms the same order);
 - **shared `D_801273Exx` state block, complementary roles:** 800FFDCC is the
   block's reset leaf — it zeroes `D_801273DC` along with the whole
   `D_801273Exx` block; its gapless followers 800FFE64 and 800FFEF0 re-seed
   members of that same block (`D_801273E4 = 1`, `D_801273E5 = 0` in 800FFE64;
-  `D_801273E4 = 1`, `D_801273E5 = 1` in 800FFEF0);
+  `D_801273E4 = 1`, `D_801273E5 = 1` in 800FFEF0); the run's new tail
+  `ovl_11_func_800FFF7C` is the block's only reader/dispatcher of the installed
+  handler — it tests `D_801273E4`, compares the current handler `D_801273DC`
+  against the last-run `D_801273E0`, clears `D_801273E7`/`E8`/`E9`/`EA` on a
+  handler change, then stores `D_801273E0 = D_801273DC` and calls it. `D_801273E0`
+  and `D_801273E7`–`EA` are touched by no source file outside this run — only the
+  reset leaf 800FFDCC and this new member;
 - **handler install:** 800FFE64 is the only site that stores
   `D_801273DC = ovl_11_func_80100128`; 80100128 is the case-0x3B6 handler of
   the D_801273DC handler-table run, and 800FFE64's own event call is
@@ -10218,6 +10226,10 @@ Members (link order):
   one link slot later: same entry calls and shared event tail, sets
   `D_801273E4 = 1` / `D_801273E5 = 1`, stores handler
   `ovl_11_func_8010021C` into `D_801273DC`
+- ovl_11_func_800FFF7C (m, byte-exact) — gapless run tail and the state-block
+  dispatcher: reads `D_801273E4`, drives the installed `D_801273DC` handler and
+  de-duplicates it via `D_801273E0`, clearing `E7`–`EA` only when the handler
+  changed
 
 ---
 
