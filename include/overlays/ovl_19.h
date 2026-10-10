@@ -3,6 +3,7 @@
  * passed to m2c before this file. */
 
 void ovl_19_func_800B7ED8(void);
+void ovl_19_func_800B82B8(void);
 void ovl_19_func_800B843C(void);
 void ovl_19_func_800B847C(void);
 void ovl_19_func_800B8544(void);

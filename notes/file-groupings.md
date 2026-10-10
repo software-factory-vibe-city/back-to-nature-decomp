@@ -11207,6 +11207,13 @@ its own and against which it folds the neighbouring `D_800BF4E0[-0xD]` access �
 the same overlay-local-symbol-folding fingerprint the `D_800BF560` member shows.
 
 Members (link order):
+- ovl_19_func_800B82B8 (m, byte-exact, verified this session) — gapless
+  link-order predecessor of `800B843C` (offset 0x498, 0x184 bytes, ending
+  0x61C = 0x800B843C); initialises the same overlay-local `D_800BF4C0` s16
+  array (zeroes indices 2–5, seeds the `+0xB0`–`+0xB7` slots with unique
+  `func_80012A34(0x14)` draws, then calls cluster member `800B843C` and writes
+  the `+0xB8`–`+0xCF` count/field block); shares the `func_80012A34` callee
+  with `800B85F4`/`800BA2D4`/`800BA33C`.
 - ovl_19_func_800B843C (m, matched this session, byte-exact) — gapless
   link-order predecessor of `800B847C`; initial state resetter for the same
   overlay-local `D_800BF4C0` array: zeroes `s32@+0x0`, sets `s16@+0xC`,
