@@ -11616,12 +11616,27 @@ support one state family; they do not prove shared translation-unit ownership.
   D_8005E3C0->field_D8+0x68 context and D_8012CE88 buffer. The last two
   helper arguments start at 0x8C/0xC0; the former advances only for enabled
   entries via a high-half running value.
+- ovl_11_func_800FC998 (m, finalized, 0x15C) — 21-entry row builder: walks
+  the 6-byte-record `D_80127274` table, draws each record's `+0x04` byte
+  through `func_80015EE8(D_8005E3C0->field_D8+0x68, D_8012CE58, ...)` and its
+  `+0x02` s16 through the D_8012A028 cluster's `ovl_11_func_800FCAF4`.
 - Original 800FC358 calls this helper at 800FC4DC. This is a corroborated
   caller/dispatch dependency, not proof of shared TU ownership.
 
 The table stride, mask word and index byte establish a shared record layout.
 The single S6 matching constraint in the recovered source is a user-authorized
 workaround, not evidence of the original author's register declarations.
+
+Widening (byte-exact match of `ovl_11_func_800FC998`, 2026-11): the family head
+has a zero-gap link successor — 0x800FC8C8 + 0xD0 = 0x800FC998 — whose own
+zero-gap successor is 0x800FCAF4, and 800FC998 calls that successor, so
+0x800FC8C8 → 0x800FC998 → 0x800FCAF4 is one gapless run with an internal call
+edge. Membership also rests on the shared text-draw path (its `D_8012CE58`
+buffer sits in the same 0x30-stride `D_8012CE..` byte block as 800FC8C8's
+`D_8012CE88`) and on its `D_80127274` table lying in the `D_801272xx` data block
+next to 800FC754's `D_80127234` and 800FC8C8's `D_80127328`. Its successor
+800FCAF4 is already the D_8012A028 cluster's formatted-number member, so the
+run bridges the two families; membership of all three in one TU is not proven.
 
 
 ## `ovl_11` s16 range-map / store-view run — 0x8011DD48–0x8011DF4C (confidence: high)

@@ -1095,6 +1095,11 @@ extern u8 D_80051B9A[];
  * ovl_11_func_8011775C). Only address-taken; absolute-addressed. */
 extern u8 D_80051BF0[];
 
+/* D_800535E6 - base of a data table in the PS-X EXE, indexed by
+ * D_80054BBC[0] and passed to func_80017B3C by ovl_11_func_800FC998.
+ * Only address-taken; absolute-addressed (split lui/%lo pair). */
+extern u8 D_800535E6[];
+
 /* D_80074124 - 7x7 table of 8-byte entries (ovl_11), written by
  * ovl_11_func_800D7B00. Each entry holds two s16 set to 0x167, two spare
  * u8, and an s16 set to 0. Reads in func_800BF630 etc. use the s16 @0
@@ -1399,6 +1404,18 @@ typedef struct {
 } Ovl11D80127328Entry;
 extern Ovl11D80127328Entry D_80127328[];
 
+/* D_80127274 - 21-entry table of 6-byte records walked by
+ * ovl_11_func_800FC998: s16 at +0x02 (lh) passed to ovl_11_func_800FCAF4
+ * and u8 at +0x04 (lbu) passed to func_80015EE8. Absolute-addressed from
+ * ovl_11 code. */
+typedef struct {
+    /* 0x00 */ char pad_0[0x2];
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ char pad_5;
+} Ovl11D80127274Entry;
+extern Ovl11D80127274Entry D_80127274[];
+
 /* D_8012A028 - s16 scratch passed by address to func_8001A970 and
  * ovl_11_func_800FC544 by the ovl_11 countdown-table routines. */
 extern s16 D_8012A028;
@@ -1406,6 +1423,10 @@ extern s16 D_8012A028;
 extern u8 D_8012737C[];
 
 extern u8 D_8012CE88[];
+
+/* D_8012CE58 - 0x30-byte scratch/display buffer in ovl_11 bss passed by
+ * address to func_80015EE8 by ovl_11_func_800FC998. Absolute-addressed. */
+extern u8 D_8012CE58[];
 
 extern u8 D_8012CEB8[];
 
