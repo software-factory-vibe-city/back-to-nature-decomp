@@ -1672,6 +1672,13 @@ extern s32 D_8012CF20;
 extern s32 D_80127428;
 extern s32 D_8012742C;
 
+/* D_8012CF1C / D_8012CF24 - ovl_11 farm-state outputs selected alongside the
+ * D_8012CF10 row. ovl_11_func_80103D44 copies the chosen D_8012CF10 halfword
+ * into D_8012CF1C (sh) and D_8012CF20 into D_8012CF24 (sw);
+ * ovl_11_func_801037EC zeroes both. Absolute-addressed (outside $gp). */
+extern s16 D_8012CF1C;
+extern s32 D_8012CF24;
+
 /* D_8012CF30 - 12-halfword (0x18 byte) ovl_11 scratch buffer filled by
  * func_8001A970 (0xFFFF terminator) and passed to func_80017B3C by
  * ovl_11_func_80103EB8 / ovl_11_func_80103F8C. Absolute-addressed. */

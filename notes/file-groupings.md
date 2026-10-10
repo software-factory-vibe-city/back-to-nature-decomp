@@ -1631,6 +1631,12 @@ Members (address order):
   `D_8012742C` as an index into the shared `D_8012CF10` buffer, maps
   `D_8005E3A8` bits to a direction, and calls matched members
   `ovl_11_func_80104418` and `ovl_11_func_80104394`; the run's player-input arm
+- ovl_11_func_80103D44 (m, matched this session, 0x80103D44, 0x174, byte-exact)
+  — the run's row-output selector and zero-gap successor of 80103C00: indexes
+  the shared `D_8012CF10[7]` row with `D_8012742C`, writes the selected
+  halfword to `D_8012CF1C` and `D_8012CF20` to `D_8012CF24` (the only
+  non-reset writer of that output pair), and calls matched consumer
+  `ovl_11_func_80104394` on two paths
 - ovl_11_func_801040A8 (m) — trailer reader of D_80127428 and D_8012742C
   (the sibling global's only other site); selects a 0xD6/0x22/0xC4 value from
   D_80127428 and passes `D_8005E3C0->field_D8 + 0x54` plus a D_8012742C-derived
@@ -1738,6 +1744,19 @@ filled by `func_8001A970` and passed to `func_80017B3C` — the same buffer
 new exe table base `D_800517C6` indexed by `D_80054BBC[1]`. Role: draws the
 panel through `func_80022580` + two `func_80017B3C` calls and formats the
 scratch text via `func_8001A970` / `func_8001ABF0`.
+
+Widening (byte-exact match of `ovl_11_func_80103D44`): the run's row-output
+selector is now matched. `ovl_11_func_80103D44` (m, 0x80103D44, 0x174,
+byte-exact) sits zero-gap between matched member `ovl_11_func_80103C00`
+(ends 0x80103D44) and documented run successor `ovl_11_func_80103EB8`
+(begins 0x80103EB8), and it is the second caller of matched consumer
+`ovl_11_func_80104394`. It binds the cluster's two state globals: it reads
+`D_8012742C` as the row index into `D_8012CF10` and exports the selected
+halfword plus `D_8012CF20` through `D_8012CF1C`/`D_8012CF24` — the only
+non-reset writer of the output pair `ovl_11_func_801037EC` zeroes.
+Membership in the D_80127428 run is corroborated by the zero-gap adjacency,
+the shared `0x8012CFxx` data group, and the call edge to
+`ovl_11_func_80104394`.
 
 ---
 
