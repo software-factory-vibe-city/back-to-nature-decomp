@@ -7410,6 +7410,17 @@ Members:
   4-byte index and `struct_8006C838_time` view as 800E99EC; a new writer-side
   tie to the `D_80071A22` byte global and a further ovl_11 site carrying the
   `-fno-cse-skip-blocks` override (cf. 80103B24/800F1678).
+- ovl_11_func_800E946C (m, matched this session, 0xD0, byte-exact) —
+  guarded four-slot resolver + record-family forwarder: for each of four args,
+  `!= -1` resolves the slot through the family's s16-scaled index (low halfword
+  for `arg0`/`arg1`, full s32 for `arg2`/`arg3`) and the `== -1` arm yields -1,
+  then all four are forwarded to the `D_80076220` record reset dispatcher
+  `ovl_11_func_800E7504`; returns 1. Same absolute base, `s16`-fused index and
+  `!= -1` guard-resolve shape as the sibling readers (cf. 800EC490/800E78E4),
+  inside the accessor band; the sole external caller of `ovl_11_func_800E7504`
+  in the container — a new call-graph edge from the `D_80129560` accessor
+  family into the `D_80076220` record family. Link-order neighbours 800E93CC
+  (stub) and 800E953C do not reach the table, so adjacency adds nothing here.
 
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 
