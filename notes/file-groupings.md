@@ -9827,7 +9827,8 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `D_800531B8`, `ovl_15_func_8012F990` uses `D_80053506`,
 `ovl_15_func_8012FA00` uses `D_8005321A`, `ovl_15_func_8012FA70` uses
 `D_80053294`, `ovl_15_func_8012FFD8` uses `D_80052F4E`,
-`ovl_15_func_80130048` uses `D_80051DCC`,
+`ovl_15_func_80130048` uses `D_80051DCC`, `ovl_15_func_80130F2C` uses
+`D_80051E02`,
 `ovl_15_func_80130A94` uses `D_800532FE`, `ovl_15_func_80130BBC` and
 `ovl_15_func_80131B5C` use `D_800523AC`, `ovl_15_func_80130DDC` uses `D_8005341E`,
 `ovl_15_func_8012F8DC` uses `D_8005346A`,
@@ -9977,6 +9978,13 @@ Members (link order):
   `D_8013759A >= 0x5B` — exact body duplicate of `ovl_15_func_8012F990` except
   for the updater array, and contiguous in link order after
   `ovl_15_func_80130E4C` (both 0x70 bytes)
+- ovl_15_func_80130F2C (m, verified byte-exact) — shared text-draw prologue
+  with the `D_80051E02` updater array (new cluster symbol), gapless link
+  successor of `ovl_15_func_80130EBC` and predecessor of `ovl_15_func_80130FC8`
+  (0x9C bytes); branches on `ovl_15_func_801370B4()` and writes the private
+  state bytes `D_80137587`/`D_80137584` — body-identical to
+  `ovl_15_func_80130048` except for the updater array and the immediate
+  `0x17`→`0x12`
 - ovl_15_func_8013143C (m, matched this session, byte-exact) — shared
   `D_80052FC4` text-draw prologue, body-identical to `ovl_15_func_80130468`
   (calls `ovl_15_func_8012E15C` and sets `D_80137584 = 1`) plus a trailing
@@ -11666,7 +11674,7 @@ input flags and clamped to 0/1), while the shared-prologue writers
 `ovl_15_func_8012EE84`, `ovl_15_func_801305D4` and `ovl_15_func_801315B0`
 store `1` to it. A fourth private byte from the same cleared block,
 `D_80137587`, is written only by the initialiser and the shared-prologue
-member `ovl_15_func_80130048`. `ovl_15_func_801370B4` is also gapless
+members `ovl_15_func_80130048` and `ovl_15_func_80130F2C`. `ovl_15_func_801370B4` is also gapless
 in link order between the
 number-text formatter `ovl_15_func_8013703C` (ending exactly at its
 0x801370B4) and `ovl_15_func_80137228` (beginning exactly at its end), which
