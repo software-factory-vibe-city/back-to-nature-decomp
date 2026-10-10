@@ -1448,6 +1448,37 @@ extern s16 D_800B93CE;
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
 
+/* D_800BAC04 - ovl_11 four-entry {s32 id, handler} dispatch table. The records
+ * are {0, ovl_11_func_80111258}, {1, ovl_11_func_80111400}, {2,
+ * ovl_11_func_801115A8}, {3, ovl_11_func_80111750}; ovl_11_func_801110CC
+ * copies the whole table to a local (8 words, 32 bytes) and indexes it by the
+ * s16 D_80070CF2, calling the handler at +4 with the s16 at arg0+0xB6.
+ * Defined in the overlay data segment, so only an extern declaration belongs
+ * here. */
+typedef struct {
+    s32 unk0;
+    s32 (*unk4)();
+} Recon_ovl_11_func_801110CC_D800BAC04Entry;
+
+typedef struct {
+    Recon_ovl_11_func_801110CC_D800BAC04Entry entries[4];
+} Recon_ovl_11_func_801110CC_D800BAC04Table;
+
+extern Recon_ovl_11_func_801110CC_D800BAC04Table D_800BAC04;
+
+/* D_80125528 - ovl_11 per-index pointer table (10 entries, D_80124FE8 ..
+ * D_801254D0). Each entry points at an s32 record list whose word 0 is the
+ * record count; ovl_11_func_801110CC reads word [var_a2 + 1] and adds the
+ * D_800957F8 blob base. Defined in the overlay data segment, so only an
+ * extern declaration belongs here. */
+extern s32 *D_80125528[];
+
+/* D_800957F8 - ovl_11 sprite-data blob base (main RAM). func_80015704 headers
+ * are resolved as D_800957F8 + record offset by ovl_11_func_800DA588,
+ * ovl_11_func_800D688C and ovl_11_func_801110CC. Absolute-addressed from
+ * overlay 11 code. */
+extern u8 D_800957F8[];
+
 /* D_80070C70 - s16 slot aliased with D_8006C838 + 0x4438. ovl_11_func_800E3AA4
  * compares it against D_8007AFF0 + 0x2549C, stores -1 in its early-out arm,
  * and ovl_11_func_800E6B18 writes its argument here. Absolute-addressed. */

@@ -1200,7 +1200,7 @@ that documented cluster. Members (address order):
 
 ---
 
-## `ovl_11` 0x582F8 far-state/reset band — 0x80110118 → 0x80110E28 (confidence: medium-low)
+## `ovl_11` 0x582F8 far-state/reset band — 0x80110118 → 0x801110CC (confidence: medium-low)
 
 Same-TU candidate band of `ovl_11` (`Obj\GF_FARM.bin`): matched
 `ovl_11_func_80110118` sits at the head of the unbroken link run that opens at
@@ -1215,12 +1215,26 @@ idioms at once:
   contains the documented far-state reader `ovl_11_func_80110494`, so the two
   accessor families sit inside one link run;
 - the object reset view {u16@+0xB6, s32@+0xDC} cleared to 0, shared with
-  matched `ovl_11_func_80110E28` (0x59008) in the same run.
+  matched `ovl_11_func_80110E28` (0x59008) in the same run; the {u16@+0xB6,
+  s32@+0xDC} reset view is referenced container-wide by exactly three
+  functions — 80110118, 80110E28 and band-tail `ovl_11_func_801110CC`
+  (0x592AC) — the last reusing the same `Struct_80110118` field layout;
+- the private `D_800BAC04` {s32 id, handler} dispatch table, whose four
+  handler pointers name the link-successor run 80111258 / 80111400 / 801115A8
+  / 80111750, and whose third handler 80111750 and 801110CC's callees
+  8011184C / 80111944 are the documented s16 dispatch-map run; 801110CC is the
+  table's only reader container-wide.
 Members:
 - ovl_11_func_80110118 (m, this session) — far-state reset leaf: forwards
   u16@+0xB6 to ovl_11_func_800F3BCC, calls func_8001FABC(0x13) /
   func_8001AF70(7, 1) when the far-state halfword equals s16@+0x30, then clears
   u16@+0xB6 and s32@+0xDC and returns 1; byte-exact clean C, baseline flags
+- ovl_11_func_801110CC (m, matched this session, 0x18C, byte-exact) — band-tail
+  dispatcher: reuses the band's `Struct_80110118` view, clears the
+  {u16@+0xB6, s32@+0xDC} pair in its early-out arms, gates on the same
+  far-state halfword, then routes selector s16@+0x30 through the private
+  `D_800BAC04` table / the s16 dispatch maps and resolves a `D_80125528`
+  record into a `D_800957F8` sprite header via func_80015704
 - ovl_11_func_801103E8 (m, matched this session) — run member immediately
   before the state-key probe run head: its end 0x801103E8+0xAC = 0x80110494 is
   the zero-gap start of `ovl_11_func_80110494`; reads the
@@ -7969,8 +7983,11 @@ Members:
   into the `D_800957F8` blob base and calls `800DA588`.
 - ovl_11_func_800DA588 — iterates a `D_80125528` entry's records against
   `D_80070400`, called from `800BD5A8`.
-- ovl_11_func_801110CC — reads the `D_80125528` table (role not yet
-  reconstructed).
+- ovl_11_func_801110CC (m, matched this session, byte-exact) — dispatcher
+  that resolves a `D_80125528[var_s0]` record word [var_a2+1] plus the
+  `D_800957F8` base into a sprite header and calls func_80015704; its TU
+  membership is recorded with the 0x582F8 far-state/reset band above, not with
+  this data-system tie.
 
 ## `ovl_11` D_801281F0 {s16,s16} pair-table accessor cluster — 0x800BF4B4 / 0x800CE034 / 0x80113310 (confidence: low)
 
