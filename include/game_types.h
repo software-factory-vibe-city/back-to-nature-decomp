@@ -835,6 +835,13 @@ typedef struct {
     s16 recs[5][6];
 } Ovl11Rec64D8View;
 
+/* D_80074838 work-area view used by ovl_11_func_800D079C: it reads an s16 at
+ * +0x19C8 and steps it by two halfwords. The array extent is unknown. */
+typedef struct {
+    u8 pad_000[0x19C8];
+    s16 field_19C8[1];
+} Ovl11Work19C8View;
+
 /* 0x30-byte table entry scanned by ovl_11_func_800DDC64. */
 typedef struct {
     u8 pad[0x28];

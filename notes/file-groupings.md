@@ -153,6 +153,30 @@ Members:
   pointer, then selects 0x6BD/0x6BE/0x6BF/0x6C2/0x6C3/0x6C4 from
   +0xAE/+0xB2/+0x16 and returns `func_8002261C(0, code)`.
 
+## `ovl_11` D_800749F4/D_800742EC tag-setter + scanner run — 0x800D075C–0x800D08FC / 0x800D29B0–0x800D2A88 (confidence: medium)
+
+Evidence: a closed call/data cluster on the two absolute-addressed record
+arrays. The two setters write the discriminating tag the scanner reads:
+`ovl_11_func_800D29B0` and `ovl_11_func_800D2A88` store `+0x30 = 5` / `+0x30 = 4`
+on the D_800749F4 (0xB8 stride) / D_800742EC (0xB4 stride) records and are
+zero-gap link-order neighbours; their only caller is `ovl_11_func_800D075C`,
+itself the zero-gap predecessor of `ovl_11_func_800D079C`
+(0x1893C/0x1897C, size 0x40). 800D079C scans both arrays (D_800749F4 20×0xB8,
+D_800742EC 10×0xB4), selects entries with `u16@+0 != 0 && s16@+0x30 == 5`
+(arg0==1) or `== 4`, and re-invokes 800D075C. Same arrays as the recorded
+0x800CFAD0/800CFB20 predicate-run (a cross-container shared object), so
+membership rests on this closed call/data cluster, not on the global alone.
+Call graph + adjacency + shared idiom; not a proven TU boundary.
+
+Members:
+- ovl_11_func_800D075C (m) — dispatcher leaf: `arg2 == 1` → 800D29B0, else 800D2A88.
+- ovl_11_func_800D079C (m) — tag scanner over both arrays, re-applying the
+  dispatcher to every tagged live entry.
+- ovl_11_func_800D29B0 (m) — D_800749F4-path setter: `+0x30 = 5`, seeds
+  +0x38/+0x3C/+0x40 from D_80123A2C.
+- ovl_11_func_800D2A88 (m) — D_800742EC-path setter: `+0x30 = 4`, seeds
+  +0x38/+0x3C/+0x40 from D_80123A8C.
+
 ## `ovl_11` two-table field-lookup siblings — 0x800D5ABC–0x800D5BBC (confidence: medium)
 
 Evidence: three adjacent 0x80-byte functions access the pointer members at

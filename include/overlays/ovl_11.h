@@ -153,6 +153,7 @@ s32 ovl_11_func_800D04D4(M2C_1437d20b8085_Ovl11D04D4Obj *arg0, u8 *arg1, s16 *ar
 void ovl_11_func_800D05D0(Ovl11SetFieldsView *arg0, Ovl11PaddedVec3 v);
 s32 ovl_11_func_800D0600(s32 arg0, s32 arg1);
 void ovl_11_func_800D075C(s32 arg0, s16 arg1, s32 arg2);
+void ovl_11_func_800D079C(s32 arg0);
 s32 ovl_11_func_800D0BC8(s32 arg0);
 s32 *ovl_11_func_800D0C34(void);
 s32 *ovl_11_func_800D0CD8(void);
