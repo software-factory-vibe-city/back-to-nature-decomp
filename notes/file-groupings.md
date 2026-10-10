@@ -6842,6 +6842,16 @@ Members (address order):
   family: identical `&D_80076220 + arg0` record index and the same u16
   unk1E 800C1C90/800E9B68 touch; its link-order neighbours
   800E95FC/800E9724 do not reach the array, so this is data-only evidence.
+- ovl_11_func_800E7504 (m, matched this session, 0x15C, byte-exact) —
+  multi-record reset dispatcher: for each of up to four argument indices in
+  1..0x24 copies the record's +0x30/+0x34/+0x38/+0x3C words to
+  +0x60/+0x64/+0x68/+0x6C, clears +0x70/+0x74/+0x78, masks the u16 at +0x20
+  with 0x3FFF, sets unk1E bit 0x1000 and calls `80107DD0(&record + 0xE0)`;
+  arg0 42 recurses over indices 1,5,9,… < 0x25, arg0 45 ORs bit 2 into
+  `D_8006C838`+0x4450, otherwise processes its four args. Non-adjacent
+  `D_80076220` member — same 0x1D4 stride, same record type and the run's
+  `80107DD0(&record + 0xE0)` callee pair; link-order gapless between
+  0x800E74AC and 0x800E7660, but neither neighbour reaches this array.
 - ovl_11_func_800E9B68 (m, matched this session, 0xCC, byte-exact) —
   per-record initializer: sets unk2C/unk2E = 0x36, zeroes the record's
   halfword fields, sets unk1E to `(unk1E | 0x8000) & 0x9E48`, calls
