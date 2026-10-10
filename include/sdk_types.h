@@ -298,6 +298,31 @@ typedef struct {
 } M2C_14ece3198de2_Ovl11D04D4Obj;
 
 typedef struct {
+    s16 unk0;
+    char pad2[2];
+    u16 unk4;
+} M2C_15512f31231d_F413CArg1;
+
+typedef signed char s8;
+
+typedef struct {
+    union {
+                   u16 unk0;
+                   s16 unk0_s;
+    } u0;
+               u16 unk2;
+               u8 unk4;
+               s8 unk5;
+               u16 unk6;
+} Recon_ovl_11_func_800D85F8_A0View;
+
+typedef struct {
+    char pad0[0x50];
+    Recon_ovl_11_func_800D85F8_A0View *unk50;
+    s32 unk54;
+} M2C_15512f31231d_Func800C7878Arg0;
+
+typedef struct {
                char pad[0x22];
                u16 unk22;
                char pad2[0x30 - 0x24];
@@ -1402,8 +1427,6 @@ typedef struct {
     char pad_38[0x7A - 0x38];
                u16 unk7A;
 } M2C_8da617f67856_Ovl11D04D4Obj;
-
-typedef signed char s8;
 
 typedef struct {
                s8 field_0;
@@ -2540,17 +2563,6 @@ typedef struct {
 typedef struct {
     s32 unk0;
 } Recon_ovl_11_func_800D6380_A3View;
-
-typedef struct {
-    union {
-                   u16 unk0;
-                   s16 unk0_s;
-    } u0;
-               u16 unk2;
-               u8 unk4;
-               s8 unk5;
-               u16 unk6;
-} Recon_ovl_11_func_800D85F8_A0View;
 
 typedef struct {
     char pad_0[0xB0];
