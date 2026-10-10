@@ -284,6 +284,23 @@ struct struct_8006C838_800EE944 {
     s16 field_AE30;         /* 0xAE30 */
 };
 
+/* View of D_8006C838 for ovl_11_func_800E8F78: the s32 slots at +0x522C and
+ * +0x5230 and the s32 flag word at +0x5234. The tail reaches these as struct
+ * members so cc1 rematerialises lui %hi(D_8006C838) + addiu %lo instead of
+ * reusing the D_80071B00 - 0x52C8 base kept live across the switch. */
+struct struct_8006C838_800E8F78 {
+    char pad_000[0x522C];   /* 0x0000-0x522B */
+    s32 field_522C;         /* 0x522C */
+    s32 field_5230;         /* 0x5230 */
+    s32 field_5234;         /* 0x5234 */
+};
+
+/* D_80071B00 - s32 triple at 0x80071B00 (absolute, lui+%lo). Fields +0/+8 are
+ * the two trackers written by ovl_11_func_800E8F78; p[0..2] are the three
+ * values ovl_11_func_800E9778 and ovl_11_func_800EDEB8 copy to D_80129560.
+ * Declared here (not per-file) so absolute addressing is derived once. */
+extern s32 D_80071B00[3];
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.

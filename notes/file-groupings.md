@@ -5871,7 +5871,7 @@ Members (address order):
   +0xE4C8 cell.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800E9104 / 0x800DE76C / 0x800DE46C / 0x800EF8BC / 0x800EFA1C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800E8F78 / 0x800E9104 / 0x800DE76C / 0x800DE46C / 0x800EF8BC / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -5973,6 +5973,22 @@ the overlay, never GP-relative), and the large-offset writers use the same
   mode word is the cell 0x800E7954 also writes; byte-exact clean C, baseline
   flags; link-sits in the 0x800E5A1C–0x800EExxx accessor band, adjacent to
   matched 0x800E78E4
+- ovl_11_func_800E8F78 (m, matched this session) — bound-update / clamp
+  leaf: arg3 bit 0/1 remap arg2/arg1 through the s32 table D_80129560, arg1
+  (0..3) selects one of the two s32 trackers at D_80071B00[0]/[2] (adopt the
+  new bound and return 1, else write 0x8000/0x4000/0x1000/0x2000 into the
+  pair +0x522C/+0x5230), the s32 at +0x5234 is pre-set with bit 1 and cleared
+  of bit 1 on success or has bit 0x40 set on both +0x522C/+0x5230 when
+  arg0 % 2 != 0; the s32 triple at D_80071B00 is exactly D_8006C838+0x52C8
+  (`base = (char *)(p - 0x14B2)` reconstructs `&D_8006C838`), tying the
+  D_80071B00 symbol into this cluster and adding the +0x522C/+0x5230 cells to
+  the documented +0x5234 cell; tail reaches them through the shared-base
+  struct-view cast idiom (`struct_8006C838_800E8F78 *`) so cc1 rematerialises
+  lui %hi(D_8006C838)+addiu %lo — the same idiom as 0x800E63C8/0x800E7954/
+  0x800E7798; zero-gap link-order predecessor of member 0x800E9104 (splat
+  configs/splat/ovl_11.yaml: 0x31158 + 0x18C = 0x312E4), so membership rests
+  on the shared cells, the D_80071B00 alias and the call/link adjacency;
+  byte-exact clean C, baseline flags
 - ovl_11_func_800E9104 (m, matched this session, 0x180, byte-exact) — state-gate
   leaf: arg0 == -1 clears bit 0x100000 of the s32 at +0x5234, arg0 == 1 sets
   that bit (and the arg2 != 0 arm handoffs through the record `u16@+2 & 0x300`
