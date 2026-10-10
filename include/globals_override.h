@@ -758,6 +758,21 @@ extern s32 _D_80061EC8[3] __asm__("D_80061EC8");
 extern s16 _D_80061EA8[12] __asm__("D_80061EA8");
 #define D_80061EA8 (_D_80061EA8)
 
+/* D_80061E88 — 0x20-byte GTE MATRIX (3x3 s16 rotation + 3 s32 translation).
+ * func_8001BB88 reads the GTE rotation into it (gte_ReadRotMatrix), and
+ * func_8001BBD8 composes it in place (SetRotMatrix, three ldclmv/rtir12/stclmv
+ * columns, SetTransMatrix, ldlv0/rtv0tr/stlvl, reload). The MATRIX view is
+ * required by the target: under the generated `extern s32` scalar the composed
+ * column field addresses fold to two-instruction `la sym+offset` forms
+ * (lui v0,%hi; addiu v0,%lo) where the original emits `addiu v0,a1,offset`
+ * against the once-loaded base. Layout mirrors psyq/libgte.h MATRIX. */
+typedef struct {
+    short m[3][3];
+    long t[3];
+} Matrix80061E88;
+extern Matrix80061E88 _D_80061E88[1] __asm__("D_80061E88");
+#define D_80061E88 (*((Matrix80061E88*)_D_80061E88))
+
 /* D_80010000 - function pointer table at start of code segment (2 entries).
  * Array size 3 forces >-G8 declared size for split absolute addressing (lui/addiu). */
 typedef void (*InitFunc)(void);
