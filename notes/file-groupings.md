@@ -563,9 +563,11 @@ Shared author idiom, recorded as an idiom prior rather than a confirmed TU:
 zero its first s16 field. Six instances in the matched corpus, all in
 `ovl_11`, and the 12-word machine shape is identical apart from the size
 immediate — a family transfer from one member solved the next. No other tie:
-struct sizes differ (0xB0/0xB8/0xB8/0xB4/0xF0, so possibly different types,
-though two members share 0xB8), address span is ~0x38000 with no adjacency,
-and the caller sets are disjoint (0x8010B64C's single caller is 0x800E8760).
+struct sizes differ (0xB0/0xB8/0xB8/0xB8/0xB4/0xF0, so possibly different
+types, though three members share 0xB8 and two of those, 800DF0F8/800DF128,
+are gaplessly link-adjacent), most of the address span is ~0x38000 with no
+adjacency, and the caller sets are disjoint (0x8010B64C's single caller is
+0x800E8760).
 Members:
 - ovl_11_func_800C1C5C (m, matched this session) — same construction over
   0x1D4 bytes with store value −1 (`memset(arg0, 0, 0x1D4); *(s16 *)arg0 =
@@ -576,6 +578,10 @@ Members:
 - ovl_11_func_800DF0F8 (m) — same construction over 0xB8 bytes
 - ovl_11_func_800E0D0C (m) — same construction over 0xB8 bytes; sits between
   800DF0F8 and 800E2904 in the ovl_11 link order
+- ovl_11_func_800DF128 (m, matched this session, byte-exact) — guarded 0xB8
+  far-state initializer variant (packed D_8006C838+0x44B8 copy + 80107DD0
+  idiom of 8010B778/8010946C); gapless link successor of 800DF0F8 and the
+  third 0xB8 member of the family
 - ovl_11_func_800E2904 (m) — same construction over 0xB4 bytes
 - ovl_11_func_8010B64C (m, matched this session) — same construction over 0xF0
   bytes; sole caller ovl_11_func_800E8760
@@ -2319,7 +2325,8 @@ Fingerprints:
   `u16@+0xAE` gates a per-case `func_80015868(this + 0x78, 0, 0, 0, case)` and
   a final `u16@+0xB2`-gated `func_80015868(this + 0x78, 0, 0, 0x20, 0)`;
 - zero-gap link adjacency to the 800DF4F0 predicate run: 800DF228's
-  predecessor 800DF128 (0x100) ends exactly at 0x800DF228 and its successor
+  predecessor 800DF128 (0x100) ends exactly at 0x800DF228 and is its direct
+  caller, so link order and the call graph agree, and its successor
   800DF3BC starts exactly at 0x800DF228 + 0x194, both inside the documented
   0x800DE9C8–0x800DFB98 span; 800DF228 adds that span's `s32@+0x34` /
   `u16@+0xAE` / `func_80015868(this + 0x78, ...)` object view and consumes
@@ -11555,7 +11562,7 @@ Members (link order):
 - ovl_11_func_800DF4F0 (m) — shared predicate: returns 0 when `u16@+0x0 == 0`,
   else `(s32@+0x34 & 0x10000) < 1`.
 - ovl_11_func_800DE9C8 (s, 0x138), 800DEB00 (s, 0x3E0), 800DEF30 (s, 0xE0),
-  800DF128 (s, 0x100), 800DF51C (m, 0x90), 800DF614 (m, 0x94),
+  800DF128 (m, 0x100), 800DF51C (m, 0x90), 800DF614 (m, 0x94),
   800DF72C (s, 0x120), 800DF84C (s, 0x1A4), 800DF9F0 (s, 0x8C) —
   callers; the common guard is
   `if (ovl_11_func_800DF4F0(arg0) == 0) return -1;`.
