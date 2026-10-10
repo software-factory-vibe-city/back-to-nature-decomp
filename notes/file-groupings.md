@@ -11284,16 +11284,23 @@ Members:
 - ovl_11_func_800D8320 (m, matched this session, byte-exact) — consumes an
   entry via `ovl_11_func_800DAF60` (tag 0x168/0x16A, `+0x0 == 0x36`,
   `+0x4 != 0`), then dispatches through `D_80123DFC[arg0]`.
+- ovl_11_func_800D81BC (m, matched this session, byte-exact) — the zero-gap
+  link-order predecessor of ovl_11_func_800D8320 (ends exactly at 0x800D8320)
+  and its twin: same `ovl_11_func_800DAF60` entry view then `D_80123DFC[arg0]`
+  dispatch.
 
 ## `ovl_11` D_80123DFC two-entry callback-table cluster — 0x80123DFC (confidence: low)
 
 Evidence: `build/ovl_11/asm/data/69960.data.s` emits `D_80123DFC` as a
-2-word table of `ovl_11_func_800D759C` / `ovl_11_func_8011E1E8`, and four
+2-word table of `ovl_11_func_800D759C` / `ovl_11_func_8011E1E8`, and five
 container functions reach that table absolutely and call one entry. Both
 table entries end `jr $ra; addiu $v0,1` (they return s32); the shared table is
 global data rather than a proven TU-private static, so membership stays low
 confidence.
 Members:
+- ovl_11_func_800D81BC (m, matched this session, byte-exact) — zero-gap
+  link-order predecessor of ovl_11_func_800D8320 and its twin; same record
+  gate then `D_80123DFC[arg0](arg1, arg2, var_s5)`.
 - ovl_11_func_800D8320 (m, matched this session, byte-exact) — record-state
   gate then `D_80123DFC[arg0](arg1, arg2, var_a2)`.
 - ovl_11_func_800DACD4 (s) — indexes the same table, keyed by arg2.
