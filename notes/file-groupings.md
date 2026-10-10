@@ -12026,6 +12026,11 @@ support one state family; they do not prove shared translation-unit ownership.
   the 6-byte-record `D_80127274` table, draws each record's `+0x04` byte
   through `func_80015EE8(D_8005E3C0->field_D8+0x68, D_8012CE58, ...)` and its
   `+0x02` s16 through the D_8012A028 cluster's `ovl_11_func_800FCAF4`.
+- ovl_11_func_800FC1AC (m, matched 2026-10-10) — per-frame dispatch driver:
+  calls `D_80127308[(s16)D_8012720E]()` (the 8-entry function-pointer table),
+  `ovl_11_func_800FE640` and the `D_8012720E` stage helpers
+  `ovl_11_func_800FE928` / `800FEA00`; draws the `D_8012CDC8` list at
+  `D_8005E3C0->field_D8+0x54` and advances the `D_80127212` frame counter.
 - Original 800FC358 calls this helper at 800FC4DC. This is a corroborated
   caller/dispatch dependency, not proof of shared TU ownership.
 
@@ -12043,6 +12048,18 @@ buffer sits in the same 0x30-stride `D_8012CE..` byte block as 800FC8C8's
 next to 800FC754's `D_80127234` and 800FC8C8's `D_80127328`. Its successor
 800FCAF4 is already the D_8012A028 cluster's formatted-number member, so the
 run bridges the two families; membership of all three in one TU is not proven.
+
+Widening (byte-exact match of `ovl_11_func_800FC1AC`, 2026-10-10): the family's
+second dispatch table is the 8-entry function-pointer table `D_80127308` (new to
+`globals_override.h`), indexed by file-scope s16 `D_8012720E` and called from
+`ovl_11_func_800FC1AC`; its entries name row builders/registrars
+`800FC358`/`800FC998`/`800FCB80`/`800FCD0C`/`800FCEA0`/`800FD33C`/`800FD5E8`/
+`800FDD74`. `D_80127308[8]` is exactly 0x20 bytes, so it and `D_80127328`
+(0x80127308 + 0x20) are contiguous siblings in the same `D_801273xx` data block,
+and entry 1 is this family's own head `800FC998`. Membership rests on that
+contiguous table block plus the member-address table and the shared `D_8012CE..`
+draw path (`D_8012CDC8` via `func_80017B3C`); it stages nothing into
+`D_8012A028`.
 
 
 ## `ovl_11` s16 range-map / store-view run — 0x8011DD48–0x8011DF4C (confidence: high)

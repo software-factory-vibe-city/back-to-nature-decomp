@@ -1415,6 +1415,17 @@ extern s16 D_80127210;
 
 extern u16 D_80127212;
 
+/* D_8012CDC8 - 14-halfword scratch list (0x1C bytes, sh at +0x1A) written by
+ * ovl_11_func_800FB908 and passed by address to func_80017B3C from
+ * ovl_11_func_800FC1AC. Absolute-addressed from ovl_11 code. */
+extern u16 D_8012CDC8[14];
+
+/* D_80127308 - 8-entry function-pointer table indexed by the s16 D_8012720E
+ * and called from ovl_11_func_800FC1AC; the entries name
+ * ovl_11_func_800FC358/800FC998/800FCB80/800FCD0C/800FCEA0/800FD33C/800FD5E8/
+ * 800FDD74. Absolute-addressed from ovl_11 code. */
+extern void (*D_80127308[8])(void);
+
 /* D_80127214 - 6-halfword threshold table (0x0000, 0x1770, 0x4650, 0x8CA0,
  * 0xFFFF, 0x0000) read by ovl_11_func_800FE068 (entries 1..3, absolute
  * addressing) and ovl_11_func_800FE3A0/ovl_11_func_800FE14C. */
