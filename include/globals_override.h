@@ -1286,6 +1286,23 @@ extern s16 D_80070CF2;
  * and ovl_11_func_800E6B18 writes its argument here. Absolute-addressed. */
 extern s16 D_80070C70;
 
+/* D_80070C92 - ovl_11 sprite descriptor read by ovl_11_func_800E559C. It
+ * passes the signed halfwords at +0x18/+0x1A to GetClut, reads the unsigned
+ * frame size at +0x8/+0xA, a signed scroll value at +0 and a frame byte at
+ * +2. Absolute-addressed (lui/addiu, not %gp_rel). */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 pad3[0x08 - 0x03];
+    /* 0x08 */ u16 unk8;
+    /* 0x0A */ u16 unkA;
+    /* 0x0C */ u8 padC[0x18 - 0x0C];
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ s16 unk1A;
+} struct_80070C92;
+extern struct_80070C92 _D_80070C92[1] __asm__("D_80070C92");
+#define D_80070C92 (*((struct_80070C92 *)_D_80070C92))
+
 /* Partial global-object views and external storage used by the integrated
  * reconstruction batch. Field offsets are witnessed; unknown extents remain
  * unsized. Parameter views live in game_types.h. */
