@@ -9929,6 +9929,10 @@ Members (link order):
   `D_8013759A >= 0x5B` — exact body duplicate of `ovl_15_func_8012F990` except
   for the updater array, and contiguous in link order after
   `ovl_15_func_80130E4C` (both 0x70 bytes)
+- ovl_15_func_8013143C (m, matched this session, byte-exact) — shared
+  `D_80052FC4` text-draw prologue, body-identical to `ovl_15_func_80130468`
+  (calls `ovl_15_func_8012E15C` and sets `D_80137584 = 1`) plus a trailing
+  `ovl_15_func_8013468C()` call (void)
 - ovl_15_func_801315B0 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x1F)` and `D_80137588 = 1` (void;
