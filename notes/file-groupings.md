@@ -11627,9 +11627,11 @@ Members (address order):
   wrapper, exact body duplicate of `ovl_15_func_801300E4`/`ovl_15_func_80130FC8`:
   calls `ovl_15_func_8012E15C` and stores `-1` to `D_80137586`; gapless in
   link order immediately before `ovl_15_func_801329F8`.
-- ovl_15_func_801329F8 (s) — variant reset wrapper: after the shared text-draw
-  prologue, when `D_80137584 != 0x21` it calls `ovl_15_func_8012E15C` and
-  stores `1` to `D_80137586`; gapless link successor of `ovl_15_func_801329D0`.
+- ovl_15_func_801329F8 (m, verified byte-exact) — variant reset wrapper: after
+  the shared text-draw prologue (`D_80052022` updater array) it stores
+  `ovl_15_func_80137228(0x21, 0)`, zeroes on `D_8013759A >= 0x5B`, and when
+  `D_80137584 != 0x21` calls `ovl_15_func_8012E15C` and stores `1` to
+  `D_80137586`; gapless link successor of `ovl_15_func_801329D0`.
 - ovl_15_func_8012FAE0 (s) — reads `D_80137828` as a buffer base.
 - ovl_15_func_80137300 (m, verified byte-exact this session) — `DrawSync(0)`,
   `ClearOTagR(D_8005E3C0->field_120, 0x800)`, then polls
