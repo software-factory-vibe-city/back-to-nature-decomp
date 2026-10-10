@@ -11575,22 +11575,30 @@ buffer base. The three are not link-adjacent (0x8012E15C, 0x8012FAE0,
 `D_801376D0`/`D_80137AB0` run above. `D_80137828` sits immediately above the
 short array `D_80137820`, which the same initialiser clears. A second shared
 global admits further members: the private state byte `D_80137586` (inside the
-initialiser's `D_80137584`–`D_8013759A` block) is referenced by three
-functions, `ovl_15_func_8012E15C`, `ovl_15_func_801300E4` and
-`ovl_15_func_80130FC8`; the latter two are the initialiser's only callers and
-are body duplicates (call the initialiser, then store `-1`).
+initialiser's `D_80137584`–`D_8013759A` block) is referenced only from within
+this overlay: the initialiser writes 0, the reset wrappers
+`ovl_15_func_801300E4`, `ovl_15_func_80130FC8` and `ovl_15_func_801329D0` call
+the initialiser then store `-1` (body duplicates), and `ovl_15_func_801329F8`
+calls the initialiser conditionally and stores `1`.
 
 Members (address order):
 - ovl_15_func_8012E15C (s) — overlay initialiser: sets
   `D_80137828 = (u8 *)D_8007BFF8`, clears adjacent `D_80137820` and the
   `D_80137584`–`D_8013759A` state words, memsets several buffers, then calls
   `ovl_15_func_8013468C`.
-- ovl_15_func_801300E4 (m, verified byte-exact this session) — one of two
+- ovl_15_func_801300E4 (m, verified byte-exact this session) — one of three
   duplicate reset wrappers tied to the initialiser through `D_80137586`: calls
   `ovl_15_func_8012E15C` and stores `-1` to that private state byte.
 - ovl_15_func_80130FC8 (m, verified byte-exact this session) — second reset
   wrapper, exact body duplicate of `ovl_15_func_801300E4`; calls
   `ovl_15_func_8012E15C` then stores `-1` to `D_80137586`.
+- ovl_15_func_801329D0 (m, verified byte-exact this session) — third reset
+  wrapper, exact body duplicate of `ovl_15_func_801300E4`/`ovl_15_func_80130FC8`:
+  calls `ovl_15_func_8012E15C` and stores `-1` to `D_80137586`; gapless in
+  link order immediately before `ovl_15_func_801329F8`.
+- ovl_15_func_801329F8 (s) — variant reset wrapper: after the shared text-draw
+  prologue, when `D_80137584 != 0x21` it calls `ovl_15_func_8012E15C` and
+  stores `1` to `D_80137586`; gapless link successor of `ovl_15_func_801329D0`.
 - ovl_15_func_8012FAE0 (s) — reads `D_80137828` as a buffer base.
 - ovl_15_func_80137300 (m, verified byte-exact this session) — `DrawSync(0)`,
   `ClearOTagR(D_8005E3C0->field_120, 0x800)`, then polls
