@@ -95,6 +95,13 @@ export const UNEXPOSED_CLIS: Record<string, string> = {
     "diffFunc exposed invites treating a pre-link byte comparison as done, and invites " +
     "hill-climbing a number that rewards a lucky register assignment over a fixed cause. " +
     "The CLI stays: the build, the gates and the autonomous loop all still shell out to it.",
+  searchResidualSourceSpace:
+    "Disabled as a tool. Across 196 completed runs it found an exact source 5 times; the " +
+    "rest spent about 13 hours exhausting domains that did not hold the fix. Its grammar " +
+    "reorders statements and regroups value webs, but a stalled residual is usually a " +
+    "compiler decision outside that grammar (a loop-hoist margin, a scheduler tie), and a " +
+    "run cannot be capped, so one call held an autonomous session for over half an hour. " +
+    "The CLI stays for manual use.",
 };
 
 export const TOOL_SPECS: ToolSpec[] = [
@@ -290,21 +297,6 @@ export const TOOL_SPECS: ToolSpec[] = [
         ...(p.maxAssignments !== undefined ? ["--max-assignments", String(p.maxAssignments)] : []),
         ...(p.json ? ["--json"] : [])],
       timeout: 1_800_000 },
-  ),
-
-  /* ---- exhaustive source-space search ---- */
-  functionTool(
-    "psx_search_residual_source_space", "PSX Residual Source Search", "searchResidualSourceSpace.ts",
-    "Exhaustive search of the semantics-preserving source representations reachable from the current source, seeded from the real machine residual. There are no tuning knobs: use deriveOnly first to price the run — it reports exact domain size, the per-axis radix breakdown, and a projected wall time. A `domain-too-large` result names the axis responsible; the only lever on it is a smaller residual.",
-    { extra: {
-        deriveOnly: Type.Optional(Type.Boolean({ description: "Price the domain without evaluating it" })),
-        source: Type.Optional(Type.String({ description: "Alternate source file to search from" })),
-      },
-      argv: (p) => [p.functionName as string,
-        ...(p.deriveOnly ? ["--derive-only"] : []),
-        ...(p.source ? ["--source", p.source as string] : []),
-        ...(p.json ? ["--json"] : [])],
-      timeout: 3_600_000 },
   ),
 
   /* ---- automatic matching reconstruction ---- */

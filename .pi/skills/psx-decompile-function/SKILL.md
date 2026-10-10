@@ -226,39 +226,14 @@ steps that can are first for that reason.
    A residual that survives every rewrite of your own idiom is usually somebody
    else's idiom.
 
-3. **Enumerate the source space instead of guessing at it.**
-   `psx_search_residual_source_space` derives the semantics-preserving closure
-   of the current source and prices it. A domain of one candidate is a finding:
-   it says the residual is not reachable by rewriting this source, and points
-   the search at declarations, flags or the translation unit instead.
+3. **Generate shapes from the target instead of guessing at them.**
    `psx_search_source_shapes` and `psx_synthesize_source_shapes` generate and
    score shapes from the target's own requirements rather than from a hunch.
-
-   Read three things before you read the verdict, because each one decides
-   whether the verdict means anything:
-
-   - **The caveats and the suppressed rules.** They name the constructs the
-     grammar refused. A construct it refused is a place the search did not
-     look, and an exhaustion over a domain that excludes your residual's
-     location is not evidence about your residual.
-   - **The axis-effect block.** An axis can be counted and still change
-     nothing. An inert axis inflates the candidate total and the projected
-     cost, and afterwards reads as an axis that was searched.
-   - **The coverage.** A `--derive-only` run samples a few dozen coordinates to
-     time a compile. Its class table is not a ranking over the domain and
-     supports no statement about what the domain contains. Exhaust it, or say
-     you sampled.
-
-   `psx_triage` reports all three as `search-domain` findings, so run it before
-   you reason from any prior search result, including your own.
-
-   Then read the classes as a **direction**, not a score. Each carries
-   `[pop, sched, alloc]`, its delta from the baseline, and the runs it moved.
-   Population is the worst axis and allocation the mildest: a class that buys
-   register matches with new population differences has gone backwards, however
-   many more words it matches. `moved: run16(alloc -8, pop +3)` is the useful
-   sentence — it names the axis, the size of the trade, and where it happened.
-   Take the next experiment from that, not from the match count.
+   Read a search result as a **direction**, not a score. Population is the
+   worst axis and allocation the mildest: a candidate that buys register
+   matches with new population differences has gone backwards, however many
+   more words it matches. Take the next experiment from the axis that moved,
+   not from the match count.
 
 4. **Solve for the compiler state, do not model it.**
    `psx_solve_local_allocation` solves for the local-alloc quantity priorities

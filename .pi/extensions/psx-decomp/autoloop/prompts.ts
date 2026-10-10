@@ -103,8 +103,7 @@ function stallLine(functionName: string): string | undefined {
     "headers and the callees' own code, psx_sdk_idioms does the same for operation boundaries. " +
     "A wrong declaration adds call setup no rewrite of this body can remove, and every " +
     "measurement taken under it scored a different program.",
-    "Then: enumerate the source space (psx_search_residual_source_space, " +
-    "psx_search_source_shapes), solve for the compiler state instead of modelling it " +
+    "Then: enumerate the source space (psx_search_source_shapes), solve for the compiler state instead of modelling it " +
     "(psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), " +
     "or read the deciding pass directly (psx_compiler_source). A solver result is a " +
     "specification for a source shape, and an UNSAT is a real finding that closes a direction. " +

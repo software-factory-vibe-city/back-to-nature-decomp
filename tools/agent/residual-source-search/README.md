@@ -245,10 +245,9 @@ Two candidate strata were **measured and permanently retired** rather than
 deferred: compound-assignment form and loop form both compile identically
 through the configured compiler. Their fixtures are in the test file.
 
-The bounded Pi wrapper `psx_search_residual_source_space` is registered. Skill
-integration is not: `.pi/skills/psx-decompile-function/SKILL.md` still routes
-source-shape work to the superseded `synthesizeSourceShapes.ts` prologue MVP.
-That is successor Deliverable 1.
+The Pi wrapper `psx_search_residual_source_space` is disabled; the reason is
+recorded under `UNEXPOSED_CLIS` in `.pi/extensions/psx-decomp/tools/diagnostics.ts`.
+The CLI remains for manual runs.
 
 Empirical notes from the `func_80019070` campaigns: the entire baseline web
 partition and the full entry-window sweep (orders, births, setSprt component
