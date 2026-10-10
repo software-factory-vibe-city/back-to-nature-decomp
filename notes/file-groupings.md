@@ -9814,7 +9814,7 @@ Members (link order):
 - ovl_15_func_801349C8 (m, matched earlier) — appends `D_8013765C[clamp(arg0,0,3)]`
   to `arg1`
 
-## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012ED18–0x801328C4 (confidence: medium)
+## `ovl_15` D_80053350/func_8001AC10 shared-prologue cluster — 0x8012ED18–0x80132934 (confidence: medium)
 
 Evidence: a link-order run of ten functions that all open with the same
 text-draw call idiom: `func_8001AC10(D_8005E3C0->field_D8 + 0x18,
@@ -9828,7 +9828,7 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `ovl_15_func_8012FA00` uses `D_8005321A`, `ovl_15_func_8012FA70` uses
 `D_80053294`, `ovl_15_func_8012FFD8` uses `D_80052F4E`,
 `ovl_15_func_80130048` uses `D_80051DCC`, `ovl_15_func_80130F2C` uses
-`D_80051E02`,
+`D_80051E02`, `ovl_15_func_80132934` uses `D_80051E88`,
 `ovl_15_func_80130A94` uses `D_800532FE`, `ovl_15_func_80130BBC` and
 `ovl_15_func_80131B5C` use `D_800523AC`, `ovl_15_func_80130DDC` uses `D_8005341E`,
 `ovl_15_func_8012F8DC` uses `D_8005346A`,
@@ -10111,6 +10111,13 @@ Members (link order):
   immediate `0x10`→`0x1C` changed; sits beyond the interleaved non-members
   `ovl_15_func_80131C2C`/`ovl_15_func_80131CDC`/`ovl_15_func_80131D88`/
   `ovl_15_func_80131DF8`/`ovl_15_func_80131E68`/`func_80131ED8` (0x70 bytes)
+- ovl_15_func_80132934 (m, verified byte-exact this session) — shared text-draw
+  prologue with the `D_80051E88` updater array (new cluster symbol; used by no
+  function outside the run); then branches on `ovl_15_func_801370B4()` and
+  writes the private state bytes `D_80137587`/`D_80137584` — body-identical to
+  `ovl_15_func_80130048` except for the updater array and the immediate
+  `0x17`→`0x20`, and gapless link successor of `ovl_15_func_801328C4` (0x9C
+  bytes)
 
 ## `ovl_25` leaf run — 0x800BB970–0x800BBA7C (confidence: medium)
 
@@ -11674,7 +11681,8 @@ input flags and clamped to 0/1), while the shared-prologue writers
 `ovl_15_func_8012EE84`, `ovl_15_func_801305D4` and `ovl_15_func_801315B0`
 store `1` to it. A fourth private byte from the same cleared block,
 `D_80137587`, is written only by the initialiser and the shared-prologue
-members `ovl_15_func_80130048` and `ovl_15_func_80130F2C`. `ovl_15_func_801370B4` is also gapless
+members `ovl_15_func_80130048`, `ovl_15_func_80130F2C` and
+`ovl_15_func_80132934`. `ovl_15_func_801370B4` is also gapless
 in link order between the
 number-text formatter `ovl_15_func_8013703C` (ending exactly at its
 0x801370B4) and `ovl_15_func_80137228` (beginning exactly at its end), which
