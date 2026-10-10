@@ -9795,7 +9795,8 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `D_80053294`, `ovl_15_func_8012FFD8` uses `D_80052F4E`,
 `ovl_15_func_80130A94` uses `D_800532FE`, `ovl_15_func_80130BBC` and
 `ovl_15_func_80131B5C` use `D_800523AC`, `ovl_15_func_80130DDC` uses `D_8005341E`,
-`ovl_15_func_8012F8DC` uses `D_8005346A`, and
+`ovl_15_func_8012F8DC` uses `D_8005346A`,
+`ovl_15_func_8013010C` uses `D_800534DC`, and
 `ovl_15_func_80130E4C` uses `D_800533F6`, `ovl_15_func_80131F5C` uses
 `D_8005204A`, `ovl_15_func_8013237C` uses `D_80052150`, `ovl_15_func_80132408` uses
 `D_80052178`, `ovl_15_func_80132494` uses `D_800521F6`,
@@ -9869,6 +9870,14 @@ Members (link order):
   returned), and `D_80137584 = 0` when `D_8013759A >= 0x5B` — same body as
   `ovl_15_func_8012FA70` with only the updater array and the immediate
   `0x12`→`0x15` changed, and contiguous in link order after it (both 0x70 bytes)
+- ovl_15_func_8013010C (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_800534DC` updater array (new cluster symbol; not used by
+  any function outside the run); then `D_80137584 = ovl_15_func_80137228(0x18,
+  0)` (void; the `$v0` is the store value, not a returned one), `D_80137584 = 0`
+  when `D_8013759A >= 0x5B`, and a distinct tail when `D_80137584 != 0x18`:
+  calls `ovl_15_func_8012E15C` and sets the private `D_80137586 = 1` — variant
+  body sitting in link order after the reset wrapper `ovl_15_func_801300E4`
+  (0x94 bytes)
 - ovl_15_func_80130468 (m, verified byte-exact this session) — shared
   `D_80052FC4` text-draw prologue, byte-identical to `ovl_15_func_8012ED18`:
   calls `ovl_15_func_8012E15C` and sets `D_80137584 = 1` (void)
@@ -11595,8 +11604,9 @@ global admits further members: the private state byte `D_80137586` (inside the
 initialiser's `D_80137584`–`D_8013759A` block) is referenced only from within
 this overlay: the initialiser writes 0, the reset wrappers
 `ovl_15_func_801300E4`, `ovl_15_func_80130FC8` and `ovl_15_func_801329D0` call
-the initialiser then store `-1` (body duplicates), and `ovl_15_func_801329F8`
-calls the initialiser conditionally and stores `1`.
+the initialiser then store `-1` (body duplicates), `ovl_15_func_801329F8`
+calls the initialiser conditionally and stores `1`, and `ovl_15_func_8013010C`
+calls it and stores `1` from its post-`ovl_15_func_80137228` tail.
 
 Members (address order):
 - ovl_15_func_8012E15C (s) — overlay initialiser: sets
@@ -11606,6 +11616,10 @@ Members (address order):
 - ovl_15_func_801300E4 (m, verified byte-exact this session) — one of three
   duplicate reset wrappers tied to the initialiser through `D_80137586`: calls
   `ovl_15_func_8012E15C` and stores `-1` to that private state byte.
+- ovl_15_func_8013010C (m, matched this session, byte-exact) — variant writer:
+  in its tail when `D_80137584 != 0x18` it calls `ovl_15_func_8012E15C` and
+  stores `1` to `D_80137586`; also a member of the shared text-draw prologue
+  cluster above.
 - ovl_15_func_80130FC8 (m, verified byte-exact this session) — second reset
   wrapper, exact body duplicate of `ovl_15_func_801300E4`; calls
   `ovl_15_func_8012E15C` then stores `-1` to `D_80137586`.
