@@ -3167,7 +3167,7 @@ Members (address order):
 - ovl_11_func_800EE604 (s) — run-head writer of D_801295C6 (`sh v0`)
 - ovl_11_func_800EE7BC (s) — sandwiched, does not touch the global
 - ovl_11_func_800EE944 (s) — sandwiched, does not touch the global
-- ovl_11_func_800EEAB8 (s) — sandwiched, does not touch the global
+- ovl_11_func_800EEAB8 (m, matched this session) — sandwiched call-graph child of run member `ovl_11_func_800EE7BC`: calls `ovl_11_func_800EE7BC(1, arg0, 0, 0)` (its table-write branch), then loads the three s16 fields of the 5-entry 6-byte table `D_801249F8[slot]` (its only known user, newly declared in `globals_override.h`) into `D_80129560[arg0]`/`[arg1]`/`[arg2]`; does not touch `D_801295C6`
 - ovl_11_func_800EEBB8 (m, matched this session) — leaf getter:
   `return D_801295C6;` (`lui`/`lh`, delay-slot `nop`); byte-exact clean C,
   baseline flags; confirmed member of the shared-global cluster

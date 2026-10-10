@@ -1077,6 +1077,18 @@ typedef struct {
 extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
 #define D_80124A18 ((Ovl11RangeEntry *)_D_80124A18)
 
+/* D_801249F8 - table of 6-byte records (3 s16 fields each, 5 used entries,
+ovl_11). Indexed by a value in 0..4; ovl_11_func_800EEAB8 reads lh at
++0x00/+0x02/+0x04 and writes each into D_80129560. Absolute-addressed
+from the overlays (only ever declared extern, never GP). */
+typedef struct {
+    /* 0x00 */ s16 field_0;
+    /* 0x02 */ s16 field_2;
+    /* 0x04 */ s16 field_4;
+} Ovl11Triple6;
+extern Ovl11Triple6 _D_801249F8[] __asm__("D_801249F8");
+#define D_801249F8 ((Ovl11Triple6 *)_D_801249F8)
+
 /* D_80129560 - s32 table indexed by an s16 value (0x50 bytes, ovl_11).
  * Store via sw at (s16)index * 4 is done by ovl_11_func_800E8BA0;
  * load-side users ovl_11_func_800E6834/800E686C read lw at the same
