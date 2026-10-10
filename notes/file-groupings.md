@@ -1235,8 +1235,16 @@ idioms at once:
   handler pointers name the link-successor run 80111258 / 80111400 / 801115A8
   / 80111750, and whose third handler 80111750 and 801110CC's callees
   8011184C / 80111944 are the documented s16 dispatch-map run; 801110CC is the
-  table's only reader container-wide.
+  table's only reader container-wide;
+- the 0x10-byte keyed-record cluster `D_80127D90`–`D_80127E40`: 80110188
+  selects one of those six tables by arg1 and searches it for the object's
+  s16@+0x30 key, while band-tail `ovl_11_func_80110E34` indexes the
+  same-layout `D_80127EE0` table and copies its three words plus key into the
+  object's +0x38/+0x3C/+0x40/+0x22; run member 801103E8 reads that same
+  {s32@+0x38, s32@+0x40} pair.
 Members:
+- ovl_11_func_80110188 (m, this session, byte-exact) — keyed-position lookup
+  over the band's 0x10-byte `D_80127D90`–`D_80127E40` record cluster
 - ovl_11_func_80110118 (m, this session) — far-state reset leaf: forwards
   u16@+0xB6 to ovl_11_func_800F3BCC, calls func_8001FABC(0x13) /
   func_8001AF70(7, 1) when the far-state halfword equals s16@+0x30, then clears

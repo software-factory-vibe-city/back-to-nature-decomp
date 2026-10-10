@@ -2529,5 +2529,30 @@ extern s32 D_8012961C;
  * overlay; the overlay only declares it, so an extern pointer belongs here. */
 extern u16 *D_80128C60;
 
+/* D_80127D90 / D_80127DB0 / D_80127DD0 / D_80127E00 / D_80127E20 /
+ * D_80127E40 - ovl_11 keyed-position tables searched by
+ * ovl_11_func_80110188. Each 0x10-byte entry is three words copied into the
+ * caller's vector (arg2 +0/+4/+8) plus a key word at +0xC matched against
+ * arg3. Entry counts are 2/2/3/2/2/2 and the search walks with a 0x10
+ * stride. Absolute-addressed from the -G0 overlay. */
+typedef struct {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+} Ovl11StateEntry;
+extern Ovl11StateEntry D_80127D90[2];
+extern Ovl11StateEntry D_80127DB0[2];
+extern Ovl11StateEntry D_80127DD0[3];
+extern Ovl11StateEntry D_80127E00[2];
+extern Ovl11StateEntry D_80127E20[2];
+extern Ovl11StateEntry D_80127E40[2];
+
+/* D_80070D08 / D_80070D0A - ovl_11 progress halfwords read with lhu by
+ * ovl_11_func_80110188 to choose the alternate table half; also used by
+ * other matched ovl_11 leaves. Absolute-addressed from the -G0 overlay. */
+extern u16 D_80070D08;
+extern u16 D_80070D0A;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

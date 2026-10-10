@@ -984,6 +984,15 @@ typedef struct {
     Ovl11Slot524C slots[18];
 } Ovl11Slots524CView;
 
+/* ovl_11_func_80110188 arg0 view: the s32 at +0x38 and the s32 at +0x40
+ * select the alternate half of the keyed-position table. */
+typedef struct {
+    /* 0x00 */ char pad_00[0x38];
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ char pad_3C[0x4];
+    /* 0x40 */ s32 unk40;
+} Ovl11StateArg0;
+
 /* ovl_11_func_80116F4C object view. The builder reads a signed halfword at
  * +0x1A (text source), an unsigned halfword at +0x16 divided by 25, signed
  * halfwords at +0x1C and +0x1E, and tests bit 0x40 of the flag word at +0x34.

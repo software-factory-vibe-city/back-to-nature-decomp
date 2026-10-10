@@ -2469,6 +2469,13 @@ typedef struct {
 } Ovl11SpritePositionView;
 
 typedef struct {
+               char pad_00[0x38];
+               s32 unk38;
+               char pad_3C[0x4];
+               s32 unk40;
+} Ovl11StateArg0;
+
+typedef struct {
                s16 unk0;
 } Ovl15Func80134444Arg;
 
