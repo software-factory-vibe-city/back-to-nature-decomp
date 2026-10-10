@@ -3223,6 +3223,13 @@ Members (address order):
   via `ovl_11_func_800FE558` / `ovl_11_func_800FD21C` (plus
   `ovl_11_func_800FC7F0`) and reads the record fields +0x0/+0x16/+0x1A/
   +0x1C/+0x1E/+0x34/+0xAE
+- ovl_11_func_800FCD40 (m, matched this session, byte-exact) — `D_800749F4`
+  row refresh: the 0xB8-stride, 20-entry sibling of 800FCBB4's `D_800742EC`
+  refresh, registered at `D_80127226` by its gapless predecessor
+  `ovl_11_func_800FCD0C`; draws its selected record via the same
+  `ovl_11_func_800FE558` / `ovl_11_func_800FC7F0` / `ovl_11_func_800FD21C`
+  call set and reads the same record fields +0x0/+0x16/+0x1A/+0x1C/+0x1E/+0x34
+  with the last field at +0xB2 (vs 800FCBB4's +0xAE)
 - ovl_11_func_800FD21C (s) — seeds `D_8012A028` halfwords (0x90@0, 0xFFD@2,
   0x71@8, 0@0x10, 0x26@0x12, 0x24@0x14, `0xFFD` fill at +0x1C) and runs two
   `func_8001A970` transports
@@ -3250,6 +3257,22 @@ builds its two rows through cluster members `ovl_11_func_800FE558` and
 membership rests on the run continuity plus the shared table/call anchors rather
 than the buffer fingerprint; same caveat as the 800FC544 draw-leaf note above,
 whose call set overlaps without sharing the buffer.
+
+Widening (byte-exact match of `ovl_11_func_800FCD40`, 2026-10-09): the run
+above continues through the selector-1 registrar `ovl_11_func_800FCD0C`
+(0x800FCD0C, 0x34; `ovl_11_func_800FD194(1)` then
+`ovl_11_func_800FD034(D_80127226, ovl_11_func_800FCD40)` — the exact
+structural sibling of 800FCB80) into its gapless successor `ovl_11_func_800FCD40`
+(0x800FCD40, 0x160). 800FCD40 is the `D_800749F4` (20-entry, 0xB8-stride)
+sibling of member 800FCBB4's `D_800742EC` (10-entry, 0xB4-stride) row refresh:
+same `u16@+0`-gated record selection, same
+`ovl_11_func_800FE558` / `ovl_11_func_800FC7F0` / `ovl_11_func_800FD21C` draw
+call set, and the same +0x0/+0x16/+0x1A/+0x1C/+0x1E/+0x34 record fields with the
+last field at +0xAE (800FCBB4) versus +0xB2 (800FCD40) — a +4 that matches the
+stride difference. Membership rests on the registrar series (its predecessor
+800FCD0C registers it into entry 1's unk2 of the `D_80127220` table that member
+`ovl_11_func_800FC6A4` walks) plus the sibling row-refresh shape; like 800FCBB4
+it stages nothing into `D_8012A028`.
 
 ---
 
