@@ -3230,6 +3230,11 @@ Members (address order):
   `ovl_11_func_800FE558` / `ovl_11_func_800FC7F0` / `ovl_11_func_800FD21C`
   call set and reads the same record fields +0x0/+0x16/+0x1A/+0x1C/+0x1E/+0x34
   with the last field at +0xB2 (vs 800FCBB4's +0xAE)
+- ovl_11_func_800FCED4 (m, matched this session, byte-exact) — second
+  `D_800749F4` row refresh: shares 800FCD40's exact body shape and
+  forward-declaration block, differing only in the `u16@+0` selection range
+  (0x164–0x166 vs 0x160–0x163); registered at `D_8012722A` by its gapless
+  predecessor `ovl_11_func_800FCEA0` (selector-2 sibling of 800FCD0C/800FCB80)
 - ovl_11_func_800FD21C (s) — seeds `D_8012A028` halfwords (0x90@0, 0xFFD@2,
   0x71@8, 0@0x10, 0x26@0x12, 0x24@0x14, `0xFFD` fill at +0x1C) and runs two
   `func_8001A970` transports
@@ -3273,6 +3278,19 @@ stride difference. Membership rests on the registrar series (its predecessor
 800FCD0C registers it into entry 1's unk2 of the `D_80127220` table that member
 `ovl_11_func_800FC6A4` walks) plus the sibling row-refresh shape; like 800FCBB4
 it stages nothing into `D_8012A028`.
+
+Widening (byte-exact match of `ovl_11_func_800FCED4`, 2026-10-09): the registrar
+series gains a third member. `ovl_11_func_800FCEA0` (0x800FCEA0, 0x34;
+`ovl_11_func_800FD194(2)` then `ovl_11_func_800FD034(D_8012722A,
+ovl_11_func_800FCED4)`) is the selector-2 structural sibling of 800FCB80/800FCD0C,
+and its gapless successor `ovl_11_func_800FCED4` (0x800FCED4, 0x160) ends exactly
+where member `ovl_11_func_800FD034` begins. 800FCED4 is the second `D_800749F4`
+refresh sibling of 800FCD40: identical scan structure, identical
+`ovl_11_func_800FE558` / `ovl_11_func_800FC7F0` / `ovl_11_func_800FD21C` draw call
+set, and an identical engine/ovl forward-declaration block, differing only in the
+`u16@+0` selection range (0x164–0x166) and its registrar slot. Membership rests
+on the registrar series plus the twin-body/declaration-order evidence; like
+800FCD40/800FCBB4 it stages nothing into `D_8012A028`.
 
 ---
 
