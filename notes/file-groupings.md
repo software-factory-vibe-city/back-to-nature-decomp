@@ -5928,6 +5928,44 @@ the overlay, never GP-relative), and the large-offset writers use the same
   pointer, `p + 0x1A`) that this leaf selects on — then
   `func_8002261C(1, 0x72B/0x72C/0x72D)` by that pre-call value (0 / <0x2710 /
   else); same `base = (u8 *)&D_8006C838` shared-base idiom
+
+---
+
+## `ovl_11` D_8006C838 +0x44B8/+0x44BA/+0x44BC button-state gapless run — 0x800EEECC / 0x800EEFB8 / 0x800EF0E8 (confidence: medium)
+
+Gapless link-order run in `ovl_11` (`Obj\GF_FARM.bin`) — splat
+`configs/splat/ovl_11.yaml` offsets 0x370AC → 0x37198 → 0x372C8 — all reading
+the same main-binary `D_8006C838` u16/s16 trio at +0x44B8/+0x44BA/+0x44BC
+(the +0x44BA/+0x44BC pair being the recorded `D_80070CF2`/`D_80070CF4`
+button-state s16s). The run supplies the link-order adjacency the D_8006C838
+flags/state-buffer cluster above lacked and ties into it through the shared
+callee.
+
+Fingerprints:
+- **zero-gap contiguity**: 0x800EEECC (0xEC) ends exactly at 0x800EEFB8
+  (0x130), which ends exactly at 0x800EF0E8 (0x3A0);
+- **shared-state trio**: 0x800EEECC reads `lh 0x44BA`/`lh 0x44BC`, 0x800EEFB8
+  reads `lhu 0x44B8` + `lh 0x44BA`/`lh 0x44BC`, and 0x800EF0E8 reaches the
+  same cells through the alias base `D_80070CF0` (`lh 0x2`/`lh 0x4`) — proving
+  `D_80070CF0` is the base spelling of `D_8006C838`+0x44B8 beside the
+  already-recorded +0x44BA/+0x44BC aliases (0x8006C838 + 0x44B8 = 0x80070CF0);
+- **call graph agrees**: 0x800EEECC calls its run successor 0x800EF0E8, and
+  both 0x800EEFB8 and 0x800EF0E8 call the recorded D_8006C838 flags/state-buffer
+  cluster member 0x800EF8BC.
+
+Members (address order):
+- ovl_11_func_800EEECC (s) — run head: gates on the +0x44BA/`+0x44BC == 7`
+  pair and `func_8001AF44(0x1B)`, clearing +0xE668 through the cluster's
+  +0x8000 two-stage split, and calls 0x800EF0E8 per index.
+- ovl_11_func_800EEFB8 (m, matched this session, byte-exact) — run middle:
+  reads +0x44B8/+0x44BA/+0x44BC, wraps the +0x44B8 count by +1 (or seeds the
+  `0x1D` result for arg0 == 4), and steps the loop through the shared callees
+  0x800EF8BC and 0x800C1280 into the {s16,s16,s16} arg1 result.
+- ovl_11_func_800EF0E8 (s) — run tail: reads the `D_80070CF0` (+0x44B8) trio
+  and calls the cluster members 0x800EF8BC and 0x800EFA1C.
+
+---
+
 ## `ovl_11` 0x800E6AB0–0x800E6DFC var/return state run (confidence: low)
 
 Zero-gap link-order run of six ovl_11 functions sitting between the
