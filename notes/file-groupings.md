@@ -8991,9 +8991,12 @@ Members (link order):
   `func_80014CBC(..., 1, 0) == 0`, then `func_8001719C(D_8005E3B0 + 0x4290)`.
 - ovl_21_func_800BB648 (s) — same display-setup idiom with the repeated
   `func_80015704` tail
-- ovl_21_func_800BB8B8 (s) — same run's non-display handler: reads the
-  `D_8007AFF0` far base, block-copies 0xBD0 bytes to `D_8009F78C` and calls
-  func_80014BCC/1719C (also a member of the D_8007AFF0 entry above)
+- ovl_21_func_800BB8B8 (m, matched this session, byte-exact) — same run's
+  non-display handler: reads the `D_8007AFF0` far base, block-copies 0xBD0
+  bytes to `D_8009F78C`, hands the shared `D_800C0DD8` descriptor to
+  func_8001BFA8/8001E340/8001E334 (the same object 800BB2B4 passes to
+  func_8001C0D4, tying this run to the D_8007AFF0 entry above) and calls
+  func_80014BCC/1719C
 - ovl_21_func_800BBA3C (m, matched, byte-exact) — audio-setup leaf:
   `func_80020B80(2,0)`, `func_80020B80(1,0)`, `func_8001FBF0(0x3E7,0)`,
   `func_8001FBF0(0x12,1)`
@@ -9043,10 +9046,13 @@ Members (link order):
   builds a GTE matrix from `GsIDMATRIX` and the writer's +0x253A0/+0x25394 state
   fields, calls the PSY-Q GTE helpers, and stores the transformed result back
   into the same far-buffer +0x253AC/+0x253AE/+0x253B0 halfword block.
-- ovl_21_func_800BB8B8 (s) — reads the `D_8007AFF0` base and block-copies 0xBD0
-  bytes of it to `D_8009F78C` (word or unaligned lwl/lwr variants by alignment),
-  then calls `func_8001BFA8`/`func_8001E340`/`func_8001E334`; also reads
-  `D_800BC894`/`D_8005E3B0` and calls `func_80014BCC`/`func_8001719C`.
+- ovl_21_func_800BB8B8 (m, matched this session, byte-exact) — reads the
+  `D_8007AFF0` base and block-copies 0xBD0 bytes of it to `D_8009F78C` (word or
+  unaligned lwl/lwr variants by alignment), then hands `&D_800C0DD8` to
+  `func_8001BFA8`/`func_8001E340`/`func_8001E334` — the same descriptor object
+  800BB2B4 passes to `func_8001C0D4`, a shared-cluster tie to the display-setup
+  run above; also reads `D_800BC894`/`D_8005E3B0` and calls
+  `func_80014BCC`/`func_8001719C`.
 - ovl_21_func_800BB250 (m, matched this session, byte-exact) — reads the
   `D_8007AFF0` +0x253AC/+0x253AE/+0x253B0/+0x253B4/+0x253B6/+0x253B8 halfword
   state block via the same far base and passes it to `func_8001B9F8`
