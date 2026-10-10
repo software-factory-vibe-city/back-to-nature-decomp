@@ -983,3 +983,18 @@ typedef struct {
     char pad_000[0x524C];
     Ovl11Slot524C slots[18];
 } Ovl11Slots524CView;
+
+/* ovl_11_func_80116F4C object view. The builder reads a signed halfword at
+ * +0x1A (text source), an unsigned halfword at +0x16 divided by 25, signed
+ * halfwords at +0x1C and +0x1E, and tests bit 0x40 of the flag word at +0x34.
+ * Only the witnessed fields are named. */
+typedef struct {
+    /* 0x00 */ char pad_00[0x16];
+    /* 0x16 */ u16 unk16;
+    /* 0x18 */ char pad_18[2];
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ char pad_20[0x14];
+    /* 0x34 */ s32 unk34;
+} Ovl11Func80116F4CArg;

@@ -1689,6 +1689,13 @@ extern u8 D_80051D34[];
  * sub-state (lw at base + index*4). Absolute-addressed. */
 extern s32 D_80128264[];
 
+/* D_8012D608 - ovl_11 halfword table; the 0x18-halfword fill in
+ * ovl_11_func_80116F4C is the largest witnessed extent, and the same base is
+ * passed as an s16* text-source buffer to func_8001A970 by
+ * ovl_11_func_8011CC08. Absolute-addressed (lui/%lo) from the -G0 overlay;
+ * only ever declared extern, so a scalar extern belongs here. */
+extern s16 D_8012D608;
+
 /* D_8012D538 - 0xC-byte ovl_11 record (pointer at +4, s16 fields at
  * +8/+A); the +8 halfword is the separately named D_8012D540. Initialized
  * by ovl_11_func_80117F70 (pointers) and ovl_11_func_8011A9DC. */

@@ -635,30 +635,42 @@ Members:
 
 ---
 
-## `ovl_11` text/sprite table-builder run — 0x80116F4C–0x80117178 (confidence: medium)
+## `ovl_11` text/sprite table-builder run — 0x80116980–0x80117178 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`) around the table
 setup at the overlay's 0x5F12C text region. Evidence is an internal call
 graph plus strict link-order adjacency, the same fingerprint class as the
-0x80121318 farm-object run; no shared gp-rel cluster observed (this
-container absolute-addresses everything).
+0x80121318 farm-object run. `D_8012D608` is addressed by both the predecessor
+and the head, but the same main-RAM buffer is also used in another region
+(0x8011CC08, 0x8011D474), so the shared global corroborates and does not bind
+(this container absolute-addresses everything; no gp-rel cluster).
 
 Fingerprints:
-- address adjacency: `ovl_11_func_80116F4C` (0x80116F4C, 0x18C bytes) ends
-  at 0x801170D8 and is followed contiguously by `ovl_11_func_801170D8`
-  (0xC bytes) then `ovl_11_func_801170E4` (0x94 bytes) — one unbroken run
-  0x80116F4C–0x80117178 with no unrelated code between;
-- internal call graph: the head `ovl_11_func_80116F4C` calls both of its
-  immediate link-order followers — `ovl_11_func_801170D8` (on the object
-  struct's 2-byte field at +0x1A, result fed to `func_8001A970` as the
-  text/string source) and `ovl_11_func_801170E4` (a per-cell draw loop
-  stepping a coordinate by -8, calling `func_800245F4` per step);
+- address adjacency: `ovl_11_func_80116980` (0x80116980, 1484 bytes) ends
+  exactly at `ovl_11_func_80116F4C` (0x80116F4C, 0x18C bytes), which ends at
+  0x801170D8 and is followed contiguously by `ovl_11_func_801170D8` (0xC
+  bytes) then `ovl_11_func_801170E4` (0x94 bytes) — one unbroken run
+  0x80116980–0x80117178 with no unrelated code between;
+- internal call graph: the predecessor `ovl_11_func_80116980` calls the head
+  `ovl_11_func_80116F4C` and the boundary follower `ovl_11_func_80117178`
+  (three sites); the head calls both of its immediate link-order followers —
+  `ovl_11_func_801170D8` (on the object struct's 2-byte field at +0x1A,
+  result fed to `func_8001A970` as the text/string source) and
+  `ovl_11_func_801170E4` (a per-cell draw loop stepping a coordinate by -8,
+  calling `func_800245F4` per step);
+- shared global cluster: `ovl_11_func_80116980` and `ovl_11_func_80116F4C`
+  both `lui`/`%lo` the halfword buffer `D_8012D608`; the predecessor fills it
+  from the `D_800535C6` source and the head fills 24 halfwords with 0xFFD;
 - shared idiom: both leaves read/handle 2-byte object fields; the parent
-  builds a 24-entry D_8012D608 halfword array with two `func_8001A970`
+  builds the 24-entry D_8012D608 halfword array with two `func_8001A970`
   field-read sites and a `func_80017B3C` / `func_80024A10` string call each.
 
 Members (address order):
-- ovl_11_func_80116F4C (s) — table builder: fills D_8012D608 (0xFFD into 24
+- ovl_11_func_80116980 (s) — unmatched predecessor: copies halfwords from the
+  `D_800535C6` source into `D_8012D608`, then calls the head and
+  ovl_11_func_80117178
+- ovl_11_func_80116F4C (m, matched this session) — table builder: fills
+  D_8012D608 (0xFFD into 24
   halfwords), then draws two 2-byte object field reads via
   ovl_11_func_801170D8 / func_8001A970, a percentage count derived from
   field +0x16 into ovl_11_func_801170E4, and two func_80017B3C /
