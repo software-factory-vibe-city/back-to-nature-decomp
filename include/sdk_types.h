@@ -77,6 +77,21 @@ typedef struct {
 } M2C_0034004658f1_Ovl11D04D4Obj;
 
 typedef struct {
+ long vx, vy;
+ long vz, pad;
+} VECTOR;
+
+typedef struct {
+               char pad_0[0x4];
+               s16 unk4;
+               s16 unk6;
+               char pad_8[0x4];
+               s32 unkC;
+               char pad_10[0x14];
+               VECTOR pos;
+} M2C_00d87963cded_Ovl11CC6A8Arg;
+
+typedef struct {
                u16 unk0;
                s16 unk2;
                s16 unk4;
@@ -2711,11 +2726,6 @@ typedef struct {
 } TILE_1;
 
 typedef struct { u16 unk0; } UnkStruct800DF4F0;
-
-typedef struct {
- long vx, vy;
- long vz, pad;
-} VECTOR;
 
 typedef struct {
     s32 x;
