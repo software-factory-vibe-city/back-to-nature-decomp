@@ -275,6 +275,15 @@ struct struct_8006C838_800CBF70 {
     s32 field_52CC;         /* 0x52CC */
 };
 
+/* View of D_8006C838 for ovl_11_func_800EE944: the s16 at +0xAE30. Reached
+ * as a struct member so cc1 keeps lui %hi(D_8006C838), addiu %lo, ori 0x8000,
+ * addu followed by lh 0x2E30 (the target keeps the 0x8000 split rather than
+ * folding 0xAE30 into the %hi). */
+struct struct_8006C838_800EE944 {
+    char pad_000[0xAE30];   /* 0x0000-0xAE2F */
+    s16 field_AE30;         /* 0xAE30 */
+};
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.
@@ -1088,6 +1097,11 @@ typedef struct {
 } Ovl11Triple6;
 extern Ovl11Triple6 _D_801249F8[] __asm__("D_801249F8");
 #define D_801249F8 ((Ovl11Triple6 *)_D_801249F8)
+
+/* D_801249EC - byte table indexed by the previous D_80129560[arg0] value
+ * (0..9). ovl_11_func_800EE944 reads lbu and adds 0x7C3. Absolute-addressed
+ * from the overlays (only ever declared extern, never GP). */
+extern u8 D_801249EC[];
 
 /* D_80129560 - s32 table indexed by an s16 value (0x50 bytes, ovl_11).
  * Store via sw at (s16)index * 4 is done by ovl_11_func_800E8BA0;

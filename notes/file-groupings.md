@@ -3166,7 +3166,7 @@ Members (address order):
 - ovl_11_func_800E880C (s) — reads and writes D_801295C6, earlier site
 - ovl_11_func_800EE604 (s) — run-head writer of D_801295C6 (`sh v0`)
 - ovl_11_func_800EE7BC (s) — sandwiched, does not touch the global
-- ovl_11_func_800EE944 (s) — sandwiched, does not touch the global
+- ovl_11_func_800EE944 (m) — sandwiched `D_80129560` table-writer (calls 800EE7BC(1, arg0, 0, 0)); does not touch `D_801295C6`
 - ovl_11_func_800EEAB8 (m, matched this session) — sandwiched call-graph child of run member `ovl_11_func_800EE7BC`: calls `ovl_11_func_800EE7BC(1, arg0, 0, 0)` (its table-write branch), then loads the three s16 fields of the 5-entry 6-byte table `D_801249F8[slot]` (its only known user, newly declared in `globals_override.h`) into `D_80129560[arg0]`/`[arg1]`/`[arg2]`; does not touch `D_801295C6`
 - ovl_11_func_800EEBB8 (m, matched this session) — leaf getter:
   `return D_801295C6;` (`lui`/`lh`, delay-slot `nop`); byte-exact clean C,
@@ -7451,7 +7451,7 @@ with different widths and far-apart addresses.
   recovery's explicit register roles and arithmetic fragments are not
   evidence that the original author used bindings or assembly.
 
-## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800EE528 + 0x800EC490 (confidence: medium)
+## `ovl_11` D_80129560 s32-table accessor family — 0x800E5A1C–0x800EE944 + 0x800EC490 (confidence: medium)
 
 Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): twenty-six matched
 functions sharing the one ovl_11-private 0x50-byte s32 table
@@ -7721,6 +7721,11 @@ Members:
   in the container — a new call-graph edge from the `D_80129560` accessor
   family into the `D_80076220` record family. Link-order neighbours 800E93CC
   (stub) and 800E953C do not reach the table, so adjacency adds nothing here.
+- ovl_11_func_800EE944 (m, 0x174, byte-exact) — prior-value table writer:
+  snapshots `D_80129560[arg0]` then writes prior-selected constants into
+  `[arg1]`/`[arg2]` and `D_801249EC[prior] + 0x7C3` into `[arg3]`; extends the
+  accessor band to 0x800EE944 and shares the `D_801249EC`/`D_801249F8`
+  adjacent private-table region with family member 800EEAB8.
 
 ## `ovl_11` 0x22-record clamp and its caller/twin pair — 0x800E5704 / 0x800E5870 / 0x800EADB8 (confidence: medium)
 
