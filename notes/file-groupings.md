@@ -2102,6 +2102,17 @@ Zero-gap link-order contiguity: 0x800D3048 (0xBC) ends exactly where 0x800D3104
 begins. The D_800B8EC0 handlers overlap the D_80128D78 cluster above, whose
 dispatch caller ovl_11_func_800D3468 drives this run.
 
+Corroborated handler run (match of ovl_11_func_800D4030): the three populated
+`D_800B8E6C` handlers are also a gapless link-order run — 0x800D3FEC (0x3C) →
+0x800D4028 (0x8) → 0x800D4030 (0x174) in `build/ovl_11/ovl_11.map`, the head
+being the D_80128D78 cluster member above. The table's index order (5: 800D4030,
+6: 800D3FEC, 7: 800D4028) does not follow address order, so the tie is
+contiguity plus the shared handler table, not index order.
+
+- ovl_11_func_800D4030 (m, matched this session, byte-exact) — `D_800B8E6C[5]`
+  handler: switch on the state id at +0 (0x108/0x162/0x165/0x17A/0x17B) to
+  event codes, gated on the D_8006C838 +0x99D8 u16 for 0x17A; gapless
+  successor of ovl_11_func_800D4028.
 - ovl_11_func_800D3048 (s) — per-state update: calls ovl_11_func_800D3574,
   dispatches `D_800B8EC0[+0x26]` as a function pointer (skipped when +0x34 has
   0x800), then bumps +0x2C and calls ovl_11_func_800D3468.

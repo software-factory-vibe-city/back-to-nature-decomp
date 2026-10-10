@@ -748,6 +748,15 @@ typedef struct {
     /* 0xAC */ s16 unkAC;
 } Ovl11Func801098B0Arg;
 
+/* Object viewed by the D_800B8E6C state-handler ovl_11_func_800D4030: the u16
+ * state id at +0x00 and the s16 selector at +0x30. Only the two fields the
+ * handler reads are named. */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ char pad_02[0x2E];
+    /* 0x30 */ s16 unk30;
+} Ovl11D4030Arg;
+
 /* FuncC0D4Args - argument descriptor for func_8001C0D4: a primitive batch
  * pointer and the vector array origin. Shared by src/func_8001C0D4.c (its
  * local copy predates this header) and ovl_21_func_800BB2B4, which hands

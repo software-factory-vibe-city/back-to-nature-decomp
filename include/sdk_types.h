@@ -2297,6 +2297,12 @@ typedef struct {
 } Ovl11D124Entry;
 
 typedef struct {
+               u16 unk0;
+               char pad_02[0x2E];
+               s16 unk30;
+} Ovl11D4030Arg;
+
+typedef struct {
                s32 field_00[23];
                s16 index;
                s16 field_5E;
