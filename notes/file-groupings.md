@@ -929,7 +929,10 @@ ovl_11_func_8010780C is its zero-gap successor ovl_11_func_80107888. Both
 `D_8006C838` +0x44BA/+0x44BC state s16 pair (`D_80070CF2`/`D_80070CF4`).
 Members (address order):
 - ovl_11_func_801075C0 (s) — shared caller's first callee, gapless run head
-- ovl_11_func_80107604 (s) — second gapless member
+- ovl_11_func_80107604 (m) — second gapless member; shares the 0x1D4-stride
+  D_8006C838 +0x8000 record view with 0x801075C0 (reads +0x19EA/+0x19EC
+  where 0x801075C0 reads +0x1A16) and the 0x80107B54 lookup tail-call with
+  0x8010775C
 - ovl_11_func_8010775C (m, matched this session) — third gapless member;
   9-case jump-table dispatch on arg0 (0–8) selecting an (a0, a1) pair, then
   tail-calls the 0x80107B54 lookup leaf; default returns 0

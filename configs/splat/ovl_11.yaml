@@ -59,6 +59,8 @@ segments:
       - [0x21D0, .rodata, ovl_11_func_800F1EE4]
       - [0x21E4, .rodata, ovl_11_func_800F3C9C]
       - [0x2504, rodata]
+      - [0x2930, .rodata, ovl_11_func_80107604]
+      - [0x2944, rodata]
       - [0x2948, .rodata, ovl_11_func_8010775C]
       - [0x296C, rodata]
       - [0x29E8, .rodata, ovl_11_func_8010876C]
