@@ -3235,6 +3235,10 @@ Members (address order):
   forward-declaration block, differing only in the `u16@+0` selection range
   (0x164–0x166 vs 0x160–0x163); registered at `D_8012722A` by its gapless
   predecessor `ovl_11_func_800FCEA0` (selector-2 sibling of 800FCD0C/800FCB80)
+- ovl_11_func_800FD034 (m, matched 2026-10-09, byte-exact) — scrolling-list
+  driver called by all three registrars: scrolls and wraps `D_80127210`, draws
+  the arrows via `ovl_11_func_800FE704` / `ovl_11_func_800FE780`, and calls the
+  supplied row refresher for seven rows
 - ovl_11_func_800FD21C (s) — seeds `D_8012A028` halfwords (0x90@0, 0xFFD@2,
   0x71@8, 0@0x10, 0x26@0x12, 0x24@0x14, `0xFFD` fill at +0x1C) and runs two
   `func_8001A970` transports
@@ -3291,6 +3295,20 @@ set, and an identical engine/ovl forward-declaration block, differing only in th
 `u16@+0` selection range (0x164–0x166) and its registrar slot. Membership rests
 on the registrar series plus the twin-body/declaration-order evidence; like
 800FCD40/800FCBB4 it stages nothing into `D_8012A028`.
+
+Widening (byte-exact match of `ovl_11_func_800FD034`, 2026-10-09): the member
+named above as 800FCED4's successor is matched. `ovl_11_func_800FD034`
+(0x800FD034, 0x160) is the scrolling-list driver that all three registrars
+(800FCB80 / 800FCD0C / 800FCEA0) call, passing their row refresher as the
+callback. It scrolls the file-scope s16 `D_80127210` on input bits
+0x1000/0x4000, wraps it at both ends, draws the up and down arrows through
+`ovl_11_func_800FE704` / `ovl_11_func_800FE780`, and calls the callback for
+seven rows at y = 0x30 + 0x18·n. It is gapless on both sides: it begins where
+800FCED4 ends and ends at 0x800FD194, the text-draw leaf each registrar calls
+first. Its only global, `D_80127210`, sits just below the `D_80127214` table
+read by member 800FE3A0 and the `D_80127220` registrar slots. Membership rests
+on the call graph from all three registrars plus that link adjacency. Like the
+row refreshers, it stages nothing into `D_8012A028`.
 
 ---
 

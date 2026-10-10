@@ -1369,6 +1369,11 @@ extern s16 D_8012720C;
  * compared as s16; runs 4,3,2 and wraps to 7 when it goes negative. */
 extern u16 D_8012720E;
 
+/* D_80127210 - first visible row of the seven-row scrolling list drawn by
+ * ovl_11_func_800FD034. Signed: scrolling wraps at both ends, and the
+ * negative test reads it with lh. */
+extern s16 D_80127210;
+
 extern u16 D_80127212;
 
 /* D_80127214 - 6-halfword threshold table (0x0000, 0x1770, 0x4650, 0x8CA0,
