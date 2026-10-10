@@ -10626,6 +10626,16 @@ a third reader/writer of this family. An indexed member of an access view
 produces the original base-first address addition exactly; a cached byte
 pointer did not. This is shared-object evidence, not a new TU-boundary claim.
 
+Second extension (shared cluster + adjacency): matched
+`ovl_11_func_80108A24` (m, byte-exact) is the section's other direct
+symbol-level user of `D_8007AFDA` — the only two in the whole container,
+with 0x8011760C: on a change of the u16 at the companion `+0xE7A0` it clears
+the first 1/2 cell to 0 or 3 cell to 0xFF, then sets the first zero cell to 1
+in wrap order from the next index. It is the zero-gap predecessor of
+0x80108B8C (0x80108A24, size 0x168, ends exactly at 0x80108B8C), so the two
+form an adjacent read/write/manager sub-group on the same `+0xE7A2` cluster;
+shared-cluster plus adjacency evidence, not a TU-boundary claim.
+
 ---
 
 ## `ovl_11` `D_8012D7A8` s16-table accessor run — 0x8011775C–0x80117F14 (confidence: medium)

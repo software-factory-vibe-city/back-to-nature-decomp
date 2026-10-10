@@ -766,6 +766,7 @@ void ovl_11_func_80108864(void);
 void ovl_11_func_801088E4(void);
 void ovl_11_func_80108930(void);
 void ovl_11_func_801089DC(void);
+void ovl_11_func_80108A24(void);
 void ovl_11_func_80108B8C(void);
 void ovl_11_func_80108CA4(s32 arg0);
 struct_800759E4 *ovl_11_func_80108CD0(s32 arg0, s32 arg1);
