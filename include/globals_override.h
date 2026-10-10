@@ -475,6 +475,17 @@ extern u8 D_800BF660[];
  * through a base pointer biased by -0x3B4. */
 extern u8 D_800BFC30[];
 
+/* D_80071C90 - ovl_11 object state base (0x80071C90), absolute addressing
+ * (lui + %lo in ovl_11_func_800E9104). That function uses its address as an
+ * ObjectState (u16 +2, byte +4) and reads the s16 at -0x258 on the arg2==-1
+ * path, so the base is declared as storage and viewed as ObjectState there. */
+extern u8 D_80071C90[];
+
+/* D_801248BC - ovl_11 dispatch record (0x801248BC), absolute addressing.
+ * ovl_11_func_800E9104 stores its address at D_8006C838+0x5214 and writes
+ * s16 fields at +6/+8/+A/+C. */
+extern u8 D_801248BC[];
+
 /* D_800A0708 - 32-byte halfword table (u16[0x10]), absolute addressing.
  * func_80023A9C fills it with a walking halfword pointer (16 stores at
  * byte offsets 0..0x1E, stride 2) then writes entry 15 via a base+0x1E

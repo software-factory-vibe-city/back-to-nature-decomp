@@ -5855,7 +5855,7 @@ Members (address order):
   +0xE4C8 cell.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800DE76C / 0x800DE46C / 0x800EF8BC / 0x800EFA1C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800E9104 / 0x800DE76C / 0x800DE46C / 0x800EF8BC / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -5957,6 +5957,15 @@ the overlay, never GP-relative), and the large-offset writers use the same
   mode word is the cell 0x800E7954 also writes; byte-exact clean C, baseline
   flags; link-sits in the 0x800E5A1C–0x800EExxx accessor band, adjacent to
   matched 0x800E78E4
+- ovl_11_func_800E9104 (m, matched this session, 0x180, byte-exact) — state-gate
+  leaf: arg0 == -1 clears bit 0x100000 of the s32 at +0x5234, arg0 == 1 sets
+  that bit (and the arg2 != 0 arm handoffs through the record `u16@+2 & 0x300`
+  guard), and the remaining arm stores `D_801248BC` at +0x5214 and sets bit 4
+  of the u16 at +0x51FE; the only container-wide site besides member 0x800E5B84
+  of the combined `field_2 & 0x300` + `func_80015840`/`func_8001585C`
+  record-handoff idiom on the same +0x5234 bit 0x100000, reinforcing the
+  +0x5234/+0x51FE cell tie; link-sits in the 0x800E5A1C–0x800EExxx accessor
+  band (0x800E9104, between 0x800E8F78 and 0x800E9284)
 - ovl_11_func_800F2508 (m, matched this session) — stride-4 clear leaf: stores
   -1 into 20 byte fields at +0x49E6 / +0x4A36 (byte read/write class shared with
   the documented 0x800D0EA4 / 0x800D0ED0 flag-byte pair near +0x4AC0) and zeroes
