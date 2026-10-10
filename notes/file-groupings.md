@@ -8528,6 +8528,16 @@ three call `func_80015840(ObjectState *, s8)`.
   (`D_800BDAD4 - 0x28C`), the same work area 800BAEF0/800BAF50 address via
   `D_800BDA74` (+0x22C); this is the call/link adjacency binding the
   D_800BD870 record walk to the D_800BD848 work area.
+- ovl_17_func_800BAC24 (m, 2026-10-10) — per-record display step twin of
+  800BAD9C over the same D_800BD870 records: the identical
+  `Recon_ovl_17_func_800BAD9C_A0View`/`_AnimRef` argument view, the same
+  `D_8005E3C0->field_D8 + record->+0x14->s16@+0x4 * 4` indexing and
+  flag-gated func_80015868 / ovl_17_func_800BAEF0 / `D_800BDAD4` sprite
+  branch; renders through func_80015BF0 and advances a `D_800BD864` 1/10
+  counter step through matched cluster member 800B9158. Called once per
+  record by func_800B8470's 0x50-stride D_800BD870 walk and twice by the
+  still-unmatched 800B8534 twin; the shared reconstructed struct types and
+  field idiom bind it to 800BAD9C, not merely to the global cluster.
 
 ## `ovl_17` Rand(100) percentage-roll wrapper trio + predicate — 0x800B9DB8–0x800B9E34 (confidence: medium)
 

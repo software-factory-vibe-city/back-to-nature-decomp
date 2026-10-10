@@ -1564,6 +1564,12 @@ extern u8 D_800BB710[];
 
 extern u8 D_800BD848[];
 
+/* D_800BD864 - ovl_17 unsigned counter read (lw) by ovl_17_func_800BAC24
+ * and compared against ((x + 1) / 10) * 10 - 1; the target divides with
+ * multu and srl 3, so the value is unsigned. Plain extern (never defined in
+ * this TU), absolute-addressed (-G0). */
+extern u32 D_800BD864;
+
 extern u8 D_800BD758[];
 
 extern u8 D_800BDA74[];
