@@ -1,0 +1,64 @@
+{
+  "runId": "28ba8c82fa398cad",
+  "source": "14:31 input.c",
+  "key": [
+    0,
+    43,
+    0,
+    0
+  ],
+  "located": [
+    {
+      "block": 5,
+      "lines": [
+        237,
+        238,
+        239
+      ],
+      "branchOrientation": false,
+      "binding": "source-lines"
+    },
+    {
+      "block": 6,
+      "lines": [
+        243,
+        249
+      ],
+      "branchOrientation": false,
+      "binding": "source-lines"
+    },
+    {
+      "block": 7,
+      "lines": [
+        239,
+        240,
+        241,
+        242
+      ],
+      "branchOrientation": false,
+      "binding": "source-lines"
+    },
+    {
+      "block": 8,
+      "lines": [
+        243,
+        245
+      ],
+      "branchOrientation": false,
+      "binding": "source-lines"
+    },
+    {
+      "block": 9,
+      "lines": [
+        229,
+        235,
+        243,
+        245,
+        247,
+        249
+      ],
+      "branchOrientation": false,
+      "binding": "all-source-returns"
+    }
+  ]
+}

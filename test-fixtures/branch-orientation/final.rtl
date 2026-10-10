@@ -1,0 +1,601 @@
+
+;; Function ovl_11_func_8011E090
+
+(note 2 0 4 "" NOTE_INSN_DELETED)
+
+(insn 4 2 6 (set (reg/v:SI 81)
+        (reg:SI 4 a0)) -1 (nil)
+    (expr_list:REG_EQUIV (mem/f:SI (reg:SI 76) 0)
+        (nil)))
+
+(insn 6 4 8 (set (reg/v:SI 82)
+        (reg:SI 5 a1)) -1 (nil)
+    (expr_list:REG_EQUIV (mem/f:SI (plus:SI (reg:SI 76)
+                (const_int 4 [0x4])) 0)
+        (nil)))
+
+(insn 8 6 9 (set (reg/v:SI 83)
+        (reg:SI 6 a2)) -1 (nil)
+    (expr_list:REG_EQUIV (mem/f:SI (plus:SI (reg:SI 76)
+                (const_int 8 [0x8])) 0)
+        (nil)))
+
+(note 9 8 10 "" NOTE_INSN_FUNCTION_BEG)
+
+(note 10 9 12 "" NOTE_INSN_DELETED)
+
+(note 12 10 15 0 NOTE_INSN_BLOCK_BEG)
+
+(insn 15 12 17 (set (reg:SI 93)
+        (reg:SI 77)) -1 (nil)
+    (nil))
+
+(insn 17 15 19 (set (reg:SI 94)
+        (reg/v:SI 81)) -1 (nil)
+    (nil))
+
+(insn 19 17 21 (set (reg:SI 95)
+        (mem/s:SI (reg/v:SI 81) 0)) -1 (nil)
+    (nil))
+
+(insn 21 19 23 (set (mem/s:SI (reg:SI 77) 0)
+        (reg:SI 95)) -1 (nil)
+    (nil))
+
+(insn 23 21 25 (set (reg:SI 96)
+        (mem/s:SI (plus:SI (reg/v:SI 81)
+                (const_int 4 [0x4])) 0)) -1 (nil)
+    (nil))
+
+(insn 25 23 27 (set (mem/s:SI (plus:SI (reg:SI 77)
+                (const_int 4 [0x4])) 0)
+        (reg:SI 96)) -1 (nil)
+    (nil))
+
+(insn 27 25 29 (set (reg:SI 97)
+        (mem/s:SI (plus:SI (reg/v:SI 81)
+                (const_int 8 [0x8])) 0)) -1 (nil)
+    (nil))
+
+(insn 29 27 31 (set (mem/s:SI (plus:SI (reg:SI 77)
+                (const_int 8 [0x8])) 0)
+        (reg:SI 97)) -1 (nil)
+    (nil))
+
+(insn 31 29 33 (set (reg:SI 98)
+        (mem/s:SI (plus:SI (reg/v:SI 81)
+                (const_int 12 [0xc])) 0)) -1 (nil)
+    (nil))
+
+(insn 33 31 36 (set (mem/s:SI (plus:SI (reg:SI 77)
+                (const_int 12 [0xc])) 0)
+        (reg:SI 98)) -1 (nil)
+    (nil))
+
+(insn 36 33 38 (set (reg:HI 99)
+        (mem/s:HI (reg/v:SI 81) 0)) -1 (nil)
+    (nil))
+
+(insn 38 36 40 (set (reg:SI 100)
+        (plus:SI (subreg:SI (reg:HI 99) 0)
+            (const_int 1620 [0x654]))) -1 (nil)
+    (nil))
+
+(insn 40 38 43 (set (mem:HI (reg/v:SI 82) 0)
+        (subreg:HI (reg:SI 100) 0)) -1 (nil)
+    (nil))
+
+(insn 43 40 45 (set (reg:HI 101)
+        (mem/s:HI (plus:SI (reg/v:SI 81)
+                (const_int 8 [0x8])) 0)) -1 (nil)
+    (nil))
+
+(insn 45 43 47 (set (reg:SI 103)
+        (const_int 1220 [0x4c4])) -1 (nil)
+    (nil))
+
+(insn 47 45 49 (set (reg:SI 102)
+        (minus:SI (reg:SI 103)
+            (subreg:SI (reg:HI 101) 0))) -1 (nil)
+    (nil))
+
+(insn 49 47 52 (set (mem:HI (reg/v:SI 83) 0)
+        (subreg:HI (reg:SI 102) 0)) -1 (nil)
+    (nil))
+
+(insn 52 49 54 (set (reg:HI 105)
+        (mem:HI (reg/v:SI 83) 0)) -1 (nil)
+    (nil))
+
+(insn 54 52 56 (set (reg:SI 106)
+        (ashift:SI (subreg:SI (reg:HI 105) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 56 54 58 (set (reg:SI 104)
+        (ashiftrt:SI (reg:SI 106)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 83) 0))
+        (nil)))
+
+(insn 58 56 61 (set (reg/v:SI 90)
+        (reg:SI 104)) -1 (nil)
+    (nil))
+
+(insn 61 58 63 (set (reg:HI 108)
+        (mem:HI (reg/v:SI 82) 0)) -1 (nil)
+    (nil))
+
+(insn 63 61 65 (set (reg:SI 109)
+        (ashift:SI (subreg:SI (reg:HI 108) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 65 63 67 (set (reg:SI 107)
+        (ashiftrt:SI (reg:SI 109)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 82) 0))
+        (nil)))
+
+(insn 67 65 70 (set (reg/v:SI 89)
+        (reg:SI 107)) -1 (nil)
+    (nil))
+
+(insn 70 67 72 (set (reg:HI 112)
+        (mem:HI (reg/v:SI 82) 0)) -1 (nil)
+    (nil))
+
+(insn 72 70 74 (set (reg:SI 113)
+        (ashift:SI (subreg:SI (reg:HI 112) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 74 72 76 (set (reg:SI 111)
+        (ashiftrt:SI (reg:SI 113)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 82) 0))
+        (nil)))
+
+(insn 76 74 78 (set (reg:SI 115)
+        (const_int 1374389535 [0x51eb851f])) -1 (nil)
+    (nil))
+
+(insn 78 76 80 (parallel[ 
+            (set (reg:SI 114)
+                (truncate:SI (lshiftrt:DI (mult:DI (sign_extend:DI (reg:SI 111))
+                            (sign_extend:DI (reg:SI 115)))
+                        (const_int 32 [0x20]))))
+            (clobber (scratch:SI))
+            (clobber (scratch:SI))
+        ] ) -1 (nil)
+    (nil))
+
+(insn 80 78 82 (set (reg:SI 116)
+        (ashiftrt:SI (reg:SI 114)
+            (const_int 7 [0x7]))) -1 (nil)
+    (nil))
+
+(insn 82 80 84 (set (reg:SI 117)
+        (ashiftrt:SI (reg:SI 111)
+            (const_int 31 [0x1f]))) -1 (nil)
+    (nil))
+
+(insn 84 82 86 (set (reg:SI 110)
+        (minus:SI (reg:SI 116)
+            (reg:SI 117))) -1 (nil)
+    (expr_list:REG_EQUAL (div:SI (reg:SI 111)
+            (const_int 400 [0x190]))
+        (nil)))
+
+(insn 86 84 89 (set (mem:HI (reg/v:SI 82) 0)
+        (subreg:HI (reg:SI 110) 0)) -1 (nil)
+    (nil))
+
+(insn 89 86 91 (set (reg:HI 120)
+        (mem:HI (reg/v:SI 83) 0)) -1 (nil)
+    (nil))
+
+(insn 91 89 93 (set (reg:SI 121)
+        (ashift:SI (subreg:SI (reg:HI 120) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 93 91 95 (set (reg:SI 119)
+        (ashiftrt:SI (reg:SI 121)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 83) 0))
+        (nil)))
+
+(insn 95 93 97 (set (reg:SI 123)
+        (const_int 1374389535 [0x51eb851f])) -1 (nil)
+    (nil))
+
+(insn 97 95 99 (parallel[ 
+            (set (reg:SI 122)
+                (truncate:SI (lshiftrt:DI (mult:DI (sign_extend:DI (reg:SI 119))
+                            (sign_extend:DI (reg:SI 123)))
+                        (const_int 32 [0x20]))))
+            (clobber (scratch:SI))
+            (clobber (scratch:SI))
+        ] ) -1 (nil)
+    (nil))
+
+(insn 99 97 101 (set (reg:SI 124)
+        (ashiftrt:SI (reg:SI 122)
+            (const_int 7 [0x7]))) -1 (nil)
+    (nil))
+
+(insn 101 99 103 (set (reg:SI 125)
+        (ashiftrt:SI (reg:SI 119)
+            (const_int 31 [0x1f]))) -1 (nil)
+    (nil))
+
+(insn 103 101 105 (set (reg:SI 118)
+        (minus:SI (reg:SI 124)
+            (reg:SI 125))) -1 (nil)
+    (expr_list:REG_EQUAL (div:SI (reg:SI 119)
+            (const_int 400 [0x190]))
+        (nil)))
+
+(insn 105 103 108 (set (mem:HI (reg/v:SI 83) 0)
+        (subreg:HI (reg:SI 118) 0)) -1 (nil)
+    (nil))
+
+(jump_insn 108 105 110 (set (pc)
+        (if_then_else (ge:SI (reg/v:SI 89)
+                (const_int 0 [0x0]))
+            (label_ref 124)
+            (pc))) 340 {branch_zero} (nil)
+    (nil))
+
+(note 110 108 112 "" NOTE_INSN_DELETED)
+
+(insn 112 110 114 (set (reg:HI 126)
+        (mem:HI (reg/v:SI 82) 0)) -1 (nil)
+    (nil))
+
+(insn 114 112 116 (set (reg:SI 127)
+        (plus:SI (subreg:SI (reg:HI 126) 0)
+            (const_int -1 [0xffffffff]))) -1 (nil)
+    (nil))
+
+(insn 116 114 119 (set (mem:HI (reg/v:SI 82) 0)
+        (subreg:HI (reg:SI 127) 0)) -1 (nil)
+    (nil))
+
+(insn 119 116 120 (set (reg/i:SI 2 v0)
+        (const_int 2 [0x2])) -1 (nil)
+    (nil))
+
+(insn 120 119 121 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 121 120 122 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 122 121 124)
+
+(code_label 124 122 127 3 "" [num uses: 0])
+
+(insn 127 124 129 (set (reg:HI 130)
+        (mem:HI (reg/v:SI 82) 0)) -1 (nil)
+    (nil))
+
+(insn 129 127 131 (set (reg:SI 131)
+        (ashift:SI (subreg:SI (reg:HI 130) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 131 129 133 (set (reg:SI 129)
+        (ashiftrt:SI (reg:SI 131)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 82) 0))
+        (nil)))
+
+(insn 133 131 136 (set (reg/v:SI 91)
+        (reg:SI 129)) -1 (nil)
+    (nil))
+
+(insn 136 133 137 (set (reg:SI 132)
+        (lt:SI (reg/v:SI 91)
+            (const_int 7 [0x7]))) -1 (nil)
+    (nil))
+
+(jump_insn 137 136 139 (set (pc)
+        (if_then_else (eq:SI (reg:SI 132)
+                (const_int 0 [0x0]))
+            (pc)
+            (label_ref 146))) 340 {branch_zero} (nil)
+    (nil))
+
+(note 139 137 141 "" NOTE_INSN_DELETED)
+
+(insn 141 139 142 (set (reg/i:SI 2 v0)
+        (const_int 3 [0x3])) -1 (nil)
+    (nil))
+
+(insn 142 141 143 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 143 142 144 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 144 143 146)
+
+(code_label 146 144 149 4 "" [num uses: 0])
+
+(jump_insn 149 146 151 (set (pc)
+        (if_then_else (ge:SI (reg/v:SI 90)
+                (const_int 0 [0x0]))
+            (label_ref 165)
+            (pc))) 340 {branch_zero} (nil)
+    (nil))
+
+(note 151 149 153 "" NOTE_INSN_DELETED)
+
+(insn 153 151 155 (set (reg:HI 134)
+        (mem:HI (reg/v:SI 83) 0)) -1 (nil)
+    (nil))
+
+(insn 155 153 157 (set (reg:SI 135)
+        (plus:SI (subreg:SI (reg:HI 134) 0)
+            (const_int -1 [0xffffffff]))) -1 (nil)
+    (nil))
+
+(insn 157 155 160 (set (mem:HI (reg/v:SI 83) 0)
+        (subreg:HI (reg:SI 135) 0)) -1 (nil)
+    (nil))
+
+(insn 160 157 161 (set (reg/i:SI 2 v0)
+        (const_int 2 [0x2])) -1 (nil)
+    (nil))
+
+(insn 161 160 162 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 162 161 163 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 163 162 165)
+
+(code_label 165 163 168 5 "" [num uses: 0])
+
+(insn 168 165 170 (set (reg:HI 138)
+        (mem:HI (reg/v:SI 83) 0)) -1 (nil)
+    (nil))
+
+(insn 170 168 172 (set (reg:SI 139)
+        (ashift:SI (subreg:SI (reg:HI 138) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 172 170 174 (set (reg:SI 137)
+        (ashiftrt:SI (reg:SI 139)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (mem:HI (reg/v:SI 83) 0))
+        (nil)))
+
+(insn 174 172 177 (set (reg/v:SI 92)
+        (reg:SI 137)) -1 (nil)
+    (nil))
+
+(insn 177 174 178 (set (reg:SI 140)
+        (lt:SI (reg/v:SI 92)
+            (const_int 7 [0x7]))) -1 (nil)
+    (nil))
+
+(jump_insn 178 177 180 (set (pc)
+        (if_then_else (eq:SI (reg:SI 140)
+                (const_int 0 [0x0]))
+            (pc)
+            (label_ref 187))) 340 {branch_zero} (nil)
+    (nil))
+
+(note 180 178 182 "" NOTE_INSN_DELETED)
+
+(insn 182 180 183 (set (reg/i:SI 2 v0)
+        (const_int 3 [0x3])) -1 (nil)
+    (nil))
+
+(insn 183 182 184 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 184 183 185 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 185 184 187)
+
+(code_label 187 185 189 6 "" [num uses: 0])
+
+(insn 189 187 190 (set (reg:SI 142)
+        (high:SI (symbol_ref:SI ("*D_8007AFF0")))) -1 (nil)
+    (nil))
+
+(insn 190 189 193 (set (reg/v:SI 84)
+        (lo_sum:SI (reg:SI 142)
+            (symbol_ref:SI ("*D_8007AFF0")))) -1 (nil)
+    (nil))
+
+(insn 193 190 195 (set (reg:SI 143)
+        (reg/v:SI 92)) -1 (nil)
+    (nil))
+
+(insn 195 193 197 (set (reg:SI 144)
+        (ashift:SI (reg:SI 143)
+            (const_int 1 [0x1]))) -1 (nil)
+    (expr_list:REG_EQUAL (mult:SI (reg/v:SI 92)
+            (const_int 2 [0x2]))
+        (nil)))
+
+(insn 197 195 199 (set (reg:SI 145)
+        (plus:SI (reg:SI 144)
+            (reg/v:SI 92))) -1 (nil)
+    (expr_list:REG_EQUAL (mult:SI (reg/v:SI 92)
+            (const_int 3 [0x3]))
+        (nil)))
+
+(insn 199 197 201 (set (reg:SI 146)
+        (ashift:SI (reg:SI 145)
+            (const_int 4 [0x4]))) -1 (nil)
+    (nil))
+
+(insn 201 199 203 (set (reg:SI 147)
+        (minus:SI (reg:SI 146)
+            (reg:SI 145))) -1 (nil)
+    (expr_list:REG_EQUAL (mult:SI (reg/v:SI 92)
+            (const_int 45 [0x2d]))
+        (nil)))
+
+(insn 203 201 205 (set (reg:SI 148)
+        (plus:SI (reg:SI 147)
+            (reg/v:SI 91))) -1 (nil)
+    (nil))
+
+(insn 205 203 207 (set (reg:SI 149)
+        (reg:SI 148)) -1 (nil)
+    (nil))
+
+(insn 207 205 209 (set (reg:SI 150)
+        (ashift:SI (reg:SI 149)
+            (const_int 2 [0x2]))) -1 (nil)
+    (expr_list:REG_EQUAL (mult:SI (reg:SI 148)
+            (const_int 4 [0x4]))
+        (nil)))
+
+(insn 209 207 212 (set (reg/v:SI 88)
+        (reg:SI 150)) -1 (nil)
+    (nil))
+
+(insn 212 209 214 (set (reg:SI 151)
+        (const_int 131072 [0x20000])) -1 (nil)
+    (nil))
+
+(insn 214 212 217 (set (reg/v:SI 85)
+        (plus:SI (reg/v:SI 84)
+            (reg:SI 151))) -1 (nil)
+    (nil))
+
+(insn 217 214 220 (set (reg/v:SI 86)
+        (plus:SI (reg/v:SI 85)
+            (const_int 13832 [0x3608]))) -1 (nil)
+    (nil))
+
+(insn 220 217 222 (set (reg:SI 152)
+        (plus:SI (reg/v:SI 86)
+            (reg/v:SI 88))) -1 (nil)
+    (nil))
+
+(insn 222 220 225 (set (reg/v:SI 87)
+        (mem:SI (reg:SI 152) 0)) -1 (nil)
+    (nil))
+
+(insn 225 222 227 (set (reg:HI 153)
+        (mem:HI (plus:SI (reg/v:SI 85)
+                (const_int 21622 [0x5476])) 0)) -1 (nil)
+    (nil))
+
+(insn 227 225 229 (set (reg:SI 155)
+        (ashift:SI (subreg:SI (reg:HI 153) 0)
+            (const_int 16 [0x10]))) -1 (nil)
+    (nil))
+
+(insn 229 227 231 (set (reg:SI 154)
+        (ashiftrt:SI (reg:SI 155)
+            (const_int 16 [0x10]))) -1 (nil)
+    (expr_list:REG_EQUAL (sign_extend:SI (reg:HI 153))
+        (nil)))
+
+(insn 231 229 232 (set (reg:SI 156)
+        (const_int 6 [0x6])) -1 (nil)
+    (expr_list:REG_EQUAL (const_int 6 [0x6])
+        (nil)))
+
+(jump_insn 232 231 234 (set (pc)
+        (if_then_else (ne:SI (reg:SI 154)
+                (reg:SI 156))
+            (label_ref 253)
+            (pc))) 344 {branch_equality} (nil)
+    (nil))
+
+(note 234 232 236 "" NOTE_INSN_DELETED)
+
+(insn 236 234 238 (set (reg:SI 157)
+        (mem:SI (reg/v:SI 87) 0)) -1 (nil)
+    (nil))
+
+(insn 238 236 240 (set (reg:SI 158)
+        (and:SI (reg:SI 157)
+            (const_int 8 [0x8]))) -1 (nil)
+    (nil))
+
+(jump_insn 240 238 242 (set (pc)
+        (if_then_else (ne:SI (reg:SI 158)
+                (const_int 0 [0x0]))
+            (label_ref 249)
+            (pc))) -1 (nil)
+    (nil))
+
+(note 242 240 244 "" NOTE_INSN_DELETED)
+
+(insn 244 242 245 (set (reg/i:SI 2 v0)
+        (const_int 1 [0x1])) -1 (nil)
+    (nil))
+
+(insn 245 244 246 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 246 245 247 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 247 246 249)
+
+(code_label 249 247 251 8 "" [num uses: 0])
+
+(jump_insn 251 249 252 (set (pc)
+        (label_ref 262)) -1 (nil)
+    (nil))
+
+(barrier 252 251 253)
+
+(code_label 253 252 255 7 "" [num uses: 0])
+
+(note 255 253 257 "" NOTE_INSN_DELETED)
+
+(insn 257 255 258 (set (reg/i:SI 2 v0)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 258 257 259 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 259 258 260 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 260 259 262)
+
+(code_label 262 260 265 9 "" [num uses: 0])
+
+(insn 265 262 266 (set (reg/i:SI 2 v0)
+        (const_int 0 [0x0])) -1 (nil)
+    (nil))
+
+(insn 266 265 267 (use (reg/i:SI 2 v0)) -1 (nil)
+    (nil))
+
+(jump_insn 267 266 268 (set (pc)
+        (label_ref 273)) -1 (nil)
+    (nil))
+
+(barrier 268 267 270)
+
+(note 270 268 271 0 NOTE_INSN_BLOCK_END)
+
+(note 271 270 273 "" NOTE_INSN_FUNCTION_END)
+
+(code_label 273 271 0 2 "" [num uses: 0])

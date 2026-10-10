@@ -31,7 +31,8 @@ measured from a real calibration and a real pilot.
 | `enumerate.ts` | Exact hierarchical domain counting (partition x birth-subset x order), BigInt global ranks, deterministic lazy `candidateAt`, and disjoint `k/n` residue-class shards. |
 | `render.ts` / `canonicalize.ts` | Span-replacement rendering (rank 0 reproduces the input byte-for-byte) and alpha-canonical source hashing used for proven-congruence dedup. |
 | `evaluate.ts` | Staged exact evaluation: policy and barrier preservation, canonical/preprocessed/assembly dedup, configured cc1, and full maspsx/assembler object comparison for potentially exact classes; JSONL records per coordinate. |
-| `cost-report.ts` | The no-knob cost report: derived worker count, per-axis radix breakdown, the deterministic stratified pilot sample, calibration of the per-candidate compile cost `c`, and the projection `T = N x (1 - d) x c / jobs`. The pilot's classes are persisted in `estimate.json` and reused by a later full run over the same domain. |
+| `cost-report.ts` | The no-knob cost report: derived worker count, per-axis radix breakdown, the deterministic stratified pilot sample, calibration of the per-candidate compile cost `c`, and the projection `T = N x (1 - d) x max(c, pilot observed cost) / jobs`. Both idle and contended costs are printed. The pilot's classes are persisted in `estimate.json` and reused by a later full run over the same domain. |
+| `reach.ts` | Advisory pre-pilot reach check: binds located machine blocks through verified UID/source-line notes to every grammar axis, distinguishes outside regions from remaining web axes, preserves unknown bindings and flags branch-orientation construction the grammar cannot express. Also names the ledger's historical better source when input is worse. |
 | `checkpoint.ts` / `coverage.ts` | Resume with identity-hash drift refusal; terminal states that never confuse an interrupted run with exhaustion. |
 | `run.ts` | Orchestration used by the CLI and the tests. |
 
@@ -208,6 +209,18 @@ axis responsible and, with it, how much the residual has to shrink first.
   cap turns an exhaustive search into a partial one that still reports a
   terminal state. An interrupted run reports `incomplete-budget` and resumes
   from its checkpoint on the next invocation.
+- Reach is checked before the pilot or exhaustive evaluation. A block outside
+  order regions may still have a web-rename axis: that is not coverage of adding
+  a return arm. Constant-result paths with no surviving UID use a conservative
+  union of all source returns, explicitly **not** an exact line binding. Other
+  unbound blocks stay undetermined. `SEARCH REACH` lines persist in the grammar
+  and summary and reappear in triage's `search-domain` signal; they never refuse
+  a run or prove clean C impossible.
+- `STALE BASELINE` names the ledger's preserved better source and staged key
+  before a long run. That historical measurement is not a fresh-context proof.
+- The projection uses the larger of the idle compile median and the pilot's
+  observed contended cost, printing both. Historical estimates are repriced on
+  read without changing the recorded observations.
 - The projection is published before the run and the run's real evaluation
   time is reported next to it, so a repeatedly wrong projection is visible as
   the defect it is.

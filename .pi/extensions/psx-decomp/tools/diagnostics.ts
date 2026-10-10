@@ -179,6 +179,22 @@ export const TOOL_SPECS: ToolSpec[] = [
         ...(p.json ? ["--json"] : [])] },
   ),
 
+  functionTool(
+    "psx_jump_trace", "PSX Jump Trace", "jumpTrace.ts",
+    "Compare expand and jump dumps for witnessed assignment/else hoists and Boolean store-flag folds. Shows the exact dump evidence and source-level rewrite blockers; unmatched pairs stay undetermined, and intermediate rewrites inside a pass are not guessed. Run on a branch-orientation residual before allocator or scheduler work.",
+    { extra: { source: Type.Optional(Type.String({ description: "Alternate complete C source to trace" })) },
+      argv: (p) => [p.functionName as string, ...(p.source ? ["--source", p.source as string] : []), ...(p.json ? ["--json"] : [])] },
+  ),
+  functionTool(
+    "psx_control_shape_sweep", "PSX Control Shape Sweep", "controlShapeSweep.ts",
+    "Measure equivalent read-only decision-tail spellings: early returns, nested/short-circuit conditions, duplicate return arms, result variables and a first-test switch. Uses tree-sitter and rejects side effects or macro-hidden tail changes. Compiles each complete source, attaches jump-dump attribution, ranks by located-block residual then full key, and preserves byte-oracle EXACT candidates under build/ without editing or promoting src/.",
+    { extra: {
+        source: Type.String({ description: "Complete candidate C source" }),
+        max: Type.Optional(Type.Integer({ minimum: 1, maximum: 4096, description: "Compile at most this many forms (default 64); reports incomplete coverage explicitly" })),
+      }, argv: (p) => [p.functionName as string, "--source", p.source as string,
+        ...(p.max !== undefined ? ["--max", String(p.max)] : []), ...(p.json ? ["--json"] : [])], timeout: 900_000 },
+  ),
+
   /* ---- the compiler itself ---- */
   {
     name: "psx_compiler_source",

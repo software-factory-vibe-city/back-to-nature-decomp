@@ -723,7 +723,8 @@ export interface CostEstimate {
     observedPerCandidateMs: number;
   };
   jobs: number;
-  /** `T = N x (1 - d) x c / jobs`, milliseconds; null when N overflows. */
+  /** `T = N x (1 - d) x max(c, pilot.observedPerCandidateMs) / jobs`;
+   * milliseconds, null when N overflows. Both observations remain recorded. */
   projectedMs: number | null;
 }
 
@@ -747,6 +748,10 @@ export interface ResidualSearchSummary {
   status: TerminalStatus;
   statusDetail: string;
   artifacts: string;
+  /** Advisory only: the ledger measured a better starting point. */
+  staleBaseline?: string;
+  /** Located blocks vs the actual serialized grammar's axes. */
+  reach?: import("./reach.js").ReachReport;
   baseline?: {
     exactInstructions: number;
     totalInstructions: number;

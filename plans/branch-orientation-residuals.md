@@ -1,8 +1,46 @@
 # Plan: branch-orientation residuals and control-shape search
 
-**Status: proposed 2026-10-09.** This follows the match of
+**Status: implemented, with evidence-backed acceptance corrections below.**
+Originally proposed 2026-10-09. This follows the match of
 `ovl_11_func_8011E090`, recorded in
 `notes/retros/2026-10-09-ovl_11_func_8011E090-retro.md`.
+
+## Implementation record
+
+- Added production dump-pair `jumpTrace.ts`, the located `branch-orientation`
+  triage detector, and AST-only `controlShapeSweep.ts`; both CLIs have Pi tools.
+- Added search cost repricing, pre-pilot reach caveats (also carried by triage),
+  and historical better-baseline warnings. Doctrine and tool documentation are
+  updated; no live function sources, compiler flags or cc1 code changed.
+- Regression evidence is tracked as text under
+  `test-fixtures/branch-orientation/`, including preserved dumps, cost/grammar
+  snapshots and a provenance manifest. Unit tests check structural witnesses,
+  negative controls, read count/order, policy-safe forms and advisory reach.
+  Integration tests compile the real tails through the production byte oracle.
+- Verification passed: `npm test` (1,299 tests), `make check-all` (PS-X EXE
+  and all 13 overlays byte-identical), fixture hashes and `git diff --check`.
+
+Three premises needed correction after replaying the preserved evidence:
+
+1. Parked's `||` tail has a jump-over-jump inversion (`jump.c:1733`), **not**
+   a witnessed :596 SET hoist. Its report stays `undetermined`, with the actual
+   inversion evidence. The nested `t1` tail does witness :596. Triage binds it
+   through a survived UID's unique final hard-register comparison; it does not
+   assign another hoist in the function to this block.
+2. Correcting only parked's address statements already produces EXACT under
+   the current production toolchain. A separate address-corrected **nested**
+   fixture supplies a genuine tail residual. Its sweep reaches EXACT with the
+   required outer duplicate `else { return 0; }`; OR-inverted is also EXACT.
+3. The historical return path is outside every order region, but a real
+   `web:ptr#0` rename axis touches its expression return. The reach warning
+   retains that axis rather than falsely declaring it absent. A folded-away
+   literal result uses the conservative union of all source returns, explicitly
+   not an exact line binding. Renaming is not coverage of return-arm creation.
+
+The historical 60,672-candidate projection now uses the observed 330.7 ms
+pilot cost and quotes 14.5 minutes, within 25% of the recorded 17.6 minutes.
+The original design below is updated only where these measured premises
+changed its acceptance conditions. See the fixture README for exact provenance.
 
 ## The theme
 
@@ -18,10 +56,11 @@ li    v0,1                      move  v0,zero
 exit:                           exit:
 ```
 
-The first jump pass decides this. `jump.c:596` rewrites
+The first jump pass can decide this. On the nested tail, `jump.c:596` rewrites
 `if (c) { x = a; goto l; } x = b;` into `x = a; if (!c) goto l; x = b;`, and
 the store-flag rewrite (`jump.c:870`) can then fold the result into `sltiu`.
 
+The parked OR tail instead inverts a jump-over-jump, without hoisting a SET.
 The source lever is the label layout after the `goto`. An extra arm that
 returns the same value blocks the first rewrite. Every tidier spelling of the
 logic normalises to the same inverted or folded output.
@@ -143,8 +182,12 @@ tool, registered from `diagnostics.ts` under `.pi/extensions/psx-decomp/tools/`.
   - Start from the parked attempt, with only the grid-address block
     corrected (a fixture).
   - The sweep returns an EXACT variant: the `else { return 0; }` form.
-  - The `||`, nested and `&&` forms are listed as `:596` hoists, and the
-    early-return form as a store-flag fold.
+  - The plain nested and `&&` forms are listed as `:596` hoists, and the
+    early-return form as a store-flag fold. The OR form remains `undetermined`
+    with observed jump-over-jump inversion evidence, not an invented hoist.
+  - The address-only corrected parked fixture is already EXACT. The separate
+    address-corrected nested fixture verifies a genuine repair, not just a
+    spelling of an already-matching input.
 
 ## Phase 4: guardrails for the residual source searcher
 
@@ -165,8 +208,11 @@ Changes to `tools/agent/residual-source-search/`:
     - a located block falls outside every region the grammar can vary; or
     - the located difference is a Phase 2 branch-orientation finding.
   - Triage's `search-domain` finding carries the same line.
-  - Test: the 14:31 run's domain reports that the return block is outside its
-    reach.
+  - Test: the 14:31 run's domain reports that the return block is outside every
+    order region, retaining the remaining web axis and naming the missing
+    return-arm construction. An unbound literal-result path uses an explicit
+    conservative union of all source returns; other unknown bindings remain
+    undetermined.
 - **4c. Stale baseline.**
   - When the source handed to a long run measures worse than the ledger's best
     key for the function, print the better source and its key first.
@@ -203,9 +249,12 @@ sheet:
 
 Starting from the parked `ovl_11_func_8011E090` attempt alone:
 
-1. Triage reports `branch-orientation` on the return block, naming the
-   `jump.c:596` hoist.
-2. With the address block corrected, the control-shape sweep reaches EXACT.
+1. Triage reports `branch-orientation` on parked's return block with the
+   observed inversion and undetermined hoist attribution. The nested fixture
+   names the witnessed `jump.c:596` hoist.
+2. With the address block corrected, the control-shape sweep reaches EXACT,
+   including the required duplicate-else form. The nested fixture confirms an
+   actual residual is repaired; the parked OR fixture is already exact.
 3. The searcher's projection and reach check would have flagged both long
    runs before they started.
 

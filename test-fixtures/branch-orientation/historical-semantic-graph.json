@@ -1,0 +1,1143 @@
+{
+  "blocks": [
+    {
+      "index": 0,
+      "kind": "entry",
+      "nodeIds": [
+        "n0",
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "n6",
+        "n7",
+        "n8",
+        "n9",
+        "n10",
+        "n11",
+        "n12",
+        "n13",
+        "n14",
+        "n15",
+        "n18",
+        "n19",
+        "n32"
+      ]
+    },
+    {
+      "controllingIf": "n15",
+      "index": 1,
+      "kind": "then",
+      "nodeIds": [
+        "n16",
+        "n17"
+      ],
+      "parent": 0
+    },
+    {
+      "controllingIf": "n19",
+      "index": 2,
+      "kind": "then",
+      "nodeIds": [
+        "n20",
+        "n23",
+        "n24",
+        "n31"
+      ],
+      "parent": 0
+    },
+    {
+      "controllingIf": "n20",
+      "index": 3,
+      "kind": "then",
+      "nodeIds": [
+        "n21",
+        "n22"
+      ],
+      "parent": 2
+    },
+    {
+      "controllingIf": "n24",
+      "index": 4,
+      "kind": "then",
+      "nodeIds": [
+        "n25",
+        "n26",
+        "n27",
+        "n28",
+        "n30"
+      ],
+      "parent": 2
+    },
+    {
+      "controllingIf": "n28",
+      "index": 5,
+      "kind": "then",
+      "nodeIds": [
+        "n29"
+      ],
+      "parent": 4
+    }
+  ],
+  "bodySpan": {
+    "end": 8240,
+    "lineEnd": 250,
+    "lineStart": 210,
+    "start": 7292
+  },
+  "caveats": [],
+  "function": "ovl_11_func_8011E090",
+  "functionSpan": {
+    "end": 8240,
+    "lineEnd": 250,
+    "lineStart": 210,
+    "start": 7226
+  },
+  "nodes": [
+    {
+      "block": 0,
+      "declName": "tmp",
+      "declType": "Ovl11_8011E090_Arg0Copy",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n0",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7326,
+        "lineEnd": 211,
+        "lineStart": 211,
+        "start": 7298
+      },
+      "text": "Ovl11_8011E090_Arg0Copy tmp;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "base",
+      "declType": "u8 *",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n1",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7340,
+        "lineEnd": 212,
+        "lineStart": 212,
+        "start": 7331
+      },
+      "text": "u8 *base;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "p",
+      "declType": "u8 *",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n2",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7351,
+        "lineEnd": 213,
+        "lineStart": 213,
+        "start": 7345
+      },
+      "text": "u8 *p;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "temp_a1",
+      "declType": "s16",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n3",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7368,
+        "lineEnd": 214,
+        "lineStart": 214,
+        "start": 7356
+      },
+      "text": "s16 temp_a1;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "temp_a3",
+      "declType": "s16",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n4",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7385,
+        "lineEnd": 215,
+        "lineStart": 215,
+        "start": 7373
+      },
+      "text": "s16 temp_a3;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "temp_a0",
+      "declType": "s16",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n5",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7402,
+        "lineEnd": 216,
+        "lineStart": 216,
+        "start": 7390
+      },
+      "text": "s16 temp_a0;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "temp_v1",
+      "declType": "s16",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n6",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7419,
+        "lineEnd": 217,
+        "lineStart": 217,
+        "start": 7407
+      },
+      "text": "s16 temp_v1;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "declName": "ptr",
+      "declType": "s32 *",
+      "evidence": [
+        "C89 block-top declaration."
+      ],
+      "id": "n7",
+      "killingWrite": false,
+      "kind": "declaration",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7433,
+        "lineEnd": 218,
+        "lineStart": 218,
+        "start": 7424
+      },
+      "text": "s32 *ptr;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n8",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "tmp",
+      "memoryReads": [
+        "object:arg0"
+      ],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg0"
+      ],
+      "rhs": "*(Ovl11_8011E090_Arg0Copy *)arg0",
+      "span": {
+        "end": 7478,
+        "lineEnd": 220,
+        "lineStart": 220,
+        "start": 7439
+      },
+      "text": "tmp = *(Ovl11_8011E090_Arg0Copy *)arg0;",
+      "writes": [
+        "tmp"
+      ]
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n9",
+      "killingWrite": false,
+      "kind": "store",
+      "lhs": "*arg1",
+      "memoryReads": [
+        "object:arg0"
+      ],
+      "memoryWrites": [
+        "object:arg1"
+      ],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg0",
+        "arg1"
+      ],
+      "rhs": "*(u16 *)arg0 + 0x654",
+      "span": {
+        "end": 7512,
+        "lineEnd": 221,
+        "lineStart": 221,
+        "start": 7483
+      },
+      "text": "*arg1 = *(u16 *)arg0 + 0x654;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n10",
+      "killingWrite": false,
+      "kind": "store",
+      "lhs": "*arg2",
+      "memoryReads": [],
+      "memoryWrites": [
+        "object:arg2"
+      ],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg0",
+        "arg2"
+      ],
+      "rhs": "0x4C4 - *(u16 *)((u8 *)arg0 + 8)",
+      "span": {
+        "end": 7558,
+        "lineEnd": 222,
+        "lineStart": 222,
+        "start": 7517
+      },
+      "text": "*arg2 = 0x4C4 - *(u16 *)((u8 *)arg0 + 8);",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n11",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "temp_a0",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg2"
+      ],
+      "rhs": "(s16)*arg2",
+      "span": {
+        "end": 7584,
+        "lineEnd": 223,
+        "lineStart": 223,
+        "start": 7563
+      },
+      "text": "temp_a0 = (s16)*arg2;",
+      "writes": [
+        "temp_a0"
+      ]
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n12",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "temp_a1",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg1"
+      ],
+      "rhs": "(s16)*arg1",
+      "span": {
+        "end": 7610,
+        "lineEnd": 224,
+        "lineStart": 224,
+        "start": 7589
+      },
+      "text": "temp_a1 = (s16)*arg1;",
+      "writes": [
+        "temp_a1"
+      ]
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n13",
+      "killingWrite": false,
+      "kind": "store",
+      "lhs": "*arg1",
+      "memoryReads": [],
+      "memoryWrites": [
+        "object:arg1"
+      ],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg1"
+      ],
+      "rhs": "(s16)*arg1 / 400",
+      "span": {
+        "end": 7640,
+        "lineEnd": 225,
+        "lineStart": 225,
+        "start": 7615
+      },
+      "text": "*arg1 = (s16)*arg1 / 400;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n14",
+      "killingWrite": false,
+      "kind": "store",
+      "lhs": "*arg2",
+      "memoryReads": [],
+      "memoryWrites": [
+        "object:arg2"
+      ],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg2"
+      ],
+      "rhs": "(s16)*arg2 / 400",
+      "span": {
+        "end": 7670,
+        "lineEnd": 226,
+        "lineStart": 226,
+        "start": 7645
+      },
+      "text": "*arg2 = (s16)*arg2 / 400;",
+      "writes": []
+    },
+    {
+      "block": 1,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n16",
+      "killingWrite": false,
+      "kind": "store",
+      "lhs": "*arg1",
+      "memoryReads": [
+        "object:arg1"
+      ],
+      "memoryWrites": [
+        "object:arg1"
+      ],
+      "movable": true,
+      "operator": "-=",
+      "reads": [
+        "arg1"
+      ],
+      "rhs": "1",
+      "span": {
+        "end": 7713,
+        "lineEnd": 228,
+        "lineStart": 228,
+        "start": 7702
+      },
+      "text": "*arg1 -= 1;",
+      "writes": []
+    },
+    {
+      "block": 1,
+      "evidence": [
+        "Function return anchors the end of its block."
+      ],
+      "id": "n17",
+      "killingWrite": false,
+      "kind": "return",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7731,
+        "lineEnd": 229,
+        "lineStart": 229,
+        "start": 7722
+      },
+      "text": "return 2;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "condition": "temp_a1 < 0",
+      "condSpan": {
+        "end": 7690,
+        "lineEnd": 227,
+        "lineStart": 227,
+        "start": 7679
+      },
+      "evidence": [
+        "Conditional region: branch structure is immutable in this grammar version."
+      ],
+      "id": "n15",
+      "killingWrite": false,
+      "kind": "if",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [
+        "temp_a1"
+      ],
+      "span": {
+        "end": 7737,
+        "lineEnd": 230,
+        "lineStart": 227,
+        "start": 7675
+      },
+      "text": "if (temp_a1 < 0) {\n        *arg1 -= 1;\n        return 2;\n    }",
+      "thenBlock": 1,
+      "writes": []
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n18",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "temp_a3",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg1"
+      ],
+      "rhs": "(s16)*arg1",
+      "span": {
+        "end": 7763,
+        "lineEnd": 231,
+        "lineStart": 231,
+        "start": 7742
+      },
+      "text": "temp_a3 = (s16)*arg1;",
+      "writes": [
+        "temp_a3"
+      ]
+    },
+    {
+      "block": 3,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n21",
+      "killingWrite": false,
+      "kind": "store",
+      "lhs": "*arg2",
+      "memoryReads": [
+        "object:arg2"
+      ],
+      "memoryWrites": [
+        "object:arg2"
+      ],
+      "movable": true,
+      "operator": "-=",
+      "reads": [
+        "arg2"
+      ],
+      "rhs": "1",
+      "span": {
+        "end": 7837,
+        "lineEnd": 234,
+        "lineStart": 234,
+        "start": 7826
+      },
+      "text": "*arg2 -= 1;",
+      "writes": []
+    },
+    {
+      "block": 3,
+      "evidence": [
+        "Function return anchors the end of its block."
+      ],
+      "id": "n22",
+      "killingWrite": false,
+      "kind": "return",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 7859,
+        "lineEnd": 235,
+        "lineStart": 235,
+        "start": 7850
+      },
+      "text": "return 2;",
+      "writes": []
+    },
+    {
+      "block": 2,
+      "condition": "temp_a0 < 0",
+      "condSpan": {
+        "end": 7810,
+        "lineEnd": 233,
+        "lineStart": 233,
+        "start": 7799
+      },
+      "evidence": [
+        "Conditional region: branch structure is immutable in this grammar version."
+      ],
+      "id": "n20",
+      "killingWrite": false,
+      "kind": "if",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [
+        "temp_a0"
+      ],
+      "span": {
+        "end": 7869,
+        "lineEnd": 236,
+        "lineStart": 233,
+        "start": 7795
+      },
+      "text": "if (temp_a0 < 0) {\n            *arg2 -= 1;\n            return 2;\n        }",
+      "thenBlock": 3,
+      "writes": []
+    },
+    {
+      "block": 2,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n23",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "temp_v1",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "arg2"
+      ],
+      "rhs": "(s16)*arg2",
+      "span": {
+        "end": 7899,
+        "lineEnd": 237,
+        "lineStart": 237,
+        "start": 7878
+      },
+      "text": "temp_v1 = (s16)*arg2;",
+      "writes": [
+        "temp_v1"
+      ]
+    },
+    {
+      "block": 4,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n25",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "base",
+      "memoryReads": [
+        "global:D_8007AFF0"
+      ],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [],
+      "rhs": "(u8 *)&D_8007AFF0",
+      "span": {
+        "end": 7964,
+        "lineEnd": 239,
+        "lineStart": 239,
+        "start": 7939
+      },
+      "text": "base = (u8 *)&D_8007AFF0;",
+      "writes": [
+        "base"
+      ]
+    },
+    {
+      "block": 4,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n26",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "p",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "base"
+      ],
+      "rhs": "base + 0x20000",
+      "span": {
+        "end": 7996,
+        "lineEnd": 240,
+        "lineStart": 240,
+        "start": 7977
+      },
+      "text": "p = base + 0x20000;",
+      "writes": [
+        "p"
+      ]
+    },
+    {
+      "block": 4,
+      "evidence": [
+        "Single-destination statement with a side-effect-free token expression."
+      ],
+      "id": "n27",
+      "killingWrite": true,
+      "kind": "assign",
+      "lhs": "ptr",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": true,
+      "operator": "=",
+      "reads": [
+        "p",
+        "temp_a3",
+        "temp_v1"
+      ],
+      "rhs": "*(s32 **)(p + 0x3608 + (temp_v1 * 0x2D + temp_a3) * 4)",
+      "span": {
+        "end": 8070,
+        "lineEnd": 241,
+        "lineStart": 241,
+        "start": 8009
+      },
+      "text": "ptr = *(s32 **)(p + 0x3608 + (temp_v1 * 0x2D + temp_a3) * 4);",
+      "writes": [
+        "ptr"
+      ]
+    },
+    {
+      "block": 5,
+      "evidence": [
+        "Function return anchors the end of its block."
+      ],
+      "id": "n29",
+      "killingWrite": false,
+      "kind": "return",
+      "memoryReads": [
+        "object:ptr"
+      ],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [
+        "ptr"
+      ],
+      "span": {
+        "end": 8154,
+        "lineEnd": 243,
+        "lineStart": 243,
+        "start": 8132
+      },
+      "text": "return (*ptr & 8) < 1;",
+      "writes": []
+    },
+    {
+      "block": 4,
+      "condition": "*(s16 *)(p + 0x5476) == 6",
+      "condSpan": {
+        "end": 8112,
+        "lineEnd": 242,
+        "lineStart": 242,
+        "start": 8087
+      },
+      "evidence": [
+        "Conditional region: branch structure is immutable in this grammar version."
+      ],
+      "id": "n28",
+      "killingWrite": false,
+      "kind": "if",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [
+        "p"
+      ],
+      "span": {
+        "end": 8168,
+        "lineEnd": 244,
+        "lineStart": 242,
+        "start": 8083
+      },
+      "text": "if (*(s16 *)(p + 0x5476) == 6) {\n                return (*ptr & 8) < 1;\n            }",
+      "thenBlock": 5,
+      "writes": []
+    },
+    {
+      "block": 4,
+      "evidence": [
+        "Function return anchors the end of its block."
+      ],
+      "id": "n30",
+      "killingWrite": false,
+      "kind": "return",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 8190,
+        "lineEnd": 245,
+        "lineStart": 245,
+        "start": 8181
+      },
+      "text": "return 0;",
+      "writes": []
+    },
+    {
+      "block": 2,
+      "condition": "temp_v1 < 7",
+      "condSpan": {
+        "end": 7923,
+        "lineEnd": 238,
+        "lineStart": 238,
+        "start": 7912
+      },
+      "evidence": [
+        "Conditional region: branch structure is immutable in this grammar version."
+      ],
+      "id": "n24",
+      "killingWrite": false,
+      "kind": "if",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [
+        "temp_v1"
+      ],
+      "span": {
+        "end": 8200,
+        "lineEnd": 246,
+        "lineStart": 238,
+        "start": 7908
+      },
+      "text": "if (temp_v1 < 7) {\n            base = (u8 *)&D_8007AFF0;\n            p = base + 0x20000;\n            ptr = *(s32 **)(p + 0x3608 + (temp_v1 * 0x2D + temp_a3) * 4);\n            if (*(s16 *)(p + 0x5476) == 6) {\n                return (*ptr & 8) < 1;\n            }\n            return 0;\n        }",
+      "thenBlock": 4,
+      "writes": []
+    },
+    {
+      "block": 2,
+      "evidence": [
+        "Function return anchors the end of its block."
+      ],
+      "id": "n31",
+      "killingWrite": false,
+      "kind": "return",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 8218,
+        "lineEnd": 247,
+        "lineStart": 247,
+        "start": 8209
+      },
+      "text": "return 3;",
+      "writes": []
+    },
+    {
+      "block": 0,
+      "condition": "temp_a3 < 7",
+      "condSpan": {
+        "end": 7783,
+        "lineEnd": 232,
+        "lineStart": 232,
+        "start": 7772
+      },
+      "evidence": [
+        "Conditional region: branch structure is immutable in this grammar version."
+      ],
+      "id": "n19",
+      "killingWrite": false,
+      "kind": "if",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [
+        "temp_a3"
+      ],
+      "span": {
+        "end": 8224,
+        "lineEnd": 248,
+        "lineStart": 232,
+        "start": 7768
+      },
+      "text": "if (temp_a3 < 7) {\n        if (temp_a0 < 0) {\n            *arg2 -= 1;\n            return 2;\n        }\n        temp_v1 = (s16)*arg2;\n        if (temp_v1 < 7) {\n            base = (u8 *)&D_8007AFF0;\n            p = base + 0x20000;\n            ptr = *(s32 **)(p + 0x3608 + (temp_v1 * 0x2D + temp_a3) * 4);\n            if (*(s16 *)(p + 0x5476) == 6) {\n                return (*ptr & 8) < 1;\n            }\n            return 0;\n        }\n        return 3;\n    }",
+      "thenBlock": 2,
+      "writes": []
+    },
+    {
+      "block": 0,
+      "evidence": [
+        "Function return anchors the end of its block."
+      ],
+      "id": "n32",
+      "killingWrite": false,
+      "kind": "return",
+      "memoryReads": [],
+      "memoryWrites": [],
+      "movable": false,
+      "reads": [],
+      "span": {
+        "end": 8238,
+        "lineEnd": 249,
+        "lineStart": 249,
+        "start": 8229
+      },
+      "text": "return 3;",
+      "writes": []
+    }
+  ],
+  "parameters": [
+    {
+      "index": 0,
+      "name": "arg0",
+      "pointer": true,
+      "span": {
+        "end": 7256,
+        "lineEnd": 210,
+        "lineStart": 210,
+        "start": 7247
+      },
+      "typeText": "s32 *"
+    },
+    {
+      "index": 1,
+      "name": "arg1",
+      "pointer": true,
+      "span": {
+        "end": 7267,
+        "lineEnd": 210,
+        "lineStart": 210,
+        "start": 7258
+      },
+      "typeText": "u16 *"
+    },
+    {
+      "index": 2,
+      "name": "arg2",
+      "pointer": true,
+      "span": {
+        "end": 7278,
+        "lineEnd": 210,
+        "lineStart": 210,
+        "start": 7269
+      },
+      "typeText": "u16 *"
+    },
+    {
+      "index": 3,
+      "name": "arg3",
+      "pointer": true,
+      "span": {
+        "end": 7290,
+        "lineEnd": 210,
+        "lineStart": 210,
+        "start": 7280
+      },
+      "typeText": "void *"
+    }
+  ],
+  "schemaVersion": 2,
+  "sourceHash": "3c57a937a35e8c38c5cd5e72df7bee52a51697176b0bf61941295ae908332cd8",
+  "sourcePath": "build/work/ovl_11_func_8011E090/cand.c",
+  "variables": [
+    {
+      "addressEscapes": false,
+      "evidence": [],
+      "kind": "parameter",
+      "name": "arg0",
+      "pointer": true,
+      "supported": true,
+      "typeText": "s32 *"
+    },
+    {
+      "addressEscapes": false,
+      "evidence": [],
+      "kind": "parameter",
+      "name": "arg1",
+      "pointer": true,
+      "supported": true,
+      "typeText": "u16 *"
+    },
+    {
+      "addressEscapes": false,
+      "evidence": [],
+      "kind": "parameter",
+      "name": "arg2",
+      "pointer": true,
+      "supported": true,
+      "typeText": "u16 *"
+    },
+    {
+      "addressEscapes": false,
+      "evidence": [],
+      "kind": "parameter",
+      "name": "arg3",
+      "pointer": true,
+      "supported": true,
+      "typeText": "void *"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n1",
+      "evidence": [],
+      "kind": "local",
+      "name": "base",
+      "pointer": true,
+      "supported": true,
+      "typeText": "u8 *"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n2",
+      "evidence": [],
+      "kind": "local",
+      "name": "p",
+      "pointer": true,
+      "supported": true,
+      "typeText": "u8 *"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n7",
+      "evidence": [],
+      "kind": "local",
+      "name": "ptr",
+      "pointer": true,
+      "supported": true,
+      "typeText": "s32 *"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n5",
+      "evidence": [],
+      "kind": "local",
+      "name": "temp_a0",
+      "pointer": false,
+      "supported": true,
+      "typeText": "s16"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n3",
+      "evidence": [],
+      "kind": "local",
+      "name": "temp_a1",
+      "pointer": false,
+      "supported": true,
+      "typeText": "s16"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n4",
+      "evidence": [],
+      "kind": "local",
+      "name": "temp_a3",
+      "pointer": false,
+      "supported": true,
+      "typeText": "s16"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n6",
+      "evidence": [],
+      "kind": "local",
+      "name": "temp_v1",
+      "pointer": false,
+      "supported": true,
+      "typeText": "s16"
+    },
+    {
+      "addressEscapes": false,
+      "declarationId": "n0",
+      "evidence": [],
+      "kind": "local",
+      "name": "tmp",
+      "pointer": false,
+      "supported": true,
+      "typeText": "Ovl11_8011E090_Arg0Copy"
+    }
+  ]
+}

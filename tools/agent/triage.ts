@@ -92,6 +92,8 @@ import { projectPath } from "./provenance.js";
 import { compareInventories, renderReport } from "./inventory.js";
 import { BRANCH_MNEMONICS, defUse } from "./webAnalysis.js";
 import { reversePipeline } from "./pipeline-reversal/reverse.js";
+import { orientationFrom, attachJumpAttribution, CONTROL_SHAPE_MOVES } from "./branch-orientation.js";
+import { jumpTrace } from "./jumpTrace.js";
 import type { MirProgram } from "./pipeline-reversal/types.js";
 import { tokensAt } from "./idiom-corpus/normalize.js";
 import { align } from "./idiom-corpus/align.js";
@@ -137,6 +139,7 @@ interface SearchGrammar {
 
 interface SearchSummary {
   status?: string;
+  reach?: { caveats: string[] };
   classes?: unknown[];
   classesSource?: { sampled: boolean; evaluatedCandidates: string; totalCandidates: string };
   axisEffects?: Array<{ id: string; radix: string; sampled: number; inert: boolean }>;
@@ -735,6 +738,24 @@ export function detectIdiomPrecedent(name: string): Finding[] {
     evidence,
     see: ["psx_idiom_search", "notes/file-groupings.md"],
   }];
+}
+
+export function detectBranchOrientation(name: string, sourcePath: string): Finding[] {
+  try {
+    const artifacts = reversePipeline({ functionName: name, source: sourcePath, replay: false });
+    const orientations = orientationFrom(artifacts);
+    if (orientations.length === 0) return [];
+    try { attachJumpAttribution(orientations, jumpTrace(name, sourcePath)); }
+    catch (error) { for (const entry of orientations) entry.evidence.push(`jump trace unavailable: ${(error as Error).message}`); }
+    return orientations.map(entry => ({
+      detector: "branch-orientation", severity: "signal" as const,
+      summary: `Block ${entry.block}: ${entry.kind} — a jump-pass control-shape residual, not a register-only or comparison-operand difference` +
+        (entry.attribution ? `; ${entry.attribution.classification}${entry.attribution.rule ? ` (${entry.attribution.rule})` : ""}` : "; dump attribution undetermined"),
+      evidence: [`target: ${entry.target}`, `candidate: ${entry.candidate}`, ...entry.evidence,
+        ...(entry.attribution?.evidence ?? []), ...CONTROL_SHAPE_MOVES],
+      see: ["psx_jump_trace", "psx_control_shape_sweep", "prompts/reference/population.md"],
+    }));
+  } catch { return []; }
 }
 
 function detectSelfSimilarity(name: string, sourcePath: string): Finding[] {
@@ -1846,6 +1867,13 @@ export function detectSearchDomain(
   const terminal = summary.status === "exhausted-no-exact";
   const active = new Set(grammar.activeRules ?? []);
   const findings: Finding[] = [];
+  const reachCaveats = summary.reach?.caveats ?? (grammar.caveats ?? []).filter(line => line.startsWith("SEARCH REACH:"));
+  if (reachCaveats.length) findings.push({
+    detector: "search-domain", severity: "signal",
+    summary: "The search's located residual is not fully covered by its grammar. These are reach caveats, not a refusal or a closure over clean C.",
+    evidence: reachCaveats,
+    see: ["psx_control_shape_sweep", "tools/agent/residual-source-search/README.md"],
+  });
 
   /* Reasons the run already wrote down for excluding something. These are the
    * actionable half: they name what to change to make the axis non-empty. */
@@ -2437,6 +2465,7 @@ function main(): void {
       findings.push(...detectInventory(target, compiled));
       findings.push(...detectDeadAsm(compiled, srcText));
       findings.push(...detectWebPartition(name, resolveSource(name, srcOverride)));
+      findings.push(...detectBranchOrientation(name, resolveSource(name, srcOverride)));
       findings.push(...detectSelfSimilarity(name, resolveSource(name, srcOverride)));
       /* Before the preheader-order reading, because a phony loop invalidates
        * that reading's whole subject: the emission classes it reasons about

@@ -211,6 +211,13 @@ export function projectWallMs(
   return (size * (1 - duplicateRate) * perCandidateMs) / Math.max(1, jobs);
 }
 
+/** A contended pilot includes orchestration/deduplication cost that an idle
+ * compile cannot price. Never quote the cheaper idle measurement over it. */
+export function projectedCost(estimate: Pick<CostEstimate, "totalCandidates" | "duplicateRate" | "perCandidateMs" | "pilot" | "jobs">): number | null {
+  return projectWallMs(BigInt(estimate.totalCandidates), estimate.duplicateRate,
+    Math.max(estimate.perCandidateMs, estimate.pilot.observedPerCandidateMs), estimate.jobs);
+}
+
 export function formatDuration(milliseconds: number): string {
   if (milliseconds < 1000) return `${milliseconds.toFixed(0)} ms`;
   const seconds = milliseconds / 1000;
@@ -252,7 +259,10 @@ export function loadEstimate(runRoot: string): PilotArtifact | undefined {
   const path = estimatePath(runRoot);
   if (!existsSync(path)) return undefined;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as PilotArtifact;
+    const artifact = JSON.parse(readFileSync(path, "utf8")) as PilotArtifact;
+    /* Historical estimates kept both observations but projected the wrong one. */
+    artifact.estimate.projectedMs = projectedCost(artifact.estimate);
+    return artifact;
   } catch {
     return undefined;
   }

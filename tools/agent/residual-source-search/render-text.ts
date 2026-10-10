@@ -26,6 +26,7 @@ function movedRuns(
 
 export function renderResidualSummary(summary: ResidualSearchSummary): string {
   const lines: string[] = [];
+  if (summary.staleBaseline) lines.push(`STALE BASELINE: ${summary.staleBaseline}`);
   lines.push(`${summary.function}: ${summary.status}`);
   lines.push(summary.statusDetail);
   lines.push(`Artifacts: ${summary.artifacts}`);
@@ -57,6 +58,9 @@ export function renderResidualSummary(summary: ResidualSearchSummary): string {
       lines.push(`  c = ${estimate.perCandidateMs.toFixed(1)} ms per candidate ` +
         `(median of ${estimate.calibrationSamplesMs.length} baseline compiles; ` +
         `pilot observed ${estimate.pilot.observedPerCandidateMs.toFixed(1)} ms)`);
+      lines.push(`  projection uses ${Math.max(estimate.perCandidateMs, estimate.pilot.observedPerCandidateMs).toFixed(1)} ms ` +
+        `(${estimate.pilot.observedPerCandidateMs > estimate.perCandidateMs ? "contended pilot" : "single-compile median"}); ` +
+        `single-compile-only projection: ${formatDuration(Number(estimate.totalCandidates) * (1 - estimate.duplicateRate) * estimate.perCandidateMs / estimate.jobs)}`);
       lines.push(`  d = ${(estimate.duplicateRate * 100).toFixed(1)}% canonical duplicates ` +
         `(${estimate.pilot.duplicates} of ${estimate.pilot.size} sampled coordinates)`);
     }

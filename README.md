@@ -601,6 +601,44 @@ The report has three parts:
 and checks the chain names the right one. `tools/agent/pipeline-reversal/README.md`
 documents the inverses and their limits.
 
+### Branch orientation: inspect the jump pass, then measure the arms
+
+Triage's `branch-orientation` signal locates an opposite-sense comparison with
+result constants exchanged between delay slot and fallthrough, or an equivalent
+Boolean store-flag in place of that branch. Register-only differences and
+unknown/different comparison producers are excluded. This is a control-shape
+experiment, not an allocator experiment:
+
+```bash
+npx tsx tools/agent/jumpTrace.ts <function> --source <path.c>
+npx tsx tools/agent/controlShapeSweep.ts <function> --source <path.c> --max 64
+```
+
+`jumpTrace.ts` compares production expand/jump dumps. It reports structural
+assignment/else hoists and Boolean folds with their exact SET/jump evidence;
+unsupported pairs stay `undetermined`. It never invents an intermediate hoist
+hidden by a fold. Later CSE/jump dump pairs span multiple passes and say so.
+Triage binds attribution only through a survived UID's unique final comparison.
+
+`controlShapeSweep.ts` uses tree-sitter to find a read-only decision suffix and
+construct equivalent early returns, nested/short-circuit tests, duplicate return
+arms at each level, result locals and a first-test switch. It preserves
+short-circuit evaluation order and rejects effectful tests, escaped/qualified
+result locals and macro-hidden tail changes. Complete candidates are policy
+checked, compiled, jump traced and ranked with `residualObjective.ts`, located
+block first. The cap reports bounded coverage explicitly. EXACT candidates and
+reports stay under `build/controlShapeSweep/`; nothing is integrated into
+`src/`. Pi exposes `psx_jump_trace` and `psx_control_shape_sweep`.
+
+The residual source searcher separately prints reach caveats before its pilot:
+which located blocks bind to statement/web axes, which fall outside order
+regions, and which require return-arm construction its grammar cannot express.
+Unknown line bindings remain undetermined; these warnings are not refusals.
+Its projection uses the larger of the idle compile median and the contended
+pilot cost, printing both. A worse input also names the ledger's preserved
+better source/key before a long run, without assuming historical context is
+still equivalent.
+
 ### Step 4c: iterate on the residual, not the byte score
 
 `diffFunc` answers the terminal question — are the bytes identical — and it
@@ -1007,6 +1045,8 @@ The main tools under `tools/agent/` are:
 | `nearMissRepair.ts` | Places a residual in the target's own basic blocks and turns it into an ordered set of bounded source moves |
 | `campaignRun.ts` | An unattended campaign to a fixed point; a recovery is published to the recovered-artifact overlay, requeues only its dependents, and everything unfinished gets a prepared bundle (`--overlay`, `--retract`) |
 | `reversePipeline.ts` | Runs the compiler backward and names the pass that owns the residual |
+| `jumpTrace.ts` | Attributes witnessed expand/jump rewrites; unsupported pairs stay undetermined |
+| `controlShapeSweep.ts` | Measures bounded equivalent decision-tail forms, jump attribution and located residuals |
 | `loopTrace.ts` | Reads the loop optimizer's own `-dL` log and solves for its unprinted threshold |
 | `analyzeTargetLoopEmission.ts` | Derives what the original's loop pass must have done, and scores a candidate on it |
 | `hoistKnobSweep.ts` | Measures invariant-base access routes against conditional hoist goals and staged residuals |

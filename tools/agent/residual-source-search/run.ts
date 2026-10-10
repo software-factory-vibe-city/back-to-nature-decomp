@@ -20,7 +20,7 @@ import {
   loadEstimate,
   median,
   pilotRanks,
-  projectWallMs,
+  projectedCost,
   writeEstimate,
   type PilotArtifact,
 } from "./cost-report.js";
@@ -36,6 +36,9 @@ import { buildSemanticGraph, immediateValues } from "./semantic-graph.js";
 import { establishBaseline } from "./source-input.js";
 import { analyzeWebs } from "./web-partitions.js";
 import { discoverWitness } from "./witness.js";
+import { reversePipeline, type ReversalArtifacts } from "../pipeline-reversal/reverse.js";
+import { readLedger } from "../experimentLedger.js";
+import { searchReach, staleBaseline, type ReachReport } from "./reach.js";
 import {
   RESIDUAL_GRAMMAR_SCHEMA_VERSION,
   RESIDUAL_SEARCH_SCHEMA_VERSION,
@@ -171,7 +174,9 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     runId,
     artifacts: projectPath(runRoot),
   } as const;
+  let baselineWarning: string | undefined;
   const finish = (summary: ResidualSearchSummary): ResidualSearchSummary => {
+    if (baselineWarning) summary.staleBaseline = baselineWarning;
     writeStableJson(join(runRoot, "summary.json"), summary);
     writeFileSync(join(runRoot, "summary.txt"), `${renderResidualSummary(summary)}\n`);
     return summary;
@@ -208,6 +213,15 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
       exactCandidates: [],
       caveats: baseline.refusal.evidence,
     });
+  }
+
+  let reversal: ReversalArtifacts | undefined;
+  if (!options.target) {
+    try {
+      reversal = reversePipeline({ functionName, source: options.sourcePath, replay: false, outputDirectory: join(runRoot, "reach-baseline") });
+      baselineWarning = staleBaseline(reversal.report.objective.key, readLedger(functionName));
+      if (baselineWarning) console.error(`STALE BASELINE: ${baselineWarning}`);
+    } catch (error) { bundle.caveats.push(`search reach baseline unavailable: ${String(error)}`); }
   }
 
   /* Deliverables 2-3: semantic graph and diff-seeded causal closure. */
@@ -273,16 +287,27 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     }
   }
 
+  let reach: ReachReport | undefined;
+  const checkReach = (domain?: DomainRuntime): void => {
+    if (!reversal) return;
+    reach = searchReach(reversal, graph, derived.grammar, baseline.analysis!,
+      baseline.lineNoteDirectory ?? join(runRoot, "baseline"), options.sourcePath, domain);
+    for (const caveat of reach.caveats) console.error(caveat);
+  };
+
   /* A grammar that is already beyond the enumerable bound gets its per-axis
    * breakdown and nothing else: the breakdown names the axis responsible,
    * which is what an operator needs, and building a domain that cannot be
    * serialized would only trade that answer for an exhausted process. */
   const tooLarge = (detail: string): ResidualSearchSummary => {
+    checkReach();
+    derived.grammar.caveats.push(...(reach?.caveats ?? []));
     writeDerivationArtifacts(runRoot, { bundle, graph, closure, grammar: derived.grammar });
     return finish({
       ...summaryBase,
       status: "domain-too-large",
       statusDetail: detail,
+      ...(reach ? { reach } : {}),
       baseline: baselineSummary,
       closure: closureBlock,
       estimate: {
@@ -309,6 +334,8 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
   } catch (error) {
     return tooLarge(`exact domain construction failed: ${error instanceof Error ? error.message : error}`);
   }
+  checkReach(domain);
+  derived.grammar.caveats.push(...(reach?.caveats ?? []));
   const hashes = writeDerivationArtifacts(runRoot, {
     bundle,
     graph,
@@ -410,8 +437,9 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
         observedPerCandidateMs: compiled > 0 ? (pilotWallMs * Math.min(jobs, compiled)) / compiled : 0,
       },
       jobs,
-      projectedMs: projectWallMs(domain.total, duplicateRate, perCandidateMs, jobs),
+      projectedMs: null,
     };
+    estimate.projectedMs = projectedCost(estimate);
     writeEstimate(runRoot, {
       runId,
       identityHash,
@@ -430,6 +458,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
       baseline: baselineSummary,
       closure: closureBlock,
       domain: domainBlock,
+      ...(reach ? { reach } : {}),
       estimate,
       axisEffects: axisEffects.axes,
       classes: rankClasses(pilotState),
@@ -493,6 +522,7 @@ export async function runResidualSourceSearch(options: RunResidualSearchOptions)
     closure: closureBlock,
     domain: domainBlock,
     coverage,
+    ...(reach ? { reach } : {}),
     timing,
     axisEffects: axisEffects.axes,
     classes: rankClasses(state),

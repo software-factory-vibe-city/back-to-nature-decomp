@@ -41,9 +41,9 @@ function betterConfidence(left: TraceConfidence, right: TraceConfidence): TraceC
  * parenthesized `(note u p n ("file") line)` form; byte offsets order the
  * note/insn interleaving.
  */
-export function bindUidLines(dumpDirectory: string, functionName: string, sourceFileName: string): Map<number, number> {
+export function bindUidLines(dumpDirectory: string, functionName: string, sourceFileName: string, stage: "rtl" | "dbr" = "rtl"): Map<number, number> {
   const result = new Map<number, number>();
-  const path = join(dumpDirectory, `${functionName}.i.rtl`);
+  const path = join(dumpDirectory, `${functionName}.i.${stage}`);
   if (!existsSync(path)) return result;
   const content = readFileSync(path, "utf8");
   const wanted = basename(sourceFileName);

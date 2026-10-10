@@ -1,0 +1,443 @@
+{
+  "activeRules": [
+    "web-partition",
+    "statement-order",
+    "declaration-birth",
+    "known-macro-form",
+    "expression-materialization"
+  ],
+  "assumptions": [
+    "Distinct declared objects and distinct named fields of one object are assumed non-overlapping; programs relying on such aliasing are outside this grammar's equivalence guarantee.",
+    "Pointer parameters are assumed not to alias named globals unless a shared identifier appears in both access paths.",
+    "The input source is the accepted semantic anchor; no candidate may change observable behavior under these assumptions.",
+    "No local variable is read before its first definition on any executed path.",
+    "Declaration order, variable names, whitespace, and comments are canonicalized rather than searched."
+  ],
+  "caveats": [],
+  "frozenNodeIds": [
+    "n0",
+    "n1",
+    "n2",
+    "n3",
+    "n4",
+    "n5",
+    "n6",
+    "n7",
+    "n15",
+    "n16",
+    "n17",
+    "n19",
+    "n20",
+    "n21",
+    "n22",
+    "n23",
+    "n24",
+    "n28",
+    "n29",
+    "n30",
+    "n31",
+    "n32"
+  ],
+  "function": "ovl_11_func_8011E090",
+  "grammarSchemaVersion": 8,
+  "partitionWebIds": [
+    "arg0#0",
+    "arg1#0",
+    "arg2#0",
+    "tmp#0",
+    "temp_a0#0",
+    "temp_a1#0",
+    "temp_a3#0",
+    "temp_v1#0",
+    "base#0",
+    "p#0",
+    "ptr#0"
+  ],
+  "regions": [
+    {
+      "birthEligible": [
+        "n8",
+        "n11",
+        "n12"
+      ],
+      "block": 0,
+      "id": "r0-0",
+      "materializable": [],
+      "movableUpdates": [],
+      "nodeIds": [
+        "n8",
+        "n9",
+        "n10",
+        "n11",
+        "n12",
+        "n13",
+        "n14"
+      ],
+      "splittable": []
+    },
+    {
+      "birthEligible": [
+        "n18"
+      ],
+      "block": 0,
+      "id": "r0-1",
+      "materializable": [],
+      "movableUpdates": [],
+      "nodeIds": [
+        "n18"
+      ],
+      "splittable": []
+    },
+    {
+      "birthEligible": [],
+      "block": 4,
+      "id": "r4-0",
+      "materializable": [],
+      "movableUpdates": [],
+      "nodeIds": [
+        "n25",
+        "n26",
+        "n27"
+      ],
+      "splittable": []
+    }
+  ],
+  "schemaVersion": 2,
+  "suppressedRules": [
+    {
+      "evidence": [],
+      "reason": "schema 8 materializes literal known-macro constant arguments, and the base-pointer rule covers the shared-address subset of common-subexpression reuse; general pure-expression and non-address result-reuse forms remain excluded",
+      "rule": "expression-materialization"
+    },
+    {
+      "evidence": [
+        "tools/agent/residual-source-search/residual-source-search.test.ts: compound assignment and its expansion compile identically"
+      ],
+      "reason": "measured, not assumed: `x op= e` and `x = x op (e)` reach identical assembly through the configured compiler on scalar, pointer, element, field, shift, multiply, divide, modulo, and increment fixtures, so the stratum would only enlarge the domain without reaching a new representation",
+      "rule": "compound-assignment-form"
+    },
+    {
+      "evidence": [
+        "tools/agent/residual-source-search/residual-source-search.test.ts: the for and while spellings compile identically"
+      ],
+      "reason": "measured, not assumed: `for (init; c; )` with the update at the body tail and `init; while (c)` reach identical assembly through the configured compiler, and `do`/`while` is not an equivalence at all unless the body provably runs at least once, which the tree cannot establish",
+      "rule": "loop-form"
+    },
+    {
+      "evidence": [],
+      "reason": "not implemented in grammar schema 4; fresh materialized temps use one canonical type and local type/cast forms are not searched",
+      "rule": "type-cast-representation"
+    },
+    {
+      "evidence": [],
+      "reason": "no SAT scheduler-constraint witness with phantom requirements exists for this function; rule 4.7 activates only on machine-derived compiler-state evidence",
+      "rule": "administrative-form"
+    },
+    {
+      "evidence": [],
+      "reason": "no set of subscripts on one data symbol shares an index expression under the admissibility checks",
+      "rule": "base-pointer-form"
+    }
+  ],
+  "webs": [
+    {
+      "defNodes": [
+        "param-entry"
+      ],
+      "evidence": [],
+      "id": "arg0#0",
+      "liveAtNodes": [
+        "n0",
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "n6",
+        "n7",
+        "n8",
+        "n9",
+        "n10"
+      ],
+      "parameterEntry": true,
+      "pointer": true,
+      "renameable": false,
+      "typeText": "s32 *",
+      "useNodes": [
+        "n8",
+        "n9",
+        "n10"
+      ],
+      "variable": "arg0",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "param-entry"
+      ],
+      "evidence": [],
+      "id": "arg1#0",
+      "liveAtNodes": [
+        "n0",
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "n6",
+        "n7",
+        "n8",
+        "n9",
+        "n10",
+        "n11",
+        "n12",
+        "n13",
+        "n14",
+        "n15",
+        "n16",
+        "n18"
+      ],
+      "parameterEntry": true,
+      "pointer": true,
+      "renameable": false,
+      "typeText": "u16 *",
+      "useNodes": [
+        "n9",
+        "n12",
+        "n13",
+        "n16",
+        "n18"
+      ],
+      "variable": "arg1",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "param-entry"
+      ],
+      "evidence": [],
+      "id": "arg2#0",
+      "liveAtNodes": [
+        "n0",
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "n6",
+        "n7",
+        "n8",
+        "n9",
+        "n10",
+        "n11",
+        "n12",
+        "n13",
+        "n14",
+        "n15",
+        "n18",
+        "n19",
+        "n20",
+        "n21",
+        "n23"
+      ],
+      "parameterEntry": true,
+      "pointer": true,
+      "renameable": false,
+      "typeText": "u16 *",
+      "useNodes": [
+        "n10",
+        "n11",
+        "n14",
+        "n21",
+        "n23"
+      ],
+      "variable": "arg2",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "param-entry"
+      ],
+      "evidence": [],
+      "id": "arg3#0",
+      "liveAtNodes": [],
+      "parameterEntry": true,
+      "pointer": true,
+      "renameable": false,
+      "typeText": "void *",
+      "useNodes": [],
+      "variable": "arg3",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n25"
+      ],
+      "evidence": [],
+      "id": "base#0",
+      "liveAtNodes": [
+        "n26"
+      ],
+      "parameterEntry": false,
+      "pointer": true,
+      "renameable": true,
+      "typeText": "u8 *",
+      "useNodes": [
+        "n26"
+      ],
+      "variable": "base",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n26"
+      ],
+      "evidence": [],
+      "id": "p#0",
+      "liveAtNodes": [
+        "n27",
+        "n28"
+      ],
+      "parameterEntry": false,
+      "pointer": true,
+      "renameable": true,
+      "typeText": "u8 *",
+      "useNodes": [
+        "n27",
+        "n28"
+      ],
+      "variable": "p",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n27"
+      ],
+      "evidence": [],
+      "id": "ptr#0",
+      "liveAtNodes": [
+        "n28",
+        "n29"
+      ],
+      "parameterEntry": false,
+      "pointer": true,
+      "renameable": true,
+      "typeText": "s32 *",
+      "useNodes": [
+        "n29"
+      ],
+      "variable": "ptr",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n11"
+      ],
+      "evidence": [],
+      "id": "temp_a0#0",
+      "liveAtNodes": [
+        "n12",
+        "n13",
+        "n14",
+        "n15",
+        "n18",
+        "n19",
+        "n20"
+      ],
+      "parameterEntry": false,
+      "pointer": false,
+      "renameable": true,
+      "typeText": "s16",
+      "useNodes": [
+        "n20"
+      ],
+      "variable": "temp_a0",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n12"
+      ],
+      "evidence": [],
+      "id": "temp_a1#0",
+      "liveAtNodes": [
+        "n13",
+        "n14",
+        "n15"
+      ],
+      "parameterEntry": false,
+      "pointer": false,
+      "renameable": true,
+      "typeText": "s16",
+      "useNodes": [
+        "n15"
+      ],
+      "variable": "temp_a1",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n18"
+      ],
+      "evidence": [],
+      "id": "temp_a3#0",
+      "liveAtNodes": [
+        "n19",
+        "n20",
+        "n23",
+        "n24",
+        "n25",
+        "n26",
+        "n27"
+      ],
+      "parameterEntry": false,
+      "pointer": false,
+      "renameable": true,
+      "typeText": "s16",
+      "useNodes": [
+        "n19",
+        "n27"
+      ],
+      "variable": "temp_a3",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n23"
+      ],
+      "evidence": [],
+      "id": "temp_v1#0",
+      "liveAtNodes": [
+        "n24",
+        "n25",
+        "n26",
+        "n27"
+      ],
+      "parameterEntry": false,
+      "pointer": false,
+      "renameable": true,
+      "typeText": "s16",
+      "useNodes": [
+        "n24",
+        "n27"
+      ],
+      "variable": "temp_v1",
+      "webIndex": 0
+    },
+    {
+      "defNodes": [
+        "n8"
+      ],
+      "evidence": [],
+      "id": "tmp#0",
+      "liveAtNodes": [],
+      "parameterEntry": false,
+      "pointer": false,
+      "renameable": true,
+      "typeText": "Ovl11_8011E090_Arg0Copy",
+      "useNodes": [],
+      "variable": "tmp",
+      "webIndex": 0
+    }
+  ]
+}

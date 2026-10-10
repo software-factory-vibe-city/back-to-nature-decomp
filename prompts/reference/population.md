@@ -10,6 +10,14 @@ everything it appears to say is an artefact of the mismatch.
 
 Fix semantics, types, control flow and idiom here. Nothing else.
 
+A population difference consisting of one branch with the opposite sense,
+and the result constants swapped between delay slot and fallthrough, is a
+jump-pass rewrite, not different semantics. Compare the expand and jump
+dumps (`psx_jump_trace`). Change the arms around the `goto` (an extra arm
+returning the same value, nesting, or a result variable), not the condition's
+spelling. Measure equivalent decision tails with `psx_control_shape_sweep`;
+accept only dump-witnessed attribution, not a guessed pass-internal history.
+
 Loaded on demand by `psx_reference`. Read the sheet for the pass the
 pipeline reversal named, and only that one.
 
@@ -365,6 +373,10 @@ one way rather than the other is a *placement* lever as much as a population
 one: only the pair form is a unit `move_movables` can hoist, so an index written
 with a single register removes the very thing the target's preheader holds. See
 `psx_reference loop` §1 and §3.1.
+
+When the target computes an address's index chain before its base split,
+write the scaled offset and the table pointer as their own statements, in
+the target's order.
 
 ### Large address constants
 
