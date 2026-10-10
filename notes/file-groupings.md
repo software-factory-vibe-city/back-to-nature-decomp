@@ -6630,23 +6630,29 @@ Members (link order):
   `ratan2(arg0, arg1)`, negative-result wrap by `+0x1000`, then
   `* 0x168 / 0x1000` to degrees
 
-## `ovl_23` D_800BF87C/D_800BBAB4 threshold-selector leaf — 0x800BA3B4 (confidence: medium)
+## `ovl_23` D_800BF87C/D_800BBAB4 threshold-selector run — 0x800BA3B4 / 0x800BA494 (confidence: medium)
 
-Evidence: gapless link order on both sides in ovl_23 — `ovl_23_func_800BA368`
-(0x4C, ends 0x800BA3B4) is the immediate predecessor and `ovl_23_func_800BA494`
-(0xE0) the immediate successor of this 0xE0-byte function (splat
-`[0x2594, c, ovl_23_func_800BA3B4]`). It reads the same `D_800BF87C` aggregate
-as the runs above — a record selected with stride 0x50 and its u16 pair at
-+0x30/+0x32, plus s16 thresholds at +0x3A4/+0x3A6/+0x3A8/+0x3AA — and indexes the
-s16 `D_800BBAB4` table (row stride 5) through the shared exe selector
-`func_80012A34`, the same aggregate + `func_80012A34` pairing recorded for the
-screen-record init run. Aggregate, adjacency and call edge agree.
+Evidence: gapless link order in ovl_23 — `ovl_23_func_800BA368` (0x4C, ends
+0x800BA3B4) immediately precedes `ovl_23_func_800BA3B4` (0xE0, splat
+`[0x2594, c, ...]`), which immediately precedes `ovl_23_func_800BA494` (0x17C,
+splat `[0x2674, c, ...]`). Both leaves are threshold selectors over the same
+`D_800BF87C` aggregate and both call the shared exe selector
+`func_80012A34(0x64)`: 800BA3B4 compares a table value against that limit and
+800BA494 accumulates table values up to it. Their lookup tables are adjacent in
+the overlay data — `D_800BBA9C` is 0x18 bytes (four 6-byte rows, the ones the
+arg1*12 + sel*6 index selects) and `D_800BBAB4` = `D_800BBA9C` + 0x18 (the s16
+rows, stride 5) — so aggregate, call idiom, table layout and link adjacency
+agree.
 
 Members (link order):
-- ovl_23_func_800BA3B4 (m, byte-exact this session) — s16 pair; computes a signed
+- ovl_23_func_800BA3B4 (m, byte-exact) — s16 pair; computes a signed
   halfword difference from the `D_800BF87C` record selected by arg1, maps it
   through a four-threshold chain to an index 0-3 (else 4), then compares the
   `D_800BBAB4[arg0*5 + index]` halfword against `func_80012A34(0x64)`.
+- ovl_23_func_800BA494 (m, byte-exact this session) — indexes the
+  `D_800BBA9C` 6-byte rows by (arg1, sel), sums the three u16 values until
+  `func_80012A34(0x64)` is exceeded, and returns the stopping index (3/2/1,
+  else -1).
 
 ## `ovl_23` D_800BF8A0/D_800BFA80 record-pair driver run — 0x800B9310 / 0x800BAA60 (confidence: medium)
 

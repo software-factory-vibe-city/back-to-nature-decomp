@@ -802,6 +802,26 @@ typedef struct {
     Ovl23D87CEntry0 unk210[32]; /* 0x210 */
 } Ovl23D87CView210;
 
+/* One 0x50-byte entry of the D_800BF87C record array read by
+ * ovl_23_func_800BA494: a u16 at 0x28, an s16 at 0x2E and an s32 at 0x38.
+ * The entries are read as an array member, not with byte-pointer arithmetic:
+ * cc1 adds the base before the scaled index (expr.c EXPAND_SUM), which is
+ * what puts the target's base register first in the `addu`. */
+typedef struct {
+    u8 pad_00[0x28];
+    u16 unk28;         /* 0x28 */
+    u8 pad_2A[0x4];
+    s16 unk2E;         /* 0x2E */
+    u8 pad_30[0x8];
+    s32 unk38;         /* 0x38 */
+    u8 pad_3C[0x14];
+} Ovl23D87CEntry50;
+
+/* D_800BF87C view for ovl_23_func_800BA494: a 0x50-stride record array. */
+typedef struct {
+    Ovl23D87CEntry50 unk0[32];
+} Ovl23D87CView50;
+
 /* D_800BF87C view for ovl_23_func_800B9A00 (s16 fields at 0x39C and 0x3A0)
  * and ovl_23_func_800BA610 (which also reads the s16 at 0x3A2); the target
  * keeps the aggregate base and uses these offsets. */
