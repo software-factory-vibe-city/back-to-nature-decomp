@@ -404,6 +404,7 @@ void ovl_11_func_800E3AA4(void);
 void ovl_11_func_800E3C04(void);
 s32 ovl_11_func_800E3D88(void);
 void ovl_11_func_800E4428(void);
+void ovl_11_func_800E4568(void);
 void ovl_11_func_800E4608(void);
 void ovl_11_func_800E48CC(M2C_4efbdcbf20b5_Recon_ovl_11_func_800E48CC_A0View *arg0, SpriteSourceData *arg1);
 s32 ovl_11_func_800E4AEC(s32 arg0);

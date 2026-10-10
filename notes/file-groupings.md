@@ -2330,9 +2330,9 @@ Fingerprints:
   and `ovl_11_func_800E48CC`.
 
 Members (address order, matched in bold):
-- ovl_11_func_800E4568 (s) — walks the D_80129230 0x30-byte records and calls
-  the box tester for each flagged work-area entity (see the D_80129230 entry);
-  also the run's call-graph hub
+- ovl_11_func_800E4568 (m, matched this session, byte-exact) — walks the
+  D_80129230 0x30-byte records and calls the box tester for each flagged
+  work-area entity (see the D_80129230 entry); also the run's call-graph hub
 - ovl_11_func_800E4608 (m, matched this session, byte-exact) — fixed-coordinate
   box test against `D_8006C838`+0x4478/+0x447C/+0x4480; forwards the hit to
   800E559C
@@ -2437,8 +2437,9 @@ Fingerprints:
   `-fno-rerun-loop-opt` override leaves it outside this cluster's TU claim.
 
 Members (address order):
-- ovl_11_func_800E4568 (s) — walks the 10 records, tests bit 0 of the u16@+4
-  of each work-area entity and calls 800E48CC for each set record
+- ovl_11_func_800E4568 (m, matched this session, byte-exact) — walks the 10
+  records, tests bit 0 of the u16@+4 of each work-area entity and calls
+  800E48CC for each set record
 - ovl_11_func_800E516C (m, matched this session) — walks the 10 records,
   dispatches on the s32@+0x14 (zero = free) through func_80015704 /
   func_80015868, then installs arg1 at +2 of a 0x18-stride side table
