@@ -9827,6 +9827,7 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `D_800531B8`, `ovl_15_func_8012F990` uses `D_80053506`,
 `ovl_15_func_8012FA00` uses `D_8005321A`, `ovl_15_func_8012FA70` uses
 `D_80053294`, `ovl_15_func_8012FFD8` uses `D_80052F4E`,
+`ovl_15_func_80130048` uses `D_80051DCC`,
 `ovl_15_func_80130A94` uses `D_800532FE`, `ovl_15_func_80130BBC` and
 `ovl_15_func_80131B5C` use `D_800523AC`, `ovl_15_func_80130DDC` uses `D_8005341E`,
 `ovl_15_func_8012F8DC` uses `D_8005346A`,
@@ -9904,6 +9905,10 @@ Members (link order):
   returned), and `D_80137584 = 0` when `D_8013759A >= 0x5B` — same body as
   `ovl_15_func_8012FA70` with only the updater array and the immediate
   `0x12`→`0x15` changed, and contiguous in link order after it (both 0x70 bytes)
+- ovl_15_func_80130048 (m, verified byte-exact this session) — shared text-draw
+  prologue with the `D_80051DCC` updater array, gapless link successor of
+  `ovl_15_func_8012FFD8` (0x9C bytes); branches on `ovl_15_func_801370B4()`
+  and writes the private state bytes `D_80137587`/`D_80137584`
 - ovl_15_func_8013010C (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_800534DC` updater array (new cluster symbol; not used by
   any function outside the run); then `D_80137584 = ovl_15_func_80137228(0x18,
@@ -11659,7 +11664,10 @@ private-state byte from the same cleared block, `D_80137588`, admits
 `ovl_15_func_801370B4`: it is the byte's only reader/updater (stepped by the
 input flags and clamped to 0/1), while the shared-prologue writers
 `ovl_15_func_8012EE84`, `ovl_15_func_801305D4` and `ovl_15_func_801315B0`
-store `1` to it. That function is also gapless in link order between the
+store `1` to it. A fourth private byte from the same cleared block,
+`D_80137587`, is written only by the initialiser and the shared-prologue
+member `ovl_15_func_80130048`. `ovl_15_func_801370B4` is also gapless
+in link order between the
 number-text formatter `ovl_15_func_8013703C` (ending exactly at its
 0x801370B4) and `ovl_15_func_80137228` (beginning exactly at its end), which
 shares its `func_8001FABC` call and `D_8005E3A8 + 8` input read.
