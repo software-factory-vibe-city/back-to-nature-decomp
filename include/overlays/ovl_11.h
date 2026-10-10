@@ -69,6 +69,7 @@ s16 ovl_11_func_800C141C(s16 arg0);
 void ovl_11_func_800C188C(void);
 void ovl_11_func_800C1BA0(void);
 void ovl_11_func_800C1BE0(void);
+void ovl_11_func_800C1C08(void);
 void ovl_11_func_800C1C5C(s32 arg0);
 void ovl_11_func_800C1C90(void);
 void ovl_11_func_800C1CBC(s32 arg0);

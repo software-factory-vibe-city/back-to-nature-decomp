@@ -7188,7 +7188,7 @@ Fingerprints:
 Members (address order):
 - ovl_11_func_800C1BA0 (m, matched this session) — calls 800C1CBC and 800F0C70
 - ovl_11_func_800C1BE0 (m) — zeroes u16 unkA of all 37 D_80076220 entries
-- ovl_11_func_800C1C08 (s) — calls 800C1C5C, 80107DD0, 800F0C70
+- ovl_11_func_800C1C08 (m, matched this session) — calls 800C1C5C, 80107DD0, 800F0C70
 - ovl_11_func_800C1C5C (m, matched this session) — record initializer:
   `memset(arg0, 0, 0x1D4)` then s16@0 = −1; also a member of the
   memset-clear struct-constructor idiom family above
