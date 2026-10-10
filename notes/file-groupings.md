@@ -11421,6 +11421,11 @@ membership is not confirmed by adjacency. The table cluster is tied to the
 record-tag update run above: `ovl_11_func_800D8FC8` calls `800DA454`, and
 `ovl_11_func_800D9064` walks the same 25x45 table applying all three run
 members (`800DA49C`, `800DA518`, `800DA454`) to every entry.
+A same-TU candidate run sits inside the cluster: `ovl_11_func_800BF630` /
+`ovl_11_func_800BF720` / `ovl_11_func_800BF844` are zero-gap link-order
+neighbours (`configs/splat/ovl_11.yaml`: 0x7810/0xF0 → 0x7900/0x124 →
+0x7A24/0x74) and index the same two tables by `(row, col)`, the first two
+with the same `arg != 0` 7x7-vs-25x45 selector.
 Members:
 - ovl_11_func_800D8FC8 (m, matched this session, byte-exact) — walks all 25x45
   `D_80071DFC` entries and calls `ovl_11_func_800DA454(entry, arg0 == 0 ?
@@ -11438,6 +11443,15 @@ Members:
   link-order predecessor of ovl_11_func_800D8320 (ends exactly at 0x800D8320)
   and its twin: same `ovl_11_func_800DAF60` entry view then `D_80123DFC[arg0]`
   dispatch.
+- ovl_11_func_800BF630 (s) — run head: `arg != 0` picks the 7x7 `D_80074124`
+  (else the 25x45 `D_80071DFC`), reads the entry word at `(arg0, arg1)`,
+  rejects tag 0x167, then uses the `D_8006C838` +0x20/+0x28 pools.
+- ovl_11_func_800BF720 (m, matched this session, 0x124, byte-exact) — same
+  7x7-vs-25x45 selector after `ovl_11_func_800D7EF8` computes the cell:
+  accepts entry tags 0x3F, 0x3B–0x3D and 0x16C–0x174.
+- ovl_11_func_800BF844 (m, 0x74) — run tail: walks the whole 25x45
+  `D_80071DFC` grid through cluster member `ovl_11_func_800D8320(0, col, row,
+  1)`.
 
 ## `ovl_11` D_80123DFC two-entry callback-table cluster — 0x80123DFC (confidence: low)
 
