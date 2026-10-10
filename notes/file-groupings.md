@@ -6379,9 +6379,9 @@ Members (link order):
   by `(D_800BF87C.unk3A0 << 12) / 10` steps, using the shared
   `ovl_23_func_800BB0D8` record setter.
 
-## `ovl_23` D_800BF87C movement-clamp siblings — 0x800B9A00 / 0x800BA610 (confidence: medium)
+## `ovl_23` D_800BF87C movement-clamp family — 0x800B989C / 0x800B9A00 / 0x800BA610 (confidence: medium)
 
-Evidence: both functions clamp the s32 at +0xC of a shared
+Evidence: 800B9A00 and 800BA610 clamp the s32 at +0xC of a shared
 `Ovl23Func800BB0C8Arg` around the same `D_800BF87C` target
 `(unk39C + 0x77) << 12` by the same step `(unk3A0 << 12) / 10`, and both route
 the resulting state change through the shared `ovl_23_func_800BB0D8` record
@@ -6389,6 +6389,11 @@ setter. Aggregate fields (+0x39C/+0x3A0, plus +0x3A2 in 800BA610), the shared
 record view and the shared callee are three independent fingerprints, so this
 rests on idiom/global/call evidence rather than adjacency alone — the two are
 not link-adjacent (0x800B9A00..0x800B9B18 vs 0x800BA610).
+`ovl_23_func_800B989C` joins on the same record view, the same `(field << 12)/10`
+step and the same `D_800BF87C` target idiom with the adjacent setter family
+(`ovl_23_func_800BB0C8`, byte-identical to 800BB0D8); it clamps the record's
++0x14/+0x18 positions rather than +0xC, so it is a family member by idiom and
+shared aggregate, not the +0xC sibling pair.
 
 Members:
 - ovl_23_func_800B9A00 (m, byte-exact) — clamps unkC by the `(unk3A0 << 12)/10`
@@ -6396,6 +6401,10 @@ Members:
 - ovl_23_func_800BA610 (m, byte-exact this session) — selects the step from
   `unk3A0`/`unk3A2` on `unk4` 2/3, clamps unkC by the same formula, and sets
   state via 800BB0D8.
+- ovl_23_func_800B989C (m, byte-exact this session) — clamps +0x14/+0x18 of
+  the same record view around `(D_800BF87C.unk39C + 0x37) << 12` and
+  `D_800BBA40[unk0] << 12` by the `(unk3B2 << 12)/10` step; sets state via the
+  adjacent 800BB0C8 setter.
 
 ## `ovl_23` D_800BFB08 arg-record state driver — 0x800B8B94 (confidence: medium)
 

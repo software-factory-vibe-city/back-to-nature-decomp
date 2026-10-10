@@ -785,6 +785,8 @@ typedef struct {
     u8 pad_39E[0x2];
     s16 unk3A0;        /* 0x3A0 */
     s16 unk3A2;        /* 0x3A2 */
+    u8 pad_3A4[0xE];
+    s16 unk3B2;        /* 0x3B2 */
 } Ovl23D87CView39C;
 
 /* ovl_23_func_800BA1E0 argument record: s16 selector at 0x00, s32 at 0x14
