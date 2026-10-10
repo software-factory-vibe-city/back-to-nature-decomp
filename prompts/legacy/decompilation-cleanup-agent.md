@@ -245,4 +245,4 @@ Existing uses of these in `src/` are legacy debt under active removal — never 
 - Do NOT use C99 features.
 - Do NOT use `_D_XXXXXXXX`. Use `&D_XXXXXXXX` for addresses.
 
-{{C_STYLE_GUIDE}}
+{{REPOSITORY_GUIDE}}

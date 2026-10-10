@@ -399,7 +399,7 @@ function detectInventory(target: TargetFacts, compiled: CompiledFacts): Finding[
         .map(([base, offsets]) =>
           `  $${base}: ${[...offsets].sort((a, b) => a - b).map(hex).join(" ")}`),
     ],
-    see: ["prompts/c-style-guide.md"],
+    see: ["prompts/reference/population.md"],
   }];
 }
 
@@ -488,7 +488,7 @@ function detectUndeclaredCallee(compiled: CompiledFacts): Finding[] {
           "(post-call $v0 scratch use = void; $v0 consumed = value-returning)";
     }),
     see: [
-      "prompts/c-style-guide.md",
+      "psx_callee_truth",
       "notes/retros/2026-08-06-func_80022738-retro.md",
     ],
   }];
@@ -1708,7 +1708,7 @@ export function detectLoopIdiom(target: TargetFacts): Finding[] {
     evidence: distinct.map((loop) =>
       `header ${hex(instructions[loop.header]!.address)} <- countdown latch ${hex(instructions[loop.latch]!.address)} on $${loop.counter}`),
     see: [
-      "prompts/c-style-guide.md",
+      "prompts/reference/loop.md",
       "notes/research/func_80017300-pre-placement-and-movable-order.md",
     ],
   }];
@@ -2125,7 +2125,7 @@ function detectFlagFingerprint(name: string, srcText?: string): Finding[] {
   const hasOverride = existsSync(overrides) &&
     new RegExp(`^CC1FLAGS_${name}\\s*:?=`, "m").test(readFileSync(overrides, "utf-8"));
   const see = [
-    "prompts/c-style-guide.md",
+    "prompts/reference/flags.md",
     "notes/research/func_800165D8-code-region-fold-and-allocation.md",
     "notes/research/func_80016C08-tu-owned-globals-and-gp-relative-addressing.md",
   ];
@@ -2164,8 +2164,8 @@ function detectFlagFingerprint(name: string, srcText?: string): Finding[] {
       severity: "signal",
       summary:
         "symbolic lui/lw self-clobber pair(s), and a fresh psx_flag_probe run measured a dominant flag " +
-        `column on the current source (${cached.report.dominantRows.join(", ")}). Apply the style guide's ` +
-        "flag-hypothesis bar: fingerprint + dominant column + no contrary regional witness.",
+        `column on the current source (${cached.report.dominantRows.join(", ")}). Apply the evidence bar ` +
+        "in psx_reference flags: fingerprint + dominant column + no contrary regional witness.",
       evidence: [
         ...pairs,
         ...cached.report.candidates
@@ -2185,7 +2185,7 @@ function detectFlagFingerprint(name: string, srcText?: string): Finding[] {
       "allocation pins the lui against sched2 unless another insn touches its " +
       "register). Run psx_flag_probe: its matrix carries -mno-split-addresses " +
       "and the scheduling columns, and file-groupings.md may record the flag " +
-      "as this TU's fact. Apply per the style guide flag-hypothesis bar.",
+      "as this TU's fact. Apply the evidence bar in psx_reference flags.",
     evidence: [
       ...pairs,
       cached.fresh
@@ -2265,7 +2265,7 @@ function detectAsmPolicy(name: string, srcText: string): Finding[] {
   const container = containerForSymbol(name)?.id ?? "exe";
   return sourceConstructFindings(srcText, loadConfig(ROOT), { name, container }).map(f => ({
     detector: "asm-policy", severity: "blocker", summary: f.message,
-    evidence: [f.text ?? `line ${f.line ?? "unknown"}`], see: ["AGENTS.md", "prompts/c-style-guide.md"],
+    evidence: [f.text ?? `line ${f.line ?? "unknown"}`], see: ["AGENTS.md"],
   }));
 }
 

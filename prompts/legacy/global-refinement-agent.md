@@ -66,4 +66,4 @@ Where to define structs:
 - Do NOT modify `include/psyq/` or use C99 features.
 - If you can't improve with available context, say so and stop.
 
-{{C_STYLE_GUIDE}}
+{{REPOSITORY_GUIDE}}

@@ -64,9 +64,9 @@ export const UNEXPOSED_CLIS: Record<string, string> = {
   getPrompt:
     "A legacy prompt builder for the archived templates under prompts/legacy/, which " +
     "no active workflow dispatches — the Pi commands and the autonomous workers run " +
-    ".pi/skills/ directly. Exposing it did two kinds of harm. It inlines the whole C " +
-    "style guide into its output, so one call spends tens of thousands of tokens on " +
-    "context the caller already has, against a template nothing else uses. And it is " +
+    ".pi/skills/ directly. Exposing it did two kinds of harm. It inlines the repository " +
+    "guide and the project profile into its output, context the caller already has, " +
+    "against a template nothing else uses. And it is " +
     "stateful in the way this repository is removing: it needs build/callGraph.json " +
     "and tells the caller to run callGraph.ts first. The CLI stays for manual and " +
     "historical reproduction; it is not something an agent should be able to reach for.",
@@ -89,7 +89,7 @@ export const UNEXPOSED_CLIS: Record<string, string> = {
   diffFunc:
     "Two better tools split its job. `psx_residual_objective` gives the same MATCH " +
     "verdict from the same oracle at the same cost, plus a residual that is a distance " +
-    "— diffFunc's score is not one, and the style guide had to teach reading around it. " +
+    "— diffFunc's score is not one, and agents had to be taught to read around it. " +
     "`psx_finalize_function` is the terminal gate and is strictly stronger: the exact " +
     "diff plus the linked build, the scope check and the clean-source check. Leaving " +
     "diffFunc exposed invites treating a pre-link byte comparison as done, and invites " +
@@ -559,7 +559,7 @@ export const TOOL_SPECS: ToolSpec[] = [
     label: "PSX Reference Sheet",
     script: "reference.ts",
     description:
-      "One mechanism sheet from the matching doctrine, chosen by the pass that owns the residual. Call with no topic to list the sheets and what each answers; call with `population`, `schedule`, `allocation`, `declarations`, `flags`, `sdk` or `stuck` — or with a residual owner the pipeline reversal printed, such as `greg` or `sched2`, which resolves to the right sheet. Load the sheet the evidence points at and only that one: the doctrine used to be a single mandatory file, and reading all of it spent context on passes that did not own the residual.",
+      "One mechanism sheet from the matching doctrine, chosen by the pass that owns the residual. Call with no topic to list the sheets and what each answers; call with `population`, `loop`, `schedule`, `allocation`, `declarations`, `flags`, `sdk` or `stuck` — or with a residual owner the pipeline reversal printed, such as `greg` or `sched2`, which resolves to the right sheet. Load the sheet the evidence points at and only that one: the doctrine used to be a single mandatory file, and reading all of it spent context on passes that did not own the residual.",
     parameters: Type.Object({
       topic: Type.Optional(Type.String({
         description: "Sheet name or residual owner. Omit to list the sheets.",

@@ -11,7 +11,7 @@ Your job: walk through all decompiled source files, identify patterns across the
 
 {{CONTEXT}}
 
-{{C_STYLE_GUIDE}}
+{{REPOSITORY_GUIDE}}
 
 ## What to do
 

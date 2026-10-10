@@ -73,6 +73,21 @@ Preserve unresolved types and signatures until evidence establishes them.
 - **Generation failure:** inspect the preserved input/context and full streams.
   The absence of C is legitimate evidence, not a request for invented C.
 
+**The m2c draft is a transcription of the compiled code, not its source.** m2c
+writes the optimizer's work as if a programmer had typed it. Two common cases:
+- an accumulator stepped by a shifted constant, where the loop pass reduced a
+  plain increment;
+- a chain of temporaries and separate statements, where the programmer wrote
+  one expression.
+
+Before measuring, rewrite each derived form into the operation a programmer
+would have written. Keep the draft's form only where a measurement shows the
+natural one standing further away. Reasoning about what the compiler "would
+emit" for the natural form is not that measurement. A line-by-line
+transcription can byte-match its own block while fixing the state the earlier
+passes see, so no later edit escapes it. `psx_reference population`, section 2,
+gives the mechanism.
+
 Read `psx_experiment_ledger` for prior measurements and their premises unless
 fresh handoff evidence already includes it. Run `psx_triage` and
 `psx_callee_truth` for the actual source being authored when their equivalent
@@ -90,6 +105,8 @@ classified. From here, every diagnostic you run must be followed by an edit and
 a measurement before you run another one. A second and third read of the same
 report is not evidence-gathering, it is avoidance — the most common way this
 work fails is a beautifully argued classification with one measurement under it.
+Reading the rule a report points at is part of that report, not another
+diagnostic; OBSERVE, below, says how far that goes.
 
 ## The experiment
 
@@ -105,6 +122,11 @@ means", you have left this step.
 You may not run a second diagnostic without an intervening measurement. If the
 report you have does not name an edit, guess from the best evidence in it and
 measure the guess — a measured wrong guess is worth more than a fourth reading.
+
+Reading the rule behind the report is part of this step, not a second
+diagnostic: the mechanism sheet the tool names, or the compiler function that
+makes the decision it reports. Read it once, then hypothesise. Another tool run,
+or a second pass over the same rule, is the reading this step forbids.
 
 ### 2. HYPOTHESISE — one sentence
 
@@ -122,7 +144,7 @@ go to "When it stalls" for a heavier tool. Do not edit on a feeling and
 reverse-engineer the reason afterwards, and do not stop.
 
 Consult the reference sheet for the owning pass only now, and only the one:
-`psx_reference population | schedule | allocation | declarations | flags | sdk`.
+`psx_reference population | loop | schedule | allocation | declarations | flags | sdk`.
 
 ### 3. ACT — one edit
 
@@ -226,7 +248,16 @@ steps that can are first for that reason.
    A residual that survives every rewrite of your own idiom is usually somebody
    else's idiom.
 
-3. **Generate shapes from the target instead of guessing at them.**
+3. **Read the pass that decides it.** Once a residual has survived several
+   spellings, read the rule before generating more of them. The mechanism sheet
+   for the pass is the short form. `psx_compiler_source` searches the exact
+   patched compiler tree cc1 is built from, and is the authority where no sheet
+   covers the decision. One read of the function that makes the choice can name
+   the source change outright, or end a search: a proof that a form is
+   unreachable is worth more than any number of failed experiments, and it is the
+   only evidence that converts "we could not find it" into "it is not there".
+
+4. **Generate shapes from the target instead of guessing at them.**
    `psx_search_source_shapes` and `psx_synthesize_source_shapes` generate and
    score shapes from the target's own requirements rather than from a hunch.
    Read a search result as a **direction**, not a score. Population is the
@@ -235,7 +266,7 @@ steps that can are first for that reason.
    more words it matches. Take the next experiment from the axis that moved,
    not from the match count.
 
-4. **Solve for the compiler state, do not model it.**
+5. **Solve for the compiler state, do not model it.**
    `psx_solve_local_allocation` solves for the local-alloc quantity priorities
    and lifetimes that would reproduce the target's assignment, and reports
    `UNSAT_WITHIN_BOUNDS` when none exists inside the bound — which is a real
@@ -248,16 +279,10 @@ steps that can are first for that reason.
    A solution is a **specification for a source shape**, never a solution by
    itself, and a solver witness is never promoted directly.
 
-5. **Read the pass that decides it.** `psx_compiler_source` searches the exact
-   patched compiler tree cc1 is built from. One read of the function that makes
-   the choice can end a search outright: a proof that a form is unreachable is
-   worth more than any number of failed experiments, and it is the only evidence
-   that converts "we could not find it" into "it is not there".
-
-6. **Test the flag hypothesis.** `psx_flag_probe`. Per-file overrides are per-TU
-   facts of the original build, not hacks, and are permitted on the evidence bar
-   in `psx_reference flags`. A matrix showing baseline equal to the delta kills
-   the hypothesis cheaply, which is itself worth knowing.
+6. **Test the flag hypothesis.** `psx_flag_probe`. A per-file override needs the
+   evidence bar in `psx_reference flags`. A matrix showing baseline equal to the
+   delta kills the hypothesis cheaply, which is itself worth knowing. Never use a
+   flag to switch off an optimization the target shows signs of using.
 
 Record what each of these closed with `psx_record_closed`, **and record the
 premise with the closure**. Every impossibility is conditional on its inputs —

@@ -2,17 +2,9 @@
 
 This is the top-level guide for any agent working in this repository. It
 contains repository-wide policy and routes task-specific work to the relevant
-instructions. It is not a function-decompilation prompt.
-
-## Sources of truth
-
-- `configs/project-profile.md` is the sole prompt-facing source for concrete
-  target and toolchain facts. Do not duplicate those facts in guides, skills,
-  or prompts.
-- `README.md` documents project architecture, setup, build flow, and the tools
-  inventory. Read it for project-level, build-system, or tooling work.
-- The active project configuration and generated artifacts are authoritative
-  for paths, symbols, sections, and build behavior.
+instructions. It is not a function-decompilation prompt. Follow more specific
+task instructions after this guide; when they conflict with repository-wide
+policy, stop and ask rather than silently weakening the policy.
 
 ## Route by task
 
@@ -20,23 +12,55 @@ instructions. It is not a function-decompilation prompt.
   `.pi/skills/psx-prepare-function/SKILL.md`. This is preparation, not matching;
   hand the compiling candidate and context to the next tier.
 - Matching or repairing one function: load
-  `.pi/skills/psx-decompile-function/SKILL.md` and follow its mandatory
-  matching guide. Check `notes/file-groupings.md` for the target's
-  suspected source-file group and update it when you find grouping
-  evidence.
+  `.pi/skills/psx-decompile-function/SKILL.md`. Check `notes/file-groupings.md`
+  for the target's suspected source-file group and update it when you find
+  grouping evidence.
+  - `notes/file-groupings.md` runs to thousands of lines, so never read it
+    whole. Search it with `grep -n` for the function's full name and for its
+    address without the name prefix, then read only the section around each
+    hit. Each section opens with a `## ` heading that names the container and
+    the address range. To add evidence, extend the section that already lists
+    the function rather than starting a new one.
+  - The rules each compiler pass follows are in the mechanism sheets that
+    `psx_reference` serves: `population`, `loop`, `schedule`, `allocation`,
+    `declarations`, `flags`, `sdk` and `stuck`.
+  - Where no sheet covers a decision, the vendored compiler source is the
+    authority. `psx_compiler_source` searches the code that was actually built.
 - Refining an already-matching function: load
   `.pi/skills/psx-refine-function/SKILL.md`.
 - Performing a conservative cross-file cleanup batch: load
   `.pi/skills/psx-project-refinement/SKILL.md`.
 - Changing Pi extensions, skills, commands, or autonomous workers: read the Pi
   documentation named in the harness instructions and inspect the relevant
-  `.pi/` implementation and tests.
+  `.pi/` implementation and tests. Concrete target and toolchain facts live
+  only in `configs/project-profile.md`; point guides, skills and prompts at it
+  rather than restating them.
 - Changing build or diagnostic tooling: read `README.md` and
   `notes/tools-directory-structure.md`, then inspect the active Make/config
   dependencies before editing.
 - Changing project fundamentals: read the current roadmap and the relevant
   institutional notes before acting; do not re-derive settled facts already
-  supplied by the generated profile.
+  supplied by `configs/project-profile.md`.
+
+## Declarations
+
+- A data symbol's `extern`, its type and any struct view of it are in
+  `include/globals_override.h`. Search that header for the symbol's name before
+  declaring it or looking anywhere else. It is not in address order, so search
+  it rather than browsing.
+- Every source reaches the override header through `common.h`. The generated
+  `globals.h` skips every symbol the override header declares and covers only
+  part of the rest. A symbol in neither file is undeclared, and the fix is an
+  entry in the override header.
+- Struct types shared by parameters and locals are in `include/game_types.h`.
+  A source includes it explicitly when it uses one of its types.
+- Add a missing global to the override header with a one-line comment giving
+  its evidence. Never declare it in a `.c` file, and never edit a generated
+  header; the header table in `configs/project-profile.md` says which headers
+  are generated.
+- A source file must still *define* (tentatively) every global whose
+  translation unit it is: that is how GP-relative addressing is expressed. A
+  definition is not a redeclaration; see `psx_reference declarations`.
 
 ## Repository-wide rules
 
@@ -50,23 +74,14 @@ instructions. It is not a function-decompilation prompt.
   and no C99 features.
 - Do not hand-edit generated files. Change their source configuration or
   generator and regenerate them.
-- Do not redeclare generated globals in source files. Put shared parameter or
-  local types in the designated shared type header and global type overrides
-  in the designated override header — the generated profile's header table
-  names both, and says which headers are generated outputs that must never be
-  hand-edited. A source file must, however, *define*
-  (tentatively) every global whose translation unit it is — that is how
-  GP-relative addressing is expressed; see `psx_reference declarations`. A definition is not a redeclaration.
 - Preserve the clean-source policy. For ordinary compiled functions, embedded
   assembly, hard-register pinning, and new assembly stubs are not valid
   decompilation solutions. Honor only exceptions established by the active
   project's classification and policy. Unless explicitly specified by the user.
-- Per-file compiler flag overrides are permitted when the flag-probe evidence
-  bar is met (target fingerprint + dominant flag column + no contrary regional
-  witness): add the override with its evidence comment and the matching
-  allowlist entry in the same change. Flags are per-TU facts of the original
-  build, not hacks. Speculative flag-shopping without a fingerprint remains
-  forbidden. See `psx_reference flags`.
+- A per-file compiler flag override needs the evidence bar in
+  `psx_reference flags`, and lands with its evidence comment and allowlist
+  entry in the same change. Without that evidence it is forbidden. Never use a
+  flag to switch off an optimization the target shows signs of using.
 - Keep edits scoped to the requested task. Do not opportunistically rewrite
   unrelated files.
 
@@ -83,22 +98,11 @@ of a difference rotates everything downstream of it and can match fewer words
 while standing closer — so it ranks a lucky register assignment above a fixed
 cause. Measure every edit, and measure it with the residual.
 
+When a residual survives several spellings, stop writing spellings. Find the
+compiler function that makes the decision, through its mechanism sheet or the
+vendored source, and read it. The rule it applies names the source change;
+another spelling only samples it.
+
 When a verification step fails, continue from its concrete output or restore
 the last known-good state. Do not leave unrelated source broken to preserve an
 experiment.
-
-## Repository layout
-
-- `src/` — function source files
-- `include/` — common, generated, shared-type, override, and SDK headers
-- `configs/` — project configuration and generated profile
-- `.pi/` — active Pi commands, skills, tools, and autonomous workflow
-- `tools/` — build, diagnostic, matching, and shared TypeScript tooling
-- `prompts/` — mandatory matching doctrine and archived standalone templates
-- `notes/` — roadmap, retrospectives, research, and institutional memory
-- `build/` — generated build and diagnostic artifacts
-- `extracted/` — local extracted inputs
-
-Follow more specific task instructions after this guide; when they conflict
-with repository-wide policy, stop and ask rather than silently weakening the
-policy.

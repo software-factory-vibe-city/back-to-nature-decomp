@@ -103,9 +103,10 @@ function stallLine(functionName: string): string | undefined {
     "headers and the callees' own code, psx_sdk_idioms does the same for operation boundaries. " +
     "A wrong declaration adds call setup no rewrite of this body can remove, and every " +
     "measurement taken under it scored a different program.",
-    "Then: enumerate the source space (psx_search_source_shapes), solve for the compiler state instead of modelling it " +
-    "(psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual), " +
-    "or read the deciding pass directly (psx_compiler_source). A solver result is a " +
+    "Then read the pass that decides the residual before writing another spelling: its psx_reference " +
+    "sheet, or the deciding function itself through psx_compiler_source. After that, enumerate the source " +
+    "space (psx_search_source_shapes) or solve for the compiler state instead of modelling it " +
+    "(psx_solve_local_allocation, psx_search_scheduler_state, psx_allocator_counterfactual). A solver result is a " +
     "specification for a source shape, and an UNSAT is a real finding that closes a direction. " +
     "Record what each one closed with psx_record_closed, and read that record before you run one " +
     "— a direction another session already closed costs minutes to close again. When a search " +
@@ -251,6 +252,8 @@ export function openingMessage(functionName: string): string {
     "'next experiment, when resuming' is always the wrong sentence — the run costs",
     "less than writing that down. Classify once at the start; after that every",
     "diagnostic must be followed by an edit and a measurement before the next one.",
+    "Reading the mechanism sheet or compiler function a diagnostic points at is part of",
+    "that diagnostic, not another one.",
     "",
     "Return only when the function is byte-exact, or when something genuinely needs a",
     "human decision (an allowlist entry, a policy exception) — then say which, briefly.",
@@ -413,7 +416,7 @@ export function reviewMessage(functionName: string, findings: PolicyFinding[], s
     findingsReport(findings),
     "",
     "Read `" + sourcePath + "`, the original assembly, and the project's clean-source policy in",
-    "AGENTS.md and prompts/c-style-guide.md. Decide one question only: is the forbidden construct the",
+    "AGENTS.md. Decide one question only: is the forbidden construct the",
     "correct answer for this function — a genuine, documented exception class — or is it a workaround",
     "for a structural hypothesis the tier failed to find?",
     "",

@@ -63,7 +63,7 @@ workaround that the C sources still use.
 | Construct | Files | Note |
 |---|---|---|
 | Hard-register pin | 8 | Each file has a `register-asm` entry in the allowlist |
-| Empty assembly barrier | 7 | The style guide permits this as a last resort. The configuration sets `allowEmptyMemoryBarrier`, so these files need no entry |
+| Empty assembly barrier | 7 | Permitted as a last resort. The configuration sets `allowEmptyMemoryBarrier`, so these files need no entry |
 | Scratchpad stack switch | 1 | Assembly that does nothing but move `$sp`. No C construct can, so this is a classification rather than an exception: the configuration sets `allowStackPointerSwitch` and these files need no entry. The idiom itself is `SCRATCH_STACK_BEGIN`/`SCRATCH_STACK_END` in `include/scratchpad.h`; see `notes/research/scratchpad-stack-switch.md` |
 | Assembly block with instructions | 5 | Each file has an `embedded-asm` entry |
 | `CAPTURE_RA` debug hook | 2 | The hook is a target feature, not a workaround |
@@ -72,7 +72,9 @@ workaround that the C sources still use.
 
 The allowlist is `.pi/autoloop.json`, key `sourcePolicy.allowlist`. Each
 entry is the audit trail for one construct. The gate refuses a construct that
-has no entry.
+has no entry. Key an entry by the function's name. An address key must carry
+its container, `<container>:<address>`, because overlays share RAM; the gate
+honours a bare address only for the executable.
 
 Fourteen functions are parked, each with a note in
 `notes/human-needed-approvals/` saying what is known and what is left.
@@ -231,7 +233,7 @@ tools/                  TypeScript tools that run with npx tsx
   vendor/               Vendored repositories
 .pi/                    Pi extension commands, skills, tools, and the in-session loop
 notes/                  Research and write-ups. This is the project memory
-prompts/                The matching guide, and archived templates
+prompts/                Per-pass mechanism sheets, and archived templates
 plans/                  Plans for tool and workflow work, with their status
 build/                  All generated artifacts. Git ignores this directory
 extracted/iso/          The original game files. Git ignores this directory
@@ -1246,10 +1248,9 @@ Read the relevant note before you change anything fundamental.
 | `thoughts-on-automated-decomp.md` | The design of the agent pipeline |
 | `decompilation-tooling-ideas.md` | Observability tools, their use, and their limits |
 
-`prompts/c-style-guide.md` holds the always-applicable matching rules; the
-per-pass mechanism sheets are in `prompts/reference/`, served by `psx_reference`
-when the pipeline reversal names the owning pass. Read the guide before you write
-C for this project.
+The always-applicable rules are in `AGENTS.md`. The per-pass mechanism sheets
+are in `prompts/reference/`, served by `psx_reference`; the pipeline reversal
+names the sheet for the pass that owns a residual.
 
 ## Rules
 

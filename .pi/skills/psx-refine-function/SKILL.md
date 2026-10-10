@@ -9,7 +9,7 @@ Refine exactly the target named in the invocation. Derive all game-specific fact
 
 ## Read context
 
-1. Read `AGENTS.md`, `prompts/c-style-guide.md`, and `configs/project-profile.md`.
+1. Read `AGENTS.md` and `configs/project-profile.md`.
 2. Read the target's call-graph entry.
 3. Read the target source, original assembly, and decompiled callers/callees.
 4. Check the project's generated declarations and shared type headers before defining anything new.

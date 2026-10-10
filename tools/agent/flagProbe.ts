@@ -12,8 +12,8 @@
  * from natural C under the baseline flags, and does a per-file flag delta
  * dominate?" Born from func_8001FF98, where the sound-driver TU needed
  * -fno-gcse and the evidence was visible early (see
- * notes/retros/2026-07-31-func_8001FF98-retro.md and prompts/c-style-guide.md
- * section 11 for the governed escalation bar).
+ * notes/retros/2026-07-31-func_8001FF98-retro.md and `psx_reference flags`,
+ * section 11, for the governed escalation bar).
  *
  * Three independent evidence sources:
  *   1. Target structural fingerprints, decoded from the original binary's
@@ -562,7 +562,8 @@ export function renderProbe(result: ProbeResult): string {
   for (const hit of selfClobber) lines.push(`  [self-clobber shape] ${hit.detail}`);
   if (preFatal.length > 0) {
     lines.push(
-      "  PRE-fatal shape: try the counter-reuse idiom FIRST (style guide s12:",
+      "  PRE-fatal shape: try the counter-reuse idiom FIRST (period-idiom prior,",
+      "  notes/research/period-idiom-priors.md:",
       "  one counter variable shared across sequential loops is a natural PRE",
       "  shield - func_8001FF98 matched under baseline flags this way). A flag",
       "  delta is the fallback, gated by the escalation bar below.");
@@ -606,7 +607,7 @@ export function renderProbe(result: ProbeResult): string {
   for (const reason of report.reasons) lines.push(`  - ${reason}`);
 
   lines.push(`
-Escalation bar (prompts/c-style-guide.md section 11): a fingerprint above
+Escalation bar (psx_reference flags, section 11): a fingerprint above
 PLUS a dominant flag column PLUS no contrary regional witness justifies
 proposing a per-file override in configs/flag_overrides.mk. Verify any
 adopted override with the byte verdict (\`diffFunc <func>\` must say MATCH).`);

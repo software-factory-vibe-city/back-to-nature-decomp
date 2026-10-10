@@ -9,7 +9,7 @@ Perform one coherent, reviewable batch rather than an open-ended rewrite. Derive
 
 ## Survey
 
-1. Read `AGENTS.md`, `prompts/c-style-guide.md`, and `configs/project-profile.md`.
+1. Read `AGENTS.md` and `configs/project-profile.md`.
 2. Call `psx_verify_build` to confirm the starting tree passes full byte-identity verification.
 3. Survey matched source files, shared headers, and the call graph. Choose one high-confidence batch such as:
    - consolidating one proven shared struct across its users

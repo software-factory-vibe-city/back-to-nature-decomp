@@ -43,13 +43,13 @@ function resolveAsmFile(funcName: string, rootDir: string = ROOT): string | null
 }
 
 function injectShared(template: string, rootDir: string = ROOT): string {
-  const guide = readFileSync(join(rootDir, "prompts/c-style-guide.md"), "utf-8");
+  const guide = readFileSync(join(rootDir, "AGENTS.md"), "utf-8");
   const profilePath = join(rootDir, "configs/project-profile.md");
   const profile = existsSync(profilePath)
     ? readFileSync(profilePath, "utf-8")
     : "(no configs/project-profile.md found — toolchain specifics unknown; ask before assuming compiler version or flags)";
   return template
-    .replace("{{C_STYLE_GUIDE}}", guide)
+    .replace("{{REPOSITORY_GUIDE}}", guide)
     .replace(/\{\{PROJECT_PROFILE\}\}/g, profile);
 }
 
