@@ -302,6 +302,7 @@ void ovl_11_func_800DCC1C(s16 arg0, void *arg1);
 void ovl_11_func_800DCE98(s32 arg0);
 void ovl_11_func_800DCECC(void);
 M2C_245f54a50d63_Ovl11FuncDCF10Entry *ovl_11_func_800DCF10(void *arg0, void *arg1, void *arg2, u8 *arg3);
+void ovl_11_func_800DCFEC(M2C_74497bb9f79c_DCFECArg *arg0);
 void ovl_11_func_800DD060(s32 arg0, M2C_2be19369143b_Ovl11FuncDD060Arg *arg1);
 s32 ovl_11_func_800DD1D0(s16 *arg0);
 void ovl_11_func_800DD21C(s32 *arg0, s32 *arg1, u32 arg2);
