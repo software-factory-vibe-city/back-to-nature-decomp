@@ -548,7 +548,10 @@ table). Members:
   for i < 3 { clear(p); p += 0x34; }`, baseline flags
 - ovl_11_func_800CBF40 (m) — field-clear leaf: zeroes eleven s16/s32 fields of
   the +0x34-stride entry
-- ovl_11_func_800CBF70 (s) — reads `D_80128BB0`; role unknown
+- ovl_11_func_800CBF70 (m, matched this session) — third 3×0x34 walker of
+  `D_80128BB0`: on the first free entry (unk2 == 0) calls 800CBF40, seeds it
+  from the `D_80123130[arg2]` 8-byte pair and `D_8006C838+0x52CC`, returns the
+  slot or 0
 - ovl_11_func_800CCB90 (s) — reads `D_80128BB0`; role unknown
 
 ---

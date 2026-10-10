@@ -252,6 +252,15 @@ struct struct_8006C838_800D4030 {
     u16 field_99D8;         /* 0x99D8 */
 };
 
+/* View of D_8006C838 for ovl_11_func_800CBF70: the s32 at +0x52CC. Reached
+ * as a struct member so cc1 keeps lui %hi(D_8006C838) as the base and uses
+ * 0x52CC as the load displacement (the target keeps lui %hi(D_8006C838),
+ * addiu %lo, lw 0x52CC) instead of folding the offset into %hi. */
+struct struct_8006C838_800CBF70 {
+    char pad_000[0x52CC];   /* 0x0000-0x52CB */
+    s32 field_52CC;         /* 0x52CC */
+};
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.
