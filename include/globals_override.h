@@ -2092,6 +2092,24 @@ extern s8 D_80137587;
  * declares it, so a scalar extern keeps the base name. */
 extern s8 D_80137588;
 
+/* D_80137584 - ovl_15 private state byte in the overlay data segment; the
+ * shared-prologue cluster (ovl_15_func_8012EEEC/8013063C/80131618 and the
+ * D_80052FC4 family) stores a state code to it (sb $v0, %lo) after
+ * ovl_15_func_80136990. Absolute-addressed (lui + %lo) from -G0 overlay
+ * code; only extern declarations belong here. */
+extern s8 D_80137584;
+
+/* D_8013758C - ovl_15 private state s16 in the overlay data segment; the
+ * same cluster stores the ovl_15_func_80136990 result to it (sh $v0, %lo).
+ * Absolute-addressed (lui + %lo) from -G0 overlay code. */
+extern s16 D_8013758C;
+
+/* D_80053530 - ovl_15 updater-array base in the PS-X EXE used by the shared
+ * text-draw prologue (ovl_15_func_8012EEEC/8013063C/80131618 add
+ * D_80054BBC[0] to its address with the split lui/addiu form). Never defined
+ * in the overlay, so an incomplete array extern keeps the base name. */
+extern u8 D_80053530[];
+
 /* D_80137830 / D_80137A30 - ovl_15 checksum buffers. Absolute-addressed
  * (lui + %lo) from ovl_15 code; this TU family only declares them. The
  * target ovl_15_func_80135AE0 checksums 127-byte records at 0x80 stride
