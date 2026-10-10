@@ -485,6 +485,40 @@ plus call edges plus link order agree. Members:
 
 ---
 
+## `ovl_11` interpolation-descriptor caller/callee pair — 0x800DCFEC / 0x800DD060 (confidence: medium)
+
+Candidate same-TU pair of `ovl_11` (`Obj\GF_FARM.bin`): the gapless
+predecessor prepares the callee's interpolation descriptor in place and
+then directly calls it — the call-edge + link-order + shared-construct
+fingerprint of the documented D_80129184 and D_80123E54 runs.
+
+Fingerprints:
+- **zero-gap link adjacency**: `configs/splat/ovl_11.yaml` lists 0x800DCFEC
+  (0x74) immediately followed by 0x800DD060; the caller's last instruction
+  ends exactly where the callee begins (0x800DCFEC + 0x74 = 0x800DD060).
+- **direct call with argument handoff**: 800DCFEC's sole `jal` targets
+  `ovl_11_func_800DD060` (at 0x800DD048); just before it the caller writes the
+  callee's three vector pointers at +0x20/+0x24/+0x28 and passes the third
+  entry's +0x10 field as the count in `$a0` with the descriptor in `$a1`.
+- **shared descriptor layout**: the callee's only inputs are exactly those
+  three +0x20/+0x24/+0x28 `u16[3]`-vector pointers plus the s16 ratio/denom
+  pair at +0x2E/+0x30 (`M2C_2be19369143b_Ovl11FuncDD060Arg`); a struct the
+  predecessor defines and the callee consumes.
+- **corroborating idiom**: the same +0x2E/+0x30 ratio/denominator pair recurs
+  as `Ovl11FuncD5B0Sub` in `ovl_11_func_800DD5B0`, the interpolation-descriptor
+  sub-object of the D_80129188 run below.
+
+Members (address order):
+- ovl_11_func_800DCFEC (s) — descriptor preparer/caller: from three entry
+  pointers at arg0+0x0/+0x8/+0x10 it writes the derived vector pointers at
+  +0x20/+0x24/+0x28 (each entry + its +0xC + 0xC) and calls
+  `ovl_11_func_800DD060(arg0->unk10->unk10, arg0)`.
+- ovl_11_func_800DD060 (m, matched this session, byte-exact) — leaf linear
+  interpolator: for `i < arg0` writes each +0x28 vector as
+  `(s16)(unk24[i] - unk20[i]) * unk2E / unk30 + unk20[i]`.
+
+---
+
 ## `ovl_11` `D_80128E08` 0x30-stride entry-table walk — 0x800DC990 / 0x800DCA10 (confidence: low)
 
 Bulk walk `ovl_11_func_800DC990` (matched this session, byte-exact) walks the

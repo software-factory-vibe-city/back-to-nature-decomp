@@ -510,6 +510,23 @@ typedef struct {
 } M2C_2bc7a43223fd_CoordTri;
 
 typedef struct {
+               u16 vx;
+               u16 vy;
+               u16 vz;
+               u16 pad;
+} M2C_2be19369143b_Ovl11FuncDD060Vec;
+
+typedef struct {
+               u8 pad0[0x20];
+               M2C_2be19369143b_Ovl11FuncDD060Vec *unk20;
+               M2C_2be19369143b_Ovl11FuncDD060Vec *unk24;
+               M2C_2be19369143b_Ovl11FuncDD060Vec *unk28;
+               u8 pad2C[0x2];
+               s16 unk2E;
+               s16 unk30;
+} M2C_2be19369143b_Ovl11FuncDD060Arg;
+
+typedef struct {
                char pad_00[0x26];
                s16 unk26;
                s16 unk28;
