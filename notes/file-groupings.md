@@ -9963,7 +9963,9 @@ seven members use `D_80053350`, `ovl_15_func_8012EE84` uses `D_80052FFA`,
 `ovl_15_func_80130A94` uses `D_800532FE`, `ovl_15_func_80130BBC` and
 `ovl_15_func_80131B5C` use `D_800523AC`, `ovl_15_func_80130DDC` uses `D_8005341E`,
 `ovl_15_func_8012F8DC` uses `D_8005346A`,
-`ovl_15_func_8013010C` uses `D_800534DC`, and
+`ovl_15_func_8013010C` uses `D_800534DC`,
+`ovl_15_func_8012EEEC` uses `D_80053530` (shared with the in-run
+`ovl_15_func_8013063C` and `ovl_15_func_80131618`), and
 `ovl_15_func_80130E4C` uses `D_800533F6`, `ovl_15_func_80131F5C` uses
 `D_8005204A`, `ovl_15_func_8013237C` uses `D_80052150`, `ovl_15_func_80132408` uses
 `D_80052178`, `ovl_15_func_80132494` uses `D_800521F6`,
@@ -9990,6 +9992,14 @@ Members (link order):
   prologue with the `D_80052FFA` updater array; then
   `D_80137584 = ovl_15_func_80137228(2, 0x16)` and `D_80137588 = 1` (void; the
   `$v0`=1 is the store value, not a returned one — the `s32` caller reads nothing)
+- ovl_15_func_8012EEEC (m, matched this session, byte-exact) — shared text-draw
+  prologue with the `D_80053530` updater array (shared with the in-run
+  `ovl_15_func_8013063C`/`ovl_15_func_80131618`, whose bodies differ only in the
+  `0x16`→`0x11` private-state immediate); calls `ovl_15_func_80136990`, then
+  branches on its `< 2` result to set `D_8013758C = ret`/`D_80137584 = 4`, or on
+  `-1` to set `D_80137588 = 1`/`D_80137584 = 0x16`; gapless in link order
+  between `ovl_15_func_8012EE84` (0x98 bytes, ends at its 0x8012EEEC) and
+  `ovl_15_func_8012EF84`
 - ovl_15_func_8012F078 (m, matched this session, byte-exact) — shared text-draw
   prologue with the `D_8005306A` updater array; then `ret =
   ovl_15_func_80137228(5, 0)`, `D_80137584 = ret` (s8; the value is returned,
