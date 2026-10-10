@@ -1868,6 +1868,12 @@ extern s32 D_8007F7F8;
  * overlay only declares it, so a scalar extern keeps the base name. */
 extern s32 D_8007AFF8;
 
+/* D_80137586 - ovl_15 private state byte in the overlay data segment.
+ * ovl_15_func_8012E15C clears it and ovl_15_func_801300E4 stores -1 to it
+ * (sb $v0, %lo). Absolute-addressed (lui + %lo) from -G0/overlay code; the
+ * TU family only declares it, so a scalar extern keeps the base name. */
+extern s8 D_80137586;
+
 /* D_80137830 / D_80137A30 - ovl_15 checksum buffers. Absolute-addressed
  * (lui + %lo) from ovl_15 code; this TU family only declares them. The
  * target ovl_15_func_80135AE0 checksums 127-byte records at 0x80 stride
