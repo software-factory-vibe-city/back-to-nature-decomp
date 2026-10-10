@@ -1061,6 +1061,14 @@ Members (address order, matched so far):
   `build/ovl_11/asm/nonmatchings/ovl_11_func_80108470/ovl_11_func_80108470.s`),
   and is called by its gapless predecessor ovl_11_func_801082F8 (call graph
   and link-order evidence).
+- ovl_11_func_801084E0 (m, matched this session) — far-buffer-gated state
+  handler: on `D_8007AFF0+0x25388` -> +4 state word in 0x50..0x53 calls the
+  `D_8007AFDA` manager ovl_11_func_80108A24, then scans that 9-cell cluster
+  (read through the aliased `D_80074838+0x67A2` base, same address as
+  `D_8007AFDA`) for a cell in 1..3 and writes the D_8012D050[2]
+  field_0/field_2 pair (+8/+A) to 0x258+i / 2; shares the +8/+A pair with
+  ovl_11_func_80108470/8010876C and the base with
+  ovl_11_func_801081A0/8010822C/801082B0; byte-exact clean C, baseline flags.
 - ovl_11_func_80108B8C (m) — reads the same D_8012D050[2] pair (+8/+A):
   when field_2 is 2 and field_0-600 is in 0..8, promotes the corresponding
   D_8006C838+E7A2 byte cell from 1 to 2. This links the buffer cluster to
