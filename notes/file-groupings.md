@@ -3188,6 +3188,17 @@ Members (address order):
 - ovl_11_func_800FCAF4 (m, matched this session) — clamps its s16 argument to
   999, formats 3 digits into `D_8012A028`, writes the `0xFFFF` terminator,
   draws at `D_8005E3C0->field_D8+0x54` via `func_80017B3C`
+- ovl_11_func_800FCB80 (m) — registrar wrapper: calls the text-draw leaf
+  `ovl_11_func_800FD194(0)` then registers `ovl_11_func_800FCBB4` via
+  `ovl_11_func_800FD034(D_80127222, ovl_11_func_800FCBB4)`, reading
+  `D_80127222` (unk2 of entry 0 of the `D_80127220` table walked by
+  `ovl_11_func_800FC6A4`)
+- ovl_11_func_800FCBB4 (m, matched this session) — row refresh over the
+  `D_800742EC` 0xB4-stride records: selects the active record by arg0
+  (u16@+0 nonzero and `!(s32@+0x34 & 0x02000000)`), then draws two text rows
+  via `ovl_11_func_800FE558` / `ovl_11_func_800FD21C` (plus
+  `ovl_11_func_800FC7F0`) and reads the record fields +0x0/+0x16/+0x1A/
+  +0x1C/+0x1E/+0x34/+0xAE
 - ovl_11_func_800FD21C (s) — seeds `D_8012A028` halfwords (0x90@0, 0xFFD@2,
   0x71@8, 0@0x10, 0x26@0x12, 0x24@0x14, `0xFFD` fill at +0x1C) and runs two
   `func_8001A970` transports
@@ -3202,6 +3213,19 @@ Members (address order):
 - ovl_11_func_800FE558 (s) — formats 0xE digits into `D_8012A028`, writes the
   `0xFFFF` terminator, scans the buffer for `0xFFD`, draws at
   `D_8005E3C0->field_D8+0x54` via `func_80017B3C`
+
+Widening (byte-exact match of `ovl_11_func_800FCBB4`, 2026-11): the gapless link
+run that starts at member `ovl_11_func_800FCAF4` (0x800FCAF4, 0x8C) continues
+through `ovl_11_func_800FCB80` (0x800FCB80, 0x34) into
+`ovl_11_func_800FCBB4` (0x800FCBB4, 0x158) with no gap, and each is anchored to
+the cluster by a separate thread: 800FCB80 reads `D_80127222` from the
+`D_80127220` table that member `ovl_11_func_800FC6A4` walks, and takes the
+address of 800FCBB4 for the `ovl_11_func_800FD034` callback slot, while 800FCBB4
+builds its two rows through cluster members `ovl_11_func_800FE558` and
+`ovl_11_func_800FD21C`. 800FCBB4 stages nothing into `D_8012A028` itself, so its
+membership rests on the run continuity plus the shared table/call anchors rather
+than the buffer fingerprint; same caveat as the 800FC544 draw-leaf note above,
+whose call set overlaps without sharing the buffer.
 
 ---
 
