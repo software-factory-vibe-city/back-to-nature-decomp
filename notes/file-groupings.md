@@ -1072,6 +1072,13 @@ Members (address order, matched so far):
   ovl_11_func_80108104, which clears it to 0 across the boundary
 - ovl_11_func_80108104 (m) — clears D_8012D040 and D_8012D044 to 0; cluster's
   confirmed writer at the run head
+- ovl_11_func_80108118 (m, matched this session) — head-run dispatcher/gate:
+  reads the D_8006C838 buffer at +0x44B8..+0x44C0 and +0xE4C8/+0xE4CA and,
+  unless ovl_11_func_801081A0 returns 1, calls the cluster setters
+  ovl_11_func_8010822C/801082B0/801082F8 with those fields; sits gaplessly
+  between the head writer ovl_11_func_80108104 and ovl_11_func_801081A0 and
+  shares the +0x44BA/+0x44BC buffer reads with run member
+  ovl_11_func_80107B84
 - ovl_11_func_80108214 (m, matched this session) — leaf probe reading u16
   D_8012D052, returns (D_8012D052 - 0x10) < 2; byte-exact clean C, baseline
   flags; the run's only confirmed reader of the +2 field
