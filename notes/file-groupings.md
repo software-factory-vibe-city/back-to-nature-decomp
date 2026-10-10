@@ -10435,8 +10435,12 @@ Members (link order):
   poll, then func_8001719C(D_8005E3B0+0x4290)
 - ovl_19_func_800BB8F4 (s) — same display-setup idiom, plus four func_80015704
   calls
-- ovl_19_func_800BBB48 (s) — same idiom via func_80014BCC / func_8001719C,
-  plus record copies
+- ovl_19_func_800BBB48 (m, matched this session, byte-exact) — same idiom via
+  func_80014BCC / func_8001719C: reads the `D_800BCB74` CD-position pair table
+  for two sector transfers, block-copies `D_8007AFF0`→`D_8009F78C`, then hands
+  the shared `D_800BF700` overlay descriptor to `func_8001BFA8`/`func_8001E340`
+  (same data object `ovl_19_func_800BB4D4` passes to `func_8001C0D4`, linking
+  this run to the D_8007AFF0 reader run below)
 - ovl_19_func_800BBCCC (m) — audio-setup leaf: func_80020B80(2,0),
   func_80020B80(1,0), func_8001FBF0 x2
 

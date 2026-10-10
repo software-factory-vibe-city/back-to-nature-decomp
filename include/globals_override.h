@@ -2002,6 +2002,17 @@ extern u8 D_80128818[];
  * lui/addiu addressing. */
 extern u8 D_800BF700[];
 
+/* D_800BCB74 - ovl_19 s32 {start,end} CD-position pair table. ovl_19
+ * func_800BBB48 reads [0], [1] and [2] and passes [1]-[0] and [2]-[1] as
+ * the sector counts of two func_80014BCC transfers. Defined in the overlay
+ * data segment, so only an extern declaration belongs here. */
+extern s32 D_800BCB74[];
+
+/* D_8009F78C - main-RAM copy destination. ovl_19_func_800BBB48 memcpys
+ * 0xBDC bytes here from the D_8007AFF0 work area (absolute lui/addiu). The
+ * TU only declares it, so an opaque byte object is enough. */
+extern u8 D_8009F78C[];
+
 /* D_800C0454 - ovl_25 FuncC0D4Args descriptor whose address
  * ovl_25_func_800BAC28 hands to func_8001C0D4. Only its address is taken, so
  * an opaque byte object is enough; the overlay build is -G0, giving absolute
