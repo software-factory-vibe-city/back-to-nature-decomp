@@ -1089,6 +1089,15 @@ Members (address order, matched so far):
   `base+E = 1`; shares the D_8012D050 base with ovl_11_func_801081A0
   (+0/+2/+4/+6/+8/+A) and ovl_11_func_801084E0 (+8/+A); byte-exact clean C,
   baseline flags
+- ovl_11_func_801082F8 (m, matched this session) — writer of the same
+  D_8012D050[2] s16 field_0/field_2 pair (+8/+A) as
+  ovl_11_func_80108470/801084E0/8010876C, gated on ovl_11_func_80108470's
+  return; reads the function-private 6-byte-record table D_801278EC at index
+  arg3 (the container's only user), the table immediately after the
+  D_801278E4 table read by cluster member ovl_11_func_8010822C; calls
+  ovl_11_func_80108470/80108594/801084E0 and sits gaplessly between
+  ovl_11_func_801082B0 and its callee ovl_11_func_80108470 in link order;
+  byte-exact clean C, baseline flags.
 - ovl_11_func_80108470 (m) — guarded setter of D_8012D050[2]'s s16
   value/state pair (+8/+A), returning whether it wrote; shares those fields
   with ovl_11_func_801084E0/8010876C (shared-global evidence: original

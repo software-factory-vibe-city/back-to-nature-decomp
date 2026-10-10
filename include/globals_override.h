@@ -88,6 +88,16 @@ extern Ovl11D050Entry D_8012D050[3];
 /* The halfword view used by ovl_11_func_801082B0 has no witnessed full extent. */
 extern s16 D_8012D050_halfwords[] __asm__("D_8012D050");
 
+/* D_801278EC - 6-byte record table read by ovl_11_func_801082F8 at index arg3:
+ * lh field_0 @0x0 (divisor input), lhu field_2 @0x2 (value base), lh field_4
+ * @0x4 (state stored to D_8012D050[2].field_2). Absolute lui+lo addressing. */
+typedef struct {
+    /* 0x00 */ s16 field_0;
+    /* 0x02 */ u16 field_2;
+    /* 0x04 */ s16 field_4;
+} Ovl11_801278ECEntry;
+extern Ovl11_801278ECEntry D_801278EC[];
+
 /* D_80128DB8 - overlay-private array of three 16-byte flat-light records
  * (GsF_LIGHT-shaped: s32 vx/vy/vz @0/4/8, u8 r/g/b @0xC/0xD/0xE), written by
  * ovl_11_func_800DB824 (absolute-addressed lui+lo in the target) and passed to
