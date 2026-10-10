@@ -2140,5 +2140,10 @@ extern u16 D_8006F5F0;
 extern s32 D_80129618;
 extern s32 D_8012961C;
 
+/* D_80128C60 - ovl_11 pointer to a u16 record, cleared and re-pointed by
+ * ovl_11_func_800CB730. Absolute-addressed (lui %hi + sw/lw %lo) from the -G0
+ * overlay; the overlay only declares it, so an extern pointer belongs here. */
+extern u16 *D_80128C60;
+
 #endif /* GLOBALS_OVERRIDE_H */
 

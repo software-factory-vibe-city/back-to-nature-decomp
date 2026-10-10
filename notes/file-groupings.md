@@ -13027,9 +13027,12 @@ members span ~0x72CAC of text (0x800D7EF8 → 0x80120F30) with no call edge
 among them, so this is a data-family tie, not proven TU membership; four of the
 six are still stubs.
 Handler pair (call-graph + shared-shape evidence, still address-apart):
-- **One call site.** `ovl_11_func_801103E8` reaches 800D7EF8 and 8011E090
+- **Two call sites.** `ovl_11_func_801103E8` reaches 800D7EF8 and 8011E090
   through one function pointer, selected by its arg1, and declares one
-  prototype for both.
+  prototype for both. `ovl_11_func_800CB730` is the mode-gate twin: it selects
+  the same two handlers by the `+0x25476` far-state halfword (1→800D7EF8,
+  6→8011E090), then indexes the returned cell into the same concrete 45-wide
+  `D_80071DFC` (25x45) / `D_80074124` (7x7) tables.
 - **One shape.** The two bodies are the same position-to-cell routine with
   different constants:
   - a dead 16-byte copy of the position;
@@ -13041,6 +13044,10 @@ Handler pair (call-graph + shared-shape evidence, still address-apart):
   and 1 for 8011E090. Through `ovl_11_func_800DAF60`, sel 0 picks the 25x45
   `D_80071DFC` table and nonzero sel picks the 7x7 `D_80074124` table.
 Members (address order):
+- ovl_11_func_800CB730 (m, byte-exact) — handler-pair mode dispatch wrapper:
+  fills a position record via `ovl_11_func_800CE034`, routes by the `+0x25476`
+  mode halfword to 800D7EF8 (mode 1, `D_80071DFC`) or 8011E090 (mode 6,
+  `D_80074124`), stores the cell pointer in `D_80128C60`, and returns 0/2/3.
 - ovl_11_func_800D7EF8 (s) — the 45x25 handler:
   - x + 0x1130, and z mirrored about 0x640, both divided by 399;
   - returns 2/3 out of bounds, plus a redundant unsigned-column / negative-row

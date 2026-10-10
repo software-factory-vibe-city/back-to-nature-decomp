@@ -104,6 +104,7 @@ void ovl_11_func_800CA6C4(void *arg0);
 s32 ovl_11_func_800CADBC(Ovl11Func800CADBCArg0 *arg0, s32 arg1);
 s16 ovl_11_func_800CB020(s16 arg0);
 s16 ovl_11_func_800CB0B0(s16 arg0);
+s32 ovl_11_func_800CB730(M2C_ae90c910b04f_M2C_ad72053e5aa9_StructOvl11CE034A *arg0);
 s32 ovl_11_func_800CBDFC(void);
 void ovl_11_func_800CBE14(s32 arg0);
 void ovl_11_func_800CBEF8(void);
