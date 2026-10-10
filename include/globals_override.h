@@ -78,6 +78,29 @@ typedef struct {
 extern struct_80076220 _D_80076220[1] __asm__("D_80076220");
 #define D_80076220 (*((struct_80076220*)_D_80076220))
 
+/* D_80124DE4 - seven 4-byte {u16,u16} pairs walked by ovl_11_func_800F0C70,
+ * which reads both halfwords with lhu and writes unk0 / unk2-1 into a parallel
+ * 0xF8-stride record. Absolute-addressed (outside $gp). */
+typedef struct {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 unk2;
+} Ovl11Pair80124DE4;
+extern Ovl11Pair80124DE4 D_80124DE4[7];
+
+/* D_80124E00 / D_80124E1E / D_80124E3C - 6-byte {s16 index, u16 unk2,
+ * u16 unk4} records consumed by ovl_11_func_800F0C70, which reads the index
+ * with lh (sign-extended into the 0x1D4-stride D_80076220 record select) and
+ * the two fields with lhu. The first two are 5-entry arrays; D_80124E3C is a
+ * -1-terminated list. Absolute-addressed (outside $gp). */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u16 unk4;
+} Ovl11Rec80124E00;
+extern Ovl11Rec80124E00 D_80124E00[5];
+extern Ovl11Rec80124E00 D_80124E1E[5];
+extern Ovl11Rec80124E00 D_80124E3C[];
+
 /* D_80076280 - second absolute-addressed array of 0x1D4-byte records, 0x60
  * bytes past D_80076220. ovl_11_func_800E8A24 and ovl_11_func_800E9778 index
  * it by a sign-extended s16 as (char *)D_80076280 + idx * 0x1D4 and read s32

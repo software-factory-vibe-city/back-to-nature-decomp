@@ -7291,6 +7291,29 @@ Members:
 
 ---
 
+## `ovl_11` D_80124DD8–D_80124E3C private record-remap data region — 0x800F02C8 / 0x800F0C70 (confidence: medium)
+
+Private overlay data region whose only source-level references in the
+container are these two `ovl_11` functions (`ovl_11_func_800F02C8` reads the
+head `D_80124DD8`; `ovl_11_func_800F0C70` reads `D_80124DE4`, `D_80124E00`,
+`D_80124E1E` and the `-1`-terminated `D_80124E3C`). Both drive the
+0x1D4-stride `D_80076220` array from this region, and both sit inside one
+gapless link-order run in `configs/splat/ovl_11.yaml` (0x800F021C ends at
+0x384A8 = 0x800F02C8; that 0x90 function ends at 0x38538; the run continues
+unbroken through 0x800F0A58 to 0x800F0C70, whose 0x190 bytes end exactly at
+0x800F0E00), so the private data tie and the link adjacency agree. Adjacency
+alone does not fix the boundary.
+
+Members (address order):
+- ovl_11_func_800F02C8 (m) — returns the index of the largest u16@+4 among
+  the five `D_80076220` entries named by `D_80124DD8`, or -1 below 0x1F4.
+- ovl_11_func_800F0C70 (m, matched this session, 0x190, byte-exact) —
+  `D_80076220` record remap from the region: seven `D_80124DE4` pairs into a
+  parallel 0xF8-stride `D_8006C838` view, then the five `D_80124E00`, the
+  five `D_80124E1E`, and the `D_80124E3C` list each set record unk24/unk26.
+
+---
+
 ## `ovl_11` 0x800C3B78 / 0x800C3CCC link-order pair — far-buffer readers (confidence: low)
 
 Gapless link-order neighbours in `ovl_11` that each dereference the
