@@ -134,6 +134,24 @@ Members:
 - ovl_11_func_800D0D7C (m) — index-of-pointer: returns the record's array
   index (0..19) or -1.
 
+## `ovl_11` D_800749F4 record-clone pair — 0x800DE8A4 / 0x800DE924 (confidence: low)
+
+Evidence: zero-gap link-order adjacency (800DE8A4, 0x80, ends exactly at
+800DE924; 800DE924, 0xA4, ends exactly at the 800DE9C8 predicate-run head)
+plus a shared call edge to the 0xB8 initializer `ovl_11_func_800DF128`: 800DE8A4
+allocates a D_800749F4 entry (via 800D0C34/800D0D7C) and initializes it with
+800DF128, and 800DE924 clones one D_800749F4 record into another through the
+same initializer. D_800749F4 is cross-container, so membership rests on the
+adjacency plus the shared initializer, not on the global alone. Not a proven TU
+boundary.
+
+Members:
+- ovl_11_func_800DE8A4 (m) — event-code 0x160–0x162 record allocator: finds a
+  free D_800749F4 entry, initializes it via 800DF128, tags it via 800D075C.
+- ovl_11_func_800DE924 (m, byte-exact) — record clone: initializes the
+  destination D_800749F4 slot via `800DF128(..., 0x160)`, copies source fields
+  +0x38/+0x3C/+0x40(minus 0xC8)/+0x30/+0x22, returns the destination.
+
 ## `ovl_11` D_800749F4 record consumer `ovl_11_func_800D0DCC` — 0x800D0DCC (confidence: medium)
 
 Evidence: called by both predicate-run twin heads — `ovl_11_func_800DF9F0`
