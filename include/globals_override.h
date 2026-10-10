@@ -202,6 +202,14 @@ struct struct_8006C838_800E7660 {
     s16 field_51EA;         /* 0x51EA */
 };
 
+/* View of D_8006C838 for ovl_11_func_800E3AA4: the s16 at +0x4438. Reached
+ * as a struct member so cc1 keeps lui %hi(D_8006C838) followed by lh/sh with
+ * 0x4438 as an immediate instead of folding the offset into the %hi. */
+struct struct_8006C838_800E3AA4 {
+    char pad_000[0x4438];   /* 0x0000-0x4437 */
+    s16 field_4438;         /* 0x4438 */
+};
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.
@@ -531,7 +539,10 @@ typedef struct {
     char pad_0[0x17];
     /* 0x17 */ u8 unk17;
     /* 0x18 */ u8 unk18;
-    char pad_19[0x130 - 0x19];
+    /* 0x19 */ u8 unk19;
+    /* 0x1A */ u8 unk1A;
+    /* 0x1B */ u8 unk1B;
+    char pad_1C[0x130 - 0x1C];
     void *field_130;
 } env_struct_0x134;
 
@@ -1269,6 +1280,11 @@ extern s16 D_800B93CE;
 
 /* D_80070CF2 - s16 global used in overlay 11 button-check functions */
 extern s16 D_80070CF2;
+
+/* D_80070C70 - s16 slot aliased with D_8006C838 + 0x4438. ovl_11_func_800E3AA4
+ * compares it against D_8007AFF0 + 0x2549C, stores -1 in its early-out arm,
+ * and ovl_11_func_800E6B18 writes its argument here. Absolute-addressed. */
+extern s16 D_80070C70;
 
 /* Partial global-object views and external storage used by the integrated
  * reconstruction batch. Field offsets are witnessed; unknown extents remain
