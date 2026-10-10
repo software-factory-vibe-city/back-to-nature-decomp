@@ -78,6 +78,12 @@ typedef struct {
 extern struct_80076220 _D_80076220[1] __asm__("D_80076220");
 #define D_80076220 (*((struct_80076220*)_D_80076220))
 
+/* D_80076280 - second absolute-addressed array of 0x1D4-byte records, 0x60
+ * bytes past D_80076220. ovl_11_func_800E8A24 and ovl_11_func_800E9778 index
+ * it by a sign-extended s16 as (char *)D_80076280 + idx * 0x1D4 and read s32
+ * fields at +0/+4/+8; the target materializes lui + addiu %lo(D_80076280). */
+extern s32 D_80076280[];
+
 /* D_8012D050 - 3-entry {s16,s16} farm-state array (ovl_11, -G0 absolute).
  * ovl_11_func_80108B8C reads field_0 @0x8 / field_2 @0xA of entry [2]. */
 typedef struct {

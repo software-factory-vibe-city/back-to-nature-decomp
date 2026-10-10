@@ -13298,3 +13298,44 @@ Members (link order):
 - ovl_11_func_800E8760 (m, 0x40) — same gate idiom and `return 1`: zero halfword
   calls `ovl_11_func_800CE744(0x15E, -1)`, else
   `ovl_11_func_8010B64C(&D_80075AD4)`.
+
+---
+
+## `ovl_11` entity-pool 0x18-byte record accessor run — 0x800E8960–0x800E8BA0 (confidence: medium)
+
+Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`): four
+link-contiguous matched functions that all reach the same entity record
+through the two-stage `D_8006C838`+0x8000 `base2[0x5DD0 >> 2]` pointer and
+stride that record by 0x18 bytes.
+
+Fingerprints:
+- link-order adjacency: an unbroken zero-gap matched run — 
+  `ovl_11_func_800E8960` (0x6C) → `ovl_11_func_800E89CC` (0x58) →
+  `ovl_11_func_800E8A24` (0x17C) → `ovl_11_func_800E8BA0` (0x50); the
+  preceding zero-gap run ends at the `800E880C` stub, so this is an
+  independent positive run;
+- shared address idiom: all four materialize `base = &D_8006C838`,
+  `base2 = base + (0x8000 >> 2)`, then index `base2[0x5DD0 >> 2]` with an
+  `s16 * 0x18` scaled offset — the entity-pool fingerprint previously recorded
+  for 800E8960/800E8BA0 inside the D_80129230 cluster, here with the whole run
+  matched and ordered;
+- near-twin pair: `800E8960` and `800E8A24` share the far-state halfword
+  `*(u16 *)(&D_8007AFF0 + 0x25476)`, the `u16@+0` write, the `s32@+8/+C/+0x10`
+  position write and the `u16@+4 |= 1` flag set;
+- `800E8A24` is the only plain-stride reader of the `D_80076280` 0x1D4 record
+  table (declared in `globals_override.h` by this session): the selector run
+  below uses the `arg0 == 0x29` / multiply-chain form, so this is a further
+  same-object accessor, not a selector-run member.
+
+Members (address order):
+- ovl_11_func_800E8960 (m) — entity-record fill: `u16@0` = far-state halfword,
+  `s32@8/C/10` from args, `u16@4 |= 1`.
+- ovl_11_func_800E89CC (m) — entity-record flag setter: set/clear bit 0 of
+  `u16@+4` of the same record.
+- ovl_11_func_800E8A24 (m, matched this session, 0x17C, byte-exact) — entity
+  fill from the `D_80076280` record table: same far-state/flag/position write
+  as 800E8960, with the position taken from `D_80076280[arg1]`'s s32@0/4/8 plus
+  a direction offset selected by `ovl_11_func_800F06D8(base+0x52C8, record)`
+  (or `arg2 & 0xFFFF`).
+- ovl_11_func_800E8BA0 (m) — entity-record reader: copies `u16@+2` of the
+  record into `D_80129560[arg1]`.
