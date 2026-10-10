@@ -4994,6 +4994,22 @@ Members (address order):
   Call-graph agreement via the shared by-value parameter ABI + zero-gap
   link order; callers (0x80114604 etc.) are stubs, so data TU ownership
   unconfirmed. StructD548 is shared-typed in include/game_types.h.
+- ovl_11 0x8011D734 seam bridge between the v0-channel fossil run and the
+  by-value struct-slice run — zero-gap link order 0x8011D474 (0x2C0, tail of
+  the fossil run) → ovl_11_func_8011D734 (0x15C) → 0x8011D890 (0xA4, head of
+  the by-value run), each starting exactly where the previous ends.
+  ovl_11_func_8011D734 (m, matched this session, byte-exact) is the record
+  client that joins the runs: it reads the D_8005E3A8 display word at +0x0
+  and +0x8, writes `ovl_11_func_8011D890(*arg0, mode)` back to the record's
+  s16 index at +0x5C on the 0x1000/0x4000 arms, checks D_8012D52C != 7 on a
+  lower arm, and returns a 0–3 state. Its argument is the word-aligned
+  0x60-byte record view Ovl11D548Arg, declared the same layout as the run's
+  StructD548 with a word-sized leading member (plain-lw by-value copy); the
+  matched call site 0x8011D804 falls inside this function, matching the D734
+  client already named in the by-value run entry.
+  Evidence class: zero-gap link order + matched call edge + shared 0x60-byte
+  record family + D_8012D52C reader; data TU ownership unconfirmed,
+  confidence low.
 - ovl_11 80114604-hub zero-gap link successor — ovl_11_func_801152BC (m,
   matched this session) is a small economy leaf that begins exactly where its
   sole caller ovl_11_func_80114604 (stub, above) ends (0x80114604 + 0xCB8 →

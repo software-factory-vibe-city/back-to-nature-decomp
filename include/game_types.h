@@ -234,6 +234,17 @@ typedef struct {
     /* 0x5E */ char pad_5E[0x60 - 0x5E];
 } StructD548;
 
+/* 0x60-byte record view passed by value from ovl_11_func_8011D734, which
+ * supplies the selector word at 0x60 as a separate argument. Same layout as
+ * StructD548 but its leading member is word-sized, so the record is 4-byte
+ * aligned and the original by-value copy is a plain lw move (StructD548's
+ * char leading member forces the unaligned ulw path). */
+typedef struct {
+    /* 0x00 */ s32 field_00[23];
+    /* 0x5C */ s16 index;
+    /* 0x5E */ s16 field_5E;
+} Ovl11D548Arg;
+
 /* Argument-record views recovered by automatic matching reconstruction
  * (tools/agent/reconstructFunction.ts). Field offsets and widths are
  * witnessed by the functions' own accesses; names are placeholders pending
