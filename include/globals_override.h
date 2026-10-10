@@ -2058,6 +2058,12 @@ extern s16 D_800BF4C0[];
  * through its own symbol (the compiler materialises D_800BF4E0 and expresses the
  * neighbouring D_800BF4C0 accesses as negative displacements from it). */
 extern s16 D_800BF4E0[];
+/* D_800BF5A0 - ovl_19 s16 state record that ovl_19_func_800B9454 anchors on:
+ * the compiler materialises D_800BF5A0 (lui + %lo) and derives the D_800BF4C0
+ * array and the +0x10/+0x58 command records it passes to the ovl_19 helpers as
+ * negative displacements from it. The s16 timer at +0x4 is read signed and
+ * unsigned and written back. Absolute-addressed (overlay build is -G0). */
+extern s16 D_800BF5A0[];
 extern u16 D_800BCEF0[];
 extern s16 D_800BCF0C[];
 extern u16 D_800BCF28[];

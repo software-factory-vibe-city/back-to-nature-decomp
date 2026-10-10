@@ -11270,6 +11270,17 @@ Members (link order):
   state writer: `func_8002261C(4, 0xE)` then, when `func_800226A4() == 2`,
   clears `s16@+0x6` and, per `func_800225B8()` result 1/2, clears `s16@+0x200`
   and sets `s16@+0x4` to 3 or to that result.
+- ovl_19_func_800B9454 (m, byte-exact, verified) — same overlay-local `D_800BF4C0`
+  state array via the `D_800BF5A0` label (`D_800BF4C0` + 0xE0, the same
+  materialise-one-label-and-fold-negative-displacement fingerprint as the
+  `D_800BF4E0`/`D_800BF560` members): counts down the `D_800BF5A0` s16 timer and
+  commands `800BAC50(D_800BF5A0, 1, 0)` on expiry, otherwise classifies the
+  `D_800BF4C0`-derived `+0x10`/`+0x58` records through
+  `800BA73C`/`800BA468`/`800BA544` against `func_80012A34(0x80)` and commands
+  `800BAC50(D_800BF5A0, 2, 0x1E)`; gapless link-order member of the run
+  `800B93B0` (ends 0x800B942C) → `800B942C` (0x28, ends 0x800B9454) →
+  `800B9454` (0x180, ends 0x800B95D4) with the documented `800B95D4`; calls
+  cluster members `800BA468`/`800BA73C`/`800BAC50`.
 - ovl_19_func_800B95D4 (s, 0x3B8) — cluster's large reader/driver on the
   `D_800BF4D0` base; calls `800BA2D4` (reads its result), `800BA33C`,
   `800BA468`, `800BA5B4`, `800BA73C`, `800BA750`, `800BAC40`.

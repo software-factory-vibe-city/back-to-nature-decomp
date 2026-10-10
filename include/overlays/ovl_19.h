@@ -14,6 +14,7 @@ void ovl_19_func_800B9050(void);
 void ovl_19_func_800B9288(void);
 void ovl_19_func_800B93B0(void);
 void ovl_19_func_800B942C(void);
+void ovl_19_func_800B9454(void);
 void ovl_19_func_800B9DC8(void);
 s32 ovl_19_func_800B9DD0(Recon_ovl_19_func_800B9DD0_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
 void ovl_19_func_800BA054(Recon_ovl_19_func_800BA054_A0View *arg0, s32 arg1, s32 arg2, s32 arg3);
