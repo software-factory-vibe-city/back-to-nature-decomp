@@ -1513,6 +1513,38 @@ extern u8 D_8012CEB8[];
 
 extern u8 D_8012D548[];
 
+/* D_8012D7B8 - 0x14-byte ovl_11 record initialized by ovl_11_func_80117A40
+ * (pointer at +0, s16 fields at +4/+6/+8/+A, s32 at +0x10) and passed as five
+ * words to ovl_11_func_8011B840 by ovl_11_func_80117BB4. */
+typedef struct {
+    /* 0x00 */ u8 *unk0;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+} Ovl11D8012D7B8;
+extern Ovl11D8012D7B8 D_8012D7B8;
+
+/* D_8012D7A8 - 8-entry s16 table of ovl_11 record indices written by
+ * ovl_11_func_80117A40 and read by ovl_11_func_80117F14/80117BB4. */
+extern s16 D_8012D7A8[];
+
+/* D_8012D79C - s32 ovl_11 state/case word written by ovl_11_func_80117A40
+ * and read by ovl_11_func_80117BB4. Address taken (lui/addiu). */
+extern s32 D_8012D79C;
+
+/* D_8012D7A0 - s32 ovl_11 state word written by ovl_11_func_80117A40 and
+ * read by ovl_11_func_80117BB4. */
+extern s32 D_8012D7A0;
+
+/* D_80051C36 - base of a table in the D_80051xxx region; the s32 read from
+ * D_80054BC0[0] is added to its address (plus offsets 0x12/0x2C/0x38/-0x50)
+ * to form the five pointers stored into the ovl_11 D_8012D548 record
+ * (ovl_11_func_80117A40). Address taken only. */
+extern u8 D_80051C36[];
+
 /* D_80051AA8 - base of a table in the D_80051xxx region; the s32 read from
  * D_80054BC0[0] is added to its address to form two pointers stored into the
  * ovl_11 D_8012D548 record (ovl_11_func_8011B210). Address taken only. */

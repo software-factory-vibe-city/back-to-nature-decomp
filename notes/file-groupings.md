@@ -10834,7 +10834,9 @@ call graph agrees (`80117BB4` calls `80117F14`). The run stops at 0x80117F70,
 which does not reference the table.
 Members (address order):
 - ovl_11_func_8011775C (s) — reads D_8012D7A8; role unknown.
-- ovl_11_func_80117A40 (s) — reads D_8012D7A8; role unknown.
+- ovl_11_func_80117A40 (m, byte-exact) — writer of the shared cluster:
+  initializes the D_8012D7A8 id table (0x128, 0x4F, 0x12F–0x131) and the
+  D_8012D7B8 state block, then calls ovl_11_func_8011D400 and returns 1.
 - ovl_11_func_80117BB4 (s) — reads D_8012D7A8 and calls 80117F14; role unknown.
 - ovl_11_func_80117F14 (m, matched this session) — clamps arg0 to 0..4, calls
   func_80022738, then returns func_8002261C(2, D_8012D7A8[arg0]).
