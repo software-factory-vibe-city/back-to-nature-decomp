@@ -11870,9 +11870,14 @@ private-state byte from the same cleared block, `D_80137588`, admits
 input flags and clamped to 0/1), while the shared-prologue writers
 `ovl_15_func_8012EE84`, `ovl_15_func_801305D4` and `ovl_15_func_801315B0`
 store `1` to it. A fourth private byte from the same cleared block,
-`D_80137587`, is written only by the initialiser and the shared-prologue
-members `ovl_15_func_80130048`, `ovl_15_func_80130F2C` and
-`ovl_15_func_80132934`. `ovl_15_func_801370B4` is also gapless
+`D_80137587`, is written by the initialiser and the shared-prologue members
+`ovl_15_func_80130048`, `ovl_15_func_80130F2C` and `ovl_15_func_80132934`;
+the cursor/selection handler `ovl_15_func_80136990` is the byte's only
+reader/updater, handling it exactly as `ovl_15_func_801370B4` handles
+`D_80137588` (same `func_8001FABC`/`func_800248B0` cursor idiom and
+`D_80054BBC[0]`-indexed base table, there `D_80051D18` against
+`ovl_15_func_801370B4`'s `D_80051D80`), so it joins this cluster and not the
+link-adjacent MemCard run. `ovl_15_func_801370B4` is also gapless
 in link order between the
 number-text formatter `ovl_15_func_8013703C` (ending exactly at its
 0x801370B4) and `ovl_15_func_80137228` (beginning exactly at its end), which
@@ -11902,6 +11907,11 @@ Members (address order):
   `ovl_15_func_80137228(0x21, 0)`, zeroes on `D_8013759A >= 0x5B`, and when
   `D_80137584 != 0x21` calls `ovl_15_func_8012E15C` and stores `1` to
   `D_80137586`; gapless link successor of `ovl_15_func_801329D0`.
+- ovl_15_func_80136990 (m, verified byte-exact this session) — cursor/selection
+  handler tied to the initialiser through `D_80137587`: steps and clamps that
+  private byte on the `D_8005E3A8` flags and draws from it; the `D_80137587`
+  twin of `ovl_15_func_801370B4`'s `D_80137588` handler, and gapless link
+  successor of the MemCard run's `ovl_15_func_801367F8`.
 - ovl_15_func_801370B4 (m, verified byte-exact this session) — cursor/selection
   handler tied to the initialiser through `D_80137588`: reads the
   `D_8005E3A8 + 0/8` input flags, calls `func_8001FABC`, steps the private byte

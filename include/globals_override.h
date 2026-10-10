@@ -1185,6 +1185,12 @@ extern u8 D_80051BF0[];
  * Only address-taken; absolute-addressed (split lui/%lo pair). */
 extern u8 D_800535E6[];
 
+/* D_80051D18 - base of a data table in the PS-X EXE, indexed by
+ * D_80054BBC[0] and passed as the second argument to func_80017B3C by
+ * ovl_15_func_80136990. Only address-taken; absolute-addressed (split
+ * lui/%lo pair, the >8-byte incomplete-array form). */
+extern u8 D_80051D18[];
+
 /* D_80051D80 - base of a data table in the PS-X EXE, indexed by
  * D_80054BBC[0] and passed as the second argument to func_80017B3C by
  * ovl_15_func_801370B4. Only address-taken; absolute-addressed (split
@@ -2072,6 +2078,13 @@ extern s32 D_8007AFF8;
  * (sb $v0, %lo). Absolute-addressed (lui + %lo) from -G0/overlay code; the
  * TU family only declares it, so a scalar extern keeps the base name. */
 extern s8 D_80137586;
+
+/* D_80137587 - ovl_15 private state byte in the overlay data segment,
+ * incremented/decremented and clamped by ovl_15_func_80136990 (lbu/sb for
+ * the +=/-= and lb for the signed comparisons). Absolute-addressed
+ * (lui + %lo) from -G0/overlay code; the TU family only declares it, so a
+ * scalar extern keeps the base name. */
+extern s8 D_80137587;
 
 /* D_80137588 - ovl_15 private state byte in the overlay data segment,
  * incremented/decremented and clamped by ovl_15_func_801370B4.
