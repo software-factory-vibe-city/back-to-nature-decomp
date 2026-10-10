@@ -11654,7 +11654,15 @@ this overlay: the initialiser writes 0, the reset wrappers
 `ovl_15_func_801300E4`, `ovl_15_func_80130FC8` and `ovl_15_func_801329D0` call
 the initialiser then store `-1` (body duplicates), `ovl_15_func_801329F8`
 calls the initialiser conditionally and stores `1`, and `ovl_15_func_8013010C`
-calls it and stores `1` from its post-`ovl_15_func_80137228` tail.
+calls it and stores `1` from its post-`ovl_15_func_80137228` tail. A third
+private-state byte from the same cleared block, `D_80137588`, admits
+`ovl_15_func_801370B4`: it is the byte's only reader/updater (stepped by the
+input flags and clamped to 0/1), while the shared-prologue writers
+`ovl_15_func_8012EE84`, `ovl_15_func_801305D4` and `ovl_15_func_801315B0`
+store `1` to it. That function is also gapless in link order between the
+number-text formatter `ovl_15_func_8013703C` (ending exactly at its
+0x801370B4) and `ovl_15_func_80137228` (beginning exactly at its end), which
+shares its `func_8001FABC` call and `D_8005E3A8 + 8` input read.
 
 Members (address order):
 - ovl_15_func_8012E15C (s) — overlay initialiser: sets
@@ -11680,6 +11688,12 @@ Members (address order):
   `ovl_15_func_80137228(0x21, 0)`, zeroes on `D_8013759A >= 0x5B`, and when
   `D_80137584 != 0x21` calls `ovl_15_func_8012E15C` and stores `1` to
   `D_80137586`; gapless link successor of `ovl_15_func_801329D0`.
+- ovl_15_func_801370B4 (m, verified byte-exact this session) — cursor/selection
+  handler tied to the initialiser through `D_80137588`: reads the
+  `D_8005E3A8 + 0/8` input flags, calls `func_8001FABC`, steps the private byte
+  up/down and clamps it to 0/1, then draws at `(D_80137588 * 0xE) + 0xC8`;
+  gapless link successor of `ovl_15_func_8013703C` and predecessor of
+  `ovl_15_func_80137228`.
 - ovl_15_func_8012FAE0 (s) — reads `D_80137828` as a buffer base.
 - ovl_15_func_80137300 (m, verified byte-exact this session) — `DrawSync(0)`,
   `ClearOTagR(D_8005E3C0->field_120, 0x800)`, then polls

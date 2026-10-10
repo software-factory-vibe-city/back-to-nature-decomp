@@ -1127,6 +1127,12 @@ extern u8 D_80051BF0[];
  * Only address-taken; absolute-addressed (split lui/%lo pair). */
 extern u8 D_800535E6[];
 
+/* D_80051D80 - base of a data table in the PS-X EXE, indexed by
+ * D_80054BBC[0] and passed as the second argument to func_80017B3C by
+ * ovl_15_func_801370B4. Only address-taken; absolute-addressed (split
+ * lui/%lo pair, the >8-byte incomplete-array form). */
+extern u8 D_80051D80[];
+
 /* D_80074124 - 7x7 table of 8-byte entries (ovl_11), written by
  * ovl_11_func_800D7B00. Each entry holds two s16 set to 0x167, two spare
  * u8, and an s16 set to 0. Reads in func_800BF630 etc. use the s16 @0
@@ -1873,6 +1879,12 @@ extern s32 D_8007AFF8;
  * (sb $v0, %lo). Absolute-addressed (lui + %lo) from -G0/overlay code; the
  * TU family only declares it, so a scalar extern keeps the base name. */
 extern s8 D_80137586;
+
+/* D_80137588 - ovl_15 private state byte in the overlay data segment,
+ * incremented/decremented and clamped by ovl_15_func_801370B4.
+ * Absolute-addressed (lui + %lo) from -G0/overlay code; the TU family only
+ * declares it, so a scalar extern keeps the base name. */
+extern s8 D_80137588;
 
 /* D_80137830 / D_80137A30 - ovl_15 checksum buffers. Absolute-addressed
  * (lui + %lo) from ovl_15 code; this TU family only declares them. The
