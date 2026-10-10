@@ -210,6 +210,22 @@ struct struct_8006C838_800E3AA4 {
     s16 field_4438;         /* 0x4438 */
 };
 
+/* View of D_8006C838 for ovl_11_func_800E4608: the flag word at +0xC and the
+ * s16/u16 pair at +0x4476..+0x4480. Reached as a struct member so cc1 keeps
+ * lui %hi(D_8006C838) as the base and uses each offset as a displacement
+ * instead of folding the offset into the %hi. */
+struct struct_8006C838_800E4608 {
+    char pad_000[0xC];      /* 0x0000-0x000B */
+    s32 field_0C;           /* 0x000C */
+    char pad_010[0x4466];   /* 0x0010-0x4475 */
+    s16 field_4476;         /* 0x4476 */
+    u16 field_4478;         /* 0x4478 */
+    u16 pad_447A;           /* 0x447A */
+    u16 field_447C;         /* 0x447C */
+    u16 pad_447E;           /* 0x447E */
+    u16 field_4480;         /* 0x4480 */
+};
+
 /* D_80076200 - four 4-byte records (s16 at +0) scanned by
  * ovl_11_func_800D08FC, which returns the address of the first record whose
  * leading s16 is -1. The same storage is also reached as D_8006C838+0x99D0.

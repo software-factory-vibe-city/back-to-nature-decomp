@@ -2333,8 +2333,9 @@ Members (address order, matched in bold):
 - ovl_11_func_800E4568 (s) — walks the D_80129230 0x30-byte records and calls
   the box tester for each flagged work-area entity (see the D_80129230 entry);
   also the run's call-graph hub
-- ovl_11_func_800E4608 (s) — fixed-coordinate box test against
-  `D_8006C838`+0x4478/+0x447C/+0x4480; forwards the hit to 800E559C
+- ovl_11_func_800E4608 (m, matched this session, byte-exact) — fixed-coordinate
+  box test against `D_8006C838`+0x4478/+0x447C/+0x4480; forwards the hit to
+  800E559C
 - ovl_11_func_800E46A8 (s) — object-relative box test from `s1+0x60..0x68`,
   the run's largest member
 - **ovl_11_func_800E48CC (m, matched this session)** — record-relative box test
