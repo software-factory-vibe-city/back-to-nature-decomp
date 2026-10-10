@@ -2293,6 +2293,53 @@ Members:
 
 ---
 
+## `ovl_11` D_8008F7F8 sprite-bank / D_80124FCC offset-table consumer set — 0x800DF228 / 0x800E0E38 / 0x8010D0EC (confidence: medium)
+
+Candidate same-TU set of three sprite-refresh wrappers on the engine loader
+`func_80015704`, extending the low-confidence `func_80015704` two-argument
+caller set above with a shared private data cluster. Each declares the loader
+locally as the two-argument (`SpriteSourceData *out, SpriteDataHeader *header`)
+prototype and materialises `$a1` as `&D_8008F7F8 + D_80124FCC[index]` — a live
+offset from the shared `D_80124FCC` offset table added to the shared
+`D_8008F7F8` sprite bank (the same bank the CD-load wrapper
+`ovl_11_func_800BD3C4` memcpy-fills). No other ovl_11 function combines those
+two globals with `func_80015704`, so the global pair is a private lookup
+cluster; link order does not bind 800E0E38 / 8010D0EC to 800DF228, so this
+witnesses a shared idiom and data cluster, not proven TU membership.
+
+Fingerprints:
+- shared sprite-bank lookup: all three call
+  `func_80015704(out, (SpriteDataHeader *)((u8 *)&D_8008F7F8 + D_80124FCC[index]))`,
+  with `index` computed from object state (`u16@+0xB2` / `u16@+0xB4` for the
+  dynamic pair, the literal 10 for 8010D0EC);
+- twin body template: 800DF228 and 800E0E38 are structural twins — call an
+  in-band state helper (`800DEEE0` / `800E0AFC`, the predicate-caller spans'
+  state probes), `switch` the returned id storing it to `s16@+0x0`, clear bit
+  0x4000000 of `s32@+0x34`, then `u16@+0xB2` selects the bank index, then
+  `u16@+0xAE` gates a per-case `func_80015868(this + 0x78, 0, 0, 0, case)` and
+  a final `u16@+0xB2`-gated `func_80015868(this + 0x78, 0, 0, 0x20, 0)`;
+- zero-gap link adjacency to the 800DF4F0 predicate run: 800DF228's
+  predecessor 800DF128 (0x100) ends exactly at 0x800DF228 and its successor
+  800DF3BC starts exactly at 0x800DF228 + 0x194, both inside the documented
+  0x800DE9C8–0x800DFB98 span; 800DF228 adds that span's `s32@+0x34` /
+  `u16@+0xAE` / `func_80015868(this + 0x78, ...)` object view and consumes
+  800DEEE0's predicate-derived state id.
+
+Members (link order):
+- ovl_11_func_800DF228 (m, matched this session, 0x194, byte-exact) — state-id
+  consumer on the 800DEEE0/800DF4F0 probe: `0x160`→1, `0x161`/`0x162`→2,
+  `u16@+0xB2 != 0`→4; also stores `0xCC8` at `s32@+0x80` when the id is
+  `0x161`; link-order-only member of the 800DF4F0 span (it does not call the
+  predicate).
+- ovl_11_func_800E0E38 (s, 0x154) — structural twin on the 800E0AFC/800E109C
+  probe: ids `0x164`→bank 5, `0x165`→6, `u16@+0xB4 < 7`→9, `u16@+0xB2 != 0`→8.
+- ovl_11_func_8010D0EC (m, 0x120) — mode-driven sprite refresh: takes bank
+  entry 10 of `D_80124FCC` relative to `D_8008F7F8` for stage modes 1/3–6, the
+  `D_8006C838 + 0xCBD8` header for mode 0x28, then `func_80015704` +
+  `func_80015868` when the header changed.
+
+---
+
 ## `ovl_11` sprite-position initializer/draw cluster — 0x800CDE3C–0x800CE210 (confidence: medium)
 
 Candidate same-TU cluster supported by paired initializer/driver layouts,
