@@ -7601,6 +7601,45 @@ Members:
   family into the `D_80076220` record family. Link-order neighbours 800E93CC
   (stub) and 800E953C do not reach the table, so adjacency adds nothing here.
 
+## `ovl_11` 0x22-record clamp and its caller/twin pair — 0x800E5704 / 0x800E5870 / 0x800EADB8 (confidence: medium)
+
+Candidate same-TU pair in `ovl_11` (`Obj\GF_FARM.bin`): the target is a
+two-call-body caller's zero-gap callee, and the caller has a duplicate-body
+twin elsewhere in the overlay that calls the same pair.
+
+Fingerprints:
+- **zero-gap caller/callee adjacency:** `ovl_11_func_800E5704` (0x16C) ends
+  exactly at `ovl_11_func_800E5870`, which calls it; `800E5870` (0x6C) in turn
+  ends exactly at the already-recorded `D_80129560` accessor-family member
+  `ovl_11_func_800E58DC`, so the documented head-of-band run extends backward
+  through `800E5870` to `800E5704`. `800E5704`'s own zero-gap predecessor is
+  `ovl_11_func_800E559C` (0x168), an unrelated SPRT/DR_TPAGE draw leaf that
+  supplies adjacency only;
+- **duplicate caller bodies:** `ovl_11_func_800E5870` and the far
+  `ovl_11_func_800EADB8` (0x6C) are the same body — `800E5B84(arg0, arg3, 0,
+  0)` followed by `800E5704(arg0, arg1, arg2, K)` — differing only in `K`
+  (12 vs 0x14). They are the only known callers of `800E5704`, and both also
+  call the `D_80129560` accessor-family member `ovl_11_func_800E5B84`;
+- **shared private-record view:** `800E5704` resolves the `0x22` record through
+  `ovl_11_func_800EFF04` and clamps `arg2` into its +0/+4/+8 s32 fields — the
+  same 12-byte record and the same `0x22` index that family members `800E5ADC`
+  and `800E8DC8` write — and resolves the `0x23` record through the same
+  helper.
+
+Members (address order):
+- ovl_11_func_800E559C (s) — zero-gap predecessor; SPRT/DR_TPAGE draw leaf,
+  adjacency only, not part of the pair
+- ovl_11_func_800E5704 (m, matched this session, 0x16C, byte-exact) —
+  `0x22`-record clamp/dispatch: clamps `arg2` into one of the record's three
+  s32 fields (min or max per the `arg1 + 2` 0..5 selector); on a change clears
+  the `0x23` record via `ovl_11_func_800D0408(4, other, 0)` and returns 1,
+  otherwise writes the `arg3 * 2`-scaled value into the `0x23` record and
+  returns 0
+- ovl_11_func_800E5870 (m) — caller and zero-gap successor: forwards `arg3`
+  to `800E5B84` then `800E5704` with trailing constant 12
+- ovl_11_func_800EADB8 (m) — duplicate-body twin caller at 0x800EADB8, same
+  two calls with trailing constant 0x14
+
 ## `ovl_11` D_80076280/D_80076300 record-selector run — 0x800E9778 / 0x800EDEB8 / 0x800E7C2C / 0x800E4428 (confidence: low)
 
 Data-family tie: `ovl_11_func_800E9778`, `ovl_11_func_800EDEB8`,
