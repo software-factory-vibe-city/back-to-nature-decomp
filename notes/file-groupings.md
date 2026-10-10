@@ -9113,6 +9113,12 @@ Members (link order):
   `func_8002261C(4, 0x18)` and sharing the 0x18 `$s0/$ra` frame; membership
   rests on the shared global + identical guard idiom, not on adjacency (it
   sits at 0x800B8654, well before the trio).
+- ovl_21_func_800B871C (m, matched this session, byte-exact) — SpuGetKeyStatus
+  state-handler over the same `D_800C0448 + 0x986` / `+ 0x988` state pair and
+  `D_800BCC60` voice-bit table as the 0x800B9178/0x800B92C8/0x800B93F0 run,
+  calling `ovl_21_func_800BA4C0` and `ovl_21_func_800B9798(0, 0xB)`; membership
+  rests on the shared globals, the `ovl_21_func_800BA4C0` call, and gapless
+  link adjacency (0x800B86B8 + 0x64 = 0x800B871C, + 0x184 = 0x800B88A0).
 - ovl_21_func_800BA7F0 (m, matched this session, byte-exact) — leaf that
   reads the 32-bit word at record offset 0x14 of three consecutive
   `D_800C0448` records starting at index `arg0*3` and returns how many equal
@@ -9296,6 +9302,10 @@ Fingerprints:
 - `D_800BCC48` — ovl_21 table of six 4-byte {u16,u16} pairs indexed by
   `arg0*4`; read by `ovl_21_func_800BAEEC` and `ovl_21_func_800B836C`, so it
   is a further shared ovl_21 data table.
+- `D_800BCCC4` — ovl_21 table of s16 selector values (0x21/0x1F/0x1E/0x20)
+  indexed by the signed halfword at `D_800C0448 + 0x640` and passed to
+  `func_8002261C(4, ...)`; read by `ovl_21_func_800B871C`, sibling of the
+  `D_800BCCD4` selector table.
 
 ## `ovl_21` D_8006C838 +0x8000 per-entity field writer+reader — 0x800BAB28 / 0x800BABF8 (confidence: medium)
 

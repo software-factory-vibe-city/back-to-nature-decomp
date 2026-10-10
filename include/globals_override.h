@@ -1846,6 +1846,12 @@ typedef struct {
 } UnkStruct800BCC48;
 extern UnkStruct800BCC48 D_800BCC48[];
 
+/* D_800BCCC4 - ovl_21 table of s16 selector values (0x21/0x1F/0x1E/0x20 at
+ * +0), indexed by a signed halfword read from the D_800C0448 state block.
+ * ovl_21_func_800B871C loads it with lh, so it is signed. Absolute-addressed
+ * (extern-only, lui + %lo) in the -G0 overlay build. */
+extern s16 D_800BCCC4[];
+
 /* D_800BCCD4 - ovl_21 table of s16 selector values (0x25/0x23/0x22/0x24 at
  * +0), indexed by a signed halfword read from the D_800C0448 state block.
  * ovl_21_func_800B90C4 loads it with lh, so it is signed. Absolute-addressed
