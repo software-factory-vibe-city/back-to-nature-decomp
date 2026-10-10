@@ -242,6 +242,20 @@ struct struct_8006C838_800E4608 {
     u16 field_4480;         /* 0x4480 */
 };
 
+/* View of D_8006C838 for ovl_11_func_800EE7BC: the u8 at +0x44CD, the s16 at
+ * +0x91C2 and the u16 at +0xE7A0. Reached as struct members so cc1 keeps the
+ * base address of D_8006C838 and uses each field offset as a displacement; for
+ * the two offsets above 0x7FFF it keeps lui %hi(D_8006C838), ori 0x8000, addu
+ * followed by the residual displacement 0x11C2 / 0x67A0. */
+struct struct_8006C838_800EE7BC {
+    char pad_000[0x44CD];   /* 0x0000-0x44CC */
+    u8 field_44CD;          /* 0x44CD */
+    char pad_44CE[0x4CF4];  /* 0x44CE-0x91C1 */
+    s16 field_91C2;         /* 0x91C2 */
+    char pad_91C4[0x55DC];  /* 0x91C4-0xE79F */
+    u16 field_E7A0;         /* 0xE7A0 */
+};
+
 /* View of D_8006C838 for ovl_11_func_800D4030: the u16 at +0x99D8. Reached
  * as a struct member so cc1 keeps lui %hi(D_8006C838) as the base and adds
  * 0x8000 then uses 0x19D8 as the load displacement (the target keeps lui
