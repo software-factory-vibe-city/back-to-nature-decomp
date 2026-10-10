@@ -7031,15 +7031,20 @@ this session). It is NOT a member — it touches no D_80128DE8 field, clearing
 0x16 stride from `D_8007AFF0 + 0x253C0`. So the D_80128DE8 grouping ends at
 0x800DB0E4; continuation of the run past that point is adjacency only.
 
-## `ovl_11` 8×0x16 D_800A03B0 record-array init/find/copy/clear run — 0x800DB0E4–0x800DB2AC (confidence: medium)
+## `ovl_11` 8×0x16 D_800A03B0 record-array init/find/copy/clear run — 0x800DB0E4–0x800DB354 (confidence: medium)
 
-Evidence: a shared 0x16-stride record object plus a gapless link run of three
+Evidence: a shared 0x16-stride record object plus a gapless link run of four
 complementary roles. `ovl_11_func_800DB0E4` memsets exactly 0xB4 bytes at
 `D_800A03AC` = a 4-byte prefix plus eight 0x16-stride records at `D_800A03B0`
 (0x4 + 8*0x16 = 0xB4); `ovl_11_func_800DB140` and matched
 `ovl_11_func_800DB23C` both read a record's first halfword and clear/copy
 0x16 bytes of that same record type. Link order 0x800DB0E4 (0x5C) →
-0x800DB140 (0xFC) → 0x800DB23C (0x70) → 0x800DB2AC (0xA8) is gapless.
+0x800DB140 (0xFC) → 0x800DB23C (0x70) → 0x800DB2AC (0xA8) → 0x800DB354
+(0xD4) is gapless. `ovl_11_func_800DB354` reads the same
+`D_8007AFF0`+0x25388 / `unk8*0x12 + 0x8A8` source-record type 800DB2AC walks
+and applies the same dest 2/8/4/6/0xE/0x10/0x12/0x14 remap, with the same
+`D_8007AFF0`+0x25476 mode gate — a fourth member, not a cross-container twin
+relation.
 The same shape appears in ovl_25 (`ovl_25_func_800BB4B4`/`800BB580`) and as a
 `D_8007AFF0 + 0x253C0` far-buffer mirror in 800DB0E4 — cross-container twin
 and mirror relations, not TU evidence here.
@@ -7059,6 +7064,12 @@ Members (link order):
   anything; otherwise it iterates the eight 0x12-stride `+0x8A8` records of
   that same arg struct, skipping 0xFFFF, and calls `ovl_11_func_800DB140` on
   each; touches no `D_800A03B0` byte itself.
+- ovl_11_func_800DB354 (m, matched this session, byte-exact) — gapless
+  successor of 800DB2AC and per-descriptor animation step: builds the `RECT`
+  from `arg0` +0xE/+0x10/+0x12/+0x14 and `MoveImage`s it to +0x4/+0x6 (with
+  +8/+0x10 shifted repeats while `D_8007AFF0`+0x25476 is 0x2C and `unk0` bit 0
+  is set), advances +0xA, and on reaching +0x2 reloads the descriptor from the
+  `D_8007AFF0`+0x25388 / 0x8A8 / 0x12 source records via the same remap.
 
 ## `ovl_11` D_8006C838 table-scan caller + exclusion-set leaf — 0x800F00E4 / 0x800F021C (confidence: low)
 

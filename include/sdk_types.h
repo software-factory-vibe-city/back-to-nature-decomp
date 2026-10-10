@@ -1789,6 +1789,20 @@ typedef struct {
 } M2C_bed1260e6722_UnkStruct800D0DB0;
 
 typedef struct {
+    u16 unk0;
+    s16 unk2;
+    s16 unk4;
+    s16 unk6;
+    u16 unk8;
+    u16 unkA;
+    u16 unkC;
+    u16 unkE;
+    u16 unk10;
+    u16 unk12;
+    u16 unk14;
+} M2C_bf20b0042153_Ovl11DB354Arg0;
+
+typedef struct {
                char pad_00[0x16];
                u16 unk16;
                char pad_18[0x30 - 0x18];
