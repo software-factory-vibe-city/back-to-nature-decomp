@@ -5691,7 +5691,7 @@ Members (address order):
   +0xE4C8 cell.
 
 ---
-## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800DE76C / 0x800DE46C / 0x800EFA1C (confidence: low)
+## `ovl_11` D_8006C838 flags/state-buffer cluster — 0x800BCF28 / 0x800BFD04 / 0x800CBE14 / 0x800CD3C4 / 0x800D12A0 / 0x8010C4B0 / 0x800F00AC / 0x800F2354 / 0x8010C1C0 / 0x800E953C / 0x800E63C8 / 0x800E7798 / 0x800E7954 / 0x800DE76C / 0x800DE46C / 0x800EF8BC / 0x800EFA1C (confidence: low)
 
 Scattered ovl_11 functions (gap of ~0xE00 to ~0x40000 between addresses —
 a data tie, not link-order adjacency) touching the main-binary flags/state
@@ -5916,6 +5916,10 @@ the overlay, never GP-relative), and the large-offset writers use the same
   the u8 at +0xE642 (new offset) through the cluster's +0x8000 two-stage split
   (base+0x8000, disp +0x6642) and gates it on `func_8001AF44(0xC9)` and
   `func_8001AF44(0x20)`; byte-exact clean C, baseline flags
+- ovl_11_func_800EF8BC (m, matched this session, 0x160, byte-exact) —
+  duplicate-suppression guard for the current `+0x5246`/`+0x5248` pair and the
+  `+0x5492`-selected 0x1D4-stride record's s16 key at `+0x9A0C`; zero-gap
+  link-order predecessor of member 0x800EFA1C, which is the membership tie
 - ovl_11_func_800C3F6C (m, matched this session, byte-exact) — message-dispatch
   leaf: when arg1->s16@+2 == 0, `func_8001AF44(0xA0) != 1` and the s16 at
   +0x52C6 (the `D_80071AFE` alias proved by member 0x800E63C8) equals

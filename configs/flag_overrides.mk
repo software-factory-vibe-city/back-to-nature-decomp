@@ -563,3 +563,25 @@ CC1FLAGS_ovl_11_func_800F0E00 := -fno-strength-reduce
 # file), so the override cannot disturb the matched ovl_11 neighbours.
 CC1FLAGS_ovl_11_func_800E7660 := -fno-cse-skip-blocks
 
+
+# ovl_11_func_800EF8BC: -fno-cse-skip-blocks.
+#
+# Target fingerprint (decoded from the original bytes, no source needed): the
+# prologue materializes D_8006C838 through the CSE-shared %hi exactly as
+# ovl_11_func_800F1678 — `lui $a0,%hi(D_8006C838)` once, then `addiu $v0,$a0,
+# %lo(D_8006C838)` for the +0x5492 index load, and every later reference
+# re-forms only the low half from that %hi (`addiu $v0,$a0,%lo` at 0x800EF8F8
+# and 0x800EF9D0, `addiu $v1,$a0,%lo` at 0x800EF92C, `addiu $a0,$a0,%lo` at
+# 0x800EF95C) instead of carrying a full-address pseudo across the branch joins.
+# Under baseline -fcse-skip-blocks cse.c follows the branches and keeps the full
+# lo_sum in one register; the re-materialised low half is unreachable from any
+# C shape at baseline (same mechanism as ovl_11_func_800F1678, established from
+# 21 source shapes there).
+#
+# Flag column / regional witness: ovl_11_func_800F1678 is the adjacent sibling
+# with this identical `lui %hi / addiu %lo / lh 0x5492` D_8006C838 fingerprint
+# and already carries -fno-cse-skip-blocks as a matched-project precedent;
+# ovl_11_func_800E7660 and ovl_11_func_80103B24 are further ovl_11 precedents.
+# This src file is its own TU (one function per file), so the override cannot
+# disturb the matched ovl_11 neighbours.
+CC1FLAGS_ovl_11_func_800EF8BC := -fno-cse-skip-blocks
