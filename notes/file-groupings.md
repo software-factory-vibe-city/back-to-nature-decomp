@@ -1267,6 +1267,11 @@ Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
   immediate link predecessor `ovl_11_func_801090A4` dispatches through
   `D_800BA894[this+0x26]` — table, link order and call edges agree.
 
+- ovl_11_func_801090A4 (m, matched this session, byte-exact) — immediate link
+  predecessor of 80109188 and caller of the state selector 80109594; per-frame
+  handler step that dispatches through `D_800BA894[obj+0x26]` and clears the
+  `D_8012D084` state cell, tying this dispatcher family to the ovl_11
+  `D_8012D0xx` cluster that lists the same global.
 - ovl_11_func_80109188 (m, matched this session, byte-exact) — third dual-table
   dispatcher of the class: returns -1 when `s32@+0x34 & 0x400` and
   `ovl_11_func_800C1224(D_8006C838+0x44BA, D_8006C838+0x44BC) == 8`; forces
@@ -1282,7 +1287,8 @@ Candidate same-TU family of `ovl_11` (`Obj\GF_FARM.bin`). Evidence:
   feeding this dispatcher: derives the desired state from the object's
   s32@+0x34 flag bits 0x2000/0x8000, engine s16 `D_80070CF8` and the
   `func_80012A34` selector switch, then calls 80109188 when it differs from
-  the current s16@+0x26; immediate link successor of 801090A4, which calls it.
+  the current s16@+0x26; called by the handler step 801090A4 (whose immediate
+  link successor is 80109188).
 
 ---
 

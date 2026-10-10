@@ -774,6 +774,7 @@ void ovl_11_func_80108CA4(s32 arg0);
 struct_800759E4 *ovl_11_func_80108CD0(s32 arg0, s32 arg1);
 s32 ovl_11_func_80108D38(M2C_884f54480578_Ov11FlagSet80108D38 *arg0);
 s32 ovl_11_func_80109068(M2C_0ced4ee09ea5_Ov11FlagSet *arg0);
+s32 ovl_11_func_801090A4(M2C_08b4c7960c40_Ovl11HandlerObj *arg0);
 s32 ovl_11_func_80109188(M2C_708e65b63435_Ovl11D04D4Obj *arg0, s32 arg1);
 void ovl_11_func_801092E0(s32 arg0);
 s32 ovl_11_func_80109310(s32 *arg0);

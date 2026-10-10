@@ -1565,6 +1565,18 @@ extern Ovl11D060Fields D_8012D060;
  * ovl_11_func_80109E04 reads it as the current cluster record. */
 extern s32 *D_8012D080;
 
+/* D_8012D084 - ovl_11 absolute-addressed s32 state cell. Cleared to 0 by
+ * ovl_11_func_801090A4 at the end of every handler step; written by
+ * ovl_11_func_8010A850 (three sites). Accessed with lui + %lo from ovl_11
+ * code, i.e. outside the $gp range. */
+extern s32 D_8012D084;
+
+/* D_800BA894 - ovl_11 absolute-addressed pointer table indexed by the
+ * handler object's u16 state field (obj+0x26). ovl_11_func_801090A4 reads
+ * an entry, null-tests it and calls it; ovl_11_func_80109188 null-tests an
+ * entry and clears state through it. Absolute-addressed main-RAM table. */
+extern s32 D_800BA894[];
+
 /* D_80070D30 and D_800719F8 - the ovl_11 file-status flag word and its
  * status sibling (reached as &D_800719F8 - 0xCC8). Both are >8-byte-view
  * symbols accessed with absolute addressing (lui + %lo) from ovl_11 code. */
