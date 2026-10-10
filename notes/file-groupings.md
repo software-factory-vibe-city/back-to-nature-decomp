@@ -6648,6 +6648,29 @@ Members (link order):
   through a four-threshold chain to an index 0-3 (else 4), then compares the
   `D_800BBAB4[arg0*5 + index]` halfword against `func_80012A34(0x64)`.
 
+## `ovl_23` D_800BF8A0/D_800BFA80 record-pair driver run — 0x800B9310 / 0x800BAA60 (confidence: medium)
+
+Evidence: `ovl_23_func_800B9310` (unmatched) walks two parallel six-entry
+record arrays from one base, one leaf per array — `D_800BF8A0` (stride 0x50,
+records passed to `ovl_23_func_800BA73C`) and its sibling `D_800BF8A0 + 0x1E0`
+= `D_800BFA80` (stride 0x44, records passed to `ovl_23_func_800BAA60`) — then
+calls the matched `ovl_23_func_800B954C`. Both bases sit inside the large
+`D_800BF87C` aggregate: `D_800BF8A0` = `D_800BF87C`+0x24 and `D_800BFA80` =
+`D_800BF87C`+0x204, the 0x44-stride array `ovl_23_func_800B8290` fills and
+`ovl_23_func_800BA1E0` reads. `ovl_23_func_800BAA60` adds three further shared
+fingerprints: it reads the `D_800BF87C` state fields at +0x04/+0x14, indexes
+the `D_800BBA40` table already used by `ovl_23_func_800B937C` and
+`ovl_23_func_800B989C`, and calls the append member `ovl_23_func_800B9454`. Its
+caller chain `ovl_23_func_800B92E8` → `ovl_23_func_800BB1B8` /
+`ovl_23_func_800B9310` ties the run to the documented ObjectState reset leaf.
+
+Members:
+- ovl_23_func_800B9310 (s) — six `ovl_23_func_800BA73C(D_800BF8A0 + i*0x50)`
+  then six `ovl_23_func_800BAA60(D_800BFA80 + i*0x44)`, then `800B954C`.
+- ovl_23_func_800BAA60 (m, byte-exact) — `D_800BFA80` record handler: maps
+  `unk4` 1/2/3 to a `func_80015840` state byte and appends the projected
+  sprite via `ovl_23_func_800B9454`.
+
 ## `ovl_11` mask-switch leaf run — 0x800F1BD0 / 0x800F1C48 / 0x800F1CC4 (confidence: low)
 
 Candidate same-TU run in `ovl_11` (`Obj\GF_FARM.bin`): gapless

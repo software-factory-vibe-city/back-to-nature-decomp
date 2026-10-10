@@ -2413,6 +2413,19 @@ typedef struct {
 
 typedef struct {
                s16 unk0;
+               s16 unk2;
+               s16 unk4;
+               s16 unk6;
+               s32 unk8;
+               s32 unkC;
+               char pad_10[4];
+               u8 unk14;
+               char pad_15[0x2B];
+               s16 unk40;
+} Ovl23BAA60Arg;
+
+typedef struct {
+               s16 unk0;
                char pad_02[0x12];
                s32 unk14;
                s32 unk18;

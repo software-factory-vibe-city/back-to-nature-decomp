@@ -815,6 +815,34 @@ typedef struct {
     s16 unk3B2;        /* 0x3B2 */
 } Ovl23D87CView39C;
 
+/* ovl_23_func_800BAA60 argument record: one 0x44-stride entry of the
+ * D_800BFA80 array driven by ovl_23_func_800B9310. The s16 selector switched
+ * on is at 0x04, the ObjectState-ish block begins at 0x10 (its +0x04 byte is
+ * read unsigned), the position word is at 0x0C and the s16 at 0x40 is the
+ * fourth func_80015868 argument. Only the fields the function reads are
+ * named; the full object extent is not established. */
+typedef struct {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ char pad_10[4];
+    /* 0x14 */ u8 unk14;
+    /* 0x15 */ char pad_15[0x2B];
+    /* 0x40 */ s16 unk40;
+} Ovl23BAA60Arg;
+
+/* D_800BF87C view for ovl_23_func_800BAA60: the s32 state id at 0x04 and the
+ * u16 cursor counter at 0x14, both read from the single aggregate base. */
+typedef struct {
+    /* 0x00 */ char pad_00[4];
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ char pad_08[0xC];
+    /* 0x14 */ u16 unk14;
+} Ovl23D87CViewBAA60;
+
 /* ovl_23_func_800BA1E0 argument record: s16 selector at 0x00, s32 at 0x14
  * and s32 at 0x18. Only the fields the function reads are named. */
 typedef struct {
