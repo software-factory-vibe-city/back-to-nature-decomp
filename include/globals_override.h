@@ -1045,6 +1045,27 @@ extern Ovl11RangeEntry _D_80124A18[] __asm__("D_80124A18");
 extern s32 _D_80129560[] __asm__("D_80129560");
 #define D_80129560 ((s32 *)_D_80129560)
 
+/* D_80128422 - s16 slot index into the D_801284AC position table, read by
+ * ovl_11_func_8011ECC4 (lh) and cleared by ovl_11_func_8011E574. Only ever
+ * declared extern in the overlays, so it stays absolute-addressed. */
+extern s16 D_80128422;
+
+/* D_801284AC - 8-byte-stride position records read by ovl_11_func_8011ECC4:
+ * a u16 x at +0x00 and an s16 y at +0x02. The function indexes with byte
+ * pointers to the base and to base+0x02 so both bases stay in GPRs; only ever
+ * declared extern in the overlays, so it stays absolute-addressed. */
+extern u8 D_801284AC[];
+
+/* D_8012DA80 - table of 0x30-byte SpriteSourceData records blitted by
+ * ovl_11_func_8011ECC4 at indices 0, 1 and 2. The override header cannot see
+ * game_types.h (it is included first), so the element is a 0x30-byte view and
+ * the consumer casts to SpriteSourceData *. Only ever declared extern in the
+ * overlays, so it stays absolute-addressed. */
+struct struct_8012DA80 {
+    char data[0x30];
+};
+extern struct struct_8012DA80 D_8012DA80[];
+
 /* D_801248F4 - nine-entry s16 table scanned by ovl_11_func_800E58DC: the
  * index of a matching value yields 0x731 + index. Absolute-addressed from the
  * overlay (only declared extern, never GP). */

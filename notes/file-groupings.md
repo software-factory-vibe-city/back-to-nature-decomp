@@ -8395,7 +8395,7 @@ Members (link order):
 - ovl_11_func_800FFA40 (m) — void reset: calls 800FFA28, then
   `D_801273DA = 0`
 
-## `ovl_11` D_80128420/D_80128422 init/set cluster — 0x8011E574 / 0x8011E588 / 0x8011EC54 / 0x8011EC84 (confidence: medium for the pair, low for 0x8011EC54 and 0x8011EC84)
+## `ovl_11` D_80128420/D_80128422 init/set cluster — 0x8011E574 / 0x8011E588 / 0x8011EC54 / 0x8011EC84 / 0x8011ECC4 (confidence: medium for the pair, low for 0x8011EC54, 0x8011EC84 and 0x8011ECC4)
 
 Same fingerprint class as the D_801273D8/D_801273DA entry above: an
 overlay-local {s16,s16} flag pair with an init leaf and callers that reset
@@ -8422,6 +8422,12 @@ one member after calling it.
   `ovl_11_func_8011EA0C` ignores `$v0` after the call, matching 8011E588's
   caller behaviour; it calls 8011EC54 only after first storing 6 into
   `D_80128420` itself.
+- **fifth member by adjacency + shared global read:**
+  `ovl_11_func_8011ECC4` (0x17C at 0x66EA4, matched) begins exactly where
+  8011EC84 ends (0x66E64 + 0x40 = 0x66EA4), extending the same gapless link
+  run. It is the reader of the pair's second global `D_80128422`, using it
+  to index the `D_801284AC` 8-byte-stride position table; it does not
+  touch `D_80128420`.
 
 Members (link order):
 - ovl_11_func_8011E574 (m) — void init leaf: `D_80128420 = 0`,
@@ -8431,6 +8437,9 @@ Members (link order):
   func_80022738 and func_8001FABC(3); caller ignores $v0
 - ovl_11_func_8011EC84 (m) — calls 8011E574, sets `D_80128420 = 6`, then
   calls 8011EE98 with D_80070CF2
+- ovl_11_func_8011ECC4 (m) — reads `D_80128422` to index the
+  `D_801284AC` position table while blitting sprite records; no
+  `D_80128420` access
 
 ## `ovl_11` func_8001ABF0 text-copy wrapper twin pair — 0x8011CEE0 / 0x8011CF10 (confidence: medium)
 
