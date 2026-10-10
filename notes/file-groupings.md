@@ -11574,19 +11574,23 @@ buffer base. The three are not link-adjacent (0x8012E15C, 0x8012FAE0,
 0x80137300), so the tie is the shared global, the same pattern as the
 `D_801376D0`/`D_80137AB0` run above. `D_80137828` sits immediately above the
 short array `D_80137820`, which the same initialiser clears. A second shared
-global admits a further member: the private state byte `D_80137586` (inside the
-initialiser's `D_80137584`–`D_8013759A` block) is referenced by only two
-functions, `ovl_15_func_8012E15C` and `ovl_15_func_801300E4`, and the latter is
-the initialiser's sole caller.
+global admits further members: the private state byte `D_80137586` (inside the
+initialiser's `D_80137584`–`D_8013759A` block) is referenced by three
+functions, `ovl_15_func_8012E15C`, `ovl_15_func_801300E4` and
+`ovl_15_func_80130FC8`; the latter two are the initialiser's only callers and
+are body duplicates (call the initialiser, then store `-1`).
 
 Members (address order):
 - ovl_15_func_8012E15C (s) — overlay initialiser: sets
   `D_80137828 = (u8 *)D_8007BFF8`, clears adjacent `D_80137820` and the
   `D_80137584`–`D_8013759A` state words, memsets several buffers, then calls
   `ovl_15_func_8013468C`.
-- ovl_15_func_801300E4 (m, verified byte-exact this session) — reset wrapper
-  tied to the initialiser through `D_80137586`: calls
+- ovl_15_func_801300E4 (m, verified byte-exact this session) — one of two
+  duplicate reset wrappers tied to the initialiser through `D_80137586`: calls
   `ovl_15_func_8012E15C` and stores `-1` to that private state byte.
+- ovl_15_func_80130FC8 (m, verified byte-exact this session) — second reset
+  wrapper, exact body duplicate of `ovl_15_func_801300E4`; calls
+  `ovl_15_func_8012E15C` then stores `-1` to `D_80137586`.
 - ovl_15_func_8012FAE0 (s) — reads `D_80137828` as a buffer base.
 - ovl_15_func_80137300 (m, verified byte-exact this session) — `DrawSync(0)`,
   `ClearOTagR(D_8005E3C0->field_120, 0x800)`, then polls

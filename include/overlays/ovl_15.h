@@ -23,6 +23,7 @@ void ovl_15_func_80130D3C(void);
 s32 ovl_15_func_80130DDC(void);
 s32 ovl_15_func_80130E4C(void);
 s32 ovl_15_func_80130EBC(void);
+void ovl_15_func_80130FC8(void);
 void ovl_15_func_801315B0(void);
 s32 ovl_15_func_80131778(void);
 s32 ovl_15_func_801317E8(void);
